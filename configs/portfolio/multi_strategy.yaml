@@ -1,0 +1,12 @@
+portfolio_id: core_portfolio
+strategies:
+  - strategy_id: etf_rotation
+    enabled: true
+    capital_weight: 0.6
+  - strategy_id: momentum
+    enabled: true
+    capital_weight: 0.4
+constraints:
+  max_total_leverage: 1.0
+  max_strategy_weight: 0.7
+  min_cash_buffer: 0.02

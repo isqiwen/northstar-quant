@@ -1,0 +1,14 @@
+data:
+  market: US
+  asset_type: ETF
+  symbols:
+    - SPY
+    - QQQ
+    - IWM
+    - TLT
+    - GLD
+    - XLF
+    - XLK
+    - XLE
+  data_frequency: 1d
+  source: demo

@@ -1,0 +1,51 @@
+profile_id: us_stock_weekly
+name: 美股股票周频
+market: US
+asset_type: EQUITY
+data_frequency: 1w
+rebalance_frequency: 1w
+strategy_family: cross_sectional_selection
+currency: USD
+timezone: America/New_York
+calendar: XNYS
+universe_id: us_stock_core
+benchmark_symbol: SPY
+data:
+  provider: demo
+  dataset_id: core
+  path: us/equity/1w/core.parquet
+  price_field: adjusted_close
+  download:
+    enabled: true
+    provider: demo
+    symbols:
+      - AAPL
+      - MSFT
+      - NVDA
+      - AMZN
+      - GOOGL
+      - META
+      - JPM
+      - XOM
+      - UNH
+      - COST
+    start_date: "2023-01-01"
+    options:
+      trading_days: 420
+strategies:
+  - strategy_id: momentum
+    strategy_family: cross_sectional_selection
+    enabled: true
+    capital_weight: 1.0
+    params:
+      lookback_days: 26
+      top_n: 5
+risk:
+  max_single_weight: 0.25
+  max_gross_exposure: 1.0
+  min_cash_buffer: 0.03
+schedule:
+  rebalance_cron: "35 15 * * 5"
+  daily_report_cron: "45 16 * * 1-5"
+  weekly_report_cron: "0 17 * * 5"
+  monthly_report_cron: "0 17 28-31 * *"

@@ -1,0 +1,48 @@
+profile_id: us_stock_intraday_1m
+name: 美股股票分钟级
+market: US
+asset_type: EQUITY
+data_frequency: 1m
+rebalance_frequency: 5m
+strategy_family: intraday_breakout
+currency: USD
+timezone: America/New_York
+calendar: XNYS
+universe_id: us_stock_intraday
+benchmark_symbol: SPY
+data:
+  provider: demo
+  dataset_id: core
+  path: us/equity/1m/core.parquet
+  price_field: close
+  download:
+    enabled: true
+    provider: demo
+    symbols:
+      - AAPL
+      - MSFT
+      - NVDA
+      - AMD
+      - TSLA
+    start_date: "2024-03-04"
+    options:
+      trading_days: 5
+      session_minutes: 390
+strategies:
+  - strategy_id: intraday_breakout
+    strategy_family: intraday_breakout
+    enabled: true
+    capital_weight: 1.0
+    params:
+      lookback_bars: 30
+      top_n: 2
+      min_breakout_return: 0.001
+risk:
+  max_single_weight: 0.02
+  max_gross_exposure: 1.0
+  min_cash_buffer: 0.05
+schedule:
+  rebalance_cron: "*/5 9-16 * * 1-5"
+  daily_report_cron: "45 16 * * 1-5"
+  weekly_report_cron: "0 17 * * 5"
+  monthly_report_cron: "0 17 28-31 * *"

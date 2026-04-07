@@ -1,0 +1,30 @@
+# Northstar Quant 月报
+
+- 生成时间：{{ generated_at }}
+- 报告周期：{{ period_label }}
+- 策略：{{ strategy_id }}
+- 基准：{{ benchmark_symbol }}
+
+## 一、绩效摘要
+{% for key, value in metrics.items() %}
+- **{{ key }}**：{{ value }}
+{% endfor %}
+
+## 二、当前持仓 / 目标仓位
+{% if holdings %}
+| 标的 | 目标权重 | 信号值 |
+|---|---:|---:|
+{% for row in holdings %}
+| {{ row.symbol }} | {{ row.target_weight }} | {{ row.signal_value }} |
+{% endfor %}
+{% else %}
+暂无持仓信息。
+{% endif %}
+
+## 三、备注
+本报告由 Northstar Quant 自动生成，用于审计、复盘与归档。
+
+## 四、图表数据（供 PDF 渲染器使用）
+```json
+{{ analytics_json }}
+```

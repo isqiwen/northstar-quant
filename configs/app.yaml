@@ -1,0 +1,21 @@
+app:
+  name: Northstar Quant
+  env: dev
+  timezone: America/New_York
+  market: US
+  asset_type: ETF
+  data_frequency: 1d
+  rebalance_frequency: 1d
+  strategy_family: momentum_rotation
+
+logging:
+  level: INFO
+  console_enabled: true
+  file_enabled: true
+  directory: storage/logs
+  filename: northstar.log
+  when: midnight
+  interval: 1
+  backup_count: 14
+  encoding: utf-8
+  format: "%(asctime)s | %(levelname)-8s | %(filename)s:%(lineno)d | %(message)s"

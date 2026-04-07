@@ -1,0 +1,8 @@
+strategy:
+  id: momentum
+  name: ETF 日频动量轮动
+  lookback_days: 90
+  rebalance_interval: 5
+  top_n: 3
+  commission_bps: 5
+  slippage_bps: 3

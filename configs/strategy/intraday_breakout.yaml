@@ -1,0 +1,6 @@
+strategy:
+  id: intraday_breakout
+  name: 分钟级盘中突破
+  lookback_bars: 30
+  top_n: 2
+  min_breakout_return: 0.001

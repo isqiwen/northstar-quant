@@ -1,0 +1,24 @@
+strategy_id: etf_rotation
+name: 美股 ETF 日频轮动
+universe:
+  - SPY
+  - QQQ
+  - IWM
+  - DIA
+  - EFA
+  - EEM
+  - TLT
+  - IEF
+  - GLD
+  - VNQ
+  - XLE
+  - XLK
+lookback_days: 126
+top_n: 3
+rebalance_frequency: daily
+weighting: equal
+min_liquidity_usd: 10000000
+risk:
+  max_single_weight: 0.35
+  max_gross_exposure: 1.0
+  cash_buffer: 0.02

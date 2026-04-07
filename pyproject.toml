@@ -1,0 +1,68 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "northstar-quant"
+version = "0.1.0"
+description = "Northstar Quant：面向个人量化研究者的现代化终极项目骨架"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [
+  { name = "OpenAI" }
+]
+dependencies = [
+  "typer>=0.12",
+  "rich>=13.7",
+  "pydantic>=2.8",
+  "pydantic-settings>=2.4",
+  "sqlalchemy>=2.0",
+  "psycopg[binary]>=3.2",
+  "alembic>=1.13",
+  "polars>=1.0",
+  "pyarrow>=17.0",
+  "pandas>=2.2",
+  "numpy>=1.26",
+  "vectorbt>=0.26",
+  "backtrader>=1.9.78.123",
+  "apscheduler>=3.10",
+  "structlog>=24.1",
+  "python-dotenv>=1.0",
+  "matplotlib>=3.9",
+  "plotly>=5.23",
+  "httpx>=0.27",
+  "yfinance>=0.2.54",
+  "tenacity>=8.5",
+  "pyyaml>=6.0.2",
+  "jinja2>=3.1",
+  "ib_async>=2.1.0",
+  "markdown>=3.7",
+  "streamlit>=1.38",
+  "exchange-calendars>=4.5",
+  "reportlab>=4.2",
+]
+
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3",
+  "pytest-cov>=5.0",
+  "ruff>=0.5",
+  "mypy>=1.11",
+]
+
+[project.scripts]
+northstar = "northstar_quant.cli:app"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

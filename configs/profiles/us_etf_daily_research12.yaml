@@ -1,0 +1,63 @@
+profile_id: us_etf_daily_research12
+name: 美股 ETF 日频研究12
+market: US
+asset_type: ETF
+data_frequency: 1d
+rebalance_frequency: 1d
+strategy_family: momentum_rotation
+currency: USD
+timezone: America/New_York
+calendar: XNYS
+universe_id: us_etf_research12
+benchmark_symbol: SPY
+data:
+  provider: local
+  dataset_id: research12
+  path: us/etf/1d/research12.parquet
+  price_field: adjusted_close
+  adjusted: true
+  download:
+    enabled: true
+    provider: yfinance
+    symbols:
+      - SPY
+      - QQQ
+      - IWM
+      - DIA
+      - TLT
+      - IEF
+      - GLD
+      - XLK
+      - XLF
+      - XLE
+      - XLV
+      - VNQ
+    start_date: "2005-01-03"
+    options:
+      auto_adjust: false
+      allow_partial: false
+      timeout_seconds: 30
+strategies:
+  - strategy_id: etf_rotation
+    strategy_family: momentum_rotation
+    enabled: true
+    capital_weight: 0.7
+    params:
+      lookback_days: 126
+      top_n: 3
+  - strategy_id: momentum
+    strategy_family: cross_sectional_selection
+    enabled: true
+    capital_weight: 0.3
+    params:
+      lookback_days: 20
+      top_n: 3
+risk:
+  max_single_weight: 0.35
+  max_gross_exposure: 1.0
+  min_cash_buffer: 0.02
+schedule:
+  rebalance_cron: "35 15 * * 1-5"
+  daily_report_cron: "45 16 * * 1-5"
+  weekly_report_cron: "0 17 * * 5"
+  monthly_report_cron: "0 17 28-31 * *"
