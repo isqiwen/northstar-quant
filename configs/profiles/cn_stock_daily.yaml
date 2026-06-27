@@ -17,6 +17,7 @@ execution:
   long_only: true
   rebalance_min_trade_value: 10000
   rebalance_weight_tolerance: 0.02
+  buy_qty_step: 100
 versions:
   profile: exp-cn-largecap-daily-v1
   benchmark: csi300-etf-total-return-v1

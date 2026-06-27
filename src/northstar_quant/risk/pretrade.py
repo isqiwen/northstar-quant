@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 
 from northstar_quant.execution.models import OrderRequest
+from northstar_quant.execution.quantity import resolve_qty_step
 from northstar_quant.risk.models import RiskLimits
 
 
@@ -54,7 +55,13 @@ def validate_order(order: OrderRequest, limits: RiskLimits) -> None:
     if qty > limits.max_order_qty:
         raise ValueError("订单数量超过风控上限")
 
-    _validate_qty_step(qty, limits.order_qty_step)
+    qty_step = resolve_qty_step(
+        order.side,
+        order_qty_step=limits.order_qty_step,
+        buy_qty_step=limits.buy_qty_step,
+        sell_qty_step=limits.sell_qty_step,
+    )
+    _validate_qty_step(qty, qty_step)
 
     if order.target_weight is not None and abs(order.target_weight) > limits.max_single_weight:
         raise ValueError("目标权重超过单标的权重上限")

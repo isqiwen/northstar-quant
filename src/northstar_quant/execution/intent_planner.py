@@ -8,6 +8,7 @@ from northstar_quant.common.enums import OrderSemantic
 from northstar_quant.config.settings import get_settings
 from northstar_quant.execution.intent_semantics import resolve_execution_intent_qty
 from northstar_quant.execution.models import PositionSnapshot, RebalanceOrderPlan
+from northstar_quant.execution.quantity import round_order_qty_down
 
 
 def build_execution_intent_plan(
@@ -15,11 +16,21 @@ def build_execution_intent_plan(
     positions: list[PositionSnapshot],
     latest_prices: dict[str, float],
     equity: float | None = None,
+    *,
+    rebalance_min_trade_value: float | None = None,
+    order_qty_step: float | None = None,
+    buy_qty_step: float | None = None,
+    sell_qty_step: float | None = None,
 ) -> list[RebalanceOrderPlan]:
     """Build direct order plans from execution intents."""
 
     settings = get_settings()
     equity = float(equity or settings.default_cash)
+    min_trade_value = float(
+        rebalance_min_trade_value
+        if rebalance_min_trade_value is not None
+        else settings.rebalance_min_trade_value
+    )
     position_map = {item.symbol: float(item.qty) for item in positions}
 
     plans: list[RebalanceOrderPlan] = []
@@ -46,9 +57,18 @@ def build_execution_intent_plan(
         )
         if qty <= 0:
             continue
+        qty = round_order_qty_down(
+            qty,
+            side,
+            order_qty_step=order_qty_step,
+            buy_qty_step=buy_qty_step,
+            sell_qty_step=sell_qty_step,
+        )
+        if qty <= 0:
+            continue
 
         trade_value = qty * price
-        if trade_value < settings.rebalance_min_trade_value:
+        if trade_value < min_trade_value:
             continue
 
         plans.append(

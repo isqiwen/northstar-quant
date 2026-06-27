@@ -6,6 +6,7 @@ import polars as pl
 
 from northstar_quant.config.settings import get_settings
 from northstar_quant.execution.models import PositionSnapshot, RebalanceOrderPlan
+from northstar_quant.execution.quantity import round_order_qty_down
 
 
 def build_rebalance_plan(
@@ -17,6 +18,9 @@ def build_rebalance_plan(
     rebalance_min_trade_value: float | None = None,
     rebalance_weight_tolerance: float = 0.0,
     long_only: bool = True,
+    order_qty_step: float | None = None,
+    buy_qty_step: float | None = None,
+    sell_qty_step: float | None = None,
 ) -> list[RebalanceOrderPlan]:
     """根据目标权重与真实持仓生成再平衡计划。
 
@@ -57,18 +61,26 @@ def build_rebalance_plan(
             continue
         target_qty = equity * target_weight / price
         delta_qty = target_qty - current_qty
-        trade_value = abs(delta_qty) * price
+        side = 'BUY' if delta_qty > 0 else 'SELL'
+        order_qty = round_order_qty_down(
+            abs(delta_qty),
+            side,
+            order_qty_step=order_qty_step,
+            buy_qty_step=buy_qty_step,
+            sell_qty_step=sell_qty_step,
+        )
+        trade_value = order_qty * price
 
         if trade_value < min_trade_value:
             continue
-        if abs(delta_qty) < 1e-8:
+        if order_qty < 1e-8:
             continue
 
         plans.append(
             RebalanceOrderPlan(
                 symbol=symbol,
-                side='BUY' if delta_qty > 0 else 'SELL',
-                qty=abs(delta_qty),
+                side=side,
+                qty=order_qty,
                 target_weight=target_weight,
                 current_qty=current_qty,
                 target_qty=target_qty,

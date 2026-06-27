@@ -80,6 +80,9 @@ class ProfileExecutionConfig:
     long_only: bool = True
     rebalance_min_trade_value: float | None = None
     rebalance_weight_tolerance: float = 0.0
+    order_qty_step: float | None = None
+    buy_qty_step: float | None = None
+    sell_qty_step: float | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -310,6 +313,21 @@ def load_trading_profile(
             else None
         ),
         rebalance_weight_tolerance=float(execution_raw.get("rebalance_weight_tolerance", 0.0) or 0.0),
+        order_qty_step=(
+            float(execution_raw["order_qty_step"])
+            if execution_raw.get("order_qty_step") is not None
+            else None
+        ),
+        buy_qty_step=(
+            float(execution_raw["buy_qty_step"])
+            if execution_raw.get("buy_qty_step") is not None
+            else None
+        ),
+        sell_qty_step=(
+            float(execution_raw["sell_qty_step"])
+            if execution_raw.get("sell_qty_step") is not None
+            else None
+        ),
     )
     version_config = ProfileVersionConfig(
         profile=str(versions_raw.get("profile", "v1")),

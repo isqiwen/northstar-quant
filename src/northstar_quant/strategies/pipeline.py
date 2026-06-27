@@ -36,6 +36,10 @@ def build_profile_risk_limits(profile: TradingProfile) -> RiskLimits:
         and profile.execution.rebalance_min_trade_value is not None
     ):
         risk_overrides["min_order_notional"] = profile.execution.rebalance_min_trade_value
+    for risk_key in ("order_qty_step", "buy_qty_step", "sell_qty_step"):
+        execution_value = getattr(profile.execution, risk_key)
+        if risk_key not in risk_overrides and execution_value is not None:
+            risk_overrides[risk_key] = execution_value
     return RiskLimits(**risk_overrides)
 
 

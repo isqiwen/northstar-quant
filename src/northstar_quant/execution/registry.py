@@ -248,6 +248,9 @@ def _build_bar_close_rebalance_plan(
         rebalance_min_trade_value=profile.execution.rebalance_min_trade_value,
         rebalance_weight_tolerance=profile.execution.rebalance_weight_tolerance,
         long_only=profile.execution.long_only,
+        order_qty_step=profile.execution.order_qty_step,
+        buy_qty_step=profile.execution.buy_qty_step,
+        sell_qty_step=profile.execution.sell_qty_step,
     )
     for plan in plans:
         plan.reason = f"{profile.rebalance_frequency.value}_rebalance"
@@ -262,8 +265,16 @@ def _build_direct_execution_intent_plan(
     latest_prices: dict[str, float],
     equity: float | None = None,
 ) -> list[RebalanceOrderPlan]:
-    del profile
-    return build_execution_intent_plan(intents, positions, latest_prices, equity)
+    return build_execution_intent_plan(
+        intents,
+        positions,
+        latest_prices,
+        equity,
+        rebalance_min_trade_value=profile.execution.rebalance_min_trade_value,
+        order_qty_step=profile.execution.order_qty_step,
+        buy_qty_step=profile.execution.buy_qty_step,
+        sell_qty_step=profile.execution.sell_qty_step,
+    )
 
 
 register_execution_planner(

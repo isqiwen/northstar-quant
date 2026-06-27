@@ -69,8 +69,8 @@ def test_intraday_execution_plan_supports_order_semantics():
     state = BrokerStateSnapshot(
         positions=[
             PositionSnapshot(symbol="AAPL", qty=0.0),
-            PositionSnapshot(symbol="MSFT", qty=10.0),
-            PositionSnapshot(symbol="NVDA", qty=40.0),
+            PositionSnapshot(symbol="MSFT", qty=100.0),
+            PositionSnapshot(symbol="NVDA", qty=400.0),
             PositionSnapshot(symbol="TSLA", qty=20.0),
         ]
     )
@@ -91,9 +91,9 @@ def test_intraday_execution_plan_supports_order_semantics():
     assert plan_by_symbol["AAPL"].order_semantic == "entry"
     assert plan_by_symbol["AAPL"].qty == 100.0
     assert plan_by_symbol["MSFT"].order_semantic == "exit"
-    assert plan_by_symbol["MSFT"].qty == 10.0
+    assert plan_by_symbol["MSFT"].qty == 100.0
     assert plan_by_symbol["NVDA"].order_semantic == "reduce"
-    assert plan_by_symbol["NVDA"].qty == 10.0
+    assert plan_by_symbol["NVDA"].qty == 100.0
     assert plan_by_symbol["TSLA"].order_semantic == "reverse"
     assert plan_by_symbol["TSLA"].qty == 25.0
     assert plan_by_symbol["TSLA"].reason == "flip_short"
@@ -181,7 +181,7 @@ def test_build_execution_plan_is_idempotent_against_working_orders():
     assert plans[0].qty == 200.0
 
 
-def test_execution_intent_entry_tops_up_instead_of_repeating_existing_exposure():
+def test_execution_intent_entry_skips_buy_qty_below_lot_step():
     profile = load_trading_profile("cn_stock_intraday_1m")
     intents = pl.DataFrame(
         [
@@ -217,5 +217,4 @@ def test_execution_intent_entry_tops_up_instead_of_repeating_existing_exposure()
         equity=100000.0,
     )
 
-    assert len(plans) == 1
-    assert plans[0].qty == 60.0
+    assert plans == []

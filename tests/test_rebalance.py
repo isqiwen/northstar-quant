@@ -39,3 +39,43 @@ def test_build_rebalance_plan_respects_weight_tolerance_and_long_only():
     )
 
     assert plans == []
+
+
+def test_build_rebalance_plan_rounds_buy_qty_down_to_step():
+    targets = pl.DataFrame([{"symbol": "510300.SS", "target_weight": 0.123}])
+    positions = [PositionSnapshot(symbol="510300.SS", qty=0.0)]
+    prices = {"510300.SS": 50.0}
+
+    plans = build_rebalance_plan(
+        targets,
+        positions,
+        prices,
+        equity=100000,
+        rebalance_min_trade_value=0,
+        buy_qty_step=100,
+    )
+
+    assert len(plans) == 1
+    assert plans[0].side == "BUY"
+    assert plans[0].target_qty == 246.0
+    assert plans[0].qty == 200.0
+    assert plans[0].estimated_trade_value == 10000.0
+
+
+def test_build_rebalance_plan_keeps_odd_lot_sell_when_sell_step_is_not_set():
+    targets = pl.DataFrame([{"symbol": "510300.SS", "target_weight": 0.0}])
+    positions = [PositionSnapshot(symbol="510300.SS", qty=105.0)]
+    prices = {"510300.SS": 50.0}
+
+    plans = build_rebalance_plan(
+        targets,
+        positions,
+        prices,
+        equity=100000,
+        rebalance_min_trade_value=0,
+        buy_qty_step=100,
+    )
+
+    assert len(plans) == 1
+    assert plans[0].side == "SELL"
+    assert plans[0].qty == 105.0

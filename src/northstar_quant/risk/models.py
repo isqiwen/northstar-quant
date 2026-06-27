@@ -20,3 +20,5 @@ class RiskLimits:
     max_order_notional: float | None = 50000.0
     max_order_qty: float = 10000.0
     order_qty_step: float | None = None
+    buy_qty_step: float | None = None
+    sell_qty_step: float | None = None

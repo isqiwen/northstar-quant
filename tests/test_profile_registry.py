@@ -64,6 +64,7 @@ def test_load_trading_profile_reads_profile_yaml():
     assert profile.execution.long_only is True
     assert profile.execution.rebalance_min_trade_value == 10000.0
     assert profile.execution.rebalance_weight_tolerance == 0.015
+    assert profile.execution.buy_qty_step == 100.0
     assert profile.versions.profile == "prod-cn-core-v1"
     assert profile.versions.execution_policy == "cn-low-turnover-band-150bps-v1"
     assert [item.strategy_id for item in profile.enabled_strategies] == ["etf_rotation", "momentum"]

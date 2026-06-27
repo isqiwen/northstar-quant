@@ -120,6 +120,26 @@ def test_validate_order_rejects_qty_not_matching_step():
         validate_order(order, limits)
 
 
+def test_validate_order_uses_side_specific_qty_step():
+    limits = RiskLimits(buy_qty_step=100.0, max_order_notional=None)
+    buy_order = OrderRequest(
+        strategy_id="core_portfolio",
+        symbol="510300.SS",
+        side="BUY",
+        qty=150.0,
+    )
+    sell_order = OrderRequest(
+        strategy_id="core_portfolio",
+        symbol="510300.SS",
+        side="SELL",
+        qty=150.0,
+    )
+
+    with pytest.raises(ValueError, match="订单数量不符合交易单位步长"):
+        validate_order(buy_order, limits)
+    validate_order(sell_order, limits)
+
+
 def test_validate_order_rejects_invalid_limit_price():
     limits = RiskLimits(max_order_notional=None)
     order = OrderRequest(
@@ -141,3 +161,4 @@ def test_profile_execution_min_trade_value_becomes_pretrade_notional_floor():
     limits = build_profile_risk_limits(profile)
 
     assert limits.min_order_notional == 10000.0
+    assert limits.buy_qty_step == 100.0
