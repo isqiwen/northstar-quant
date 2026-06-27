@@ -15,6 +15,7 @@ from sqlalchemy.exc import OperationalError
 
 from northstar_quant.config.settings import get_settings
 from northstar_quant.config.trading_profile import (
+    list_production_profiles,
     list_trading_profiles,
     load_trading_profile,
 )
@@ -99,12 +100,24 @@ def _render_live_overview(settings: Any) -> None:
         orders_df = pd.DataFrame(
             [
                 {
+                    "\u753b\u50cf": o.profile_id,
                     "\u7b56\u7565": o.strategy_id,
                     "\u4ee3\u7801": o.symbol,
                     "\u65b9\u5411": o.side,
                     "\u6570\u91cf": o.qty,
+                    "\u8ba2\u5355\u7c7b\u578b": o.order_type,
+                    "\u9650\u4ef7": o.limit_price,
                     "\u8ba2\u5355\u8bed\u4e49": o.order_semantic,
+                    "\u539f\u56e0": o.reason,
+                    "\u8d26\u6237": o.account,
                     "\u76ee\u6807\u6743\u91cd": o.target_weight,
+                    "\u53c2\u8003\u4ef7": o.reference_price,
+                    "\u53c2\u8003\u4ef7\u6e90": o.reference_price_source,
+                    "\u8ba1\u5212\u4ea4\u6613\u91d1\u989d": o.planned_trade_value,
+                    "Planner": o.execution_planner_id,
+                    "Run ID": o.run_id,
+                    "Batch ID": o.batch_id,
+                    "Plan ID": o.plan_id,
                     "\u5238\u5546\u8ba2\u5355\u53f7": o.broker_order_id,
                     "\u72b6\u6001": o.status,
                     "\u63d0\u4ea4\u65f6\u95f4": o.submitted_at,
@@ -179,7 +192,7 @@ def _render_legacy_schema_hint(exc: OperationalError) -> bool:
 
 
 def _render_data_overview(settings: Any) -> None:
-    profiles = list_trading_profiles()
+    profiles = list_production_profiles() or list_trading_profiles()
     if not profiles:
         st.warning("\u5f53\u524d\u6ca1\u6709\u53ef\u7528\u7684\u4ea4\u6613\u753b\u50cf\u914d\u7f6e\u3002")
         return
@@ -200,6 +213,9 @@ def _render_data_overview(settings: Any) -> None:
         " | ".join(
             [
                 profile.name,
+                f"\u89d2\u8272: {profile.lifecycle.role}",
+                f"\u4e3b\u7ebf: {profile.lifecycle.line_id}",
+                f"\u7248\u672c: {profile.versions.profile}",
                 profile.dimension_key,
                 f"\u65f6\u533a: {profile.timezone}",
                 f"\u65e5\u5386: {profile.calendar}",

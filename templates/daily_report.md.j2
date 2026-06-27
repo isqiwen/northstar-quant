@@ -1,4 +1,4 @@
-# Northstar Quant 日报
+# Northstar Quant 日报{% if live_account_attribution and live_account_attribution.alert_tag_summary %} {{ live_account_attribution.alert_tag_summary }}{% endif %}
 
 - 生成时间：{{ generated_at }}
 - 报告周期：{{ period_label }}
@@ -21,10 +21,62 @@
 暂无持仓信息。
 {% endif %}
 
-## 三、备注
+## 三、异常关注
+{% if live_account_attribution and live_account_attribution.alert_items %}
+{% for item in live_account_attribution.alert_items %}
+- [{{ item.tag }}] {{ item.message }}
+{% endfor %}
+{% else %}
+暂无异常告警。
+{% endif %}
+
+## 四、当日复盘结论
+{% if live_account_attribution and live_account_attribution.recap_lines %}
+{% for line in live_account_attribution.recap_lines %}
+- {{ line }}
+{% endfor %}
+{% else %}
+暂无自动复盘结论。
+{% endif %}
+
+## 五、最新实盘归因
+{% if live_account_attribution %}
+- 账户：{{ live_account_attribution.account or "N/A" }}
+- 归因区间：{{ live_account_attribution.start_asof }} -> {{ live_account_attribution.end_asof }}
+- 权益变化：{{ live_account_attribution.equity_change }}
+- 价格变动贡献：{{ live_account_attribution.price_pnl }}
+- 调仓贡献：{{ live_account_attribution.rebalance_pnl }}
+- 执行损耗：{{ live_account_attribution.execution_shortfall }}
+- 非交易现金流合计：{{ live_account_attribution.total_non_trade_cash_flow }}
+- 交易笔数：{{ live_account_attribution.fill_count }}
+- 交易名义金额：{{ live_account_attribution.traded_notional }}
+{% if live_account_attribution.cash_flow_rows %}
+- 非交易现金流拆分：
+{% for row in live_account_attribution.cash_flow_rows %}
+- {{ row.label }}：{{ row.value }}
+{% endfor %}
+{% endif %}
+- 未解释剩余：{{ live_account_attribution.residual_pnl }}
+{% else %}
+暂无实盘账户归因数据。
+{% endif %}
+
+## 六、最近 {{ run_health_days or 28 }} 天运行健康
+{% if run_health_summaries %}
+{% for summary in run_health_summaries %}
+### {{ summary.mode_label }}
+{% for line in summary.summary_lines %}
+- {{ line }}
+{% endfor %}
+{% endfor %}
+{% else %}
+暂无运行健康数据。
+{% endif %}
+
+## 七、备注
 本报告由 Northstar Quant 自动生成，用于审计、复盘与归档。
 
-## 四、图表数据（供 PDF 渲染器使用）
+## 八、图表数据（供 PDF 渲染器使用）
 ```json
 {{ analytics_json }}
 ```

@@ -36,16 +36,33 @@ from northstar_quant.live.service import (
     cancel_stale_orders_once,
     poll_orders_and_fills_once,
     preview_rebalance,
+    recent_anomaly_events,
+    recent_account_attributions,
+    recent_run_health,
+    recent_trade_attributions,
+    run_live_preflight,
     run_live_once,
+    run_shadow_once,
+    soak_summary,
     sync_broker_once,
 )
 from northstar_quant.logging_.logger import get_logger, setup_logging
 from northstar_quant.monitoring.health import run_healthcheck
 from northstar_quant.reporting.email_sender import send_report_via_email
 from northstar_quant.reporting.pdf_renderer import markdown_to_pdf
-from northstar_quant.reporting.report_builder import build_markdown_report, write_markdown_report
+from northstar_quant.reporting.report_builder import (
+    build_report_email_subject,
+    build_markdown_report,
+    latest_live_account_attribution_summary,
+    record_daily_anomaly_events,
+    write_markdown_report,
+)
 from northstar_quant.research.momentum_scan import run_momentum_research
-from northstar_quant.strategies.registry import build_strategy
+from northstar_quant.strategies.pipeline import (
+    latest_pipeline_output,
+    parse_strategy_selection,
+    run_profile_strategy_pipeline,
+)
 
 _HELP_CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
 _PROFILE_OPTION_HELP = "交易画像 ID，默认使用配置中的默认画像。"
@@ -103,7 +120,7 @@ def _log_message(message: str, level: int = logging.INFO, **context: object) -> 
 
 
 def _log_json(payload: object, level: int = logging.INFO, **context: object) -> None:
-    logger.bind(**context).log(level, json.dumps(payload, ensure_ascii=False, indent=2))
+    logger.bind(**context).log(level, json.dumps(payload, ensure_ascii=False, indent=2, default=str))
 
 
 @app.callback(invoke_without_command=True, **_CALLBACK_KWARGS)
@@ -236,35 +253,40 @@ def data_validate_command(
 def research_momentum_command(
     profile: str | None = typer.Option(None, "--profile", "-p", help=_PROFILE_OPTION_HELP),
 ) -> None:
-    """运行动量研究示例。"""
+    """运行基于 canonical profile pipeline 的研究扫描。"""
 
     resolved_profile = resolve_profile_id(profile)
     result = run_momentum_research(profile_id=resolved_profile)
-    _log_json(result, command="research.momentum", strategy="momentum", profile=resolved_profile)
+    _log_json(result, command="research.momentum", strategy="portfolio", profile=resolved_profile)
 
 
 @backtest_app.command("event", **_COMMAND_KWARGS)
 def event_backtest_command(
-    strategy: str = typer.Argument("etf_rotation"),
+    strategy: str = typer.Argument("portfolio"),
     profile: str | None = typer.Option(None, "--profile", "-p", help=_PROFILE_OPTION_HELP),
 ) -> None:
     """运行目标持仓事件回测。"""
 
     resolved_profile = resolve_profile_id(profile)
+    profile_obj = load_trading_profile(resolved_profile)
     market_df = load_profile_signal_data(resolved_profile)
     try:
-        strategy_obj = build_strategy(strategy)
-    except KeyError as exc:
+        pipeline = run_profile_strategy_pipeline(
+            market_df,
+            profile_obj,
+            strategy_ids=parse_strategy_selection(strategy),
+            latest_only=False,
+        )
+    except ValueError as exc:
         raise typer.BadParameter(str(exc)) from exc
 
-    if strategy_obj.output_type != StrategyOutputType.TARGET_WEIGHT:
+    if pipeline.output_type != StrategyOutputType.TARGET_WEIGHT:
         raise typer.BadParameter(
-            f"策略 {strategy} 的输出类型为 {strategy_obj.output_type.value}，不能使用 event 回测。"
+            f"策略 {strategy} 的输出类型为 {pipeline.output_type.value}，不能使用 event 回测。"
             "请改用 `northstar backtest bt`。"
         )
 
-    profile_obj = load_trading_profile(resolved_profile)
-    targets = strategy_obj.generate_output(market_df)
+    targets = pipeline.frame
     try:
         backtester = resolve_target_backtester(profile_obj)
         result = run_target_backtest(profile_obj, market_df, targets)
@@ -278,7 +300,7 @@ def event_backtest_command(
         "max_drawdown": result.max_drawdown,
         "turnover_estimate": result.turnover_estimate,
     }
-    holdings = strategy_obj.latest_output(targets)
+    holdings = latest_pipeline_output(pipeline)
     report_path = write_markdown_report(
         strategy,
         metrics,
@@ -302,7 +324,7 @@ def event_backtest_command(
 
 @backtest_app.command("bt", **_COMMAND_KWARGS)
 def bt_backtest_command(
-    strategy: str = typer.Argument("momentum"),
+    strategy: str = typer.Argument("portfolio"),
     profile: str | None = typer.Option(None, "--profile", "-p", help=_PROFILE_OPTION_HELP),
 ) -> None:
     """运行策略仿真回测。"""
@@ -320,7 +342,7 @@ def bt_backtest_command(
 
 @report_app.command("daily", **_COMMAND_KWARGS)
 def daily_report_command(
-    strategy: str = typer.Option("etf_rotation", "--strategy", "-s"),
+    strategy: str = typer.Option("portfolio", "--strategy", "-s"),
     profile: str | None = typer.Option(None, "--profile", "-p", help=_PROFILE_OPTION_HELP),
     send_email: bool = typer.Option(False, "--send-email", help="生成后立即发送邮件。"),
     send_pdf: bool = typer.Option(True, "--send-pdf/--no-send-pdf", help="发送邮件时是否自动附加 PDF 报告"),
@@ -330,7 +352,7 @@ def daily_report_command(
 
 @report_app.command("weekly", **_COMMAND_KWARGS)
 def weekly_report_command(
-    strategy: str = typer.Option("etf_rotation", "--strategy", "-s"),
+    strategy: str = typer.Option("portfolio", "--strategy", "-s"),
     profile: str | None = typer.Option(None, "--profile", "-p", help=_PROFILE_OPTION_HELP),
     send_email: bool = typer.Option(False, "--send-email", help="生成后立即发送邮件。"),
     send_pdf: bool = typer.Option(True, "--send-pdf/--no-send-pdf", help="发送邮件时是否自动附加 PDF 报告"),
@@ -340,7 +362,7 @@ def weekly_report_command(
 
 @report_app.command("monthly", **_COMMAND_KWARGS)
 def monthly_report_command(
-    strategy: str = typer.Option("etf_rotation", "--strategy", "-s"),
+    strategy: str = typer.Option("portfolio", "--strategy", "-s"),
     profile: str | None = typer.Option(None, "--profile", "-p", help=_PROFILE_OPTION_HELP),
     send_email: bool = typer.Option(False, "--send-email", help="生成后立即发送邮件。"),
     send_pdf: bool = typer.Option(True, "--send-pdf/--no-send-pdf", help="发送邮件时是否自动附加 PDF 报告"),
@@ -379,6 +401,28 @@ def live_run_command(
     resolved_profile = resolve_profile_id(profile)
     messages = run_live_once(profile_id=resolved_profile)
     _log_json(messages, command="live.run", profile=resolved_profile)
+
+
+@live_app.command("preflight", **_COMMAND_KWARGS)
+def live_preflight_command(
+    profile: str | None = typer.Option(None, "--profile", "-p", help=_PROFILE_OPTION_HELP),
+) -> None:
+    """执行一次实盘前硬门禁检查，但不真正下单。"""
+
+    resolved_profile = resolve_profile_id(profile)
+    result = run_live_preflight(profile_id=resolved_profile)
+    _log_json(result, command="live.preflight", profile=resolved_profile)
+
+
+@live_app.command("shadow-run", **_COMMAND_KWARGS)
+def live_shadow_run_command(
+    profile: str | None = typer.Option(None, "--profile", "-p", help=_PROFILE_OPTION_HELP),
+) -> None:
+    """执行一次 shadow run，但不真正下单。"""
+
+    resolved_profile = resolve_profile_id(profile)
+    result = run_shadow_once(profile_id=resolved_profile)
+    _log_json(result, command="live.shadow-run", profile=resolved_profile)
 
 
 @live_app.command("sync", **_COMMAND_KWARGS)
@@ -434,6 +478,120 @@ def live_preview_rebalance_command(
     _log_json(result, command="live.preview-rebalance", profile=resolved_profile)
 
 
+@live_app.command("trade-attribution", **_COMMAND_KWARGS)
+def live_trade_attribution_command(
+    profile: str | None = typer.Option(None, "--profile", "-p", help="可选画像过滤。"),
+    account: str | None = typer.Option(None, "--account", help="可选账户过滤。"),
+    limit: int = typer.Option(20, "--limit", min=1, max=500, help="返回最近多少条。"),
+) -> None:
+    """查看最近成交归因。"""
+
+    result = recent_trade_attributions(limit=limit, profile_id=profile, account=account)
+    _log_json(
+        result,
+        command="live.trade-attribution",
+        profile=profile,
+        account=account,
+        limit=limit,
+    )
+
+
+@live_app.command("account-attribution", **_COMMAND_KWARGS)
+def live_account_attribution_command(
+    profile: str | None = typer.Option(None, "--profile", "-p", help="可选画像过滤。"),
+    account: str | None = typer.Option(None, "--account", help="可选账户过滤。"),
+    limit: int = typer.Option(20, "--limit", min=1, max=500, help="返回最近多少条。"),
+) -> None:
+    """查看最近账户区间归因。"""
+
+    result = recent_account_attributions(limit=limit, profile_id=profile, account=account)
+    _log_json(
+        result,
+        command="live.account-attribution",
+        profile=profile,
+        account=account,
+        limit=limit,
+    )
+
+
+@live_app.command("anomaly-events", **_COMMAND_KWARGS)
+def live_anomaly_events_command(
+    profile: str | None = typer.Option(None, "--profile", "-p", help="可选画像过滤。"),
+    account: str | None = typer.Option(None, "--account", help="可选账户过滤。"),
+    alert_tag: str | None = typer.Option(None, "--tag", help="可选异常标签过滤。"),
+    limit: int = typer.Option(20, "--limit", min=1, max=500, help="返回最近多少条。"),
+) -> None:
+    """查看最近异常事件。"""
+
+    result = recent_anomaly_events(
+        limit=limit,
+        profile_id=profile,
+        account=account,
+        alert_tag=alert_tag,
+    )
+    _log_json(
+        result,
+        command="live.anomaly-events",
+        profile=profile,
+        account=account,
+        alert_tag=alert_tag,
+        limit=limit,
+    )
+
+
+@live_app.command("run-health", **_COMMAND_KWARGS)
+def live_run_health_command(
+    profile: str | None = typer.Option(None, "--profile", "-p", help="可选画像过滤。"),
+    account: str | None = typer.Option(None, "--account", help="可选账户过滤。"),
+    mode: str | None = typer.Option(None, "--mode", help="可选模式过滤，如 paper_soak / shadow_run。"),
+    limit: int = typer.Option(20, "--limit", min=1, max=500, help="返回最近多少条。"),
+) -> None:
+    """查看最近的 soak / shadow 运行健康记录。"""
+
+    result = recent_run_health(
+        limit=limit,
+        profile_id=profile,
+        account=account,
+        mode=mode,
+    )
+    _log_json(
+        result,
+        command="live.run-health",
+        profile=profile,
+        account=account,
+        mode=mode,
+        limit=limit,
+    )
+
+
+@live_app.command("soak-summary", **_COMMAND_KWARGS)
+def live_soak_summary_command(
+    profile: str | None = typer.Option(None, "--profile", "-p", help="可选画像过滤。"),
+    account: str | None = typer.Option(None, "--account", help="可选账户过滤。"),
+    mode: str | None = typer.Option(None, "--mode", help="可选模式过滤，如 paper_soak / shadow_run。"),
+    days: int = typer.Option(28, "--days", min=1, max=365, help="统计最近多少天。"),
+    limit: int = typer.Option(20, "--limit", min=1, max=200, help="附带最近多少条运行记录。"),
+) -> None:
+    """汇总最近一段时间的 soak / shadow 稳定性。"""
+
+    result = soak_summary(
+        profile_id=profile,
+        account=account,
+        mode=mode,
+        days=days,
+        limit=limit,
+    )
+    _log_json(
+        result,
+        command="live.soak-summary",
+        profile=profile,
+        account=account,
+        mode=mode,
+        days=days,
+        limit=limit,
+    )
+
+
 def _report_command(
     report_type: str,
     strategy: str,
@@ -446,18 +604,27 @@ def _report_command(
     profile_obj = load_trading_profile(resolved_profile)
     market_df = load_profile_signal_data(profile_obj)
     try:
-        strategy_obj = build_strategy(strategy)
-    except KeyError as exc:
+        pipeline = run_profile_strategy_pipeline(
+            market_df,
+            profile_obj,
+            strategy_ids=parse_strategy_selection(strategy),
+            latest_only=False,
+        )
+    except ValueError as exc:
         raise typer.BadParameter(str(exc)) from exc
 
-    if strategy_obj.output_type != StrategyOutputType.TARGET_WEIGHT:
+    if pipeline.output_type != StrategyOutputType.TARGET_WEIGHT:
         raise typer.BadParameter(
-            f"策略 {strategy} 的输出类型为 {strategy_obj.output_type.value}，当前周期报告只支持 target_weight 型策略。"
+            f"策略 {strategy} 的输出类型为 {pipeline.output_type.value}，当前周期报告只支持 target_weight 型策略。"
         )
 
-    targets = strategy_obj.generate_output(market_df)
-    holdings = strategy_obj.latest_output(targets)
-    result = run_target_backtest(profile_obj, market_df, targets)
+    holdings = latest_pipeline_output(pipeline)
+    result = run_target_backtest(profile_obj, market_df, pipeline.frame)
+    live_account_attribution = (
+        latest_live_account_attribution_summary(profile_id=resolved_profile)
+        if report_type == "daily"
+        else None
+    )
     path = build_markdown_report(
         report_type,
         strategy,
@@ -475,7 +642,10 @@ def _report_command(
             "monthly_returns": result.monthly_returns,
         },
         benchmark_symbol=profile_obj.benchmark_symbol,
+        live_account_attribution=live_account_attribution,
     )
+    if report_type == "daily":
+        record_daily_anomaly_events(path, live_account_attribution)
     _log_message(
         f"{report_type} 报告已生成：{path}",
         command=f"report.{report_type}",
@@ -485,7 +655,12 @@ def _report_command(
     )
 
     if send_email:
-        email_result = send_report_via_email(path, attach_pdf=send_pdf)
+        subject = build_report_email_subject(
+            report_type=report_type,
+            report_path=path,
+            live_account_attribution=live_account_attribution,
+        )
+        email_result = send_report_via_email(path, subject=subject, attach_pdf=send_pdf)
         _log_json(
             email_result,
             command=f"report.{report_type}",

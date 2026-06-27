@@ -16,16 +16,24 @@ from __future__ import annotations
 
 from contextlib import suppress
 from datetime import datetime
+import math
 from typing import Any
+from uuid import uuid4
 
 from northstar_quant.common.time import ensure_utc, utc_now
 from northstar_quant.config.settings import get_settings
-from northstar_quant.execution.models import BrokerStateSnapshot, FillSnapshot, PositionSnapshot
+from northstar_quant.execution.models import (
+    BrokerStateSnapshot,
+    FillSnapshot,
+    MarketQuoteSnapshot,
+    PositionSnapshot,
+)
 
 try:
-    from ib_async import IB
+    from ib_async import IB, Stock
 except Exception:  # pragma: no cover
     IB = None
+    Stock = None
 
 
 class IBKRService:
@@ -82,10 +90,17 @@ class IBKRService:
                 data[key] = value
         return data
 
-    def positions(self) -> list[PositionSnapshot]:
+    def positions(
+        self,
+        *,
+        snapshot_asof: datetime | None = None,
+        snapshot_batch_id: str | None = None,
+    ) -> list[PositionSnapshot]:
         """拉取真实持仓。"""
 
         self.connect()
+        batch_asof = ensure_utc(snapshot_asof)
+        batch_id = snapshot_batch_id or f"ibkr-pos-{uuid4().hex}"
         snapshots: list[PositionSnapshot] = []
         for pos in self.ib.positions():
             contract = getattr(pos, 'contract', None)
@@ -99,10 +114,119 @@ class IBKRService:
                     market_price=market_price,
                     market_value=qty * market_price if market_price else None,
                     account=getattr(pos, 'account', None),
-                    asof=utc_now(),
+                    asof=batch_asof,
+                    snapshot_batch_id=batch_id,
                 )
             )
         return snapshots
+
+    @staticmethod
+    def _safe_price(value: Any) -> float | None:
+        try:
+            price = float(value)
+        except Exception:
+            return None
+        if not math.isfinite(price) or price <= 0:
+            return None
+        return price
+
+    def _request_snapshot_quotes(self, symbols: list[str]) -> list[MarketQuoteSnapshot]:
+        if not symbols:
+            return []
+        if Stock is None:
+            raise RuntimeError("未安装 ib_async，无法拉取 IBKR 行情快照。")
+
+        contracts = [
+            Stock(symbol, "SMART", self.settings.trading_currency)
+            for symbol in symbols
+        ]
+        qualified_contracts = self.ib.qualifyContracts(*contracts)
+        if not qualified_contracts:
+            return []
+
+        tickers = self.ib.reqTickers(*qualified_contracts)
+        quote_asof = utc_now()
+        quotes: list[MarketQuoteSnapshot] = []
+        for ticker in tickers:
+            contract = getattr(ticker, "contract", None)
+            market_price_attr = getattr(ticker, "marketPrice", None)
+            market_price = (
+                market_price_attr()
+                if callable(market_price_attr)
+                else market_price_attr
+            )
+            market_data_type = (
+                int(getattr(ticker, "marketDataType", 0) or 0)
+                if getattr(ticker, "marketDataType", None) is not None
+                else None
+            )
+            quotes.append(
+                MarketQuoteSnapshot(
+                    symbol=str(getattr(contract, "symbol", "") or ""),
+                    bid=self._safe_price(getattr(ticker, "bid", None)),
+                    ask=self._safe_price(getattr(ticker, "ask", None)),
+                    last=self._safe_price(getattr(ticker, "last", None)),
+                    close=self._safe_price(getattr(ticker, "close", None)),
+                    market_price=self._safe_price(market_price),
+                    market_data_type=market_data_type,
+                    asof=quote_asof,
+                    source=(
+                        "broker_snapshot_delayed"
+                        if market_data_type in {3, 4}
+                        else "broker_snapshot"
+                    ),
+                )
+            )
+        return quotes
+
+    def snapshot_quotes(self, symbols: list[str]) -> list[MarketQuoteSnapshot]:
+        """拉取一次性市场报价快照。
+
+        优先尝试 live market data；若缺失，再补一次 delayed snapshot。
+        """
+
+        self.connect()
+        normalized_symbols = sorted(
+            {
+                str(symbol).strip().upper()
+                for symbol in symbols
+                if str(symbol).strip()
+            }
+        )
+        if not normalized_symbols:
+            return []
+
+        with suppress(Exception):
+            self.ib.reqMarketDataType(1)
+        live_quotes = self._request_snapshot_quotes(normalized_symbols)
+        quote_by_symbol = {
+            quote.symbol.upper(): quote
+            for quote in live_quotes
+            if str(quote.symbol).strip()
+        }
+
+        missing_symbols = [
+            symbol
+            for symbol in normalized_symbols
+            if symbol not in quote_by_symbol
+            or (
+                quote_by_symbol[symbol].bid is None
+                and quote_by_symbol[symbol].ask is None
+                and quote_by_symbol[symbol].last is None
+                and quote_by_symbol[symbol].market_price is None
+                and quote_by_symbol[symbol].close is None
+            )
+        ]
+        if missing_symbols:
+            with suppress(Exception):
+                self.ib.reqMarketDataType(3)
+            delayed_quotes = self._request_snapshot_quotes(missing_symbols)
+            for quote in delayed_quotes:
+                quote_by_symbol[str(quote.symbol).strip().upper()] = quote
+            with suppress(Exception):
+                self.ib.reqMarketDataType(1)
+
+        return [quote_by_symbol[symbol] for symbol in normalized_symbols if symbol in quote_by_symbol]
 
     def open_orders(self) -> list[dict]:
         """拉取未完成订单与状态。"""
@@ -152,14 +276,18 @@ class IBKRService:
     def sync_state(self) -> BrokerStateSnapshot:
         """一次性同步券商全量状态。"""
 
+        snapshot_asof = utc_now()
+        snapshot_batch_id = f"ibkr-pos-{uuid4().hex}"
         return BrokerStateSnapshot(
-            positions=self.positions(),
+            positions=self.positions(
+                snapshot_asof=snapshot_asof,
+                snapshot_batch_id=snapshot_batch_id,
+            ),
             open_orders=self.open_orders(),
             fills=self.recent_fills(),
             account_values=self.account_values(),
-            asof=utc_now(),
+            asof=snapshot_asof,
         )
-
 
     def cancel_order(self, broker_order_id: str) -> bool:
         """按 broker_order_id 撤单。

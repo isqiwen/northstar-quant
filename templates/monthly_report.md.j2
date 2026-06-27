@@ -21,10 +21,22 @@
 暂无持仓信息。
 {% endif %}
 
-## 三、备注
+## 三、最近 {{ run_health_days or 56 }} 天运行健康
+{% if run_health_summaries %}
+{% for summary in run_health_summaries %}
+### {{ summary.mode_label }}
+{% for line in summary.summary_lines %}
+- {{ line }}
+{% endfor %}
+{% endfor %}
+{% else %}
+暂无运行健康数据。
+{% endif %}
+
+## 四、备注
 本报告由 Northstar Quant 自动生成，用于审计、复盘与归档。
 
-## 四、图表数据（供 PDF 渲染器使用）
+## 五、图表数据（供 PDF 渲染器使用）
 ```json
 {{ analytics_json }}
 ```

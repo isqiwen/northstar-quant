@@ -28,6 +28,121 @@ _SQLITE_ADDITIVE_PATCHES: tuple[tuple[str, str, str], ...] = (
         "order_semantic",
         "ALTER TABLE order_records ADD COLUMN order_semantic VARCHAR(16)",
     ),
+    (
+        "order_records",
+        "profile_id",
+        "ALTER TABLE order_records ADD COLUMN profile_id VARCHAR(64)",
+    ),
+    (
+        "order_records",
+        "order_type",
+        "ALTER TABLE order_records ADD COLUMN order_type VARCHAR(16)",
+    ),
+    (
+        "order_records",
+        "limit_price",
+        "ALTER TABLE order_records ADD COLUMN limit_price FLOAT",
+    ),
+    (
+        "order_records",
+        "reason",
+        "ALTER TABLE order_records ADD COLUMN reason TEXT",
+    ),
+    (
+        "order_records",
+        "account",
+        "ALTER TABLE order_records ADD COLUMN account VARCHAR(64)",
+    ),
+    (
+        "order_records",
+        "reference_price",
+        "ALTER TABLE order_records ADD COLUMN reference_price FLOAT",
+    ),
+    (
+        "order_records",
+        "reference_price_source",
+        "ALTER TABLE order_records ADD COLUMN reference_price_source VARCHAR(32)",
+    ),
+    (
+        "order_records",
+        "planned_trade_value",
+        "ALTER TABLE order_records ADD COLUMN planned_trade_value FLOAT",
+    ),
+    (
+        "order_records",
+        "execution_planner_id",
+        "ALTER TABLE order_records ADD COLUMN execution_planner_id VARCHAR(64)",
+    ),
+    (
+        "order_records",
+        "run_id",
+        "ALTER TABLE order_records ADD COLUMN run_id VARCHAR(64)",
+    ),
+    (
+        "order_records",
+        "batch_id",
+        "ALTER TABLE order_records ADD COLUMN batch_id VARCHAR(64)",
+    ),
+    (
+        "order_records",
+        "plan_id",
+        "ALTER TABLE order_records ADD COLUMN plan_id VARCHAR(64)",
+    ),
+    (
+        "position_snapshot_records",
+        "snapshot_batch_id",
+        "ALTER TABLE position_snapshot_records ADD COLUMN snapshot_batch_id VARCHAR(64)",
+    ),
+    (
+        "account_snapshot_records",
+        "account_values_json",
+        "ALTER TABLE account_snapshot_records ADD COLUMN account_values_json TEXT",
+    ),
+    (
+        "trade_attribution_records",
+        "account",
+        "ALTER TABLE trade_attribution_records ADD COLUMN account VARCHAR(64)",
+    ),
+    (
+        "account_attribution_records",
+        "dividend_cash_flow",
+        "ALTER TABLE account_attribution_records ADD COLUMN dividend_cash_flow FLOAT",
+    ),
+    (
+        "account_attribution_records",
+        "interest_cash_flow",
+        "ALTER TABLE account_attribution_records ADD COLUMN interest_cash_flow FLOAT",
+    ),
+    (
+        "account_attribution_records",
+        "fee_cash_flow",
+        "ALTER TABLE account_attribution_records ADD COLUMN fee_cash_flow FLOAT",
+    ),
+    (
+        "account_attribution_records",
+        "tax_cash_flow",
+        "ALTER TABLE account_attribution_records ADD COLUMN tax_cash_flow FLOAT",
+    ),
+    (
+        "account_attribution_records",
+        "funding_cash_flow",
+        "ALTER TABLE account_attribution_records ADD COLUMN funding_cash_flow FLOAT",
+    ),
+    (
+        "account_attribution_records",
+        "corporate_action_cash_flow",
+        "ALTER TABLE account_attribution_records ADD COLUMN corporate_action_cash_flow FLOAT",
+    ),
+    (
+        "account_attribution_records",
+        "other_non_trade_cash_flow",
+        "ALTER TABLE account_attribution_records ADD COLUMN other_non_trade_cash_flow FLOAT",
+    ),
+    (
+        "account_attribution_records",
+        "total_non_trade_cash_flow",
+        "ALTER TABLE account_attribution_records ADD COLUMN total_non_trade_cash_flow FLOAT",
+    ),
 )
 
 
