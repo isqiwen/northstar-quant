@@ -6,6 +6,15 @@ from dataclasses import dataclass, field
 
 
 @dataclass(slots=True)
+class SymbolTradeState:
+    """单标的实时交易状态。"""
+
+    is_suspended: bool = False
+    limit_up_price: float | None = None
+    limit_down_price: float | None = None
+
+
+@dataclass(slots=True)
 class RiskLimits:
     """统一风控限制。
 
@@ -23,6 +32,8 @@ class RiskLimits:
     buy_qty_step: float | None = None
     sell_qty_step: float | None = None
     enforce_sellable_qty: bool = False
+    enforce_tradeable_state: bool = False
+    enforce_price_limit: bool = False
 
 
 @dataclass(slots=True)
@@ -32,6 +43,7 @@ class OrderRiskContext:
     available_cash: float | None = None
     position_qty_by_symbol: dict[str, float] = field(default_factory=dict)
     sellable_qty_by_symbol: dict[str, float] = field(default_factory=dict)
+    trade_state_by_symbol: dict[str, SymbolTradeState] = field(default_factory=dict)
     reserved_buy_notional: float = 0.0
     reserved_sell_qty_by_symbol: dict[str, float] = field(default_factory=dict)
     unresolved_open_order_count: int = 0

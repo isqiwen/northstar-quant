@@ -44,7 +44,7 @@ from northstar_quant.live.preflight import build_preflight_result
 from northstar_quant.logging_.logger import get_logger
 from northstar_quant.monitoring.alerts import send_alert
 from northstar_quant.reporting.report_builder import latest_live_account_attribution_summary
-from northstar_quant.risk.models import OrderRiskContext
+from northstar_quant.risk.models import OrderRiskContext, SymbolTradeState
 from northstar_quant.risk.pretrade import reserve_open_orders_in_context
 from northstar_quant.strategies.pipeline import (
     build_profile_risk_limits,
@@ -83,6 +83,86 @@ def _latest_valuation_price_map(market_df: pl.DataFrame) -> dict[str, float]:
         str(row["symbol"]).strip().upper(): float(row["close"])
         for row in market_df.group_by("symbol").tail(1).select(["symbol", "close"]).to_dicts()
     }
+
+
+def _optional_float(row: dict, *keys: str) -> float | None:
+    for key in keys:
+        if key not in row:
+            continue
+        value = row.get(key)
+        if value is None:
+            continue
+        try:
+            parsed = float(value)
+        except (TypeError, ValueError):
+            continue
+        if parsed > 0:
+            return parsed
+    return None
+
+
+def _optional_suspended_flag(row: dict) -> bool | None:
+    for key in ("is_suspended", "suspended", "is_halted", "halted"):
+        if key not in row:
+            continue
+        value = row.get(key)
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, int | float):
+            return bool(value)
+        text = str(value).strip().lower()
+        if text in {"true", "1", "yes", "y", "suspended", "halted", "停牌"}:
+            return True
+        if text in {"false", "0", "no", "n", "trading", "active", "正常"}:
+            return False
+
+    status = str(row.get("trade_status") or row.get("trading_status") or "").strip().lower()
+    if status in {"suspended", "halted", "停牌"}:
+        return True
+    if status in {"trading", "active", "normal", "正常"}:
+        return False
+    return None
+
+
+def _latest_trade_state_by_symbol(market_df: pl.DataFrame) -> dict[str, SymbolTradeState]:
+    """从可选行情字段中提取停牌和涨跌停状态。"""
+
+    if market_df.is_empty() or "symbol" not in market_df.columns:
+        return {}
+
+    sort_columns = [column for column in ("timestamp", "date") if column in market_df.columns]
+    latest_frame = market_df.sort(sort_columns) if sort_columns else market_df
+    rows = latest_frame.group_by("symbol").tail(1).to_dicts()
+    state_by_symbol: dict[str, SymbolTradeState] = {}
+    for row in rows:
+        symbol = str(row.get("symbol") or "").strip().upper()
+        if not symbol:
+            continue
+
+        is_suspended = _optional_suspended_flag(row)
+        limit_up_price = _optional_float(
+            row,
+            "limit_up_price",
+            "limit_up",
+            "upper_limit",
+            "up_limit",
+        )
+        limit_down_price = _optional_float(
+            row,
+            "limit_down_price",
+            "limit_down",
+            "lower_limit",
+            "down_limit",
+        )
+        if is_suspended is None and limit_up_price is None and limit_down_price is None:
+            continue
+
+        state_by_symbol[symbol] = SymbolTradeState(
+            is_suspended=bool(is_suspended),
+            limit_up_price=limit_up_price,
+            limit_down_price=limit_down_price,
+        )
+    return state_by_symbol
 
 
 def _collect_execution_symbols(
@@ -615,7 +695,11 @@ def run_live_once(profile_id: str | None = None) -> list[str]:
                 profile_id=profile.profile_id,
                 execution_planner_id=planner.planner_id,
             )
-            order_risk_context = _build_order_risk_context(state, execution_reference_prices)
+            order_risk_context = _build_order_risk_context(
+                state,
+                execution_reference_prices,
+                _latest_trade_state_by_symbol(raw_market_df),
+            )
             router = OrderRouter(broker, limits, risk_context=order_risk_context)
             run_logger.info(
                 "实盘前检查完成，持仓同步=%s，成交同步=%s，执行计划数=%s，计划快照=%s，执行价来源=%s",
@@ -879,6 +963,7 @@ def _extract_available_cash(account_values: dict) -> float | None:
 def _build_order_risk_context(
     state: BrokerStateSnapshot,
     reference_prices: dict[str, float] | None = None,
+    trade_state_by_symbol: dict[str, SymbolTradeState] | None = None,
 ) -> OrderRiskContext:
     """把券商状态转成订单路由期间的动态风控上下文。"""
 
@@ -893,6 +978,7 @@ def _build_order_risk_context(
             for item in state.positions
             if item.sellable_qty is not None
         },
+        trade_state_by_symbol=trade_state_by_symbol or {},
     )
     reserve_open_orders_in_context(context, state.open_orders, reference_prices)
     return context

@@ -10,6 +10,7 @@ from northstar_quant.config.trading_profile import load_trading_profile
 from northstar_quant.execution.models import BrokerStateSnapshot, MarketQuoteSnapshot, PositionSnapshot
 from northstar_quant.live import service as live_service
 from northstar_quant.live.preflight import build_preflight_result
+from northstar_quant.risk.models import SymbolTradeState
 
 
 def _market_frame(asof: date) -> pl.DataFrame:
@@ -230,14 +231,42 @@ def test_build_order_risk_context_reserves_existing_open_orders():
     context = live_service._build_order_risk_context(
         state,
         {"510500.SS": 100.0},
+        {
+            "510300.SS": SymbolTradeState(
+                limit_up_price=5.5,
+                limit_down_price=4.5,
+            )
+        },
     )
 
     assert context.available_cash == 1000.0
     assert context.position_qty_by_symbol["510300.SS"] == 100.0
     assert context.sellable_qty_by_symbol["510300.SS"] == 80.0
+    assert context.trade_state_by_symbol["510300.SS"].limit_up_price == 5.5
     assert context.reserved_buy_notional == 300.0
     assert context.reserved_sell_qty_by_symbol["510300.SS"] == 20.0
     assert context.unresolved_open_order_count == 0
+
+
+def test_latest_trade_state_by_symbol_reads_optional_market_fields():
+    frame = pl.DataFrame(
+        {
+            "date": ["2026-01-02", "2026-01-03", "2026-01-03"],
+            "symbol": ["510300.SS", "510300.SS", "510500.SS"],
+            "close": [5.0, 5.5, 6.0],
+            "is_suspended": [False, True, False],
+            "limit_up": [5.5, 6.05, 6.6],
+            "limit_down": [4.5, 4.95, 5.4],
+        }
+    )
+
+    state_by_symbol = live_service._latest_trade_state_by_symbol(frame)
+
+    assert state_by_symbol["510300.SS"].is_suspended is True
+    assert state_by_symbol["510300.SS"].limit_up_price == 6.05
+    assert state_by_symbol["510300.SS"].limit_down_price == 4.95
+    assert state_by_symbol["510500.SS"].is_suspended is False
+    assert state_by_symbol["510500.SS"].limit_up_price == 6.6
 
 
 def test_live_preflight_rejects_non_production_profile():

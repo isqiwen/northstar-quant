@@ -80,6 +80,12 @@ def _coerce_positive_float(value: object) -> float | None:
     return parsed
 
 
+def _order_price_basis(order: OrderRequest) -> float | None:
+    if order.limit_price is not None:
+        return _coerce_positive_float(order.limit_price)
+    return _coerce_positive_float(order.reference_price)
+
+
 def _is_working_open_order(row: Mapping[str, object]) -> bool:
     status = str(row.get("status") or "").strip().lower()
     return status not in _FINAL_OPEN_ORDER_STATUSES
@@ -175,6 +181,45 @@ def reserve_open_orders_in_context(
             context.reserved_sell_qty_by_symbol[symbol] = (
                 float(context.reserved_sell_qty_by_symbol.get(symbol, 0.0)) + remaining_qty
             )
+
+
+def _validate_trade_state(
+    order: OrderRequest,
+    limits: RiskLimits,
+    context: OrderRiskContext | None,
+) -> None:
+    if not limits.enforce_tradeable_state and not limits.enforce_price_limit:
+        return
+
+    symbol = _normalize_symbol(order.symbol)
+    if context is None:
+        raise ValueError("订单缺少标的交易状态")
+
+    trade_state = context.trade_state_by_symbol.get(symbol)
+    if trade_state is None:
+        raise ValueError("订单缺少标的交易状态")
+
+    if limits.enforce_tradeable_state and trade_state.is_suspended:
+        raise ValueError("标的停牌，禁止下单")
+
+    if not limits.enforce_price_limit:
+        return
+
+    order_price = _order_price_basis(order)
+    if order_price is None:
+        raise ValueError("价格限制检查缺少价格基准")
+
+    side = order.side.strip().upper()
+    if side == "BUY":
+        if trade_state.limit_up_price is None:
+            raise ValueError("价格限制检查缺少涨停价")
+        if order_price >= float(trade_state.limit_up_price) - 1e-8:
+            raise ValueError("买入价格触及涨停价")
+    elif side == "SELL":
+        if trade_state.limit_down_price is None:
+            raise ValueError("价格限制检查缺少跌停价")
+        if order_price <= float(trade_state.limit_down_price) + 1e-8:
+            raise ValueError("卖出价格触及跌停价")
 
 
 def _validate_account_context(
@@ -284,6 +329,8 @@ def validate_order(
 
     if order.limit_price is not None:
         _require_finite_positive(float(order.limit_price), "限价必须大于 0")
+
+    _validate_trade_state(order, limits, context)
 
     if limits.min_order_notional is not None and limits.min_order_notional > 0:
         order_notional = _resolve_order_notional(order)

@@ -2,7 +2,7 @@ import pytest
 
 from northstar_quant.config.trading_profile import load_trading_profile
 from northstar_quant.execution.models import OrderRequest
-from northstar_quant.risk.models import OrderRiskContext, RiskLimits
+from northstar_quant.risk.models import OrderRiskContext, RiskLimits, SymbolTradeState
 from northstar_quant.risk.pretrade import (
     release_order_context,
     reserve_open_orders_in_context,
@@ -297,6 +297,100 @@ def test_validate_order_requires_sellable_qty_when_enforced():
                 reference_price=5.0,
             ),
             RiskLimits(max_order_notional=None, enforce_sellable_qty=True),
+            context,
+        )
+
+
+def test_validate_order_rejects_suspended_symbol_when_enforced():
+    context = OrderRiskContext(
+        trade_state_by_symbol={
+            "510300.SS": SymbolTradeState(is_suspended=True),
+        }
+    )
+
+    with pytest.raises(ValueError, match="标的停牌，禁止下单"):
+        validate_order(
+            OrderRequest(
+                strategy_id="core_portfolio",
+                symbol="510300.SS",
+                side="BUY",
+                qty=100.0,
+                reference_price=5.0,
+            ),
+            RiskLimits(max_order_notional=None, enforce_tradeable_state=True),
+            context,
+        )
+
+
+def test_validate_order_rejects_price_limit_orders_when_enforced():
+    context = OrderRiskContext(
+        trade_state_by_symbol={
+            "510300.SS": SymbolTradeState(
+                limit_up_price=5.50,
+                limit_down_price=4.50,
+            ),
+        }
+    )
+
+    with pytest.raises(ValueError, match="买入价格触及涨停价"):
+        validate_order(
+            OrderRequest(
+                strategy_id="core_portfolio",
+                symbol="510300.SS",
+                side="BUY",
+                qty=100.0,
+                reference_price=5.50,
+            ),
+            RiskLimits(max_order_notional=None, enforce_price_limit=True),
+            context,
+        )
+
+    with pytest.raises(ValueError, match="卖出价格触及跌停价"):
+        validate_order(
+            OrderRequest(
+                strategy_id="core_portfolio",
+                symbol="510300.SS",
+                side="SELL",
+                qty=100.0,
+                reference_price=4.50,
+            ),
+            RiskLimits(max_order_notional=None, enforce_price_limit=True),
+            context,
+        )
+
+
+def test_validate_order_requires_trade_state_when_enforced():
+    with pytest.raises(ValueError, match="订单缺少标的交易状态"):
+        validate_order(
+            OrderRequest(
+                strategy_id="core_portfolio",
+                symbol="510300.SS",
+                side="BUY",
+                qty=100.0,
+                reference_price=5.0,
+            ),
+            RiskLimits(max_order_notional=None, enforce_tradeable_state=True),
+            OrderRiskContext(),
+        )
+
+
+def test_validate_order_requires_price_limit_fields_when_enforced():
+    context = OrderRiskContext(
+        trade_state_by_symbol={
+            "510300.SS": SymbolTradeState(),
+        }
+    )
+
+    with pytest.raises(ValueError, match="价格限制检查缺少涨停价"):
+        validate_order(
+            OrderRequest(
+                strategy_id="core_portfolio",
+                symbol="510300.SS",
+                side="BUY",
+                qty=100.0,
+                reference_price=5.0,
+            ),
+            RiskLimits(max_order_notional=None, enforce_price_limit=True),
             context,
         )
 
