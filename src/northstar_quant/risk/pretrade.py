@@ -6,7 +6,7 @@ import math
 
 from northstar_quant.execution.models import OrderRequest
 from northstar_quant.execution.quantity import resolve_qty_step
-from northstar_quant.risk.models import RiskLimits
+from northstar_quant.risk.models import OrderRiskContext, RiskLimits
 
 
 def _require_finite_positive(value: float, message: str) -> float:
@@ -47,7 +47,80 @@ def _validate_qty_step(qty: float, step: float | None) -> None:
         raise ValueError("订单数量不符合交易单位步长")
 
 
-def validate_order(order: OrderRequest, limits: RiskLimits) -> None:
+def _normalize_symbol(symbol: str) -> str:
+    return symbol.strip().upper()
+
+
+def _validate_account_context(
+    order: OrderRequest,
+    qty: float,
+    context: OrderRiskContext | None,
+) -> None:
+    if context is None:
+        return
+
+    side = order.side.strip().upper()
+    symbol = _normalize_symbol(order.symbol)
+    if side == "BUY" and context.available_cash is not None:
+        order_notional = _resolve_order_notional(order)
+        if order_notional is None:
+            raise ValueError("买入可用资金检查缺少价格基准")
+        available_cash = float(context.available_cash) - float(context.reserved_buy_notional)
+        if order_notional > available_cash + 1e-8:
+            raise ValueError("买入订单金额超过可用资金")
+
+    if side == "SELL":
+        position_qty = float(context.position_qty_by_symbol.get(symbol, 0.0))
+        reserved_qty = float(context.reserved_sell_qty_by_symbol.get(symbol, 0.0))
+        available_qty = position_qty - reserved_qty
+        if qty > available_qty + 1e-8:
+            raise ValueError("卖出订单数量超过可用持仓")
+
+
+def reserve_order_context(context: OrderRiskContext | None, order: OrderRequest) -> None:
+    """Reserve account capacity after an accepted order."""
+
+    if context is None:
+        return
+
+    side = order.side.strip().upper()
+    symbol = _normalize_symbol(order.symbol)
+    if side == "BUY":
+        order_notional = _resolve_order_notional(order)
+        if order_notional is not None:
+            context.reserved_buy_notional += order_notional
+    elif side == "SELL":
+        context.reserved_sell_qty_by_symbol[symbol] = (
+            float(context.reserved_sell_qty_by_symbol.get(symbol, 0.0)) + float(order.qty)
+        )
+
+
+def release_order_context(context: OrderRiskContext | None, order: OrderRequest) -> None:
+    """Release account capacity when an accepted order is canceled."""
+
+    if context is None:
+        return
+
+    side = order.side.strip().upper()
+    symbol = _normalize_symbol(order.symbol)
+    if side == "BUY":
+        order_notional = _resolve_order_notional(order)
+        if order_notional is not None:
+            context.reserved_buy_notional = max(0.0, context.reserved_buy_notional - order_notional)
+    elif side == "SELL":
+        reserved_qty = float(context.reserved_sell_qty_by_symbol.get(symbol, 0.0))
+        remaining_qty = max(0.0, reserved_qty - float(order.qty))
+        if remaining_qty:
+            context.reserved_sell_qty_by_symbol[symbol] = remaining_qty
+        else:
+            context.reserved_sell_qty_by_symbol.pop(symbol, None)
+
+
+def validate_order(
+    order: OrderRequest,
+    limits: RiskLimits,
+    context: OrderRiskContext | None = None,
+) -> None:
     """验证单笔订单是否满足交易前约束。"""
 
     qty = _require_finite_positive(float(order.qty), "订单数量必须大于 0")
@@ -82,3 +155,5 @@ def validate_order(order: OrderRequest, limits: RiskLimits) -> None:
             raise ValueError("订单金额风控缺少价格基准")
         if order_notional > limits.max_order_notional:
             raise ValueError("订单金额超过风控上限")
+
+    _validate_account_context(order, qty, context)

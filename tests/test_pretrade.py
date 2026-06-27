@@ -2,8 +2,8 @@ import pytest
 
 from northstar_quant.config.trading_profile import load_trading_profile
 from northstar_quant.execution.models import OrderRequest
-from northstar_quant.risk.models import RiskLimits
-from northstar_quant.risk.pretrade import validate_order
+from northstar_quant.risk.models import OrderRiskContext, RiskLimits
+from northstar_quant.risk.pretrade import release_order_context, reserve_order_context, validate_order
 from northstar_quant.strategies.pipeline import build_profile_risk_limits
 
 
@@ -162,3 +162,19 @@ def test_profile_execution_min_trade_value_becomes_pretrade_notional_floor():
 
     assert limits.min_order_notional == 10000.0
     assert limits.buy_qty_step == 100.0
+
+
+def test_order_context_reservation_can_be_released_after_cancel():
+    context = OrderRiskContext(available_cash=1000.0)
+    order = OrderRequest(
+        strategy_id="core_portfolio",
+        symbol="510300.SS",
+        side="BUY",
+        qty=5.0,
+        reference_price=100.0,
+    )
+
+    reserve_order_context(context, order)
+    release_order_context(context, order)
+
+    assert context.reserved_buy_notional == 0.0

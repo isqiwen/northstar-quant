@@ -24,7 +24,8 @@ from northstar_quant.execution.models import OrderRequest, OrderResult
 from northstar_quant.execution.pricing import build_execution_reference_price_map
 from northstar_quant.execution.router import OrderRouter
 from northstar_quant.logging_.logger import get_logger
-from northstar_quant.risk.models import RiskLimits
+from northstar_quant.risk.models import OrderRiskContext, RiskLimits
+from northstar_quant.risk.pretrade import release_order_context
 
 
 FINAL_STATUSES = {
@@ -50,10 +51,16 @@ class ChaseExecutionResult:
 class LimitChaseExecutor:
     """限价单追价执行器。"""
 
-    def __init__(self, broker: BrokerAdapter, limits: RiskLimits | None = None) -> None:
+    def __init__(
+        self,
+        broker: BrokerAdapter,
+        limits: RiskLimits | None = None,
+        risk_context: OrderRiskContext | None = None,
+    ) -> None:
         self.broker = broker
         self.limits = limits or RiskLimits()
-        self.router = OrderRouter(broker, self.limits)
+        self.risk_context = risk_context
+        self.router = OrderRouter(broker, self.limits, risk_context=risk_context)
         self.settings = get_settings()
 
     def execute(self, base_order: OrderRequest, reference_price: float) -> ChaseExecutionResult:
@@ -109,6 +116,8 @@ class LimitChaseExecutor:
             if terminal is None:
                 # 超时仍未完成，尝试撤单后进入下一轮追价。
                 canceled = self.broker.cancel_order(result.broker_order_id)
+                if canceled:
+                    release_order_context(self.risk_context, limit_order)
                 attempts[-1]['cancel_requested'] = canceled
                 attempts[-1]['status_after_wait'] = 'timeout'
                 chase_logger.warning(
@@ -120,6 +129,9 @@ class LimitChaseExecutor:
                 continue
 
             attempts[-1]['status_after_wait'] = terminal.get('status')
+            if str(terminal.get('status')) in {'Cancelled', 'ApiCancelled', 'cancelled'}:
+                release_order_context(self.risk_context, limit_order)
+                continue
             if str(terminal.get('status')) in FINAL_STATUSES and terminal.get('status') not in {'Cancelled', 'ApiCancelled', 'cancelled'}:
                 final = OrderResult(
                     accepted=True,

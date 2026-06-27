@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass(slots=True)
@@ -22,3 +22,13 @@ class RiskLimits:
     order_qty_step: float | None = None
     buy_qty_step: float | None = None
     sell_qty_step: float | None = None
+
+
+@dataclass(slots=True)
+class OrderRiskContext:
+    """订单路由期间的动态账户约束。"""
+
+    available_cash: float | None = None
+    position_qty_by_symbol: dict[str, float] = field(default_factory=dict)
+    reserved_buy_notional: float = 0.0
+    reserved_sell_qty_by_symbol: dict[str, float] = field(default_factory=dict)

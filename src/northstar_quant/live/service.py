@@ -29,7 +29,7 @@ from northstar_quant.db.session import SessionLocal
 from northstar_quant.execution.ibkr_adapter import IBKRBrokerAdapter
 from northstar_quant.execution.limit_chase_executor import LimitChaseExecutor
 from northstar_quant.execution.limit_executor import build_limit_order
-from northstar_quant.execution.models import OrderRequest
+from northstar_quant.execution.models import BrokerStateSnapshot, OrderRequest
 from northstar_quant.execution.pricing import (
     build_execution_reference_price_map,
     normalize_symbols,
@@ -44,6 +44,7 @@ from northstar_quant.live.preflight import build_preflight_result
 from northstar_quant.logging_.logger import get_logger
 from northstar_quant.monitoring.alerts import send_alert
 from northstar_quant.reporting.report_builder import latest_live_account_attribution_summary
+from northstar_quant.risk.models import OrderRiskContext
 from northstar_quant.strategies.pipeline import (
     build_profile_risk_limits,
     run_profile_strategy_pipeline,
@@ -613,7 +614,8 @@ def run_live_once(profile_id: str | None = None) -> list[str]:
                 profile_id=profile.profile_id,
                 execution_planner_id=planner.planner_id,
             )
-            router = OrderRouter(broker, limits)
+            order_risk_context = _build_order_risk_context(state)
+            router = OrderRouter(broker, limits, risk_context=order_risk_context)
             run_logger.info(
                 "实盘前检查完成，持仓同步=%s，成交同步=%s，执行计划数=%s，计划快照=%s，执行价来源=%s",
                 sync_result["positions_synced"],
@@ -636,7 +638,11 @@ def run_live_once(profile_id: str | None = None) -> list[str]:
             ).info("执行计划器已选定，planner_id=%s", planner.planner_id)
 
             messages: list[str] = []
-            chase_executor = LimitChaseExecutor(broker, limits) if get_settings().broker == "ibkr" else None
+            chase_executor = (
+                LimitChaseExecutor(broker, limits, risk_context=order_risk_context)
+                if get_settings().broker == "ibkr"
+                else None
+            )
             for idx, plan in enumerate(plans, start=1):
                 plan_id = plan.plan_id or f"{batch_id}-{idx:04d}-{plan.symbol.lower()}"
                 base_order = OrderRequest(
@@ -853,6 +859,32 @@ def _extract_equity(account_values: dict) -> float | None:
         except Exception:
             continue
     return None
+
+
+def _extract_available_cash(account_values: dict) -> float | None:
+    """从券商账户摘要中提取可用资金。"""
+
+    for key in ("AvailableFunds", "CashBalance", "TotalCashValue", "BuyingPower"):
+        value = account_values.get(key)
+        if value is None:
+            continue
+        try:
+            return float(value)
+        except Exception:
+            continue
+    return None
+
+
+def _build_order_risk_context(state: BrokerStateSnapshot) -> OrderRiskContext:
+    """把券商状态转成订单路由期间的动态风控上下文。"""
+
+    return OrderRiskContext(
+        available_cash=_extract_available_cash(state.account_values),
+        position_qty_by_symbol={
+            str(item.symbol).strip().upper(): float(item.qty)
+            for item in state.positions
+        },
+    )
 
 
 def poll_orders_and_fills_once() -> dict:
