@@ -167,6 +167,7 @@ def test_profile_execution_min_trade_value_becomes_pretrade_notional_floor():
 
     assert limits.min_order_notional == 10000.0
     assert limits.buy_qty_step == 100.0
+    assert limits.enforce_sellable_qty is True
 
 
 def test_order_context_reservation_can_be_released_after_cancel():
@@ -232,7 +233,7 @@ def test_open_orders_reserve_cash_and_sellable_position():
             RiskLimits(max_order_notional=None),
             context,
         )
-    with pytest.raises(ValueError, match="卖出订单数量超过可用持仓"):
+    with pytest.raises(ValueError, match="卖出订单数量超过可卖持仓"):
         validate_order(
             OrderRequest(
                 strategy_id="core_portfolio",
@@ -247,6 +248,57 @@ def test_open_orders_reserve_cash_and_sellable_position():
 
     assert context.reserved_buy_notional == 300.0
     assert context.reserved_sell_qty_by_symbol["510300.SS"] == 20.0
+
+
+def test_validate_order_uses_sellable_qty_when_enforced():
+    context = OrderRiskContext(
+        position_qty_by_symbol={"510300.SS": 100.0},
+        sellable_qty_by_symbol={"510300.SS": 30.0},
+    )
+
+    validate_order(
+        OrderRequest(
+            strategy_id="core_portfolio",
+            symbol="510300.SS",
+            side="SELL",
+            qty=30.0,
+            reference_price=5.0,
+        ),
+        RiskLimits(max_order_notional=None, enforce_sellable_qty=True),
+        context,
+    )
+
+    with pytest.raises(ValueError, match="卖出订单数量超过可卖持仓"):
+        validate_order(
+            OrderRequest(
+                strategy_id="core_portfolio",
+                symbol="510300.SS",
+                side="SELL",
+                qty=31.0,
+                reference_price=5.0,
+            ),
+            RiskLimits(max_order_notional=None, enforce_sellable_qty=True),
+            context,
+        )
+
+
+def test_validate_order_requires_sellable_qty_when_enforced():
+    context = OrderRiskContext(
+        position_qty_by_symbol={"510300.SS": 100.0},
+    )
+
+    with pytest.raises(ValueError, match="卖出订单缺少可卖数量"):
+        validate_order(
+            OrderRequest(
+                strategy_id="core_portfolio",
+                symbol="510300.SS",
+                side="SELL",
+                qty=1.0,
+                reference_price=5.0,
+            ),
+            RiskLimits(max_order_notional=None, enforce_sellable_qty=True),
+            context,
+        )
 
 
 def test_open_buy_order_uses_reference_price_when_order_has_no_price():

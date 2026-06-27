@@ -888,6 +888,11 @@ def _build_order_risk_context(
             str(item.symbol).strip().upper(): float(item.qty)
             for item in state.positions
         },
+        sellable_qty_by_symbol={
+            str(item.symbol).strip().upper(): float(item.sellable_qty)
+            for item in state.positions
+            if item.sellable_qty is not None
+        },
     )
     reserve_open_orders_in_context(context, state.open_orders, reference_prices)
     return context

@@ -79,7 +79,7 @@ def test_order_router_reserves_sellable_position_for_order_batch():
         )
     )
 
-    with pytest.raises(ValueError, match="卖出订单数量超过可用持仓"):
+    with pytest.raises(ValueError, match="卖出订单数量超过可卖持仓"):
         router.route(
             OrderRequest(
                 strategy_id="test",
@@ -92,4 +92,3 @@ def test_order_router_reserves_sellable_position_for_order_batch():
 
     assert len(broker.orders) == 1
     assert context.reserved_sell_qty_by_symbol["510300.SS"] == 60.0
-

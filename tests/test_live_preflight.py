@@ -206,7 +206,7 @@ def test_run_live_once_returns_without_order_submission_when_preflight_fails(mon
 def test_build_order_risk_context_reserves_existing_open_orders():
     state = BrokerStateSnapshot(
         positions=[
-            PositionSnapshot(symbol="510300.SS", qty=100.0),
+            PositionSnapshot(symbol="510300.SS", qty=100.0, sellable_qty=80.0),
         ],
         open_orders=[
             {
@@ -234,6 +234,7 @@ def test_build_order_risk_context_reserves_existing_open_orders():
 
     assert context.available_cash == 1000.0
     assert context.position_qty_by_symbol["510300.SS"] == 100.0
+    assert context.sellable_qty_by_symbol["510300.SS"] == 80.0
     assert context.reserved_buy_notional == 300.0
     assert context.reserved_sell_qty_by_symbol["510300.SS"] == 20.0
     assert context.unresolved_open_order_count == 0

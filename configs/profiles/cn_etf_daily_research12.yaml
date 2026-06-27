@@ -70,6 +70,7 @@ risk:
   max_single_weight: 0.35
   max_gross_exposure: 1.0
   min_cash_buffer: 0.02
+  enforce_sellable_qty: true
 schedule:
   rebalance_cron: "35 15 * * 1-5"
   daily_report_cron: "45 15 * * 1-5"

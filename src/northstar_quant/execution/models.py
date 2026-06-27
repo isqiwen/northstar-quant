@@ -50,6 +50,7 @@ class PositionSnapshot:
     avg_cost: float | None = None
     market_price: float | None = None
     market_value: float | None = None
+    sellable_qty: float | None = None
     account: str | None = None
     asof: datetime | None = None
     snapshot_batch_id: str | None = None

@@ -305,6 +305,7 @@ class PaperBrokerAdapter(BrokerAdapter):
                     ),
                     market_price=market_price,
                     market_value=(qty * market_price) if market_price is not None else None,
+                    sellable_qty=max(qty, 0.0),
                     account=self.account,
                     asof=asof,
                 )

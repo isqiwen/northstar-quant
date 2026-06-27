@@ -180,16 +180,20 @@ def reserve_open_orders_in_context(
 def _validate_account_context(
     order: OrderRequest,
     qty: float,
+    limits: RiskLimits,
     context: OrderRiskContext | None,
 ) -> None:
+    side = order.side.strip().upper()
+    symbol = _normalize_symbol(order.symbol)
+
     if context is None:
+        if side == "SELL" and limits.enforce_sellable_qty:
+            raise ValueError("卖出订单缺少可卖数量")
         return
 
     if context.unresolved_open_order_count > 0:
         raise ValueError("账户存在无法解析的未完成订单")
 
-    side = order.side.strip().upper()
-    symbol = _normalize_symbol(order.symbol)
     if side == "BUY" and context.available_cash is not None:
         order_notional = _resolve_order_notional(order)
         if order_notional is None:
@@ -199,11 +203,21 @@ def _validate_account_context(
             raise ValueError("买入订单金额超过可用资金")
 
     if side == "SELL":
-        position_qty = float(context.position_qty_by_symbol.get(symbol, 0.0))
+        if limits.enforce_sellable_qty:
+            if symbol not in context.sellable_qty_by_symbol:
+                raise ValueError("卖出订单缺少可卖数量")
+            position_qty = float(context.sellable_qty_by_symbol.get(symbol, 0.0))
+        else:
+            position_qty = float(
+                context.sellable_qty_by_symbol.get(
+                    symbol,
+                    context.position_qty_by_symbol.get(symbol, 0.0),
+                )
+            )
         reserved_qty = float(context.reserved_sell_qty_by_symbol.get(symbol, 0.0))
         available_qty = position_qty - reserved_qty
         if qty > available_qty + 1e-8:
-            raise ValueError("卖出订单数量超过可用持仓")
+            raise ValueError("卖出订单数量超过可卖持仓")
 
 
 def reserve_order_context(context: OrderRiskContext | None, order: OrderRequest) -> None:
@@ -285,4 +299,4 @@ def validate_order(
         if order_notional > limits.max_order_notional:
             raise ValueError("订单金额超过风控上限")
 
-    _validate_account_context(order, qty, context)
+    _validate_account_context(order, qty, limits, context)
