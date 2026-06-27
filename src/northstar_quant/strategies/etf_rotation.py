@@ -1,4 +1,4 @@
-"""真实可落地的美股 ETF 日频轮动策略。"""
+"""真实可落地的 ETF 日频轮动策略。"""
 
 from __future__ import annotations
 
@@ -7,8 +7,8 @@ import polars as pl
 from northstar_quant.strategies.base import DailyStrategyBase
 
 
-class US_ETFDailyRotationStrategy(DailyStrategyBase):
-    """美股 ETF 日频轮动策略。
+class ETFDailyRotationStrategy(DailyStrategyBase):
+    """ETF 日频轮动策略。
 
     策略逻辑：
     1. 使用中期动量（默认 126 日）衡量强弱
@@ -48,3 +48,6 @@ class US_ETFDailyRotationStrategy(DailyStrategyBase):
                     }
                 )
         return self.to_targets_frame(rows)
+
+
+US_ETFDailyRotationStrategy = ETFDailyRotationStrategy

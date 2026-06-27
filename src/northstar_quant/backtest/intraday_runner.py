@@ -2,16 +2,14 @@
 
 from __future__ import annotations
 
-from northstar_quant.backtest.intent_event_engine import run_execution_intent_backtest
-from northstar_quant.backtest.intraday_event_engine import run_intraday_event_backtest
-from northstar_quant.backtest.simulation import (
-    MinuteSimulationBacktesterBase,
-    periods_per_year_for_frequency,
-)
-from northstar_quant.common.enums import StrategyOutputType
+from northstar_quant.backtest.canonical import run_strategy_output_backtest
+from northstar_quant.backtest.simulation import MinuteSimulationBacktesterBase
 from northstar_quant.data.storage import load_profile_signal_data
-from northstar_quant.strategies.base import IntradayStrategyBase
-from northstar_quant.strategies.registry import build_strategy
+from northstar_quant.strategies.pipeline import (
+    parse_strategy_selection,
+    resolve_selected_profile_strategy_ids,
+    run_profile_strategy_pipeline,
+)
 
 
 class IntradaySignalSimulationBacktester(MinuteSimulationBacktesterBase):
@@ -24,35 +22,28 @@ class IntradaySignalSimulationBacktester(MinuteSimulationBacktesterBase):
         profile,
         *,
         strategy_name: str,
-        symbol: str = "SPY",
+        symbol: str = "510300.SS",
     ) -> dict:
+        del symbol
+        strategy_ids = parse_strategy_selection(strategy_name)
+        selected_strategy_ids = resolve_selected_profile_strategy_ids(
+            profile,
+            strategy_ids=strategy_ids,
+        )
         market_df = load_profile_signal_data(profile.profile_id)
-        strategy = build_strategy(strategy_name)
-        if not isinstance(strategy, IntradayStrategyBase):
-            raise ValueError(
-                f"分钟级仿真回测器仅支持盘中策略，当前策略 {strategy_name} 不属于 IntradayStrategyBase"
-            )
-
-        output = strategy.generate_output(market_df)
-        periods_per_year = periods_per_year_for_frequency(profile.data_frequency)
-        if strategy.output_type == StrategyOutputType.EXECUTION_INTENT:
-            result = run_execution_intent_backtest(
-                market_df,
-                output,
-                periods_per_year=periods_per_year,
-            )
-        else:
-            result = run_intraday_event_backtest(
-                market_df,
-                output,
-                periods_per_year=periods_per_year,
-            )
+        pipeline = run_profile_strategy_pipeline(
+            market_df,
+            profile,
+            strategy_ids=strategy_ids,
+            latest_only=False,
+        )
+        result = run_strategy_output_backtest(profile, market_df, pipeline)
 
         return {
             "backtester": self.backtester_id,
             "strategy": strategy_name,
-            "symbol": symbol,
-            "output_type": strategy.output_type.value,
+            "selected_strategy_ids": list(selected_strategy_ids),
+            "output_type": pipeline.output_type.value,
             "total_return": result.total_return,
             "annualized_return": result.annualized_return,
             "max_drawdown": result.max_drawdown,

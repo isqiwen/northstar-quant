@@ -34,7 +34,7 @@ class SimulationBacktesterBase(ABC):
         profile: TradingProfile,
         *,
         strategy_name: str,
-        symbol: str = "SPY",
+        symbol: str = "510300.SS",
     ) -> dict:
         """按画像和策略运行一次仿真回测。"""
 

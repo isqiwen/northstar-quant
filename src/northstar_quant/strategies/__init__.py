@@ -1,7 +1,10 @@
 """策略模块导出。"""
 
 from northstar_quant.strategies.base import StrategyBase
-from northstar_quant.strategies.etf_rotation import US_ETFDailyRotationStrategy
+from northstar_quant.strategies.etf_rotation import (
+    ETFDailyRotationStrategy,
+    US_ETFDailyRotationStrategy,
+)
 from northstar_quant.strategies.momentum import MomentumRotationStrategy
 from northstar_quant.strategies.registry import (
     build_profile_strategies,
@@ -14,6 +17,7 @@ from northstar_quant.strategies.registry import (
 
 __all__ = [
     "StrategyBase",
+    "ETFDailyRotationStrategy",
     "US_ETFDailyRotationStrategy",
     "MomentumRotationStrategy",
     "register_strategy",

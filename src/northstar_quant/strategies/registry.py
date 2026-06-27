@@ -13,7 +13,7 @@ from northstar_quant.config.settings import get_settings
 from northstar_quant.config.trading_profile import TradingProfile
 from northstar_quant.config.yaml_loader import load_yaml
 from northstar_quant.strategies.base import StrategyBase
-from northstar_quant.strategies.etf_rotation import US_ETFDailyRotationStrategy
+from northstar_quant.strategies.etf_rotation import ETFDailyRotationStrategy
 from northstar_quant.strategies.intraday_breakout import IntradayBreakoutStrategy
 from northstar_quant.strategies.momentum import MomentumRotationStrategy
 
@@ -201,9 +201,9 @@ def build_profile_strategies(profile: TradingProfile) -> list[tuple[StrategyBase
 
 register_strategy(
     "etf_rotation",
-    US_ETFDailyRotationStrategy,
+    ETFDailyRotationStrategy,
     strategy_family=StrategyFamily.MOMENTUM_ROTATION,
-    supported_markets=(Market.US,),
+    supported_markets=(Market.US, Market.CN),
     supported_asset_types=(AssetType.ETF,),
     supported_data_frequencies=(DataFrequency.D1,),
 )
@@ -211,7 +211,7 @@ register_strategy(
     "momentum",
     MomentumRotationStrategy,
     strategy_family=StrategyFamily.CROSS_SECTIONAL_SELECTION,
-    supported_markets=(Market.US,),
+    supported_markets=(Market.US, Market.CN),
     supported_asset_types=(AssetType.ETF, AssetType.EQUITY),
     supported_data_frequencies=(DataFrequency.D1, DataFrequency.W1),
 )
@@ -219,7 +219,7 @@ register_strategy(
     "intraday_breakout",
     IntradayBreakoutStrategy,
     strategy_family=StrategyFamily.INTRADAY_BREAKOUT,
-    supported_markets=(Market.US,),
+    supported_markets=(Market.US, Market.CN),
     supported_asset_types=(AssetType.EQUITY,),
     supported_data_frequencies=(DataFrequency.M1, DataFrequency.M5, DataFrequency.M15),
 )

@@ -196,7 +196,7 @@ def run_simulation_backtest(
     profile: TradingProfile,
     *,
     strategy_name: str,
-    symbol: str = "SPY",
+    symbol: str = "510300.SS",
 ) -> dict:
     """根据画像运行策略仿真回测。"""
 
@@ -247,7 +247,7 @@ def _build_intraday_signal_simulation_backtester() -> SimulationBacktesterBase:
 register_target_backtester(
     "bar_event_backtest",
     _run_bar_event_backtest,
-    supported_markets=(Market.US,),
+    supported_markets=(Market.US, Market.CN),
     supported_asset_types=(AssetType.ETF, AssetType.EQUITY),
     supported_data_frequencies=(DataFrequency.D1, DataFrequency.W1),
     supported_rebalance_frequencies=(RebalanceFrequency.D1, RebalanceFrequency.W1),
@@ -261,7 +261,7 @@ register_target_backtester(
 register_target_backtester(
     "intraday_event_backtest",
     _run_intraday_event_backtest,
-    supported_markets=(Market.US,),
+    supported_markets=(Market.US, Market.CN),
     supported_asset_types=(AssetType.EQUITY,),
     supported_data_frequencies=(DataFrequency.M1, DataFrequency.M5, DataFrequency.M15, DataFrequency.H1),
     supported_rebalance_frequencies=(
@@ -275,7 +275,7 @@ register_target_backtester(
 register_simulation_backtester(
     "backtrader_bar_simulation",
     _build_backtrader_bar_simulation_backtester,
-    supported_markets=(Market.US,),
+    supported_markets=(Market.US, Market.CN),
     supported_asset_types=(AssetType.ETF, AssetType.EQUITY),
     supported_data_frequencies=(DataFrequency.D1, DataFrequency.W1),
     supported_rebalance_frequencies=(RebalanceFrequency.D1, RebalanceFrequency.W1),
@@ -289,7 +289,7 @@ register_simulation_backtester(
 register_simulation_backtester(
     "intraday_signal_simulation",
     _build_intraday_signal_simulation_backtester,
-    supported_markets=(Market.US,),
+    supported_markets=(Market.US, Market.CN),
     supported_asset_types=(AssetType.EQUITY,),
     supported_data_frequencies=(DataFrequency.M1, DataFrequency.M5, DataFrequency.M15),
     supported_rebalance_frequencies=(RebalanceFrequency.M1, RebalanceFrequency.M5, RebalanceFrequency.M15),

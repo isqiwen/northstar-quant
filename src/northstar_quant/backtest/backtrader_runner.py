@@ -1,60 +1,20 @@
-"""Backtrader 条形仿真回测器。"""
+"""兼容旧入口的日频/周频仿真回测器。"""
 
 from __future__ import annotations
 
-import backtrader as bt
-import pandas as pd
-
+from northstar_quant.backtest.canonical import run_strategy_output_backtest
 from northstar_quant.backtest.simulation import BarSimulationBacktesterBase
 from northstar_quant.config.trading_profile import load_trading_profile
 from northstar_quant.data.storage import load_profile_signal_data
-
-
-class DualMA(bt.Strategy):
-    """双均线示例策略。"""
-
-    params = dict(fast=20, slow=60)
-
-    def __init__(self):
-        self.ma_fast = bt.ind.SMA(period=self.params.fast)
-        self.ma_slow = bt.ind.SMA(period=self.params.slow)
-        self.crossover = bt.ind.CrossOver(self.ma_fast, self.ma_slow)
-
-    def next(self):
-        if not self.position and self.crossover > 0:
-            self.buy(size=100)
-        elif self.position and self.crossover < 0:
-            self.close()
-
-
-class ETFTop1Rotation(bt.Strategy):
-    """ETF Top1 轮动示例策略。"""
-
-    params = dict(lookback=60)
-
-    def next(self):
-        scores: list[tuple[bt.feeds.PandasData, float]] = []
-        for data in self.datas:
-            if len(data) <= self.params.lookback:
-                continue
-            score = data.close[0] / data.close[-self.params.lookback] - 1.0
-            scores.append((data, score))
-
-        if not scores:
-            return
-
-        winner, _ = sorted(scores, key=lambda item: item[1], reverse=True)[0]
-
-        for data in self.datas:
-            if data is winner:
-                if not self.getposition(data).size:
-                    self.order_target_percent(data=data, target=0.95)
-            elif self.getposition(data).size:
-                self.order_target_percent(data=data, target=0.0)
+from northstar_quant.strategies.pipeline import (
+    parse_strategy_selection,
+    resolve_selected_profile_strategy_ids,
+    run_profile_strategy_pipeline,
+)
 
 
 class BacktraderBarSimulationBacktester(BarSimulationBacktesterBase):
-    """基于 Backtrader 的日频/周频仿真回测器。"""
+    """基于 canonical profile pipeline 的条形仿真回测器。"""
 
     backtester_id = "backtrader_bar_simulation"
 
@@ -63,57 +23,42 @@ class BacktraderBarSimulationBacktester(BarSimulationBacktesterBase):
         profile,
         *,
         strategy_name: str,
-        symbol: str = "SPY",
+        symbol: str = "510300.SS",
     ) -> dict:
-        df = load_profile_signal_data(profile.profile_id)
-        cerebro = bt.Cerebro()
-        cerebro.broker.setcash(100000.0)
-        cerebro.broker.setcommission(commission=0.0005)
-
-        if strategy_name == "momentum":
-            pdf = (
-                df.filter(df["symbol"] == symbol)
-                .select(["date", "open", "high", "low", "close", "volume"])
-                .to_pandas()
-                .set_index("date")
-            )
-            pdf.index = pd.to_datetime(pdf.index)
-            cerebro.adddata(bt.feeds.PandasData(dataname=pdf), name=symbol)
-            cerebro.addstrategy(DualMA)
-        elif strategy_name == "etf_rotation":
-            for current_symbol in sorted(df["symbol"].unique().to_list()):
-                pdf = (
-                    df.filter(df["symbol"] == current_symbol)
-                    .select(["date", "open", "high", "low", "close", "volume"])
-                    .to_pandas()
-                    .set_index("date")
-                )
-                pdf.index = pd.to_datetime(pdf.index)
-                cerebro.adddata(bt.feeds.PandasData(dataname=pdf), name=current_symbol)
-            cerebro.addstrategy(ETFTop1Rotation)
-        else:
-            raise ValueError("Backtrader 仿真回测当前仅支持 momentum / etf_rotation")
-
-        start_value = cerebro.broker.getvalue()
-        cerebro.run()
-        end_value = cerebro.broker.getvalue()
+        del symbol
+        strategy_ids = parse_strategy_selection(strategy_name)
+        selected_strategy_ids = resolve_selected_profile_strategy_ids(
+            profile,
+            strategy_ids=strategy_ids,
+        )
+        market_df = load_profile_signal_data(profile.profile_id)
+        pipeline = run_profile_strategy_pipeline(
+            market_df,
+            profile,
+            strategy_ids=strategy_ids,
+            latest_only=False,
+        )
+        result = run_strategy_output_backtest(profile, market_df, pipeline)
 
         return {
             "backtester": self.backtester_id,
             "strategy": strategy_name,
-            "symbol": symbol,
-            "start_value": start_value,
-            "end_value": end_value,
-            "total_return": end_value / start_value - 1.0,
+            "selected_strategy_ids": list(selected_strategy_ids),
+            "output_type": pipeline.output_type.value,
+            "total_return": result.total_return,
+            "annualized_return": result.annualized_return,
+            "max_drawdown": result.max_drawdown,
+            "turnover_estimate": result.turnover_estimate,
+            "bars": len(result.equity_curve),
         }
 
 
 def run_backtrader_demo(
-    symbol: str = "SPY",
-    strategy_name: str = "momentum",
+    symbol: str = "510300.SS",
+    strategy_name: str = "portfolio",
     profile_id: str | None = None,
 ) -> dict:
-    """兼容旧入口的 Backtrader 演示回测函数。"""
+    """兼容旧入口的 profile 仿真回测函数。"""
 
     profile = load_trading_profile(profile_id)
     return BacktraderBarSimulationBacktester().run(

@@ -14,7 +14,7 @@ from northstar_quant.data.downloader import download_profile_data
 
 
 def test_resolve_target_backtester_for_daily_profile():
-    profile = load_trading_profile("us_etf_daily")
+    profile = load_trading_profile("cn_etf_daily")
 
     definition = resolve_target_backtester(profile)
 
@@ -22,7 +22,7 @@ def test_resolve_target_backtester_for_daily_profile():
 
 
 def test_resolve_target_backtester_for_intraday_profile():
-    profile = load_trading_profile("us_stock_intraday_1m")
+    profile = load_trading_profile("cn_stock_intraday_1m")
 
     definition = resolve_target_backtester(profile)
 
@@ -30,7 +30,7 @@ def test_resolve_target_backtester_for_intraday_profile():
 
 
 def test_resolve_simulation_backtester_for_daily_stock_profile():
-    profile = load_trading_profile("us_stock_daily")
+    profile = load_trading_profile("cn_stock_daily")
 
     definition = resolve_simulation_backtester(profile)
 
@@ -38,7 +38,7 @@ def test_resolve_simulation_backtester_for_daily_stock_profile():
 
 
 def test_resolve_simulation_backtester_for_intraday_profile():
-    profile = load_trading_profile("us_stock_intraday_1m")
+    profile = load_trading_profile("cn_stock_intraday_1m")
 
     definition = resolve_simulation_backtester(profile)
 
@@ -46,7 +46,7 @@ def test_resolve_simulation_backtester_for_intraday_profile():
 
 
 def test_run_target_backtest_uses_intraday_engine_for_intraday_profile():
-    profile = load_trading_profile("us_stock_intraday_1m")
+    profile = load_trading_profile("cn_stock_intraday_1m")
     start = datetime(2024, 3, 4, 9, 30)
 
     market_rows: list[dict] = []
@@ -89,13 +89,14 @@ def test_run_target_backtest_uses_intraday_engine_for_intraday_profile():
 
 
 def test_run_simulation_backtest_uses_intraday_simulator_for_intraday_profile():
-    profile = load_trading_profile("us_stock_intraday_1m")
+    profile = load_trading_profile("cn_stock_intraday_1m")
     download_profile_data(profile.profile_id, provider_override="demo")
 
     result = run_simulation_backtest(profile, strategy_name="intraday_breakout")
 
     assert result["backtester"] == "intraday_signal_simulation"
     assert result["strategy"] == "intraday_breakout"
+    assert result["selected_strategy_ids"] == ["intraday_breakout"]
     assert result["output_type"] == "execution_intent"
     assert math.isfinite(result["annualized_return"])
     assert result["bars"] > 0

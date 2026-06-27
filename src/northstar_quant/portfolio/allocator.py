@@ -10,6 +10,9 @@ def normalize_weights(targets: pl.DataFrame) -> pl.DataFrame:
 
     对 long-only 的 ETF 轮动策略，这个工具很常见：
     先选出候选标的，再把候选权重按总和标准化。
+
+    注意：这个函数只应该用于策略原始输出或资金配比前的标准化阶段，
+    不应该作用在已经过风险约束的最终组合结果上，否则会把留出的现金重新填满。
     """
 
     if targets.is_empty():
