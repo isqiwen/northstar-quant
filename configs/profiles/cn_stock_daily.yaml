@@ -1,0 +1,64 @@
+profile_id: cn_stock_daily
+name: 中国 A 股股票日频
+market: CN
+asset_type: EQUITY
+data_frequency: 1d
+rebalance_frequency: 1d
+strategy_family: cross_sectional_selection
+currency: CNY
+timezone: Asia/Shanghai
+calendar: XSHG
+universe_id: cn_stock_core
+benchmark_symbol: 510300.SS
+lifecycle:
+  role: experimental
+  line_id: cn_core_long_only
+execution:
+  long_only: true
+  rebalance_min_trade_value: 10000
+  rebalance_weight_tolerance: 0.02
+versions:
+  profile: exp-cn-largecap-daily-v1
+  benchmark: csi300-etf-total-return-v1
+  strategy_params: cn-largecap-momentum-63d-top5-v1
+  execution_policy: cn-low-turnover-band-200bps-v1
+  risk_policy: cn-cash-buffer-3pct-single-name-20pct-v1
+data:
+  provider: demo
+  dataset_id: core
+  path: cn/equity/1d/core.parquet
+  price_field: adjusted_close
+  download:
+    enabled: true
+    provider: demo
+    symbols:
+      - 600519.SS
+      - 601318.SS
+      - 600036.SS
+      - 600276.SS
+      - 601899.SS
+      - 000858.SZ
+      - 000333.SZ
+      - 300750.SZ
+      - 002594.SZ
+      - 000651.SZ
+    start_date: "2023-01-03"
+    options:
+      trading_days: 420
+strategies:
+  - strategy_id: momentum
+    strategy_family: cross_sectional_selection
+    enabled: true
+    capital_weight: 1.0
+    params:
+      lookback_days: 63
+      top_n: 5
+risk:
+  max_single_weight: 0.2
+  max_gross_exposure: 1.0
+  min_cash_buffer: 0.03
+schedule:
+  rebalance_cron: "35 15 * * 1-5"
+  daily_report_cron: "45 15 * * 1-5"
+  weekly_report_cron: "0 16 * * 5"
+  monthly_report_cron: "0 16 28-31 * *"

@@ -1,0 +1,65 @@
+profile_id: cn_stock_intraday_1m
+name: 中国 A 股股票分钟级
+market: CN
+asset_type: EQUITY
+data_frequency: 1m
+rebalance_frequency: 5m
+strategy_family: intraday_breakout
+currency: CNY
+timezone: Asia/Shanghai
+calendar: XSHG
+universe_id: cn_stock_intraday
+benchmark_symbol: 510300.SS
+lifecycle:
+  role: experimental
+  line_id: intraday_lab_cn
+execution:
+  long_only: true
+  rebalance_min_trade_value: 3000
+  rebalance_weight_tolerance: 0.0
+versions:
+  profile: exp-cn-intraday-breakout-v1
+  benchmark: csi300-etf-intraday-v1
+  strategy_params: cn-intraday-breakout-30bar-top2-v1
+  execution_policy: cn-fast-rebalance-v1
+  risk_policy: cn-cash-buffer-5pct-single-name-2pct-v1
+data:
+  provider: demo
+  dataset_id: core
+  path: cn/equity/1m/core.parquet
+  price_field: close
+  download:
+    enabled: true
+    provider: demo
+    symbols:
+      - 600519.SS
+      - 601318.SS
+      - 000333.SZ
+      - 300750.SZ
+      - 002594.SZ
+    start_date: "2024-03-04"
+    options:
+      trading_days: 5
+      session_segments:
+        - start: "09:30"
+          minutes: 120
+        - start: "13:00"
+          minutes: 120
+strategies:
+  - strategy_id: intraday_breakout
+    strategy_family: intraday_breakout
+    enabled: true
+    capital_weight: 1.0
+    params:
+      lookback_bars: 30
+      top_n: 2
+      min_breakout_return: 0.001
+risk:
+  max_single_weight: 0.02
+  max_gross_exposure: 1.0
+  min_cash_buffer: 0.05
+schedule:
+  rebalance_cron: "*/5 9-15 * * 1-5"
+  daily_report_cron: "45 15 * * 1-5"
+  weekly_report_cron: "0 16 * * 5"
+  monthly_report_cron: "0 16 28-31 * *"

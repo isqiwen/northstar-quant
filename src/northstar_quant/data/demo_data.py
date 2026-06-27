@@ -8,11 +8,62 @@ import numpy as np
 import pandas as pd
 import polars as pl
 
-from northstar_quant.common.enums import AssetType, DataFrequency
+from northstar_quant.common.enums import AssetType, DataFrequency, Market
 from northstar_quant.config.trading_profile import TradingProfile, load_trading_profile
 from northstar_quant.data.storage import profile_market_data_path, save_parquet
 
 _DEFAULT_SYMBOLS: dict[str, list[str]] = {
+    "cn_etf_daily": [
+        "510300.SS",
+        "510500.SS",
+        "512100.SS",
+        "510050.SS",
+        "588000.SS",
+        "159915.SZ",
+        "512880.SS",
+        "512690.SS",
+        "512170.SS",
+        "159928.SZ",
+    ],
+    "cn_etf_daily_research12": [
+        "510300.SS",
+        "510500.SS",
+        "512100.SS",
+        "510050.SS",
+        "588000.SS",
+        "159915.SZ",
+        "512880.SS",
+        "512690.SS",
+        "512170.SS",
+        "515790.SS",
+        "159928.SZ",
+        "159949.SZ",
+    ],
+    "cn_stock_daily": [
+        "600519.SS",
+        "601318.SS",
+        "600036.SS",
+        "600276.SS",
+        "601899.SS",
+        "000858.SZ",
+        "000333.SZ",
+        "300750.SZ",
+        "002594.SZ",
+        "000651.SZ",
+    ],
+    "cn_stock_weekly": [
+        "600519.SS",
+        "601318.SS",
+        "600036.SS",
+        "600276.SS",
+        "601899.SS",
+        "000858.SZ",
+        "000333.SZ",
+        "300750.SZ",
+        "002594.SZ",
+        "000651.SZ",
+    ],
+    "cn_stock_intraday_1m": ["600519.SS", "601318.SS", "000333.SZ", "300750.SZ", "002594.SZ"],
     "us_etf_daily": ["SPY", "QQQ", "IWM", "DIA", "EFA", "EEM", "TLT", "IEF", "GLD", "VNQ"],
     "us_stock_daily": ["AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "JPM", "XOM", "UNH", "COST"],
     "us_stock_weekly": ["AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "JPM", "XOM", "UNH", "COST"],
@@ -27,7 +78,40 @@ def _as_profile(profile: TradingProfile | str | None = None) -> TradingProfile:
 def _profile_symbols(profile: TradingProfile) -> list[str]:
     if profile.data.download.symbols:
         return list(profile.data.download.symbols)
-    return list(_DEFAULT_SYMBOLS.get(profile.profile_id, ["SPY", "QQQ", "IWM"]))
+    if profile.profile_id in _DEFAULT_SYMBOLS:
+        return list(_DEFAULT_SYMBOLS[profile.profile_id])
+    if profile.market == Market.CN:
+        return ["510300.SS", "510500.SS", "159915.SZ"]
+    return ["SPY", "QQQ", "IWM"]
+
+
+def _parse_session_time(raw: str) -> time:
+    hour_text, minute_text = raw.split(":", maxsplit=1)
+    return time(int(hour_text), int(minute_text))
+
+
+def _intraday_session_offsets(options: dict) -> list[timedelta]:
+    segments = options.get("session_segments")
+    if segments:
+        offsets: list[timedelta] = []
+        for segment in segments:
+            start_time = _parse_session_time(str(segment["start"]))
+            minutes = int(segment["minutes"])
+            for minute_index in range(minutes):
+                offsets.append(
+                    timedelta(
+                        hours=start_time.hour,
+                        minutes=start_time.minute + minute_index,
+                    )
+                )
+        return offsets
+
+    session_minutes = int(options.get("session_minutes", 390))
+    session_start = time(9, 30)
+    return [
+        timedelta(hours=session_start.hour, minutes=session_start.minute + minute_index)
+        for minute_index in range(session_minutes)
+    ]
 
 
 def _profile_seed(profile: TradingProfile) -> int:
@@ -147,20 +231,19 @@ def _generate_intraday_dataset(profile: TradingProfile) -> pl.DataFrame:
     symbols = _profile_symbols(profile)
     options = profile.data.download.options
     trading_days = int(options.get("trading_days", 5))
-    session_minutes = int(options.get("session_minutes", 390))
     start = date.fromisoformat(profile.data.download.start_date or "2024-03-04")
+    session_offsets = _intraday_session_offsets(options)
 
     rows: list[dict] = []
     trading_dates = _business_days(start, trading_days)
-    session_start = time(9, 30)
 
     for idx, symbol in enumerate(symbols):
         price = 80.0 + idx * 25.0 + rng.uniform(-5, 15)
         drift = rng.uniform(-0.00002, 0.00008)
         vol = rng.uniform(0.0008, 0.0025)
         for current_date in trading_dates:
-            current_ts = datetime.combine(current_date, session_start)
-            for minute_index in range(session_minutes):
+            session_base = datetime.combine(current_date, time())
+            for minute_offset in session_offsets:
                 ret = drift + rng.normal(0, vol)
                 price = max(price * (1 + ret), 5.0)
                 open_price = price * (1 - rng.uniform(0, 0.001))
@@ -170,7 +253,7 @@ def _generate_intraday_dataset(profile: TradingProfile) -> pl.DataFrame:
                 rows.append(
                     {
                         "date": current_date,
-                        "timestamp": current_ts + timedelta(minutes=minute_index),
+                        "timestamp": session_base + minute_offset,
                         "symbol": symbol,
                         "open": round(open_price, 4),
                         "high": round(high_price, 4),

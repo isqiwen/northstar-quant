@@ -1,48 +1,48 @@
-profile_id: us_etf_daily
-name: 美股 ETF 日频
-market: US
+profile_id: cn_etf_daily
+name: 中国 A 股 ETF 日频
+market: CN
 asset_type: ETF
 data_frequency: 1d
 rebalance_frequency: 1d
 strategy_family: momentum_rotation
-currency: USD
-timezone: America/New_York
-calendar: XNYS
-universe_id: us_etf_core
-benchmark_symbol: SPY
+currency: CNY
+timezone: Asia/Shanghai
+calendar: XSHG
+universe_id: cn_etf_core
+benchmark_symbol: 510300.SS
 lifecycle:
-  role: experimental
-  line_id: us_core_long_only
+  role: production
+  line_id: cn_core_long_only
 execution:
   long_only: true
-  rebalance_min_trade_value: 1500
+  rebalance_min_trade_value: 10000
   rebalance_weight_tolerance: 0.015
 versions:
-  profile: prod-us-core-v1
-  benchmark: spy-total-return-v1
-  strategy_params: etf-rotation-126d-plus-momentum-20d-v1
-  execution_policy: low-turnover-band-150bps-v1
-  risk_policy: cash-buffer-2pct-single-name-35pct-v1
+  profile: prod-cn-core-v1
+  benchmark: csi300-etf-total-return-v1
+  strategy_params: cn-etf-rotation-126d-plus-momentum-20d-v1
+  execution_policy: cn-low-turnover-band-150bps-v1
+  risk_policy: cn-cash-buffer-2pct-single-name-35pct-v1
 data:
   provider: demo
   dataset_id: core
-  path: us/etf/1d/core.parquet
+  path: cn/etf/1d/core.parquet
   price_field: adjusted_close
   download:
     enabled: true
     provider: demo
     symbols:
-      - SPY
-      - QQQ
-      - IWM
-      - DIA
-      - EFA
-      - EEM
-      - TLT
-      - IEF
-      - GLD
-      - VNQ
-    start_date: "2023-01-01"
+      - 510300.SS
+      - 510500.SS
+      - 512100.SS
+      - 510050.SS
+      - 588000.SS
+      - 159915.SZ
+      - 512880.SS
+      - 512690.SS
+      - 512170.SS
+      - 159928.SZ
+    start_date: "2023-01-03"
     options:
       trading_days: 420
 strategies:
@@ -67,6 +67,6 @@ risk:
 schedule:
   shadow_run_cron: "20 15 * * 1-5"
   rebalance_cron: "35 15 * * 1-5"
-  daily_report_cron: "45 16 * * 1-5"
-  weekly_report_cron: "0 17 * * 5"
-  monthly_report_cron: "0 17 28-31 * *"
+  daily_report_cron: "45 15 * * 1-5"
+  weekly_report_cron: "0 16 * * 5"
+  monthly_report_cron: "0 16 28-31 * *"

@@ -1,0 +1,76 @@
+profile_id: cn_etf_daily_research12
+name: 中国 A 股 ETF 日频研究12
+market: CN
+asset_type: ETF
+data_frequency: 1d
+rebalance_frequency: 1d
+strategy_family: momentum_rotation
+currency: CNY
+timezone: Asia/Shanghai
+calendar: XSHG
+universe_id: cn_etf_research12
+benchmark_symbol: 510300.SS
+lifecycle:
+  role: research
+  line_id: cn_core_long_only
+execution:
+  long_only: true
+  rebalance_min_trade_value: 10000
+  rebalance_weight_tolerance: 0.015
+versions:
+  profile: research-cn-core-v12
+  benchmark: csi300-etf-total-return-v1
+  strategy_params: cn-etf-rotation-126d-plus-momentum-20d-v1
+  execution_policy: cn-low-turnover-band-150bps-v1
+  risk_policy: cn-cash-buffer-2pct-single-name-35pct-v1
+data:
+  provider: local
+  dataset_id: research12
+  path: cn/etf/1d/research12.parquet
+  price_field: adjusted_close
+  adjusted: true
+  download:
+    enabled: true
+    provider: yfinance
+    symbols:
+      - 510300.SS
+      - 510500.SS
+      - 512100.SS
+      - 510050.SS
+      - 588000.SS
+      - 159915.SZ
+      - 512880.SS
+      - 512690.SS
+      - 512170.SS
+      - 515790.SS
+      - 159928.SZ
+      - 159949.SZ
+    start_date: "2015-01-05"
+    options:
+      auto_adjust: false
+      allow_partial: true
+      timeout_seconds: 30
+strategies:
+  - strategy_id: etf_rotation
+    strategy_family: momentum_rotation
+    enabled: true
+    capital_weight: 0.7
+    params:
+      lookback_days: 126
+      top_n: 3
+  - strategy_id: momentum
+    strategy_family: cross_sectional_selection
+    enabled: true
+    capital_weight: 0.3
+    params:
+      lookback_days: 20
+      top_n: 3
+risk:
+  max_single_weight: 0.35
+  max_gross_exposure: 1.0
+  min_cash_buffer: 0.02
+schedule:
+  rebalance_cron: "35 15 * * 1-5"
+  daily_report_cron: "45 15 * * 1-5"
+  weekly_report_cron: "0 16 * * 5"
+  monthly_report_cron: "0 16 28-31 * *"

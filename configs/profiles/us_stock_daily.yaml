@@ -10,6 +10,19 @@ timezone: America/New_York
 calendar: XNYS
 universe_id: us_stock_core
 benchmark_symbol: SPY
+lifecycle:
+  role: experimental
+  line_id: us_core_long_only
+execution:
+  long_only: true
+  rebalance_min_trade_value: 2000
+  rebalance_weight_tolerance: 0.02
+versions:
+  profile: exp-us-largecap-daily-v1
+  benchmark: spy-total-return-v1
+  strategy_params: largecap-momentum-63d-top5-v1
+  execution_policy: low-turnover-band-200bps-v1
+  risk_policy: cash-buffer-3pct-single-name-20pct-v1
 data:
   provider: demo
   dataset_id: core

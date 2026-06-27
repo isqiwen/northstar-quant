@@ -62,6 +62,38 @@ class ProfileStrategyConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class ProfileLifecycleConfig:
+    """交易画像的生命周期角色。"""
+
+    role: str = "experimental"
+    line_id: str = "default"
+
+    @property
+    def is_production(self) -> bool:
+        return self.role == "production"
+
+
+@dataclass(frozen=True, slots=True)
+class ProfileExecutionConfig:
+    """交易画像中的执行政策。"""
+
+    long_only: bool = True
+    rebalance_min_trade_value: float | None = None
+    rebalance_weight_tolerance: float = 0.0
+
+
+@dataclass(frozen=True, slots=True)
+class ProfileVersionConfig:
+    """交易画像中的版本锚点。"""
+
+    profile: str = "v1"
+    benchmark: str = "v1"
+    strategy_params: str = "v1"
+    execution_policy: str = "v1"
+    risk_policy: str = "v1"
+
+
+@dataclass(frozen=True, slots=True)
 class TradingProfile:
     """统一描述交易类型、数据集与策略组合的交易画像。"""
 
@@ -79,6 +111,9 @@ class TradingProfile:
     benchmark_symbol: str
     data: ProfileDataConfig
     strategies: tuple[ProfileStrategyConfig, ...] = ()
+    lifecycle: ProfileLifecycleConfig = field(default_factory=ProfileLifecycleConfig)
+    execution: ProfileExecutionConfig = field(default_factory=ProfileExecutionConfig)
+    versions: ProfileVersionConfig = field(default_factory=ProfileVersionConfig)
     risk: dict[str, Any] = field(default_factory=dict)
     schedule: dict[str, Any] = field(default_factory=dict)
     metadata: dict[str, Any] = field(default_factory=dict)
@@ -101,6 +136,10 @@ class TradingProfile:
     def dimension_key(self) -> str:
         return self.dimensions.key
 
+    @property
+    def is_production(self) -> bool:
+        return self.lifecycle.is_production
+
     def strategy_dimensions(self, strategy: ProfileStrategyConfig) -> TradingDimensions:
         return TradingDimensions(
             market=self.market,
@@ -114,7 +153,7 @@ class TradingProfile:
 def resolve_profile_id(profile_id: str | None = None) -> str:
     """解析交易画像 ID；为空时回退到全局默认画像。"""
 
-    return profile_id or get_settings().default_profile_id
+    return profile_id or get_production_profile_id()
 
 
 def get_profile_config_dir(config_dir: str | Path | None = None) -> Path:
@@ -135,13 +174,56 @@ def get_profile_config_path(profile_id: str | None = None, config_dir: str | Pat
     return get_profile_config_dir(config_dir) / f"{resolved_profile_id}.yaml"
 
 
-def list_trading_profiles(config_dir: str | Path | None = None) -> list[str]:
+def list_trading_profiles(
+    config_dir: str | Path | None = None,
+    *,
+    role: str | None = None,
+) -> list[str]:
     """列出当前可用的交易画像 ID。"""
 
     profile_dir = get_profile_config_dir(config_dir)
     if not profile_dir.exists():
         return []
-    return sorted(path.stem for path in profile_dir.glob("*.yaml"))
+    profiles = sorted(path.stem for path in profile_dir.glob("*.yaml"))
+    if role is None:
+        return profiles
+    normalized_role = str(role).strip().lower()
+    return [
+        profile_id
+        for profile_id in profiles
+        if load_trading_profile(profile_id, config_dir).lifecycle.role == normalized_role
+    ]
+
+
+def list_production_profiles(config_dir: str | Path | None = None) -> list[str]:
+    """列出标记为 production 的交易画像。"""
+
+    return list_trading_profiles(config_dir, role="production")
+
+
+def get_production_profile_id(config_dir: str | Path | None = None) -> str:
+    """返回唯一 production profile。"""
+
+    production_profiles = list_production_profiles(config_dir)
+    if len(production_profiles) == 1:
+        return production_profiles[0]
+    default_profile_id = get_settings().default_profile_id
+    if not production_profiles and default_profile_id:
+        return default_profile_id
+    if len(production_profiles) > 1:
+        joined = ", ".join(production_profiles)
+        raise ValueError(f"当前存在多个 production 画像：{joined}")
+    raise ValueError("当前没有标记为 production 的交易画像。")
+
+
+def ensure_production_profile(profile: TradingProfile, *, context: str) -> TradingProfile:
+    """确保给定画像可用于实盘主线。"""
+
+    if profile.is_production:
+        return profile
+    raise ValueError(
+        f"{context} 仅允许使用 production 画像；当前 {profile.profile_id} 的角色为 {profile.lifecycle.role}。"
+    )
 
 
 @lru_cache(maxsize=None)
@@ -163,8 +245,11 @@ def load_trading_profile(
     data_raw = raw.get("data", {}) or {}
     download_raw = data_raw.get("download", {}) or {}
     strategies_raw = raw.get("strategies", []) or []
+    lifecycle_raw = raw.get("lifecycle", {}) or {}
+    execution_raw = raw.get("execution", {}) or {}
+    versions_raw = raw.get("versions", {}) or {}
 
-    market = _parse_enum(Market, raw.get("market", "US"))
+    market = _parse_enum(Market, raw.get("market", "CN"))
     asset_type = _parse_enum(AssetType, raw.get("asset_type", "ETF"))
     data_frequency = _parse_enum(DataFrequency, raw.get("data_frequency", "1d"))
     rebalance_frequency = _parse_enum(
@@ -208,6 +293,31 @@ def load_trading_profile(
         adjusted=bool(data_raw.get("adjusted", True)),
         download=download_config,
     )
+    lifecycle_config = ProfileLifecycleConfig(
+        role=str(lifecycle_raw.get("role", "experimental")).strip().lower(),
+        line_id=str(
+            lifecycle_raw.get(
+                "line_id",
+                raw.get("profile_id", resolved_profile_id),
+            )
+        ),
+    )
+    execution_config = ProfileExecutionConfig(
+        long_only=bool(execution_raw.get("long_only", True)),
+        rebalance_min_trade_value=(
+            float(execution_raw["rebalance_min_trade_value"])
+            if execution_raw.get("rebalance_min_trade_value") is not None
+            else None
+        ),
+        rebalance_weight_tolerance=float(execution_raw.get("rebalance_weight_tolerance", 0.0) or 0.0),
+    )
+    version_config = ProfileVersionConfig(
+        profile=str(versions_raw.get("profile", "v1")),
+        benchmark=str(versions_raw.get("benchmark", "v1")),
+        strategy_params=str(versions_raw.get("strategy_params", "v1")),
+        execution_policy=str(versions_raw.get("execution_policy", "v1")),
+        risk_policy=str(versions_raw.get("risk_policy", "v1")),
+    )
 
     strategy_configs = tuple(
         ProfileStrategyConfig(
@@ -249,6 +359,9 @@ def load_trading_profile(
             "benchmark_symbol",
             "data",
             "strategies",
+            "lifecycle",
+            "execution",
+            "versions",
             "risk",
             "schedule",
         }
@@ -272,6 +385,9 @@ def load_trading_profile(
         benchmark_symbol=str(raw.get("benchmark_symbol", get_settings().report_benchmark_symbol)),
         data=data_config,
         strategies=strategy_configs,
+        lifecycle=lifecycle_config,
+        execution=execution_config,
+        versions=version_config,
         risk=dict(raw.get("risk", {}) or {}),
         schedule=dict(raw.get("schedule", {}) or {}),
         metadata=metadata,

@@ -10,6 +10,19 @@ timezone: America/New_York
 calendar: XNYS
 universe_id: us_stock_intraday
 benchmark_symbol: SPY
+lifecycle:
+  role: experimental
+  line_id: intraday_lab
+execution:
+  long_only: true
+  rebalance_min_trade_value: 500
+  rebalance_weight_tolerance: 0.0
+versions:
+  profile: exp-intraday-breakout-v1
+  benchmark: spy-intraday-v1
+  strategy_params: intraday-breakout-30bar-top2-v1
+  execution_policy: fast-rebalance-v1
+  risk_policy: cash-buffer-5pct-single-name-2pct-v1
 data:
   provider: demo
   dataset_id: core

@@ -1,0 +1,14 @@
+data:
+  market: CN
+  asset_type: ETF
+  symbols:
+    - 510300.SS
+    - 510500.SS
+    - 512100.SS
+    - 510050.SS
+    - 588000.SS
+    - 159915.SZ
+    - 512880.SS
+    - 512690.SS
+  data_frequency: 1d
+  source: demo

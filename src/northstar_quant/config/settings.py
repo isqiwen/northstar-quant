@@ -27,9 +27,9 @@ class Settings(BaseSettings):
 
     app_name: str = Field(default="Northstar Quant")
     env: str = Field(default="dev")
-    timezone: str = Field(default="America/New_York")
+    timezone: str = Field(default="Asia/Shanghai")
     project_root: Path = Field(default=_PROJECT_ROOT)
-    default_profile_id: str = Field(default="us_etf_daily")
+    default_profile_id: str = Field(default="cn_etf_daily")
     profile_config_dir: Path = Field(default=Path("configs/profiles"))
 
     storage_dir: Path = Field(default=Path("storage"))
@@ -41,6 +41,8 @@ class Settings(BaseSettings):
 
     # 券商与账户配置。
     broker: str = Field(default="paper")
+    live_trading_enabled: bool = Field(default=False)
+    kill_switch_enabled: bool = Field(default=False)
     default_cash: float = Field(default=100000.0)
     rebalance_min_trade_value: float = Field(default=500.0)
     paper_fill_price_mode: str = Field(default="close")
@@ -59,8 +61,8 @@ class Settings(BaseSettings):
     limit_chase_per_step_timeout_seconds: int = Field(default=20)
     limit_chase_fallback_mode: str = Field(default='market')
 
-    # 交易日历配置。默认使用纽交所日历。
-    exchange_calendar: str = Field(default="XNYS")
+    # 交易日历配置。默认使用上交所日历。
+    exchange_calendar: str = Field(default="XSHG")
 
     # 告警相关。你说不想用 Telegram，这里默认改成企业微信机器人。
     alert_mode: str = Field(default="console")
@@ -80,15 +82,26 @@ class Settings(BaseSettings):
     report_recipients: str | None = Field(default=None)
     report_email_subject_prefix: str = Field(default="Northstar Quant")
     report_email_attach_pdf: bool = Field(default=True)
+    report_recap_execution_shortfall_alert_bps: float = Field(default=20.0)
+    report_recap_residual_abs_alert: float = Field(default=10.0)
+    report_recap_residual_ratio_alert: float = Field(default=0.05)
+    report_recap_funding_abs_alert: float = Field(default=1000.0)
+    report_recap_funding_ratio_alert: float = Field(default=0.01)
+    live_preflight_max_state_age_seconds: int = Field(default=120)
+    live_preflight_intraday_data_max_age_minutes: int = Field(default=120)
+    live_preflight_daily_data_max_age_days: int = Field(default=4)
+    live_preflight_weekly_data_max_age_days: int = Field(default=10)
+    live_preflight_allow_valuation_price_fallback: bool = Field(default=False)
 
     # 报告与执行控制。
-    report_benchmark_symbol: str = Field(default="SPY")
+    report_benchmark_symbol: str = Field(default="510300.SS")
     etf_rotation_lookback_days: int = Field(default=126)
     etf_rotation_top_n: int = Field(default=3)
-    trading_currency: str = Field(default="USD")
+    trading_currency: str = Field(default="CNY")
 
     # 日频调度器配置。
-    scheduler_timezone: str = Field(default="America/New_York")
+    scheduler_timezone: str = Field(default="Asia/Shanghai")
+    shadow_run_cron: str = Field(default="20 15 * * 1-5")
     rebalance_cron: str = Field(default="35 15 * * 1-5")
     broker_sync_cron: str = Field(default="0,15,30,45 9-16 * * 1-5")
     daily_report_cron: str = Field(default="45 16 * * 1-5")

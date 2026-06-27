@@ -1,8 +1,8 @@
 app:
   name: Northstar Quant
   env: dev
-  timezone: America/New_York
-  market: US
+  timezone: Asia/Shanghai
+  market: CN
   asset_type: ETF
   data_frequency: 1d
   rebalance_frequency: 1d

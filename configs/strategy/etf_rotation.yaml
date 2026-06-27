@@ -1,23 +1,21 @@
 strategy_id: etf_rotation
-name: 美股 ETF 日频轮动
+name: 中国 A 股 ETF 日频轮动
 universe:
-  - SPY
-  - QQQ
-  - IWM
-  - DIA
-  - EFA
-  - EEM
-  - TLT
-  - IEF
-  - GLD
-  - VNQ
-  - XLE
-  - XLK
+  - 510300.SS
+  - 510500.SS
+  - 512100.SS
+  - 510050.SS
+  - 588000.SS
+  - 159915.SZ
+  - 512880.SS
+  - 512690.SS
+  - 512170.SS
+  - 159928.SZ
 lookback_days: 126
 top_n: 3
 rebalance_frequency: daily
 weighting: equal
-min_liquidity_usd: 10000000
+min_liquidity_cny: 50000000
 risk:
   max_single_weight: 0.35
   max_gross_exposure: 1.0

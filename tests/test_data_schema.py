@@ -76,13 +76,13 @@ def test_validate_profile_data_reports_standard_daily_schema(tmp_path, monkeypat
     get_settings.cache_clear()
 
     try:
-        download_profile_data("us_stock_daily", provider_override="demo")
-        report = validate_profile_data("us_stock_daily")
+        download_profile_data("cn_stock_daily", provider_override="demo")
+        report = validate_profile_data("cn_stock_daily")
 
         assert report["status"] == "ok"
         assert report["schema_version"] == "market_data_v2"
         assert report["data_source"] == "demo"
-        assert report["currency"] == "USD"
+        assert report["currency"] == "CNY"
         assert report["configured_price_field"] == "adjusted_close"
         assert report["expected_columns"] == [
             "date",

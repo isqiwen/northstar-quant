@@ -2,7 +2,12 @@ from pathlib import Path
 
 from northstar_quant.common.enums import AssetType, DataFrequency, RebalanceFrequency, StrategyFamily, StrategyOutputType
 from northstar_quant.config.settings import get_settings
-from northstar_quant.config.trading_profile import load_trading_profile, list_trading_profiles
+from northstar_quant.config.trading_profile import (
+    get_production_profile_id,
+    list_production_profiles,
+    list_trading_profiles,
+    load_trading_profile,
+)
 from northstar_quant.data.storage import profile_market_data_path
 from northstar_quant.strategies.etf_rotation import US_ETFDailyRotationStrategy
 from northstar_quant.strategies.intraday_breakout import IntradayBreakoutStrategy
@@ -19,6 +24,11 @@ def test_list_trading_profiles_contains_default_skeletons():
     profiles = set(list_trading_profiles())
 
     assert {
+        "cn_etf_daily",
+        "cn_etf_daily_research12",
+        "cn_stock_daily",
+        "cn_stock_weekly",
+        "cn_stock_intraday_1m",
         "us_etf_daily",
         "us_etf_daily_research12",
         "us_stock_daily",
@@ -27,19 +37,35 @@ def test_list_trading_profiles_contains_default_skeletons():
     }.issubset(profiles)
 
 
-def test_load_trading_profile_reads_profile_yaml():
-    profile = load_trading_profile("us_etf_daily")
+def test_list_production_profiles_only_returns_main_money_line():
+    assert list_production_profiles() == ["cn_etf_daily"]
+    assert get_production_profile_id() == "cn_etf_daily"
 
-    assert profile.profile_id == "us_etf_daily"
-    assert profile.market == "US"
+
+def test_load_trading_profile_reads_profile_yaml():
+    profile = load_trading_profile("cn_etf_daily")
+
+    assert profile.profile_id == "cn_etf_daily"
+    assert profile.market == "CN"
     assert profile.asset_type == AssetType.ETF
     assert profile.data_frequency == DataFrequency.D1
     assert profile.rebalance_frequency == RebalanceFrequency.D1
     assert profile.strategy_family == StrategyFamily.MOMENTUM_ROTATION
-    assert profile.currency == "USD"
-    assert profile.dimension_key == "us::etf::1d::1d::momentum_rotation"
-    assert profile.data.path == "us/etf/1d/core.parquet"
+    assert profile.currency == "CNY"
+    assert profile.timezone == "Asia/Shanghai"
+    assert profile.calendar == "XSHG"
+    assert profile.benchmark_symbol == "510300.SS"
+    assert profile.dimension_key == "cn::etf::1d::1d::momentum_rotation"
+    assert profile.data.path == "cn/etf/1d/core.parquet"
     assert profile.data.price_field == "adjusted_close"
+    assert profile.is_production is True
+    assert profile.lifecycle.role == "production"
+    assert profile.lifecycle.line_id == "cn_core_long_only"
+    assert profile.execution.long_only is True
+    assert profile.execution.rebalance_min_trade_value == 10000.0
+    assert profile.execution.rebalance_weight_tolerance == 0.015
+    assert profile.versions.profile == "prod-cn-core-v1"
+    assert profile.versions.execution_policy == "cn-low-turnover-band-150bps-v1"
     assert [item.strategy_id for item in profile.enabled_strategies] == ["etf_rotation", "momentum"]
     assert [item.strategy_family for item in profile.enabled_strategies] == [
         StrategyFamily.MOMENTUM_ROTATION,
@@ -49,25 +75,27 @@ def test_load_trading_profile_reads_profile_yaml():
 
 
 def test_load_research12_profile_reads_yfinance_download_config():
-    profile = load_trading_profile("us_etf_daily_research12")
+    profile = load_trading_profile("cn_etf_daily_research12")
 
-    assert profile.profile_id == "us_etf_daily_research12"
+    assert profile.profile_id == "cn_etf_daily_research12"
+    assert profile.is_production is False
+    assert profile.lifecycle.role == "research"
     assert profile.data.provider == "local"
     assert profile.data.download.provider == "yfinance"
-    assert profile.data.download.start_date == "2005-01-03"
+    assert profile.data.download.start_date == "2015-01-05"
     assert len(profile.data.download.symbols) == 12
-    assert profile.data.download.symbols[0] == "SPY"
-    assert profile.data.path == "us/etf/1d/research12.parquet"
+    assert profile.data.download.symbols[0] == "510300.SS"
+    assert profile.data.path == "cn/etf/1d/research12.parquet"
     assert profile.data.price_field == "adjusted_close"
-    assert profile.currency == "USD"
+    assert profile.currency == "CNY"
 
 
 def test_profile_market_data_path_is_root_anchored():
     settings = get_settings()
-    path = profile_market_data_path("us_etf_daily")
+    path = profile_market_data_path("cn_etf_daily")
 
     assert path.is_absolute()
-    assert path == settings.storage_dir / "market" / Path("us/etf/1d/core.parquet")
+    assert path == settings.storage_dir / "market" / Path("cn/etf/1d/core.parquet")
 
 
 def test_strategy_registry_builds_registered_strategies_with_yaml_defaults():
@@ -112,7 +140,7 @@ def test_build_strategy_allows_profile_level_param_override():
 
 
 def test_build_profile_strategies_uses_enabled_profile_entries():
-    profile = load_trading_profile("us_etf_daily")
+    profile = load_trading_profile("cn_etf_daily")
 
     built = build_profile_strategies(profile)
 
@@ -121,7 +149,7 @@ def test_build_profile_strategies_uses_enabled_profile_entries():
 
 
 def test_build_profile_strategies_supports_intraday_profile():
-    profile = load_trading_profile("us_stock_intraday_1m")
+    profile = load_trading_profile("cn_stock_intraday_1m")
 
     built = build_profile_strategies(profile)
 

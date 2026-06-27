@@ -13,25 +13,25 @@ def test_download_profile_data_writes_dataset_cache_and_manifest(tmp_path, monke
     get_settings.cache_clear()
 
     try:
-        result = download_profile_data("us_stock_daily", provider_override="demo")
+        result = download_profile_data("cn_stock_daily", provider_override="demo")
         dataset_path = Path(result.dataset_path)
         cache_path = Path(result.cache_path)
 
         assert dataset_path.exists()
         assert cache_path.exists()
-        assert dataset_path == storage_dir / "market" / Path("us/equity/1d/core.parquet")
-        assert cache_path == downloads_dir / Path("demo/us/equity/1d/core.parquet")
+        assert dataset_path == storage_dir / "market" / Path("cn/equity/1d/core.parquet")
+        assert cache_path == downloads_dir / Path("demo/cn/equity/1d/core.parquet")
 
-        manifest = read_profile_manifest("us_stock_daily")
-        assert manifest["profile_id"] == "us_stock_daily"
-        assert manifest["dimensions"]["market"] == "US"
+        manifest = read_profile_manifest("cn_stock_daily")
+        assert manifest["profile_id"] == "cn_stock_daily"
+        assert manifest["dimensions"]["market"] == "CN"
         assert manifest["dimensions"]["asset_type"] == "EQUITY"
         assert manifest["dimensions"]["data_frequency"] == "1d"
         assert manifest["dimensions"]["rebalance_frequency"] == "1d"
         assert manifest["dimensions"]["strategy_family"] == "cross_sectional_selection"
-        assert manifest["dimension_key"] == "us::equity::1d::1d::cross_sectional_selection"
+        assert manifest["dimension_key"] == "cn::equity::1d::1d::cross_sectional_selection"
         assert manifest["data_source"] == "demo"
-        assert manifest["currency"] == "USD"
+        assert manifest["currency"] == "CNY"
         assert manifest["asset_type"] == "EQUITY"
         assert manifest["data_frequency"] == "1d"
         assert manifest["rebalance_frequency"] == "1d"
@@ -39,7 +39,7 @@ def test_download_profile_data_writes_dataset_cache_and_manifest(tmp_path, monke
         assert manifest["price_field"] == "adjusted_close"
         assert manifest["schema"]["schema_version"] == "market_data_v2"
         assert manifest["symbol_count"] == 10
-        assert "AAPL" in manifest["symbols"]
+        assert "600519.SS" in manifest["symbols"]
         assert manifest["columns"] == [
             "date",
             "symbol",
@@ -65,18 +65,19 @@ def test_download_intraday_profile_contains_timestamp_column(tmp_path, monkeypat
     get_settings.cache_clear()
 
     try:
-        result = download_profile_data("us_stock_intraday_1m", provider_override="demo")
-        manifest = read_profile_manifest("us_stock_intraday_1m")
+        result = download_profile_data("cn_stock_intraday_1m", provider_override="demo")
+        manifest = read_profile_manifest("cn_stock_intraday_1m")
 
         assert Path(result.dataset_path).exists()
         assert manifest["data_frequency"] == "1m"
         assert manifest["rebalance_frequency"] == "5m"
         assert manifest["strategy_family"] == "intraday_breakout"
         assert manifest["price_field"] == "close"
-        assert manifest["currency"] == "USD"
+        assert manifest["currency"] == "CNY"
         assert "timestamp" in manifest["columns"]
         assert manifest["symbol_count"] == 5
         assert manifest["start"] is not None
         assert manifest["end"] is not None
+        assert "11:30" not in manifest["end"]
     finally:
         get_settings.cache_clear()

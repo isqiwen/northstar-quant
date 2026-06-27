@@ -72,6 +72,33 @@ Northstar/
 
 ## 快速开始
 
+### 0. 安装 `uv`
+
+如果你的机器上还没有 `uv`，建议先按官方方式安装。
+
+macOS / Linux：
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+Windows PowerShell：
+
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+如果你更习惯用系统包管理器，也可以使用：
+
+- macOS（Homebrew）：`brew install uv`
+- Windows（WinGet）：`winget install --id=astral-sh.uv -e`
+
+安装完成后，建议先确认命令可用：
+
+```bash
+uv --version
+```
+
 ### 1. 创建环境并安装依赖
 
 Windows PowerShell：
@@ -110,22 +137,22 @@ alembic upgrade head
 
 ```bash
 northstar data profiles
-northstar data download --profile us_etf_daily
-northstar research momentum --profile us_etf_daily
-northstar backtest event etf_rotation --profile us_etf_daily
-northstar backtest bt etf_rotation
-northstar live preview-rebalance --profile us_etf_daily
+northstar data download --profile cn_etf_daily
+northstar research momentum --profile cn_etf_daily
+northstar backtest event etf_rotation --profile cn_etf_daily
+northstar backtest bt etf_rotation --profile cn_etf_daily
+northstar live preview-rebalance --profile cn_etf_daily
 ```
 
-如果你要下载真实的美股 ETF 日频数据并直接进入研究流程，可以使用项目内置的 `us_etf_daily_research12` 画像：
+如果你要下载真实的中国 A 股 ETF 日频数据并直接进入研究流程，可以使用项目内置的 `cn_etf_daily_research12` 画像。该画像使用 Yahoo Finance 的 `.SS` / `.SZ` 符号格式：
 
 ```bash
 northstar data providers
-northstar data download --profile us_etf_daily_research12
-northstar data validate --profile us_etf_daily_research12
-northstar data manifest --profile us_etf_daily_research12
-northstar research momentum --profile us_etf_daily_research12
-northstar backtest event etf_rotation --profile us_etf_daily_research12
+northstar data download --profile cn_etf_daily_research12
+northstar data validate --profile cn_etf_daily_research12
+northstar data manifest --profile cn_etf_daily_research12
+northstar research momentum --profile cn_etf_daily_research12
+northstar backtest event etf_rotation --profile cn_etf_daily_research12
 ```
 
 ## 常用命令
@@ -135,12 +162,12 @@ northstar backtest event etf_rotation --profile us_etf_daily_research12
 ```bash
 northstar health
 northstar init-db
-northstar sample-data
+northstar sample-data --profile cn_etf_daily
 northstar data profiles
 northstar data providers
-northstar data download --profile us_stock_daily
-northstar data validate --profile us_stock_daily
-northstar data manifest --profile us_stock_daily
+northstar data download --profile cn_stock_daily
+northstar data validate --profile cn_stock_daily
+northstar data manifest --profile cn_stock_daily
 ```
 
 ### 研究与回测
@@ -189,7 +216,7 @@ northstar dashboard run
 常见配置项包括：
 
 - `configs/app.yaml`：应用级配置
-- `configs/profiles/*.yaml`：交易画像配置，区分美股 ETF 日频、美股股票日频、美股股票周频、美股股票分钟级
+- `configs/profiles/*.yaml`：交易画像配置，默认主线为中国 A 股 ETF 日频，并提供 A 股股票日频、周频、分钟级画像
 - `configs/strategy/*.yaml`：策略配置
 - `configs/risk/*.yaml`：风控配置
 - `configs/data/*.yaml`：数据配置
@@ -203,10 +230,10 @@ northstar dashboard run
 
 - `demo`：生成项目自带的演示数据
 - `local`：直接读取画像已指向的本地数据文件
-- `yfinance`：从 Yahoo Finance 下载真实行情并规范落盘
+- `yfinance`：从 Yahoo Finance 下载真实行情并规范落盘，A 股使用 `.SS` / `.SZ` 后缀
 
 交易画像里的 `data.download` 段负责描述下载行为，例如下载提供器、symbol 列表、开始日期、结束日期和下载选项；`data.path` 负责描述标准化后数据集在 `storage/market` 下的目标位置。这样同一套 CLI 可以同时覆盖“在线下载、缓存落盘、标准数据集落盘、manifest 追踪、研究读取”整个流程。
-对于美股日频/周频数据，当前标准表 schema 为：`date / symbol / open / high / low / close / adjusted_close / volume / dividend / split_factor`。其中 `close` 保留原始收盘价，`adjusted_close` 单独保存复权收盘价；研究、目标权重回测和策略信号默认读取 `data.price_field` 指定的价格列，当前日频/周频画像默认使用 `adjusted_close`，而实盘预览与下单估值仍使用原始 `close`。这套语义可以通过 `northstar data validate --profile ...` 明确校验。
+对于中国 A 股日频/周频数据，当前标准表 schema 为：`date / symbol / open / high / low / close / adjusted_close / volume / dividend / split_factor`。其中 `close` 保留原始收盘价，`adjusted_close` 单独保存复权收盘价；研究、目标权重回测和策略信号默认读取 `data.price_field` 指定的价格列，当前日频/周频画像默认使用 `adjusted_close`，而实盘预览与下单估值仍使用原始 `close`。这套语义可以通过 `northstar data validate --profile ...` 明确校验。
 
 ## 架构说明
 
@@ -222,10 +249,10 @@ northstar dashboard run
 策略、回测、执行、报告等能力通过 CLI 统一暴露，入口位于 `src/northstar_quant/cli.py`。
 当前交易画像已经按 `市场 × 资产类型 × 频率 × 策略类型` 四个维度抽象，例如：
 
-- `US × ETF × 1d × 1d × momentum_rotation`
-- `US × EQUITY × 1d × 1d × cross_sectional_selection`
-- `US × EQUITY × 1w × 1w × cross_sectional_selection`
-- `US × EQUITY × 1m × 5m × intraday_breakout`
+- `CN × ETF × 1d × 1d × momentum_rotation`
+- `CN × EQUITY × 1d × 1d × cross_sectional_selection`
+- `CN × EQUITY × 1w × 1w × cross_sectional_selection`
+- `CN × EQUITY × 1m × 5m × intraday_breakout`
 
 ## 实盘与报告能力
 
