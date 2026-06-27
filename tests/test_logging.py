@@ -68,7 +68,7 @@ def test_setup_logging_creates_log_file(tmp_path, monkeypatch):
 def test_rotation_namer_uses_date_before_log_suffix():
     rotated = _rotation_namer("storage/logs/northstar.log.2026-04-04")
 
-    assert rotated == "storage\\logs\\northstar-2026-04-04.log"
+    assert Path(rotated) == Path("storage/logs/northstar-2026-04-04.log")
 
 
 def test_setup_logging_writes_json_lines_with_top_level_fields(tmp_path, monkeypatch):
