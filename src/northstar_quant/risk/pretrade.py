@@ -3,10 +3,20 @@
 from __future__ import annotations
 
 import math
+from collections.abc import Mapping
 
 from northstar_quant.execution.models import OrderRequest
 from northstar_quant.execution.quantity import resolve_qty_step
 from northstar_quant.risk.models import OrderRiskContext, RiskLimits
+
+_FINAL_OPEN_ORDER_STATUSES = {
+    "filled",
+    "cancelled",
+    "canceled",
+    "apicancelled",
+    "inactive",
+    "rejected",
+}
 
 
 def _require_finite_positive(value: float, message: str) -> float:
@@ -51,6 +61,122 @@ def _normalize_symbol(symbol: str) -> str:
     return symbol.strip().upper()
 
 
+def _coerce_finite_float(value: object) -> float | None:
+    if value is None:
+        return None
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(parsed):
+        return None
+    return parsed
+
+
+def _coerce_positive_float(value: object) -> float | None:
+    parsed = _coerce_finite_float(value)
+    if parsed is None or parsed <= 0:
+        return None
+    return parsed
+
+
+def _is_working_open_order(row: Mapping[str, object]) -> bool:
+    status = str(row.get("status") or "").strip().lower()
+    return status not in _FINAL_OPEN_ORDER_STATUSES
+
+
+def _remaining_open_order_qty(row: Mapping[str, object]) -> float | None:
+    for key in ("remaining_qty", "remaining", "leaves_qty"):
+        remaining_qty = _coerce_positive_float(row.get(key))
+        if remaining_qty is not None:
+            return remaining_qty
+
+    total_qty = _coerce_positive_float(row.get("qty") or row.get("total_qty") or row.get("totalQuantity"))
+    if total_qty is None:
+        return None
+    filled_qty = _coerce_finite_float(row.get("filled_qty") or row.get("filled") or 0.0) or 0.0
+    remaining_qty = max(total_qty - max(filled_qty, 0.0), 0.0)
+    return remaining_qty if remaining_qty > 1e-8 else None
+
+
+def _open_order_notional(row: Mapping[str, object]) -> float | None:
+    for key in ("remaining_notional", "remaining_trade_value", "planned_trade_value", "notional"):
+        notional = _coerce_positive_float(row.get(key))
+        if notional is not None:
+            return notional
+    return None
+
+
+def _open_order_price_basis(
+    row: Mapping[str, object],
+    reference_prices: Mapping[str, float] | None,
+) -> float | None:
+    for key in (
+        "reference_price",
+        "limit_price",
+        "price",
+        "avg_fill_price",
+        "market_price",
+        "last",
+        "close",
+    ):
+        price = _coerce_positive_float(row.get(key))
+        if price is not None:
+            return price
+
+    symbol = _normalize_symbol(str(row.get("symbol") or ""))
+    if not symbol or reference_prices is None:
+        return None
+    return _coerce_positive_float(reference_prices.get(symbol))
+
+
+def reserve_open_orders_in_context(
+    context: OrderRiskContext | None,
+    open_orders: list[dict],
+    reference_prices: Mapping[str, float] | None = None,
+) -> None:
+    """把券商未完成订单计入动态风控上下文。
+
+    未完成买单会占用可用资金；未完成卖单会占用可卖持仓。
+    如果方向、数量或买单估值价格无法解析，则标记为 unresolved，
+    后续下单会 fail-closed。
+    """
+
+    if context is None:
+        return
+
+    normalized_reference_prices = (
+        {_normalize_symbol(str(symbol)): float(price) for symbol, price in reference_prices.items()}
+        if reference_prices
+        else None
+    )
+
+    for row in open_orders:
+        if not _is_working_open_order(row):
+            continue
+
+        side = str(row.get("side") or row.get("action") or "").strip().upper()
+        symbol = _normalize_symbol(str(row.get("symbol") or ""))
+        remaining_qty = _remaining_open_order_qty(row)
+        if side not in {"BUY", "SELL"} or not symbol or remaining_qty is None:
+            context.unresolved_open_order_count += 1
+            continue
+
+        if side == "BUY":
+            notional = _open_order_notional(row)
+            if notional is None:
+                price_basis = _open_order_price_basis(row, normalized_reference_prices)
+                if price_basis is None:
+                    context.unresolved_open_order_count += 1
+                    continue
+                notional = remaining_qty * price_basis
+            context.reserved_buy_notional += notional
+        elif side == "SELL":
+            context.reserved_sell_qty_by_symbol[symbol] = (
+                float(context.reserved_sell_qty_by_symbol.get(symbol, 0.0)) + remaining_qty
+            )
+
+
 def _validate_account_context(
     order: OrderRequest,
     qty: float,
@@ -58,6 +184,9 @@ def _validate_account_context(
 ) -> None:
     if context is None:
         return
+
+    if context.unresolved_open_order_count > 0:
+        raise ValueError("账户存在无法解析的未完成订单")
 
     side = order.side.strip().upper()
     symbol = _normalize_symbol(order.symbol)

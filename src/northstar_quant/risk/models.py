@@ -32,3 +32,4 @@ class OrderRiskContext:
     position_qty_by_symbol: dict[str, float] = field(default_factory=dict)
     reserved_buy_notional: float = 0.0
     reserved_sell_qty_by_symbol: dict[str, float] = field(default_factory=dict)
+    unresolved_open_order_count: int = 0

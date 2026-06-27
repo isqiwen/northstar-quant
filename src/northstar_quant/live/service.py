@@ -45,6 +45,7 @@ from northstar_quant.logging_.logger import get_logger
 from northstar_quant.monitoring.alerts import send_alert
 from northstar_quant.reporting.report_builder import latest_live_account_attribution_summary
 from northstar_quant.risk.models import OrderRiskContext
+from northstar_quant.risk.pretrade import reserve_open_orders_in_context
 from northstar_quant.strategies.pipeline import (
     build_profile_risk_limits,
     run_profile_strategy_pipeline,
@@ -614,7 +615,7 @@ def run_live_once(profile_id: str | None = None) -> list[str]:
                 profile_id=profile.profile_id,
                 execution_planner_id=planner.planner_id,
             )
-            order_risk_context = _build_order_risk_context(state)
+            order_risk_context = _build_order_risk_context(state, execution_reference_prices)
             router = OrderRouter(broker, limits, risk_context=order_risk_context)
             run_logger.info(
                 "实盘前检查完成，持仓同步=%s，成交同步=%s，执行计划数=%s，计划快照=%s，执行价来源=%s",
@@ -875,16 +876,21 @@ def _extract_available_cash(account_values: dict) -> float | None:
     return None
 
 
-def _build_order_risk_context(state: BrokerStateSnapshot) -> OrderRiskContext:
+def _build_order_risk_context(
+    state: BrokerStateSnapshot,
+    reference_prices: dict[str, float] | None = None,
+) -> OrderRiskContext:
     """把券商状态转成订单路由期间的动态风控上下文。"""
 
-    return OrderRiskContext(
+    context = OrderRiskContext(
         available_cash=_extract_available_cash(state.account_values),
         position_qty_by_symbol={
             str(item.symbol).strip().upper(): float(item.qty)
             for item in state.positions
         },
     )
+    reserve_open_orders_in_context(context, state.open_orders, reference_prices)
+    return context
 
 
 def poll_orders_and_fills_once() -> dict:

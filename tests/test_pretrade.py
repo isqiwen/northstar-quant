@@ -3,7 +3,12 @@ import pytest
 from northstar_quant.config.trading_profile import load_trading_profile
 from northstar_quant.execution.models import OrderRequest
 from northstar_quant.risk.models import OrderRiskContext, RiskLimits
-from northstar_quant.risk.pretrade import release_order_context, reserve_order_context, validate_order
+from northstar_quant.risk.pretrade import (
+    release_order_context,
+    reserve_open_orders_in_context,
+    reserve_order_context,
+    validate_order,
+)
 from northstar_quant.strategies.pipeline import build_profile_risk_limits
 
 
@@ -178,3 +183,116 @@ def test_order_context_reservation_can_be_released_after_cancel():
     release_order_context(context, order)
 
     assert context.reserved_buy_notional == 0.0
+
+
+def test_open_orders_reserve_cash_and_sellable_position():
+    context = OrderRiskContext(
+        available_cash=1000.0,
+        position_qty_by_symbol={"510300.SS": 50.0},
+    )
+    reserve_open_orders_in_context(
+        context,
+        [
+            {
+                "symbol": "510500.SS",
+                "side": "BUY",
+                "remaining_qty": 3.0,
+                "limit_price": 100.0,
+                "status": "Submitted",
+            },
+            {
+                "symbol": "510300.SS",
+                "side": "SELL",
+                "remaining_qty": 20.0,
+                "status": "PartiallyFilled",
+            },
+        ],
+    )
+
+    validate_order(
+        OrderRequest(
+            strategy_id="core_portfolio",
+            symbol="510500.SS",
+            side="BUY",
+            qty=7.0,
+            reference_price=100.0,
+        ),
+        RiskLimits(max_order_notional=None),
+        context,
+    )
+    with pytest.raises(ValueError, match="买入订单金额超过可用资金"):
+        validate_order(
+            OrderRequest(
+                strategy_id="core_portfolio",
+                symbol="510500.SS",
+                side="BUY",
+                qty=8.0,
+                reference_price=100.0,
+            ),
+            RiskLimits(max_order_notional=None),
+            context,
+        )
+    with pytest.raises(ValueError, match="卖出订单数量超过可用持仓"):
+        validate_order(
+            OrderRequest(
+                strategy_id="core_portfolio",
+                symbol="510300.SS",
+                side="SELL",
+                qty=31.0,
+                reference_price=10.0,
+            ),
+            RiskLimits(max_order_notional=None),
+            context,
+        )
+
+    assert context.reserved_buy_notional == 300.0
+    assert context.reserved_sell_qty_by_symbol["510300.SS"] == 20.0
+
+
+def test_open_buy_order_uses_reference_price_when_order_has_no_price():
+    context = OrderRiskContext(available_cash=1000.0)
+
+    reserve_open_orders_in_context(
+        context,
+        [
+            {
+                "symbol": "510300.SS",
+                "side": "BUY",
+                "qty": 10.0,
+                "filled_qty": 4.0,
+                "status": "Submitted",
+            }
+        ],
+        {"510300.SS": 50.0},
+    )
+
+    assert context.reserved_buy_notional == 300.0
+    assert context.unresolved_open_order_count == 0
+
+
+def test_unresolved_open_order_blocks_new_orders():
+    context = OrderRiskContext(available_cash=1000.0)
+    reserve_open_orders_in_context(
+        context,
+        [
+            {
+                "symbol": "510300.SS",
+                "side": "BUY",
+                "remaining_qty": 10.0,
+                "status": "Submitted",
+            }
+        ],
+    )
+
+    with pytest.raises(ValueError, match="账户存在无法解析的未完成订单"):
+        validate_order(
+            OrderRequest(
+                strategy_id="core_portfolio",
+                symbol="510500.SS",
+                side="BUY",
+                qty=1.0,
+                reference_price=100.0,
+            ),
+            RiskLimits(max_order_notional=None),
+            context,
+        )

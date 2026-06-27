@@ -7,7 +7,7 @@ import pytest
 
 from northstar_quant.config.settings import get_settings
 from northstar_quant.config.trading_profile import load_trading_profile
-from northstar_quant.execution.models import BrokerStateSnapshot, MarketQuoteSnapshot
+from northstar_quant.execution.models import BrokerStateSnapshot, MarketQuoteSnapshot, PositionSnapshot
 from northstar_quant.live import service as live_service
 from northstar_quant.live.preflight import build_preflight_result
 
@@ -201,6 +201,42 @@ def test_run_live_once_returns_without_order_submission_when_preflight_fails(mon
     assert any("未完成订单" in message for message in messages[1:])
     assert alerts and alerts[0][0] == "warning"
     assert "只同步，不下单" in alerts[0][1]
+
+
+def test_build_order_risk_context_reserves_existing_open_orders():
+    state = BrokerStateSnapshot(
+        positions=[
+            PositionSnapshot(symbol="510300.SS", qty=100.0),
+        ],
+        open_orders=[
+            {
+                "broker_order_id": "buy-1",
+                "symbol": "510500.SS",
+                "side": "BUY",
+                "remaining_qty": 3.0,
+                "status": "Submitted",
+            },
+            {
+                "broker_order_id": "sell-1",
+                "symbol": "510300.SS",
+                "side": "SELL",
+                "remaining_qty": 20.0,
+                "status": "Submitted",
+            },
+        ],
+        account_values={"AvailableFunds": 1000.0},
+    )
+
+    context = live_service._build_order_risk_context(
+        state,
+        {"510500.SS": 100.0},
+    )
+
+    assert context.available_cash == 1000.0
+    assert context.position_qty_by_symbol["510300.SS"] == 100.0
+    assert context.reserved_buy_notional == 300.0
+    assert context.reserved_sell_qty_by_symbol["510300.SS"] == 20.0
+    assert context.unresolved_open_order_count == 0
 
 
 def test_live_preflight_rejects_non_production_profile():
