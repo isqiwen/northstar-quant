@@ -5,7 +5,12 @@ from __future__ import annotations
 from northstar_quant.common.time import utc_now
 from northstar_quant.config.settings import get_settings
 from northstar_quant.execution.broker_base import BrokerAdapter
-from northstar_quant.execution.models import BrokerStateSnapshot, OrderRequest, OrderResult
+from northstar_quant.execution.models import (
+    BrokerStateSnapshot,
+    MarketQuoteSnapshot,
+    OrderRequest,
+    OrderResult,
+)
 from northstar_quant.live.ibkr_service import IBKRService
 from northstar_quant.logging_.logger import get_logger
 
@@ -83,6 +88,12 @@ class IBKRBrokerAdapter(BrokerAdapter):
     def sync_state(self) -> BrokerStateSnapshot:
         logger.bind(command="broker.sync-state").info("开始同步 IBKR 状态")
         return self.service.sync_state()
+
+    def get_market_quotes(self, symbols: list[str]) -> list[MarketQuoteSnapshot]:
+        logger.bind(command="broker.market-quotes", symbol_count=len(symbols)).info(
+            "开始拉取 IBKR 市场报价快照"
+        )
+        return self.service.snapshot_quotes(symbols)
 
     def cancel_order(self, broker_order_id: str) -> bool:
         """向 IBKR 发送撤单请求。"""

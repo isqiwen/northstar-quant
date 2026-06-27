@@ -15,12 +15,13 @@
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from northstar_quant.config.settings import get_settings
 from northstar_quant.execution.broker_base import BrokerAdapter
 from northstar_quant.execution.limit_executor import build_limit_order
 from northstar_quant.execution.models import OrderRequest, OrderResult
+from northstar_quant.execution.pricing import build_execution_reference_price_map
 from northstar_quant.execution.router import OrderRouter
 from northstar_quant.logging_.logger import get_logger
 from northstar_quant.risk.models import RiskLimits
@@ -30,7 +31,8 @@ FINAL_STATUSES = {
     'Filled', 'Cancelled', 'ApiCancelled', 'Inactive', 'Rejected', 'filled', 'cancelled', 'rejected'
 }
 OPEN_STATUSES = {
-    'PendingSubmit', 'PreSubmitted', 'Submitted', 'ApiPending', 'PendingCancel', 'submitted', 'open'
+    'PendingSubmit', 'PreSubmitted', 'Submitted', 'ApiPending', 'PendingCancel',
+    'PartiallyFilled', 'submitted', 'open', 'partiallyfilled'
 }
 logger = get_logger(__name__)
 
@@ -39,6 +41,7 @@ logger = get_logger(__name__)
 class ChaseExecutionResult:
     """追价执行结果。"""
 
+    final_order: OrderRequest
     final_result: OrderResult
     attempts: list[dict]
     final_mode: str
@@ -66,6 +69,7 @@ class LimitChaseExecutor:
 
         attempts: list[dict] = []
         max_steps = max(1, int(self.settings.limit_chase_max_steps))
+        last_submitted_order = base_order
         chase_logger = logger.bind(
             command="execution.limit-chase",
             strategy=base_order.strategy_id,
@@ -74,7 +78,16 @@ class LimitChaseExecutor:
         chase_logger.info("开始执行限价追价，max_steps=%s", max_steps)
 
         for step in range(max_steps):
-            limit_order = build_limit_order(base_order, reference_price=reference_price, step=step)
+            refreshed_reference_price = self._resolve_reference_price(
+                base_order.symbol,
+                fallback_price=reference_price,
+            )
+            limit_order = build_limit_order(
+                base_order,
+                reference_price=refreshed_reference_price,
+                step=step,
+            )
+            last_submitted_order = limit_order
             result = self.router.route(limit_order)
             attempts.append({
                 'step': step + 1,
@@ -82,12 +95,14 @@ class LimitChaseExecutor:
                 'broker_order_id': result.broker_order_id,
                 'status': result.status,
                 'limit_price': limit_order.limit_price,
+                'reference_price': refreshed_reference_price,
             })
             chase_logger.info(
-                "已提交追价订单，step=%s，broker_order_id=%s，limit_price=%s",
+                "已提交追价订单，step=%s，broker_order_id=%s，limit_price=%s，reference_price=%s",
                 step + 1,
                 result.broker_order_id,
                 limit_order.limit_price,
+                refreshed_reference_price,
             )
 
             terminal = self._wait_for_terminal_or_timeout(result.broker_order_id)
@@ -118,19 +133,19 @@ class LimitChaseExecutor:
                     'limit_filled',
                     final.status,
                 )
-                return ChaseExecutionResult(final_result=final, attempts=attempts, final_mode='limit_filled')
+                return ChaseExecutionResult(
+                    final_order=limit_order,
+                    final_result=final,
+                    attempts=attempts,
+                    final_mode='limit_filled',
+                )
 
         # 走到这里说明所有限价轮次都没有完成。
         if self.settings.limit_chase_fallback_mode.lower() == 'market':
-            market_order = OrderRequest(
-                strategy_id=base_order.strategy_id,
-                symbol=base_order.symbol,
-                side=base_order.side,
-                qty=base_order.qty,
-                target_weight=base_order.target_weight,
+            market_order = replace(
+                base_order,
                 order_type='MKT',
-                order_semantic=base_order.order_semantic,
-                account=base_order.account,
+                limit_price=None,
                 reason=f"{base_order.reason}_limit_fallback_market",
             )
             result = self.router.route(market_order)
@@ -141,7 +156,12 @@ class LimitChaseExecutor:
                 'status': result.status,
             })
             chase_logger.warning("限价追价转市价单兜底执行，status=%s", result.status)
-            return ChaseExecutionResult(final_result=result, attempts=attempts, final_mode='fallback_market')
+            return ChaseExecutionResult(
+                final_order=market_order,
+                final_result=result,
+                attempts=attempts,
+                final_mode='fallback_market',
+            )
 
         final = OrderResult(
             accepted=False,
@@ -151,7 +171,12 @@ class LimitChaseExecutor:
             submitted_at=None,
         )
         chase_logger.warning("限价追价达到最大轮数，最终撤单")
-        return ChaseExecutionResult(final_result=final, attempts=attempts, final_mode='cancel_after_chase')
+        return ChaseExecutionResult(
+            final_order=last_submitted_order,
+            final_result=final,
+            attempts=attempts,
+            final_mode='cancel_after_chase',
+        )
 
     def _wait_for_terminal_or_timeout(self, broker_order_id: str) -> dict | None:
         """等待订单进入终态；若超时则返回 None。"""
@@ -181,6 +206,14 @@ class LimitChaseExecutor:
 
         wait_logger.warning("订单等待超时")
         return None
+
+    def _resolve_reference_price(self, symbol: str, fallback_price: float) -> float:
+        quotes = self.broker.get_market_quotes([symbol])
+        price_map, _ = build_execution_reference_price_map(
+            quotes,
+            {symbol: fallback_price},
+        )
+        return float(price_map.get(symbol, fallback_price) or fallback_price)
 
     @staticmethod
     def _find_open_order(open_orders: list[dict], broker_order_id: str) -> dict | None:

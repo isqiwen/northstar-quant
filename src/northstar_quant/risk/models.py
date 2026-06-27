@@ -16,5 +16,7 @@ class RiskLimits:
     max_single_weight: float = 0.35
     max_gross_exposure: float = 1.0
     min_cash_buffer: float = 0.02
-    max_order_notional: float = 50000.0
+    min_order_notional: float | None = None
+    max_order_notional: float | None = 50000.0
     max_order_qty: float = 10000.0
+    order_qty_step: float | None = None

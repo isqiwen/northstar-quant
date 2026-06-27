@@ -24,6 +24,9 @@ def resolve_execution_intent_qty(
     side = str(side).upper()
     semantic = OrderSemantic.parse(order_semantic)
     desired_entry_qty = math.floor(equity * size_fraction / price)
+    existing_same_side_qty = (
+        max(float(current_qty), 0.0) if side == "BUY" else abs(min(float(current_qty), 0.0))
+    )
 
     if side == "BUY":
         reducible_qty = abs(min(float(current_qty), 0.0))
@@ -31,7 +34,7 @@ def resolve_execution_intent_qty(
         reducible_qty = max(float(current_qty), 0.0)
 
     if semantic == OrderSemantic.ENTRY:
-        return max(desired_entry_qty, 0)
+        return max(math.floor(desired_entry_qty - existing_same_side_qty), 0)
 
     if semantic == OrderSemantic.EXIT:
         return math.floor(reducible_qty)
@@ -40,6 +43,9 @@ def resolve_execution_intent_qty(
         return min(math.floor(reducible_qty * size_fraction), math.floor(reducible_qty))
 
     if semantic == OrderSemantic.REVERSE:
-        return math.floor(reducible_qty) + max(desired_entry_qty, 0)
+        return math.floor(reducible_qty) + max(
+            math.floor(desired_entry_qty - existing_same_side_qty),
+            0,
+        )
 
     return 0

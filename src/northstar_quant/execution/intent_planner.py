@@ -60,6 +60,7 @@ def build_execution_intent_plan(
                 current_qty=current_qty,
                 target_qty=None,
                 latest_price=price,
+                execution_reference_price=price,
                 estimated_trade_value=float(trade_value),
                 strategy_id=str(row.get("strategy_id") or "execution_intent"),
                 order_semantic=order_semantic,

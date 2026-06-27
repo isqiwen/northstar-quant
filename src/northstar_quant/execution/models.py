@@ -14,12 +14,20 @@ class OrderRequest:
     symbol: str
     side: str
     qty: float
+    profile_id: str | None = None
     target_weight: float | None = None
     order_type: str = "MKT"
     limit_price: float | None = None
     order_semantic: str | None = None
     account: str | None = None
     reason: str = "rebalance"
+    reference_price: float | None = None
+    reference_price_source: str | None = None
+    planned_trade_value: float | None = None
+    run_id: str | None = None
+    batch_id: str | None = None
+    plan_id: str | None = None
+    execution_planner_id: str | None = None
 
 
 @dataclass(slots=True)
@@ -44,6 +52,7 @@ class PositionSnapshot:
     market_value: float | None = None
     account: str | None = None
     asof: datetime | None = None
+    snapshot_batch_id: str | None = None
 
 
 @dataclass(slots=True)
@@ -57,6 +66,21 @@ class FillSnapshot:
     side: str
     filled_at: datetime | None = None
     account: str | None = None
+
+
+@dataclass(slots=True)
+class MarketQuoteSnapshot:
+    """券商侧市场报价快照。"""
+
+    symbol: str
+    bid: float | None = None
+    ask: float | None = None
+    last: float | None = None
+    close: float | None = None
+    market_price: float | None = None
+    market_data_type: int | None = None
+    asof: datetime | None = None
+    source: str = "broker_snapshot"
 
 
 @dataclass(slots=True)
@@ -74,12 +98,14 @@ class RebalanceOrderPlan:
     current_qty: float | None = None
     target_qty: float | None = None
     latest_price: float | None = None
+    execution_reference_price: float | None = None
     estimated_trade_value: float | None = None
     strategy_id: str = "core_portfolio"
     order_semantic: str | None = None
     reason: str = "daily_rebalance"
     order_type: str = "MKT"
     limit_price: float | None = None
+    plan_id: str | None = None
 
 
 @dataclass(slots=True)

@@ -51,6 +51,7 @@ def build_intraday_rebalance_plan(
                 current_qty=current_qty,
                 target_qty=float(target_qty),
                 latest_price=price,
+                execution_reference_price=price,
                 estimated_trade_value=trade_value,
                 strategy_id="intraday_portfolio",
                 reason="intraday_rebalance",

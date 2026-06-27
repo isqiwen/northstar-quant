@@ -6,6 +6,7 @@ from abc import ABC, abstractmethod
 
 from northstar_quant.execution.models import (
     BrokerStateSnapshot,
+    MarketQuoteSnapshot,
     OrderRequest,
     OrderResult,
 )
@@ -39,6 +40,15 @@ class BrokerAdapter(ABC):
         """
 
         return BrokerStateSnapshot()
+
+    def get_market_quotes(self, symbols: list[str]) -> list[MarketQuoteSnapshot]:
+        """读取给定标的的市场报价快照。
+
+        默认返回空列表，由调用方决定是否回退到本地估值价格。
+        """
+
+        del symbols
+        return []
 
     def cancel_order(self, broker_order_id: str) -> bool:
         """撤销一笔订单。

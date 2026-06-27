@@ -26,6 +26,9 @@ def _calc_limit_price(side: str, reference_price: float, offset_bps: float) -> f
 def build_limit_order(order: OrderRequest, reference_price: float, step: int = 0) -> OrderRequest:
     """把统一订单转换成限价单。
 
+    这里的 reference_price 应该是执行参考价，
+    优先使用 broker quote snapshot，而不是研究侧本地 bar close。
+
     step 越大，说明追价次数越多，偏移也越大。
     """
 
@@ -35,4 +38,5 @@ def build_limit_order(order: OrderRequest, reference_price: float, step: int = 0
         order,
         order_type='LMT',
         limit_price=_calc_limit_price(order.side, reference_price, offset_bps),
+        reference_price=reference_price,
     )
