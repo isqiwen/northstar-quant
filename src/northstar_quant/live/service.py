@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import asdict
 from datetime import timedelta
 from uuid import uuid4
@@ -11,8 +12,9 @@ import polars as pl
 
 from northstar_quant.common.enums import StrategyOutputType
 from northstar_quant.common.time import utc_now
-from northstar_quant.config.settings import get_settings
+from northstar_quant.config.settings import get_settings, load_settings
 from northstar_quant.config.trading_profile import ensure_production_profile, load_trading_profile
+from northstar_quant.data.downloader import read_profile_manifest
 from northstar_quant.data.storage import load_profile_market_data, load_profile_signal_data
 from northstar_quant.db.repositories import (
     count_anomaly_events,
@@ -27,6 +29,7 @@ from northstar_quant.db.repositories import (
 )
 from northstar_quant.db.session import SessionLocal
 from northstar_quant.execution.ibkr_adapter import IBKRBrokerAdapter
+from northstar_quant.execution.ibkr_service import IBKRService
 from northstar_quant.execution.limit_chase_executor import LimitChaseExecutor
 from northstar_quant.execution.limit_executor import build_limit_order
 from northstar_quant.execution.models import BrokerStateSnapshot, OrderRequest
@@ -35,14 +38,18 @@ from northstar_quant.execution.pricing import (
     normalize_symbols,
 )
 from northstar_quant.execution.paper_broker import PaperBrokerAdapter
-from northstar_quant.execution.reconciliation import analyze_position_drift, reconcile_broker_state
 from northstar_quant.execution.registry import build_execution_plan, resolve_execution_planner
 from northstar_quant.execution.router import OrderRouter
-from northstar_quant.live.ibkr_service import IBKRService
 from northstar_quant.live.order_management import cancel_stale_orders
 from northstar_quant.live.preflight import build_preflight_result
+from northstar_quant.live.reconciliation import analyze_position_drift, reconcile_broker_state
+from northstar_quant.live.trading_calendar import is_trading_session
 from northstar_quant.logging_.logger import get_logger
-from northstar_quant.monitoring.alerts import send_alert
+from northstar_quant.monitoring.alerts import AlertLevel, send_alert
+from northstar_quant.monitoring.run_health import (
+    anomaly_trend,
+    soak_summary as _soak_summary,
+)
 from northstar_quant.reporting.report_builder import latest_live_account_attribution_summary
 from northstar_quant.risk.models import OrderRiskContext, SymbolTradeState
 from northstar_quant.risk.pretrade import reserve_open_orders_in_context
@@ -54,28 +61,106 @@ from northstar_quant.strategies.pipeline import (
 logger = get_logger(__name__)
 
 
+def _load_data_manifest(profile) -> dict | None:
+    """读取数据来源清单；失败时返回空，由真实券商 preflight 阻断。"""
+
+    try:
+        return read_profile_manifest(profile.profile_id)
+    except (OSError, TypeError, ValueError) as exc:
+        logger.bind(profile=profile.profile_id).warning(
+            "读取数据 manifest 失败，将按缺少来源清单处理: %s",
+            exc,
+        )
+        return None
+
+
 def _pick_broker(service: IBKRService | None = None):
     settings = get_settings()
     if settings.broker == "ibkr":
         return IBKRBrokerAdapter(service=service)
-    return PaperBrokerAdapter()
+    if settings.broker == "paper":
+        return PaperBrokerAdapter()
+    raise ValueError(f"不支持的券商模式：{settings.broker}")
 
 
-def _live_execution_guard_messages(broker_name: str) -> list[str]:
-    settings = get_settings()
+def _live_execution_guard_messages(broker_name: str, *, settings=None) -> list[str]:
+    settings = settings or get_settings()
     normalized_broker = broker_name.strip().lower()
     messages: list[str] = []
 
     if settings.kill_switch_enabled:
         messages.append("KILL_SWITCH_ENABLED: 交易 kill switch 已开启，本次不下单。")
 
+    if normalized_broker != str(settings.broker).strip().lower():
+        messages.append(
+            "BROKER_CONFIG_CHANGED: 当前已连接券商与最新配置不一致，本次停止下单。"
+        )
+
     if normalized_broker != "paper" and not settings.live_trading_enabled:
         messages.append(
             "LIVE_TRADING_DISABLED: 真实券商下单开关未开启；"
             "需要显式设置 NORTHSTAR_LIVE_TRADING_ENABLED=true。"
         )
+        return messages
+
+    if normalized_broker == "ibkr" and settings.ibkr_readonly:
+        messages.append(
+            "IBKR_READONLY: IBKR 连接处于只读模式；"
+            "真实下单前需要显式设置 NORTHSTAR_IBKR_READONLY=false。"
+        )
+
+    if normalized_broker == "ibkr" and not str(settings.ibkr_account or "").strip():
+        messages.append(
+            "IBKR_ACCOUNT_REQUIRED: 未显式配置目标 IBKR 账户，本次停止下单。"
+        )
 
     return messages
+
+
+def _assert_live_submission_allowed(broker_name: str, _order: OrderRequest) -> None:
+    """在每次券商提交前重新读取安全开关并执行最后一道门禁。"""
+
+    messages = _live_execution_guard_messages(
+        broker_name,
+        settings=load_settings(),
+    )
+    if messages:
+        raise PermissionError(" | ".join(messages))
+
+    normalized_broker = broker_name.strip().lower()
+    if normalized_broker == "paper":
+        return
+
+    profile = load_trading_profile(_order.profile_id)
+    try:
+        trading_day = is_trading_session(
+            calendar=profile.calendar,
+            timezone=profile.timezone,
+            require_calendar=True,
+        )
+    except Exception as exc:
+        raise PermissionError(
+            "TRADING_CALENDAR_UNAVAILABLE: 无法确认目标市场交易日，本次停止下单。"
+        ) from exc
+    if not trading_day:
+        raise PermissionError(
+            "NON_TRADING_DAY: 当前不是目标画像交易日，本次停止下单。"
+        )
+
+
+def _send_alert_best_effort(
+    message: str,
+    *,
+    level: AlertLevel = "info",
+) -> None:
+    """告警失败不能覆盖已经持久化的交易结果。"""
+
+    try:
+        send_alert(message, level=level)
+    except Exception:
+        logger.bind(command="live.alert", level=level).exception(
+            "告警发送失败；交易与运行健康记录已保留。"
+        )
 
 
 def _latest_valuation_price_map(market_df: pl.DataFrame) -> dict[str, float]:
@@ -260,10 +345,14 @@ def run_live_preflight(profile_id: str | None = None) -> dict:
             execution_reference_prices=execution_reference_prices,
             execution_price_sources=execution_price_sources,
             equity=_extract_equity(state.account_values),
+            available_cash=_extract_available_cash(state.account_values),
             live_account_attribution=latest_live_account_attribution_summary(
                 profile_id=profile.profile_id,
                 account=account,
             ),
+            broker_name=broker.get_name(),
+            expected_account=account,
+            data_manifest=_load_data_manifest(profile),
         )
         return preflight.to_dict()
     finally:
@@ -309,14 +398,6 @@ def _plan_consistency_issue_count(plans) -> int:
         if expected_trade_value > 0 and abs(expected_trade_value - float(plan.estimated_trade_value or 0.0)) > 1e-4:
             issues += 1
     return issues
-
-
-def _anomaly_trend(current_count: int, previous_count: int) -> str:
-    if current_count < previous_count:
-        return "down"
-    if current_count > previous_count:
-        return "up"
-    return "flat"
 
 
 def _execution_shortfall_bps(summary: dict | None) -> float | None:
@@ -397,7 +478,7 @@ def _record_run_health(
         ),
         anomaly_count_trailing_7d=anomaly_count_trailing_7d,
         anomaly_count_prev_7d=anomaly_count_prev_7d,
-        anomaly_trend=_anomaly_trend(anomaly_count_trailing_7d, anomaly_count_prev_7d),
+        anomaly_trend=anomaly_trend(anomaly_count_trailing_7d, anomaly_count_prev_7d),
         details={
             "preflight": preflight,
             "extra": extra_details or {},
@@ -487,7 +568,11 @@ def run_shadow_once(profile_id: str | None = None) -> dict:
                 execution_reference_prices=execution_reference_prices,
                 execution_price_sources=execution_price_sources,
                 equity=_extract_equity(state.account_values),
+                available_cash=_extract_available_cash(state.account_values),
                 live_account_attribution=live_account_attribution,
+                broker_name=broker.get_name(),
+                expected_account=account,
+                data_manifest=_load_data_manifest(profile),
             ).to_dict()
             plans = []
             planned_order_count = 0
@@ -583,6 +668,8 @@ def run_live_once(profile_id: str | None = None) -> list[str]:
     try:
         pipeline = run_profile_strategy_pipeline(signal_market_df, profile, latest_only=True)
         limits = build_profile_risk_limits(profile)
+        if settings.broker != "paper":
+            limits.enforce_available_cash = True
         run_id = f"live-run-{uuid4().hex}"
         account = getattr(broker, "account", None) or get_settings().ibkr_account
         with SessionLocal() as session:
@@ -632,7 +719,11 @@ def run_live_once(profile_id: str | None = None) -> list[str]:
                 execution_reference_prices=execution_reference_prices,
                 execution_price_sources=execution_price_sources,
                 equity=_extract_equity(state.account_values),
+                available_cash=_extract_available_cash(state.account_values),
                 live_account_attribution=live_account_attribution,
+                broker_name=broker.get_name(),
+                expected_account=account,
+                data_manifest=_load_data_manifest(profile),
             ).to_dict()
             missing_execution_prices = [
                 symbol
@@ -700,7 +791,15 @@ def run_live_once(profile_id: str | None = None) -> list[str]:
                 execution_reference_prices,
                 _latest_trade_state_by_symbol(raw_market_df),
             )
-            router = OrderRouter(broker, limits, risk_context=order_risk_context)
+            def submission_guard(order: OrderRequest) -> None:
+                _assert_live_submission_allowed(broker.get_name(), order)
+
+            router = OrderRouter(
+                broker,
+                limits,
+                risk_context=order_risk_context,
+                submission_guard=submission_guard,
+            )
             run_logger.info(
                 "实盘前检查完成，持仓同步=%s，成交同步=%s，执行计划数=%s，计划快照=%s，执行价来源=%s",
                 sync_result["positions_synced"],
@@ -723,8 +822,14 @@ def run_live_once(profile_id: str | None = None) -> list[str]:
             ).info("执行计划器已选定，planner_id=%s", planner.planner_id)
 
             messages: list[str] = []
+            batch_halted_reason: str | None = None
             chase_executor = (
-                LimitChaseExecutor(broker, limits, risk_context=order_risk_context)
+                LimitChaseExecutor(
+                    broker,
+                    limits,
+                    risk_context=order_risk_context,
+                    submission_guard=submission_guard,
+                )
                 if get_settings().broker == "ibkr"
                 else None
             )
@@ -768,6 +873,7 @@ def run_live_once(profile_id: str | None = None) -> list[str]:
                         session=session,
                         order=final_order,
                         result=result,
+                        broker=broker.get_name(),
                     )
                     messages.append(
                         f"{result.message} | 最终模式={chase_result.final_mode} | 尝试次数={len(chase_result.attempts)}"
@@ -787,6 +893,17 @@ def run_live_once(profile_id: str | None = None) -> list[str]:
                         chase_result.final_mode,
                         len(chase_result.attempts),
                     )
+                    if chase_result.final_mode == "uncertain_stop":
+                        batch_halted_reason = (
+                            "订单状态不确定，已停止本批次其余计划；"
+                            "必须先完成券商对账，才能启动下一轮执行。"
+                        )
+                        run_logger.bind(
+                            broker_order_id=result.broker_order_id,
+                            symbol=final_order.symbol,
+                            plan_id=plan_id,
+                        ).error(batch_halted_reason)
+                        break
                 else:
                     order = (
                         build_limit_order(base_order, reference_price=execution_reference_price)
@@ -798,6 +915,7 @@ def run_live_once(profile_id: str | None = None) -> list[str]:
                         session=session,
                         order=order,
                         result=result,
+                        broker=broker.get_name(),
                     )
                     messages.append(result.message)
                     run_logger.bind(
@@ -813,19 +931,6 @@ def run_live_once(profile_id: str | None = None) -> list[str]:
                         order.side,
                         result.status,
                     )
-
-            if messages:
-                alert_lines = [
-                    "Northstar Quant 已完成本次执行。",
-                    f"订单数：{len(messages)}",
-                    f"输出类型：{pipeline.output_type.value}",
-                    f"同步结果：{sync_result['positions_synced']} 持仓 / {sync_result['fills_synced']} 成交",
-                ]
-                if pipeline.output_type == StrategyOutputType.TARGET_WEIGHT:
-                    alert_lines.append(
-                        f"持仓偏离总量：{drift['summary']['total_abs_weight_diff']:.4f}"
-                    )
-                send_alert("\n".join(alert_lines + messages[:10]), level="info")
 
             drift_total = float(drift["summary"].get("total_abs_weight_diff", 0.0))
             run_health = _record_run_health(
@@ -844,8 +949,30 @@ def run_live_once(profile_id: str | None = None) -> list[str]:
                     "sync_result": sync_result,
                     "drift_summary": drift["summary"],
                     "message_count": len(messages),
+                    "batch_halted_reason": batch_halted_reason,
                 },
             )
+            if messages:
+                alert_lines = [
+                    (
+                        "Northstar Quant 已停止本次执行批次。"
+                        if batch_halted_reason
+                        else "Northstar Quant 已完成本次执行。"
+                    ),
+                    f"订单数：{len(messages)}",
+                    f"输出类型：{pipeline.output_type.value}",
+                    f"同步结果：{sync_result['positions_synced']} 持仓 / {sync_result['fills_synced']} 成交",
+                ]
+                if batch_halted_reason:
+                    alert_lines.append(batch_halted_reason)
+                if pipeline.output_type == StrategyOutputType.TARGET_WEIGHT:
+                    alert_lines.append(
+                        f"持仓偏离总量：{drift['summary']['total_abs_weight_diff']:.4f}"
+                    )
+                _send_alert_best_effort(
+                    "\n".join(alert_lines + messages[:10]),
+                    level="warning" if batch_halted_reason else "info",
+                )
             run_logger.info(
                 "实盘主流程结束，订单数=%s，持仓偏离总量=%.4f，run_health_id=%s",
                 len(messages),
@@ -940,9 +1067,11 @@ def _extract_equity(account_values: dict) -> float | None:
         if value is None:
             continue
         try:
-            return float(value)
-        except Exception:
+            parsed = float(value)
+        except (TypeError, ValueError):
             continue
+        if math.isfinite(parsed) and parsed > 0:
+            return parsed
     return None
 
 
@@ -954,9 +1083,11 @@ def _extract_available_cash(account_values: dict) -> float | None:
         if value is None:
             continue
         try:
-            return float(value)
-        except Exception:
+            parsed = float(value)
+        except (TypeError, ValueError):
             continue
+        if math.isfinite(parsed) and parsed >= 0:
+            return parsed
     return None
 
 
@@ -1234,90 +1365,14 @@ def soak_summary(
     account: str | None = None,
     mode: str | None = None,
 ) -> dict:
-    """汇总最近一段时间的 soak / shadow 运行稳定性。"""
+    """兼容原查询入口，并把 live 层注入的会话与时钟传给监控服务。"""
 
-    since = utc_now() - timedelta(days=max(int(days), 1))
-    with SessionLocal() as session:
-        rows = list_run_health_records(
-            session,
-            limit=1000,
-            profile_id=profile_id,
-            account=account,
-            mode=mode,
-            since=since,
-        )
-        latest_rows = list_run_health_records(
-            session,
-            limit=limit,
-            profile_id=profile_id,
-            account=account,
-            mode=mode,
-        )
-        now = utc_now()
-        current_window_start = now - timedelta(days=7)
-        previous_window_start = current_window_start - timedelta(days=7)
-        anomaly_recent_7d = count_anomaly_events(
-            session,
-            profile_id=profile_id,
-            account=account,
-            start_at=current_window_start,
-            end_at=now,
-        )
-        anomaly_prev_7d = count_anomaly_events(
-            session,
-            profile_id=profile_id,
-            account=account,
-            start_at=previous_window_start,
-            end_at=current_window_start,
-        )
-
-    abs_shortfall_bps = [
-        abs(float(row.execution_shortfall_bps))
-        for row in rows
-        if row.execution_shortfall_bps is not None
-    ]
-    abs_residuals = [
-        abs(float(row.residual_pnl))
-        for row in rows
-        if row.residual_pnl is not None
-    ]
-    run_count = len(rows)
-    return {
-        "profile_id": profile_id,
-        "account": account,
-        "mode": mode or "all",
-        "days": int(days),
-        "run_count": run_count,
-        "preflight_pass_count": sum(1 for row in rows if row.preflight_can_trade),
-        "blocked_run_count": sum(1 for row in rows if not row.preflight_can_trade),
-        "plan_consistency_issue_run_count": sum(
-            1 for row in rows if int(row.plan_consistency_issue_count or 0) > 0
-        ),
-        "open_order_run_count": sum(1 for row in rows if int(row.open_order_count or 0) > 0),
-        "partial_fill_run_count": sum(1 for row in rows if int(row.partial_fill_count or 0) > 0),
-        "avg_abs_execution_shortfall_bps": (
-            sum(abs_shortfall_bps) / len(abs_shortfall_bps) if abs_shortfall_bps else None
-        ),
-        "avg_abs_residual_pnl": (
-            sum(abs_residuals) / len(abs_residuals) if abs_residuals else None
-        ),
-        "anomaly_events_recent_7d": anomaly_recent_7d,
-        "anomaly_events_prev_7d": anomaly_prev_7d,
-        "anomaly_trend": _anomaly_trend(anomaly_recent_7d, anomaly_prev_7d),
-        "latest_runs": [
-            {
-                "created_at": row.created_at.isoformat(),
-                "run_id": row.run_id,
-                "mode": row.mode,
-                "preflight_can_trade": row.preflight_can_trade,
-                "execution_plan_count": row.execution_plan_count,
-                "plan_consistency_issue_count": row.plan_consistency_issue_count,
-                "open_order_count": row.open_order_count,
-                "partial_fill_count": row.partial_fill_count,
-                "execution_shortfall_bps": row.execution_shortfall_bps,
-                "residual_pnl": row.residual_pnl,
-                "anomaly_trend": row.anomaly_trend,
-            }
-            for row in latest_rows
-        ],
-    }
+    return _soak_summary(
+        days=days,
+        limit=limit,
+        profile_id=profile_id,
+        account=account,
+        mode=mode,
+        session_factory=SessionLocal,
+        now=utc_now(),
+    )

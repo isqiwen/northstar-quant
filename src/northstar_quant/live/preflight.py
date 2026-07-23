@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass, field
 from datetime import date, datetime, time, timedelta
 from typing import Any
@@ -186,7 +188,11 @@ def build_preflight_result(
     execution_reference_prices: dict[str, float],
     execution_price_sources: dict[str, str],
     equity: float | None,
+    available_cash: float | None = None,
     live_account_attribution: dict[str, Any] | None = None,
+    broker_name: str | None = None,
+    expected_account: str | None = None,
+    data_manifest: Mapping[str, Any] | None = None,
     checked_at: datetime | None = None,
 ) -> PreflightResult:
     """构建实盘 preflight 汇总结果。"""
@@ -194,6 +200,117 @@ def build_preflight_result(
     checked_at = ensure_utc(checked_at or utc_now())
     result = PreflightResult(profile_id=profile.profile_id, checked_at=checked_at)
     max_data_age = _max_data_age(profile)
+
+    normalized_broker = str(broker_name or "").strip().lower()
+    if normalized_broker and normalized_broker != "paper":
+        normalized_expected_account = str(expected_account or "").strip()
+        normalized_state_account = str(broker_state.account or "").strip()
+        identity_issues: list[str] = []
+        if not normalized_expected_account:
+            identity_issues.append("未提供目标券商账户")
+        if not normalized_state_account:
+            identity_issues.append("券商状态未声明账户")
+        elif (
+            normalized_expected_account
+            and normalized_state_account != normalized_expected_account
+        ):
+            identity_issues.append(
+                "券商状态账户与目标账户不一致："
+                f"{normalized_state_account} != {normalized_expected_account}"
+            )
+        if not broker_state.state_complete:
+            identity_issues.append("券商状态快照未证明完整")
+        if broker_state.state_errors:
+            identity_issues.append(
+                "券商状态包含错误：" + "；".join(broker_state.state_errors)
+            )
+
+        if identity_issues:
+            _append_check(
+                result,
+                code="broker_account_identity",
+                status="fail",
+                blocking=True,
+                message=(
+                    "真实券商账户身份门禁未通过："
+                    + "；".join(identity_issues)
+                    + "，本次只同步不交易。"
+                ),
+                expected_account=normalized_expected_account or None,
+                state_account=normalized_state_account or None,
+                state_complete=broker_state.state_complete,
+                state_errors=list(broker_state.state_errors),
+            )
+        else:
+            _append_check(
+                result,
+                code="broker_account_identity",
+                status="pass",
+                blocking=True,
+                message=f"券商账户身份检查通过，account={normalized_state_account}。",
+                expected_account=normalized_expected_account,
+                state_account=normalized_state_account,
+                state_complete=True,
+            )
+
+        provenance_issues: list[str] = []
+        manifest_source = (
+            str(data_manifest.get("data_source") or "").strip().lower()
+            if data_manifest is not None
+            else ""
+        )
+        if not profile.data.live_trading_eligible:
+            provenance_issues.append("画像未显式声明数据可用于真实交易")
+        if data_manifest is None:
+            provenance_issues.append("缺少数据 manifest")
+        else:
+            manifest_profile_id = str(data_manifest.get("profile_id") or "").strip()
+            manifest_dataset_id = str(data_manifest.get("dataset_id") or "").strip()
+            manifest_live_eligible = data_manifest.get("live_trading_eligible")
+            if manifest_profile_id != profile.profile_id:
+                provenance_issues.append(
+                    f"manifest profile_id 不匹配: {manifest_profile_id or 'N/A'}"
+                )
+            if manifest_dataset_id != profile.data.dataset_id:
+                provenance_issues.append(
+                    f"manifest dataset_id 不匹配: {manifest_dataset_id or 'N/A'}"
+                )
+            if manifest_live_eligible is not True:
+                provenance_issues.append(
+                    "manifest 未记录生成时的数据实盘资格"
+                )
+            if not manifest_source:
+                provenance_issues.append("manifest 缺少 data_source")
+            elif manifest_source == "demo":
+                provenance_issues.append("数据来源为 demo")
+
+        if provenance_issues:
+            _append_check(
+                result,
+                code="data_provenance",
+                status="fail",
+                blocking=True,
+                message=(
+                    "真实券商数据来源门禁未通过："
+                    + "；".join(provenance_issues)
+                    + "，本次只同步不交易。"
+                ),
+                broker=normalized_broker,
+                configured_provider=profile.data.provider,
+                configured_download_provider=profile.data.download.provider,
+                live_trading_eligible=profile.data.live_trading_eligible,
+                manifest_data_source=manifest_source or None,
+            )
+        else:
+            _append_check(
+                result,
+                code="data_provenance",
+                status="pass",
+                blocking=True,
+                message=f"真实券商数据来源门禁通过，data_source={manifest_source}。",
+                broker=normalized_broker,
+                manifest_data_source=manifest_source,
+            )
 
     market_asof = _latest_frame_asof(raw_market_df)
     signal_asof = _latest_frame_asof(signal_market_df)
@@ -216,6 +333,20 @@ def build_preflight_result(
             )
             continue
         age = checked_at - ensure_utc(asof)
+        if age < timedelta(0):
+            _append_check(
+                result,
+                code=code,
+                status="fail",
+                blocking=True,
+                message=(
+                    f"{label}最新时间 {_format_dt(asof)} 晚于检查时间，"
+                    "疑似时钟或时区异常，本次只同步不交易。"
+                ),
+                latest_asof=_format_dt(asof),
+                age_seconds=int(age.total_seconds()),
+            )
+            continue
         if age > max_data_age:
             _append_check(
                 result,
@@ -270,11 +401,17 @@ def build_preflight_result(
     if state_asof is not None:
         state_age_seconds = int((checked_at - ensure_utc(state_asof)).total_seconds())
     max_state_age_seconds = int(get_settings().live_preflight_max_state_age_seconds)
+    equity_ok = (
+        equity is not None
+        and math.isfinite(float(equity))
+        and float(equity) > 0
+    )
     broker_state_ok = (
         state_asof is not None
         and state_age_seconds is not None
+        and state_age_seconds >= 0
         and state_age_seconds <= max_state_age_seconds
-        and equity is not None
+        and equity_ok
     )
     if broker_state_ok:
         _append_check(
@@ -303,6 +440,34 @@ def build_preflight_result(
             equity=equity,
             max_state_age_seconds=max_state_age_seconds,
         )
+
+    if normalized_broker and normalized_broker != "paper":
+        available_cash_ok = (
+            available_cash is not None
+            and math.isfinite(float(available_cash))
+            and float(available_cash) >= 0
+        )
+        if available_cash_ok:
+            _append_check(
+                result,
+                code="broker_available_cash",
+                status="pass",
+                blocking=True,
+                message=f"券商可用资金检查通过，available_cash={float(available_cash):,.2f}。",
+                available_cash=float(available_cash),
+            )
+        else:
+            _append_check(
+                result,
+                code="broker_available_cash",
+                status="fail",
+                blocking=True,
+                message=(
+                    f"真实券商可用资金无效，available_cash={available_cash!r}，"
+                    "本次只同步不交易。"
+                ),
+                available_cash=available_cash,
+            )
 
     open_order_count = len(broker_state.open_orders)
     if open_order_count > 0:
@@ -380,6 +545,10 @@ def build_preflight_result(
             price_sources={symbol: execution_price_sources.get(symbol) for symbol in execution_symbols},
         )
 
+    attribution_unavailable = (
+        normalized_broker not in {"", "paper"}
+        and live_account_attribution is None
+    )
     alert_items = [
         item
         for item in (live_account_attribution or {}).get("alert_items", [])
@@ -396,7 +565,15 @@ def build_preflight_result(
         if str(item.get("tag") or "").strip()
         and str(item.get("tag") or "").strip() not in _BLOCKING_ACCOUNT_ALERT_TAGS
     ]
-    if blocking_alerts:
+    if attribution_unavailable:
+        _append_check(
+            result,
+            code="account_anomaly_gate",
+            status="fail",
+            blocking=True,
+            message="真实券商账户归因不可用，无法确认账本与资金状态，本次只同步不交易。",
+        )
+    elif blocking_alerts:
         _append_check(
             result,
             code="account_anomaly_gate",

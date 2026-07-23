@@ -27,6 +27,8 @@ versions:
 data:
   provider: demo
   dataset_id: core
+  # demo 数据只允许研究、回测和 paper；真实券商必须使用可信数据并显式改为 true。
+  live_trading_eligible: false
   path: cn/etf/1d/core.parquet
   price_field: adjusted_close
   download:

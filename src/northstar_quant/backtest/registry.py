@@ -158,6 +158,11 @@ def resolve_target_backtester(profile: TradingProfile) -> TargetBacktesterDefini
     ]
     if not matches:
         raise LookupError(f"未找到适用于画像 {profile.dimension_key} 的目标持仓回测器")
+    if len(matches) > 1:
+        matched_ids = ", ".join(sorted(item.backtester_id for item in matches))
+        raise LookupError(
+            f"画像 {profile.dimension_key} 匹配到多个目标持仓回测器：{matched_ids}"
+        )
     return matches[0]
 
 
@@ -178,6 +183,11 @@ def resolve_simulation_backtester(profile: TradingProfile) -> SimulationBacktest
     ]
     if not matches:
         raise LookupError(f"未找到适用于画像 {profile.dimension_key} 的策略仿真回测器")
+    if len(matches) > 1:
+        matched_ids = ", ".join(sorted(item.backtester_id for item in matches))
+        raise LookupError(
+            f"画像 {profile.dimension_key} 匹配到多个策略仿真回测器：{matched_ids}"
+        )
     return matches[0]
 
 

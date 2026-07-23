@@ -17,7 +17,7 @@ from northstar_quant.portfolio.multi_strategy import (
 )
 from northstar_quant.risk.models import RiskLimits
 from northstar_quant.strategies.base import StrategyBase
-from northstar_quant.strategies.registry import build_strategy
+from northstar_quant.strategies.registry import build_profile_strategy
 
 logger = get_logger(__name__)
 
@@ -26,11 +26,13 @@ def build_profile_risk_limits(profile: TradingProfile) -> RiskLimits:
     """Build risk limits from profile risk overrides."""
 
     supported_fields = set(RiskLimits.__dataclass_fields__)
-    risk_overrides = {
-        key: value
-        for key, value in profile.risk.items()
-        if key in supported_fields
-    }
+    unknown_fields = sorted(set(profile.risk).difference(supported_fields))
+    if unknown_fields:
+        raise ValueError(
+            f"交易画像 {profile.profile_id} 包含不支持的风控字段："
+            f"{', '.join(unknown_fields)}"
+        )
+    risk_overrides = dict(profile.risk)
     if (
         "min_order_notional" not in risk_overrides
         and profile.execution.rebalance_min_trade_value is not None
@@ -124,7 +126,7 @@ def build_selected_profile_strategies(
 
     built = [
         (
-            build_strategy(config.strategy_id, params=config.params),
+            build_profile_strategy(profile, config),
             float(weight),
         )
         for config, weight in zip(selected_configs, capital_weights, strict=False)

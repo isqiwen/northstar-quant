@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
-from northstar_quant.logging_.logger import get_logger
+from collections.abc import Callable
+
 from northstar_quant.execution.broker_base import BrokerAdapter
 from northstar_quant.execution.models import OrderRequest, OrderResult
+from northstar_quant.logging_.logger import get_logger
 from northstar_quant.risk.models import OrderRiskContext, RiskLimits
 from northstar_quant.risk.pretrade import reserve_order_context, validate_order
 
@@ -24,10 +26,12 @@ class OrderRouter:
         broker: BrokerAdapter,
         limits: RiskLimits,
         risk_context: OrderRiskContext | None = None,
+        submission_guard: Callable[[OrderRequest], None] | None = None,
     ):
         self.broker = broker
         self.limits = limits
         self.risk_context = risk_context
+        self.submission_guard = submission_guard
 
     def route(self, order: OrderRequest) -> OrderResult:
         """执行交易前风控，并发送订单。"""
@@ -41,6 +45,8 @@ class OrderRouter:
         )
         route_logger.info("开始执行订单路由")
         validate_order(order, self.limits, self.risk_context)
+        if self.submission_guard is not None:
+            self.submission_guard(order)
         result = self.broker.submit_order(order)
         if result.accepted:
             reserve_order_context(self.risk_context, order)

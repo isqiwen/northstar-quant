@@ -7,6 +7,7 @@ from datetime import datetime
 from uuid import uuid4
 
 from northstar_quant.common.time import ensure_utc, utc_now
+from northstar_quant.common.order_status import is_final_order_status
 from northstar_quant.config.settings import get_settings
 from northstar_quant.execution.broker_base import BrokerAdapter
 from northstar_quant.execution.models import (
@@ -18,14 +19,6 @@ from northstar_quant.execution.models import (
     PositionSnapshot,
 )
 from northstar_quant.execution.pricing import normalize_symbols
-
-_FINAL_ORDER_STATUSES = {
-    "filled",
-    "cancelled",
-    "rejected",
-    "inactive",
-    "apicancelled",
-}
 
 
 class PaperBrokerAdapter(BrokerAdapter):
@@ -41,7 +34,7 @@ class PaperBrokerAdapter(BrokerAdapter):
 
     def __init__(self) -> None:
         self.settings = get_settings()
-        self.account = self.settings.ibkr_account or "paper-account"
+        self.account = self.settings.paper_account
         self.state_path = self.settings.storage_dir / "paper_broker_state.json"
         self.settings.storage_dir.mkdir(parents=True, exist_ok=True)
         self._state = self._load_state()
@@ -104,7 +97,7 @@ class PaperBrokerAdapter(BrokerAdapter):
 
     @staticmethod
     def _is_final_status(status: str | None) -> bool:
-        return str(status or "").strip().lower() in _FINAL_ORDER_STATUSES
+        return is_final_order_status(status)
 
     def _set_last_price(self, symbol: str, price: float | None) -> None:
         if price is None or price <= 0:
@@ -242,6 +235,7 @@ class PaperBrokerAdapter(BrokerAdapter):
                 "side": str(order.get("side") or "").upper(),
                 "filled_at": self._dt_to_str(filled_at),
                 "account": self.account,
+                "exec_id": f"paper-exec-{uuid4().hex}",
             }
         )
         self._state["fills"] = self._state["fills"][-500:]
@@ -273,6 +267,7 @@ class PaperBrokerAdapter(BrokerAdapter):
             rows.append(
                 {
                     "broker_order_id": row["broker_order_id"],
+                    "account": self.account,
                     "symbol": row["symbol"],
                     "side": row["side"],
                     "qty": float(row["qty"]),
@@ -324,6 +319,7 @@ class PaperBrokerAdapter(BrokerAdapter):
                     side=str(fill.get("side") or "").upper(),
                     filled_at=self._dt_from_str(fill.get("filled_at")),
                     account=str(fill.get("account") or self.account),
+                    exec_id=str(fill.get("exec_id") or "") or None,
                 )
             )
         return rows
@@ -354,6 +350,15 @@ class PaperBrokerAdapter(BrokerAdapter):
 
     def submit_order(self, order: OrderRequest) -> OrderResult:
         self._reload_state()
+        side = str(order.side).strip().upper()
+        if side not in {"BUY", "SELL"}:
+            raise ValueError("订单方向必须为 BUY 或 SELL")
+        order_type = str(order.order_type or "").strip().upper()
+        if order_type not in {"MKT", "LMT"}:
+            raise ValueError("订单类型必须为 MKT 或 LMT")
+        if order_type == "LMT" and order.limit_price is None:
+            raise ValueError("限价单必须提供 limit_price")
+
         submitted_at = utc_now()
         broker_order_id = f"paper-{uuid4().hex[:12]}"
         symbol = str(order.symbol).strip().upper()
@@ -369,7 +374,7 @@ class PaperBrokerAdapter(BrokerAdapter):
             "broker_order_id": broker_order_id,
             "strategy_id": order.strategy_id,
             "symbol": symbol,
-            "side": str(order.side).upper(),
+            "side": side,
             "qty": order_qty,
             "filled_qty": 0.0,
             "remaining_qty": order_qty,
@@ -377,7 +382,7 @@ class PaperBrokerAdapter(BrokerAdapter):
             "status": "Submitted",
             "submitted_at": self._dt_to_str(submitted_at),
             "updated_at": self._dt_to_str(submitted_at),
-            "order_type": str(order.order_type or "MKT").upper(),
+            "order_type": order_type,
             "limit_price": (
                 float(order.limit_price)
                 if order.limit_price is not None
@@ -409,6 +414,7 @@ class PaperBrokerAdapter(BrokerAdapter):
             open_orders=self._active_orders(),
             fills=self._fill_snapshots(),
             account_values=self._account_values(),
+            account=self.account,
             asof=asof,
         )
 
@@ -441,6 +447,27 @@ class PaperBrokerAdapter(BrokerAdapter):
         order["updated_at"] = self._dt_to_str(utc_now())
         self._save_state()
         return True
+
+    def get_order_status(self, broker_order_id: str) -> dict | None:
+        """读取纸面账户中的完整订单状态，包括已经完成的订单。"""
+
+        self._reload_state()
+        order = self._state["orders"].get(str(broker_order_id))
+        if order is None:
+            return None
+        return {
+            "broker_order_id": str(order.get("broker_order_id") or broker_order_id),
+            "symbol": str(order.get("symbol") or ""),
+            "side": str(order.get("side") or ""),
+            "qty": float(order.get("qty", 0.0) or 0.0),
+            "filled_qty": float(order.get("filled_qty", 0.0) or 0.0),
+            "remaining_qty": float(order.get("remaining_qty", 0.0) or 0.0),
+            "avg_fill_price": order.get("avg_fill_price"),
+            "status": str(order.get("status") or ""),
+        }
+
+    def get_account(self) -> str:
+        return self.account
 
     def get_name(self) -> str:
         return "paper"

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from sqlalchemy import inspect, text
+from sqlalchemy.engine import make_url
+from sqlalchemy.exc import ArgumentError
 
 from northstar_quant.config.settings import get_settings
 from northstar_quant.db.base import Base
@@ -22,6 +24,36 @@ _SQLITE_ADDITIVE_PATCHES: tuple[tuple[str, str, str], ...] = (
         "fill_records",
         "side",
         "ALTER TABLE fill_records ADD COLUMN side VARCHAR(8)",
+    ),
+    (
+        "fill_records",
+        "broker",
+        "ALTER TABLE fill_records ADD COLUMN broker VARCHAR(32)",
+    ),
+    (
+        "fill_records",
+        "account",
+        "ALTER TABLE fill_records ADD COLUMN account VARCHAR(64)",
+    ),
+    (
+        "fill_records",
+        "exec_id",
+        "ALTER TABLE fill_records ADD COLUMN exec_id VARCHAR(128)",
+    ),
+    (
+        "fill_records",
+        "perm_id",
+        "ALTER TABLE fill_records ADD COLUMN perm_id INTEGER",
+    ),
+    (
+        "fill_records",
+        "client_id",
+        "ALTER TABLE fill_records ADD COLUMN client_id INTEGER",
+    ),
+    (
+        "fill_records",
+        "con_id",
+        "ALTER TABLE fill_records ADD COLUMN con_id INTEGER",
     ),
     (
         "order_records",
@@ -52,6 +84,11 @@ _SQLITE_ADDITIVE_PATCHES: tuple[tuple[str, str, str], ...] = (
         "order_records",
         "account",
         "ALTER TABLE order_records ADD COLUMN account VARCHAR(64)",
+    ),
+    (
+        "order_records",
+        "broker",
+        "ALTER TABLE order_records ADD COLUMN broker VARCHAR(32)",
     ),
     (
         "order_records",
@@ -146,6 +183,15 @@ _SQLITE_ADDITIVE_PATCHES: tuple[tuple[str, str, str], ...] = (
 )
 
 
+def _redact_database_url(database_url: str) -> str:
+    """返回可安全写入日志的数据库地址。"""
+
+    try:
+        return make_url(database_url).render_as_string(hide_password=True)
+    except (ArgumentError, ValueError):
+        return "<invalid-database-url>"
+
+
 def _patch_local_sqlite_schema(engine) -> None:
     """Apply safe additive schema patches for legacy local SQLite databases."""
 
@@ -181,7 +227,10 @@ def init_db() -> None:
 
     settings = get_settings()
     settings.storage_dir.mkdir(parents=True, exist_ok=True)
-    logger.info("开始初始化数据库，database_url=%s", settings.database_url)
+    logger.info(
+        "开始初始化数据库，database_url=%s",
+        _redact_database_url(settings.database_url),
+    )
 
     engine = make_engine()
     Base.metadata.create_all(bind=engine)

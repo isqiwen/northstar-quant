@@ -1,7 +1,10 @@
+from dataclasses import replace
 from datetime import UTC, datetime
 
 import polars as pl
+import pytest
 
+from northstar_quant.execution import registry as execution_registry
 from northstar_quant.common.enums import StrategyOutputType
 from northstar_quant.config.trading_profile import load_trading_profile
 from northstar_quant.execution.models import BrokerStateSnapshot, FillSnapshot, PositionSnapshot
@@ -26,6 +29,20 @@ def test_resolve_execution_planner_for_intraday_equity_profile():
     definition = resolve_execution_planner(profile, StrategyOutputType.EXECUTION_INTENT)
 
     assert definition.planner_id == "direct_execution_intent"
+
+
+def test_resolve_execution_planner_rejects_ambiguous_match(monkeypatch):
+    profile = load_trading_profile("cn_etf_daily")
+    definition = resolve_execution_planner(profile, StrategyOutputType.TARGET_WEIGHT)
+    duplicate_id = "duplicate_bar_close_rebalance"
+    monkeypatch.setitem(
+        execution_registry._REGISTRY,
+        duplicate_id,
+        replace(definition, planner_id=duplicate_id),
+    )
+
+    with pytest.raises(LookupError, match="匹配到多个执行计划器"):
+        resolve_execution_planner(profile, StrategyOutputType.TARGET_WEIGHT)
 
 
 def test_intraday_execution_plan_supports_order_semantics():

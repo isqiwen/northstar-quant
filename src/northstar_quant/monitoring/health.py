@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from northstar_quant.config.settings import get_settings
-from northstar_quant.live.ibkr_service import IBKRService
+from northstar_quant.execution.ibkr_service import IBKRService
 
 
 def run_healthcheck() -> dict:

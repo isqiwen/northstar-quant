@@ -1,12 +1,16 @@
+from dataclasses import replace
 from datetime import date, timedelta
 
 import polars as pl
 import pytest
 
+from northstar_quant.common.enums import AssetType
 from northstar_quant.backtest.registry import run_simulation_backtest
 from northstar_quant.config.trading_profile import load_trading_profile
 from northstar_quant.research.momentum_scan import run_momentum_research
 from northstar_quant.strategies.pipeline import (
+    build_profile_risk_limits,
+    build_selected_profile_strategies,
     latest_pipeline_output,
     run_profile_strategy_pipeline,
 )
@@ -79,6 +83,27 @@ def test_profile_strategy_pipeline_subset_re_normalizes_selected_capital():
 
     assert latest_holdings.height == 3
     assert float(latest_holdings["target_weight"].sum()) == pytest.approx(0.98)
+
+
+def test_canonical_pipeline_reuses_profile_strategy_compatibility_validation():
+    profile = replace(
+        load_trading_profile("cn_etf_daily"),
+        asset_type=AssetType.EQUITY,
+    )
+
+    with pytest.raises(ValueError, match="etf_rotation 不支持资产类型 EQUITY"):
+        build_selected_profile_strategies(profile)
+
+
+def test_build_profile_risk_limits_rejects_unknown_field():
+    profile = load_trading_profile("cn_etf_daily")
+    invalid_profile = replace(
+        profile,
+        risk={**profile.risk, "max_order_notianal": 1000.0},
+    )
+
+    with pytest.raises(ValueError, match="不支持的风控字段.*max_order_notianal"):
+        build_profile_risk_limits(invalid_profile)
 
 
 def test_run_momentum_research_uses_canonical_profile_pipeline(monkeypatch):

@@ -31,6 +31,7 @@ class RiskLimits:
     order_qty_step: float | None = None
     buy_qty_step: float | None = None
     sell_qty_step: float | None = None
+    enforce_available_cash: bool = False
     enforce_sellable_qty: bool = False
     enforce_tradeable_state: bool = False
     enforce_price_limit: bool = False

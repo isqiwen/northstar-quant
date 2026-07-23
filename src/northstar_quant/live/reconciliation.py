@@ -1,4 +1,7 @@
-"""订单 / 成交 / 持仓对账模块。"""
+"""实盘券商状态持久化与持仓偏离分析。
+
+这里同时协调券商端口与数据库事务，因此属于实盘应用编排层，而不是纯执行域。
+"""
 
 from __future__ import annotations
 
@@ -39,22 +42,41 @@ def reconcile_broker_state(
     只有把真实持仓和真实成交持续落库，你后续才能做可靠的审计与复盘。
     """
 
-    reconcile_logger = logger.bind(command="broker.reconcile", broker=broker.get_name())
+    broker_name = str(broker.get_name()).strip().lower()
+    expected_account = str(broker.get_account() or "").strip() or None
+    reconcile_logger = logger.bind(command="broker.reconcile", broker=broker_name)
     reconcile_logger.info("开始同步券商状态")
     if snapshot is None:
         snapshot = broker.sync_state()
+    snapshot_account = str(snapshot.account or "").strip() or None
+    if not snapshot.state_complete:
+        raise RuntimeError("券商状态快照不完整，已停止对账写入。")
+    if expected_account and snapshot_account != expected_account:
+        raise RuntimeError(
+            "券商状态账户与适配器目标账户不一致，已停止对账写入。"
+        )
     pos_count = save_position_snapshots(session, snapshot.positions)
-    fill_count = save_fill_snapshots(session, snapshot.fills)
-    updated_orders = update_order_statuses(session, snapshot.open_orders)
+    fill_count = save_fill_snapshots(
+        session,
+        snapshot.fills,
+        broker=broker_name,
+    )
+    updated_orders = update_order_statuses(
+        session,
+        snapshot.open_orders,
+        broker=broker_name,
+        account=snapshot_account,
+    )
     default_account = (
-        snapshot.account_values.get("Account")
+        snapshot_account
+        or snapshot.account_values.get("Account")
         if isinstance(snapshot.account_values, dict)
         else None
     ) or next((item.account for item in snapshot.positions if item.account), None)
     working_order_snapshot = save_working_order_snapshots(
         session,
         snapshot.open_orders,
-        broker=broker.get_name(),
+        broker=broker_name,
         run_id=run_id,
         profile_id=profile_id,
         default_account=default_account,
@@ -62,7 +84,7 @@ def reconcile_broker_state(
     )
     account_snapshot = save_account_snapshot(
         session,
-        broker=broker.get_name(),
+        broker=broker_name,
         snapshot=snapshot,
         run_id=run_id,
         profile_id=profile_id,
@@ -70,7 +92,7 @@ def reconcile_broker_state(
     account_attribution = save_account_attribution_for_snapshot(session, account_snapshot)
     write_sync_log(
         session,
-        broker=broker.get_name(),
+        broker=broker_name,
         sync_type='full_state',
         status='success',
         detail=(

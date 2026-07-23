@@ -371,35 +371,70 @@ def save_execution_plan_records(
     return count
 
 
-def save_fill_snapshots(session: Session, fills: list[FillSnapshot]) -> int:
+def save_fill_snapshots(
+    session: Session,
+    fills: list[FillSnapshot],
+    *,
+    broker: str | None = None,
+) -> int:
     """批量保存成交快照。
 
-    这里按 broker_order_id + symbol + qty + price + filled_at 做最基础的去重，
-    避免轮询同步时把同一笔成交重复写入。
+    真实券商优先使用 ``broker + account + exec_id`` 去重；缺少稳定 execution
+    identity 的旧数据和 paper 历史记录才回退到成交字段组合。
     """
 
+    normalized_broker = str(broker or "").strip().lower() or None
     count = 0
     for item in fills:
-        exists = session.scalar(
-            select(FillRecord.id).where(
+        account = str(item.account or "").strip() or None
+        exec_id = str(item.exec_id or "").strip() or None
+        if normalized_broker and account and exec_id:
+            identity_conditions = (
+                FillRecord.broker == normalized_broker,
+                FillRecord.account == account,
+                FillRecord.exec_id == exec_id,
+            )
+        else:
+            fallback_conditions: list = [
                 FillRecord.broker_order_id == item.broker_order_id,
                 FillRecord.symbol == item.symbol,
                 FillRecord.qty == item.qty,
                 FillRecord.price == item.price,
                 FillRecord.filled_at == item.filled_at,
-            )
+            ]
+            if normalized_broker:
+                fallback_conditions.append(FillRecord.broker == normalized_broker)
+            if account:
+                fallback_conditions.append(FillRecord.account == account)
+            identity_conditions = tuple(fallback_conditions)
+
+        exists = session.scalar(
+            select(FillRecord.id).where(*identity_conditions)
         )
         if exists:
             continue
 
+        order_conditions = [
+            OrderRecord.broker_order_id == item.broker_order_id,
+        ]
+        if normalized_broker:
+            order_conditions.append(OrderRecord.broker == normalized_broker)
+        if account:
+            order_conditions.append(OrderRecord.account == account)
         order_row = session.scalar(
             select(OrderRecord)
-            .where(OrderRecord.broker_order_id == item.broker_order_id)
+            .where(*order_conditions)
             .order_by(OrderRecord.submitted_at.desc(), OrderRecord.id.desc())
             .limit(1)
         )
         fill_row = FillRecord(
             order_id=order_row.id if order_row is not None else None,
+            broker=normalized_broker,
+            account=account,
+            exec_id=exec_id,
+            perm_id=item.perm_id,
+            client_id=item.client_id,
+            con_id=item.con_id,
             broker_order_id=item.broker_order_id,
             symbol=item.symbol,
             side=item.side,
@@ -416,6 +451,20 @@ def save_fill_snapshots(session: Session, fills: list[FillSnapshot]) -> int:
             fill_row=fill_row,
             order_row=order_row,
         )
+        if order_row is not None:
+            filled_qty = float(
+                session.scalar(
+                    select(func.coalesce(func.sum(FillRecord.qty), 0.0)).where(
+                        FillRecord.order_id == order_row.id
+                    )
+                )
+                or 0.0
+            )
+            order_row.status = (
+                "Filled"
+                if filled_qty >= abs(float(order_row.qty)) - 1e-8
+                else "PartiallyFilled"
+            )
         count += 1
     session.commit()
     return count
@@ -870,6 +919,8 @@ def save_order_result(
     session: Session,
     order: OrderRequest,
     result: OrderResult,
+    *,
+    broker: str | None = None,
 ) -> OrderRecord:
     """保存订单记录。"""
 
@@ -890,6 +941,7 @@ def save_order_result(
         limit_price=order.limit_price,
         order_semantic=order.order_semantic,
         reason=order.reason,
+        broker=broker,
         account=order.account,
         reference_price=order.reference_price,
         reference_price_source=order.reference_price_source,
@@ -908,16 +960,30 @@ def save_order_result(
     return row
 
 
-def update_order_statuses(session: Session, broker_rows: Sequence[dict]) -> int:
+def update_order_statuses(
+    session: Session,
+    broker_rows: Sequence[dict],
+    *,
+    broker: str | None = None,
+    account: str | None = None,
+) -> int:
     """按券商返回的未完成订单 / 状态信息更新本地订单状态。"""
 
+    normalized_broker = str(broker or "").strip().lower() or None
+    default_account = str(account or "").strip() or None
     updated = 0
     for row in broker_rows:
         broker_order_id = str(row.get('broker_order_id') or '')
         if not broker_order_id:
             continue
+        row_account = str(row.get("account") or default_account or "").strip() or None
+        conditions = [OrderRecord.broker_order_id == broker_order_id]
+        if normalized_broker:
+            conditions.append(OrderRecord.broker == normalized_broker)
+        if row_account:
+            conditions.append(OrderRecord.account == row_account)
         order = session.scalar(
-            select(OrderRecord).where(OrderRecord.broker_order_id == broker_order_id)
+            select(OrderRecord).where(*conditions)
         )
         if order is None:
             continue

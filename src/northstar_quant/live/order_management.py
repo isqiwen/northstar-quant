@@ -12,18 +12,14 @@ from datetime import timedelta
 from uuid import uuid4
 
 from northstar_quant.common.time import utc_now
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from northstar_quant.common.order_status import WORKING_ORDER_STATUSES
 from northstar_quant.config.settings import get_settings
 from northstar_quant.db.models import OrderRecord
 from northstar_quant.db.repositories import add_cancel_record
 from northstar_quant.execution.broker_base import BrokerAdapter
-
-_OPEN_STATUSES = {
-    'submitted', 'presubmitted', 'pending', 'open', 'Submitted', 'PreSubmitted',
-    'PendingSubmit', 'PartiallyFilled', 'partiallyfilled'
-}
 
 
 def cancel_stale_orders(session: Session, broker: BrokerAdapter) -> dict:
@@ -35,8 +31,21 @@ def cancel_stale_orders(session: Session, broker: BrokerAdapter) -> dict:
 
     settings = get_settings()
     cutoff = utc_now() - timedelta(seconds=settings.order_timeout_seconds)
+    broker_name = str(broker.get_name()).strip().lower()
+    account = str(broker.get_account() or "").strip()
+    if not broker_name or not account:
+        raise RuntimeError("撤单前无法确认券商与账户范围，已停止操作。")
 
-    rows = list(session.scalars(select(OrderRecord).where(OrderRecord.status.in_(_OPEN_STATUSES), OrderRecord.submitted_at <= cutoff)))
+    rows = list(
+        session.scalars(
+            select(OrderRecord).where(
+                func.lower(OrderRecord.broker) == broker_name,
+                OrderRecord.account == account,
+                func.lower(OrderRecord.status).in_(WORKING_ORDER_STATUSES),
+                OrderRecord.submitted_at <= cutoff,
+            )
+        )
+    )
     canceled_ids: list[str] = []
     cancel_batch_id = f"cancel-batch-{uuid4().hex[:12]}"
     for row in rows:
@@ -44,19 +53,24 @@ def cancel_stale_orders(session: Session, broker: BrokerAdapter) -> dict:
             continue
         ok = broker.cancel_order(row.broker_order_id)
         if ok:
-            row.status = 'Canceled'
+            row.status = "PendingCancel"
             add_cancel_record(
                 session,
                 order=row,
-                broker=broker.get_name(),
+                broker=broker_name,
                 cancel_batch_id=cancel_batch_id,
                 reason="stale_order_timeout",
+                status="PendingCancel",
             )
             canceled_ids.append(row.broker_order_id)
     session.commit()
     return {
-        'stale_order_count': len(rows),
-        'canceled_order_ids': canceled_ids,
-        'cancel_record_count': len(canceled_ids),
-        'cancel_batch_id': cancel_batch_id if canceled_ids else None,
+        "broker": broker_name,
+        "account": account,
+        "stale_order_count": len(rows),
+        "cancel_requested_order_ids": canceled_ids,
+        # 兼容既有调用方；这里只表示撤单请求已发出，不代表券商终态已确认。
+        "canceled_order_ids": canceled_ids,
+        "cancel_record_count": len(canceled_ids),
+        "cancel_batch_id": cancel_batch_id if canceled_ids else None,
     }

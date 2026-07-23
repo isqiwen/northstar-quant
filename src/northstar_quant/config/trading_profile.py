@@ -26,6 +26,22 @@ def _parse_enum(enum_cls: type[StringEnum], value: str | StringEnum) -> StringEn
     return enum_cls.parse(str(value))
 
 
+def _parse_bool(value: object, *, field_name: str) -> bool:
+    """严格解析配置布尔值，避免字符串 ``"false"`` 被当成真值。"""
+
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, int) and value in {0, 1}:
+        return bool(value)
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"true", "1", "yes", "on"}:
+            return True
+        if normalized in {"false", "0", "no", "off"}:
+            return False
+    raise ValueError(f"配置字段 {field_name} 必须是明确的布尔值")
+
+
 @dataclass(frozen=True, slots=True)
 class ProfileDownloadConfig:
     """交易画像中的数据下载配置。"""
@@ -47,6 +63,7 @@ class ProfileDataConfig:
     path: str = ""
     price_field: str = "close"
     adjusted: bool = True
+    live_trading_eligible: bool = False
     download: ProfileDownloadConfig = field(default_factory=ProfileDownloadConfig)
 
 
@@ -294,6 +311,10 @@ def load_trading_profile(
             )
         ),
         adjusted=bool(data_raw.get("adjusted", True)),
+        live_trading_eligible=_parse_bool(
+            data_raw.get("live_trading_eligible", False),
+            field_name="data.live_trading_eligible",
+        ),
         download=download_config,
     )
     lifecycle_config = ProfileLifecycleConfig(

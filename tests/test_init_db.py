@@ -1,7 +1,17 @@
 from sqlalchemy import create_engine, inspect
 
 from northstar_quant.config.settings import get_settings
-from northstar_quant.db.init_db import init_db
+from northstar_quant.db.init_db import _redact_database_url, init_db
+
+
+def test_redact_database_url_hides_password():
+    redacted = _redact_database_url(
+        "postgresql+psycopg://northstar:super-secret@db.example.com:5432/northstar"
+    )
+
+    assert "super-secret" not in redacted
+    assert "***" in redacted
+    assert "db.example.com:5432/northstar" in redacted
 
 
 def test_init_db_patches_legacy_sqlite_columns(tmp_path, monkeypatch):
@@ -81,6 +91,7 @@ def test_init_db_patches_legacy_sqlite_columns(tmp_path, monkeypatch):
         assert "order_type" in order_columns
         assert "limit_price" in order_columns
         assert "reason" in order_columns
+        assert "broker" in order_columns
         assert "account" in order_columns
         assert "reference_price" in order_columns
         assert "reference_price_source" in order_columns
@@ -91,6 +102,14 @@ def test_init_db_patches_legacy_sqlite_columns(tmp_path, monkeypatch):
         assert "plan_id" in order_columns
         assert "broker_order_id" in fill_columns
         assert "side" in fill_columns
+        assert {
+            "broker",
+            "account",
+            "exec_id",
+            "perm_id",
+            "client_id",
+            "con_id",
+        }.issubset(fill_columns)
         assert "snapshot_batch_id" in position_columns
         assert "strategy_run_records" in table_names
         assert "strategy_snapshot_records" in table_names

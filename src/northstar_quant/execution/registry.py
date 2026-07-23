@@ -17,6 +17,7 @@ from northstar_quant.common.enums import (
     StrategyFamily,
     StrategyOutputType,
 )
+from northstar_quant.common.order_status import is_final_order_status
 from northstar_quant.common.time import ensure_utc
 from northstar_quant.config.trading_profile import TradingProfile
 from northstar_quant.execution.intent_planner import build_execution_intent_plan
@@ -32,15 +33,6 @@ ExecutionPlanner = Callable[
     [TradingProfile, pl.DataFrame, list[PositionSnapshot], dict[str, float], float | None],
     list[RebalanceOrderPlan],
 ]
-
-_FINAL_ORDER_STATUSES = {
-    "filled",
-    "cancelled",
-    "apicancelled",
-    "inactive",
-    "rejected",
-    "unknownterminal",
-}
 
 
 @dataclass(frozen=True, slots=True)
@@ -133,6 +125,12 @@ def resolve_execution_planner(
         raise LookupError(
             f"未找到适用于画像 {profile.dimension_key} 且输出类型为 {output_type.value} 的执行计划器"
         )
+    if len(matches) > 1:
+        matched_ids = ", ".join(sorted(item.planner_id for item in matches))
+        raise LookupError(
+            f"画像 {profile.dimension_key} 且输出类型为 {output_type.value} "
+            f"匹配到多个执行计划器：{matched_ids}"
+        )
     return matches[0]
 
 
@@ -159,10 +157,7 @@ def _remaining_order_qty(row: dict) -> float:
 
 
 def _is_working_order(row: dict) -> bool:
-    status = str(row.get("status") or "").strip().lower()
-    if not status:
-        return True
-    return status not in _FINAL_ORDER_STATUSES
+    return not is_final_order_status(row.get("status"))
 
 
 def _fill_affects_planning(fill: FillSnapshot, snapshot_asof: datetime) -> bool:

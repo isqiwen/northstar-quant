@@ -8,6 +8,7 @@ from northstar_quant.live import scheduler as live_scheduler
 def test_build_and_send_daily_report_skips_info_alert_when_no_anomaly(monkeypatch):
     calls: list[tuple[str, str]] = []
     email_calls: list[tuple[str, str | None]] = []
+    report_calls: list[tuple[str, str, str]] = []
 
     monkeypatch.setattr(
         live_scheduler,
@@ -17,7 +18,10 @@ def test_build_and_send_daily_report_skips_info_alert_when_no_anomaly(monkeypatc
     monkeypatch.setattr(
         live_scheduler,
         "build_periodic_report_only",
-        lambda report_type, strategy, profile_id: "/tmp/daily_report.md",
+        lambda report_type, strategy, profile_id: (
+            report_calls.append((report_type, strategy, profile_id))
+            or "/tmp/daily_report.md"
+        ),
     )
     monkeypatch.setattr(
         live_scheduler,
@@ -42,6 +46,7 @@ def test_build_and_send_daily_report_skips_info_alert_when_no_anomaly(monkeypatc
     assert email_calls == [
         ("/tmp/daily_report.md", "Northstar Quant - 日报 - daily_report")
     ]
+    assert report_calls == [("daily", "portfolio", "us_etf_daily")]
 
 
 def test_build_and_send_daily_report_sends_warning_for_anomaly(monkeypatch):
@@ -134,6 +139,9 @@ def test_build_and_send_weekly_report_keeps_info_success_alert(monkeypatch):
 
 def test_run_scheduler_registers_shadow_run_job(monkeypatch):
     added_job_ids: list[str] = []
+    scheduler_timezones: list[str] = []
+    trigger_timezones: list[str] = []
+    guard_contexts: list[tuple[str, str | None, str | None]] = []
 
     class _StopScheduler(RuntimeError):
         pass
@@ -141,6 +149,7 @@ def test_run_scheduler_registers_shadow_run_job(monkeypatch):
     class FakeScheduler:
         def __init__(self, timezone=None):
             self.timezone = timezone
+            scheduler_timezones.append(timezone)
 
         def add_job(self, func, trigger, id, replace_existing=True):
             del func, trigger, replace_existing
@@ -150,13 +159,29 @@ def test_run_scheduler_registers_shadow_run_job(monkeypatch):
             raise _StopScheduler()
 
     monkeypatch.setattr(live_scheduler, "BlockingScheduler", FakeScheduler)
-    monkeypatch.setattr(live_scheduler, "_parse_cron", lambda expr: expr)
+    monkeypatch.setattr(
+        live_scheduler,
+        "_parse_cron",
+        lambda expr, *, timezone=None: (
+            trigger_timezones.append(timezone)
+            or expr
+        ),
+    )
+    monkeypatch.setattr(
+        live_scheduler,
+        "_guarded_job",
+        lambda job_name, func, *, calendar=None, timezone=None: (
+            guard_contexts.append((job_name, calendar, timezone))
+            or func
+        ),
+    )
     monkeypatch.setattr(live_scheduler, "send_alert", lambda *args, **kwargs: None)
     monkeypatch.setattr(
         live_scheduler,
         "get_settings",
         lambda: SimpleNamespace(
             scheduler_timezone="America/New_York",
+            exchange_calendar="XSHG",
             shadow_run_cron="20 15 * * 1-5",
             broker_sync_cron="0,15,30,45 9-16 * * 1-5",
             rebalance_cron="35 15 * * 1-5",
@@ -168,7 +193,13 @@ def test_run_scheduler_registers_shadow_run_job(monkeypatch):
     monkeypatch.setattr(
         live_scheduler,
         "load_trading_profile",
-        lambda: SimpleNamespace(profile_id="us_etf_daily", enabled_strategies=[], schedule={}),
+        lambda: SimpleNamespace(
+            profile_id="us_etf_daily",
+            timezone="America/New_York",
+            calendar="XNYS",
+            enabled_strategies=[],
+            schedule={},
+        ),
     )
 
     with pytest.raises(_StopScheduler):
@@ -176,3 +207,10 @@ def test_run_scheduler_registers_shadow_run_job(monkeypatch):
 
     assert "daily_shadow_run" in added_job_ids
     assert "daily_rebalance" in added_job_ids
+    assert scheduler_timezones == ["America/New_York"]
+    assert trigger_timezones == ["America/New_York"] * 6
+    assert guard_contexts == [
+        ("broker_sync", "XNYS", "America/New_York"),
+        ("daily_shadow_run", "XNYS", "America/New_York"),
+        ("daily_rebalance", "XNYS", "America/New_York"),
+    ]

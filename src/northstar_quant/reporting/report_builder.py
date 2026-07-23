@@ -20,6 +20,7 @@ from northstar_quant.db.repositories import (
 )
 from northstar_quant.db.session import SessionLocal
 from northstar_quant.logging_.logger import get_logger
+from northstar_quant.monitoring.run_health import soak_summary
 from northstar_quant.strategies.pipeline import (
     latest_pipeline_output,
     parse_strategy_selection,
@@ -283,8 +284,6 @@ def rolling_run_health_summaries(
     modes: tuple[str, ...] = ("paper_soak", "shadow_run"),
 ) -> list[dict[str, object]]:
     """构建滚动运行健康摘要，供周期报告直接引用。"""
-
-    from northstar_quant.live.service import soak_summary
 
     summaries: list[dict[str, object]] = []
     for mode in modes:

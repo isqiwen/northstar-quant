@@ -22,27 +22,38 @@ from northstar_quant.reporting.report_builder import (
 logger = get_logger(__name__, command="live.scheduler")
 
 
-def _parse_cron(expr: str) -> CronTrigger:
+def _parse_cron(expr: str, *, timezone: str | None = None) -> CronTrigger:
     """把五段 cron 表达式转成 APScheduler 触发器。"""
 
     minute, hour, day, month, day_of_week = expr.split()
-    settings = get_settings()
+    timezone_name = timezone or get_settings().scheduler_timezone
     return CronTrigger(
         minute=minute,
         hour=hour,
         day=day,
         month=month,
         day_of_week=day_of_week,
-        timezone=settings.scheduler_timezone,
+        timezone=timezone_name,
     )
 
 
-def _guarded_job(job_name: str, func):
+def _guarded_job(
+    job_name: str,
+    func,
+    *,
+    calendar: str | None = None,
+    timezone: str | None = None,
+):
     """包装任务，在非交易日直接跳过。"""
 
     def _wrapped():
         job_logger = logger.bind(job_name=job_name)
-        if not is_trading_session():
+        calendar_kwargs = {}
+        if calendar is not None:
+            calendar_kwargs["calendar"] = calendar
+        if timezone is not None:
+            calendar_kwargs["timezone"] = timezone
+        if not is_trading_session(**calendar_kwargs):
             job_logger.info("调度任务被跳过，原因=非交易日")
             send_alert(f"跳过任务 {job_name}：今天不是交易日。", level="info")
             return None
@@ -61,10 +72,9 @@ def _build_and_send_report(report_type: str) -> dict:
         report_type=report_type,
         profile=profile.profile_id,
     )
-    first_strategy = profile.enabled_strategies[0].strategy_id if profile.enabled_strategies else "etf_rotation"
     report_path = build_periodic_report_only(
         report_type,
-        strategy=first_strategy,
+        strategy="portfolio",
         profile_id=profile.profile_id,
     )
     report_logger.info("周期报告生成完成，report_path=%s", report_path)
@@ -99,42 +109,80 @@ def run_scheduler() -> None:
     settings = get_settings()
     profile = load_trading_profile()
     schedule = profile.schedule
-    scheduler = BlockingScheduler(timezone=settings.scheduler_timezone)
+    profile_timezone = (
+        getattr(profile, "timezone", None)
+        or getattr(settings, "scheduler_timezone", "Asia/Shanghai")
+    )
+    profile_calendar = (
+        getattr(profile, "calendar", None)
+        or getattr(settings, "exchange_calendar", "XSHG")
+    )
+    scheduler = BlockingScheduler(timezone=profile_timezone)
     logger.bind(profile=profile.profile_id).info("开始初始化调度器")
 
     scheduler.add_job(
-        _guarded_job("broker_sync", sync_broker_once),
-        _parse_cron(settings.broker_sync_cron),
+        _guarded_job(
+            "broker_sync",
+            sync_broker_once,
+            calendar=profile_calendar,
+            timezone=profile_timezone,
+        ),
+        _parse_cron(settings.broker_sync_cron, timezone=profile_timezone),
         id="broker_sync",
         replace_existing=True,
     )
     scheduler.add_job(
-        _guarded_job("daily_shadow_run", lambda: run_shadow_once(profile.profile_id)),
-        _parse_cron(schedule.get("shadow_run_cron", settings.shadow_run_cron)),
+        _guarded_job(
+            "daily_shadow_run",
+            lambda: run_shadow_once(profile.profile_id),
+            calendar=profile_calendar,
+            timezone=profile_timezone,
+        ),
+        _parse_cron(
+            schedule.get("shadow_run_cron", settings.shadow_run_cron),
+            timezone=profile_timezone,
+        ),
         id="daily_shadow_run",
         replace_existing=True,
     )
     scheduler.add_job(
-        _guarded_job("daily_rebalance", lambda: run_live_once(profile.profile_id)),
-        _parse_cron(schedule.get("rebalance_cron", settings.rebalance_cron)),
+        _guarded_job(
+            "daily_rebalance",
+            lambda: run_live_once(profile.profile_id),
+            calendar=profile_calendar,
+            timezone=profile_timezone,
+        ),
+        _parse_cron(
+            schedule.get("rebalance_cron", settings.rebalance_cron),
+            timezone=profile_timezone,
+        ),
         id="daily_rebalance",
         replace_existing=True,
     )
     scheduler.add_job(
         lambda: _build_and_send_report("daily"),
-        _parse_cron(schedule.get("daily_report_cron", settings.daily_report_cron)),
+        _parse_cron(
+            schedule.get("daily_report_cron", settings.daily_report_cron),
+            timezone=profile_timezone,
+        ),
         id="daily_report",
         replace_existing=True,
     )
     scheduler.add_job(
         lambda: _build_and_send_report("weekly"),
-        _parse_cron(schedule.get("weekly_report_cron", settings.weekly_report_cron)),
+        _parse_cron(
+            schedule.get("weekly_report_cron", settings.weekly_report_cron),
+            timezone=profile_timezone,
+        ),
         id="weekly_report",
         replace_existing=True,
     )
     scheduler.add_job(
         lambda: _build_and_send_report("monthly"),
-        _parse_cron(schedule.get("monthly_report_cron", settings.monthly_report_cron)),
+        _parse_cron(
+            schedule.get("monthly_report_cron", settings.monthly_report_cron),
+            timezone=profile_timezone,
+        ),
         id="monthly_report",
         replace_existing=True,
     )

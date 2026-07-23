@@ -58,3 +58,18 @@ class BrokerAdapter(ABC):
         """
 
         return False
+
+    def get_order_status(self, broker_order_id: str) -> dict | None:
+        """查询单笔订单状态。
+
+        追价执行器必须依赖可确认的终态才能重试。适配器不支持该能力时返回
+        ``None``，调用方应停止追价，而不是假设订单已经撤销。
+        """
+
+        del broker_order_id
+        return None
+
+    def get_account(self) -> str | None:
+        """返回该适配器当前明确绑定的账户。"""
+
+        return None

@@ -5,10 +5,10 @@ from __future__ import annotations
 import polars as pl
 
 from northstar_quant.common.enums import OrderSemantic
+from northstar_quant.common.quantity import round_order_qty_down
 from northstar_quant.config.settings import get_settings
 from northstar_quant.execution.intent_semantics import resolve_execution_intent_qty
 from northstar_quant.execution.models import PositionSnapshot, RebalanceOrderPlan
-from northstar_quant.execution.quantity import round_order_qty_down
 
 
 def build_execution_intent_plan(

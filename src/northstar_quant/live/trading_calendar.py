@@ -17,14 +17,21 @@ except Exception:  # pragma: no cover
     xcals = None
 
 
-def now_local() -> datetime:
-    """返回调度时区下的当前时间。"""
+def now_local(timezone: str | None = None) -> datetime:
+    """返回指定交易画像时区下的当前时间。"""
 
     settings = get_settings()
-    return datetime.now(ZoneInfo(settings.scheduler_timezone))
+    timezone_name = timezone or settings.scheduler_timezone
+    return datetime.now(ZoneInfo(timezone_name))
 
 
-def is_trading_session(dt: datetime | None = None) -> bool:
+def is_trading_session(
+    dt: datetime | None = None,
+    *,
+    calendar: str | None = None,
+    timezone: str | None = None,
+    require_calendar: bool = False,
+) -> bool:
     """判断给定时间所在日期是否为交易日。
 
     这里只做“交易日”过滤，不做盘中分钟级门禁。
@@ -32,10 +39,28 @@ def is_trading_session(dt: datetime | None = None) -> bool:
     """
 
     settings = get_settings()
-    dt = dt or now_local()
+    timezone_name = timezone or settings.scheduler_timezone
+    calendar_name = calendar or settings.exchange_calendar
+    if dt is None:
+        local_dt = now_local(timezone_name)
+    elif dt.tzinfo is None:
+        local_dt = dt.replace(tzinfo=ZoneInfo(timezone_name))
+    else:
+        local_dt = dt.astimezone(ZoneInfo(timezone_name))
     if xcals is None:
-        return dt.weekday() < 5
+        if require_calendar:
+            raise RuntimeError(
+                "交易日历依赖不可用，真实券商模式禁止退化为工作日判断。"
+            )
+        return local_dt.weekday() < 5
 
-    cal = xcals.get_calendar(settings.exchange_calendar)
-    session_label = dt.date()
+    try:
+        cal = xcals.get_calendar(calendar_name)
+    except Exception as exc:
+        if require_calendar:
+            raise RuntimeError(
+                f"无法加载交易日历 {calendar_name}，真实券商模式禁止继续。"
+            ) from exc
+        raise
+    session_label = local_dt.date()
     return bool(cal.is_session(session_label))

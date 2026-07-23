@@ -1,8 +1,11 @@
 import math
+from dataclasses import replace
 from datetime import datetime, timedelta
 
 import polars as pl
+import pytest
 
+from northstar_quant.backtest import registry as backtest_registry
 from northstar_quant.backtest.registry import (
     resolve_simulation_backtester,
     resolve_target_backtester,
@@ -43,6 +46,34 @@ def test_resolve_simulation_backtester_for_intraday_profile():
     definition = resolve_simulation_backtester(profile)
 
     assert definition.backtester_id == "intraday_signal_simulation"
+
+
+def test_resolve_target_backtester_rejects_ambiguous_match(monkeypatch):
+    profile = load_trading_profile("cn_etf_daily")
+    definition = resolve_target_backtester(profile)
+    duplicate_id = "duplicate_bar_event_backtest"
+    monkeypatch.setitem(
+        backtest_registry._TARGET_BACKTESTERS,
+        duplicate_id,
+        replace(definition, backtester_id=duplicate_id),
+    )
+
+    with pytest.raises(LookupError, match="匹配到多个目标持仓回测器"):
+        resolve_target_backtester(profile)
+
+
+def test_resolve_simulation_backtester_rejects_ambiguous_match(monkeypatch):
+    profile = load_trading_profile("cn_stock_daily")
+    definition = resolve_simulation_backtester(profile)
+    duplicate_id = "duplicate_backtrader_bar_simulation"
+    monkeypatch.setitem(
+        backtest_registry._SIMULATION_BACKTESTERS,
+        duplicate_id,
+        replace(definition, backtester_id=duplicate_id),
+    )
+
+    with pytest.raises(LookupError, match="匹配到多个策略仿真回测器"):
+        resolve_simulation_backtester(profile)
 
 
 def test_run_target_backtest_uses_intraday_engine_for_intraday_profile():

@@ -128,8 +128,8 @@ def send_report_via_email(
                 server.starttls()
                 server.ehlo()
             except smtplib.SMTPException:
-                # 某些内网或本地邮件服务不支持 STARTTLS，允许降级。
-                pass
+                email_logger.exception("SMTP STARTTLS 建立失败，已终止邮件发送")
+                raise
             if settings.smtp_username:
                 server.login(settings.smtp_username, settings.smtp_password or '')
             server.send_message(msg)

@@ -27,6 +27,7 @@ class OrderRequest:
     run_id: str | None = None
     batch_id: str | None = None
     plan_id: str | None = None
+    attempt_no: int = 1
     execution_planner_id: str | None = None
 
 
@@ -52,6 +53,7 @@ class PositionSnapshot:
     market_value: float | None = None
     sellable_qty: float | None = None
     account: str | None = None
+    con_id: int | None = None
     asof: datetime | None = None
     snapshot_batch_id: str | None = None
 
@@ -67,6 +69,10 @@ class FillSnapshot:
     side: str
     filled_at: datetime | None = None
     account: str | None = None
+    exec_id: str | None = None
+    perm_id: int | None = None
+    client_id: int | None = None
+    con_id: int | None = None
 
 
 @dataclass(slots=True)
@@ -117,4 +123,7 @@ class BrokerStateSnapshot:
     open_orders: list[dict] = field(default_factory=list)
     fills: list[FillSnapshot] = field(default_factory=list)
     account_values: dict[str, float | str] = field(default_factory=dict)
+    account: str | None = None
+    state_complete: bool = True
+    state_errors: list[str] = field(default_factory=list)
     asof: datetime | None = None

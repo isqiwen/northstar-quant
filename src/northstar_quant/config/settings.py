@@ -8,8 +8,9 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -40,26 +41,27 @@ class Settings(BaseSettings):
     database_url: str = Field(default="sqlite:///storage/northstar.db")
 
     # 券商与账户配置。
-    broker: str = Field(default="paper")
+    broker: Literal["paper", "ibkr"] = Field(default="paper")
     live_trading_enabled: bool = Field(default=False)
     kill_switch_enabled: bool = Field(default=False)
-    default_cash: float = Field(default=100000.0)
-    rebalance_min_trade_value: float = Field(default=500.0)
-    paper_fill_price_mode: str = Field(default="close")
+    default_cash: float = Field(default=100000.0, gt=0)
+    rebalance_min_trade_value: float = Field(default=500.0, ge=0)
+    paper_fill_price_mode: Literal["close", "reference", "limit"] = Field(default="close")
+    paper_account: str = Field(default="paper-account", min_length=1)
 
     # IBKR 连接参数。
     ibkr_host: str = Field(default="127.0.0.1")
-    ibkr_port: int = Field(default=7497)
-    ibkr_client_id: int = Field(default=7)
+    ibkr_port: int = Field(default=7497, ge=1, le=65535)
+    ibkr_client_id: int = Field(default=7, ge=0)
     ibkr_account: str | None = Field(default=None)
-    ibkr_readonly: bool = Field(default=False)
-    ibkr_poll_interval_seconds: int = Field(default=15)
-    order_timeout_seconds: int = Field(default=300)
-    limit_price_offset_bps: float = Field(default=15.0)
-    limit_chase_max_steps: int = Field(default=3)
-    limit_chase_sleep_seconds: int = Field(default=2)
-    limit_chase_per_step_timeout_seconds: int = Field(default=20)
-    limit_chase_fallback_mode: str = Field(default='market')
+    ibkr_readonly: bool = Field(default=True)
+    ibkr_poll_interval_seconds: int = Field(default=15, gt=0)
+    order_timeout_seconds: int = Field(default=300, gt=0)
+    limit_price_offset_bps: float = Field(default=15.0, ge=0)
+    limit_chase_max_steps: int = Field(default=3, ge=1, le=20)
+    limit_chase_sleep_seconds: float = Field(default=2.0, ge=0.2)
+    limit_chase_per_step_timeout_seconds: int = Field(default=20, gt=0)
+    limit_chase_fallback_mode: Literal["cancel", "market"] = Field(default="cancel")
 
     # 交易日历配置。默认使用上交所日历。
     exchange_calendar: str = Field(default="XSHG")
@@ -87,10 +89,10 @@ class Settings(BaseSettings):
     report_recap_residual_ratio_alert: float = Field(default=0.05)
     report_recap_funding_abs_alert: float = Field(default=1000.0)
     report_recap_funding_ratio_alert: float = Field(default=0.01)
-    live_preflight_max_state_age_seconds: int = Field(default=120)
-    live_preflight_intraday_data_max_age_minutes: int = Field(default=120)
-    live_preflight_daily_data_max_age_days: int = Field(default=4)
-    live_preflight_weekly_data_max_age_days: int = Field(default=10)
+    live_preflight_max_state_age_seconds: int = Field(default=120, gt=0)
+    live_preflight_intraday_data_max_age_minutes: int = Field(default=120, gt=0)
+    live_preflight_daily_data_max_age_days: int = Field(default=4, gt=0)
+    live_preflight_weekly_data_max_age_days: int = Field(default=10, gt=0)
     live_preflight_allow_valuation_price_fallback: bool = Field(default=False)
 
     # 报告与执行控制。
@@ -110,7 +112,19 @@ class Settings(BaseSettings):
 
     # Dashboard 配置。
     dashboard_host: str = Field(default="127.0.0.1")
-    dashboard_port: int = Field(default=8501)
+    dashboard_port: int = Field(default=8501, ge=1, le=65535)
+
+    @field_validator(
+        "broker",
+        "paper_fill_price_mode",
+        "limit_chase_fallback_mode",
+        mode="before",
+    )
+    @classmethod
+    def _normalize_choice(cls, value: object) -> object:
+        """统一环境变量中枚举型配置的大小写与空白。"""
+
+        return value.strip().lower() if isinstance(value, str) else value
 
     def model_post_init(self, __context: object) -> None:
         project_root = Path(self.project_root)
@@ -135,5 +149,11 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     """返回全局单例配置对象。"""
+
+    return load_settings()
+
+
+def load_settings() -> Settings:
+    """重新读取一次运行时配置，不使用进程缓存。"""
 
     return Settings()

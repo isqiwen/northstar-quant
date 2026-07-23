@@ -10,7 +10,7 @@ from typing import Any
 
 from northstar_quant.common.enums import AssetType, DataFrequency, Market, StrategyFamily, StrategyOutputType
 from northstar_quant.config.settings import get_settings
-from northstar_quant.config.trading_profile import TradingProfile
+from northstar_quant.config.trading_profile import ProfileStrategyConfig, TradingProfile
 from northstar_quant.config.yaml_loader import load_yaml
 from northstar_quant.strategies.base import StrategyBase
 from northstar_quant.strategies.etf_rotation import ETFDailyRotationStrategy
@@ -34,6 +34,22 @@ class StrategyDefinition:
 
 
 _REGISTRY: dict[str, StrategyDefinition] = {}
+
+# 这些字段属于现有策略 YAML 的说明或研究元数据，不会传给策略构造器。
+_STRATEGY_CONFIG_METADATA_FIELDS = frozenset(
+    {
+        "commission_bps",
+        "min_liquidity_cny",
+        "name",
+        "rebalance_frequency",
+        "rebalance_interval",
+        "risk",
+        "slippage_bps",
+        "strategy_id",
+        "universe",
+        "weighting",
+    }
+)
 
 
 def _resolve_config_dir(config_dir: str | Path = "configs/strategy") -> Path:
@@ -111,18 +127,36 @@ def load_strategy_config(strategy_id: str, config_dir: str | Path = "configs/str
     return _normalize_strategy_config(load_yaml(path))
 
 
-def _filter_factory_kwargs(factory: StrategyFactory, params: dict[str, Any]) -> dict[str, Any]:
+def _factory_keyword_parameters(factory: StrategyFactory) -> tuple[set[str], bool]:
     signature = inspect.signature(factory)
-    supported: dict[str, Any] = {}
+    supported: set[str] = set()
+    accepts_extra_kwargs = False
     for name, parameter in signature.parameters.items():
         if name == "self":
             continue
-        if parameter.kind in {
+        if parameter.kind == inspect.Parameter.VAR_KEYWORD:
+            accepts_extra_kwargs = True
+        elif parameter.kind in {
             inspect.Parameter.POSITIONAL_OR_KEYWORD,
             inspect.Parameter.KEYWORD_ONLY,
-        } and name in params:
-            supported[name] = params[name]
-    return supported
+        }:
+            supported.add(name)
+    return supported, accepts_extra_kwargs
+
+
+def _raise_for_unknown_fields(
+    strategy_id: str,
+    fields: set[str],
+    *,
+    supported_fields: set[str],
+    field_label: str,
+) -> None:
+    unknown_fields = sorted(fields.difference(supported_fields))
+    if not unknown_fields:
+        return
+    raise ValueError(
+        f"策略 {strategy_id} 包含不支持的{field_label}：{', '.join(unknown_fields)}"
+    )
 
 
 def build_strategy(
@@ -134,9 +168,31 @@ def build_strategy(
     """根据注册表和 YAML 默认配置构建策略实例。"""
 
     factory = get_strategy_factory(strategy_id)
-    merged = load_strategy_config(strategy_id, config_dir=config_dir)
-    merged.update(params or {})
-    factory_kwargs = _filter_factory_kwargs(factory, merged)
+    supported_params, accepts_extra_kwargs = _factory_keyword_parameters(factory)
+    yaml_config = load_strategy_config(strategy_id, config_dir=config_dir)
+    profile_params = dict(params or {})
+
+    if not accepts_extra_kwargs:
+        _raise_for_unknown_fields(
+            strategy_id,
+            set(yaml_config),
+            supported_fields=supported_params | set(_STRATEGY_CONFIG_METADATA_FIELDS),
+            field_label="配置字段",
+        )
+        _raise_for_unknown_fields(
+            strategy_id,
+            set(profile_params),
+            supported_fields=supported_params,
+            field_label="策略参数",
+        )
+
+    factory_kwargs = {
+        key: value
+        for key, value in yaml_config.items()
+        if key in supported_params
+        or (accepts_extra_kwargs and key not in _STRATEGY_CONFIG_METADATA_FIELDS)
+    }
+    factory_kwargs.update(profile_params)
     strategy = factory(**factory_kwargs)
     if (
         getattr(strategy, "supported_data_frequencies", ())
@@ -157,46 +213,53 @@ def build_strategy(
     return strategy
 
 
+def build_profile_strategy(
+    profile: TradingProfile,
+    strategy_config: ProfileStrategyConfig,
+) -> StrategyBase:
+    """校验画像兼容性并构建单个策略。"""
+
+    definition = get_strategy_definition(strategy_config.strategy_id)
+    if (
+        strategy_config.strategy_family is not None
+        and strategy_config.strategy_family != definition.strategy_family
+    ):
+        raise ValueError(
+            f"画像 {profile.profile_id} 中策略 {strategy_config.strategy_id} 的 strategy_family="
+            f"{strategy_config.strategy_family.value} 与注册表中的 "
+            f"{definition.strategy_family.value} 不一致"
+        )
+    if definition.supported_markets and profile.market not in definition.supported_markets:
+        raise ValueError(
+            f"策略 {strategy_config.strategy_id} 不支持市场 {profile.market.value}，"
+            f"仅支持 {', '.join(item.value for item in definition.supported_markets)}"
+        )
+    if definition.supported_asset_types and profile.asset_type not in definition.supported_asset_types:
+        raise ValueError(
+            f"策略 {strategy_config.strategy_id} 不支持资产类型 {profile.asset_type.value}，"
+            f"仅支持 {', '.join(item.value for item in definition.supported_asset_types)}"
+        )
+    if (
+        definition.supported_data_frequencies
+        and profile.data_frequency not in definition.supported_data_frequencies
+    ):
+        raise ValueError(
+            f"策略 {strategy_config.strategy_id} 不支持数据频率 {profile.data_frequency.value}，"
+            f"仅支持 {', '.join(item.value for item in definition.supported_data_frequencies)}"
+        )
+    return build_strategy(strategy_config.strategy_id, params=strategy_config.params)
+
+
 def build_profile_strategies(profile: TradingProfile) -> list[tuple[StrategyBase, float]]:
     """根据交易画像构建启用中的策略及其资本权重。"""
 
-    built: list[tuple[StrategyBase, float]] = []
-    for strategy_config in profile.enabled_strategies:
-        definition = get_strategy_definition(strategy_config.strategy_id)
-        if (
-            strategy_config.strategy_family is not None
-            and strategy_config.strategy_family != definition.strategy_family
-        ):
-            raise ValueError(
-                f"画像 {profile.profile_id} 中策略 {strategy_config.strategy_id} 的 strategy_family="
-                f"{strategy_config.strategy_family.value} 与注册表中的 "
-                f"{definition.strategy_family.value} 不一致"
-            )
-        if definition.supported_markets and profile.market not in definition.supported_markets:
-            raise ValueError(
-                f"策略 {strategy_config.strategy_id} 不支持市场 {profile.market.value}，"
-                f"仅支持 {', '.join(item.value for item in definition.supported_markets)}"
-            )
-        if definition.supported_asset_types and profile.asset_type not in definition.supported_asset_types:
-            raise ValueError(
-                f"策略 {strategy_config.strategy_id} 不支持资产类型 {profile.asset_type.value}，"
-                f"仅支持 {', '.join(item.value for item in definition.supported_asset_types)}"
-            )
-        if (
-            definition.supported_data_frequencies
-            and profile.data_frequency not in definition.supported_data_frequencies
-        ):
-            raise ValueError(
-                f"策略 {strategy_config.strategy_id} 不支持数据频率 {profile.data_frequency.value}，"
-                f"仅支持 {', '.join(item.value for item in definition.supported_data_frequencies)}"
-            )
-        built.append(
-            (
-                build_strategy(strategy_config.strategy_id, params=strategy_config.params),
-                float(strategy_config.capital_weight),
-            )
+    return [
+        (
+            build_profile_strategy(profile, strategy_config),
+            float(strategy_config.capital_weight),
         )
-    return built
+        for strategy_config in profile.enabled_strategies
+    ]
 
 
 register_strategy(

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import Boolean, Float, Integer, String, Text
+from sqlalchemy import Boolean, Float, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from northstar_quant.common.time import utc_now
@@ -124,6 +124,7 @@ class OrderRecord(Base):
     limit_price: Mapped[float | None] = mapped_column(Float, default=None)
     order_semantic: Mapped[str | None] = mapped_column(String(16), default=None)
     reason: Mapped[str | None] = mapped_column(Text, default=None)
+    broker: Mapped[str | None] = mapped_column(String(32), index=True, default=None)
     account: Mapped[str | None] = mapped_column(String(64), index=True, default=None)
     reference_price: Mapped[float | None] = mapped_column(Float, default=None)
     reference_price_source: Mapped[str | None] = mapped_column(String(32), default=None)
@@ -141,9 +142,28 @@ class FillRecord(Base):
     """成交记录表。"""
 
     __tablename__ = "fill_records"
+    __table_args__ = (
+        UniqueConstraint(
+            "broker",
+            "account",
+            "exec_id",
+            name="uq_fill_records_broker_account_exec_id",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    order_id: Mapped[int | None] = mapped_column(Integer, index=True, default=None)
+    order_id: Mapped[int | None] = mapped_column(
+        Integer,
+        index=True,
+        nullable=True,
+        default=None,
+    )
+    broker: Mapped[str | None] = mapped_column(String(32), index=True, default=None)
+    account: Mapped[str | None] = mapped_column(String(64), index=True, default=None)
+    exec_id: Mapped[str | None] = mapped_column(String(128), index=True, default=None)
+    perm_id: Mapped[int | None] = mapped_column(Integer, index=True, default=None)
+    client_id: Mapped[int | None] = mapped_column(Integer, default=None)
+    con_id: Mapped[int | None] = mapped_column(Integer, index=True, default=None)
     broker_order_id: Mapped[str | None] = mapped_column(String(128), index=True, default=None)
     symbol: Mapped[str] = mapped_column(String(32), index=True)
     side: Mapped[str | None] = mapped_column(String(8), default=None)

@@ -4,19 +4,23 @@ from __future__ import annotations
 
 import math
 from collections.abc import Mapping
+from typing import Protocol
 
-from northstar_quant.execution.models import OrderRequest
-from northstar_quant.execution.quantity import resolve_qty_step
+from northstar_quant.common.order_status import is_final_order_status
+from northstar_quant.common.quantity import resolve_qty_step
 from northstar_quant.risk.models import OrderRiskContext, RiskLimits
 
-_FINAL_OPEN_ORDER_STATUSES = {
-    "filled",
-    "cancelled",
-    "canceled",
-    "apicancelled",
-    "inactive",
-    "rejected",
-}
+
+class OrderRiskInput(Protocol):
+    """交易前风控所需的最小订单接口。"""
+
+    symbol: str
+    side: str
+    qty: float
+    target_weight: float | None
+    limit_price: float | None
+    reference_price: float | None
+    planned_trade_value: float | None
 
 
 def _require_finite_positive(value: float, message: str) -> float:
@@ -26,24 +30,25 @@ def _require_finite_positive(value: float, message: str) -> float:
     return parsed
 
 
-def _resolve_order_notional(order: OrderRequest) -> float | None:
+def _resolve_order_notional(order: OrderRiskInput) -> float | None:
     """解析订单金额，用于单笔 notional 风控。"""
 
+    candidates: list[float] = []
     if order.planned_trade_value is not None:
         planned_trade_value = float(order.planned_trade_value)
-        if not math.isfinite(planned_trade_value):
-            return None
-        return abs(planned_trade_value)
+        if math.isfinite(planned_trade_value):
+            candidates.append(abs(planned_trade_value))
 
-    price_basis = order.reference_price
-    if price_basis is None:
-        price_basis = order.limit_price
+    for price_basis in (order.reference_price, order.limit_price):
+        if price_basis is None:
+            continue
+        price = _require_finite_positive(
+            float(price_basis),
+            "订单金额风控价格基准必须大于 0",
+        )
+        candidates.append(abs(float(order.qty)) * price)
 
-    if price_basis is None:
-        return None
-
-    price = _require_finite_positive(float(price_basis), "订单金额风控价格基准必须大于 0")
-    return abs(float(order.qty)) * price
+    return max(candidates) if candidates else None
 
 
 def _validate_qty_step(qty: float, step: float | None) -> None:
@@ -80,15 +85,14 @@ def _coerce_positive_float(value: object) -> float | None:
     return parsed
 
 
-def _order_price_basis(order: OrderRequest) -> float | None:
+def _order_price_basis(order: OrderRiskInput) -> float | None:
     if order.limit_price is not None:
         return _coerce_positive_float(order.limit_price)
     return _coerce_positive_float(order.reference_price)
 
 
 def _is_working_open_order(row: Mapping[str, object]) -> bool:
-    status = str(row.get("status") or "").strip().lower()
-    return status not in _FINAL_OPEN_ORDER_STATUSES
+    return not is_final_order_status(row.get("status"))
 
 
 def _remaining_open_order_qty(row: Mapping[str, object]) -> float | None:
@@ -184,7 +188,7 @@ def reserve_open_orders_in_context(
 
 
 def _validate_trade_state(
-    order: OrderRequest,
+    order: OrderRiskInput,
     limits: RiskLimits,
     context: OrderRiskContext | None,
 ) -> None:
@@ -223,7 +227,7 @@ def _validate_trade_state(
 
 
 def _validate_account_context(
-    order: OrderRequest,
+    order: OrderRiskInput,
     qty: float,
     limits: RiskLimits,
     context: OrderRiskContext | None,
@@ -232,6 +236,8 @@ def _validate_account_context(
     symbol = _normalize_symbol(order.symbol)
 
     if context is None:
+        if side == "BUY" and limits.enforce_available_cash:
+            raise ValueError("买入订单缺少可用资金")
         if side == "SELL" and limits.enforce_sellable_qty:
             raise ValueError("卖出订单缺少可卖数量")
         return
@@ -239,7 +245,13 @@ def _validate_account_context(
     if context.unresolved_open_order_count > 0:
         raise ValueError("账户存在无法解析的未完成订单")
 
-    if side == "BUY" and context.available_cash is not None:
+    if side == "BUY":
+        if context.available_cash is None:
+            if limits.enforce_available_cash:
+                raise ValueError("买入订单缺少可用资金")
+            return
+        if not math.isfinite(float(context.available_cash)):
+            raise ValueError("买入订单可用资金无效")
         order_notional = _resolve_order_notional(order)
         if order_notional is None:
             raise ValueError("买入可用资金检查缺少价格基准")
@@ -265,7 +277,7 @@ def _validate_account_context(
             raise ValueError("卖出订单数量超过可卖持仓")
 
 
-def reserve_order_context(context: OrderRiskContext | None, order: OrderRequest) -> None:
+def reserve_order_context(context: OrderRiskContext | None, order: OrderRiskInput) -> None:
     """Reserve account capacity after an accepted order."""
 
     if context is None:
@@ -283,7 +295,7 @@ def reserve_order_context(context: OrderRiskContext | None, order: OrderRequest)
         )
 
 
-def release_order_context(context: OrderRiskContext | None, order: OrderRequest) -> None:
+def release_order_context(context: OrderRiskContext | None, order: OrderRiskInput) -> None:
     """Release account capacity when an accepted order is canceled."""
 
     if context is None:
@@ -305,11 +317,21 @@ def release_order_context(context: OrderRiskContext | None, order: OrderRequest)
 
 
 def validate_order(
-    order: OrderRequest,
+    order: OrderRiskInput,
     limits: RiskLimits,
     context: OrderRiskContext | None = None,
 ) -> None:
     """验证单笔订单是否满足交易前约束。"""
+
+    side = order.side.strip().upper()
+    if side not in {"BUY", "SELL"}:
+        raise ValueError("订单方向必须为 BUY 或 SELL")
+
+    order_type = str(getattr(order, "order_type", "") or "").strip().upper()
+    if order_type not in {"MKT", "LMT"}:
+        raise ValueError("订单类型必须为 MKT 或 LMT")
+    if order_type == "LMT" and order.limit_price is None:
+        raise ValueError("限价单必须提供 limit_price")
 
     qty = _require_finite_positive(float(order.qty), "订单数量必须大于 0")
 

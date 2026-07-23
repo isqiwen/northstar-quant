@@ -15,8 +15,8 @@ Northstar Quant 的目标不是提供“开箱即用的券商生产系统”，�
 
 ## 核心能力
 
-- **研究层**：基于 `vectorbt` 做研究、扫描和快速验证
-- **可信回测层**：基于轻量事件回测引擎与 `Backtrader` 做更贴近真实交易约束的验证
+- **研究层**：通过 canonical strategy pipeline 做研究、扫描和快速验证
+- **回测层**：使用项目内置目标权重与策略仿真引擎；第三方引擎仍待独立交叉验证
 - **实盘层**：支持 `paper` 与 `IBKR` 模式，覆盖持仓同步、再平衡、订单轮询与撤单
 - **风控层**：包含全局风控、策略风控与交易前风控
 - **监控层**：包含日志、健康检查、企业微信 / Telegram 告警、Dashboard
@@ -30,7 +30,7 @@ Northstar Quant 的目标不是提供“开箱即用的券商生产系统”，�
 - 推荐环境管理与安装工具：`uv`
 - ORM 与迁移：`SQLAlchemy` + `Alembic`
 - 数据与分析：`polars`、`pandas`、`numpy`
-- 回测：`vectorbt`、`Backtrader`
+- 回测：项目内置目标权重 / 事件仿真引擎
 - 可视化与报告：`matplotlib`、`plotly`、`streamlit`、`reportlab`
 
 ## 依赖管理
@@ -41,7 +41,11 @@ Northstar Quant 的目标不是提供“开箱即用的券商生产系统”，�
 - 开发依赖定义在 `[project.optional-dependencies].dev`
 - 推荐使用 `uv` 创建虚拟环境并安装 `-e ".[dev]"` 进行可编辑开发
 
-当前仓库未提交 `uv.lock` 或其他锁文件，因此依赖解析基于版本范围而非完全锁定版本。
+仓库已提交 `uv.lock`，开发和验证应优先使用锁定环境：
+
+```bash
+uv sync --extra dev
+```
 
 ## 目录结构
 
@@ -51,13 +55,13 @@ Northstar/
 ├─ configs/                    应用、策略、风控、数据配置
 ├─ docs/                       架构与专题文档
 ├─ src/northstar_quant/
-│  ├─ backtest/                回测引擎与 Backtrader 入口
+│  ├─ backtest/                目标权重与策略仿真回测入口
 │  ├─ common/                  通用类型与路径工具
 │  ├─ config/                  配置加载与设置模型
 │  ├─ data/                    数据读写与样例数据
 │  ├─ db/                      ORM 模型、会话与仓储
-│  ├─ execution/               订单路由、执行器、对账
-│  ├─ live/                    实盘编排、调度与服务
+│  ├─ execution/               执行计划、订单路由与券商适配器
+│  ├─ live/                    实盘编排、对账、preflight 与调度
 │  ├─ monitoring/              健康检查、告警、Dashboard
 │  ├─ portfolio/               组合构造与仓位分配
 │  ├─ reporting/               Markdown/PDF 报告与邮件发送
@@ -206,20 +210,18 @@ northstar dashboard run
 
 ## 配置说明
 
-配置优先级如下：
+运行时 Settings、交易画像和策略 YAML 是三类独立配置源，不会按一个统一优先级互相覆盖：
 
-1. 环境变量
-2. `.env`
-3. `configs/*.yaml`
-4. 代码默认值
+- Settings：`NORTHSTAR_*` 环境变量 / `.env` / 安全默认值
+- 交易画像：`configs/profiles/*.yaml`
+- 策略默认参数：`configs/strategy/*.yaml`，可由画像中的策略参数覆盖
 
 常见配置项包括：
 
 - `configs/app.yaml`：应用级配置
 - `configs/profiles/*.yaml`：交易画像配置，默认主线为中国 A 股 ETF 日频，并提供 A 股股票日频、周频、分钟级画像
 - `configs/strategy/*.yaml`：策略配置
-- `configs/risk/*.yaml`：风控配置
-- `configs/data/*.yaml`：数据配置
+- `configs/risk/*.yaml`、`configs/data/*.yaml`、`configs/portfolio/*.yaml` 当前仍是设计样例或未来扩展点，尚未接入统一运行时加载
 - `.env`：数据库地址、券商参数、告警方式（`console / wecom / telegram`）、SMTP、调度 cron 等运行时配置
 
 默认数据库使用 `sqlite:///storage/northstar.db`，正式环境更建议切换为 PostgreSQL 并配合 `Alembic` 管理迁移。
@@ -266,6 +268,8 @@ northstar dashboard run
 - 支持企业微信 / Telegram 告警、邮件发送、Markdown/PDF 报告
 - 提供基于 `Streamlit` 的本地 Dashboard
 
+真实券商默认保持关闭和只读。仓库内 production 画像当前使用 `demo` 数据，并明确设置 `live_trading_eligible: false`；在订单幂等、跨进程租约和 instrument 映射闭环前，不应开启真实资金。
+
 ## 文档索引
 
 - [架构总览](docs/01_架构总览.md)
@@ -277,8 +281,7 @@ northstar dashboard run
 - [邮件发送日报、周报、月报](docs/07_邮件发送日报_周报_月报.md)
 - [邮件附件 PDF 报告](docs/08_邮件附件PDF报告.md)
 - [正式版 PDF 报告版式](docs/09_正式版PDF报告版式.md)
-
-## 版本演进
+- [架构审核与演进路线](docs/10_架构审核与演进路线.md)
 
 ## 当前状态与边界
 

@@ -92,3 +92,31 @@ def test_order_router_reserves_sellable_position_for_order_batch():
 
     assert len(broker.orders) == 1
     assert context.reserved_sell_qty_by_symbol["510300.SS"] == 60.0
+
+
+def test_order_router_rechecks_submission_guard_immediately_before_broker_call():
+    broker = _AcceptingBroker()
+    guard_enabled = True
+
+    def submission_guard(_order: OrderRequest) -> None:
+        if guard_enabled:
+            raise PermissionError("kill switch 已开启")
+
+    router = OrderRouter(
+        broker,
+        RiskLimits(max_order_notional=None),
+        submission_guard=submission_guard,
+    )
+
+    with pytest.raises(PermissionError, match="kill switch"):
+        router.route(
+            OrderRequest(
+                strategy_id="test",
+                symbol="510300.SS",
+                side="BUY",
+                qty=1.0,
+                reference_price=100.0,
+            )
+        )
+
+    assert broker.orders == []

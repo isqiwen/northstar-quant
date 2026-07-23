@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from northstar_quant.common.enums import AssetType, DataFrequency, RebalanceFrequency, StrategyFamily, StrategyOutputType
 from northstar_quant.config.settings import get_settings
 from northstar_quant.config.trading_profile import (
@@ -75,6 +77,35 @@ def test_load_trading_profile_reads_profile_yaml():
     assert [item.capital_weight for item in profile.enabled_strategies] == [0.7, 0.3]
 
 
+def test_live_trading_eligible_parses_explicit_false_string(tmp_path):
+    (tmp_path / "safe_profile.yaml").write_text(
+        """
+profile_id: safe_profile
+data:
+  live_trading_eligible: "false"
+""".strip(),
+        encoding="utf-8",
+    )
+
+    profile = load_trading_profile("safe_profile", tmp_path)
+
+    assert profile.data.live_trading_eligible is False
+
+
+def test_live_trading_eligible_rejects_ambiguous_value(tmp_path):
+    (tmp_path / "invalid_profile.yaml").write_text(
+        """
+profile_id: invalid_profile
+data:
+  live_trading_eligible: maybe
+""".strip(),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="live_trading_eligible.*布尔值"):
+        load_trading_profile("invalid_profile", tmp_path)
+
+
 def test_load_research12_profile_reads_yfinance_download_config():
     profile = load_trading_profile("cn_etf_daily_research12")
 
@@ -138,6 +169,26 @@ def test_build_strategy_allows_profile_level_param_override():
     assert isinstance(strategy, US_ETFDailyRotationStrategy)
     assert strategy.lookback_days == 63
     assert strategy.top_n == 2
+
+
+def test_build_strategy_rejects_unknown_profile_level_param():
+    with pytest.raises(ValueError, match="不支持的策略参数.*lookback_dayz"):
+        build_strategy("etf_rotation", params={"lookback_dayz": 63})
+
+
+def test_build_strategy_rejects_unknown_yaml_config(tmp_path):
+    (tmp_path / "momentum.yaml").write_text(
+        """
+strategy:
+  id: momentum
+  lookback_days: 90
+  lookback_dayz: 20
+""".strip(),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="不支持的配置字段.*lookback_dayz"):
+        build_strategy("momentum", config_dir=tmp_path)
 
 
 def test_build_profile_strategies_uses_enabled_profile_entries():

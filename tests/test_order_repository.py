@@ -45,6 +45,7 @@ def test_save_order_result_persists_full_order_audit_context(tmp_path):
                 status="Submitted",
                 submitted_at=submitted_at,
             ),
+            broker="paper",
         )
 
         row = session.scalar(
@@ -58,6 +59,7 @@ def test_save_order_result_persists_full_order_audit_context(tmp_path):
     assert row.order_type == "LMT"
     assert row.limit_price == 101.25
     assert row.reason == "breakout_entry"
+    assert row.broker == "paper"
     assert row.account == "paper-account"
     assert row.reference_price == 101.0
     assert row.reference_price_source == "broker_snapshot"

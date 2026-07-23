@@ -1,6 +1,8 @@
 from datetime import UTC, datetime
 from pathlib import Path
+import smtplib
 
+import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -28,6 +30,33 @@ class _DummySMTP:
 
     def send_message(self, msg) -> None:
         type(self).sent_messages.append(msg)
+
+
+class _StartTLSFailureSMTP:
+    login_called = False
+    send_called = False
+
+    def __init__(self, host: str, port: int) -> None:
+        self.host = host
+        self.port = port
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        return None
+
+    def ehlo(self) -> None:
+        return None
+
+    def starttls(self) -> None:
+        raise smtplib.SMTPNotSupportedError("STARTTLS unavailable")
+
+    def login(self, username: str, password: str) -> None:
+        type(self).login_called = True
+
+    def send_message(self, msg) -> None:
+        type(self).send_called = True
 
 
 def test_send_report_email_includes_daily_recap_in_body(tmp_path, monkeypatch):
@@ -139,3 +168,28 @@ def test_send_report_email_uses_tagged_subject_when_provided(tmp_path, monkeypat
 
     assert result["sent"] is True
     assert result["subject"] == "Northstar Quant - 日报 [执行异常] - portfolio_daily_report"
+
+
+def test_send_report_email_fails_closed_when_starttls_fails(tmp_path, monkeypatch):
+    report_path = tmp_path / "portfolio_daily_report.md"
+    report_path.write_text("# Northstar Quant 日报\n", encoding="utf-8")
+
+    settings = get_settings().model_copy()
+    object.__setattr__(settings, "report_recipients", "ops@example.com")
+    object.__setattr__(settings, "smtp_host", "smtp.example.com")
+    object.__setattr__(settings, "smtp_port", 587)
+    object.__setattr__(settings, "smtp_sender", "northstar@example.com")
+    object.__setattr__(settings, "smtp_username", "northstar")
+    object.__setattr__(settings, "smtp_password", "secret")
+    object.__setattr__(settings, "smtp_use_ssl", False)
+    object.__setattr__(settings, "report_email_attach_pdf", False)
+    monkeypatch.setattr(email_sender, "get_settings", lambda: settings)
+    monkeypatch.setattr(email_sender.smtplib, "SMTP", _StartTLSFailureSMTP)
+    _StartTLSFailureSMTP.login_called = False
+    _StartTLSFailureSMTP.send_called = False
+
+    with pytest.raises(smtplib.SMTPNotSupportedError, match="STARTTLS unavailable"):
+        email_sender.send_report_via_email(report_path, attach_pdf=False)
+
+    assert _StartTLSFailureSMTP.login_called is False
+    assert _StartTLSFailureSMTP.send_called is False

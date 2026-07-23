@@ -1,4 +1,5 @@
 from contextlib import nullcontext
+from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from types import SimpleNamespace
 
@@ -7,7 +8,12 @@ import pytest
 
 from northstar_quant.config.settings import get_settings
 from northstar_quant.config.trading_profile import load_trading_profile
-from northstar_quant.execution.models import BrokerStateSnapshot, MarketQuoteSnapshot, PositionSnapshot
+from northstar_quant.execution.models import (
+    BrokerStateSnapshot,
+    MarketQuoteSnapshot,
+    OrderRequest,
+    PositionSnapshot,
+)
 from northstar_quant.live import service as live_service
 from northstar_quant.live.preflight import build_preflight_result
 from northstar_quant.risk.models import SymbolTradeState
@@ -108,6 +114,180 @@ def test_build_preflight_result_blocks_on_open_orders_fallback_quote_and_ledger_
     assert any("未完成订单" in message for message in result["blocking_messages"])
     assert any("本地估值回退价" in message for message in result["blocking_messages"])
     assert any("账本异常" in message for message in result["blocking_messages"])
+
+
+def test_build_preflight_result_blocks_real_broker_using_demo_data():
+    profile = load_trading_profile("cn_etf_daily")
+    asof = date.today() - timedelta(days=1)
+    frame = _market_frame(asof)
+
+    result = build_preflight_result(
+        profile=profile,
+        raw_market_df=frame,
+        signal_market_df=frame,
+        output_frame=pl.DataFrame(
+            {"date": [asof], "symbol": ["510300.SS"], "target_weight": [0.5]}
+        ),
+        output_time_column="date",
+        broker_state=BrokerStateSnapshot(
+            account_values={"NetLiquidation": 100000.0},
+            account="DU123456",
+            asof=datetime.now(UTC),
+        ),
+        execution_symbols=["510300.SS"],
+        execution_reference_prices={"510300.SS": 500.0},
+        execution_price_sources={"510300.SS": "broker_snapshot"},
+        equity=100000.0,
+        available_cash=100000.0,
+        live_account_attribution={"alert_items": []},
+        broker_name="ibkr",
+        expected_account="DU123456",
+        data_manifest={
+            "profile_id": profile.profile_id,
+            "dataset_id": profile.data.dataset_id,
+            "data_source": "demo",
+            "live_trading_eligible": False,
+        },
+    ).to_dict()
+
+    assert result["can_trade"] is False
+    assert any(
+        check["code"] == "data_provenance" and check["failed"]
+        for check in result["checks"]
+    )
+    assert any("数据来源为 demo" in message for message in result["blocking_messages"])
+
+
+def test_build_preflight_result_accepts_explicit_live_eligible_manifest():
+    base_profile = load_trading_profile("cn_etf_daily")
+    profile = replace(
+        base_profile,
+        data=replace(base_profile.data, live_trading_eligible=True),
+    )
+    asof = date.today() - timedelta(days=1)
+    frame = _market_frame(asof)
+
+    result = build_preflight_result(
+        profile=profile,
+        raw_market_df=frame,
+        signal_market_df=frame,
+        output_frame=pl.DataFrame(
+            {"date": [asof], "symbol": ["510300.SS"], "target_weight": [0.5]}
+        ),
+        output_time_column="date",
+        broker_state=BrokerStateSnapshot(
+            account_values={"NetLiquidation": 100000.0},
+            account="DU123456",
+            asof=datetime.now(UTC),
+        ),
+        execution_symbols=["510300.SS"],
+        execution_reference_prices={"510300.SS": 500.0},
+        execution_price_sources={"510300.SS": "broker_snapshot"},
+        equity=100000.0,
+        available_cash=100000.0,
+        live_account_attribution={"alert_items": []},
+        broker_name="ibkr",
+        expected_account="DU123456",
+        data_manifest={
+            "profile_id": profile.profile_id,
+            "dataset_id": profile.data.dataset_id,
+            "data_source": "trusted_vendor",
+            "live_trading_eligible": True,
+        },
+    ).to_dict()
+
+    assert result["can_trade"] is True
+    assert any(
+        check["code"] == "data_provenance" and check["status"] == "pass"
+        for check in result["checks"]
+    )
+
+
+def test_build_preflight_result_blocks_mismatched_real_broker_account():
+    base_profile = load_trading_profile("cn_etf_daily")
+    profile = replace(
+        base_profile,
+        data=replace(base_profile.data, live_trading_eligible=True),
+    )
+    asof = date.today() - timedelta(days=1)
+    frame = _market_frame(asof)
+
+    result = build_preflight_result(
+        profile=profile,
+        raw_market_df=frame,
+        signal_market_df=frame,
+        output_frame=pl.DataFrame(
+            {"date": [asof], "symbol": ["510300.SS"], "target_weight": [0.5]}
+        ),
+        output_time_column="date",
+        broker_state=BrokerStateSnapshot(
+            account_values={"NetLiquidation": 100000.0},
+            account="DU-OTHER",
+            asof=datetime.now(UTC),
+        ),
+        execution_symbols=["510300.SS"],
+        execution_reference_prices={"510300.SS": 500.0},
+        execution_price_sources={"510300.SS": "broker_snapshot"},
+        equity=100000.0,
+        available_cash=100000.0,
+        live_account_attribution={"alert_items": []},
+        broker_name="ibkr",
+        expected_account="DU123456",
+        data_manifest={
+            "profile_id": profile.profile_id,
+            "dataset_id": profile.data.dataset_id,
+            "data_source": "trusted_vendor",
+            "live_trading_eligible": True,
+        },
+    ).to_dict()
+
+    assert result["can_trade"] is False
+    assert any(
+        check["code"] == "broker_account_identity" and check["failed"]
+        for check in result["checks"]
+    )
+
+
+def test_build_preflight_result_blocks_real_broker_when_account_attribution_unavailable():
+    base_profile = load_trading_profile("cn_etf_daily")
+    profile = replace(
+        base_profile,
+        data=replace(base_profile.data, live_trading_eligible=True),
+    )
+    asof = date.today() - timedelta(days=1)
+    frame = _market_frame(asof)
+
+    result = build_preflight_result(
+        profile=profile,
+        raw_market_df=frame,
+        signal_market_df=frame,
+        output_frame=pl.DataFrame(
+            {"date": [asof], "symbol": ["510300.SS"], "target_weight": [0.5]}
+        ),
+        output_time_column="date",
+        broker_state=BrokerStateSnapshot(
+            account_values={"NetLiquidation": 100000.0},
+            account="DU123456",
+            asof=datetime.now(UTC),
+        ),
+        execution_symbols=["510300.SS"],
+        execution_reference_prices={"510300.SS": 500.0},
+        execution_price_sources={"510300.SS": "broker_snapshot"},
+        equity=100000.0,
+        available_cash=100000.0,
+        live_account_attribution=None,
+        broker_name="ibkr",
+        expected_account="DU123456",
+        data_manifest={
+            "profile_id": profile.profile_id,
+            "dataset_id": profile.data.dataset_id,
+            "data_source": "trusted_vendor",
+            "live_trading_eligible": True,
+        },
+    ).to_dict()
+
+    assert result["can_trade"] is False
+    assert any("账户归因不可用" in message for message in result["blocking_messages"])
 
 
 def test_run_live_once_returns_without_order_submission_when_preflight_fails(monkeypatch):
@@ -333,6 +513,35 @@ def test_run_live_once_blocks_real_broker_when_live_trading_switch_is_off(monkey
         "需要显式设置 NORTHSTAR_LIVE_TRADING_ENABLED=true。"
     ]
     assert alerts and alerts[0][0] == "warning"
+
+
+def test_submission_guard_blocks_real_broker_on_non_trading_day(monkeypatch):
+    profile = load_trading_profile("cn_etf_daily")
+    monkeypatch.setattr(
+        live_service,
+        "load_settings",
+        lambda: SimpleNamespace(
+            broker="ibkr",
+            kill_switch_enabled=False,
+            live_trading_enabled=True,
+            ibkr_readonly=False,
+            ibkr_account="DU123456",
+        ),
+    )
+    monkeypatch.setattr(live_service, "load_trading_profile", lambda *_: profile)
+    monkeypatch.setattr(live_service, "is_trading_session", lambda **_: False)
+
+    with pytest.raises(PermissionError, match="NON_TRADING_DAY"):
+        live_service._assert_live_submission_allowed(
+            "ibkr",
+            OrderRequest(
+                strategy_id="test",
+                symbol="510300.SS",
+                side="BUY",
+                qty=100.0,
+                profile_id=profile.profile_id,
+            ),
+        )
 
 
 def test_run_shadow_once_builds_plan_but_never_submits_orders(monkeypatch):

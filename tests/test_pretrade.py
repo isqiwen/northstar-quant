@@ -67,6 +67,23 @@ def test_validate_order_rejects_order_notional_from_limit_price():
         raise AssertionError("预期应基于限价触发订单金额风控")
 
 
+def test_validate_order_uses_more_conservative_live_price_than_planned_notional():
+    limits = RiskLimits(max_order_notional=50000.0)
+    order = OrderRequest(
+        strategy_id="core_portfolio",
+        symbol="SPY",
+        side="BUY",
+        qty=100.0,
+        planned_trade_value=49000.0,
+        reference_price=490.0,
+        order_type="LMT",
+        limit_price=1000.0,
+    )
+
+    with pytest.raises(ValueError, match="订单金额超过风控上限"):
+        validate_order(order, limits)
+
+
 def test_validate_order_requires_price_basis_for_order_notional_limit():
     limits = RiskLimits(max_order_notional=5000.0)
     order = OrderRequest(
@@ -158,6 +175,52 @@ def test_validate_order_rejects_invalid_limit_price():
 
     with pytest.raises(ValueError, match="限价必须大于 0"):
         validate_order(order, limits)
+
+
+@pytest.mark.parametrize("side", ["", "SSHORT", "BOT"])
+def test_validate_order_rejects_unknown_side(side):
+    with pytest.raises(ValueError, match="订单方向必须"):
+        validate_order(
+            OrderRequest(
+                strategy_id="test",
+                symbol="510300.SS",
+                side=side,
+                qty=100.0,
+                reference_price=5.0,
+            ),
+            RiskLimits(max_order_notional=None),
+        )
+
+
+@pytest.mark.parametrize("order_type", ["", "LIMIT", "LMIT"])
+def test_validate_order_rejects_unknown_order_type(order_type):
+    with pytest.raises(ValueError, match="订单类型必须"):
+        validate_order(
+            OrderRequest(
+                strategy_id="test",
+                symbol="510300.SS",
+                side="BUY",
+                qty=100.0,
+                order_type=order_type,
+                reference_price=5.0,
+            ),
+            RiskLimits(max_order_notional=None),
+        )
+
+
+def test_validate_order_requires_limit_price_for_limit_order():
+    with pytest.raises(ValueError, match="限价单必须提供"):
+        validate_order(
+            OrderRequest(
+                strategy_id="test",
+                symbol="510300.SS",
+                side="BUY",
+                qty=100.0,
+                order_type="LMT",
+                reference_price=5.0,
+            ),
+            RiskLimits(max_order_notional=None),
+        )
 
 
 def test_profile_execution_min_trade_value_becomes_pretrade_notional_floor():
@@ -298,6 +361,24 @@ def test_validate_order_requires_sellable_qty_when_enforced():
             ),
             RiskLimits(max_order_notional=None, enforce_sellable_qty=True),
             context,
+        )
+
+
+def test_validate_order_requires_available_cash_when_enforced():
+    with pytest.raises(ValueError, match="买入订单缺少可用资金"):
+        validate_order(
+            OrderRequest(
+                strategy_id="core_portfolio",
+                symbol="510300.SS",
+                side="BUY",
+                qty=100.0,
+                reference_price=5.0,
+            ),
+            RiskLimits(
+                max_order_notional=None,
+                enforce_available_cash=True,
+            ),
+            OrderRiskContext(),
         )
 
 

@@ -4,7 +4,7 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
 from northstar_quant.db.base import Base
-from northstar_quant.db.models import OrderRecord, TradeAttributionRecord
+from northstar_quant.db.models import FillRecord, OrderRecord, TradeAttributionRecord
 from northstar_quant.db.repositories import save_fill_snapshots
 from northstar_quant.execution.models import FillSnapshot
 
@@ -123,3 +123,55 @@ def test_save_fill_snapshots_creates_sell_trade_attribution_with_correct_sign(tm
     assert row.reference_notional == 10000.0
     assert row.implementation_shortfall == 50.0
     assert row.implementation_shortfall_bps == 50.0
+
+
+def test_save_fill_snapshots_uses_broker_execution_identity(tmp_path):
+    db_path = tmp_path / "fill-identity.db"
+    engine = create_engine(f"sqlite:///{db_path.as_posix()}", future=True)
+    Base.metadata.create_all(bind=engine)
+    filled_at = datetime(2024, 3, 4, 15, 36, tzinfo=UTC)
+
+    with Session(engine, future=True) as session:
+        session.add(
+            OrderRecord(
+                strategy_id="core_portfolio",
+                symbol="SPY",
+                side="BUY",
+                qty=2.0,
+                broker="ibkr",
+                account="DU123456",
+                broker_order_id="42",
+                status="Submitted",
+                submitted_at=filled_at,
+            )
+        )
+        session.commit()
+        first = FillSnapshot(
+            broker_order_id="42",
+            symbol="SPY",
+            qty=2.0,
+            price=500.0,
+            side="BUY",
+            filled_at=filled_at,
+            account="DU123456",
+            exec_id="exec-42.1",
+            perm_id=100,
+            client_id=7,
+            con_id=756733,
+        )
+
+        assert save_fill_snapshots(session, [first], broker="ibkr") == 1
+        assert save_fill_snapshots(session, [first], broker="ibkr") == 0
+        fill_row = session.scalar(
+            select(FillRecord).where(FillRecord.exec_id == "exec-42.1")
+        )
+        order_row = session.scalar(
+            select(OrderRecord).where(OrderRecord.broker_order_id == "42")
+        )
+
+    assert fill_row is not None
+    assert fill_row.broker == "ibkr"
+    assert fill_row.account == "DU123456"
+    assert fill_row.con_id == 756733
+    assert order_row is not None
+    assert order_row.status == "Filled"
