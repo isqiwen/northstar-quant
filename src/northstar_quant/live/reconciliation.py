@@ -16,6 +16,7 @@ from northstar_quant.db.repositories import (
     save_position_snapshots,
     save_working_order_snapshots,
     update_order_statuses,
+    update_pending_cancel_statuses,
     write_sync_log,
 )
 from northstar_quant.execution.broker_base import BrokerAdapter
@@ -56,14 +57,26 @@ def reconcile_broker_state(
             "券商状态账户与适配器目标账户不一致，已停止对账写入。"
         )
     pos_count = save_position_snapshots(session, snapshot.positions)
+    broker_order_rows = [
+        *snapshot.open_orders,
+        *snapshot.completed_orders,
+    ]
+    updated_orders = update_order_statuses(
+        session,
+        broker_order_rows,
+        broker=broker_name,
+        account=snapshot_account,
+    )
+    # 先用 open/completed orders 恢复 orderRef/permId 等订单强身份，再落成交。
+    # 否则崩溃窗口中的 execution 会先以 order_id=NULL 去重，永久丢失归属。
     fill_count = save_fill_snapshots(
         session,
         snapshot.fills,
         broker=broker_name,
     )
-    updated_orders = update_order_statuses(
+    updated_cancels = update_pending_cancel_statuses(
         session,
-        snapshot.open_orders,
+        broker_order_rows,
         broker=broker_name,
         account=snapshot_account,
     )
@@ -82,6 +95,7 @@ def reconcile_broker_state(
         default_account=default_account,
         observed_at=snapshot.asof,
     )
+    working_order_count = int(str(working_order_snapshot["count"]))
     account_snapshot = save_account_snapshot(
         session,
         broker=broker_name,
@@ -97,18 +111,22 @@ def reconcile_broker_state(
         status='success',
         detail=(
             f'positions={pos_count}, fills={fill_count}, open_orders={len(snapshot.open_orders)}, '
-            f'updated_orders={updated_orders}, working_order_snapshots={working_order_snapshot["count"]}, '
+            f'completed_orders={len(snapshot.completed_orders)}, '
+            f'updated_orders={updated_orders}, updated_cancels={updated_cancels}, '
+            f"working_order_snapshots={working_order_count}, "
             f'account_snapshot_id={account_snapshot.id}, '
             f'account_attribution_id={getattr(account_attribution, "id", None)}'
         ),
     )
     reconcile_logger.info(
-        "券商状态同步完成，positions=%s，fills=%s，open_orders=%s，updated_orders=%s，working_order_snapshots=%s，account_snapshot_id=%s，account_attribution_id=%s",
+        "券商状态同步完成，positions=%s，fills=%s，open_orders=%s，completed_orders=%s，updated_orders=%s，updated_cancels=%s，working_order_snapshots=%s，account_snapshot_id=%s，account_attribution_id=%s",
         pos_count,
         fill_count,
         len(snapshot.open_orders),
+        len(snapshot.completed_orders),
         updated_orders,
-        working_order_snapshot["count"],
+        updated_cancels,
+        working_order_count,
         account_snapshot.id,
         getattr(account_attribution, "id", None),
     )
@@ -116,8 +134,10 @@ def reconcile_broker_state(
         'positions_synced': pos_count,
         'fills_synced': fill_count,
         'open_orders_count': len(snapshot.open_orders),
+        'completed_orders_count': len(snapshot.completed_orders),
         'updated_order_statuses': updated_orders,
-        'working_order_snapshots_synced': int(working_order_snapshot["count"]),
+        'updated_cancel_statuses': updated_cancels,
+        "working_order_snapshots_synced": working_order_count,
         'working_order_snapshot_batch_id': working_order_snapshot["snapshot_batch_id"],
         'account_snapshots_synced': 1,
         'account_snapshot_id': account_snapshot.id,
@@ -164,17 +184,24 @@ def analyze_position_drift(session: Session, targets: pl.DataFrame, latest_price
     )
     merged = merged.sort('weight_diff', descending=True)
 
+    position_count = int(merged.height)
+    total_abs_weight_diff = float(
+        merged.select(pl.col("weight_diff").abs().sum()).item()
+    )
+    max_abs_weight_diff = float(
+        merged.select(pl.col("weight_diff").abs().max()).item() or 0.0
+    )
     result = {
         'summary': {
-            'position_count': int(merged.height),
-            'total_abs_weight_diff': float(merged.select(pl.col('weight_diff').abs().sum()).item()),
-            'max_abs_weight_diff': float(merged.select(pl.col('weight_diff').abs().max()).item() or 0.0),
+            "position_count": position_count,
+            "total_abs_weight_diff": total_abs_weight_diff,
+            "max_abs_weight_diff": max_abs_weight_diff,
         },
         'rows': merged.to_dicts(),
     }
     logger.bind(command="position.drift").info(
         "持仓偏离计算完成，position_count=%s，total_abs_weight_diff=%.4f",
-        result['summary']['position_count'],
-        result['summary']['total_abs_weight_diff'],
+        position_count,
+        total_abs_weight_diff,
     )
     return result

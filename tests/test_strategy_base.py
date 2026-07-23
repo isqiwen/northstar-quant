@@ -1,6 +1,7 @@
 from datetime import datetime
 
 import polars as pl
+import pytest
 
 from northstar_quant.common.enums import StrategyOutputType
 from northstar_quant.strategies.intraday_breakout import IntradayBreakoutStrategy
@@ -61,3 +62,72 @@ def test_latest_output_uses_timestamp_for_intraday_strategy_and_adds_date():
     assert latest["symbol"].to_list() == ["NVDA"]
     assert "date" in latest.columns
     assert strategy.output_type == StrategyOutputType.EXECUTION_INTENT
+
+
+def test_intraday_breakout_uses_prior_rolling_high_without_current_bar():
+    strategy = IntradayBreakoutStrategy(lookback_bars=2, top_n=1, min_breakout_return=0.01)
+    market_df = pl.DataFrame(
+        [
+            {
+                "timestamp": datetime(2024, 3, 4, 9, 30),
+                "symbol": "AAA",
+                "open": 10.0,
+                "high": 10.0,
+                "low": 10.0,
+                "close": 10.0,
+                "volume": 100,
+            },
+            {
+                "timestamp": datetime(2024, 3, 4, 9, 30),
+                "symbol": "BBB",
+                "open": 10.0,
+                "high": 10.0,
+                "low": 10.0,
+                "close": 10.0,
+                "volume": 100,
+            },
+            {
+                "timestamp": datetime(2024, 3, 4, 9, 31),
+                "symbol": "AAA",
+                "open": 12.0,
+                "high": 12.0,
+                "low": 12.0,
+                "close": 12.0,
+                "volume": 100,
+            },
+            {
+                "timestamp": datetime(2024, 3, 4, 9, 31),
+                "symbol": "BBB",
+                "open": 11.0,
+                "high": 11.0,
+                "low": 11.0,
+                "close": 11.0,
+                "volume": 100,
+            },
+            {
+                "timestamp": datetime(2024, 3, 4, 9, 32),
+                "symbol": "AAA",
+                "open": 13.0,
+                "high": 13.0,
+                "low": 13.0,
+                "close": 13.0,
+                "volume": 100,
+            },
+            {
+                "timestamp": datetime(2024, 3, 4, 9, 32),
+                "symbol": "BBB",
+                "open": 14.0,
+                "high": 14.0,
+                "low": 14.0,
+                "close": 14.0,
+                "volume": 100,
+            },
+        ]
+    )
+
+    intents = strategy.generate_execution_intents(market_df)
+
+    assert intents.height == 1
+    assert intents["timestamp"].to_list() == [datetime(2024, 3, 4, 9, 32)]
+    assert intents["symbol"].to_list() == ["BBB"]
+    assert intents["signal_value"].to_list() == [pytest.approx(14 / 11 - 1)]

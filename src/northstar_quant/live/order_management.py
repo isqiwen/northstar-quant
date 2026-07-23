@@ -18,11 +18,19 @@ from sqlalchemy.orm import Session
 from northstar_quant.common.order_status import WORKING_ORDER_STATUSES
 from northstar_quant.config.settings import get_settings
 from northstar_quant.db.models import OrderRecord
-from northstar_quant.db.repositories import add_cancel_record
+from northstar_quant.db.repositories import (
+    finalize_order_cancel_request,
+    prepare_order_cancel,
+)
 from northstar_quant.execution.broker_base import BrokerAdapter
 
 
-def cancel_stale_orders(session: Session, broker: BrokerAdapter) -> dict:
+def cancel_stale_orders(
+    session: Session,
+    broker: BrokerAdapter,
+    *,
+    cancel_batch_id: str | None = None,
+) -> dict:
     """撤销超时未完成订单。
 
     判断依据使用本地下单时间 submitted_at。
@@ -36,32 +44,52 @@ def cancel_stale_orders(session: Session, broker: BrokerAdapter) -> dict:
     if not broker_name or not account:
         raise RuntimeError("撤单前无法确认券商与账户范围，已停止操作。")
 
+    order_conditions = [
+        func.lower(OrderRecord.broker) == broker_name,
+        OrderRecord.account == account,
+        func.lower(OrderRecord.status).in_(WORKING_ORDER_STATUSES),
+        OrderRecord.submitted_at <= cutoff,
+    ]
+    client_id_getter = getattr(broker, "get_client_id", None)
+    client_id = (
+        client_id_getter()
+        if callable(client_id_getter)
+        else None
+    )
+    if client_id is not None:
+        order_conditions.append(OrderRecord.client_id == int(client_id))
     rows = list(
-        session.scalars(
-            select(OrderRecord).where(
-                func.lower(OrderRecord.broker) == broker_name,
-                OrderRecord.account == account,
-                func.lower(OrderRecord.status).in_(WORKING_ORDER_STATUSES),
-                OrderRecord.submitted_at <= cutoff,
-            )
-        )
+        session.scalars(select(OrderRecord).where(*order_conditions))
     )
     canceled_ids: list[str] = []
-    cancel_batch_id = f"cancel-batch-{uuid4().hex[:12]}"
+    cancel_batch_id = cancel_batch_id or f"cancel-batch-{uuid4().hex[:12]}"
     for row in rows:
         if not row.broker_order_id:
             continue
-        ok = broker.cancel_order(row.broker_order_id)
-        if ok:
-            row.status = "PendingCancel"
-            add_cancel_record(
-                session,
-                order=row,
-                broker=broker_name,
-                cancel_batch_id=cancel_batch_id,
-                reason="stale_order_timeout",
-                status="PendingCancel",
+        if getattr(broker, "persists_cancel_intents", False):
+            ok = broker.cancel_order_for_local_order(
+                row.id,
+                row.broker_order_id,
             )
+        else:
+            cancel_row, created = prepare_order_cancel(
+                session,
+                broker=broker_name,
+                account=account,
+                broker_order_id=row.broker_order_id,
+                reason="stale_order_timeout",
+                cancel_batch_id=cancel_batch_id,
+                local_order_id=row.id,
+            )
+            if not created:
+                continue
+            ok = broker.cancel_order(row.broker_order_id)
+            finalize_order_cancel_request(
+                session,
+                cancel_id=cancel_row.id,
+                accepted=ok,
+            )
+        if ok:
             canceled_ids.append(row.broker_order_id)
     session.commit()
     return {

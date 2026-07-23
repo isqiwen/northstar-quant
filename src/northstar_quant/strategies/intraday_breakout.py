@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import polars as pl
 
+from northstar_quant.indicators.trend import prior_rolling_max
 from northstar_quant.strategies.base import MinuteStrategyBase
 
 
@@ -30,8 +31,19 @@ class IntradayBreakoutStrategy(MinuteStrategyBase):
             market_df.pivot(index="timestamp", on="symbol", values="close")
             .sort("timestamp")
         )
+        value_columns = tuple(column for column in close_wide.columns if column != "timestamp")
+        rolling_high_frame = prior_rolling_max(
+            close_wide,
+            value_columns=value_columns,
+            window=self.lookback_bars,
+            order_by="timestamp",
+        )
         pdf = close_wide.to_pandas().set_index("timestamp")
-        rolling_high = pdf.shift(1).rolling(self.lookback_bars, min_periods=self.lookback_bars).max()
+        rolling_high = rolling_high_frame.select(
+            [f"{column}_prior_rolling_max" for column in value_columns]
+        ).to_pandas()
+        rolling_high.index = pdf.index
+        rolling_high.columns = pdf.columns
         breakout_strength = pdf / rolling_high - 1.0
 
         rows = []

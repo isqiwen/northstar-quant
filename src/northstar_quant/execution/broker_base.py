@@ -19,6 +19,45 @@ class BrokerAdapter(ABC):
     def submit_order(self, order: OrderRequest) -> OrderResult:
         """提交一笔订单。"""
 
+    def prepare_order(self, order: OrderRequest) -> OrderRequest:
+        """补充实际券商载荷所需的稳定身份。
+
+        默认保持订单不变；需要 instrument 映射的适配器应在这里完成纯本地解析，
+        让上层能够在券商调用前持久化最终载荷。
+        """
+
+        return order
+
+    def restore_order_attempt(self, order: OrderRequest) -> OrderRequest:
+        """恢复同一次执行尝试已经持久化的载荷。
+
+        默认没有持久化能力，保持订单不变。追价执行器会在重新计算价格后调用
+        此方法，让具备持久化能力的适配器复用崩溃前的数量和价格。
+        """
+
+        return order
+
+    def get_order_attempt_state(self, order: OrderRequest) -> dict | None:
+        """读取同一次执行尝试的持久化状态与券商身份。
+
+        默认适配器没有持久化账本，返回 ``None``。具备持久化能力的包装器应
+        返回该 attempt 的 ``orderRef/clientId/permId/conId`` 以及成交进度，
+        供重连后的追价逻辑精确匹配券商快照。
+        """
+
+        del order
+        return None
+
+    def list_order_plan_attempts(self, order: OrderRequest) -> list[dict]:
+        """列出同一执行 plan 已持久化的全部 attempt。
+
+        默认适配器没有持久化账本，返回空列表。追价执行器会在任何路由前用
+        这些记录校验当前 ``max_steps`` 与 fallback 配置是否仍兼容。
+        """
+
+        del order
+        return []
+
     @abstractmethod
     def get_name(self) -> str:
         """返回券商适配器名称。"""
@@ -59,6 +98,30 @@ class BrokerAdapter(ABC):
 
         return False
 
+    def cancel_order_with_identity(
+        self,
+        broker_order_id: str,
+        *,
+        order_ref: str | None = None,
+        perm_id: int | None = None,
+        client_id: int | None = None,
+        con_id: int | None = None,
+    ) -> bool:
+        """带完整券商身份撤单；默认适配器退化为普通撤单。"""
+
+        del order_ref, perm_id, client_id, con_id
+        return self.cancel_order(broker_order_id)
+
+    def cancel_order_for_local_order(
+        self,
+        local_order_id: int,
+        broker_order_id: str,
+    ) -> bool:
+        """按本地订单主键撤单；持久化包装器应覆盖此方法。"""
+
+        del local_order_id
+        return self.cancel_order(broker_order_id)
+
     def get_order_status(self, broker_order_id: str) -> dict | None:
         """查询单笔订单状态。
 
@@ -69,7 +132,26 @@ class BrokerAdapter(ABC):
         del broker_order_id
         return None
 
+    def get_order_status_with_identity(
+        self,
+        broker_order_id: str,
+        *,
+        order_ref: str | None = None,
+        perm_id: int | None = None,
+        client_id: int | None = None,
+        con_id: int | None = None,
+    ) -> dict | None:
+        """使用完整券商身份查询状态；默认退化为普通查询。"""
+
+        del order_ref, perm_id, client_id, con_id
+        return self.get_order_status(broker_order_id)
+
     def get_account(self) -> str | None:
         """返回该适配器当前明确绑定的账户。"""
+
+        return None
+
+    def get_client_id(self) -> int | None:
+        """返回券商 API client 身份；不适用的适配器返回 ``None``。"""
 
         return None

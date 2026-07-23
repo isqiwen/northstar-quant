@@ -120,3 +120,35 @@ def test_order_router_rechecks_submission_guard_immediately_before_broker_call()
         )
 
     assert broker.orders == []
+
+
+def test_order_router_does_not_reserve_risk_capacity_for_idempotent_replay():
+    class _ReplayBroker(_AcceptingBroker):
+        def submit_order(self, order: OrderRequest) -> OrderResult:
+            self.orders.append(order)
+            return OrderResult(
+                accepted=True,
+                broker_order_id="existing-1",
+                status="Submitted",
+                replayed=True,
+            )
+
+    broker = _ReplayBroker()
+    context = OrderRiskContext(available_cash=1000.0)
+    router = OrderRouter(
+        broker,
+        RiskLimits(max_order_notional=None),
+        risk_context=context,
+    )
+
+    router.route(
+        OrderRequest(
+            strategy_id="test",
+            symbol="510300.SS",
+            side="BUY",
+            qty=5.0,
+            reference_price=100.0,
+        )
+    )
+
+    assert context.reserved_buy_notional == 0.0

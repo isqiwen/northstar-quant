@@ -5,6 +5,9 @@ from sqlalchemy.orm import Session
 
 from northstar_quant.db.base import Base
 from northstar_quant.db.models import CancelRecord, OrderRecord
+from northstar_quant.execution.broker_base import BrokerAdapter
+from northstar_quant.execution.models import OrderRequest, OrderResult
+from northstar_quant.live.durable_submission import DurableBrokerAdapter
 from northstar_quant.live.order_management import cancel_stale_orders
 
 
@@ -68,6 +71,74 @@ def test_cancel_stale_orders_writes_cancel_record(tmp_path):
     assert cancel_row.reason == "stale_order_timeout"
     assert order_row is not None
     assert order_row.status == "PendingCancel"
+
+
+def test_cancel_stale_orders_is_scoped_to_current_broker_client(tmp_path):
+    class _ClientBroker(BrokerAdapter):
+        def __init__(self) -> None:
+            self.cancelled: list[str] = []
+
+        def submit_order(self, order: OrderRequest) -> OrderResult:
+            raise AssertionError(f"本测试不应提交订单：{order}")
+
+        def get_name(self) -> str:
+            return "ibkr"
+
+        def get_account(self) -> str:
+            return "DU123456"
+
+        def get_client_id(self) -> int:
+            return 2
+
+        def cancel_order(self, broker_order_id: str) -> bool:
+            self.cancelled.append(broker_order_id)
+            return True
+
+    engine = create_engine(
+        f"sqlite:///{(tmp_path / 'cancel-client-scope.db').as_posix()}",
+        future=True,
+    )
+    Base.metadata.create_all(bind=engine)
+    stale_time = datetime.now(UTC) - timedelta(days=1)
+
+    with Session(engine, future=True) as session:
+        client_one = OrderRecord(
+            strategy_id="core",
+            symbol="SPY",
+            side="BUY",
+            qty=1.0,
+            broker="ibkr",
+            account="DU123456",
+            broker_order_id="42",
+            client_id=1,
+            status="Submitted",
+            submitted_at=stale_time,
+        )
+        client_two = OrderRecord(
+            strategy_id="core",
+            symbol="QQQ",
+            side="BUY",
+            qty=1.0,
+            broker="ibkr",
+            account="DU123456",
+            broker_order_id="42",
+            client_id=2,
+            status="Submitted",
+            submitted_at=stale_time,
+        )
+        session.add_all([client_one, client_two])
+        session.commit()
+
+        delegate = _ClientBroker()
+        result = cancel_stale_orders(
+            session,
+            DurableBrokerAdapter(delegate, session),
+        )
+
+        assert result["stale_order_count"] == 1
+        assert delegate.cancelled == ["42"]
+        assert session.get(OrderRecord, client_one.id).status == "Submitted"
+        assert session.get(OrderRecord, client_two.id).status == "PendingCancel"
 
 
 def test_cancel_stale_orders_never_crosses_broker_or_account(tmp_path):

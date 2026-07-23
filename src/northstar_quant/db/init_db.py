@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from sqlalchemy import inspect, text
+from alembic.migration import MigrationContext
+from alembic.operations import Operations
+from sqlalchemy import DateTime, inspect, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import ArgumentError
 
@@ -92,6 +94,36 @@ _SQLITE_ADDITIVE_PATCHES: tuple[tuple[str, str, str], ...] = (
     ),
     (
         "order_records",
+        "broker_symbol",
+        "ALTER TABLE order_records ADD COLUMN broker_symbol VARCHAR(32)",
+    ),
+    (
+        "order_records",
+        "con_id",
+        "ALTER TABLE order_records ADD COLUMN con_id INTEGER",
+    ),
+    (
+        "order_records",
+        "sec_type",
+        "ALTER TABLE order_records ADD COLUMN sec_type VARCHAR(16)",
+    ),
+    (
+        "order_records",
+        "exchange",
+        "ALTER TABLE order_records ADD COLUMN exchange VARCHAR(32)",
+    ),
+    (
+        "order_records",
+        "primary_exchange",
+        "ALTER TABLE order_records ADD COLUMN primary_exchange VARCHAR(32)",
+    ),
+    (
+        "order_records",
+        "currency",
+        "ALTER TABLE order_records ADD COLUMN currency VARCHAR(8)",
+    ),
+    (
+        "order_records",
         "reference_price",
         "ALTER TABLE order_records ADD COLUMN reference_price FLOAT",
     ),
@@ -124,6 +156,91 @@ _SQLITE_ADDITIVE_PATCHES: tuple[tuple[str, str, str], ...] = (
         "order_records",
         "plan_id",
         "ALTER TABLE order_records ADD COLUMN plan_id VARCHAR(64)",
+    ),
+    (
+        "order_records",
+        "idempotency_key",
+        "ALTER TABLE order_records ADD COLUMN idempotency_key VARCHAR(80)",
+    ),
+    (
+        "order_records",
+        "request_fingerprint",
+        "ALTER TABLE order_records ADD COLUMN request_fingerprint VARCHAR(64)",
+    ),
+    (
+        "order_records",
+        "execution_policy_fingerprint",
+        "ALTER TABLE order_records ADD COLUMN execution_policy_fingerprint VARCHAR(64)",
+    ),
+    (
+        "order_records",
+        "attempt_no",
+        "ALTER TABLE order_records ADD COLUMN attempt_no INTEGER DEFAULT 1",
+    ),
+    (
+        "order_records",
+        "order_ref",
+        "ALTER TABLE order_records ADD COLUMN order_ref VARCHAR(64)",
+    ),
+    (
+        "order_records",
+        "client_id",
+        "ALTER TABLE order_records ADD COLUMN client_id INTEGER",
+    ),
+    (
+        "order_records",
+        "perm_id",
+        "ALTER TABLE order_records ADD COLUMN perm_id INTEGER",
+    ),
+    (
+        "order_records",
+        "filled_qty",
+        "ALTER TABLE order_records ADD COLUMN filled_qty FLOAT",
+    ),
+    (
+        "order_records",
+        "remaining_qty",
+        "ALTER TABLE order_records ADD COLUMN remaining_qty FLOAT",
+    ),
+    (
+        "order_records",
+        "avg_fill_price",
+        "ALTER TABLE order_records ADD COLUMN avg_fill_price FLOAT",
+    ),
+    (
+        "order_records",
+        "submission_owner",
+        "ALTER TABLE order_records ADD COLUMN submission_owner VARCHAR(64)",
+    ),
+    (
+        "order_records",
+        "lease_fencing_token",
+        "ALTER TABLE order_records ADD COLUMN lease_fencing_token INTEGER",
+    ),
+    (
+        "order_records",
+        "last_submission_error",
+        "ALTER TABLE order_records ADD COLUMN last_submission_error TEXT",
+    ),
+    (
+        "order_records",
+        "prepared_at",
+        "ALTER TABLE order_records ADD COLUMN prepared_at DATETIME",
+    ),
+    (
+        "order_records",
+        "submission_started_at",
+        "ALTER TABLE order_records ADD COLUMN submission_started_at DATETIME",
+    ),
+    (
+        "order_records",
+        "broker_acknowledged_at",
+        "ALTER TABLE order_records ADD COLUMN broker_acknowledged_at DATETIME",
+    ),
+    (
+        "order_records",
+        "updated_at",
+        "ALTER TABLE order_records ADD COLUMN updated_at DATETIME",
     ),
     (
         "position_snapshot_records",
@@ -215,6 +332,59 @@ def _patch_local_sqlite_schema(engine) -> None:
             logger.bind(table=table_name, column=column_name).info(
                 "已为本地 SQLite 旧表补齐字段"
             )
+
+    order_columns = {
+        column["name"]: column
+        for column in inspect(engine).get_columns("order_records")
+    }
+    submitted_at = order_columns.get("submitted_at")
+    if submitted_at is not None and not bool(submitted_at["nullable"]):
+        # Prepared 意图尚未触达券商，不能伪造 submitted_at。SQLite 不支持
+        # 直接 DROP NOT NULL，使用 Alembic batch 安全重建旧表。
+        with engine.begin() as connection:
+            operations = Operations(MigrationContext.configure(connection))
+            with operations.batch_alter_table(
+                "order_records",
+                recreate="always",
+            ) as batch_op:
+                batch_op.alter_column(
+                    "submitted_at",
+                    existing_type=DateTime(),
+                    nullable=True,
+                )
+        logger.info("已将本地 SQLite 旧订单表 submitted_at 调整为可空")
+
+    # create_all 不会给既有表补约束。持久化幂等协议依赖数据库唯一仲裁，
+    # 因此旧 SQLite 也必须具备与 Alembic 0018 等价的幂等与券商身份唯一索引。
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS "
+                "uq_order_records_broker_account_idempotency_key "
+                "ON order_records (broker, account, idempotency_key)"
+            )
+        )
+        connection.execute(
+            text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS "
+                "uq_order_records_broker_account_order_ref "
+                "ON order_records (broker, account, order_ref)"
+            )
+        )
+        connection.execute(
+            text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS "
+                "uq_order_records_broker_account_perm_id "
+                "ON order_records (broker, account, perm_id)"
+            )
+        )
+        connection.execute(
+            text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS "
+                "uq_order_records_broker_account_client_order_id "
+                "ON order_records (broker, account, client_id, broker_order_id)"
+            )
+        )
 
 
 def init_db() -> None:

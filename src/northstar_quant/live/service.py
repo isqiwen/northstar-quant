@@ -11,6 +11,10 @@ from uuid import uuid4
 import polars as pl
 
 from northstar_quant.common.enums import StrategyOutputType
+from northstar_quant.common.order_identity import (
+    build_execution_batch_id,
+    build_execution_plan_id,
+)
 from northstar_quant.common.time import utc_now
 from northstar_quant.config.settings import get_settings, load_settings
 from northstar_quant.config.trading_profile import ensure_production_profile, load_trading_profile
@@ -18,14 +22,16 @@ from northstar_quant.data.downloader import read_profile_manifest
 from northstar_quant.data.storage import load_profile_market_data, load_profile_signal_data
 from northstar_quant.db.repositories import (
     count_anomaly_events,
+    list_execution_recovery_blockers,
     list_recent_anomaly_events,
     list_recent_account_attributions,
     list_run_health_records,
     list_recent_trade_attributions,
+    release_execution_lease,
     save_run_health_record,
     save_execution_plan_records,
-    save_order_result,
     save_strategy_run_snapshot,
+    try_acquire_execution_lease,
 )
 from northstar_quant.db.session import SessionLocal
 from northstar_quant.execution.ibkr_adapter import IBKRBrokerAdapter
@@ -41,6 +47,10 @@ from northstar_quant.execution.paper_broker import PaperBrokerAdapter
 from northstar_quant.execution.registry import build_execution_plan, resolve_execution_planner
 from northstar_quant.execution.router import OrderRouter
 from northstar_quant.live.order_management import cancel_stale_orders
+from northstar_quant.live.durable_submission import (
+    DurableBrokerAdapter,
+    SubmissionLease,
+)
 from northstar_quant.live.preflight import build_preflight_result
 from northstar_quant.live.reconciliation import analyze_position_drift, reconcile_broker_state
 from northstar_quant.live.trading_calendar import is_trading_session
@@ -72,6 +82,28 @@ def _load_data_manifest(profile) -> dict | None:
             exc,
         )
         return None
+
+
+def _pipeline_output_asof(pipeline) -> str:
+    """提取稳定策略输出周期；缺失时禁止生成随机幂等身份。"""
+
+    time_column = str(pipeline.time_column or "").strip()
+    if (
+        not time_column
+        or pipeline.frame.is_empty()
+        or time_column not in pipeline.frame.columns
+    ):
+        raise RuntimeError(
+            "EXECUTION_OUTPUT_ASOF_REQUIRED: 策略输出缺少稳定时间列，"
+            "无法生成可重启的订单幂等身份。"
+        )
+    value = pipeline.frame.get_column(time_column).max()
+    if value is None:
+        raise RuntimeError(
+            "EXECUTION_OUTPUT_ASOF_REQUIRED: 策略输出时间为空，禁止提交订单。"
+        )
+    isoformat = getattr(value, "isoformat", None)
+    return str(isoformat() if callable(isoformat) else value)
 
 
 def _pick_broker(service: IBKRService | None = None):
@@ -661,17 +693,61 @@ def run_live_once(profile_id: str | None = None) -> list[str]:
     raw_market_df = load_profile_market_data(profile)
     signal_market_df = load_profile_signal_data(profile)
     valuation_prices = _latest_valuation_price_map(raw_market_df)
+    pipeline = run_profile_strategy_pipeline(
+        signal_market_df,
+        profile,
+        latest_only=True,
+    )
+    limits = build_profile_risk_limits(profile)
+    if settings.broker != "paper":
+        limits.enforce_available_cash = True
+    run_id = f"live-run-{uuid4().hex}"
 
     service = IBKRService() if settings.broker == "ibkr" else None
     broker = _pick_broker(service)
-    broker.connect()
+    account_getter = getattr(broker, "get_account", None)
+    account = str(
+        (account_getter() if callable(account_getter) else None)
+        or getattr(broker, "account", None)
+        or get_settings().ibkr_account
+        or ""
+    ).strip()
+    if not account:
+        message = (
+            "EXECUTION_ACCOUNT_REQUIRED: 无法确定执行账户，"
+            "本次不会连接券商或提交订单。"
+        )
+        run_logger.error(message)
+        send_alert(message, level="warning")
+        return [message]
+
+    lease_resource_key = (
+        f"live-submit:{broker.get_name().strip().lower()}:{account}"
+    )
+    with SessionLocal() as lease_session:
+        fencing_token = try_acquire_execution_lease(
+            lease_session,
+            resource_key=lease_resource_key,
+            owner_token=run_id,
+            ttl_seconds=settings.execution_lease_ttl_seconds,
+        )
+    if fencing_token is None:
+        message = (
+            "EXECUTION_LEASE_BUSY: 同一券商账户已有其他进程持有执行租约，"
+            "本次不会连接券商或使用可能过期的账户快照。"
+        )
+        run_logger.warning(message)
+        send_alert(message, level="warning")
+        return [message]
+    lease = SubmissionLease(
+        resource_key=lease_resource_key,
+        owner_token=run_id,
+        fencing_token=fencing_token,
+        ttl_seconds=settings.execution_lease_ttl_seconds,
+    )
+
     try:
-        pipeline = run_profile_strategy_pipeline(signal_market_df, profile, latest_only=True)
-        limits = build_profile_risk_limits(profile)
-        if settings.broker != "paper":
-            limits.enforce_available_cash = True
-        run_id = f"live-run-{uuid4().hex}"
-        account = getattr(broker, "account", None) or get_settings().ibkr_account
+        broker.connect()
         with SessionLocal() as session:
             save_strategy_run_snapshot(
                 session,
@@ -761,6 +837,20 @@ def run_live_once(profile_id: str | None = None) -> list[str]:
                     preflight["warning_count"],
                 )
                 return blocked_messages
+            recovery_blockers = list_execution_recovery_blockers(
+                session,
+                broker=broker.get_name(),
+                account=account,
+            )
+            if recovery_blockers:
+                recovery_messages = [
+                    "EXECUTION_RECOVERY_REQUIRED: 存在未恢复的提交或撤单状态，"
+                    "本次只完成对账，不会提交新订单。",
+                    *recovery_blockers,
+                ]
+                run_logger.error(" | ".join(recovery_messages))
+                send_alert("\n".join(recovery_messages), level="warning")
+                return recovery_messages
             drift = (
                 analyze_position_drift(session, pipeline.frame, valuation_prices)
                 if pipeline.output_type == StrategyOutputType.TARGET_WEIGHT
@@ -775,9 +865,28 @@ def run_live_once(profile_id: str | None = None) -> list[str]:
                 execution_reference_prices,
                 equity=_extract_equity(state.account_values),
             )
-            batch_id = f"order-batch-{uuid4().hex[:12]}"
-            for idx, plan in enumerate(plans, start=1):
-                plan.plan_id = f"{batch_id}-{idx:04d}-{plan.symbol.lower()}"
+            batch_id = build_execution_batch_id(
+                broker=broker.get_name(),
+                account=account,
+                profile_id=profile.profile_id,
+                strategy_id=pipeline.strategy_id,
+                output_asof=_pipeline_output_asof(pipeline),
+            )
+            plan_ids: set[str] = set()
+            for plan in plans:
+                plan.plan_id = build_execution_plan_id(
+                    batch_id=batch_id,
+                    strategy_id=plan.strategy_id,
+                    symbol=plan.symbol,
+                    side=plan.side,
+                    order_semantic=plan.order_semantic,
+                )
+                if plan.plan_id in plan_ids:
+                    raise RuntimeError(
+                        "EXECUTION_PLAN_ID_CONFLICT: 同一执行周期出现重复计划身份，"
+                        "已禁止下单。"
+                    )
+                plan_ids.add(plan.plan_id)
             planned_order_count = save_execution_plan_records(
                 session,
                 plans,
@@ -794,8 +903,13 @@ def run_live_once(profile_id: str | None = None) -> list[str]:
             def submission_guard(order: OrderRequest) -> None:
                 _assert_live_submission_allowed(broker.get_name(), order)
 
-            router = OrderRouter(
+            durable_broker = DurableBrokerAdapter(
                 broker,
+                session,
+                lease=lease,
+            )
+            router = OrderRouter(
+                durable_broker,
                 limits,
                 risk_context=order_risk_context,
                 submission_guard=submission_guard,
@@ -825,7 +939,7 @@ def run_live_once(profile_id: str | None = None) -> list[str]:
             batch_halted_reason: str | None = None
             chase_executor = (
                 LimitChaseExecutor(
-                    broker,
+                    durable_broker,
                     limits,
                     risk_context=order_risk_context,
                     submission_guard=submission_guard,
@@ -869,12 +983,6 @@ def run_live_once(profile_id: str | None = None) -> list[str]:
                     )
                     final_order = chase_result.final_order
                     result = chase_result.final_result
-                    save_order_result(
-                        session=session,
-                        order=final_order,
-                        result=result,
-                        broker=broker.get_name(),
-                    )
                     messages.append(
                         f"{result.message} | 最终模式={chase_result.final_mode} | 尝试次数={len(chase_result.attempts)}"
                     )
@@ -911,12 +1019,6 @@ def run_live_once(profile_id: str | None = None) -> list[str]:
                         else base_order
                     )
                     result = router.route(order)
-                    save_order_result(
-                        session=session,
-                        order=order,
-                        result=result,
-                        broker=broker.get_name(),
-                    )
                     messages.append(result.message)
                     run_logger.bind(
                         strategy=order.strategy_id,
@@ -981,8 +1083,29 @@ def run_live_once(profile_id: str | None = None) -> list[str]:
             )
             return messages
     finally:
-        broker.disconnect()
-        run_logger.info("实盘主流程连接已关闭")
+        try:
+            broker.disconnect()
+        finally:
+            if lease is not None:
+                try:
+                    with SessionLocal() as lease_session:
+                        released = release_execution_lease(
+                            lease_session,
+                            resource_key=lease.resource_key,
+                            owner_token=lease.owner_token,
+                            fencing_token=lease.fencing_token,
+                        )
+                    if not released:
+                        run_logger.error(
+                            "执行租约释放失败或已被接管，resource=%s，fencing=%s",
+                            lease.resource_key,
+                            lease.fencing_token,
+                        )
+                except Exception:
+                    run_logger.exception(
+                        "执行租约释放异常；租约将在 TTL 到期后自动失效"
+                    )
+            run_logger.info("实盘主流程连接已关闭")
 
 
 def sync_broker_once() -> dict:
@@ -1169,12 +1292,58 @@ def cancel_stale_orders_once() -> dict:
 
     cancel_logger = logger.bind(command="live.cancel-stale")
     cancel_logger.info("开始执行超时订单撤单")
-    service = IBKRService() if get_settings().broker == "ibkr" else None
+    settings = get_settings()
+    service = IBKRService() if settings.broker == "ibkr" else None
     broker = _pick_broker(service)
-    broker.connect()
+    account = str(broker.get_account() or "").strip()
+    if not account:
+        raise RuntimeError("撤单前无法确定券商账户，已停止操作。")
+    owner_token = f"cancel-run-{uuid4().hex}"
+    resource_key = (
+        f"live-submit:{broker.get_name().strip().lower()}:{account}"
+    )
+    with SessionLocal() as lease_session:
+        fencing_token = try_acquire_execution_lease(
+            lease_session,
+            resource_key=resource_key,
+            owner_token=owner_token,
+            ttl_seconds=settings.execution_lease_ttl_seconds,
+        )
+    if fencing_token is None:
+        message = "EXECUTION_LEASE_BUSY: 账户正在执行其他券商写操作，本次不撤单。"
+        cancel_logger.warning(message)
+        return {
+            "broker": broker.get_name(),
+            "account": account,
+            "stale_order_count": 0,
+            "cancel_requested_order_ids": [],
+            "canceled_order_ids": [],
+            "cancel_record_count": 0,
+            "cancel_batch_id": None,
+            "blocked_reason": message,
+        }
+    lease = SubmissionLease(
+        resource_key=resource_key,
+        owner_token=owner_token,
+        fencing_token=fencing_token,
+        ttl_seconds=settings.execution_lease_ttl_seconds,
+    )
     try:
+        broker.connect()
+        cancel_batch_id = f"cancel-batch-{uuid4().hex[:12]}"
         with SessionLocal() as session:
-            result = cancel_stale_orders(session, broker)
+            leased_broker = DurableBrokerAdapter(
+                broker,
+                session,
+                lease=lease,
+                cancel_reason="stale_order_timeout",
+                cancel_batch_id=cancel_batch_id,
+            )
+            result = cancel_stale_orders(
+                session,
+                leased_broker,
+                cancel_batch_id=cancel_batch_id,
+            )
         if result["canceled_order_ids"]:
             send_alert(
                 f"已撤销超时订单：{', '.join(result['canceled_order_ids'])}",
@@ -1183,7 +1352,18 @@ def cancel_stale_orders_once() -> dict:
         cancel_logger.info("超时订单撤单完成，撤单数=%s", len(result["canceled_order_ids"]))
         return result
     finally:
-        broker.disconnect()
+        try:
+            broker.disconnect()
+        finally:
+            with SessionLocal() as lease_session:
+                released = release_execution_lease(
+                    lease_session,
+                    resource_key=lease.resource_key,
+                    owner_token=lease.owner_token,
+                    fencing_token=lease.fencing_token,
+                )
+            if not released:
+                cancel_logger.error("撤单执行租约释放失败或已被接管")
 
 
 def recent_trade_attributions(

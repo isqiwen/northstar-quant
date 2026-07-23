@@ -112,6 +112,33 @@ class OrderRecord(Base):
     """订单记录表。"""
 
     __tablename__ = "order_records"
+    __table_args__ = (
+        UniqueConstraint(
+            "broker",
+            "account",
+            "idempotency_key",
+            name="uq_order_records_broker_account_idempotency_key",
+        ),
+        UniqueConstraint(
+            "broker",
+            "account",
+            "order_ref",
+            name="uq_order_records_broker_account_order_ref",
+        ),
+        UniqueConstraint(
+            "broker",
+            "account",
+            "perm_id",
+            name="uq_order_records_broker_account_perm_id",
+        ),
+        UniqueConstraint(
+            "broker",
+            "account",
+            "client_id",
+            "broker_order_id",
+            name="uq_order_records_broker_account_client_order_id",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     profile_id: Mapped[str | None] = mapped_column(String(64), index=True, default=None)
@@ -126,6 +153,12 @@ class OrderRecord(Base):
     reason: Mapped[str | None] = mapped_column(Text, default=None)
     broker: Mapped[str | None] = mapped_column(String(32), index=True, default=None)
     account: Mapped[str | None] = mapped_column(String(64), index=True, default=None)
+    broker_symbol: Mapped[str | None] = mapped_column(String(32), default=None)
+    con_id: Mapped[int | None] = mapped_column(Integer, index=True, default=None)
+    sec_type: Mapped[str | None] = mapped_column(String(16), default=None)
+    exchange: Mapped[str | None] = mapped_column(String(32), default=None)
+    primary_exchange: Mapped[str | None] = mapped_column(String(32), default=None)
+    currency: Mapped[str | None] = mapped_column(String(8), default=None)
     reference_price: Mapped[float | None] = mapped_column(Float, default=None)
     reference_price_source: Mapped[str | None] = mapped_column(String(32), default=None)
     planned_trade_value: Mapped[float | None] = mapped_column(Float, default=None)
@@ -133,9 +166,68 @@ class OrderRecord(Base):
     run_id: Mapped[str | None] = mapped_column(String(64), index=True, default=None)
     batch_id: Mapped[str | None] = mapped_column(String(64), index=True, default=None)
     plan_id: Mapped[str | None] = mapped_column(String(64), index=True, default=None)
+    idempotency_key: Mapped[str | None] = mapped_column(
+        String(80),
+        index=True,
+        default=None,
+    )
+    request_fingerprint: Mapped[str | None] = mapped_column(
+        String(64),
+        default=None,
+    )
+    execution_policy_fingerprint: Mapped[str | None] = mapped_column(
+        String(64),
+        index=True,
+        default=None,
+    )
+    attempt_no: Mapped[int] = mapped_column(Integer, default=1)
+    order_ref: Mapped[str | None] = mapped_column(String(64), index=True, default=None)
     broker_order_id: Mapped[str | None] = mapped_column(String(128), default=None)
+    client_id: Mapped[int | None] = mapped_column(Integer, default=None)
+    perm_id: Mapped[int | None] = mapped_column(Integer, index=True, default=None)
+    filled_qty: Mapped[float | None] = mapped_column(Float, default=None)
+    remaining_qty: Mapped[float | None] = mapped_column(Float, default=None)
+    avg_fill_price: Mapped[float | None] = mapped_column(Float, default=None)
     status: Mapped[str] = mapped_column(String(32), index=True)
-    submitted_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utc_now)
+    submission_owner: Mapped[str | None] = mapped_column(
+        String(64),
+        index=True,
+        default=None,
+    )
+    lease_fencing_token: Mapped[int | None] = mapped_column(Integer, default=None)
+    last_submission_error: Mapped[str | None] = mapped_column(Text, default=None)
+    prepared_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utc_now)
+    submission_started_at: Mapped[datetime | None] = mapped_column(
+        UTCDateTime(),
+        default=None,
+    )
+    submitted_at: Mapped[datetime | None] = mapped_column(
+        UTCDateTime(),
+        nullable=True,
+        default=None,
+    )
+    broker_acknowledged_at: Mapped[datetime | None] = mapped_column(
+        UTCDateTime(),
+        default=None,
+    )
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utc_now)
+
+
+class ExecutionLeaseRecord(Base):
+    """跨进程执行租约。
+
+    ``resource_key`` 是全局唯一资源；只有持有匹配 ``owner_token`` 且租约未
+    过期的进程可以继续提交订单。
+    """
+
+    __tablename__ = "execution_lease_records"
+
+    resource_key: Mapped[str] = mapped_column(String(255), primary_key=True)
+    owner_token: Mapped[str] = mapped_column(String(64), index=True)
+    fencing_token: Mapped[int] = mapped_column(Integer, default=1)
+    acquired_at: Mapped[datetime] = mapped_column(UTCDateTime())
+    heartbeat_at: Mapped[datetime] = mapped_column(UTCDateTime())
+    expires_at: Mapped[datetime] = mapped_column(UTCDateTime(), index=True)
 
 
 class FillRecord(Base):

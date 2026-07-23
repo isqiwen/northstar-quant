@@ -55,6 +55,9 @@ class Settings(BaseSettings):
     ibkr_client_id: int = Field(default=7, ge=0)
     ibkr_account: str | None = Field(default=None)
     ibkr_readonly: bool = Field(default=True)
+    ibkr_instrument_registry_path: Path = Field(
+        default=Path("configs/instruments/ibkr.yaml")
+    )
     ibkr_poll_interval_seconds: int = Field(default=15, gt=0)
     order_timeout_seconds: int = Field(default=300, gt=0)
     limit_price_offset_bps: float = Field(default=15.0, ge=0)
@@ -62,6 +65,7 @@ class Settings(BaseSettings):
     limit_chase_sleep_seconds: float = Field(default=2.0, ge=0.2)
     limit_chase_per_step_timeout_seconds: int = Field(default=20, gt=0)
     limit_chase_fallback_mode: Literal["cancel", "market"] = Field(default="cancel")
+    execution_lease_ttl_seconds: int = Field(default=120, ge=30, le=3600)
 
     # 交易日历配置。默认使用上交所日历。
     exchange_calendar: str = Field(default="XSHG")
@@ -133,7 +137,13 @@ class Settings(BaseSettings):
         project_root = project_root.resolve()
         object.__setattr__(self, "project_root", project_root)
 
-        for field_name in ("profile_config_dir", "storage_dir", "downloads_dir", "reports_dir"):
+        for field_name in (
+            "profile_config_dir",
+            "storage_dir",
+            "downloads_dir",
+            "reports_dir",
+            "ibkr_instrument_registry_path",
+        ):
             value = Path(getattr(self, field_name))
             if not value.is_absolute():
                 value = project_root / value

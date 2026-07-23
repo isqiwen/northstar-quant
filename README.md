@@ -268,7 +268,11 @@ northstar dashboard run
 - 支持企业微信 / Telegram 告警、邮件发送、Markdown/PDF 报告
 - 提供基于 `Streamlit` 的本地 Dashboard
 
-真实券商默认保持关闭和只读。仓库内 production 画像当前使用 `demo` 数据，并明确设置 `live_trading_eligible: false`；在订单幂等、跨进程租约和 instrument 映射闭环前，不应开启真实资金。
+真实券商默认保持关闭和只读。订单 attempt 持久化在先、账户级 fencing 租约、
+instrument registry 和 completed/cancel 恢复已经落地；但仓库内 registry
+默认为空，production 画像仍使用 `demo` 数据并明确设置
+`live_trading_eligible: false`。完成实际 conId 核验、可信数据切换和并发/崩溃
+恢复演练前，不应开启真实资金。
 
 ## 文档索引
 

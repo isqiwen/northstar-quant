@@ -3,15 +3,27 @@
 from __future__ import annotations
 
 import json
+import math
 import re
 from collections.abc import Sequence
-from datetime import UTC, date, datetime, time
+from datetime import UTC, date, datetime, time, timedelta
 from uuid import uuid4
 
 import polars as pl
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, or_, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from northstar_quant.common.order_identity import (
+    build_order_idempotency_key,
+    build_order_ref,
+    build_order_request_fingerprint,
+)
+from northstar_quant.common.order_status import (
+    FINAL_ORDER_STATUSES,
+    is_filled_order_status,
+    is_final_order_status,
+)
 from northstar_quant.common.time import ensure_utc, utc_now
 from northstar_quant.db.models import (
     AccountAttributionRecord,
@@ -19,6 +31,7 @@ from northstar_quant.db.models import (
     AnomalyEventRecord,
     BrokerSyncLog,
     CancelRecord,
+    ExecutionLeaseRecord,
     ExecutionPlanRecord,
     FillRecord,
     OrderRecord,
@@ -82,6 +95,21 @@ def _serialize_json(payload: object | None) -> str | None:
     if payload is None:
         return None
     return json.dumps(payload, ensure_ascii=False, sort_keys=True, default=str)
+
+
+def _affected_rows(result: object) -> int:
+    """兼容 SQLAlchemy 不同 Result 类型读取受影响行数。"""
+
+    return int(getattr(result, "rowcount", 0) or 0)
+
+
+def _database_utc_now(session: Session) -> datetime:
+    """读取数据库时钟，避免跨进程租约依赖各主机本地时间。"""
+
+    value = session.scalar(select(func.current_timestamp()))
+    if not isinstance(value, datetime):
+        raise RuntimeError("数据库未返回可用的 CURRENT_TIMESTAMP。")
+    return ensure_utc(value)
 
 
 def _deserialize_json_dict(payload: str | None) -> dict[str, object]:
@@ -371,6 +399,176 @@ def save_execution_plan_records(
     return count
 
 
+def _find_order_for_fill(
+    session: Session,
+    item: FillSnapshot,
+    *,
+    broker: str | None,
+    account: str | None,
+) -> OrderRecord | None:
+    """按 orderRef → permId → (clientId, orderId) 关联成交。"""
+
+    scope_conditions = []
+    if broker:
+        scope_conditions.append(func.lower(OrderRecord.broker) == broker)
+    if account:
+        scope_conditions.append(OrderRecord.account == account)
+
+    candidate_queries = []
+    order_ref = str(item.order_ref or "").strip() or None
+    if order_ref:
+        candidate_queries.append(
+            [*scope_conditions, OrderRecord.order_ref == order_ref]
+        )
+    if item.perm_id is not None:
+        candidate_queries.append(
+            [*scope_conditions, OrderRecord.perm_id == int(item.perm_id)]
+        )
+    broker_order_id = str(item.broker_order_id or "").strip() or None
+    if item.client_id is not None and broker_order_id:
+        candidate_queries.append(
+            [
+                *scope_conditions,
+                OrderRecord.broker_order_id == broker_order_id,
+                OrderRecord.client_id == int(item.client_id),
+            ]
+        )
+
+    for query_conditions in candidate_queries:
+        candidates = list(
+            session.scalars(
+                select(OrderRecord)
+                .where(*query_conditions)
+                .order_by(OrderRecord.id.desc())
+                .limit(2)
+            )
+        )
+        if len(candidates) > 1:
+            raise RuntimeError(
+                "FILL_ORDER_IDENTITY_AMBIGUOUS: 成交身份对应多条本地订单，"
+                "已停止自动归属。"
+            )
+        if candidates:
+            return candidates[0]
+
+    # 迁移前本地订单可能尚无强身份。此时只允许在 broker/account 范围内
+    # 唯一回退到 orderId；后续完整身份断言仍会拒绝任何已存在字段冲突。
+    if not broker_order_id:
+        return None
+    candidates = list(
+        session.scalars(
+            select(OrderRecord)
+            .where(
+                *scope_conditions,
+                OrderRecord.broker_order_id == broker_order_id,
+            )
+            .order_by(OrderRecord.id.desc())
+            .limit(2)
+        )
+    )
+    if len(candidates) > 1:
+        raise RuntimeError(
+            "FILL_ORDER_IDENTITY_AMBIGUOUS: 旧成交 orderId 对应多条本地订单，"
+            "已停止自动归属。"
+        )
+    if candidates:
+        return candidates[0]
+    return None
+
+
+def _assert_fill_matches_order(
+    order_row: OrderRecord,
+    item: FillSnapshot,
+) -> None:
+    """验证成交与本地订单的强身份和交易语义完全一致。"""
+
+    _assert_broker_order_identity(
+        order_row,
+        broker_order_id=str(item.broker_order_id or "").strip() or None,
+        order_ref=str(item.order_ref or "").strip() or None,
+        client_id=item.client_id,
+        perm_id=item.perm_id,
+        con_id=item.con_id,
+        symbol=item.symbol,
+    )
+    if (
+        order_row.side
+        and item.side
+        and str(order_row.side).strip().upper()
+        != str(item.side).strip().upper()
+    ):
+        raise RuntimeError(
+            "FILL_ORDER_IDENTITY_MISMATCH: "
+            f"order_id={order_row.id}，field=side，"
+            f"persisted={order_row.side}，observed={item.side}。"
+        )
+
+
+def _local_filled_qty(session: Session, order_id: int) -> float:
+    return abs(
+        float(
+            session.scalar(
+                select(func.coalesce(func.sum(FillRecord.qty), 0.0)).where(
+                    FillRecord.order_id == int(order_id)
+                )
+            )
+            or 0.0
+        )
+    )
+
+
+def _update_order_progress_from_fill_ledger(
+    session: Session,
+    order_row: OrderRecord,
+) -> None:
+    """用去重成交账本单调推进累计成交，不回退 completed-order 进度。"""
+
+    total_qty = abs(float(order_row.qty))
+    local_filled_qty = _local_filled_qty(session, order_row.id)
+    if local_filled_qty > total_qty + 1e-8:
+        raise RuntimeError(
+            "FILL_QUANTITY_EXCEEDS_ORDER: "
+            f"order_id={order_row.id}，ordered={total_qty}，"
+            f"local_filled={local_filled_qty}。"
+        )
+    persisted_filled_qty = max(float(order_row.filled_qty or 0.0), 0.0)
+    cumulative_filled_qty = max(persisted_filled_qty, local_filled_qty)
+    if cumulative_filled_qty > total_qty + 1e-8:
+        raise RuntimeError(
+            "FILL_QUANTITY_EXCEEDS_ORDER: "
+            f"order_id={order_row.id}，ordered={total_qty}，"
+            f"cumulative_filled={cumulative_filled_qty}。"
+        )
+    derived_remaining_qty = max(total_qty - cumulative_filled_qty, 0.0)
+    if order_row.remaining_qty is None:
+        cumulative_remaining_qty = derived_remaining_qty
+    else:
+        cumulative_remaining_qty = min(
+            max(float(order_row.remaining_qty), 0.0),
+            derived_remaining_qty,
+        )
+    if (
+        is_filled_order_status(order_row.status)
+        and (
+            cumulative_filled_qty < total_qty - 1e-8
+            or cumulative_remaining_qty > 1e-8
+        )
+    ):
+        raise RuntimeError(
+            "ORDER_FILLED_PROGRESS_INCONSISTENT: 本地 Filled 终态与累计成交"
+            f"不一致，order_id={order_row.id}。"
+        )
+
+    order_row.filled_qty = cumulative_filled_qty
+    order_row.remaining_qty = cumulative_remaining_qty
+    if not is_final_order_status(order_row.status):
+        order_row.status = (
+            "Filled"
+            if cumulative_filled_qty >= total_qty - 1e-8
+            else "PartiallyFilled"
+        )
+
+
 def save_fill_snapshots(
     session: Session,
     fills: list[FillSnapshot],
@@ -408,25 +606,51 @@ def save_fill_snapshots(
                 fallback_conditions.append(FillRecord.account == account)
             identity_conditions = tuple(fallback_conditions)
 
-        exists = session.scalar(
-            select(FillRecord.id).where(*identity_conditions)
+        existing_fill = session.scalar(
+            select(FillRecord).where(*identity_conditions)
         )
-        if exists:
+        order_row = _find_order_for_fill(
+            session,
+            item,
+            broker=normalized_broker,
+            account=account,
+        )
+        if order_row is not None:
+            _assert_fill_matches_order(order_row, item)
+        if existing_fill is not None:
+            if (
+                order_row is not None
+                and existing_fill.order_id is not None
+                and existing_fill.order_id != order_row.id
+            ):
+                raise RuntimeError(
+                    "FILL_ORDER_IDENTITY_MISMATCH: "
+                    f"fill_id={existing_fill.id} 已关联 order_id="
+                    f"{existing_fill.order_id}，observed_order_id={order_row.id}。"
+                )
+            if order_row is not None and existing_fill.order_id is None:
+                existing_fill.order_id = order_row.id
+                session.flush()
+                _add_trade_attribution_for_fill(
+                    session,
+                    fill_row=existing_fill,
+                    order_row=order_row,
+                )
+                _update_order_progress_from_fill_ledger(session, order_row)
+                count += 1
             continue
 
-        order_conditions = [
-            OrderRecord.broker_order_id == item.broker_order_id,
-        ]
-        if normalized_broker:
-            order_conditions.append(OrderRecord.broker == normalized_broker)
-        if account:
-            order_conditions.append(OrderRecord.account == account)
-        order_row = session.scalar(
-            select(OrderRecord)
-            .where(*order_conditions)
-            .order_by(OrderRecord.submitted_at.desc(), OrderRecord.id.desc())
-            .limit(1)
-        )
+        if order_row is not None:
+            existing_filled_qty = _local_filled_qty(session, order_row.id)
+            if existing_filled_qty + abs(float(item.qty)) > abs(
+                float(order_row.qty)
+            ) + 1e-8:
+                raise RuntimeError(
+                    "FILL_QUANTITY_EXCEEDS_ORDER: "
+                    f"order_id={order_row.id}，ordered={order_row.qty}，"
+                    f"existing_filled={existing_filled_qty}，"
+                    f"incoming={item.qty}。"
+                )
         fill_row = FillRecord(
             order_id=order_row.id if order_row is not None else None,
             broker=normalized_broker,
@@ -452,19 +676,7 @@ def save_fill_snapshots(
             order_row=order_row,
         )
         if order_row is not None:
-            filled_qty = float(
-                session.scalar(
-                    select(func.coalesce(func.sum(FillRecord.qty), 0.0)).where(
-                        FillRecord.order_id == order_row.id
-                    )
-                )
-                or 0.0
-            )
-            order_row.status = (
-                "Filled"
-                if filled_qty >= abs(float(order_row.qty)) - 1e-8
-                else "PartiallyFilled"
-            )
+            _update_order_progress_from_fill_ledger(session, order_row)
         count += 1
     session.commit()
     return count
@@ -915,6 +1127,147 @@ def add_cancel_record(
     )
 
 
+def prepare_order_cancel(
+    session: Session,
+    *,
+    broker: str,
+    account: str,
+    broker_order_id: str,
+    reason: str,
+    cancel_batch_id: str | None = None,
+    local_order_id: int | None = None,
+    client_id: int | None = None,
+) -> tuple[CancelRecord, bool]:
+    """在调用券商撤单前持久化撤单意图。"""
+
+    normalized_broker = str(broker or "").strip().lower()
+    normalized_account = str(account or "").strip()
+    normalized_order_id = str(broker_order_id or "").strip()
+    if not normalized_broker or not normalized_account or not normalized_order_id:
+        raise ValueError("持久化撤单意图前必须提供 broker/account/order ID。")
+
+    order_conditions = [
+        OrderRecord.broker == normalized_broker,
+        OrderRecord.account == normalized_account,
+        OrderRecord.broker_order_id == normalized_order_id,
+    ]
+    if local_order_id is not None:
+        order_conditions.append(OrderRecord.id == int(local_order_id))
+    if client_id is not None:
+        order_conditions.append(OrderRecord.client_id == int(client_id))
+    order_candidates = list(
+        session.scalars(
+            select(OrderRecord)
+            .where(*order_conditions)
+            .order_by(OrderRecord.id.desc())
+            .limit(2)
+        )
+    )
+    if len(order_candidates) > 1:
+        raise RuntimeError(
+            "CANCEL_ORDER_IDENTITY_AMBIGUOUS: broker/account/clientId/orderId "
+            "对应多条本地订单，禁止撤单。"
+        )
+    order = order_candidates[0] if order_candidates else None
+    if order is None:
+        raise RuntimeError(
+            "CANCEL_ORDER_NOT_PERSISTED: 本地没有匹配订单，禁止执行无审计撤单。"
+        )
+    if is_final_order_status(order.status):
+        raise RuntimeError(
+            "CANCEL_NOT_REQUIRED_ORDER_FINAL: 本地订单已经是券商确认终态，"
+            "不会创建新的撤单意图。"
+        )
+
+    existing = session.scalar(
+        select(CancelRecord)
+        .where(
+            CancelRecord.order_id == order.id,
+            CancelRecord.broker == normalized_broker,
+            CancelRecord.account == normalized_account,
+            CancelRecord.broker_order_id == normalized_order_id,
+            func.lower(CancelRecord.status).in_(
+                ("cancelprepared", "pendingcancel", "cancelrequestfailed")
+            ),
+        )
+        .order_by(CancelRecord.id.desc())
+        .limit(1)
+    )
+    if existing is not None:
+        return existing, False
+
+    row = CancelRecord(
+        cancel_batch_id=cancel_batch_id or f"cancel-{uuid4().hex[:16]}",
+        order_id=order.id,
+        broker=normalized_broker,
+        broker_order_id=normalized_order_id,
+        run_id=order.run_id,
+        profile_id=order.profile_id,
+        account=normalized_account,
+        reason=str(reason or "broker_cancel_request"),
+        status="CancelPrepared",
+        requested_at=utc_now(),
+    )
+    session.add(row)
+    session.commit()
+    session.refresh(row)
+    return row, True
+
+
+def finalize_order_cancel_request(
+    session: Session,
+    *,
+    cancel_id: int,
+    accepted: bool,
+) -> None:
+    """保存券商是否接受撤单请求；接受不代表已经进入撤单终态。"""
+
+    target_status = "PendingCancel" if accepted else "CancelRequestFailed"
+    result = session.execute(
+        update(CancelRecord)
+        .where(
+            CancelRecord.id == int(cancel_id),
+            func.lower(CancelRecord.status) == "cancelprepared",
+        )
+        .values(status=target_status)
+    )
+    if _affected_rows(result) != 1:
+        session.rollback()
+        session.expire_all()
+        current = session.get(CancelRecord, int(cancel_id))
+        if current is None:
+            raise RuntimeError("撤单请求记录不存在，无法保存券商响应。")
+        if (
+            is_final_order_status(current.status)
+            or current.status in {"PendingCancel", "CancelRequestFailed"}
+        ):
+            # completed-order 对账或先前响应已经推进状态，晚到的撤单响应不能
+            # 把终态降级。
+            return
+        raise RuntimeError(
+            "撤单请求状态已变化，已拒绝覆盖现有状态："
+            f"cancel_id={cancel_id}，status={current.status}。"
+        )
+
+    cancel_row = session.get(CancelRecord, int(cancel_id))
+    if (
+        cancel_row is not None
+        and cancel_row.order_id is not None
+        and accepted
+    ):
+        session.execute(
+            update(OrderRecord)
+            .where(
+                OrderRecord.id == cancel_row.order_id,
+                ~func.lower(OrderRecord.status).in_(
+                    tuple(FINAL_ORDER_STATUSES)
+                ),
+            )
+            .values(status="PendingCancel", updated_at=utc_now())
+        )
+    session.commit()
+
+
 def save_order_result(
     session: Session,
     order: OrderRequest,
@@ -943,6 +1296,12 @@ def save_order_result(
         reason=order.reason,
         broker=broker,
         account=order.account,
+        broker_symbol=order.broker_symbol,
+        con_id=order.con_id,
+        sec_type=order.sec_type,
+        exchange=order.exchange,
+        primary_exchange=order.primary_exchange,
+        currency=order.currency,
         reference_price=order.reference_price,
         reference_price_source=order.reference_price_source,
         planned_trade_value=planned_trade_value,
@@ -950,14 +1309,452 @@ def save_order_result(
         run_id=order.run_id,
         batch_id=order.batch_id,
         plan_id=order.plan_id,
+        attempt_no=int(order.attempt_no),
+        execution_policy_fingerprint=order.execution_policy_fingerprint,
+        order_ref=(
+            build_order_ref(order.plan_id, order.attempt_no)
+            if order.plan_id
+            else None
+        ),
         broker_order_id=result.broker_order_id,
+        client_id=result.client_id,
+        perm_id=result.perm_id,
         status=result.status,
+        prepared_at=ensure_utc(result.submitted_at),
         submitted_at=ensure_utc(result.submitted_at),
+        broker_acknowledged_at=ensure_utc(result.submitted_at),
+        updated_at=ensure_utc(result.submitted_at),
     )
     session.add(row)
     session.commit()
     session.refresh(row)
     return row
+
+
+def prepare_order_submission(
+    session: Session,
+    order: OrderRequest,
+    *,
+    broker: str,
+    account: str,
+) -> tuple[OrderRecord, bool]:
+    """在触达券商前持久化完整订单意图。
+
+    数据库唯一约束是并发下的最终仲裁者；先查询只用于减少正常路径上的异常
+    开销，不能替代唯一约束。
+    """
+
+    normalized_broker = str(broker or "").strip().lower()
+    normalized_account = str(account or "").strip()
+    plan_id = str(order.plan_id or "").strip()
+    if not normalized_broker or not normalized_account:
+        raise ValueError("持久化订单意图前必须明确 broker 和 account。")
+    if not plan_id:
+        raise ValueError("持久化订单意图前必须提供 plan_id。")
+
+    idempotency_key = build_order_idempotency_key(
+        broker=normalized_broker,
+        account=normalized_account,
+        plan_id=plan_id,
+        attempt_no=order.attempt_no,
+    )
+    request_fingerprint = build_order_request_fingerprint(
+        account=normalized_account,
+        strategy_id=order.strategy_id,
+        symbol=order.symbol,
+        side=order.side,
+        qty=order.qty,
+        order_type=order.order_type,
+        limit_price=order.limit_price,
+        plan_id=plan_id,
+        attempt_no=order.attempt_no,
+        broker_symbol=order.broker_symbol,
+        con_id=order.con_id,
+        sec_type=order.sec_type,
+        exchange=order.exchange,
+        primary_exchange=order.primary_exchange,
+        currency=order.currency,
+        execution_policy_fingerprint=order.execution_policy_fingerprint,
+    )
+    identity_conditions = (
+        OrderRecord.broker == normalized_broker,
+        OrderRecord.account == normalized_account,
+        OrderRecord.idempotency_key == idempotency_key,
+    )
+    existing = session.scalar(select(OrderRecord).where(*identity_conditions))
+    if existing is not None:
+        if existing.request_fingerprint != request_fingerprint:
+            raise RuntimeError(
+                "IDEMPOTENCY_CONFLICT: 同一订单幂等键对应不同券商载荷，"
+                "已禁止提交。"
+            )
+        return existing, False
+
+    planned_trade_value = order.planned_trade_value
+    if planned_trade_value is None:
+        reference_price = order.reference_price or order.limit_price
+        if reference_price is not None:
+            planned_trade_value = abs(float(order.qty)) * float(reference_price)
+
+    now = _database_utc_now(session)
+    row = OrderRecord(
+        profile_id=order.profile_id,
+        strategy_id=order.strategy_id,
+        symbol=order.symbol,
+        side=order.side,
+        qty=order.qty,
+        target_weight=order.target_weight,
+        order_type=order.order_type,
+        limit_price=order.limit_price,
+        order_semantic=order.order_semantic,
+        reason=order.reason,
+        broker=normalized_broker,
+        account=normalized_account,
+        broker_symbol=order.broker_symbol,
+        con_id=order.con_id,
+        sec_type=order.sec_type,
+        exchange=order.exchange,
+        primary_exchange=order.primary_exchange,
+        currency=order.currency,
+        reference_price=order.reference_price,
+        reference_price_source=order.reference_price_source,
+        planned_trade_value=planned_trade_value,
+        execution_planner_id=order.execution_planner_id,
+        run_id=order.run_id,
+        batch_id=order.batch_id,
+        plan_id=plan_id,
+        idempotency_key=idempotency_key,
+        request_fingerprint=request_fingerprint,
+        execution_policy_fingerprint=order.execution_policy_fingerprint,
+        attempt_no=int(order.attempt_no),
+        order_ref=build_order_ref(plan_id, order.attempt_no),
+        broker_order_id=None,
+        status="Prepared",
+        prepared_at=now,
+        submitted_at=None,
+        updated_at=now,
+    )
+    session.add(row)
+    try:
+        session.commit()
+    except IntegrityError as exc:
+        session.rollback()
+        existing = session.scalar(select(OrderRecord).where(*identity_conditions))
+        if existing is None:
+            raise exc
+        if existing.request_fingerprint != request_fingerprint:
+            raise RuntimeError(
+                "IDEMPOTENCY_CONFLICT: 并发请求复用了不同券商载荷。"
+            ) from exc
+        return existing, False
+    session.refresh(row)
+    return row, True
+
+
+def claim_order_submission(
+    session: Session,
+    *,
+    order_id: int,
+    submission_owner: str,
+    lease_resource_key: str | None = None,
+    lease_owner_token: str | None = None,
+    lease_fencing_token: int | None = None,
+) -> bool:
+    """原子认领一条 Prepared 意图，并在券商调用前提交 Submitting 状态。"""
+
+    owner = str(submission_owner or "").strip()
+    if not owner:
+        raise ValueError("认领订单提交前必须提供 submission_owner。")
+    now = _database_utc_now(session)
+    lease_values = (
+        lease_resource_key,
+        lease_owner_token,
+        lease_fencing_token,
+    )
+    if any(value is not None for value in lease_values) and not all(
+        value is not None for value in lease_values
+    ):
+        raise ValueError("订单提交的租约身份字段必须同时提供。")
+    lease_condition = None
+    if lease_resource_key is not None:
+        if lease_owner_token is None or lease_fencing_token is None:
+            raise ValueError("订单提交缺少完整租约身份。")
+        lease_fence = int(lease_fencing_token)
+        lease_condition = (
+            select(ExecutionLeaseRecord.resource_key)
+            .where(
+                ExecutionLeaseRecord.resource_key == str(lease_resource_key),
+                ExecutionLeaseRecord.owner_token == str(lease_owner_token),
+                ExecutionLeaseRecord.fencing_token == lease_fence,
+                ExecutionLeaseRecord.expires_at > now,
+            )
+            .exists()
+        )
+    conditions = [
+        OrderRecord.id == int(order_id),
+        OrderRecord.status == "Prepared",
+        OrderRecord.broker_order_id.is_(None),
+        OrderRecord.submission_owner.is_(None),
+    ]
+    if lease_condition is not None:
+        conditions.append(lease_condition)
+    result = session.execute(
+        update(OrderRecord)
+        .where(*conditions)
+        .values(
+            status="Submitting",
+            submission_owner=owner,
+            lease_fencing_token=lease_fencing_token,
+            submission_started_at=now,
+            last_submission_error=None,
+            updated_at=now,
+        )
+    )
+    session.commit()
+    return _affected_rows(result) == 1
+
+
+def complete_order_submission(
+    session: Session,
+    *,
+    order_id: int,
+    submission_owner: str,
+    result: OrderResult,
+) -> None:
+    """保存券商确认；仅当前提交所有者可以完成状态转换。"""
+
+    acknowledged_at = utc_now()
+    submitted_at = ensure_utc(result.submitted_at) if result.submitted_at else acknowledged_at
+    update_result = session.execute(
+        update(OrderRecord)
+        .where(
+            OrderRecord.id == int(order_id),
+            OrderRecord.status == "Submitting",
+            OrderRecord.submission_owner == str(submission_owner),
+        )
+        .values(
+            broker_order_id=str(result.broker_order_id or "").strip() or None,
+            client_id=result.client_id,
+            perm_id=result.perm_id,
+            status=str(result.status or "SubmissionUnknown"),
+            submission_owner=None,
+            last_submission_error=None,
+            submitted_at=submitted_at,
+            broker_acknowledged_at=acknowledged_at,
+            updated_at=acknowledged_at,
+        )
+    )
+    if _affected_rows(update_result) != 1:
+        session.rollback()
+        raise RuntimeError("订单提交结果持久化失败：提交所有权已丢失。")
+    session.commit()
+
+
+def mark_order_submission_unknown(
+    session: Session,
+    *,
+    order_id: int,
+    submission_owner: str,
+    error: str,
+) -> None:
+    """将券商调用异常持久化为禁止自动重发的不确定状态。"""
+
+    now = utc_now()
+    result = session.execute(
+        update(OrderRecord)
+        .where(
+            OrderRecord.id == int(order_id),
+            OrderRecord.status == "Submitting",
+            OrderRecord.submission_owner == str(submission_owner),
+        )
+        .values(
+            status="SubmissionUnknown",
+            submission_owner=None,
+            last_submission_error=str(error)[:4000],
+            updated_at=now,
+        )
+    )
+    if _affected_rows(result) != 1:
+        session.rollback()
+        raise RuntimeError("订单不确定状态持久化失败：提交所有权已丢失。")
+    session.commit()
+
+
+def _optional_broker_int(
+    value: object,
+    *,
+    field_name: str,
+    positive: bool = False,
+) -> int | None:
+    """规范化券商身份整数；异常值不能静默参与订单关联。"""
+
+    if value is None or str(value).strip() == "":
+        return None
+    try:
+        normalized = int(str(value).strip())
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError(
+            f"BROKER_ORDER_IDENTITY_INVALID: {field_name}={value!r}"
+        ) from exc
+    if positive and normalized <= 0:
+        return None
+    return normalized
+
+
+def _find_order_for_broker_row(
+    session: Session,
+    *,
+    broker_order_id: str | None,
+    order_ref: str | None,
+    perm_id: int | None,
+    client_id: int | None,
+    broker: str | None,
+    account: str | None,
+) -> OrderRecord | None:
+    """按最强可用身份关联券商订单，并拒绝含糊的弱身份匹配。"""
+
+    scope_conditions = []
+    if broker:
+        scope_conditions.append(func.lower(OrderRecord.broker) == broker)
+    if account:
+        scope_conditions.append(OrderRecord.account == account)
+
+    strong_identities = (
+        (OrderRecord.order_ref == order_ref) if order_ref else None,
+        (OrderRecord.perm_id == perm_id) if perm_id is not None else None,
+    )
+    for identity_condition in strong_identities:
+        if identity_condition is None:
+            continue
+        order = session.scalar(
+            select(OrderRecord)
+            .where(*scope_conditions, identity_condition)
+            .order_by(OrderRecord.id.desc())
+            .limit(1)
+        )
+        if order is not None:
+            return order
+
+    if not broker_order_id:
+        return None
+    fallback_conditions = [
+        *scope_conditions,
+        OrderRecord.broker_order_id == broker_order_id,
+    ]
+    if client_id is not None:
+        fallback_conditions.append(
+            or_(
+                OrderRecord.client_id == client_id,
+                OrderRecord.client_id.is_(None),
+            )
+        )
+    if order_ref:
+        # 精确 orderRef 查找已经失败；只允许兼容没有 orderRef 的历史记录，
+        # 不能把券商订单关联到另一个非空 orderRef。
+        fallback_conditions.append(OrderRecord.order_ref.is_(None))
+    candidates = list(
+        session.scalars(
+            select(OrderRecord)
+            .where(*fallback_conditions)
+            .order_by(OrderRecord.id.desc())
+            .limit(2)
+        )
+    )
+    if len(candidates) > 1:
+        raise RuntimeError(
+            "BROKER_ORDER_IDENTITY_AMBIGUOUS: broker/account/orderId "
+            "对应多条本地订单，已停止自动恢复。"
+        )
+    return candidates[0] if candidates else None
+
+
+def _assert_broker_order_identity(
+    order: OrderRecord,
+    *,
+    broker_order_id: str | None,
+    order_ref: str | None,
+    client_id: int | None,
+    perm_id: int | None,
+    con_id: int | None,
+    symbol: str | None,
+    side: str | None = None,
+    qty: object | None = None,
+    order_type: str | None = None,
+    limit_price: object | None = None,
+) -> None:
+    """确认恢复行与持久化订单是同一券商订单和同一合约。"""
+
+    comparisons = (
+        ("broker_order_id", order.broker_order_id, broker_order_id),
+        ("order_ref", order.order_ref, order_ref),
+        ("client_id", order.client_id, client_id),
+        ("perm_id", order.perm_id, perm_id),
+        ("con_id", order.con_id, con_id),
+    )
+    for field_name, persisted, observed in comparisons:
+        if persisted is None or observed is None:
+            continue
+        if str(persisted) != str(observed):
+            raise RuntimeError(
+                "BROKER_ORDER_IDENTITY_MISMATCH: "
+                f"order_id={order.id}，field={field_name}，"
+                f"persisted={persisted}，observed={observed}。"
+            )
+    normalized_symbol = str(symbol or "").strip().upper()
+    if (
+        normalized_symbol
+        and order.symbol
+        and str(order.symbol).strip().upper() != normalized_symbol
+    ):
+        raise RuntimeError(
+            "BROKER_ORDER_IDENTITY_MISMATCH: "
+            f"order_id={order.id}，field=symbol，"
+            f"persisted={order.symbol}，observed={normalized_symbol}。"
+        )
+    normalized_side = str(side or "").strip().upper()
+    if (
+        normalized_side
+        and order.side
+        and str(order.side).strip().upper() != normalized_side
+    ):
+        raise RuntimeError(
+            "BROKER_ORDER_IDENTITY_MISMATCH: "
+            f"order_id={order.id}，field=side，"
+            f"persisted={order.side}，observed={normalized_side}。"
+        )
+    normalized_order_type = str(order_type or "").strip().upper()
+    if (
+        normalized_order_type
+        and order.order_type
+        and str(order.order_type).strip().upper() != normalized_order_type
+    ):
+        raise RuntimeError(
+            "BROKER_ORDER_IDENTITY_MISMATCH: "
+            f"order_id={order.id}，field=order_type，"
+            f"persisted={order.order_type}，observed={normalized_order_type}。"
+        )
+    if qty is not None:
+        observed_qty = float(str(qty).strip())
+        if (
+            not math.isfinite(observed_qty)
+            or abs(abs(float(order.qty)) - abs(observed_qty)) > 1e-8
+        ):
+            raise RuntimeError(
+                "BROKER_ORDER_IDENTITY_MISMATCH: "
+                f"order_id={order.id}，field=qty，"
+                f"persisted={order.qty}，observed={qty}。"
+            )
+    if limit_price is not None and order.limit_price is not None:
+        observed_limit = float(str(limit_price).strip())
+        if (
+            not math.isfinite(observed_limit)
+            or abs(float(order.limit_price) - observed_limit) > 1e-8
+        ):
+            raise RuntimeError(
+                "BROKER_ORDER_IDENTITY_MISMATCH: "
+                f"order_id={order.id}，field=limit_price，"
+                f"persisted={order.limit_price}，observed={limit_price}。"
+            )
 
 
 def update_order_statuses(
@@ -973,24 +1770,510 @@ def update_order_statuses(
     default_account = str(account or "").strip() or None
     updated = 0
     for row in broker_rows:
-        broker_order_id = str(row.get('broker_order_id') or '')
-        if not broker_order_id:
-            continue
+        broker_order_id = (
+            str(row.get("broker_order_id") or "").strip() or None
+        )
         row_account = str(row.get("account") or default_account or "").strip() or None
-        conditions = [OrderRecord.broker_order_id == broker_order_id]
-        if normalized_broker:
-            conditions.append(OrderRecord.broker == normalized_broker)
-        if row_account:
-            conditions.append(OrderRecord.account == row_account)
-        order = session.scalar(
-            select(OrderRecord).where(*conditions)
+        order_ref = str(row.get("order_ref") or "").strip() or None
+        client_id = _optional_broker_int(
+            row.get("client_id"),
+            field_name="client_id",
+        )
+        perm_id = _optional_broker_int(
+            row.get("perm_id"),
+            field_name="perm_id",
+            positive=True,
+        )
+        con_id = _optional_broker_int(
+            row.get("con_id"),
+            field_name="con_id",
+            positive=True,
+        )
+        if not broker_order_id and not order_ref and perm_id is None:
+            continue
+        order = _find_order_for_broker_row(
+            session,
+            broker_order_id=broker_order_id,
+            order_ref=order_ref,
+            perm_id=perm_id,
+            client_id=client_id,
+            broker=normalized_broker,
+            account=row_account,
         )
         if order is None:
             continue
-        new_status = str(row.get('status') or order.status)
-        if order.status != new_status:
+        _assert_broker_order_identity(
+            order,
+            broker_order_id=broker_order_id,
+            order_ref=order_ref,
+            client_id=client_id,
+            perm_id=perm_id,
+            con_id=con_id,
+            symbol=str(row.get("symbol") or "").strip() or None,
+            side=str(row.get("side") or "").strip() or None,
+            qty=row.get("qty"),
+            order_type=str(row.get("order_type") or "").strip() or None,
+            limit_price=row.get("limit_price"),
+        )
+        new_status = str(row.get("status") or order.status)
+        current_is_final = is_final_order_status(order.status)
+        new_is_final = is_final_order_status(new_status)
+        progress: dict[str, float | None] = {}
+        for field_name in ("filled_qty", "remaining_qty", "avg_fill_price"):
+            raw_value = row.get(field_name)
+            if raw_value is None:
+                progress[field_name] = None
+                continue
+            numeric_value = float(str(raw_value).strip())
+            if not math.isfinite(numeric_value) or numeric_value < 0:
+                raise RuntimeError(
+                    "BROKER_ORDER_PROGRESS_INVALID: "
+                    f"field={field_name}，value={raw_value!r}。"
+                )
+            progress[field_name] = numeric_value
+
+        observed_filled = progress["filled_qty"]
+        observed_remaining = progress["remaining_qty"]
+        total_qty = abs(float(order.qty))
+        if (
+            observed_filled is not None
+            and observed_filled > total_qty + 1e-8
+        ) or (
+            observed_remaining is not None
+            and observed_remaining > total_qty + 1e-8
+        ):
+            raise RuntimeError(
+                "BROKER_ORDER_PROGRESS_INVALID: 累计成交或剩余数量超过订单"
+                f"总量，order_id={order.id}。"
+            )
+        if (
+            normalized_broker == "ibkr"
+            and str(new_status).strip().lower() == "filled"
+            and (
+                observed_filled is None
+                or observed_remaining is None
+                or abs(observed_filled - total_qty) > 1e-8
+                or observed_remaining > 1e-8
+            )
+        ):
+            raise RuntimeError(
+                "BROKER_FILLED_PROGRESS_INCONSISTENT: Filled 终态与订单数量"
+                f"不一致，order_id={order.id}。"
+            )
+
+        changed = False
+        if not order.broker_order_id and broker_order_id:
+            order.broker_order_id = broker_order_id
+            order.broker_acknowledged_at = utc_now()
+            changed = True
+        identity_updates: dict[str, object | None] = {
+            "client_id": client_id,
+            "perm_id": perm_id,
+            "con_id": con_id,
+        }
+        for field_name, value in identity_updates.items():
+            if value is None or getattr(order, field_name) == value:
+                continue
+            setattr(order, field_name, value)
+            changed = True
+
+        if observed_filled is not None and (
+            order.filled_qty is None
+            or observed_filled >= float(order.filled_qty) - 1e-8
+        ):
+            if order.filled_qty != observed_filled:
+                order.filled_qty = observed_filled
+                changed = True
+        if observed_remaining is not None and (
+            order.remaining_qty is None
+            or observed_remaining <= float(order.remaining_qty) + 1e-8
+        ):
+            if order.remaining_qty != observed_remaining:
+                order.remaining_qty = observed_remaining
+                changed = True
+        observed_avg_price = progress["avg_fill_price"]
+        if observed_avg_price is not None and (
+            order.filled_qty is None
+            or observed_filled is None
+            or observed_filled >= float(order.filled_qty) - 1e-8
+        ):
+            if order.avg_fill_price != observed_avg_price:
+                order.avg_fill_price = observed_avg_price
+                changed = True
+        if order.status != new_status and not current_is_final:
             order.status = new_status
+            changed = True
+        elif order.status != new_status and current_is_final and not new_is_final:
+            # 晚到的 working 回报不能把已确认终态降级。
+            pass
+        if changed:
+            order.submission_owner = None
+            order.last_submission_error = None
+            order.updated_at = utc_now()
             updated += 1
+    session.commit()
+    return updated
+
+
+def update_single_order_status(
+    session: Session,
+    broker_row: dict,
+    *,
+    broker: str | None = None,
+    account: str | None = None,
+) -> int:
+    """更新一条券商订单状态，供轮询执行器即时持久化终态。"""
+
+    return update_order_statuses(
+        session,
+        [broker_row],
+        broker=broker,
+        account=account,
+    )
+
+
+def try_acquire_execution_lease(
+    session: Session,
+    *,
+    resource_key: str,
+    owner_token: str,
+    ttl_seconds: int,
+    now: datetime | None = None,
+) -> int | None:
+    """原子获取跨进程租约；未过期租约只能由当前 owner 续持。"""
+
+    resource = str(resource_key or "").strip()
+    owner = str(owner_token or "").strip()
+    ttl = int(ttl_seconds)
+    if not resource or not owner:
+        raise ValueError("获取执行租约前必须提供 resource_key 和 owner_token。")
+    if ttl < 1:
+        raise ValueError("执行租约 ttl_seconds 必须大于零。")
+    lease_now = (
+        ensure_utc(now)
+        if now is not None
+        else _database_utc_now(session)
+    )
+    expires_at = lease_now + timedelta(seconds=ttl)
+
+    existing = session.get(ExecutionLeaseRecord, resource)
+    if existing is None:
+        session.add(
+            ExecutionLeaseRecord(
+                resource_key=resource,
+                owner_token=owner,
+                fencing_token=1,
+                acquired_at=lease_now,
+                heartbeat_at=lease_now,
+                expires_at=expires_at,
+            )
+        )
+        try:
+            session.commit()
+            return 1
+        except IntegrityError:
+            session.rollback()
+
+    same_owner_result = session.execute(
+        update(ExecutionLeaseRecord)
+        .where(
+            ExecutionLeaseRecord.resource_key == resource,
+            ExecutionLeaseRecord.owner_token == owner,
+            ExecutionLeaseRecord.expires_at > lease_now,
+        )
+        .values(
+            heartbeat_at=lease_now,
+            expires_at=expires_at,
+        )
+    )
+    session.commit()
+    if _affected_rows(same_owner_result) == 1:
+        fencing_token = session.scalar(
+            select(ExecutionLeaseRecord.fencing_token).where(
+                ExecutionLeaseRecord.resource_key == resource,
+                ExecutionLeaseRecord.owner_token == owner,
+            )
+        )
+        return int(fencing_token) if fencing_token is not None else None
+
+    result = session.execute(
+        update(ExecutionLeaseRecord)
+        .where(
+            ExecutionLeaseRecord.resource_key == resource,
+            ExecutionLeaseRecord.expires_at <= lease_now,
+        )
+        .values(
+            owner_token=owner,
+            fencing_token=ExecutionLeaseRecord.fencing_token + 1,
+            acquired_at=lease_now,
+            heartbeat_at=lease_now,
+            expires_at=expires_at,
+        )
+    )
+    session.commit()
+    if _affected_rows(result) != 1:
+        return None
+    fencing_token = session.scalar(
+        select(ExecutionLeaseRecord.fencing_token).where(
+            ExecutionLeaseRecord.resource_key == resource,
+            ExecutionLeaseRecord.owner_token == owner,
+        )
+    )
+    return int(fencing_token) if fencing_token is not None else None
+
+
+def renew_execution_lease(
+    session: Session,
+    *,
+    resource_key: str,
+    owner_token: str,
+    fencing_token: int,
+    ttl_seconds: int,
+    now: datetime | None = None,
+) -> bool:
+    """仅租约当前持有者可在未过期时续约。"""
+
+    lease_now = (
+        ensure_utc(now)
+        if now is not None
+        else _database_utc_now(session)
+    )
+    expires_at = lease_now + timedelta(seconds=int(ttl_seconds))
+    result = session.execute(
+        update(ExecutionLeaseRecord)
+        .where(
+            ExecutionLeaseRecord.resource_key == str(resource_key),
+            ExecutionLeaseRecord.owner_token == str(owner_token),
+            ExecutionLeaseRecord.fencing_token == int(fencing_token),
+            ExecutionLeaseRecord.expires_at > lease_now,
+        )
+        .values(heartbeat_at=lease_now, expires_at=expires_at)
+    )
+    session.commit()
+    return _affected_rows(result) == 1
+
+
+def release_execution_lease(
+    session: Session,
+    *,
+    resource_key: str,
+    owner_token: str,
+    fencing_token: int,
+) -> bool:
+    """释放租约；非持有者不能删除其他进程的租约。"""
+
+    result = session.execute(
+        delete(ExecutionLeaseRecord).where(
+            ExecutionLeaseRecord.resource_key == str(resource_key),
+            ExecutionLeaseRecord.owner_token == str(owner_token),
+            ExecutionLeaseRecord.fencing_token == int(fencing_token),
+        )
+    )
+    session.commit()
+    return _affected_rows(result) == 1
+
+
+def list_execution_recovery_blockers(
+    session: Session,
+    *,
+    broker: str,
+    account: str,
+) -> list[str]:
+    """列出必须先完成券商恢复、不得开启新提交的本地状态。"""
+
+    normalized_broker = str(broker or "").strip().lower()
+    normalized_account = str(account or "").strip()
+    uncertain_orders = list(
+        session.scalars(
+            select(OrderRecord).where(
+                func.lower(OrderRecord.broker) == normalized_broker,
+                OrderRecord.account == normalized_account,
+                func.lower(OrderRecord.status).in_(
+                    ("submitting", "submissionunknown")
+                ),
+            )
+        )
+    )
+    pending_cancels = list(
+        session.scalars(
+            select(CancelRecord).where(
+                func.lower(CancelRecord.broker) == normalized_broker,
+                CancelRecord.account == normalized_account,
+                func.lower(CancelRecord.status).in_(
+                    (
+                        "cancelprepared",
+                        "pendingcancel",
+                        "cancelrequestfailed",
+                    )
+                ),
+            )
+        )
+    )
+    blockers = [
+        (
+            f"订单恢复未完成：order_id={row.id}，"
+            f"order_ref={row.order_ref or 'N/A'}，status={row.status}"
+        )
+        for row in uncertain_orders
+    ]
+    blockers.extend(
+        (
+            f"撤单终态未确认：cancel_id={row.id}，"
+            f"broker_order_id={row.broker_order_id or 'N/A'}"
+        )
+        for row in pending_cancels
+    )
+    return blockers
+
+
+def _matches_observed_order_identity(
+    order: OrderRecord,
+    *,
+    order_ref: str | None,
+    perm_id: int | None,
+    client_id: int | None,
+    allow_client_id: bool = True,
+) -> bool | None:
+    """按强身份优先级判断订单；``None`` 表示只能使用旧数据弱匹配。"""
+
+    if order_ref and order.order_ref:
+        return str(order.order_ref) == order_ref
+    if perm_id is not None and order.perm_id is not None:
+        return int(order.perm_id) == perm_id
+    if (
+        allow_client_id
+        and client_id is not None
+        and order.client_id is not None
+    ):
+        return int(order.client_id) == client_id
+    return None
+
+
+def update_pending_cancel_statuses(
+    session: Session,
+    broker_rows: Sequence[dict],
+    *,
+    broker: str,
+    account: str | None = None,
+) -> int:
+    """用券商确认的订单终态恢复对应的待确认撤单记录。"""
+
+    normalized_broker = str(broker or "").strip().lower()
+    default_account = str(account or "").strip() or None
+    if not normalized_broker:
+        raise ValueError("更新撤单终态前必须提供券商标识。")
+
+    updated = 0
+    for row in broker_rows:
+        broker_order_id = (
+            str(row.get("broker_order_id") or "").strip() or None
+        )
+        new_status = str(row.get("status") or "").strip()
+        row_account = str(row.get("account") or default_account or "").strip()
+        if (
+            not row_account
+            or not is_final_order_status(new_status)
+        ):
+            continue
+
+        client_id = _optional_broker_int(
+            row.get("client_id"),
+            field_name="client_id",
+        )
+        perm_id = _optional_broker_int(
+            row.get("perm_id"),
+            field_name="perm_id",
+            positive=True,
+        )
+        con_id = _optional_broker_int(
+            row.get("con_id"),
+            field_name="con_id",
+            positive=True,
+        )
+        order_ref = str(row.get("order_ref") or "").strip() or None
+        symbol = str(row.get("symbol") or "").strip() or None
+        if not broker_order_id and not order_ref and perm_id is None:
+            continue
+        cancel_conditions = [
+            func.lower(CancelRecord.broker) == normalized_broker,
+            CancelRecord.account == row_account,
+            func.lower(CancelRecord.status).in_(
+                (
+                    "cancelprepared",
+                    "pendingcancel",
+                    "cancelrequestfailed",
+                )
+            ),
+        ]
+        if broker_order_id:
+            cancel_conditions.append(
+                CancelRecord.broker_order_id == broker_order_id
+            )
+        cancel_rows = list(
+            session.scalars(
+                select(CancelRecord).where(*cancel_conditions)
+            )
+        )
+        definite_matches: list[tuple[CancelRecord, OrderRecord]] = []
+        legacy_matches: list[tuple[CancelRecord, OrderRecord]] = []
+        for cancel_row in cancel_rows:
+            if cancel_row.order_id is None:
+                raise RuntimeError(
+                    "CANCEL_ORDER_IDENTITY_MISSING: 撤单记录没有本地 order_id，"
+                    "已停止自动恢复。"
+                )
+            order = session.get(OrderRecord, cancel_row.order_id)
+            if order is None:
+                raise RuntimeError(
+                    "CANCEL_ORDER_IDENTITY_MISSING: 撤单记录关联的本地订单不存在，"
+                    "已停止自动恢复。"
+                )
+            identity_match = _matches_observed_order_identity(
+                order,
+                order_ref=order_ref,
+                perm_id=perm_id,
+                client_id=client_id,
+                allow_client_id=broker_order_id is not None,
+            )
+            if identity_match is True:
+                definite_matches.append((cancel_row, order))
+            elif identity_match is None:
+                legacy_matches.append((cancel_row, order))
+
+        if len(definite_matches) > 1:
+            raise RuntimeError(
+                "CANCEL_ORDER_IDENTITY_AMBIGUOUS: 券商终态对应多条强身份撤单记录，"
+                "已停止自动恢复。"
+            )
+        # completedOrder 没有原始 orderId/clientId 时，只能依赖 orderRef/permId
+        # 的明确命中；不能因为账户里“恰好只有一条”旧撤单就按交易语义猜测。
+        target_matches = (
+            definite_matches
+            if definite_matches
+            else (legacy_matches if broker_order_id else [])
+        )
+        if len(target_matches) > 1:
+            raise RuntimeError(
+                "CANCEL_ORDER_IDENTITY_AMBIGUOUS: 旧撤单记录缺少足够券商身份，"
+                "已停止自动恢复。"
+            )
+        for cancel_row, order in target_matches:
+            _assert_broker_order_identity(
+                order,
+                broker_order_id=broker_order_id,
+                order_ref=order_ref,
+                client_id=client_id,
+                perm_id=perm_id,
+                con_id=con_id,
+                symbol=symbol,
+                side=str(row.get("side") or "").strip() or None,
+                qty=row.get("qty"),
+                order_type=str(row.get("order_type") or "").strip() or None,
+                limit_price=row.get("limit_price"),
+            )
+            cancel_row.status = new_status
+            updated += 1
+
     session.commit()
     return updated
 
@@ -1126,12 +2409,15 @@ def replace_anomaly_events_for_account_attribution(
 ) -> dict[str, int]:
     """用当前最新异常项替换同一归因区间下的事件记录。"""
 
-    deleted = session.execute(
-        delete(AnomalyEventRecord).where(
-            AnomalyEventRecord.account_attribution_id == account_attribution_id,
-            AnomalyEventRecord.report_type == report_type,
+    deleted = _affected_rows(
+        session.execute(
+            delete(AnomalyEventRecord).where(
+                AnomalyEventRecord.account_attribution_id
+                == account_attribution_id,
+                AnomalyEventRecord.report_type == report_type,
+            )
         )
-    ).rowcount or 0
+    )
 
     created = 0
     for item in alert_items:

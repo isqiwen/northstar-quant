@@ -30,13 +30,38 @@ def test_fill_order_id_becomes_nullable_at_migration_head(tmp_path, monkeypatch)
 
         command.upgrade(config, "head")
         assert _column_nullable(database_url, "fill_records", "order_id") is True
+        assert _column_nullable(database_url, "order_records", "submitted_at") is True
         order_columns = {
             column["name"]
             for column in inspect(
                 create_engine(database_url, future=True)
             ).get_columns("order_records")
         }
-        assert "broker" in order_columns
+        assert {
+            "broker",
+            "broker_symbol",
+            "con_id",
+            "sec_type",
+            "exchange",
+            "primary_exchange",
+            "currency",
+            "idempotency_key",
+            "request_fingerprint",
+            "execution_policy_fingerprint",
+            "attempt_no",
+            "order_ref",
+            "client_id",
+            "perm_id",
+            "filled_qty",
+            "remaining_qty",
+            "avg_fill_price",
+            "submission_owner",
+            "lease_fencing_token",
+            "prepared_at",
+            "submission_started_at",
+            "broker_acknowledged_at",
+            "updated_at",
+        }.issubset(order_columns)
         fill_columns = {
             column["name"]
             for column in inspect(
@@ -51,6 +76,18 @@ def test_fill_order_id_becomes_nullable_at_migration_head(tmp_path, monkeypatch)
             "client_id",
             "con_id",
         }.issubset(fill_columns)
+        inspector = inspect(create_engine(database_url, future=True))
+        assert "execution_lease_records" in inspector.get_table_names()
+        unique_constraints = {
+            constraint["name"]
+            for constraint in inspector.get_unique_constraints("order_records")
+        }
+        assert {
+            "uq_order_records_broker_account_idempotency_key",
+            "uq_order_records_broker_account_order_ref",
+            "uq_order_records_broker_account_perm_id",
+            "uq_order_records_broker_account_client_order_id",
+        }.issubset(unique_constraints)
 
         engine = create_engine(database_url, future=True)
         with engine.begin() as connection:
@@ -75,5 +112,20 @@ def test_fill_order_id_becomes_nullable_at_migration_head(tmp_path, monkeypatch)
                 )
                 """
             )
+
+        command.downgrade(config, "0017_add_fill_broker_identity")
+        downgraded_inspector = inspect(create_engine(database_url, future=True))
+        assert "execution_lease_records" not in downgraded_inspector.get_table_names()
+        downgraded_order_columns = {
+            column["name"]
+            for column in downgraded_inspector.get_columns("order_records")
+        }
+        assert "idempotency_key" not in downgraded_order_columns
+        assert "execution_policy_fingerprint" not in downgraded_order_columns
+        assert _column_nullable(
+            database_url,
+            "order_records",
+            "submitted_at",
+        ) is False
     finally:
         get_settings.cache_clear()

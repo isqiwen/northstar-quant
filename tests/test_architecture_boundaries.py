@@ -11,9 +11,10 @@ PACKAGE_ROOT = Path(__file__).resolve().parents[1] / "src" / "northstar_quant"
 ALLOWED_CORE_DEPENDENCIES = {
     "common": set(),
     "config": {"common"},
+    "indicators": set(),
     "risk": {"common"},
     "execution": {"common", "config", "logging_", "risk"},
-    "data": {"common", "config", "logging_"},
+    "data": {"common", "config", "indicators", "logging_"},
     "db": {"common", "config", "execution", "logging_"},
 }
 

@@ -45,10 +45,14 @@ class OrderRouter:
         )
         route_logger.info("开始执行订单路由")
         validate_order(order, self.limits, self.risk_context)
+        prepared_order = self.broker.prepare_order(order)
+        # instrument 解析后再次校验最终载荷；submission guard 也必须看到实际
+        # 将持久化并送往券商的订单，而不是解析前的临时对象。
+        validate_order(prepared_order, self.limits, self.risk_context)
         if self.submission_guard is not None:
-            self.submission_guard(order)
-        result = self.broker.submit_order(order)
-        if result.accepted:
-            reserve_order_context(self.risk_context, order)
+            self.submission_guard(prepared_order)
+        result = self.broker.submit_order(prepared_order)
+        if result.accepted and not result.replayed:
+            reserve_order_context(self.risk_context, prepared_order)
         route_logger.info("订单路由完成，status=%s", result.status)
         return result

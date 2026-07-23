@@ -1,7 +1,10 @@
 from sqlalchemy import create_engine, inspect
+from sqlalchemy.orm import Session
 
 from northstar_quant.config.settings import get_settings
 from northstar_quant.db.init_db import _redact_database_url, init_db
+from northstar_quant.db.repositories import prepare_order_submission
+from northstar_quant.execution.models import OrderRequest
 
 
 def test_redact_database_url_hides_password():
@@ -85,6 +88,15 @@ def test_init_db_patches_legacy_sqlite_columns(tmp_path, monkeypatch):
         account_attribution_columns = {
             column["name"] for column in inspector.get_columns("account_attribution_records")
         }
+        submitted_at_column = next(
+            column
+            for column in inspector.get_columns("order_records")
+            if column["name"] == "submitted_at"
+        )
+        order_indexes = {
+            index["name"]: index
+            for index in inspector.get_indexes("order_records")
+        }
 
         assert "order_semantic" in order_columns
         assert "profile_id" in order_columns
@@ -100,6 +112,31 @@ def test_init_db_patches_legacy_sqlite_columns(tmp_path, monkeypatch):
         assert "run_id" in order_columns
         assert "batch_id" in order_columns
         assert "plan_id" in order_columns
+        assert {
+            "idempotency_key",
+            "request_fingerprint",
+            "execution_policy_fingerprint",
+            "attempt_no",
+            "order_ref",
+            "broker_symbol",
+            "con_id",
+            "sec_type",
+            "exchange",
+            "primary_exchange",
+            "currency",
+            "client_id",
+            "perm_id",
+            "filled_qty",
+            "remaining_qty",
+            "avg_fill_price",
+            "submission_owner",
+            "lease_fencing_token",
+            "last_submission_error",
+            "prepared_at",
+            "submission_started_at",
+            "broker_acknowledged_at",
+            "updated_at",
+        }.issubset(order_columns)
         assert "broker_order_id" in fill_columns
         assert "side" in fill_columns
         assert {
@@ -121,6 +158,20 @@ def test_init_db_patches_legacy_sqlite_columns(tmp_path, monkeypatch):
         assert "account_attribution_records" in table_names
         assert "anomaly_event_records" in table_names
         assert "run_health_records" in table_names
+        assert "execution_lease_records" in table_names
+        assert submitted_at_column["nullable"] is True
+        assert order_indexes[
+            "uq_order_records_broker_account_idempotency_key"
+        ]["unique"]
+        assert order_indexes[
+            "uq_order_records_broker_account_order_ref"
+        ]["unique"]
+        assert order_indexes[
+            "uq_order_records_broker_account_perm_id"
+        ]["unique"]
+        assert order_indexes[
+            "uq_order_records_broker_account_client_order_id"
+        ]["unique"]
         assert "account_values_json" in account_snapshot_columns
         assert "account" in trade_attribution_columns
         assert "dividend_cash_flow" in account_attribution_columns
@@ -131,5 +182,28 @@ def test_init_db_patches_legacy_sqlite_columns(tmp_path, monkeypatch):
         assert "corporate_action_cash_flow" in account_attribution_columns
         assert "other_non_trade_cash_flow" in account_attribution_columns
         assert "total_non_trade_cash_flow" in account_attribution_columns
+
+        with Session(
+            create_engine(f"sqlite:///{db_path.as_posix()}", future=True),
+            future=True,
+        ) as session:
+            prepared, created = prepare_order_submission(
+                session,
+                OrderRequest(
+                    strategy_id="legacy-smoke",
+                    symbol="SPY",
+                    side="BUY",
+                    qty=1.0,
+                    account="DU123456",
+                    order_type="LMT",
+                    limit_price=500.0,
+                    plan_id="legacy-plan-1",
+                ),
+                broker="ibkr",
+                account="DU123456",
+            )
+            assert created is True
+            assert prepared.status == "Prepared"
+            assert prepared.submitted_at is None
     finally:
         get_settings.cache_clear()

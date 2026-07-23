@@ -175,3 +175,255 @@ def test_save_fill_snapshots_uses_broker_execution_identity(tmp_path):
     assert fill_row.con_id == 756733
     assert order_row is not None
     assert order_row.status == "Filled"
+
+
+def test_fill_identity_uses_perm_id_before_reused_order_id(tmp_path):
+    engine = create_engine(
+        f"sqlite:///{(tmp_path / 'fill-client-identity.db').as_posix()}",
+        future=True,
+    )
+    Base.metadata.create_all(bind=engine)
+    filled_at = datetime(2024, 3, 4, 15, 36, tzinfo=UTC)
+
+    with Session(engine, future=True) as session:
+        client_one = OrderRecord(
+            strategy_id="core",
+            symbol="SPY",
+            side="BUY",
+            qty=1.0,
+            broker="ibkr",
+            account="DU123456",
+            broker_order_id="42",
+            client_id=1,
+            perm_id=101,
+            con_id=756733,
+            status="Submitted",
+        )
+        client_two = OrderRecord(
+            strategy_id="core",
+            symbol="QQQ",
+            side="BUY",
+            qty=1.0,
+            broker="ibkr",
+            account="DU123456",
+            broker_order_id="42",
+            client_id=2,
+            perm_id=202,
+            con_id=320227571,
+            status="Submitted",
+        )
+        session.add_all([client_one, client_two])
+        session.commit()
+
+        assert (
+            save_fill_snapshots(
+                session,
+                [
+                    FillSnapshot(
+                        broker_order_id="42",
+                        symbol="QQQ",
+                        qty=1.0,
+                        price=500.0,
+                        side="BUY",
+                        filled_at=filled_at,
+                        account="DU123456",
+                        exec_id="exec-client-2",
+                        perm_id=202,
+                        client_id=2,
+                        con_id=320227571,
+                    )
+                ],
+                broker="ibkr",
+            )
+            == 1
+        )
+        fill = session.scalar(
+            select(FillRecord).where(FillRecord.exec_id == "exec-client-2")
+        )
+
+        assert fill is not None
+        assert fill.order_id == client_two.id
+        assert session.get(OrderRecord, client_one.id).status == "Submitted"
+        assert session.get(OrderRecord, client_two.id).status == "Filled"
+
+
+def test_partial_fill_does_not_downgrade_cancelled_terminal_order(tmp_path):
+    engine = create_engine(
+        f"sqlite:///{(tmp_path / 'fill-terminal.db').as_posix()}",
+        future=True,
+    )
+    Base.metadata.create_all(bind=engine)
+    filled_at = datetime(2024, 3, 4, 15, 36, tzinfo=UTC)
+
+    with Session(engine, future=True) as session:
+        order = OrderRecord(
+            strategy_id="core",
+            symbol="SPY",
+            side="BUY",
+            qty=2.0,
+            broker="ibkr",
+            account="DU123456",
+            broker_order_id="42",
+            client_id=7,
+            perm_id=100,
+            con_id=756733,
+            status="Cancelled",
+        )
+        session.add(order)
+        session.commit()
+
+        assert (
+            save_fill_snapshots(
+                session,
+                [
+                    FillSnapshot(
+                        broker_order_id="42",
+                        symbol="SPY",
+                        qty=1.0,
+                        price=500.0,
+                        side="BUY",
+                        filled_at=filled_at,
+                        account="DU123456",
+                        exec_id="exec-partial",
+                        perm_id=100,
+                        client_id=7,
+                        con_id=756733,
+                    )
+                ],
+                broker="ibkr",
+            )
+            == 1
+        )
+        refreshed = session.get(OrderRecord, order.id)
+
+        assert refreshed.status == "Cancelled"
+        assert refreshed.filled_qty == 1.0
+        assert refreshed.remaining_qty == 1.0
+
+
+def test_existing_unlinked_fill_is_backfilled_by_order_ref(tmp_path):
+    engine = create_engine(
+        f"sqlite:///{(tmp_path / 'fill-order-ref-backfill.db').as_posix()}",
+        future=True,
+    )
+    Base.metadata.create_all(bind=engine)
+    filled_at = datetime(2024, 3, 4, 15, 36, tzinfo=UTC)
+
+    with Session(engine, future=True) as session:
+        order = OrderRecord(
+            strategy_id="core",
+            symbol="SPY",
+            side="BUY",
+            qty=2.0,
+            broker="ibkr",
+            account="DU123456",
+            order_ref="NSQ-plan-1",
+            reference_price=499.0,
+            status="SubmissionUnknown",
+        )
+        session.add(order)
+        session.flush()
+        fill = FillRecord(
+            order_id=None,
+            broker="ibkr",
+            account="DU123456",
+            exec_id="exec-backfill-1",
+            broker_order_id="42",
+            symbol="SPY",
+            side="BUY",
+            qty=1.0,
+            price=500.0,
+            filled_at=filled_at,
+        )
+        session.add(fill)
+        session.commit()
+
+        count = save_fill_snapshots(
+            session,
+            [
+                FillSnapshot(
+                    broker_order_id="42",
+                    symbol="SPY",
+                    qty=1.0,
+                    price=500.0,
+                    side="BUY",
+                    filled_at=filled_at,
+                    account="DU123456",
+                    exec_id="exec-backfill-1",
+                    order_ref="NSQ-plan-1",
+                    perm_id=1001,
+                    client_id=7,
+                    con_id=756733,
+                )
+            ],
+            broker="ibkr",
+        )
+        refreshed_fill = session.get(FillRecord, fill.id)
+        attribution = session.scalar(
+            select(TradeAttributionRecord).where(
+                TradeAttributionRecord.fill_id == fill.id
+            )
+        )
+
+        assert count == 1
+        assert refreshed_fill is not None
+        assert refreshed_fill.order_id == order.id
+        assert attribution is not None
+        assert attribution.order_id == order.id
+
+
+def test_fill_ledger_does_not_reduce_completed_cumulative_progress(tmp_path):
+    engine = create_engine(
+        f"sqlite:///{(tmp_path / 'fill-progress-monotonic.db').as_posix()}",
+        future=True,
+    )
+    Base.metadata.create_all(bind=engine)
+    filled_at = datetime(2024, 3, 4, 15, 36, tzinfo=UTC)
+
+    with Session(engine, future=True) as session:
+        order = OrderRecord(
+            strategy_id="core",
+            symbol="SPY",
+            side="BUY",
+            qty=2.0,
+            broker="ibkr",
+            account="DU123456",
+            order_ref="NSQ-plan-filled",
+            perm_id=1002,
+            con_id=756733,
+            status="Filled",
+            filled_qty=2.0,
+            remaining_qty=0.0,
+        )
+        session.add(order)
+        session.commit()
+
+        assert (
+            save_fill_snapshots(
+                session,
+                [
+                    FillSnapshot(
+                        broker_order_id="43",
+                        symbol="SPY",
+                        qty=1.0,
+                        price=500.0,
+                        side="BUY",
+                        filled_at=filled_at,
+                        account="DU123456",
+                        exec_id="exec-window-only-one",
+                        order_ref="NSQ-plan-filled",
+                        perm_id=1002,
+                        client_id=7,
+                        con_id=756733,
+                    )
+                ],
+                broker="ibkr",
+            )
+            == 1
+        )
+        refreshed = session.get(OrderRecord, order.id)
+
+        assert refreshed is not None
+        assert refreshed.status == "Filled"
+        assert refreshed.filled_qty == 2.0
+        assert refreshed.remaining_qty == 0.0

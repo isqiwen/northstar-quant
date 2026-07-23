@@ -353,6 +353,16 @@ def test_run_live_once_returns_without_order_submission_when_preflight_fails(mon
     )
     monkeypatch.setattr(live_service, "_pick_broker", lambda service=None: _FakeBroker())
     monkeypatch.setattr(live_service, "SessionLocal", lambda: nullcontext(object()))
+    monkeypatch.setattr(
+        live_service,
+        "try_acquire_execution_lease",
+        lambda *args, **kwargs: 1,
+    )
+    monkeypatch.setattr(
+        live_service,
+        "release_execution_lease",
+        lambda *args, **kwargs: True,
+    )
     monkeypatch.setattr(live_service, "save_strategy_run_snapshot", lambda *args, **kwargs: None)
     monkeypatch.setattr(
         live_service,
@@ -643,12 +653,6 @@ def test_run_shadow_once_builds_plan_but_never_submits_orders(monkeypatch):
             or {"id": 1, "mode": kwargs["mode"]}
         ),
     )
-    monkeypatch.setattr(
-        live_service,
-        "save_order_result",
-        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("shadow run must not submit orders")),
-    )
-
     result = live_service.run_shadow_once(profile.profile_id)
 
     assert result["mode"] == "shadow_run"
