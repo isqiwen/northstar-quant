@@ -89,3 +89,48 @@ class OrderSemantic(StringEnum):
     EXIT = "exit"
     REDUCE = "reduce"
     REVERSE = "reverse"
+
+
+class ProductSessionRule(StringEnum):
+    """品种卡中交易时段的权威解析规则。"""
+
+    EXCHANGE_DAILY_SCHEDULE = "exchange_daily_schedule"
+
+
+class LastTradeDayRule(StringEnum):
+    """品种卡中最后交易日的规则来源。"""
+
+    EXCHANGE_CONTRACT_SPECIFICATION = "exchange_contract_specification"
+
+
+class IndividualInvestorRule(StringEnum):
+    """个人投资者临近交割月的限制规则来源。"""
+
+    BROKER_AND_EXCHANGE_DELIVERY_MONTH_RESTRICTION = (
+        "broker_and_exchange_delivery_month_restriction"
+    )
+
+
+class RolloverMethod(StringEnum):
+    """具体合约换月的可审计方法。"""
+
+    EXPLICIT_DAILY_CONTRACT_CHAIN = "explicit_daily_contract_chain"
+
+
+class RolloverReferenceSignal(StringEnum):
+    """换月候选合约的参考流动性信号。"""
+
+    OPEN_INTEREST = "open_interest"
+    VOLUME = "volume"
+    TERM_LIQUIDITY = "term_liquidity"
+
+
+class DynamicProductSnapshotField(StringEnum):
+    """每个交易日必须重新获取的品种交易事实。"""
+
+    TRADING_SESSIONS = "trading_sessions"
+    MARGIN_RATE = "margin_rate"
+    COMMISSION = "commission"
+    PRICE_LIMITS = "price_limits"
+    POSITION_LIMITS = "position_limits"
+    ACTIVE_CONTRACT = "active_contract"

@@ -5,8 +5,9 @@
 
 ## 静态与动态字段
 
-`contract`、`delivery`、`roll` 与 `research` 记录相对稳定的规则和研究知识。乘数、最小
-变动价位必须与 `configs/futures/cn_commodity_research.yaml` 一致。
+`contract`、`delivery`、`roll` 与 `research` 记录相对稳定的规则和研究知识。`contract`
+中的 `delivery_months` 是交易所挂牌交割月份的整数列表，不等于当日主力或当日可交易
+合约；乘数、最小变动价位必须与 `configs/futures/cn_commodity_research.yaml` 一致。
 
 `dynamic_snapshot` 列出的字段不可写死：交易时间、保证金、手续费、涨跌停、限仓、当前
 主力和个人投资者临近交割限制都必须在每个交易日从交易所、期货公司或 CTP 查询取得，并

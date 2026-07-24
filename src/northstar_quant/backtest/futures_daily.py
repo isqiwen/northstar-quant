@@ -11,12 +11,14 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Iterable
 
+from northstar_quant.config.product_cards import load_product_cards
 
 @dataclass(frozen=True, slots=True)
 class FuturesInstrumentSpec:
     """一份经核验的具体期货合约规格与回测成本假设。"""
 
     instrument_id: str
+    product: str
     exchange_id: str
     multiplier: float
     tick_size: float
@@ -28,6 +30,8 @@ class FuturesInstrumentSpec:
         if not self.instrument_id.strip() or not self.exchange_id.strip():
             raise ValueError("期货合约规格必须包含 instrument_id 和 exchange_id")
         _require_actual_instrument_id(self.instrument_id, field_name="instrument_id")
+        if not self.product.strip() or self.product.strip().upper().endswith("_CONT"):
+            raise ValueError("期货合约规格必须包含实际品种 product")
         for name in ("multiplier", "tick_size", "initial_margin_rate"):
             if float(getattr(self, name)) <= 0:
                 raise ValueError(f"期货合约规格 {name} 必须大于 0")
@@ -142,6 +146,7 @@ def run_daily_futures_backtest(
         raise ValueError("至少需要一个具体期货合约规格")
     if len(specs) != len(spec_items):
         raise ValueError("具体期货合约规格 instrument_id 不能重复")
+    _validate_instrument_specs_against_product_cards(specs)
     by_day: dict[date, dict[str, FuturesDailyBar]] = {}
     for bar in bars:
         instrument_id = bar.instrument_id.upper()
@@ -353,3 +358,20 @@ def _require_actual_instrument_id(value: str, *, field_name: str) -> None:
         raise ValueError(f"{field_name} 不能为空")
     if normalized.endswith("_CONT"):
         raise ValueError(f"{field_name} 不得使用连续研究合约：{normalized}")
+
+
+def _validate_instrument_specs_against_product_cards(specs: dict[str, FuturesInstrumentSpec]) -> None:
+    """回测开始前强制加载品种卡，拒绝未知品种或静态规格不一致的实际合约。"""
+
+    cards = {card.product: card for card in load_product_cards()}
+    for instrument_id, spec in specs.items():
+        product = spec.product.strip().upper()
+        card = cards.get(product)
+        if card is None:
+            raise ValueError(f"实际合约 {instrument_id} 的品种 {product} 缺少品种卡")
+        if (spec.exchange_id.strip().upper(), spec.multiplier, spec.tick_size) != (
+            card.exchange,
+            card.multiplier,
+            card.tick_size,
+        ):
+            raise ValueError(f"实际合约 {instrument_id} 与品种卡 {product} 的静态规格不一致")

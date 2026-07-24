@@ -1,28 +1,49 @@
 # 螺纹钢（RB）品种卡；动态交易参数须按日读取，不能从本文件直接下单。
+# 品种卡结构版本；字段语义调整时递增，加载器目前只接受 1。
 version: 1
+# 交易所和 CTP 使用的稳定品种代码，不含交割年月。
 product: RB
+# 面向研究报告和人工核验的中文品种名称。
 name: 螺纹钢
+# 交易所标准代码；SHFE 表示上海期货交易所。
 exchange: SHFE
+# 相对稳定的标准合约规格；实际合约仍须与交易所当期规则核验。
 contract:
+  # 一手代表的标的数量；价格每变动 1 元/吨时，一手盈亏变动 10 元。
   multiplier: 10
+  # 最小报价变动，单位为元/吨；逐日回测中的滑点按此 tick 计算。
   tick_size: 1.0
-  delivery_month_rule: exchange_contract_specification
+  # 上期所螺纹钢合约按全年各月份挂牌；具体可交易链仍须按日确认。
+  delivery_months: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
 trading:
+  # 所有交易时点与交易日切换均按中国标准时间解释。
   timezone: Asia/Shanghai
+  # 该品种有夜盘；具体开收盘时刻会调整，不能在此写死。
   has_night_session: true
+  # 要求从交易所当日交易安排读取精确时段，缺失时执行应失败关闭。
   session_rule: exchange_daily_schedule
 delivery:
+  # 具体合约最后交易日按交易所规则和法定节假日调整计算。
   last_trade_day_rule: exchange_contract_specification
+  # 个人投资者进入交割月前须按交易所和期货公司规则平仓或转移。
   individual_investor_rule: broker_and_exchange_delivery_month_restriction
 roll:
+  # 回测和执行均须使用可审计的逐日实际合约链，禁止自动猜测主力。
   method: explicit_daily_contract_chain
+  # 可用于人工筛选候选主力的参考流动性指标，不能单独构成换月指令。
   reference_signals: [open_interest, volume, term_liquidity]
 risk:
+  # 必须按交易日采集的动态字段；此处不存数值，防止过期参数进入交易。
   dynamic_snapshot: [trading_sessions, margin_rate, commission, price_limits, position_limits, active_contract]
 research:
+  # 品种从上游原料到下游消费的主要产业关系，用于解释和事件研究。
   industry_chain: 铁矿石、焦炭和焦煤等原料，经高炉炼铁和轧钢后进入建筑钢材需求。
+  # 影响中长期供需和价格趋势的核心可观测变量。
   supply_demand_drivers: 基建与房地产开工、钢厂利润与产量、库存、废钢和原料成本。
+  # 可能导致跳空、流动性骤降或模型失效的典型事件类别。
   event_risks: 房地产与基建政策、环保限产、粗钢产量政策、原料供应扰动、极端天气。
 sources:
+  # 静态合约与业务规则的权威发布机构入口。
   exchange: https://www.shfe.com.cn/
+  # 动态字段必须每天从交易所公告和期货公司通知共同核验。
   daily_rule_source: exchange_and_broker_daily_notice
