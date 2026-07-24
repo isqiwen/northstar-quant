@@ -27,6 +27,7 @@ def test_list_trading_profiles_contains_default_skeletons():
 
     assert {
         "cn_etf_daily",
+        "cn_etf_daily_paper",
         "cn_etf_daily_research12",
         "cn_stock_daily",
         "cn_stock_weekly",
@@ -120,6 +121,22 @@ def test_load_research12_profile_reads_yfinance_download_config():
     assert profile.data.path == "cn/etf/1d/research12.parquet"
     assert profile.data.price_field == "adjusted_close"
     assert profile.currency == "CNY"
+
+
+def test_load_low_frequency_paper_profile_uses_explicit_stateful_backtest_policy():
+    profile = load_trading_profile("cn_etf_daily_paper")
+
+    assert profile.is_production is False
+    assert profile.lifecycle.role == "research"
+    assert profile.backtest.engine == "daily_stateful"
+    assert profile.backtest.initial_cash == 100_000.0
+    assert profile.backtest.commission_bps == 5.0
+    assert profile.backtest.min_commission == 5.0
+    assert profile.backtest.slippage_bps == 5.0
+    assert profile.backtest.lot_size == 100
+    assert profile.backtest.execution_delay_sessions == 1
+    assert profile.backtest.sellable_after_sessions == 1
+    assert profile.data.live_trading_eligible is False
 
 
 def test_profile_market_data_path_is_root_anchored():

@@ -7,6 +7,10 @@ from dataclasses import dataclass
 
 import polars as pl
 
+from northstar_quant.backtest.daily_stateful import (
+    DailyBacktestConfig,
+    run_daily_stateful_backtest,
+)
 from northstar_quant.backtest.event_engine import BacktestResult, run_event_backtest
 from northstar_quant.backtest.intraday_event_engine import run_intraday_event_backtest
 from northstar_quant.backtest.simulation import (
@@ -31,6 +35,7 @@ class TargetBacktesterDefinition:
     supported_data_frequencies: tuple[DataFrequency, ...] = ()
     supported_rebalance_frequencies: tuple[RebalanceFrequency, ...] = ()
     supported_strategy_families: tuple[StrategyFamily, ...] = ()
+    supported_backtest_engines: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,6 +64,7 @@ def register_target_backtester(
     supported_data_frequencies: tuple[DataFrequency, ...] = (),
     supported_rebalance_frequencies: tuple[RebalanceFrequency, ...] = (),
     supported_strategy_families: tuple[StrategyFamily, ...] = (),
+    supported_backtest_engines: tuple[str, ...] = (),
     replace: bool = False,
 ) -> None:
     """注册目标持仓回测器。"""
@@ -73,6 +79,7 @@ def register_target_backtester(
         supported_data_frequencies=supported_data_frequencies,
         supported_rebalance_frequencies=supported_rebalance_frequencies,
         supported_strategy_families=supported_strategy_families,
+        supported_backtest_engines=supported_backtest_engines,
     )
 
 
@@ -122,6 +129,7 @@ def _matches(
     supported_rebalance_frequencies: tuple[RebalanceFrequency, ...],
     supported_strategy_families: tuple[StrategyFamily, ...],
     profile: TradingProfile,
+    supported_backtest_engines: tuple[str, ...] = (),
 ) -> bool:
     return (
         (not supported_markets or profile.market in supported_markets)
@@ -138,6 +146,10 @@ def _matches(
             not supported_strategy_families
             or profile.strategy_family in supported_strategy_families
         )
+        and (
+            not supported_backtest_engines
+            or profile.backtest.engine in supported_backtest_engines
+        )
     )
 
 
@@ -153,6 +165,7 @@ def resolve_target_backtester(profile: TradingProfile) -> TargetBacktesterDefini
             supported_data_frequencies=definition.supported_data_frequencies,
             supported_rebalance_frequencies=definition.supported_rebalance_frequencies,
             supported_strategy_families=definition.supported_strategy_families,
+            supported_backtest_engines=definition.supported_backtest_engines,
             profile=profile,
         )
     ]
@@ -242,6 +255,31 @@ def _run_intraday_event_backtest(
     )
 
 
+def _run_daily_stateful_backtest(
+    profile: TradingProfile,
+    market_df: pl.DataFrame,
+    targets: pl.DataFrame,
+) -> BacktestResult:
+    """按画像成本与市场规则运行可审计的日频状态机回测。"""
+
+    settings = profile.backtest
+    result = run_daily_stateful_backtest(
+        market_df,
+        targets,
+        config=DailyBacktestConfig(
+            initial_cash=settings.initial_cash,
+            commission_bps=settings.commission_bps,
+            min_commission=settings.min_commission,
+            slippage_bps=settings.slippage_bps,
+            lot_size=settings.lot_size,
+            execution_delay_sessions=settings.execution_delay_sessions,
+            sellable_after_sessions=settings.sellable_after_sessions,
+        ),
+        periods_per_year=periods_per_year_for_frequency(profile.data_frequency),
+    )
+    return result.summary
+
+
 def _build_backtrader_bar_simulation_backtester() -> SimulationBacktesterBase:
     from northstar_quant.backtest.backtrader_runner import BacktraderBarSimulationBacktester
 
@@ -267,6 +305,22 @@ register_target_backtester(
         StrategyFamily.TREND_FOLLOWING,
         StrategyFamily.MEAN_REVERSION,
     ),
+    supported_backtest_engines=("weight_return",),
+)
+register_target_backtester(
+    "daily_stateful_backtest",
+    _run_daily_stateful_backtest,
+    supported_markets=(Market.US, Market.CN),
+    supported_asset_types=(AssetType.ETF, AssetType.EQUITY),
+    supported_data_frequencies=(DataFrequency.D1,),
+    supported_rebalance_frequencies=(RebalanceFrequency.D1,),
+    supported_strategy_families=(
+        StrategyFamily.MOMENTUM_ROTATION,
+        StrategyFamily.CROSS_SECTIONAL_SELECTION,
+        StrategyFamily.TREND_FOLLOWING,
+        StrategyFamily.MEAN_REVERSION,
+    ),
+    supported_backtest_engines=("daily_stateful",),
 )
 register_target_backtester(
     "intraday_event_backtest",
@@ -281,6 +335,7 @@ register_target_backtester(
         RebalanceFrequency.H1,
     ),
     supported_strategy_families=(StrategyFamily.INTRADAY_BREAKOUT,),
+    supported_backtest_engines=("weight_return",),
 )
 register_simulation_backtester(
     "backtrader_bar_simulation",

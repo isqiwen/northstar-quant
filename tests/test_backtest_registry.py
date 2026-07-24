@@ -32,6 +32,39 @@ def test_resolve_target_backtester_for_intraday_profile():
     assert definition.backtester_id == "intraday_event_backtest"
 
 
+def test_resolve_target_backtester_for_stateful_paper_profile():
+    profile = load_trading_profile("cn_etf_daily_paper")
+
+    definition = resolve_target_backtester(profile)
+
+    assert definition.backtester_id == "daily_stateful_backtest"
+
+
+def test_run_target_backtest_uses_profile_stateful_cost_model():
+    profile = load_trading_profile("cn_etf_daily_paper")
+    market_df = pl.DataFrame(
+        [
+            {"date": datetime(2024, 1, 2), "symbol": "AAA", "open": 10.0, "close": 10.0},
+            {"date": datetime(2024, 1, 3), "symbol": "AAA", "open": 10.0, "close": 10.0},
+        ]
+    )
+    targets = pl.DataFrame(
+        [
+            {
+                "date": datetime(2024, 1, 2),
+                "symbol": "AAA",
+                "target_weight": 1.0,
+            }
+        ]
+    )
+
+    result = run_target_backtest(profile, market_df, targets)
+
+    # 100 股整数倍、滑点和最低佣金使成交成本严格大于零。
+    assert result.total_return < 0
+    assert result.turnover_estimate > 0
+
+
 def test_resolve_simulation_backtester_for_daily_stock_profile():
     profile = load_trading_profile("cn_stock_daily")
 

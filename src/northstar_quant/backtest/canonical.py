@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from northstar_quant.backtest.event_engine import BacktestResult, run_event_backtest
+from northstar_quant.backtest.event_engine import BacktestResult
 from northstar_quant.backtest.intent_event_engine import run_execution_intent_backtest
 from northstar_quant.backtest.intraday_event_engine import run_intraday_event_backtest
+from northstar_quant.backtest.registry import run_target_backtest
 from northstar_quant.backtest.simulation import periods_per_year_for_frequency
 from northstar_quant.common.enums import DataFrequency, StrategyOutputType
 from northstar_quant.common.types import StrategyOutputBundle
@@ -21,11 +22,7 @@ def run_strategy_output_backtest(
     periods_per_year = periods_per_year_for_frequency(profile.data_frequency)
     if output_bundle.output_type == StrategyOutputType.TARGET_WEIGHT:
         if profile.data_frequency in {DataFrequency.D1, DataFrequency.W1}:
-            return run_event_backtest(
-                market_df,
-                output_bundle.frame,
-                periods_per_year=periods_per_year,
-            )
+            return run_target_backtest(profile, market_df, output_bundle.frame)
         return run_intraday_event_backtest(
             market_df,
             output_bundle.frame,

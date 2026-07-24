@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeVar, cast
 
 from northstar_quant.common.enums import (
     AssetType,
@@ -20,10 +20,13 @@ from northstar_quant.config.settings import get_settings
 from northstar_quant.config.yaml_loader import load_yaml
 
 
-def _parse_enum(enum_cls: type[StringEnum], value: str | StringEnum) -> StringEnum:
+EnumValue = TypeVar("EnumValue", bound=StringEnum)
+
+
+def _parse_enum(enum_cls: type[EnumValue], value: str | EnumValue) -> EnumValue:
     if isinstance(value, enum_cls):
         return value
-    return enum_cls.parse(str(value))
+    return cast(EnumValue, enum_cls.parse(str(value)))
 
 
 def _parse_bool(value: object, *, field_name: str) -> bool:
@@ -103,6 +106,20 @@ class ProfileExecutionConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class ProfileBacktestConfig:
+    """交易画像中的低频回测与撮合模拟政策。"""
+
+    engine: str = "weight_return"
+    initial_cash: float = 100_000.0
+    commission_bps: float = 0.0
+    min_commission: float = 0.0
+    slippage_bps: float = 0.0
+    lot_size: int = 1
+    execution_delay_sessions: int = 1
+    sellable_after_sessions: int = 0
+
+
+@dataclass(frozen=True, slots=True)
 class ProfileVersionConfig:
     """交易画像中的版本锚点。"""
 
@@ -133,6 +150,7 @@ class TradingProfile:
     strategies: tuple[ProfileStrategyConfig, ...] = ()
     lifecycle: ProfileLifecycleConfig = field(default_factory=ProfileLifecycleConfig)
     execution: ProfileExecutionConfig = field(default_factory=ProfileExecutionConfig)
+    backtest: ProfileBacktestConfig = field(default_factory=ProfileBacktestConfig)
     versions: ProfileVersionConfig = field(default_factory=ProfileVersionConfig)
     risk: dict[str, Any] = field(default_factory=dict)
     schedule: dict[str, Any] = field(default_factory=dict)
@@ -267,6 +285,7 @@ def load_trading_profile(
     strategies_raw = raw.get("strategies", []) or []
     lifecycle_raw = raw.get("lifecycle", {}) or {}
     execution_raw = raw.get("execution", {}) or {}
+    backtest_raw = raw.get("backtest", {}) or {}
     versions_raw = raw.get("versions", {}) or {}
 
     market = _parse_enum(Market, raw.get("market", "CN"))
@@ -350,6 +369,33 @@ def load_trading_profile(
             else None
         ),
     )
+    backtest_engine = str(backtest_raw.get("engine", "weight_return")).strip().lower()
+    if backtest_engine not in {"weight_return", "daily_stateful"}:
+        raise ValueError(
+            "配置字段 backtest.engine 仅支持 weight_return / daily_stateful"
+        )
+    backtest_config = ProfileBacktestConfig(
+        engine=backtest_engine,
+        initial_cash=float(backtest_raw.get("initial_cash", 100_000.0)),
+        commission_bps=float(backtest_raw.get("commission_bps", 0.0)),
+        min_commission=float(backtest_raw.get("min_commission", 0.0)),
+        slippage_bps=float(backtest_raw.get("slippage_bps", 0.0)),
+        lot_size=_parse_positive_int(
+            backtest_raw.get("lot_size", 1),
+            field_name="backtest.lot_size",
+            minimum=1,
+        ),
+        execution_delay_sessions=_parse_positive_int(
+            backtest_raw.get("execution_delay_sessions", 1),
+            field_name="backtest.execution_delay_sessions",
+            minimum=1,
+        ),
+        sellable_after_sessions=_parse_positive_int(
+            backtest_raw.get("sellable_after_sessions", 0),
+            field_name="backtest.sellable_after_sessions",
+            minimum=0,
+        ),
+    )
     version_config = ProfileVersionConfig(
         profile=str(versions_raw.get("profile", "v1")),
         benchmark=str(versions_raw.get("benchmark", "v1")),
@@ -400,6 +446,7 @@ def load_trading_profile(
             "strategies",
             "lifecycle",
             "execution",
+            "backtest",
             "versions",
             "risk",
             "schedule",
@@ -426,8 +473,17 @@ def load_trading_profile(
         strategies=strategy_configs,
         lifecycle=lifecycle_config,
         execution=execution_config,
+        backtest=backtest_config,
         versions=version_config,
         risk=dict(raw.get("risk", {}) or {}),
         schedule=dict(raw.get("schedule", {}) or {}),
         metadata=metadata,
     )
+
+
+def _parse_positive_int(value: object, *, field_name: str, minimum: int) -> int:
+    """严格读取画像中的整数，避免 YAML 小数或布尔值静默进入数量规则。"""
+
+    if isinstance(value, bool) or not isinstance(value, int) or value < minimum:
+        raise ValueError(f"配置字段 {field_name} 必须是大于等于 {minimum} 的整数")
+    return value
