@@ -17,7 +17,7 @@ from northstar_quant.data.downloader import download_profile_data
 
 
 def test_resolve_target_backtester_for_daily_profile():
-    profile = load_trading_profile("cn_etf_daily")
+    profile = load_trading_profile("cn_etf_daily_live")
 
     definition = resolve_target_backtester(profile)
 
@@ -25,15 +25,15 @@ def test_resolve_target_backtester_for_daily_profile():
 
 
 def test_resolve_target_backtester_for_intraday_profile():
-    profile = load_trading_profile("cn_stock_intraday_1m")
+    profile = load_trading_profile("cn_stock_intraday_1m_offline")
 
     definition = resolve_target_backtester(profile)
 
     assert definition.backtester_id == "intraday_event_backtest"
 
 
-def test_resolve_target_backtester_for_stateful_paper_profile():
-    profile = load_trading_profile("cn_etf_daily_paper")
+def test_resolve_target_backtester_for_stateful_offline_profile():
+    profile = load_trading_profile("cn_etf_daily_stateful_offline")
 
     definition = resolve_target_backtester(profile)
 
@@ -41,7 +41,7 @@ def test_resolve_target_backtester_for_stateful_paper_profile():
 
 
 def test_run_target_backtest_uses_profile_stateful_cost_model():
-    profile = load_trading_profile("cn_etf_daily_paper")
+    profile = load_trading_profile("cn_etf_daily_stateful_offline")
     market_df = pl.DataFrame(
         [
             {"date": datetime(2024, 1, 2), "symbol": "AAA", "open": 10.0, "close": 10.0},
@@ -66,7 +66,7 @@ def test_run_target_backtest_uses_profile_stateful_cost_model():
 
 
 def test_resolve_simulation_backtester_for_daily_stock_profile():
-    profile = load_trading_profile("cn_stock_daily")
+    profile = load_trading_profile("cn_stock_daily_offline")
 
     definition = resolve_simulation_backtester(profile)
 
@@ -74,7 +74,7 @@ def test_resolve_simulation_backtester_for_daily_stock_profile():
 
 
 def test_resolve_simulation_backtester_for_intraday_profile():
-    profile = load_trading_profile("cn_stock_intraday_1m")
+    profile = load_trading_profile("cn_stock_intraday_1m_offline")
 
     definition = resolve_simulation_backtester(profile)
 
@@ -82,7 +82,7 @@ def test_resolve_simulation_backtester_for_intraday_profile():
 
 
 def test_resolve_target_backtester_rejects_ambiguous_match(monkeypatch):
-    profile = load_trading_profile("cn_etf_daily")
+    profile = load_trading_profile("cn_etf_daily_live")
     definition = resolve_target_backtester(profile)
     duplicate_id = "duplicate_bar_event_backtest"
     monkeypatch.setitem(
@@ -96,7 +96,7 @@ def test_resolve_target_backtester_rejects_ambiguous_match(monkeypatch):
 
 
 def test_resolve_simulation_backtester_rejects_ambiguous_match(monkeypatch):
-    profile = load_trading_profile("cn_stock_daily")
+    profile = load_trading_profile("cn_stock_daily_offline")
     definition = resolve_simulation_backtester(profile)
     duplicate_id = "duplicate_backtrader_bar_simulation"
     monkeypatch.setitem(
@@ -110,7 +110,7 @@ def test_resolve_simulation_backtester_rejects_ambiguous_match(monkeypatch):
 
 
 def test_run_target_backtest_uses_intraday_engine_for_intraday_profile():
-    profile = load_trading_profile("cn_stock_intraday_1m")
+    profile = load_trading_profile("cn_stock_intraday_1m_offline")
     start = datetime(2024, 3, 4, 9, 30)
 
     market_rows: list[dict] = []
@@ -153,7 +153,7 @@ def test_run_target_backtest_uses_intraday_engine_for_intraday_profile():
 
 
 def test_run_simulation_backtest_uses_intraday_simulator_for_intraday_profile():
-    profile = load_trading_profile("cn_stock_intraday_1m")
+    profile = load_trading_profile("cn_stock_intraday_1m_offline")
     download_profile_data(profile.profile_id, provider_override="demo")
 
     result = run_simulation_backtest(profile, strategy_name="intraday_breakout")

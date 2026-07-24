@@ -1,4 +1,4 @@
-profile_id: us_stock_daily
+profile_id: us_stock_daily_offline
 name: 美股股票日频
 market: US
 asset_type: EQUITY

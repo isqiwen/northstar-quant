@@ -30,7 +30,7 @@ def _market_frame(asof: date) -> pl.DataFrame:
 
 
 def test_build_preflight_result_allows_trade_with_non_blocking_execution_alert():
-    profile = load_trading_profile("cn_etf_daily")
+    profile = load_trading_profile("cn_etf_daily_live")
     asof = date.today() - timedelta(days=1)
     frame = _market_frame(asof)
     state = BrokerStateSnapshot(
@@ -69,7 +69,7 @@ def test_build_preflight_result_allows_trade_with_non_blocking_execution_alert()
 
 
 def test_build_preflight_result_blocks_on_open_orders_fallback_quote_and_ledger_alert():
-    profile = load_trading_profile("cn_etf_daily")
+    profile = load_trading_profile("cn_etf_daily_live")
     asof = date.today() - timedelta(days=1)
     frame = _market_frame(asof)
     state = BrokerStateSnapshot(
@@ -117,7 +117,7 @@ def test_build_preflight_result_blocks_on_open_orders_fallback_quote_and_ledger_
 
 
 def test_build_preflight_result_blocks_real_broker_using_demo_data():
-    profile = load_trading_profile("cn_etf_daily")
+    profile = load_trading_profile("cn_etf_daily_live")
     asof = date.today() - timedelta(days=1)
     frame = _market_frame(asof)
 
@@ -159,7 +159,7 @@ def test_build_preflight_result_blocks_real_broker_using_demo_data():
 
 
 def test_build_preflight_result_accepts_explicit_live_eligible_manifest():
-    base_profile = load_trading_profile("cn_etf_daily")
+    base_profile = load_trading_profile("cn_etf_daily_live")
     profile = replace(
         base_profile,
         data=replace(base_profile.data, live_trading_eligible=True),
@@ -204,7 +204,7 @@ def test_build_preflight_result_accepts_explicit_live_eligible_manifest():
 
 
 def test_build_preflight_result_blocks_mismatched_real_broker_account():
-    base_profile = load_trading_profile("cn_etf_daily")
+    base_profile = load_trading_profile("cn_etf_daily_live")
     profile = replace(
         base_profile,
         data=replace(base_profile.data, live_trading_eligible=True),
@@ -249,7 +249,7 @@ def test_build_preflight_result_blocks_mismatched_real_broker_account():
 
 
 def test_build_preflight_result_blocks_real_broker_when_account_attribution_unavailable():
-    base_profile = load_trading_profile("cn_etf_daily")
+    base_profile = load_trading_profile("cn_etf_daily_live")
     profile = replace(
         base_profile,
         data=replace(base_profile.data, live_trading_eligible=True),
@@ -291,7 +291,7 @@ def test_build_preflight_result_blocks_real_broker_when_account_attribution_unav
 
 
 def test_run_live_once_returns_without_order_submission_when_preflight_fails(monkeypatch):
-    profile = load_trading_profile("cn_etf_daily")
+    profile = load_trading_profile("cn_etf_daily_live")
     asof = date.today() - timedelta(days=1)
     frame = _market_frame(asof)
     alerts: list[tuple[str, str]] = []
@@ -461,7 +461,7 @@ def test_latest_trade_state_by_symbol_reads_optional_market_fields():
 
 def test_live_preflight_rejects_non_production_profile():
     with pytest.raises(ValueError, match="production 画像"):
-        live_service.run_live_preflight("cn_stock_intraday_1m")
+        live_service.run_live_preflight("cn_stock_intraday_1m_offline")
 
 
 def test_run_live_once_blocks_when_kill_switch_is_enabled(monkeypatch):
@@ -482,7 +482,7 @@ def test_run_live_once_blocks_when_kill_switch_is_enabled(monkeypatch):
     )
 
     try:
-        messages = live_service.run_live_once("cn_etf_daily")
+        messages = live_service.run_live_once("cn_etf_daily_live")
     finally:
         get_settings.cache_clear()
 
@@ -514,7 +514,7 @@ def test_run_live_once_blocks_real_broker_when_live_trading_switch_is_off(monkey
     )
 
     try:
-        messages = live_service.run_live_once("cn_etf_daily")
+        messages = live_service.run_live_once("cn_etf_daily_live")
     finally:
         get_settings.cache_clear()
 
@@ -526,7 +526,7 @@ def test_run_live_once_blocks_real_broker_when_live_trading_switch_is_off(monkey
 
 
 def test_submission_guard_blocks_real_broker_on_non_trading_day(monkeypatch):
-    profile = load_trading_profile("cn_etf_daily")
+    profile = load_trading_profile("cn_etf_daily_live")
     monkeypatch.setattr(
         live_service,
         "load_settings",
@@ -555,7 +555,7 @@ def test_submission_guard_blocks_real_broker_on_non_trading_day(monkeypatch):
 
 
 def test_run_shadow_once_builds_plan_but_never_submits_orders(monkeypatch):
-    profile = load_trading_profile("cn_etf_daily")
+    profile = load_trading_profile("cn_etf_daily_live")
     asof = date.today() - timedelta(days=1)
     frame = _market_frame(asof)
     captured: dict[str, object] = {}

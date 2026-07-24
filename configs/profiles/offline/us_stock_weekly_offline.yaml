@@ -1,4 +1,4 @@
-profile_id: us_stock_weekly
+profile_id: us_stock_weekly_offline
 name: 美股股票周频
 market: US
 asset_type: EQUITY

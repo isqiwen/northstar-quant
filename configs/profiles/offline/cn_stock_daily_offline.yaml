@@ -1,4 +1,4 @@
-profile_id: cn_stock_daily
+profile_id: cn_stock_daily_offline
 name: 中国 A 股股票日频
 market: CN
 asset_type: EQUITY

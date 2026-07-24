@@ -76,8 +76,8 @@ def test_validate_profile_data_reports_standard_daily_schema(tmp_path, monkeypat
     get_settings.cache_clear()
 
     try:
-        download_profile_data("cn_stock_daily", provider_override="demo")
-        report = validate_profile_data("cn_stock_daily")
+        download_profile_data("cn_stock_daily_offline", provider_override="demo")
+        report = validate_profile_data("cn_stock_daily_offline")
 
         assert report["status"] == "ok"
         assert report["schema_version"] == "market_data_v2"

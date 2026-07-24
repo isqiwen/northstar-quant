@@ -16,7 +16,7 @@ from northstar_quant.execution.registry import (
 
 
 def test_resolve_execution_planner_for_daily_etf_profile():
-    profile = load_trading_profile("cn_etf_daily")
+    profile = load_trading_profile("cn_etf_daily_live")
 
     definition = resolve_execution_planner(profile, StrategyOutputType.TARGET_WEIGHT)
 
@@ -24,7 +24,7 @@ def test_resolve_execution_planner_for_daily_etf_profile():
 
 
 def test_resolve_execution_planner_for_intraday_equity_profile():
-    profile = load_trading_profile("cn_stock_intraday_1m")
+    profile = load_trading_profile("cn_stock_intraday_1m_offline")
 
     definition = resolve_execution_planner(profile, StrategyOutputType.EXECUTION_INTENT)
 
@@ -32,7 +32,7 @@ def test_resolve_execution_planner_for_intraday_equity_profile():
 
 
 def test_resolve_execution_planner_rejects_ambiguous_match(monkeypatch):
-    profile = load_trading_profile("cn_etf_daily")
+    profile = load_trading_profile("cn_etf_daily_live")
     definition = resolve_execution_planner(profile, StrategyOutputType.TARGET_WEIGHT)
     duplicate_id = "duplicate_bar_close_rebalance"
     monkeypatch.setitem(
@@ -46,7 +46,7 @@ def test_resolve_execution_planner_rejects_ambiguous_match(monkeypatch):
 
 
 def test_intraday_execution_plan_supports_order_semantics():
-    profile = load_trading_profile("cn_stock_intraday_1m")
+    profile = load_trading_profile("cn_stock_intraday_1m_offline")
     intents = pl.DataFrame(
         [
             {
@@ -167,7 +167,7 @@ def test_project_broker_state_positions_nets_working_orders_and_recent_fills():
 
 
 def test_build_execution_plan_is_idempotent_against_working_orders():
-    profile = load_trading_profile("cn_etf_daily")
+    profile = load_trading_profile("cn_etf_daily_live")
     targets = pl.DataFrame([{"symbol": "SPY", "target_weight": 0.5}])
     state = BrokerStateSnapshot(
         positions=[PositionSnapshot(symbol="SPY", qty=0.0)],
@@ -199,7 +199,7 @@ def test_build_execution_plan_is_idempotent_against_working_orders():
 
 
 def test_execution_intent_entry_skips_buy_qty_below_lot_step():
-    profile = load_trading_profile("cn_stock_intraday_1m")
+    profile = load_trading_profile("cn_stock_intraday_1m_offline")
     intents = pl.DataFrame(
         [
             {

@@ -7,11 +7,13 @@ from northstar_quant.backtest.daily_stateful import (
     DailyStatefulBacktestResult,
     run_daily_stateful_backtest,
 )
+from northstar_quant.backtest.performance_adapter import analyze_daily_stateful_result
 
 __all__ = [
     "DailyBacktestConfig",
     "DailyOrder",
     "DailyOrderStatus",
     "DailyStatefulBacktestResult",
+    "analyze_daily_stateful_result",
     "run_daily_stateful_backtest",
 ]

@@ -5,6 +5,7 @@ import pytest
 from northstar_quant.common.enums import AssetType, DataFrequency, RebalanceFrequency, StrategyFamily, StrategyOutputType
 from northstar_quant.config.settings import get_settings
 from northstar_quant.config.trading_profile import (
+    get_profile_config_path,
     get_production_profile_id,
     list_production_profiles,
     list_trading_profiles,
@@ -26,29 +27,96 @@ def test_list_trading_profiles_contains_default_skeletons():
     profiles = set(list_trading_profiles())
 
     assert {
-        "cn_etf_daily",
-        "cn_etf_daily_paper",
-        "cn_etf_daily_research12",
-        "cn_stock_daily",
-        "cn_stock_weekly",
-        "cn_stock_intraday_1m",
-        "us_etf_daily",
-        "us_etf_daily_research12",
-        "us_stock_daily",
-        "us_stock_weekly",
-        "us_stock_intraday_1m",
+        "cn_etf_daily_live",
+        "cn_etf_daily_stateful_offline",
+        "cn_etf_daily_yfinance_offline",
+        "cn_stock_daily_offline",
+        "cn_stock_weekly_offline",
+        "cn_stock_intraday_1m_offline",
+        "us_etf_daily_offline",
+        "us_etf_daily_yfinance_offline",
+        "us_stock_daily_offline",
+        "us_stock_weekly_offline",
+        "us_stock_intraday_1m_offline",
     }.issubset(profiles)
 
 
+def test_nested_profile_directory_uses_yaml_profile_id_and_preserves_cli_id(tmp_path):
+    profile_path = tmp_path / "offline" / "nested_research_offline.yaml"
+    profile_path.parent.mkdir()
+    profile_path.write_text(
+        """
+profile_id: nested_research_offline
+lifecycle:
+  role: research
+data:
+  live_trading_eligible: false
+""".strip(),
+        encoding="utf-8",
+    )
+
+    assert list_trading_profiles(tmp_path) == ["nested_research_offline"]
+    assert get_profile_config_path("nested_research_offline", tmp_path) == profile_path
+    assert load_trading_profile("nested_research_offline", tmp_path).lifecycle.role == "research"
+
+
+def test_nested_profile_directory_rejects_role_mismatch(tmp_path):
+    profile_path = tmp_path / "live" / "invalid_location_live.yaml"
+    profile_path.parent.mkdir()
+    profile_path.write_text(
+        """
+profile_id: invalid_location_live
+lifecycle:
+  role: research
+""".strip(),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="lifecycle.role=research 不允许位于目录 live"):
+        load_trading_profile("invalid_location_live", tmp_path)
+
+
+def test_nested_profile_directory_rejects_missing_category_suffix(tmp_path):
+    profile_path = tmp_path / "offline" / "missing_suffix.yaml"
+    profile_path.parent.mkdir()
+    profile_path.write_text(
+        """
+profile_id: missing_suffix
+lifecycle:
+  role: research
+""".strip(),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="必须以类别后缀 _offline 结尾"):
+        list_trading_profiles(tmp_path)
+
+
+def test_nested_profile_directory_rejects_filename_not_matching_profile_id(tmp_path):
+    profile_path = tmp_path / "offline" / "different_name_offline.yaml"
+    profile_path.parent.mkdir()
+    profile_path.write_text(
+        """
+profile_id: expected_name_offline
+lifecycle:
+  role: research
+""".strip(),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="文件名必须与 profile_id 一致"):
+        list_trading_profiles(tmp_path)
+
+
 def test_list_production_profiles_only_returns_main_money_line():
-    assert list_production_profiles() == ["cn_etf_daily"]
-    assert get_production_profile_id() == "cn_etf_daily"
+    assert list_production_profiles() == ["cn_etf_daily_live"]
+    assert get_production_profile_id() == "cn_etf_daily_live"
 
 
 def test_load_trading_profile_reads_profile_yaml():
-    profile = load_trading_profile("cn_etf_daily")
+    profile = load_trading_profile("cn_etf_daily_live")
 
-    assert profile.profile_id == "cn_etf_daily"
+    assert profile.profile_id == "cn_etf_daily_live"
     assert profile.market == "CN"
     assert profile.asset_type == AssetType.ETF
     assert profile.data_frequency == DataFrequency.D1
@@ -79,24 +147,32 @@ def test_load_trading_profile_reads_profile_yaml():
 
 
 def test_live_trading_eligible_parses_explicit_false_string(tmp_path):
-    (tmp_path / "safe_profile.yaml").write_text(
+    profile_path = tmp_path / "offline" / "safe_profile_offline.yaml"
+    profile_path.parent.mkdir()
+    profile_path.write_text(
         """
-profile_id: safe_profile
+profile_id: safe_profile_offline
+lifecycle:
+  role: research
 data:
   live_trading_eligible: "false"
 """.strip(),
         encoding="utf-8",
     )
 
-    profile = load_trading_profile("safe_profile", tmp_path)
+    profile = load_trading_profile("safe_profile_offline", tmp_path)
 
     assert profile.data.live_trading_eligible is False
 
 
 def test_live_trading_eligible_rejects_ambiguous_value(tmp_path):
-    (tmp_path / "invalid_profile.yaml").write_text(
+    profile_path = tmp_path / "offline" / "invalid_profile_offline.yaml"
+    profile_path.parent.mkdir()
+    profile_path.write_text(
         """
-profile_id: invalid_profile
+profile_id: invalid_profile_offline
+lifecycle:
+  role: research
 data:
   live_trading_eligible: maybe
 """.strip(),
@@ -104,13 +180,13 @@ data:
     )
 
     with pytest.raises(ValueError, match="live_trading_eligible.*布尔值"):
-        load_trading_profile("invalid_profile", tmp_path)
+        load_trading_profile("invalid_profile_offline", tmp_path)
 
 
-def test_load_research12_profile_reads_yfinance_download_config():
-    profile = load_trading_profile("cn_etf_daily_research12")
+def test_load_yfinance_profile_reads_download_config():
+    profile = load_trading_profile("cn_etf_daily_yfinance_offline")
 
-    assert profile.profile_id == "cn_etf_daily_research12"
+    assert profile.profile_id == "cn_etf_daily_yfinance_offline"
     assert profile.is_production is False
     assert profile.lifecycle.role == "research"
     assert profile.data.provider == "local"
@@ -118,13 +194,13 @@ def test_load_research12_profile_reads_yfinance_download_config():
     assert profile.data.download.start_date == "2015-01-05"
     assert len(profile.data.download.symbols) == 12
     assert profile.data.download.symbols[0] == "510300.SS"
-    assert profile.data.path == "cn/etf/1d/research12.parquet"
+    assert profile.data.path == "cn/etf/1d/yfinance.parquet"
     assert profile.data.price_field == "adjusted_close"
     assert profile.currency == "CNY"
 
 
-def test_load_low_frequency_paper_profile_uses_explicit_stateful_backtest_policy():
-    profile = load_trading_profile("cn_etf_daily_paper")
+def test_load_low_frequency_stateful_profile_uses_explicit_backtest_policy():
+    profile = load_trading_profile("cn_etf_daily_stateful_offline")
 
     assert profile.is_production is False
     assert profile.lifecycle.role == "research"
@@ -141,7 +217,7 @@ def test_load_low_frequency_paper_profile_uses_explicit_stateful_backtest_policy
 
 def test_profile_market_data_path_is_root_anchored():
     settings = get_settings()
-    path = profile_market_data_path("cn_etf_daily")
+    path = profile_market_data_path("cn_etf_daily_live")
 
     assert path.is_absolute()
     assert path == settings.storage_dir / "market" / Path("cn/etf/1d/core.parquet")
@@ -209,7 +285,7 @@ strategy:
 
 
 def test_build_profile_strategies_uses_enabled_profile_entries():
-    profile = load_trading_profile("cn_etf_daily")
+    profile = load_trading_profile("cn_etf_daily_live")
 
     built = build_profile_strategies(profile)
 
@@ -218,7 +294,7 @@ def test_build_profile_strategies_uses_enabled_profile_entries():
 
 
 def test_build_profile_strategies_supports_intraday_profile():
-    profile = load_trading_profile("cn_stock_intraday_1m")
+    profile = load_trading_profile("cn_stock_intraday_1m_offline")
 
     built = build_profile_strategies(profile)
 

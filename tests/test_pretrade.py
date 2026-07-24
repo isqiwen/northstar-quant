@@ -224,7 +224,7 @@ def test_validate_order_requires_limit_price_for_limit_order():
 
 
 def test_profile_execution_min_trade_value_becomes_pretrade_notional_floor():
-    profile = load_trading_profile("cn_etf_daily")
+    profile = load_trading_profile("cn_etf_daily_live")
 
     limits = build_profile_risk_limits(profile)
 

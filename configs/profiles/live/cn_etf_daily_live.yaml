@@ -1,5 +1,5 @@
-profile_id: cn_etf_daily_research12
-name: 中国 A 股 ETF 日频研究12
+profile_id: cn_etf_daily_live
+name: 中国 A 股 ETF 日频
 market: CN
 asset_type: ETF
 data_frequency: 1d
@@ -8,10 +8,10 @@ strategy_family: momentum_rotation
 currency: CNY
 timezone: Asia/Shanghai
 calendar: XSHG
-universe_id: cn_etf_research12
+universe_id: cn_etf_core
 benchmark_symbol: 510300.SS
 lifecycle:
-  role: research
+  role: production
   line_id: cn_core_long_only
 execution:
   long_only: true
@@ -19,20 +19,21 @@ execution:
   rebalance_weight_tolerance: 0.015
   buy_qty_step: 100
 versions:
-  profile: research-cn-core-v12
+  profile: prod-cn-core-v1
   benchmark: csi300-etf-total-return-v1
   strategy_params: cn-etf-rotation-126d-plus-momentum-20d-v1
   execution_policy: cn-low-turnover-band-150bps-v1
   risk_policy: cn-cash-buffer-2pct-single-name-35pct-v1
 data:
-  provider: local
-  dataset_id: research12
-  path: cn/etf/1d/research12.parquet
+  provider: demo
+  dataset_id: core
+  # demo 数据只允许研究、回测和 paper；真实券商必须使用可信数据并显式改为 true。
+  live_trading_eligible: false
+  path: cn/etf/1d/core.parquet
   price_field: adjusted_close
-  adjusted: true
   download:
     enabled: true
-    provider: yfinance
+    provider: demo
     symbols:
       - 510300.SS
       - 510500.SS
@@ -43,14 +44,10 @@ data:
       - 512880.SS
       - 512690.SS
       - 512170.SS
-      - 515790.SS
       - 159928.SZ
-      - 159949.SZ
-    start_date: "2015-01-05"
+    start_date: "2023-01-03"
     options:
-      auto_adjust: false
-      allow_partial: true
-      timeout_seconds: 30
+      trading_days: 420
 strategies:
   - strategy_id: etf_rotation
     strategy_family: momentum_rotation
@@ -72,6 +69,7 @@ risk:
   min_cash_buffer: 0.02
   enforce_sellable_qty: true
 schedule:
+  shadow_run_cron: "20 15 * * 1-5"
   rebalance_cron: "35 15 * * 1-5"
   daily_report_cron: "45 15 * * 1-5"
   weekly_report_cron: "0 16 * * 5"

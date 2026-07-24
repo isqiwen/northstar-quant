@@ -141,22 +141,20 @@ alembic upgrade head
 
 ```bash
 northstar data profiles
-northstar data download --profile cn_etf_daily
-northstar research momentum --profile cn_etf_daily
-northstar backtest event etf_rotation --profile cn_etf_daily
-northstar backtest bt etf_rotation --profile cn_etf_daily
-northstar live preview-rebalance --profile cn_etf_daily
+northstar data download --profile cn_etf_daily_stateful_offline
+northstar research momentum --profile cn_etf_daily_stateful_offline
+northstar backtest event portfolio --profile cn_etf_daily_stateful_offline
 ```
 
-如果你要下载真实的中国 A 股 ETF 日频数据并直接进入研究流程，可以使用项目内置的 `cn_etf_daily_research12` 画像。该画像使用 Yahoo Finance 的 `.SS` / `.SZ` 符号格式：
+如果你要下载真实的中国 A 股 ETF 日频数据并直接进入研究流程，可以使用项目内置的 `cn_etf_daily_yfinance_offline` 画像。该画像使用 Yahoo Finance 的 `.SS` / `.SZ` 符号格式：
 
 ```bash
 northstar data providers
-northstar data download --profile cn_etf_daily_research12
-northstar data validate --profile cn_etf_daily_research12
-northstar data manifest --profile cn_etf_daily_research12
-northstar research momentum --profile cn_etf_daily_research12
-northstar backtest event etf_rotation --profile cn_etf_daily_research12
+northstar data download --profile cn_etf_daily_yfinance_offline
+northstar data validate --profile cn_etf_daily_yfinance_offline
+northstar data manifest --profile cn_etf_daily_yfinance_offline
+northstar research momentum --profile cn_etf_daily_yfinance_offline
+northstar backtest event etf_rotation --profile cn_etf_daily_yfinance_offline
 ```
 
 ## 常用命令
@@ -166,12 +164,12 @@ northstar backtest event etf_rotation --profile cn_etf_daily_research12
 ```bash
 northstar health
 northstar init-db
-northstar sample-data --profile cn_etf_daily
+northstar sample-data --profile cn_etf_daily_stateful_offline
 northstar data profiles
 northstar data providers
-northstar data download --profile cn_stock_daily
-northstar data validate --profile cn_stock_daily
-northstar data manifest --profile cn_stock_daily
+northstar data download --profile cn_stock_daily_offline
+northstar data validate --profile cn_stock_daily_offline
+northstar data manifest --profile cn_stock_daily_offline
 ```
 
 ### 研究与回测
@@ -213,13 +211,13 @@ northstar dashboard run
 运行时 Settings、交易画像和策略 YAML 是三类独立配置源，不会按一个统一优先级互相覆盖：
 
 - Settings：`NORTHSTAR_*` 环境变量 / `.env` / 安全默认值
-- 交易画像：`configs/profiles/*.yaml`
+- 交易画像：`configs/profiles/{offline,simulated,live}/*.yaml`
 - 策略默认参数：`configs/strategy/*.yaml`，可由画像中的策略参数覆盖
 
 常见配置项包括：
 
 - `configs/app.yaml`：应用级配置
-- `configs/profiles/*.yaml`：交易画像配置，默认主线为中国 A 股 ETF 日频，并提供 A 股股票日频、周频、分钟级画像
+- `configs/profiles/`：按连接边界组织的交易画像配置；`offline/` 不连接券商，`simulated/` 连接模拟账户，`live/` 连接真实账户
 - `configs/strategy/*.yaml`：策略配置
 - `configs/risk/*.yaml`、`configs/data/*.yaml`、`configs/portfolio/*.yaml` 当前仍是设计样例或未来扩展点，尚未接入统一运行时加载
 - `.env`：数据库地址、券商参数、告警方式（`console / wecom / telegram`）、SMTP、调度 cron 等运行时配置

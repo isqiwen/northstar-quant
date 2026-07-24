@@ -219,6 +219,10 @@ def build_execution_plan(
 ) -> list[RebalanceOrderPlan]:
     """按交易画像和输出类型构建执行计划。"""
 
+    if output_type == StrategyOutputType.TRADE_PLAN:
+        raise ValueError(
+            "TradePlan 必须先经风险层完成仓位计算和审批，当前不能直接生成券商执行计划。"
+        )
     definition = resolve_execution_planner(profile, output_type)
     planning_positions = project_broker_state_positions(broker_state)
     plans = definition.planner(profile, output, planning_positions, latest_prices, equity)

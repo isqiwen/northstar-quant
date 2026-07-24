@@ -163,14 +163,13 @@ def run_profile_strategy_pipeline(
         output_text = ", ".join(sorted(item.value for item in output_types))
         raise ValueError(
             f"交易画像 {profile.profile_id} 同时包含多种策略输出类型：{output_text}。"
-            "当前版本暂不支持同一画像混用 target_weight 和 execution_intent。"
+            "当前版本暂不支持同一画像混用 target_weight、execution_intent 和 trade_plan。"
         )
 
     output_type = next(iter(output_types))
     time_column = strategies[0][0].time_column
     strategy_frames: list[pl.DataFrame] = []
     weights: list[float] = []
-    latest_time_value: object | None = None
 
     for strategy, capital_weight in strategies:
         output = strategy.build_output_bundle(market_df).frame
@@ -181,12 +180,19 @@ def run_profile_strategy_pipeline(
             current_output = current_output.with_columns(
                 pl.lit(strategy.strategy_id).alias("strategy_id")
             )
-        if time_column in current_output.columns:
-            candidate_time = current_output[time_column].max()
-            if latest_time_value is None or candidate_time > latest_time_value:
-                latest_time_value = candidate_time
         strategy_frames.append(current_output)
         weights.append(float(capital_weight))
+
+    latest_time_value: object | None = None
+    if latest_only and strategy_frames and time_column in strategy_frames[0].columns:
+        latest_time_value = (
+            pl.concat(
+                [frame.select(time_column) for frame in strategy_frames],
+                how="vertical",
+            )
+            .select(pl.col(time_column).max())
+            .item()
+        )
 
     if output_type == StrategyOutputType.TARGET_WEIGHT:
         limits = build_profile_risk_limits(profile)
@@ -204,12 +210,21 @@ def run_profile_strategy_pipeline(
                 limits,
                 time_column=time_column,
             )
-    else:
+    elif output_type == StrategyOutputType.EXECUTION_INTENT:
         combined = combine_strategy_execution_intents(
             strategy_frames,
             weights,
             time_column=time_column,
         )
+    elif output_type == StrategyOutputType.TRADE_PLAN:
+        if len(strategies) != 1:
+            raise ValueError(
+                f"交易画像 {profile.profile_id} 配置了多个 TradePlan 策略。"
+                "TradePlan 的资金分配与候选冲突必须先由风险层明确处理，当前每个画像仅支持一个。"
+            )
+        combined = strategy_frames[0] if strategy_frames else strategies[0][0].empty_output()
+    else:  # pragma: no cover - 枚举新增值时的安全兜底
+        raise ValueError(f"暂不支持的策略输出类型：{output_type.value}")
 
     logger.bind(
         command="strategy.pipeline",

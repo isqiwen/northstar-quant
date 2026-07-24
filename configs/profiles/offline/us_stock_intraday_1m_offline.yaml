@@ -1,4 +1,4 @@
-profile_id: us_stock_intraday_1m
+profile_id: us_stock_intraday_1m_offline
 name: 美股股票分钟级
 market: US
 asset_type: EQUITY

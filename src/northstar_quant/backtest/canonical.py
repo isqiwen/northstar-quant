@@ -36,6 +36,11 @@ def run_strategy_output_backtest(
             periods_per_year=periods_per_year,
         )
 
+    if output_bundle.output_type == StrategyOutputType.TRADE_PLAN:
+        raise ValueError(
+            "TradePlan 策略尚未接入专用回测状态机，不能错误地按目标权重或订单意图回测。"
+        )
+
     raise ValueError(
         f"暂不支持的策略输出类型：{output_bundle.output_type.value}"
     )

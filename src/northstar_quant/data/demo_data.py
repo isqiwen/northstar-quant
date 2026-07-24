@@ -13,7 +13,7 @@ from northstar_quant.config.trading_profile import TradingProfile, load_trading_
 from northstar_quant.data.storage import profile_market_data_path, save_parquet
 
 _DEFAULT_SYMBOLS: dict[str, list[str]] = {
-    "cn_etf_daily": [
+    "cn_etf_daily_live": [
         "510300.SS",
         "510500.SS",
         "512100.SS",
@@ -25,7 +25,7 @@ _DEFAULT_SYMBOLS: dict[str, list[str]] = {
         "512170.SS",
         "159928.SZ",
     ],
-    "cn_etf_daily_research12": [
+    "cn_etf_daily_yfinance_offline": [
         "510300.SS",
         "510500.SS",
         "512100.SS",
@@ -39,7 +39,7 @@ _DEFAULT_SYMBOLS: dict[str, list[str]] = {
         "159928.SZ",
         "159949.SZ",
     ],
-    "cn_stock_daily": [
+    "cn_stock_daily_offline": [
         "600519.SS",
         "601318.SS",
         "600036.SS",
@@ -51,7 +51,7 @@ _DEFAULT_SYMBOLS: dict[str, list[str]] = {
         "002594.SZ",
         "000651.SZ",
     ],
-    "cn_stock_weekly": [
+    "cn_stock_weekly_offline": [
         "600519.SS",
         "601318.SS",
         "600036.SS",
@@ -63,11 +63,11 @@ _DEFAULT_SYMBOLS: dict[str, list[str]] = {
         "002594.SZ",
         "000651.SZ",
     ],
-    "cn_stock_intraday_1m": ["600519.SS", "601318.SS", "000333.SZ", "300750.SZ", "002594.SZ"],
-    "us_etf_daily": ["SPY", "QQQ", "IWM", "DIA", "EFA", "EEM", "TLT", "IEF", "GLD", "VNQ"],
-    "us_stock_daily": ["AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "JPM", "XOM", "UNH", "COST"],
-    "us_stock_weekly": ["AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "JPM", "XOM", "UNH", "COST"],
-    "us_stock_intraday_1m": ["AAPL", "MSFT", "NVDA", "AMD", "TSLA"],
+    "cn_stock_intraday_1m_offline": ["600519.SS", "601318.SS", "000333.SZ", "300750.SZ", "002594.SZ"],
+    "us_etf_daily_offline": ["SPY", "QQQ", "IWM", "DIA", "EFA", "EEM", "TLT", "IEF", "GLD", "VNQ"],
+    "us_stock_daily_offline": ["AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "JPM", "XOM", "UNH", "COST"],
+    "us_stock_weekly_offline": ["AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "JPM", "XOM", "UNH", "COST"],
+    "us_stock_intraday_1m_offline": ["AAPL", "MSFT", "NVDA", "AMD", "TSLA"],
 }
 
 

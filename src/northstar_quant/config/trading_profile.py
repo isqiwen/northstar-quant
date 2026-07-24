@@ -189,9 +189,9 @@ class TradingProfile:
 
 
 def resolve_profile_id(profile_id: str | None = None) -> str:
-    """解析交易画像 ID；为空时回退到全局默认画像。"""
+    """解析交易画像 ID；为空时使用安全的全局默认画像。"""
 
-    return profile_id or get_production_profile_id()
+    return profile_id or get_settings().default_profile_id
 
 
 def get_profile_config_dir(config_dir: str | Path | None = None) -> Path:
@@ -205,11 +205,52 @@ def get_profile_config_dir(config_dir: str | Path | None = None) -> Path:
     return get_settings().profile_config_dir
 
 
+_DIRECTORY_ALLOWED_ROLES = {
+    "offline": frozenset({"research", "experimental"}),
+    "simulated": frozenset({"simulated"}),
+    "live": frozenset({"production"}),
+}
+
+
+def _discover_profile_paths(profile_dir: Path) -> dict[str, Path]:
+    """递归发现交易画像，并以 YAML 内的 ``profile_id`` 建立唯一索引。"""
+
+    if not profile_dir.exists():
+        return {}
+
+    paths_by_id: dict[str, Path] = {}
+    for path in sorted(profile_dir.rglob("*.yaml")):
+        raw = load_yaml(path)
+        profile_id = str(raw.get("profile_id") or "").strip()
+        if not profile_id:
+            raise ValueError(f"交易画像配置缺少 profile_id：{path}")
+        lifecycle_raw = raw.get("lifecycle", {}) or {}
+        lifecycle_role = str(lifecycle_raw.get("role", "experimental")).strip().lower()
+        _validate_profile_directory(
+            path,
+            profile_dir,
+            profile_id=profile_id,
+            lifecycle_role=lifecycle_role,
+        )
+        previous_path = paths_by_id.get(profile_id)
+        if previous_path is not None:
+            raise ValueError(
+                f"交易画像 profile_id 重复：{profile_id}，"
+                f"同时出现在 {previous_path} 和 {path}"
+            )
+        paths_by_id[profile_id] = path
+    return paths_by_id
+
+
 def get_profile_config_path(profile_id: str | None = None, config_dir: str | Path | None = None) -> Path:
-    """返回某个交易画像对应的 YAML 路径。"""
+    """按 YAML 内的 ``profile_id`` 返回对应的配置路径。"""
 
     resolved_profile_id = resolve_profile_id(profile_id)
-    return get_profile_config_dir(config_dir) / f"{resolved_profile_id}.yaml"
+    profile_dir = get_profile_config_dir(config_dir)
+    return _discover_profile_paths(profile_dir).get(
+        resolved_profile_id,
+        profile_dir / f"{resolved_profile_id}.yaml",
+    )
 
 
 def list_trading_profiles(
@@ -220,9 +261,7 @@ def list_trading_profiles(
     """列出当前可用的交易画像 ID。"""
 
     profile_dir = get_profile_config_dir(config_dir)
-    if not profile_dir.exists():
-        return []
-    profiles = sorted(path.stem for path in profile_dir.glob("*.yaml"))
+    profiles = sorted(_discover_profile_paths(profile_dir))
     if role is None:
         return profiles
     normalized_role = str(role).strip().lower()
@@ -264,6 +303,44 @@ def ensure_production_profile(profile: TradingProfile, *, context: str) -> Tradi
     )
 
 
+def _validate_profile_directory(
+    path: Path,
+    profile_dir: Path,
+    *,
+    profile_id: str,
+    lifecycle_role: str,
+) -> None:
+    """校验画像路径、ID、类别后缀与生命周期角色的一致性。"""
+
+    relative_path = path.relative_to(profile_dir)
+    if len(relative_path.parts) != 2:
+        raise ValueError(
+            f"交易画像 {profile_id} 必须直接位于类别目录中："
+            f"{', '.join(sorted(_DIRECTORY_ALLOWED_ROLES))}"
+        )
+    directory_name = relative_path.parts[0]
+    allowed_roles = _DIRECTORY_ALLOWED_ROLES.get(directory_name)
+    if allowed_roles is None:
+        raise ValueError(
+            f"交易画像 {profile_id} 位于不支持的目录 {directory_name}；"
+            f"仅支持：{', '.join(sorted(_DIRECTORY_ALLOWED_ROLES))}"
+        )
+    if lifecycle_role not in allowed_roles:
+        raise ValueError(
+            f"交易画像 {profile_id} 的 lifecycle.role={lifecycle_role} 不允许位于目录 "
+            f"{directory_name}；允许角色：{', '.join(sorted(allowed_roles))}"
+        )
+    if path.stem != profile_id:
+        raise ValueError(
+            f"交易画像文件名必须与 profile_id 一致：{path.name} != {profile_id}.yaml"
+        )
+    required_suffix = f"_{directory_name}"
+    if not profile_id.endswith(required_suffix):
+        raise ValueError(
+            f"交易画像 {profile_id} 必须以类别后缀 {required_suffix} 结尾"
+        )
+
+
 @lru_cache(maxsize=None)
 def load_trading_profile(
     profile_id: str | None = None,
@@ -287,6 +364,20 @@ def load_trading_profile(
     execution_raw = raw.get("execution", {}) or {}
     backtest_raw = raw.get("backtest", {}) or {}
     versions_raw = raw.get("versions", {}) or {}
+
+    configured_profile_id = str(raw.get("profile_id") or "").strip()
+    if configured_profile_id != resolved_profile_id:
+        raise ValueError(
+            f"交易画像路径索引与内容不一致：请求 {resolved_profile_id}，"
+            f"配置声明 {configured_profile_id or '空'}"
+        )
+    lifecycle_role = str(lifecycle_raw.get("role", "experimental")).strip().lower()
+    _validate_profile_directory(
+        path,
+        get_profile_config_dir(config_dir),
+        profile_id=configured_profile_id,
+        lifecycle_role=lifecycle_role,
+    )
 
     market = _parse_enum(Market, raw.get("market", "CN"))
     asset_type = _parse_enum(AssetType, raw.get("asset_type", "ETF"))

@@ -13,7 +13,7 @@ def test_download_profile_data_writes_dataset_cache_and_manifest(tmp_path, monke
     get_settings.cache_clear()
 
     try:
-        result = download_profile_data("cn_stock_daily", provider_override="demo")
+        result = download_profile_data("cn_stock_daily_offline", provider_override="demo")
         dataset_path = Path(result.dataset_path)
         cache_path = Path(result.cache_path)
 
@@ -22,8 +22,8 @@ def test_download_profile_data_writes_dataset_cache_and_manifest(tmp_path, monke
         assert dataset_path == storage_dir / "market" / Path("cn/equity/1d/core.parquet")
         assert cache_path == downloads_dir / Path("demo/cn/equity/1d/core.parquet")
 
-        manifest = read_profile_manifest("cn_stock_daily")
-        assert manifest["profile_id"] == "cn_stock_daily"
+        manifest = read_profile_manifest("cn_stock_daily_offline")
+        assert manifest["profile_id"] == "cn_stock_daily_offline"
         assert manifest["dimensions"]["market"] == "CN"
         assert manifest["dimensions"]["asset_type"] == "EQUITY"
         assert manifest["dimensions"]["data_frequency"] == "1d"
@@ -65,8 +65,8 @@ def test_download_intraday_profile_contains_timestamp_column(tmp_path, monkeypat
     get_settings.cache_clear()
 
     try:
-        result = download_profile_data("cn_stock_intraday_1m", provider_override="demo")
-        manifest = read_profile_manifest("cn_stock_intraday_1m")
+        result = download_profile_data("cn_stock_intraday_1m_offline", provider_override="demo")
+        manifest = read_profile_manifest("cn_stock_intraday_1m_offline")
 
         assert Path(result.dataset_path).exists()
         assert manifest["data_frequency"] == "1m"

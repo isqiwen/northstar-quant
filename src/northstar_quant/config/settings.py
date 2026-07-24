@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     env: str = Field(default="dev")
     timezone: str = Field(default="Asia/Shanghai")
     project_root: Path = Field(default=_PROJECT_ROOT)
-    default_profile_id: str = Field(default="cn_etf_daily")
+    default_profile_id: str = Field(default="cn_etf_daily_stateful_offline")
     profile_config_dir: Path = Field(default=Path("configs/profiles"))
 
     storage_dir: Path = Field(default=Path("storage"))

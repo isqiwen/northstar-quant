@@ -87,6 +87,7 @@ class StrategyOutputType(StringEnum):
 
     TARGET_WEIGHT = "target_weight"
     EXECUTION_INTENT = "execution_intent"
+    TRADE_PLAN = "trade_plan"
 
 
 class OrderSemantic(StringEnum):

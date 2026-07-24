@@ -1,4 +1,4 @@
-profile_id: cn_stock_intraday_1m
+profile_id: cn_stock_intraday_1m_offline
 name: 中国 A 股股票分钟级
 market: CN
 asset_type: EQUITY

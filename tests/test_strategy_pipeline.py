@@ -44,7 +44,7 @@ def _daily_market_df(days: int = 140) -> pl.DataFrame:
 
 
 def test_profile_strategy_pipeline_full_history_matches_latest_slice():
-    profile = load_trading_profile("cn_etf_daily")
+    profile = load_trading_profile("cn_etf_daily_live")
     market_df = _daily_market_df()
 
     full_pipeline = run_profile_strategy_pipeline(
@@ -70,7 +70,7 @@ def test_profile_strategy_pipeline_full_history_matches_latest_slice():
 
 
 def test_profile_strategy_pipeline_subset_re_normalizes_selected_capital():
-    profile = load_trading_profile("cn_etf_daily")
+    profile = load_trading_profile("cn_etf_daily_live")
     market_df = _daily_market_df()
 
     subset_pipeline = run_profile_strategy_pipeline(
@@ -87,7 +87,7 @@ def test_profile_strategy_pipeline_subset_re_normalizes_selected_capital():
 
 def test_canonical_pipeline_reuses_profile_strategy_compatibility_validation():
     profile = replace(
-        load_trading_profile("cn_etf_daily"),
+        load_trading_profile("cn_etf_daily_live"),
         asset_type=AssetType.EQUITY,
     )
 
@@ -96,7 +96,7 @@ def test_canonical_pipeline_reuses_profile_strategy_compatibility_validation():
 
 
 def test_build_profile_risk_limits_rejects_unknown_field():
-    profile = load_trading_profile("cn_etf_daily")
+    profile = load_trading_profile("cn_etf_daily_live")
     invalid_profile = replace(
         profile,
         risk={**profile.risk, "max_order_notianal": 1000.0},
@@ -113,9 +113,9 @@ def test_run_momentum_research_uses_canonical_profile_pipeline(monkeypatch):
         lambda profile: market_df,
     )
 
-    result = run_momentum_research("cn_etf_daily")
+    result = run_momentum_research("cn_etf_daily_live")
 
-    assert result["profile_id"] == "cn_etf_daily"
+    assert result["profile_id"] == "cn_etf_daily_live"
     assert result["output_type"] == "target_weight"
     assert result["selected_strategy_ids"] == ["etf_rotation", "momentum"]
     assert len(result["latest_holdings"]) == 3
@@ -123,7 +123,7 @@ def test_run_momentum_research_uses_canonical_profile_pipeline(monkeypatch):
 
 
 def test_run_simulation_backtest_supports_portfolio_level_canonical_pipeline(monkeypatch):
-    profile = load_trading_profile("cn_etf_daily")
+    profile = load_trading_profile("cn_etf_daily_live")
     market_df = _daily_market_df()
     monkeypatch.setattr(
         "northstar_quant.backtest.backtrader_runner.load_profile_signal_data",

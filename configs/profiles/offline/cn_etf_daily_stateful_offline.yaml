@@ -1,5 +1,5 @@
-profile_id: cn_etf_daily_paper
-name: 中国 A 股 ETF 低频 paper 准备
+profile_id: cn_etf_daily_stateful_offline
+name: 中国 A 股 ETF 日线状态机回测
 market: CN
 asset_type: ETF
 data_frequency: 1d
@@ -11,9 +11,9 @@ calendar: XSHG
 universe_id: cn_etf_core
 benchmark_symbol: 510300.SS
 lifecycle:
-  # 此画像只能用于研究和撮合模拟；不是可运行的真实或 broker paper 账户画像。
+  # 此画像只能用于研究和本地撮合；不是连接模拟账户或真实账户的画像。
   role: research
-  line_id: cn_etf_low_frequency_paper
+  line_id: cn_etf_low_frequency_stateful
 execution:
   long_only: true
   rebalance_min_trade_value: 10000
@@ -22,7 +22,7 @@ execution:
 backtest:
   engine: daily_stateful
   initial_cash: 100000
-  # 以下是保守的研究假设，不是券商费率；接入真实 broker paper 前必须按实际规则复核。
+  # 以下是保守的研究假设，不是券商费率；接入模拟或真实账户前必须按实际规则复核。
   commission_bps: 5.0
   min_commission: 5.0
   slippage_bps: 5.0
@@ -30,7 +30,7 @@ backtest:
   execution_delay_sessions: 1
   sellable_after_sessions: 1
 versions:
-  profile: cn-etf-paper-v1
+  profile: cn-etf-stateful-v1
   benchmark: csi300-etf-total-return-v1
   strategy_params: cn-etf-rotation-126d-v1
   execution_policy: next-open-conservative-cost-v1

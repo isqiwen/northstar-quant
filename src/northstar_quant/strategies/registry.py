@@ -74,11 +74,17 @@ def register_strategy(
 
     if strategy_id in _REGISTRY and not replace:
         raise ValueError(f"策略已注册：{strategy_id}")
+    resolved_output_type = output_type
+    if resolved_output_type is None:
+        factory_output_type = getattr(factory, "output_type", StrategyOutputType.TARGET_WEIGHT)
+        if not isinstance(factory_output_type, StrategyOutputType):
+            raise TypeError(f"策略 {strategy_id} 的 output_type 必须是 StrategyOutputType")
+        resolved_output_type = factory_output_type
     _REGISTRY[strategy_id] = StrategyDefinition(
         strategy_id=strategy_id,
         factory=factory,
         strategy_family=strategy_family,
-        output_type=output_type or getattr(factory, "output_type", StrategyOutputType.TARGET_WEIGHT),
+        output_type=resolved_output_type,
         supported_markets=supported_markets,
         supported_asset_types=supported_asset_types,
         supported_data_frequencies=supported_data_frequencies,

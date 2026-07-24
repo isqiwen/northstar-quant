@@ -6,7 +6,7 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.cron import CronTrigger
 
 from northstar_quant.config.settings import get_settings
-from northstar_quant.config.trading_profile import load_trading_profile
+from northstar_quant.config.trading_profile import get_production_profile_id, load_trading_profile
 from northstar_quant.live.service import run_live_once, run_shadow_once, sync_broker_once
 from northstar_quant.live.trading_calendar import is_trading_session
 from northstar_quant.logging_.logger import get_logger
@@ -66,7 +66,7 @@ def _guarded_job(
 def _build_and_send_report(report_type: str) -> dict:
     """生成周期报告，并在配置了 SMTP 时自动发送邮件。"""
 
-    profile = load_trading_profile()
+    profile = load_trading_profile(get_production_profile_id())
     report_logger = logger.bind(
         job_name=f"{report_type}_report",
         report_type=report_type,
@@ -107,7 +107,7 @@ def run_scheduler() -> None:
     """启动阻塞式日频调度器。"""
 
     settings = get_settings()
-    profile = load_trading_profile()
+    profile = load_trading_profile(get_production_profile_id())
     schedule = profile.schedule
     profile_timezone = (
         getattr(profile, "timezone", None)
