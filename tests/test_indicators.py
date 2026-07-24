@@ -5,7 +5,6 @@ from datetime import date
 import polars as pl
 import pytest
 
-from northstar_quant.data.features import add_basic_features
 from northstar_quant.indicators import (
     average_true_range,
     bollinger_bands,
@@ -111,7 +110,7 @@ def test_volatility_and_vwap_handle_grouped_data_and_zero_volume():
     assert result["vwap_2"].to_list() == [None, None, 9.0]
 
 
-def test_features_are_composed_from_indicator_functions():
+def test_indicator_functions_can_be_composed_explicitly():
     frame = pl.DataFrame(
         {
             "date": [date(2024, 1, day) for day in range(1, 23)],
@@ -120,7 +119,30 @@ def test_features_are_composed_from_indicator_functions():
         }
     )
 
-    result = add_basic_features(frame)
+    result = rate_of_change(
+        frame,
+        value_column="close",
+        periods=1,
+        output_column="ret_1",
+        group_by="symbol",
+        order_by="date",
+    )
+    result = rate_of_change(
+        result,
+        value_column="close",
+        periods=20,
+        output_column="mom_20",
+        group_by="symbol",
+        order_by="date",
+    )
+    result = historical_volatility(
+        result,
+        value_column="close",
+        window=20,
+        output_column="vol_20",
+        group_by="symbol",
+        order_by="date",
+    )
 
     assert {"ret_1", "mom_20", "vol_20"}.issubset(result.columns)
     assert result["ret_1"][-1] == pytest.approx(1 / 21)

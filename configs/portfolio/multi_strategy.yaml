@@ -1,12 +1,21 @@
-portfolio_id: core_portfolio
+# 多策略组合设计样例。
+#
+# 当前统一运行时以交易画像中的 strategies 和 risk 段为准，本文件尚未被自动加载。
+# 因此修改它不会改变下载、研究、回测或订单；正式接入前不得把它当作生效的风控配置。
+# 组合配置的稳定标识，用于未来报告和持久化追踪。
+portfolio_id: cn_futures_trend_research
+# 策略组合成员；每条 strategy_id 必须与策略注册表一致。
 strategies:
-  - strategy_id: etf_rotation
+  - strategy_id: futures_trend
+    # false 时保留记录但不参与组合。
     enabled: true
-    capital_weight: 0.6
-  - strategy_id: momentum
-    enabled: true
-    capital_weight: 0.4
+    # 策略间资本分配权重；未来接入时需要定义归一化与上限冲突规则。
+    capital_weight: 1.0
+# 组合级约束；当前为设计说明，不替代画像 risk 段。
 constraints:
-  max_total_leverage: 1.0
-  max_strategy_weight: 0.7
-  min_cash_buffer: 0.02
+  # 全策略绝对权重之和的上限；0.8 表示最多 80% 总暴露。
+  max_total_leverage: 0.8
+  # 单个策略在组合中的最大资本权重。
+  max_strategy_weight: 1.0
+  # 预留现金比例下限。
+  min_cash_buffer: 0.0

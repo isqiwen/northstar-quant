@@ -118,11 +118,8 @@ def test_init_db_patches_legacy_sqlite_columns(tmp_path, monkeypatch):
             "execution_policy_fingerprint",
             "attempt_no",
             "order_ref",
-            "broker_symbol",
-            "con_id",
-            "sec_type",
-            "exchange",
-            "primary_exchange",
+            "instrument_id",
+            "exchange_id",
             "currency",
             "client_id",
             "perm_id",
@@ -145,7 +142,7 @@ def test_init_db_patches_legacy_sqlite_columns(tmp_path, monkeypatch):
             "exec_id",
             "perm_id",
             "client_id",
-            "con_id",
+            "instrument_id",
         }.issubset(fill_columns)
         assert "snapshot_batch_id" in position_columns
         assert "strategy_run_records" in table_names
@@ -174,12 +171,10 @@ def test_init_db_patches_legacy_sqlite_columns(tmp_path, monkeypatch):
         ]["unique"]
         assert "account_values_json" in account_snapshot_columns
         assert "account" in trade_attribution_columns
-        assert "dividend_cash_flow" in account_attribution_columns
         assert "interest_cash_flow" in account_attribution_columns
         assert "fee_cash_flow" in account_attribution_columns
         assert "tax_cash_flow" in account_attribution_columns
         assert "funding_cash_flow" in account_attribution_columns
-        assert "corporate_action_cash_flow" in account_attribution_columns
         assert "other_non_trade_cash_flow" in account_attribution_columns
         assert "total_non_trade_cash_flow" in account_attribution_columns
 
@@ -191,7 +186,7 @@ def test_init_db_patches_legacy_sqlite_columns(tmp_path, monkeypatch):
                 session,
                 OrderRequest(
                     strategy_id="legacy-smoke",
-                    symbol="SPY",
+                    symbol="RB2405",
                     side="BUY",
                     qty=1.0,
                     account="DU123456",
@@ -199,7 +194,7 @@ def test_init_db_patches_legacy_sqlite_columns(tmp_path, monkeypatch):
                     limit_price=500.0,
                     plan_id="legacy-plan-1",
                 ),
-                broker="ibkr",
+                broker="ctp",
                 account="DU123456",
             )
             assert created is True

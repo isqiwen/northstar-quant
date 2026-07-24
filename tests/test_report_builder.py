@@ -26,14 +26,14 @@ def test_daily_report_includes_latest_account_attribution(tmp_path, monkeypatch)
     settings = get_settings().model_copy()
     object.__setattr__(settings, "project_root", Path(__file__).resolve().parents[1])
     object.__setattr__(settings, "reports_dir", tmp_path / "reports")
-    object.__setattr__(settings, "report_benchmark_symbol", "SPY")
+    object.__setattr__(settings, "report_benchmark_symbol", "RB_CONT")
     monkeypatch.setattr(report_builder, "get_settings", lambda: settings)
 
     with testing_session() as session:
         session.add(
             AccountAttributionRecord(
                 run_id="run-002",
-                profile_id="us_etf_daily",
+                profile_id="cn_futures_daily_live",
                 broker="paper",
                 account="paper-account",
                 start_asof=datetime(2024, 3, 4, 15, 30, tzinfo=UTC),
@@ -47,14 +47,12 @@ def test_daily_report_includes_latest_account_attribution(tmp_path, monkeypatch)
                 price_pnl=200.0,
                 rebalance_pnl=20.0,
                 execution_shortfall=2.0,
-                dividend_cash_flow=30.0,
                 interest_cash_flow=5.0,
                 fee_cash_flow=-3.0,
                 tax_cash_flow=-2.0,
                 funding_cash_flow=10.0,
-                corporate_action_cash_flow=7.0,
                 other_non_trade_cash_flow=0.0,
-                total_non_trade_cash_flow=47.0,
+                total_non_trade_cash_flow=10.0,
                 traded_notional=2020.0,
                 fill_count=1,
                 residual_pnl=0.0,
@@ -62,12 +60,11 @@ def test_daily_report_includes_latest_account_attribution(tmp_path, monkeypatch)
         )
         session.commit()
 
-    summary = report_builder.latest_live_account_attribution_summary(profile_id="us_etf_daily")
+    summary = report_builder.latest_live_account_attribution_summary(profile_id="cn_futures_daily_live")
 
     assert summary is not None
     assert summary["account"] == "paper-account"
     assert summary["funding_cash_flow"] == 10.0
-    assert summary["corporate_action_cash_flow"] == 7.0
     assert summary["alert_tag_summary"] == ""
     assert summary["alert_items"] == []
     assert summary["alert_lines"] == []
@@ -77,7 +74,7 @@ def test_daily_report_includes_latest_account_attribution(tmp_path, monkeypatch)
         strategy_id="portfolio",
         metrics={"total_return": 0.12},
         period_label="2024-03-04",
-        benchmark_symbol="SPY",
+        benchmark_symbol="RB_CONT",
         live_account_attribution=summary,
     )
 
@@ -89,8 +86,7 @@ def test_daily_report_includes_latest_account_attribution(tmp_path, monkeypatch)
     assert "本期账户权益变动 267.00" in content
     assert "## 五、最新实盘归因" in content
     assert "资金划转：10.0" in content
-    assert "公司行为现金流：7.0" in content
-    assert "非交易现金流合计：47.0" in content
+    assert "非交易现金流合计：10.0" in content
 
 
 def test_daily_report_emits_alert_lines_when_thresholds_are_breached(tmp_path, monkeypatch):
@@ -109,14 +105,14 @@ def test_daily_report_emits_alert_lines_when_thresholds_are_breached(tmp_path, m
     settings = get_settings().model_copy()
     object.__setattr__(settings, "project_root", Path(__file__).resolve().parents[1])
     object.__setattr__(settings, "reports_dir", tmp_path / "reports")
-    object.__setattr__(settings, "report_benchmark_symbol", "SPY")
+    object.__setattr__(settings, "report_benchmark_symbol", "RB_CONT")
     monkeypatch.setattr(report_builder, "get_settings", lambda: settings)
 
     with testing_session() as session:
         session.add(
             AccountAttributionRecord(
                 run_id="run-004",
-                profile_id="us_etf_daily",
+                profile_id="cn_futures_daily_live",
                 broker="paper",
                 account="paper-account",
                 start_asof=datetime(2024, 3, 4, 15, 30, tzinfo=UTC),
@@ -130,12 +126,10 @@ def test_daily_report_emits_alert_lines_when_thresholds_are_breached(tmp_path, m
                 price_pnl=200.0,
                 rebalance_pnl=20.0,
                 execution_shortfall=60.0,
-                dividend_cash_flow=0.0,
                 interest_cash_flow=0.0,
                 fee_cash_flow=0.0,
                 tax_cash_flow=0.0,
                 funding_cash_flow=0.0,
-                corporate_action_cash_flow=0.0,
                 other_non_trade_cash_flow=0.0,
                 total_non_trade_cash_flow=0.0,
                 traded_notional=2000.0,
@@ -145,7 +139,7 @@ def test_daily_report_emits_alert_lines_when_thresholds_are_breached(tmp_path, m
         )
         session.commit()
 
-    summary = report_builder.latest_live_account_attribution_summary(profile_id="us_etf_daily")
+    summary = report_builder.latest_live_account_attribution_summary(profile_id="cn_futures_daily_live")
 
     assert summary is not None
     assert summary["alert_tag_summary"] == "[执行异常][账本异常]"
@@ -160,7 +154,7 @@ def test_daily_report_emits_alert_lines_when_thresholds_are_breached(tmp_path, m
         strategy_id="portfolio",
         metrics={"total_return": 0.12},
         period_label="2024-03-04",
-        benchmark_symbol="SPY",
+        benchmark_symbol="RB_CONT",
         live_account_attribution=summary,
     )
 
@@ -172,7 +166,7 @@ def test_daily_report_emits_alert_lines_when_thresholds_are_breached(tmp_path, m
     alert_message = report_builder.build_daily_alert_notification(report_path, summary)
     assert alert_message is not None
     assert "日报检测到异常归因 [执行异常][账本异常]。" in alert_message
-    assert "画像：us_etf_daily" in alert_message
+    assert "画像：cn_futures_daily_live" in alert_message
     assert "账户：paper-account" in alert_message
     assert "[执行异常] 执行损耗达到 60.00" in alert_message
     subject = report_builder.build_report_email_subject(
@@ -199,14 +193,14 @@ def test_daily_report_emits_funding_alerts_for_large_cash_flows(tmp_path, monkey
     settings = get_settings().model_copy()
     object.__setattr__(settings, "project_root", Path(__file__).resolve().parents[1])
     object.__setattr__(settings, "reports_dir", tmp_path / "reports")
-    object.__setattr__(settings, "report_benchmark_symbol", "SPY")
+    object.__setattr__(settings, "report_benchmark_symbol", "RB_CONT")
     monkeypatch.setattr(report_builder, "get_settings", lambda: settings)
 
     with testing_session() as session:
         session.add(
             AccountAttributionRecord(
                 run_id="run-005",
-                profile_id="us_etf_daily",
+                profile_id="cn_futures_daily_live",
                 broker="paper",
                 account="paper-account",
                 start_asof=datetime(2024, 3, 4, 15, 30, tzinfo=UTC),
@@ -220,14 +214,12 @@ def test_daily_report_emits_funding_alerts_for_large_cash_flows(tmp_path, monkey
                 price_pnl=0.0,
                 rebalance_pnl=0.0,
                 execution_shortfall=0.0,
-                dividend_cash_flow=0.0,
                 interest_cash_flow=0.0,
                 fee_cash_flow=0.0,
                 tax_cash_flow=0.0,
                 funding_cash_flow=2500.0,
-                corporate_action_cash_flow=1500.0,
                 other_non_trade_cash_flow=0.0,
-                total_non_trade_cash_flow=4000.0,
+                total_non_trade_cash_flow=2500.0,
                 traded_notional=0.0,
                 fill_count=0,
                 residual_pnl=0.0,
@@ -235,36 +227,33 @@ def test_daily_report_emits_funding_alerts_for_large_cash_flows(tmp_path, monkey
         )
         session.commit()
 
-    summary = report_builder.latest_live_account_attribution_summary(profile_id="us_etf_daily")
+    summary = report_builder.latest_live_account_attribution_summary(profile_id="cn_futures_daily_live")
 
     assert summary is not None
     assert summary["alert_tag_summary"] == "[资金异常]"
-    assert len(summary["alert_items"]) == 2
+    assert len(summary["alert_items"]) == 1
     assert summary["alert_items"][0]["tag"] == "资金异常"
-    assert summary["alert_items"][1]["tag"] == "资金异常"
     assert "[资金异常] 资金划转达到 2,500.00" in summary["alert_lines"][0]
-    assert "[资金异常] 公司行为现金流达到 1,500.00" in summary["alert_lines"][1]
 
     report_path = report_builder.build_markdown_report(
         report_type="daily",
         strategy_id="portfolio",
         metrics={"total_return": 0.12},
         period_label="2024-03-04",
-        benchmark_symbol="SPY",
+        benchmark_symbol="RB_CONT",
         live_account_attribution=summary,
     )
 
     content = Path(report_path).read_text(encoding="utf-8")
     assert "# Northstar Quant 日报 [资金异常]" in content
     assert "[资金异常] 资金划转达到 2,500.00" in content
-    assert "[资金异常] 公司行为现金流达到 1,500.00" in content
 
 
 def test_daily_report_includes_run_health_section(tmp_path, monkeypatch):
     settings = get_settings().model_copy()
     object.__setattr__(settings, "project_root", Path(__file__).resolve().parents[1])
     object.__setattr__(settings, "reports_dir", tmp_path / "reports")
-    object.__setattr__(settings, "report_benchmark_symbol", "SPY")
+    object.__setattr__(settings, "report_benchmark_symbol", "RB_CONT")
     monkeypatch.setattr(report_builder, "get_settings", lambda: settings)
 
     report_path = report_builder.build_markdown_report(
@@ -272,7 +261,7 @@ def test_daily_report_includes_run_health_section(tmp_path, monkeypatch):
         strategy_id="portfolio",
         metrics={"total_return": 0.12},
         period_label="2024-03-04",
-        benchmark_symbol="SPY",
+        benchmark_symbol="RB2405",
         run_health_days=28,
         run_health_summaries=[
             {
@@ -314,14 +303,14 @@ def test_record_daily_anomaly_events_is_idempotent(tmp_path, monkeypatch):
     settings = get_settings().model_copy()
     object.__setattr__(settings, "project_root", Path(__file__).resolve().parents[1])
     object.__setattr__(settings, "reports_dir", tmp_path / "reports")
-    object.__setattr__(settings, "report_benchmark_symbol", "SPY")
+    object.__setattr__(settings, "report_benchmark_symbol", "RB2405")
     monkeypatch.setattr(report_builder, "get_settings", lambda: settings)
 
     with testing_session() as session:
         session.add(
             AccountAttributionRecord(
                 run_id="run-006",
-                profile_id="us_etf_daily",
+                profile_id="cn_futures_daily_live",
                 broker="paper",
                 account="paper-account",
                 start_asof=datetime(2024, 3, 4, 15, 30, tzinfo=UTC),
@@ -335,12 +324,10 @@ def test_record_daily_anomaly_events_is_idempotent(tmp_path, monkeypatch):
                 price_pnl=200.0,
                 rebalance_pnl=20.0,
                 execution_shortfall=60.0,
-                dividend_cash_flow=0.0,
                 interest_cash_flow=0.0,
                 fee_cash_flow=0.0,
                 tax_cash_flow=0.0,
                 funding_cash_flow=0.0,
-                corporate_action_cash_flow=0.0,
                 other_non_trade_cash_flow=0.0,
                 total_non_trade_cash_flow=0.0,
                 traded_notional=2000.0,
@@ -350,7 +337,7 @@ def test_record_daily_anomaly_events_is_idempotent(tmp_path, monkeypatch):
         )
         session.commit()
 
-    summary = report_builder.latest_live_account_attribution_summary(profile_id="us_etf_daily")
+    summary = report_builder.latest_live_account_attribution_summary(profile_id="cn_futures_daily_live")
     assert summary is not None
 
     first = report_builder.record_daily_anomaly_events("/tmp/report.md", summary)

@@ -187,41 +187,9 @@ def _enum_text(value: object) -> str:
 _CAMEL_CASE_BOUNDARY = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
 _NON_ALNUM_RE = re.compile(r"[^a-z0-9]+")
 _NON_TRADE_KEY_CATEGORIES: tuple[tuple[str, tuple[str, ...]], ...] = (
-    (
-        "dividend",
-        (
-            "dividend",
-            "dividends",
-            "distribution",
-            "distributions",
-            "capital gain distribution",
-            "capital gains distribution",
-        ),
-    ),
     ("interest", ("interest",)),
     ("tax", ("withholding tax", "withholding", "tax", "levy")),
     ("fee", ("commission", "commissions", "fee", "fees", "charge", "charges", "regulatory fee")),
-    (
-        "corporate_action",
-        (
-            "corporate action",
-            "corp action",
-            "cash in lieu",
-            "cash merger",
-            "reorg",
-            "reorganization",
-            "spin off",
-            "spinoff",
-            "stock split",
-            "reverse split",
-            "split",
-            "merger",
-            "tender",
-            "redemption",
-            "exchange offer",
-            "liquidation",
-        ),
-    ),
     (
         "funding",
         (
@@ -268,12 +236,10 @@ def _non_trade_cash_flow_components(
     end_values: dict[str, object],
 ) -> dict[str, float]:
     components = {
-        "dividend": 0.0,
         "interest": 0.0,
         "fee": 0.0,
         "tax": 0.0,
         "funding": 0.0,
-        "corporate_action": 0.0,
         "other": 0.0,
     }
     for key in sorted(set(start_values) | set(end_values)):
@@ -488,7 +454,8 @@ def _assert_fill_matches_order(
         order_ref=str(item.order_ref or "").strip() or None,
         client_id=item.client_id,
         perm_id=item.perm_id,
-        con_id=item.con_id,
+        instrument_id=item.instrument_id,
+        exchange_id=item.exchange_id,
         symbol=item.symbol,
     )
     if (
@@ -658,7 +625,8 @@ def save_fill_snapshots(
             exec_id=exec_id,
             perm_id=item.perm_id,
             client_id=item.client_id,
-            con_id=item.con_id,
+            instrument_id=item.instrument_id,
+            exchange_id=item.exchange_id,
             broker_order_id=item.broker_order_id,
             symbol=item.symbol,
             side=item.side,
@@ -1081,12 +1049,10 @@ def save_account_attribution_for_snapshot(
         price_pnl=price_pnl,
         rebalance_pnl=rebalance_pnl,
         execution_shortfall=execution_shortfall,
-        dividend_cash_flow=non_trade_components["dividend"],
         interest_cash_flow=non_trade_components["interest"],
         fee_cash_flow=non_trade_components["fee"],
         tax_cash_flow=non_trade_components["tax"],
         funding_cash_flow=non_trade_components["funding"],
-        corporate_action_cash_flow=non_trade_components["corporate_action"],
         other_non_trade_cash_flow=non_trade_components["other"],
         total_non_trade_cash_flow=total_non_trade_cash_flow,
         traded_notional=traded_notional,
@@ -1296,11 +1262,8 @@ def save_order_result(
         reason=order.reason,
         broker=broker,
         account=order.account,
-        broker_symbol=order.broker_symbol,
-        con_id=order.con_id,
-        sec_type=order.sec_type,
-        exchange=order.exchange,
-        primary_exchange=order.primary_exchange,
+        instrument_id=order.instrument_id,
+        exchange_id=order.exchange_id,
         currency=order.currency,
         reference_price=order.reference_price,
         reference_price_source=order.reference_price_source,
@@ -1368,11 +1331,8 @@ def prepare_order_submission(
         limit_price=order.limit_price,
         plan_id=plan_id,
         attempt_no=order.attempt_no,
-        broker_symbol=order.broker_symbol,
-        con_id=order.con_id,
-        sec_type=order.sec_type,
-        exchange=order.exchange,
-        primary_exchange=order.primary_exchange,
+        instrument_id=order.instrument_id,
+        exchange_id=order.exchange_id,
         currency=order.currency,
         execution_policy_fingerprint=order.execution_policy_fingerprint,
     )
@@ -1410,11 +1370,8 @@ def prepare_order_submission(
         reason=order.reason,
         broker=normalized_broker,
         account=normalized_account,
-        broker_symbol=order.broker_symbol,
-        con_id=order.con_id,
-        sec_type=order.sec_type,
-        exchange=order.exchange,
-        primary_exchange=order.primary_exchange,
+        instrument_id=order.instrument_id,
+        exchange_id=order.exchange_id,
         currency=order.currency,
         reference_price=order.reference_price,
         reference_price_source=order.reference_price_source,
@@ -1601,6 +1558,19 @@ def _optional_broker_int(
     return normalized
 
 
+def _optional_broker_string(value: object, *, field_name: str) -> str | None:
+    """规范化 CTP 合约身份字符串；空值不参与自动关联。"""
+
+    if value is None or not str(value).strip():
+        return None
+    normalized = str(value).strip()
+    if len(normalized) > 32:
+        raise RuntimeError(
+            f"BROKER_ORDER_IDENTITY_INVALID: {field_name}={value!r}"
+        )
+    return normalized
+
+
 def _find_order_for_broker_row(
     session: Session,
     *,
@@ -1675,7 +1645,8 @@ def _assert_broker_order_identity(
     order_ref: str | None,
     client_id: int | None,
     perm_id: int | None,
-    con_id: int | None,
+    instrument_id: str | None,
+    exchange_id: str | None,
     symbol: str | None,
     side: str | None = None,
     qty: object | None = None,
@@ -1689,7 +1660,8 @@ def _assert_broker_order_identity(
         ("order_ref", order.order_ref, order_ref),
         ("client_id", order.client_id, client_id),
         ("perm_id", order.perm_id, perm_id),
-        ("con_id", order.con_id, con_id),
+        ("instrument_id", order.instrument_id, instrument_id),
+        ("exchange_id", order.exchange_id, exchange_id),
     )
     for field_name, persisted, observed in comparisons:
         if persisted is None or observed is None:
@@ -1784,10 +1756,13 @@ def update_order_statuses(
             field_name="perm_id",
             positive=True,
         )
-        con_id = _optional_broker_int(
-            row.get("con_id"),
-            field_name="con_id",
-            positive=True,
+        instrument_id = _optional_broker_string(
+            row.get("instrument_id"),
+            field_name="instrument_id",
+        )
+        exchange_id = _optional_broker_string(
+            row.get("exchange_id"),
+            field_name="exchange_id",
         )
         if not broker_order_id and not order_ref and perm_id is None:
             continue
@@ -1808,7 +1783,8 @@ def update_order_statuses(
             order_ref=order_ref,
             client_id=client_id,
             perm_id=perm_id,
-            con_id=con_id,
+            instrument_id=instrument_id,
+            exchange_id=exchange_id,
             symbol=str(row.get("symbol") or "").strip() or None,
             side=str(row.get("side") or "").strip() or None,
             qty=row.get("qty"),
@@ -1847,8 +1823,7 @@ def update_order_statuses(
                 f"总量，order_id={order.id}。"
             )
         if (
-            normalized_broker == "ibkr"
-            and str(new_status).strip().lower() == "filled"
+            str(new_status).strip().lower() == "filled"
             and (
                 observed_filled is None
                 or observed_remaining is None
@@ -1869,7 +1844,8 @@ def update_order_statuses(
         identity_updates: dict[str, object | None] = {
             "client_id": client_id,
             "perm_id": perm_id,
-            "con_id": con_id,
+            "instrument_id": instrument_id,
+            "exchange_id": exchange_id,
         }
         for field_name, value in identity_updates.items():
             if value is None or getattr(order, field_name) == value:
@@ -2185,10 +2161,13 @@ def update_pending_cancel_statuses(
             field_name="perm_id",
             positive=True,
         )
-        con_id = _optional_broker_int(
-            row.get("con_id"),
-            field_name="con_id",
-            positive=True,
+        instrument_id = _optional_broker_string(
+            row.get("instrument_id"),
+            field_name="instrument_id",
+        )
+        exchange_id = _optional_broker_string(
+            row.get("exchange_id"),
+            field_name="exchange_id",
         )
         order_ref = str(row.get("order_ref") or "").strip() or None
         symbol = str(row.get("symbol") or "").strip() or None
@@ -2264,7 +2243,8 @@ def update_pending_cancel_statuses(
                 order_ref=order_ref,
                 client_id=client_id,
                 perm_id=perm_id,
-                con_id=con_id,
+                instrument_id=instrument_id,
+                exchange_id=exchange_id,
                 symbol=symbol,
                 side=str(row.get("side") or "").strip() or None,
                 qty=row.get("qty"),

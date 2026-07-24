@@ -1,4 +1,9 @@
-"""Market data schema, validation, and signal-price helpers."""
+"""统一市场数据 schema、质量校验和信号价格口径转换。
+
+日线标准列为 ``date, symbol, open, high, low, close, adjusted_close, volume``。期货连续
+合约研究通常使用 ``close``；若选择 ``adjusted_close``，本模块会以调整因子同步变换
+OHLC，避免只替换 close 而造成高低价与收盘价口径不一致。
+"""
 
 from __future__ import annotations
 
@@ -20,8 +25,6 @@ STANDARD_DAILY_COLUMNS = [
     "close",
     "adjusted_close",
     "volume",
-    "dividend",
-    "split_factor",
 ]
 STANDARD_INTRADAY_COLUMNS = [
     "date",
@@ -36,12 +39,20 @@ STANDARD_INTRADAY_COLUMNS = [
 
 
 def default_price_field(data_frequency: DataFrequency) -> str:
+    """返回频率默认价格列。
+
+    日线和周线默认偏向 ``adjusted_close``，以适应存在复权语义的资产；期货画像应在
+    YAML 中显式设为 ``close``，避免把主力连续拼接数据误认为股票复权价。
+    """
+
     if data_frequency in {DataFrequency.D1, DataFrequency.W1}:
         return "adjusted_close"
     return "close"
 
 
 def expected_market_columns(profile: TradingProfile | str | None = None) -> list[str]:
+    """按画像频率返回必须存在的标准字段，返回副本避免调用方修改全局常量。"""
+
     profile_obj = profile if isinstance(profile, TradingProfile) else load_trading_profile(profile)
     if profile_obj.data_frequency in {DataFrequency.D1, DataFrequency.W1}:
         return list(STANDARD_DAILY_COLUMNS)
@@ -52,6 +63,13 @@ def validate_market_dataset(
     profile: TradingProfile | str | None,
     df: pl.DataFrame,
 ) -> dict[str, Any]:
+    """校验数据字段、主键唯一性、空值与画像价格口径。
+
+    日线主键是 ``(date, symbol)``，日内主键是 ``(timestamp, symbol)``。任一必需字段
+    缺失、存在空值、主键重复或配置价格列不存在都会直接失败；下载器不会悄悄补值，
+    防止错误数据进入指标和回测。
+    """
+
     profile_obj = profile if isinstance(profile, TradingProfile) else load_trading_profile(profile)
     expected_columns = expected_market_columns(profile_obj)
     missing_columns = [column for column in expected_columns if column not in df.columns]
@@ -113,6 +131,13 @@ def to_signal_market_data(
     profile: TradingProfile | str | None,
     market_df: pl.DataFrame,
 ) -> pl.DataFrame:
+    """将原始标准行情转换为策略应读取的统一价格口径。
+
+    若使用 ``adjusted_close``，调整因子为 ``f = adjusted_close / close``，输出
+    ``open'=open×f, high'=high×f, low'=low×f, close'=adjusted_close``。当原 close 接近
+    零时 ``f`` 取 1，避免除零。配置列缺失时保持原表，由前置 schema 校验负责拒绝。
+    """
+
     profile_obj = profile if isinstance(profile, TradingProfile) else load_trading_profile(profile)
     configured_price_field = profile_obj.data.price_field or default_price_field(
         profile_obj.data_frequency

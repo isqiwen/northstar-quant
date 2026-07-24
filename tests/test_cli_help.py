@@ -20,8 +20,7 @@ def test_root_help_supports_short_flag_and_chinese_descriptions():
     assert "显示帮助并退出" in result.output
     assert "init-db" in result.output
     assert "初始化本地数据库表结构" in result.output
-    assert "sample-data" in result.output
-    assert "生成项目自带的样例行情数据" in result.output
+    assert "sample-data" not in result.output
     assert "health" in result.output
     assert "检查项目当前运行状态" in result.output
 

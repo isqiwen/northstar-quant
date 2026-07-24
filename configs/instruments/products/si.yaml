@@ -1,0 +1,28 @@
+# 工业硅（SI）品种卡。
+version: 1
+product: SI
+name: 工业硅
+exchange: GFEX
+contract:
+  multiplier: 5
+  tick_size: 5.0
+  delivery_month_rule: exchange_contract_specification
+trading:
+  timezone: Asia/Shanghai
+  has_night_session: true
+  session_rule: exchange_daily_schedule
+delivery:
+  last_trade_day_rule: exchange_contract_specification
+  individual_investor_rule: broker_and_exchange_delivery_month_restriction
+roll:
+  method: explicit_daily_contract_chain
+  reference_signals: [open_interest, volume, term_liquidity]
+risk:
+  dynamic_snapshot: [trading_sessions, margin_rate, commission, price_limits, position_limits, active_contract]
+research:
+  industry_chain: 硅石和电力经矿热炉生产工业硅，下游包括多晶硅、有机硅和铝合金。
+  supply_demand_drivers: 西北和西南电价、产能投放、硅料与有机硅需求、库存和季节性供电。
+  event_risks: 电力政策与水电季节、产能集中投放、下游减产、环保检查和运输扰动。
+sources:
+  exchange: https://www.gfex.com.cn/
+  daily_rule_source: exchange_and_broker_daily_notice

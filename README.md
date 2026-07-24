@@ -17,7 +17,7 @@ Northstar Quant 的目标不是提供“开箱即用的券商生产系统”，�
 
 - **研究层**：通过 canonical strategy pipeline 做研究、扫描和快速验证
 - **回测层**：使用项目内置目标权重与策略仿真引擎；第三方引擎仍待独立交叉验证
-- **实盘层**：支持 `paper` 与 `IBKR` 模式，覆盖持仓同步、再平衡、订单轮询与撤单
+- **执行层**：支持本地 `paper` 流程验证；CTP 合约映射已实现，真实 CTP 报单适配器尚未实现
 - **风控层**：包含全局风控、策略风控与交易前风控
 - **监控层**：包含日志、健康检查、企业微信 / Telegram 告警、Dashboard
 - **报告层**：支持日报、周报、月报、邮件发送、Markdown/PDF 报告归档
@@ -65,7 +65,6 @@ Northstar/
 │  ├─ monitoring/              健康检查、告警、Dashboard
 │  ├─ portfolio/               组合构造与仓位分配
 │  ├─ reporting/               Markdown/PDF 报告与邮件发送
-│  ├─ research/                研究扫描入口
 │  ├─ risk/                    多层风控
 │  └─ strategies/              策略实现
 ├─ templates/                  报告模板
@@ -141,21 +140,15 @@ alembic upgrade head
 
 ```bash
 northstar data profiles
-northstar data download --profile cn_etf_daily_stateful_offline
-northstar research momentum --profile cn_etf_daily_stateful_offline
-northstar backtest event portfolio --profile cn_etf_daily_stateful_offline
+northstar data download --profile cn_futures_daily_trend_offline
+northstar research futures-trend --profile cn_futures_daily_trend_offline
+northstar backtest event portfolio --profile cn_futures_daily_trend_offline
 ```
 
-如果你要下载真实的中国 A 股 ETF 日频数据并直接进入研究流程，可以使用项目内置的 `cn_etf_daily_yfinance_offline` 画像。该画像使用 Yahoo Finance 的 `.SS` / `.SZ` 符号格式：
-
-```bash
-northstar data providers
-northstar data download --profile cn_etf_daily_yfinance_offline
-northstar data validate --profile cn_etf_daily_yfinance_offline
-northstar data manifest --profile cn_etf_daily_yfinance_offline
-northstar research momentum --profile cn_etf_daily_yfinance_offline
-northstar backtest event etf_rotation --profile cn_etf_daily_yfinance_offline
-```
+仓库只内置 `cn_futures_daily_trend_offline` 一个安全的离线研究画像。它以商品期货连续合约
+生成研究信号，不能用于下单，并通过 AKShare 自动下载研究数据。需要接入真实期货数据时，复制该文件
+并显式配置合约规格、连续合约规则、实际合约映射及经核验的数据来源；不要把连续合约研究画像直接放入
+`simulated/` 或 `live/`。
 
 ## 常用命令
 
@@ -164,21 +157,18 @@ northstar backtest event etf_rotation --profile cn_etf_daily_yfinance_offline
 ```bash
 northstar health
 northstar init-db
-northstar sample-data --profile cn_etf_daily_stateful_offline
 northstar data profiles
 northstar data providers
-northstar data download --profile cn_stock_daily_offline
-northstar data validate --profile cn_stock_daily_offline
-northstar data manifest --profile cn_stock_daily_offline
+northstar data download --profile cn_futures_daily_trend_offline
+northstar data validate --profile cn_futures_daily_trend_offline
+northstar data manifest --profile cn_futures_daily_trend_offline
 ```
 
 ### 研究与回测
 
 ```bash
-northstar research momentum
-northstar backtest event etf_rotation
-northstar backtest bt momentum
-northstar backtest bt etf_rotation
+northstar research futures-trend --profile cn_futures_daily_trend_offline
+northstar backtest event futures_trend --profile cn_futures_daily_trend_offline
 ```
 
 ### 实盘执行
@@ -196,11 +186,11 @@ northstar live scheduler
 ### 报告与监控
 
 ```bash
-northstar report daily --strategy etf_rotation
-northstar report weekly --strategy etf_rotation
-northstar report monthly --strategy etf_rotation
-northstar report send reports/etf_rotation_daily_report.md
-northstar report pdf reports/etf_rotation_daily_report.md
+northstar report daily --strategy futures_trend
+northstar report weekly --strategy futures_trend
+northstar report monthly --strategy futures_trend
+northstar report send reports/futures_trend_daily_report.md
+northstar report pdf reports/futures_trend_daily_report.md
 northstar dashboard run
 ```
 
@@ -219,7 +209,8 @@ northstar dashboard run
 - `configs/app.yaml`：应用级配置
 - `configs/profiles/`：按连接边界组织的交易画像配置；`offline/` 不连接券商，`simulated/` 连接模拟账户，`live/` 连接真实账户
 - `configs/strategy/*.yaml`：策略配置
-- `configs/risk/*.yaml`、`configs/data/*.yaml`、`configs/portfolio/*.yaml` 当前仍是设计样例或未来扩展点，尚未接入统一运行时加载
+- `configs/futures/*.yaml`：连续合约研究规格；连续 symbol 明确不可交易
+- `configs/risk/*.yaml`、`configs/portfolio/*.yaml` 当前仍是设计样例或未来扩展点，尚未接入统一运行时加载
 - `.env`：数据库地址、券商参数、告警方式（`console / wecom / telegram`）、SMTP、调度 cron 等运行时配置
 
 默认数据库使用 `sqlite:///storage/northstar.db`，正式环境更建议切换为 PostgreSQL 并配合 `Alembic` 管理迁移。
@@ -228,12 +219,10 @@ northstar dashboard run
 市场数据当前按两层目录管理：`storage/downloads/<provider>/<market>/<asset_type>/<data_frequency>/` 保存下载缓存，`storage/market/<market>/<asset_type>/<data_frequency>/` 保存标准化后的策略输入数据；每个数据文件都会配套生成 `.manifest.json` 元数据文件。
 当前内置的数据提供器包括：
 
-- `demo`：生成项目自带的演示数据
-- `local`：直接读取画像已指向的本地数据文件
-- `yfinance`：从 Yahoo Finance 下载真实行情并规范落盘，A 股使用 `.SS` / `.SZ` 后缀
+- `akshare`：通过 AKShare 的新浪主力连续合约接口自动下载国内期货日线
 
 交易画像里的 `data.download` 段负责描述下载行为，例如下载提供器、symbol 列表、开始日期、结束日期和下载选项；`data.path` 负责描述标准化后数据集在 `storage/market` 下的目标位置。这样同一套 CLI 可以同时覆盖“在线下载、缓存落盘、标准数据集落盘、manifest 追踪、研究读取”整个流程。
-对于中国 A 股日频/周频数据，当前标准表 schema 为：`date / symbol / open / high / low / close / adjusted_close / volume / dividend / split_factor`。其中 `close` 保留原始收盘价，`adjusted_close` 单独保存复权收盘价；研究、目标权重回测和策略信号默认读取 `data.price_field` 指定的价格列，当前日频/周频画像默认使用 `adjusted_close`，而实盘预览与下单估值仍使用原始 `close`。这套语义可以通过 `northstar data validate --profile ...` 明确校验。
+国内期货日线数据的标准表 schema 为：`date / symbol / open / high / low / close / adjusted_close / volume`。连续合约研究画像使用 `close`；`adjusted_close` 仅作为数据提供器可选的连续序列调整字段，不能替代实际交割合约价格。可通过 `northstar data validate --profile ...` 校验。
 
 ## 架构说明
 
@@ -247,18 +236,13 @@ northstar dashboard run
 6. 监控层：负责日志、健康检查、告警与报告
 
 策略、回测、执行、报告等能力通过 CLI 统一暴露，入口位于 `src/northstar_quant/cli.py`。
-当前交易画像已经按 `市场 × 资产类型 × 频率 × 策略类型` 四个维度抽象，例如：
-
-- `CN × ETF × 1d × 1d × momentum_rotation`
-- `CN × EQUITY × 1d × 1d × cross_sectional_selection`
-- `CN × EQUITY × 1w × 1w × cross_sectional_selection`
-- `CN × EQUITY × 1m × 5m × intraday_breakout`
+当前唯一运行时画像为：`CN × FUTURES × 1d × 1d × trend_following`。
 
 ## 实盘与报告能力
 
 当前项目已经具备以下实用能力：
 
-- 从 `IBKR / Paper Broker` 同步真实持仓
+- 从 paper 或未来的 CTP 适配器同步持仓
 - 将订单、成交、持仓快照持续落库
 - 基于目标权重生成再平衡计划
 - 支持限价执行、追价执行、超时撤单
@@ -268,9 +252,9 @@ northstar dashboard run
 
 真实券商默认保持关闭和只读。订单 attempt 持久化在先、账户级 fencing 租约、
 instrument registry 和 completed/cancel 恢复已经落地；但仓库内 registry
-默认为空，production 画像仍使用 `demo` 数据并明确设置
-`live_trading_eligible: false`。完成实际 conId 核验、可信数据切换和并发/崩溃
-恢复演练前，不应开启真实资金。
+默认为空，内置 offline 画像使用 AKShare 主力连续合约数据并明确设置
+`live_trading_eligible: false`。完成实际 CTP 合约核验、可信实盘数据切换和并发/崩溃
+恢复演练，并创建经核验的 production 画像前，不应开启真实资金。
 
 ## 文档索引
 
@@ -284,6 +268,7 @@ instrument registry 和 completed/cancel 恢复已经落地；但仓库内 regis
 - [邮件附件 PDF 报告](docs/08_邮件附件PDF报告.md)
 - [正式版 PDF 报告版式](docs/09_正式版PDF报告版式.md)
 - [架构审核与演进路线](docs/10_架构审核与演进路线.md)
+- [代码与配置注释规范](docs/11_代码注释规范.md)
 
 ## 当前状态与边界
 

@@ -34,7 +34,7 @@ class SimulationBacktesterBase(ABC):
         profile: TradingProfile,
         *,
         strategy_name: str,
-        symbol: str = "510300.SS",
+        symbol: str = "RB_CONT",
     ) -> dict:
         """按画像和策略运行一次仿真回测。"""
 

@@ -1,0 +1,153 @@
+# 唯一内置的离线研究画像。
+#
+# 本文件用于“公开连续合约数据 → 趋势信号 → 权重收益研究”。它不连接券商，且所有
+# symbol 都是连续研究序列；禁止把此文件复制到 simulated/ 或 live/ 后直接启用交易。
+# 文件名必须与 profile_id 一致，并以 _offline 结尾，加载器会严格校验。
+# 画像的稳定唯一 ID；用于数据 manifest、日志、报告与数据库关联。
+profile_id: cn_futures_daily_trend_offline
+# 面向用户的画像名称，不参与程序分支判断。
+name: 中国商品期货日线趋势研究
+# 市场代码；当前期货画像必须是 CN。
+market: CN
+# 资产类别；决定必须存在 futures 配置段。
+asset_type: FUTURES
+# 输入行情频率；1d 表示每根 bar 是一个交易日。
+data_frequency: 1d
+# 目标权重更新频率；不等同于真实下单频率。
+rebalance_frequency: 1d
+# 策略分类；必须与启用策略的注册分类兼容。
+strategy_family: trend_following
+# 报告与风险金额采用的货币。
+currency: CNY
+# 数据时间解释、报告和未来调度使用的时区。
+timezone: Asia/Shanghai
+# 交易日历 ID。XSHG 仅是当前离线研究的兼容占位，尚不覆盖期货夜盘；生产期货画像
+# 必须改用经验证的期货交易日历，不能直接继承此值。
+calendar: XSHG
+# 标的池的稳定名称；实际成员由 data.download.symbols 决定。
+universe_id: cn_commodity_continuous_core
+# 报告比较基准；仅用于比较收益，不会生成订单。
+benchmark_symbol: RB_CONT
+lifecycle:
+  # research 只允许离线研究；目录和 role 必须同时匹配。
+  role: research
+  # 同一研究/账户线的稳定标识；不是期货资金账号。
+  line_id: cn_futures_daily_trend_research
+futures:
+  # 连续合约规格文件，包含交易所、乘数、最小变动价位与不可交易标记。
+  contract_spec_path: configs/futures/cn_commodity_research.yaml
+  # 连续序列到 CTP 实际合约的显式映射；当前为空，因而必须拒绝执行。
+  ctp_contract_mapping_path: configs/instruments/ctp.yaml
+  # true 表示行情 symbol 是连续序列；连续序列绝不可直接作为 CTP 合约下单。
+  symbols_are_continuous: true
+  # 研究画像必须为 false；实际执行需要生产角色、实际合约和完整 CTP 适配器。
+  execution_allowed: false
+execution:
+  # false 允许趋势研究产生正负目标权重；它不授予真实卖空权限。
+  long_only: false
+  # 最小调仓名义金额；连续合约研究无现金成交，设为 0。
+  rebalance_min_trade_value: 0
+  # 目标权重变化低于该阈值时未来可忽略；0 表示不设容忍带。
+  rebalance_weight_tolerance: 0.0
+  # 订单数量步长；研究中为 1 手，实际合约仍需按柜台规则复核。
+  order_qty_step: 1
+backtest:
+  # 当前仅支持 weight_return：按目标权重和连续序列收益计算，不模拟保证金、换月、
+  # 涨跌停、夜盘、真实手续费或逐笔成交。
+  engine: weight_return
+  # 权益曲线的起始资金，仅用于研究报表。
+  initial_cash: 100000
+  # 交易成本假设，单位为基点；当前设为 0，不能代表真实期货手续费。
+  commission_bps: 0.0
+  # 单笔最低佣金；当前研究引擎不以真实订单方式撮合。
+  min_commission: 0.0
+  # 成交滑点假设，单位为基点；当前设为 0，因此结果偏理想化。
+  slippage_bps: 0.0
+  # 研究引擎的数量单位；不是取代各品种实际乘数的字段。
+  lot_size: 1
+  # 信号产生后延迟多少个交易日执行；1 用于避免同日收盘价未来函数。
+  execution_delay_sessions: 1
+  # 卖出后再次可卖的等待交易日数；连续合约研究设为 0。
+  sellable_after_sessions: 0
+versions:
+  # 画像内容版本锚点；修改关键字段时应递增以便研究结果追溯。
+  profile: cn-futures-continuous-research-v1
+  # 基准定义版本锚点。
+  benchmark: rb-continuous-reference-v1
+  # 策略参数版本锚点。
+  strategy_params: futures-trend-60d-v1
+  # 执行假设版本锚点。
+  execution_policy: continuous-contract-signal-only-v1
+  # 风险约束版本锚点。
+  risk_policy: futures-gross-80pct-v1
+data:
+  # 标准化数据来源标识；当前仅注册 akshare。
+  provider: akshare
+  # 数据集逻辑名称；写入 manifest，用于避免错把其他数据集用于此画像。
+  dataset_id: continuous_research
+  # 来源为 Sina 主力连续序列；只能研究，不能代表实际可交易合约、结算或真实下单数据。
+  live_trading_eligible: false
+  # 相对 storage/market 的标准化 Parquet 路径。
+  path: cn/futures/1d/continuous.parquet
+  # 策略读取的价格列；这里明确使用原始 close。
+  price_field: close
+  # 上游未提供项目定义的回溯调整序列；adjusted_close 会等于 close。
+  adjusted: false
+  download:
+    # 是否允许 northstar data download 对此画像发起外部下载。
+    enabled: true
+    # 下载提供器；必须与注册提供器名称一致。
+    provider: akshare
+    # 内部连续研究 symbol 列表，也是当前实际标的池。
+    symbols:
+      # 上期所：螺纹钢、铜。
+      - RB_CONT
+      - CU_CONT
+      # 大商所：铁矿石、豆粕。
+      - I_CONT
+      - M_CONT
+      # 郑商所：PTA 的期货品种代码为 TA，以及纯碱。
+      - TA_CONT
+      - SA_CONT
+      # 广期所：工业硅；能源中心：原油。
+      - SI_CONT
+      - SC_CONT
+    # 历史研究起始日；下载器会使用 YYYYMMDD 格式传给上游。
+    start_date: "2015-01-05"
+    options:
+      # 内部研究 symbol 与 AKShare/Sina 上游连续代码必须一一对应，禁止自动猜测。
+      vendor_symbols:
+        RB_CONT: RB0
+        CU_CONT: CU0
+        I_CONT: I0
+        M_CONT: M0
+        TA_CONT: TA0
+        SA_CONT: SA0
+        SI_CONT: SI0
+        SC_CONT: SC0
+      # 上游公开接口可能限流；按品种顺序请求时保留的秒数。
+      request_interval_seconds: 1.0
+strategies:
+  # 可并列配置多条策略；当前只有一条趋势策略。
+  - strategy_id: futures_trend
+    # 用于校验策略注册信息；必须与策略实现的类别一致。
+    strategy_family: trend_following
+    # false 时保留参数但不运行该策略。
+    enabled: true
+    # 多策略合成前的资本权重；只有一条策略时为 1。
+    capital_weight: 1.0
+    params:
+      # 覆盖 configs/strategy/futures_trend.yaml 的默认趋势窗口。
+      lookback_days: 60
+risk:
+  # 单个品种目标权重绝对值上限；0.25 不等同于保证金比例。
+  max_single_weight: 0.25
+  # 全部品种目标权重绝对值之和上限；0.8 表示最多 80% 研究暴露。
+  max_gross_exposure: 0.8
+  # 未分配资金下限；连续合约研究中设为 0。
+  min_cash_buffer: 0.0
+schedule:
+  # 未来 production 画像可覆盖影子运行的五段 cron；当前 offline 不会启动 scheduler。
+  shadow_run_cron: "30 15 * * 1-5"
+  # 未来 production 画像可覆盖日报 cron；当前 offline 不会发送生产日报。
+  daily_report_cron: "45 15 * * 1-5"

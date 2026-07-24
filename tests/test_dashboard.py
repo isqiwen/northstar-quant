@@ -7,7 +7,7 @@ def test_build_price_options_uses_explicit_price_labels_only():
     market_df = pl.DataFrame(
         {
             "date": ["2024-01-02"],
-            "symbol": ["SPY"],
+            "symbol": ["RB2405"],
             "close": [100.0],
             "adjusted_close": [98.5],
         }

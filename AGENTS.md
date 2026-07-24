@@ -47,7 +47,7 @@ Keep new code in the narrowest existing module that owns the behavior. Do not cr
 
 ## Safety Rules
 
-- Never write passwords, API tokens, IBKR credentials, webhook secrets, SMTP passwords, private keys, or recovery codes into tracked files.
+- Never write passwords, API tokens, CTP credentials, webhook secrets, SMTP passwords, private keys, or recovery codes into tracked files.
 - Do not commit `.env`, local databases, downloaded market data, generated reports, cache directories, or broker state files.
 - Keep `.env.example` safe by default. Example configs must not enable real-money trading.
 - `NORTHSTAR_BROKER=paper` is the default safe mode.
@@ -128,8 +128,8 @@ uv run pytest
 uv run ruff check .
 uv run northstar health
 uv run northstar data profiles
-uv run northstar live preflight --profile cn_etf_daily
-uv run northstar live preview-rebalance --profile cn_etf_daily
+uv run northstar data download --profile cn_futures_daily_trend_offline
+uv run northstar research futures-trend --profile cn_futures_daily_trend_offline
 ```
 
 Commands requiring explicit user confirmation when `NORTHSTAR_BROKER` is not `paper`:
@@ -169,4 +169,3 @@ When reporting work:
 - List verification commands and results.
 - Mention any tests or checks that were not run.
 - Call out remaining live-trading risk plainly.
-

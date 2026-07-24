@@ -1,21 +1,40 @@
+# 应用级默认值与日志规则。
+#
+# 交易研究、数据和执行的实际行为以交易画像为准；app 段目前用于表达项目默认定位，
+# 不会覆盖 configs/profiles 中同名字段。日志段由启动阶段直接读取。
 app:
+  # 用于日志、界面和报告展示的项目名称。
   name: Northstar Quant
+  # 运行环境标签，仅用于识别环境；不是实盘开关。
   env: dev
+  # 默认时区；画像未显式指定 timezone 时才会使用。
   timezone: Asia/Shanghai
+  # 默认市场、资产类型、频率与策略类别；画像中的值优先。
   market: CN
-  asset_type: ETF
+  asset_type: FUTURES
   data_frequency: 1d
   rebalance_frequency: 1d
-  strategy_family: momentum_rotation
+  strategy_family: trend_following
 
+# 统一日志设置。日志是运行审计的一部分，不应关闭文件日志来规避问题追踪。
 logging:
+  # Python 日志最低级别；INFO 适合日常运行，排障时可临时调整为 DEBUG。
   level: INFO
+  # 是否输出人类可读的控制台日志。
   console_enabled: true
+  # 是否写入 JSON Lines 审计日志；正式运行建议保持 true。
   file_enabled: true
+  # 相对项目根目录的日志输出目录；storage/ 默认不纳入 Git。
   directory: storage/logs
+  # 当前活动日志文件名；轮转后的文件会带日期后缀。
   filename: northstar.log
+  # 按什么周期轮转；midnight 表示每天午夜切换新文件。
   when: midnight
+  # 轮转间隔，和 when 配合使用；1 表示每个周期轮转一次。
   interval: 1
+  # 保留的历史日志文件数量，超过后自动清理最旧文件。
   backup_count: 14
+  # 文件编码，确保中文日志可读。
   encoding: utf-8
+  # 控制台日志格式；文件日志统一使用结构化 JSON Lines。
   format: "%(asctime)s | %(levelname)-8s | %(filename)s:%(lineno)d | %(message)s"

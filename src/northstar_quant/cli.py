@@ -18,6 +18,7 @@ from northstar_quant.backtest.registry import (
     run_simulation_backtest,
     run_target_backtest,
 )
+from northstar_quant.backtest.runner import run_profile_backtest
 from northstar_quant.common.enums import StrategyOutputType
 from northstar_quant.config.settings import get_settings
 from northstar_quant.config.trading_profile import load_trading_profile, resolve_profile_id
@@ -57,7 +58,6 @@ from northstar_quant.reporting.report_builder import (
     record_daily_anomaly_events,
     write_markdown_report,
 )
-from northstar_quant.research.momentum_scan import run_momentum_research
 from northstar_quant.strategies.pipeline import (
     latest_pipeline_output,
     parse_strategy_selection,
@@ -162,31 +162,6 @@ def init_db_command() -> None:
 
 
 @app.command(
-    "sample-data",
-    short_help="生成项目自带的样例行情数据。",
-    help="生成项目自带的演示行情数据，并写入该画像的标准数据目录。",
-    **_COMMAND_KWARGS,
-)
-def sample_data_command(
-    profile: str | None = typer.Option(None, "--profile", "-p", help=_PROFILE_OPTION_HELP),
-) -> None:
-    """生成项目自带的样例行情数据。"""
-
-    resolved_profile = resolve_profile_id(profile)
-    result = download_profile_data(resolved_profile, provider_override="demo")
-    _log_json(
-        {
-            "dataset_path": result.dataset_path,
-            "cache_path": result.cache_path,
-            "row_count": result.row_count,
-            "symbol_count": result.symbol_count,
-        },
-        command="sample-data",
-        profile=resolved_profile,
-    )
-
-
-@app.command(
     "health",
     short_help="检查项目当前运行状态。",
     help="检查项目当前运行状态，包括目录、环境和券商连接模式等基础健康信息。",
@@ -249,15 +224,15 @@ def data_validate_command(
     _log_json(validate_profile_data(resolved_profile), command="data.validate", profile=resolved_profile)
 
 
-@research_app.command("momentum", **_COMMAND_KWARGS)
-def research_momentum_command(
+@research_app.command("futures-trend", **_COMMAND_KWARGS)
+def research_futures_trend_command(
     profile: str | None = typer.Option(None, "--profile", "-p", help=_PROFILE_OPTION_HELP),
 ) -> None:
-    """运行基于 canonical profile pipeline 的研究扫描。"""
+    """运行指定画像的离线回测，并输出研究摘要。"""
 
     resolved_profile = resolve_profile_id(profile)
-    result = run_momentum_research(profile_id=resolved_profile)
-    _log_json(result, command="research.momentum", strategy="portfolio", profile=resolved_profile)
+    result = run_profile_backtest(profile_id=resolved_profile)
+    _log_json(result, command="research.futures-trend", strategy="futures_trend", profile=resolved_profile)
 
 
 @backtest_app.command("event", **_COMMAND_KWARGS)

@@ -8,7 +8,12 @@ from datetime import datetime
 
 @dataclass(slots=True)
 class OrderRequest:
-    """统一订单请求模型。"""
+    """准备提交给券商的统一订单载荷。
+
+    它是“订单请求”，尚未表示券商已接受。``instrument_id`` 与 ``exchange_id`` 是实际
+    CTP 合约身份；连续研究 symbol 不能仅凭 ``symbol`` 进入真实提交。``run_id``、
+    ``batch_id``、``plan_id``、``attempt_no`` 共同用于幂等、恢复和审计。
+    """
 
     strategy_id: str
     symbol: str
@@ -30,17 +35,18 @@ class OrderRequest:
     attempt_no: int = 1
     execution_policy_fingerprint: str | None = None
     execution_planner_id: str | None = None
-    broker_symbol: str | None = None
-    con_id: int | None = None
-    sec_type: str | None = None
-    exchange: str | None = None
-    primary_exchange: str | None = None
+    instrument_id: str | None = None
+    exchange_id: str | None = None
     currency: str | None = None
 
 
 @dataclass(slots=True)
 class OrderResult:
-    """统一订单结果模型。"""
+    """一次提交尝试的可持久化结果。
+
+    ``accepted`` 只表示适配器接受或复用了结果，不表示完全成交；最终成交必须以后续
+    状态同步和 FillSnapshot 为准。``replayed`` 为 true 表示命中幂等记录，未再次下单。
+    """
 
     accepted: bool
     broker_order_id: str
@@ -54,7 +60,11 @@ class OrderResult:
 
 @dataclass(slots=True)
 class PositionSnapshot:
-    """券商侧持仓快照。"""
+    """某一时点从券商获得的单合约持仓快照。
+
+    ``qty`` 使用带方向的净数量；``sellable_qty`` 是可立即平仓数量，不可用时应保持
+    None 而不是假设等于 qty。``asof`` 与 ``snapshot_batch_id`` 用于判断快照完整性。
+    """
 
     symbol: str
     qty: float
@@ -63,14 +73,19 @@ class PositionSnapshot:
     market_value: float | None = None
     sellable_qty: float | None = None
     account: str | None = None
-    con_id: int | None = None
+    instrument_id: str | None = None
+    exchange_id: str | None = None
     asof: datetime | None = None
     snapshot_batch_id: str | None = None
 
 
 @dataclass(slots=True)
 class FillSnapshot:
-    """券商侧成交快照。"""
+    """券商确认的一笔成交，不是订单状态推测。
+
+    ``exec_id`` 应是券商侧唯一成交标识，用于去重；``broker_order_id`` 关联订单，
+    ``instrument_id`` 与 ``exchange_id`` 保留实际 CTP 合约身份。
+    """
 
     broker_order_id: str
     symbol: str
@@ -83,12 +98,17 @@ class FillSnapshot:
     order_ref: str | None = None
     perm_id: int | None = None
     client_id: int | None = None
-    con_id: int | None = None
+    instrument_id: str | None = None
+    exchange_id: str | None = None
 
 
 @dataclass(slots=True)
 class MarketQuoteSnapshot:
-    """券商侧市场报价快照。"""
+    """用于估值和预交易价格检查的券商报价快照。
+
+    ``bid/ask/last/close/market_price`` 的可用性随数据权限变化；调用方必须记录 source、
+    时间和数据类型，缺失可信价格时真实订单应失败关闭。
+    """
 
     symbol: str
     bid: float | None = None
@@ -128,7 +148,11 @@ class RebalanceOrderPlan:
 
 @dataclass(slots=True)
 class BrokerStateSnapshot:
-    """券商状态快照，用于对账与健康检查。"""
+    """同一时点的券商账户状态，用于对账、预交易检查与恢复。
+
+    ``state_complete`` 为 false 或 ``state_errors`` 非空时，状态不能作为真实交易的完整
+    依据。open_orders 与 completed_orders 共同用于恢复不确定订单，fills 用于补齐成交。
+    """
 
     positions: list[PositionSnapshot] = field(default_factory=list)
     open_orders: list[dict] = field(default_factory=list)

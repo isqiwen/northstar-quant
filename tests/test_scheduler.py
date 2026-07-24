@@ -13,8 +13,9 @@ def test_build_and_send_daily_report_skips_info_alert_when_no_anomaly(monkeypatc
     monkeypatch.setattr(
         live_scheduler,
         "load_trading_profile",
-        lambda: SimpleNamespace(profile_id="us_etf_daily", enabled_strategies=[]),
+        lambda _profile_id: SimpleNamespace(profile_id="cn_futures_daily_live", enabled_strategies=[]),
     )
+    monkeypatch.setattr(live_scheduler, "get_production_profile_id", lambda: "cn_futures_daily_live")
     monkeypatch.setattr(
         live_scheduler,
         "build_periodic_report_only",
@@ -46,7 +47,7 @@ def test_build_and_send_daily_report_skips_info_alert_when_no_anomaly(monkeypatc
     assert email_calls == [
         ("/tmp/daily_report.md", "Northstar Quant - 日报 - daily_report")
     ]
-    assert report_calls == [("daily", "portfolio", "us_etf_daily")]
+    assert report_calls == [("daily", "portfolio", "cn_futures_daily_live")]
 
 
 def test_build_and_send_daily_report_sends_warning_for_anomaly(monkeypatch):
@@ -56,8 +57,9 @@ def test_build_and_send_daily_report_sends_warning_for_anomaly(monkeypatch):
     monkeypatch.setattr(
         live_scheduler,
         "load_trading_profile",
-        lambda: SimpleNamespace(profile_id="us_etf_daily", enabled_strategies=[]),
+        lambda profile_id: SimpleNamespace(profile_id=profile_id, enabled_strategies=[]),
     )
+    monkeypatch.setattr(live_scheduler, "get_production_profile_id", lambda: "cn_futures_daily_live")
     monkeypatch.setattr(
         live_scheduler,
         "build_periodic_report_only",
@@ -111,8 +113,9 @@ def test_build_and_send_weekly_report_keeps_info_success_alert(monkeypatch):
     monkeypatch.setattr(
         live_scheduler,
         "load_trading_profile",
-        lambda: SimpleNamespace(profile_id="us_etf_daily", enabled_strategies=[]),
+        lambda profile_id: SimpleNamespace(profile_id=profile_id, enabled_strategies=[]),
     )
+    monkeypatch.setattr(live_scheduler, "get_production_profile_id", lambda: "cn_futures_daily_live")
     monkeypatch.setattr(
         live_scheduler,
         "build_periodic_report_only",
@@ -193,14 +196,15 @@ def test_run_scheduler_registers_shadow_run_job(monkeypatch):
     monkeypatch.setattr(
         live_scheduler,
         "load_trading_profile",
-        lambda: SimpleNamespace(
-            profile_id="us_etf_daily",
+        lambda profile_id: SimpleNamespace(
+            profile_id=profile_id,
             timezone="America/New_York",
             calendar="XNYS",
             enabled_strategies=[],
             schedule={},
         ),
     )
+    monkeypatch.setattr(live_scheduler, "get_production_profile_id", lambda: "cn_futures_daily_live")
 
     with pytest.raises(_StopScheduler):
         live_scheduler.run_scheduler()

@@ -35,9 +35,9 @@ def test_cancel_stale_orders_writes_cancel_record(tmp_path):
     with Session(engine, future=True) as session:
         session.add(
             OrderRecord(
-                profile_id="us_etf_daily",
+                profile_id="cn_futures_daily_live",
                 strategy_id="core_portfolio",
-                symbol="SPY",
+                symbol="RB2405",
                 side="BUY",
                 qty=10.0,
                 broker="paper",
@@ -65,7 +65,7 @@ def test_cancel_stale_orders_writes_cancel_record(tmp_path):
     assert result["cancel_requested_order_ids"] == ["paper-123"]
     assert cancel_row is not None
     assert cancel_row.broker == "paper"
-    assert cancel_row.profile_id == "us_etf_daily"
+    assert cancel_row.profile_id == "cn_futures_daily_live"
     assert cancel_row.run_id == "run-cancel-001"
     assert cancel_row.account == "paper-account"
     assert cancel_row.reason == "stale_order_timeout"
@@ -82,7 +82,7 @@ def test_cancel_stale_orders_is_scoped_to_current_broker_client(tmp_path):
             raise AssertionError(f"本测试不应提交订单：{order}")
 
         def get_name(self) -> str:
-            return "ibkr"
+            return "ctp"
 
         def get_account(self) -> str:
             return "DU123456"
@@ -104,10 +104,10 @@ def test_cancel_stale_orders_is_scoped_to_current_broker_client(tmp_path):
     with Session(engine, future=True) as session:
         client_one = OrderRecord(
             strategy_id="core",
-            symbol="SPY",
+            symbol="RB2405",
             side="BUY",
             qty=1.0,
-            broker="ibkr",
+            broker="ctp",
             account="DU123456",
             broker_order_id="42",
             client_id=1,
@@ -116,10 +116,10 @@ def test_cancel_stale_orders_is_scoped_to_current_broker_client(tmp_path):
         )
         client_two = OrderRecord(
             strategy_id="core",
-            symbol="QQQ",
+            symbol="I2405",
             side="BUY",
             qty=1.0,
-            broker="ibkr",
+            broker="ctp",
             account="DU123456",
             broker_order_id="42",
             client_id=2,
@@ -153,18 +153,18 @@ def test_cancel_stale_orders_never_crosses_broker_or_account(tmp_path):
             [
                 OrderRecord(
                     strategy_id="test",
-                    symbol="SPY",
+                    symbol="RB2405",
                     side="BUY",
                     qty=1.0,
-                    broker="ibkr",
+                    broker="ctp",
                     account="paper-account",
-                    broker_order_id="ibkr-1",
+                    broker_order_id="ctp-1",
                     status="Submitted",
                     submitted_at=stale_time,
                 ),
                 OrderRecord(
                     strategy_id="test",
-                    symbol="QQQ",
+                    symbol="I2405",
                     side="BUY",
                     qty=1.0,
                     broker="paper",

@@ -11,11 +11,7 @@ from northstar_quant.strategies.base import (
     WeeklyStrategyBase,
     WeeklyTradePlanStrategyBase,
 )
-from northstar_quant.strategies.etf_rotation import (
-    ETFDailyRotationStrategy,
-    US_ETFDailyRotationStrategy,
-)
-from northstar_quant.strategies.momentum import MomentumRotationStrategy
+from northstar_quant.strategies.futures_trend import FuturesTrendStrategy
 from northstar_quant.strategies.registry import (
     build_profile_strategies,
     build_strategy,
@@ -35,9 +31,7 @@ __all__ = [
     "DailyTradePlanStrategyBase",
     "WeeklyTradePlanStrategyBase",
     "IntradayStrategyBase",
-    "ETFDailyRotationStrategy",
-    "US_ETFDailyRotationStrategy",
-    "MomentumRotationStrategy",
+    "FuturesTrendStrategy",
     "register_strategy",
     "build_strategy",
     "build_profile_strategies",

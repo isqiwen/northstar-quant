@@ -29,6 +29,6 @@ Markdown 报告
 ## 命令示例
 
 ```bash
-northstar report pdf reports/etf_rotation_daily_report.md
+northstar report pdf reports/futures_trend_daily_report.md
 northstar report daily --send-email --send-pdf
 ```

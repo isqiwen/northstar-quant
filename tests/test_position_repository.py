@@ -16,12 +16,12 @@ def test_save_position_snapshots_assigns_one_batch_to_the_whole_sync(tmp_path):
 
     snapshots = [
         PositionSnapshot(
-            symbol="AAPL",
+            symbol="MA2405",
             qty=10,
             asof=datetime(2024, 1, 2, 10, 0, tzinfo=UTC),
         ),
         PositionSnapshot(
-            symbol="MSFT",
+            symbol="TA2405",
             qty=20,
             asof=datetime(2024, 1, 2, 10, 0, 1, tzinfo=UTC),
         ),
@@ -37,7 +37,7 @@ def test_save_position_snapshots_assigns_one_batch_to_the_whole_sync(tmp_path):
         )
 
     assert count == 2
-    assert [row.symbol for row in latest_rows] == ["AAPL", "MSFT"]
+    assert [row.symbol for row in latest_rows] == ["MA2405", "TA2405"]
     assert len({row.snapshot_batch_id for row in stored_rows}) == 1
     assert stored_rows[0].snapshot_batch_id is not None
     assert len({row.asof for row in stored_rows}) == 1
@@ -53,13 +53,13 @@ def test_list_latest_positions_prefers_batch_id_over_row_level_asof(tmp_path):
         session.add_all(
             [
                 PositionSnapshotRecord(
-                    symbol="AAPL",
+                    symbol="MA2405",
                     qty=10,
                     asof=datetime(2024, 1, 2, 10, 0, tzinfo=UTC),
                     snapshot_batch_id="batch-001",
                 ),
                 PositionSnapshotRecord(
-                    symbol="MSFT",
+                    symbol="TA2405",
                     qty=20,
                     asof=datetime(2024, 1, 2, 10, 0, 1, tzinfo=UTC),
                     snapshot_batch_id="batch-001",
@@ -70,4 +70,4 @@ def test_list_latest_positions_prefers_batch_id_over_row_level_asof(tmp_path):
 
         latest_rows = list_latest_positions(session)
 
-    assert [row.symbol for row in latest_rows] == ["AAPL", "MSFT"]
+    assert [row.symbol for row in latest_rows] == ["MA2405", "TA2405"]

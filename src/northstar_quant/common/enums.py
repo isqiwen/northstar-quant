@@ -36,18 +36,13 @@ class BrokerMode(StringEnum):
 class Market(StringEnum):
     """交易市场枚举。"""
 
-    US = "US"
     CN = "CN"
-    HK = "HK"
 
 
 class AssetType(StringEnum):
-    """资产类型枚举。"""
+    """本项目支持的资产类型。"""
 
-    ETF = "ETF"
-    EQUITY = "EQUITY"
     FUTURES = "FUTURES"
-    OPTIONS = "OPTIONS"
 
 
 class DataFrequency(StringEnum):
@@ -76,10 +71,7 @@ class StrategyFamily(StringEnum):
     """策略家族枚举。"""
 
     TREND_FOLLOWING = "trend_following"
-    MOMENTUM_ROTATION = "momentum_rotation"
     MEAN_REVERSION = "mean_reversion"
-    CROSS_SECTIONAL_SELECTION = "cross_sectional_selection"
-    INTRADAY_BREAKOUT = "intraday_breakout"
 
 
 class StrategyOutputType(StringEnum):

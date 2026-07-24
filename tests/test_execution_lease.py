@@ -21,7 +21,7 @@ def test_execution_lease_is_account_scoped_and_fenced_across_sessions(tmp_path):
     )
     Base.metadata.create_all(bind=engine)
     now = utc_now()
-    resource = "live-submit:ibkr:DU123456"
+    resource = "live-submit:ctp:DU123456"
 
     with Session(engine, future=True) as first:
         first_token = try_acquire_execution_lease(
@@ -136,7 +136,7 @@ def test_concurrent_sessions_cannot_both_acquire_account_lease(tmp_path):
             barrier.wait()
             return try_acquire_execution_lease(
                 session,
-                resource_key="live-submit:ibkr:DU123456",
+                resource_key="live-submit:ctp:DU123456",
                 owner_token=owner,
                 ttl_seconds=60,
                 now=now,

@@ -18,12 +18,12 @@ northstar live cancel-stale
 逻辑：
 - 读取本地 `order_records` 中仍处于未完成状态的订单
 - 如果 `submitted_at` 已超过 `NORTHSTAR_ORDER_TIMEOUT_SECONDS`
-- 则通过 `IBKRBrokerAdapter.cancel_order()` 发起撤单
+- 则通过未来的 CTP 适配器发起撤单
 - 成功后把本地订单状态更新为 `Canceled`
 
 ## 二、限价单执行器
 
-默认在 IBKR 实盘下，`live run` 会优先把再平衡计划转成限价单。
+CTP 实盘适配器尚未实现，因此当前不会自动转换或提交限价单。
 
 当前版本策略：
 - 买单：在参考价之上加一定 bps
@@ -31,7 +31,7 @@ northstar live cancel-stale
 
 这样做的好处是：
 - 比市价单更可控
-- 对 ETF 日频再平衡通常已经足够
+- 对未来期货实际合约执行，仍须补充开平仓、保证金、夜盘和交易所规则
 
 ## 三、交易日历过滤
 

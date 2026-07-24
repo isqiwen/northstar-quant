@@ -1,0 +1,26 @@
+# CTP 可交易合约映射。
+#
+# 连续合约（如 RB_CONT）不能下单。每次换月前，人工核验交易所、合约代码、乘数和
+# 最小变动价位后，在 contracts 中增加或替换一条映射，并且最后才将 trading_enabled
+# 设为 true。当前没有 CTP 订单适配器，因此此文件保持空表；任何空映射或未启用
+# 映射都必须阻断订单计划，不能回退到连续 symbol。
+#
+# 未来每条 contracts 记录必须且只能包含：
+# continuous_symbol（研究序列）、data_symbol（当前数据/策略使用的实际合约）、
+# instrument_id（CTP 合约 ID）、exchange_id（CTP 交易所 ID）、product_id、
+# volume_multiple、price_tick、trading_enabled。
+# 示例仅作为字段结构说明，不能直接复制启用：
+# - continuous_symbol: RB_CONT
+#   data_symbol: RB2601
+#   instrument_id: rb2601
+#   exchange_id: SHFE
+#   product_id: rb
+#   volume_multiple: 10
+#   price_tick: 1
+#   trading_enabled: false
+# 配置格式版本；加载器只接受当前版本 1。
+version: 1
+# 券商适配器标识；只能是 ctp。
+broker: ctp
+# 实际合约映射列表；空列表是当前安全默认值。
+contracts: []

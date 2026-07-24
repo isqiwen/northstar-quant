@@ -62,11 +62,8 @@ def build_order_request_fingerprint(
     limit_price: float | None,
     plan_id: str,
     attempt_no: int,
-    broker_symbol: str | None = None,
-    con_id: int | None = None,
-    sec_type: str | None = None,
-    exchange: str | None = None,
-    primary_exchange: str | None = None,
+    instrument_id: str | None = None,
+    exchange_id: str | None = None,
     currency: str | None = None,
     execution_policy_fingerprint: str | None = None,
 ) -> str:
@@ -86,17 +83,14 @@ def build_order_request_fingerprint(
         ),
         "plan_id": str(plan_id).strip(),
         "attempt_no": int(attempt_no),
-        "broker_symbol": (
-            str(broker_symbol).strip().upper()
-            if broker_symbol is not None
+        "instrument_id": (
+            str(instrument_id).strip().lower()
+            if instrument_id is not None
             else None
         ),
-        "con_id": int(con_id) if con_id is not None else None,
-        "sec_type": str(sec_type).strip().upper() if sec_type is not None else None,
-        "exchange": str(exchange).strip().upper() if exchange is not None else None,
-        "primary_exchange": (
-            str(primary_exchange).strip().upper()
-            if primary_exchange is not None
+        "exchange_id": (
+            str(exchange_id).strip().upper()
+            if exchange_id is not None
             else None
         ),
         "currency": str(currency).strip().upper() if currency is not None else None,

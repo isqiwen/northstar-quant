@@ -44,13 +44,13 @@ northstar report weekly --send-email --no-send-pdf
 ### 3. 手动把现有 Markdown 报告转成 PDF
 
 ```bash
-northstar report pdf reports/etf_rotation_daily_report.md
+northstar report pdf reports/futures_trend_daily_report.md
 ```
 
 ### 4. 发送现有报告，并附加 PDF
 
 ```bash
-northstar report send reports/etf_rotation_daily_report.md --attach-pdf
+northstar report send reports/futures_trend_daily_report.md --attach-pdf
 ```
 
 ## 四、环境变量

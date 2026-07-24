@@ -2,6 +2,7 @@ from pathlib import Path
 
 from alembic import command
 from alembic.config import Config
+import pytest
 from sqlalchemy import create_engine, inspect
 
 from northstar_quant.config.settings import get_settings
@@ -38,12 +39,9 @@ def test_fill_order_id_becomes_nullable_at_migration_head(tmp_path, monkeypatch)
             ).get_columns("order_records")
         }
         assert {
-            "broker",
-            "broker_symbol",
-            "con_id",
-            "sec_type",
-            "exchange",
-            "primary_exchange",
+                "broker",
+                "instrument_id",
+                "exchange_id",
             "currency",
             "idempotency_key",
             "request_fingerprint",
@@ -74,7 +72,7 @@ def test_fill_order_id_becomes_nullable_at_migration_head(tmp_path, monkeypatch)
             "exec_id",
             "perm_id",
             "client_id",
-            "con_id",
+            "instrument_id",
         }.issubset(fill_columns)
         inspector = inspect(create_engine(database_url, future=True))
         assert "execution_lease_records" in inspector.get_table_names()
@@ -104,7 +102,7 @@ def test_fill_order_id_becomes_nullable_at_migration_head(tmp_path, monkeypatch)
                 ) VALUES (
                     NULL,
                     'external-fill-001',
-                    'SPY',
+                    'RB2405',
                     'BUY',
                     1,
                     100,
@@ -113,19 +111,7 @@ def test_fill_order_id_becomes_nullable_at_migration_head(tmp_path, monkeypatch)
                 """
             )
 
-        command.downgrade(config, "0017_add_fill_broker_identity")
-        downgraded_inspector = inspect(create_engine(database_url, future=True))
-        assert "execution_lease_records" not in downgraded_inspector.get_table_names()
-        downgraded_order_columns = {
-            column["name"]
-            for column in downgraded_inspector.get_columns("order_records")
-        }
-        assert "idempotency_key" not in downgraded_order_columns
-        assert "execution_policy_fingerprint" not in downgraded_order_columns
-        assert _column_nullable(
-            database_url,
-            "order_records",
-            "submitted_at",
-        ) is False
+        with pytest.raises(NotImplementedError, match="不支持回滚"):
+            command.downgrade(config, "0017_add_fill_broker_identity")
     finally:
         get_settings.cache_clear()

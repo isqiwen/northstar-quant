@@ -19,15 +19,14 @@ from northstar_quant.common.enums import (
 )
 from northstar_quant.common.order_status import is_final_order_status
 from northstar_quant.common.time import ensure_utc
+from northstar_quant.config.ctp_contract_mapping import load_ctp_contract_registry
 from northstar_quant.config.trading_profile import TradingProfile
-from northstar_quant.execution.intent_planner import build_execution_intent_plan
 from northstar_quant.execution.models import (
     BrokerStateSnapshot,
     FillSnapshot,
     PositionSnapshot,
     RebalanceOrderPlan,
 )
-from northstar_quant.execution.rebalance import build_rebalance_plan
 
 ExecutionPlanner = Callable[
     [TradingProfile, pl.DataFrame, list[PositionSnapshot], dict[str, float], float | None],
@@ -91,6 +90,12 @@ def _matches(
     profile: TradingProfile,
     output_type: StrategyOutputType,
 ) -> bool:
+    """判断计划器是否同时满足输出语义与画像五维。
+
+    空的 supported 元组表示不限制该维度；非空代表必须精确匹配。执行计划会改变订单
+    方向和数量，因此匹配不到或匹配多个时必须失败，而不能任选一个计划器。
+    """
+
     return (
         (not definition.supported_output_types or output_type in definition.supported_output_types)
         and (not definition.supported_markets or profile.market in definition.supported_markets)
@@ -135,6 +140,8 @@ def resolve_execution_planner(
 
 
 def _signed_qty(side: str, qty: float) -> float:
+    """把 BUY/SELL 数量转换为净持仓方向；未知方向返回 0，避免放大脏数据。"""
+
     normalized_side = str(side).upper()
     if normalized_side == "BUY":
         return abs(float(qty))
@@ -144,6 +151,8 @@ def _signed_qty(side: str, qty: float) -> float:
 
 
 def _remaining_order_qty(row: dict) -> float:
+    """计算工作订单尚未成交的数量，优先使用券商明确提供的 remaining_qty。"""
+
     remaining_qty = row.get("remaining_qty")
     if remaining_qty is not None:
         return max(float(remaining_qty), 0.0)
@@ -171,6 +180,9 @@ def project_broker_state_positions(broker_state: BrokerStateSnapshot) -> list[Po
     - 当前真实持仓
     - 仍在挂单簿上的 working orders
     - 在持仓快照之后发生、但尚未来得及反映进 positions 的成交
+
+    因此投影值是“若全部已知挂单按剩余数量成交后的预期净持仓”，用于避免再次下达
+    同方向订单。它不是券商官方持仓，也不能用于账务或保证金结算。
     """
 
     snapshot_asof = ensure_utc(broker_state.asof)
@@ -217,8 +229,28 @@ def build_execution_plan(
     *,
     equity: float | None = None,
 ) -> list[RebalanceOrderPlan]:
-    """按交易画像和输出类型构建执行计划。"""
+    """按交易画像和输出类型构建“计划”，而不是提交订单。
 
+    期货路径先拒绝连续合约画像，再校验 CTP 映射；即使映射存在，也会在 CTP 报单、
+    保证金、开平仓与回报状态机完成前明确停止。其他输出类型由已匹配计划器将目标权重
+    与投影后持仓、最新价格和权益换算为 ``RebalanceOrderPlan``，后续仍必须经过风控。
+    """
+
+    if profile.asset_type == AssetType.FUTURES:
+        futures = profile.futures
+        if futures is None or futures.symbols_are_continuous or not futures.execution_allowed:
+            raise ValueError(
+                "FUTURES_CONTINUOUS_RESEARCH_ONLY: 连续合约研究画像不能生成实际订单计划。"
+            )
+        registry = load_ctp_contract_registry(futures.ctp_contract_mapping_path)
+        if "symbol" not in output.columns:
+            raise ValueError("CTP_CONTRACT_SYMBOL_REQUIRED: 策略输出缺少 symbol 列。")
+        for symbol in output.get_column("symbol").unique().to_list():
+            registry.resolve_data_symbol(str(symbol))
+        raise NotImplementedError(
+            "CTP_EXECUTION_ADAPTER_REQUIRED: CTP 合约映射已校验，但 CTP 连接、"
+            "保证金、开平仓与回报状态机尚未实现。"
+        )
     if output_type == StrategyOutputType.TRADE_PLAN:
         raise ValueError(
             "TradePlan 必须先经风险层完成仓位计算和审批，当前不能直接生成券商执行计划。"
@@ -230,79 +262,3 @@ def build_execution_plan(
         if not plan.reason:
             plan.reason = f"{profile.rebalance_frequency.value}_rebalance"
     return plans
-
-
-def _build_bar_close_rebalance_plan(
-    profile: TradingProfile,
-    targets: pl.DataFrame,
-    positions: list[PositionSnapshot],
-    latest_prices: dict[str, float],
-    equity: float | None = None,
-) -> list[RebalanceOrderPlan]:
-    plans = build_rebalance_plan(
-        targets,
-        positions,
-        latest_prices,
-        equity,
-        rebalance_min_trade_value=profile.execution.rebalance_min_trade_value,
-        rebalance_weight_tolerance=profile.execution.rebalance_weight_tolerance,
-        long_only=profile.execution.long_only,
-        order_qty_step=profile.execution.order_qty_step,
-        buy_qty_step=profile.execution.buy_qty_step,
-        sell_qty_step=profile.execution.sell_qty_step,
-    )
-    for plan in plans:
-        plan.reason = f"{profile.rebalance_frequency.value}_rebalance"
-        plan.strategy_id = "core_portfolio"
-    return plans
-
-
-def _build_direct_execution_intent_plan(
-    profile: TradingProfile,
-    intents: pl.DataFrame,
-    positions: list[PositionSnapshot],
-    latest_prices: dict[str, float],
-    equity: float | None = None,
-) -> list[RebalanceOrderPlan]:
-    return build_execution_intent_plan(
-        intents,
-        positions,
-        latest_prices,
-        equity,
-        rebalance_min_trade_value=profile.execution.rebalance_min_trade_value,
-        order_qty_step=profile.execution.order_qty_step,
-        buy_qty_step=profile.execution.buy_qty_step,
-        sell_qty_step=profile.execution.sell_qty_step,
-    )
-
-
-register_execution_planner(
-    "bar_close_rebalance",
-    _build_bar_close_rebalance_plan,
-    supported_output_types=(StrategyOutputType.TARGET_WEIGHT,),
-    supported_markets=(Market.US, Market.CN),
-    supported_asset_types=(AssetType.ETF, AssetType.EQUITY),
-    supported_data_frequencies=(DataFrequency.D1, DataFrequency.W1),
-    supported_rebalance_frequencies=(RebalanceFrequency.D1, RebalanceFrequency.W1),
-    supported_strategy_families=(
-        StrategyFamily.MOMENTUM_ROTATION,
-        StrategyFamily.CROSS_SECTIONAL_SELECTION,
-        StrategyFamily.TREND_FOLLOWING,
-        StrategyFamily.MEAN_REVERSION,
-    ),
-)
-register_execution_planner(
-    "direct_execution_intent",
-    _build_direct_execution_intent_plan,
-    supported_output_types=(StrategyOutputType.EXECUTION_INTENT,),
-    supported_markets=(Market.US, Market.CN),
-    supported_asset_types=(AssetType.EQUITY,),
-    supported_data_frequencies=(DataFrequency.M1, DataFrequency.M5, DataFrequency.M15, DataFrequency.H1),
-    supported_rebalance_frequencies=(
-        RebalanceFrequency.M1,
-        RebalanceFrequency.M5,
-        RebalanceFrequency.M15,
-        RebalanceFrequency.H1,
-    ),
-    supported_strategy_families=(StrategyFamily.INTRADAY_BREAKOUT,),
-)

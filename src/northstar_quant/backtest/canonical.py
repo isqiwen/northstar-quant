@@ -1,13 +1,14 @@
-"""Canonical backtest helpers built on shared strategy outputs."""
+"""把统一策略输出安全分派到对应回测器。
+
+策略可以输出目标权重、交易意图或交易计划；三者的成交语义不同，不能为了“能运行”
+而互相转换。本模块只允许当前已验证的目标权重输出进入连续合约收益回测。
+"""
 
 from __future__ import annotations
 
 from northstar_quant.backtest.event_engine import BacktestResult
-from northstar_quant.backtest.intent_event_engine import run_execution_intent_backtest
-from northstar_quant.backtest.intraday_event_engine import run_intraday_event_backtest
 from northstar_quant.backtest.registry import run_target_backtest
-from northstar_quant.backtest.simulation import periods_per_year_for_frequency
-from northstar_quant.common.enums import DataFrequency, StrategyOutputType
+from northstar_quant.common.enums import StrategyOutputType
 from northstar_quant.common.types import StrategyOutputBundle
 from northstar_quant.config.trading_profile import TradingProfile
 
@@ -17,28 +18,18 @@ def run_strategy_output_backtest(
     market_df,
     output_bundle: StrategyOutputBundle,
 ) -> BacktestResult:
-    """Run the appropriate backtest engine for a canonical strategy output bundle."""
+    """根据输出类型选择已匹配的回测器，并拒绝语义不完整的转换。
 
-    periods_per_year = periods_per_year_for_frequency(profile.data_frequency)
+    ``TARGET_WEIGHT`` 使用收益率型研究回测；``TRADE_PLAN`` 必须等待逐日持仓与撮合
+    状态机，不得按权重收益偷换假设；其他输出类型同样明确失败关闭。
+    """
+
     if output_bundle.output_type == StrategyOutputType.TARGET_WEIGHT:
-        if profile.data_frequency in {DataFrequency.D1, DataFrequency.W1}:
-            return run_target_backtest(profile, market_df, output_bundle.frame)
-        return run_intraday_event_backtest(
-            market_df,
-            output_bundle.frame,
-            periods_per_year=periods_per_year,
-        )
-
-    if output_bundle.output_type == StrategyOutputType.EXECUTION_INTENT:
-        return run_execution_intent_backtest(
-            market_df,
-            output_bundle.frame,
-            periods_per_year=periods_per_year,
-        )
+        return run_target_backtest(profile, market_df, output_bundle.frame)
 
     if output_bundle.output_type == StrategyOutputType.TRADE_PLAN:
         raise ValueError(
-            "TradePlan 策略尚未接入专用回测状态机，不能错误地按目标权重或订单意图回测。"
+            "TradePlan 策略尚未接入期货专用回测状态机，不能错误地按目标权重回测。"
         )
 
     raise ValueError(

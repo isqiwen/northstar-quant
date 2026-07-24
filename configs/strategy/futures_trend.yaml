@@ -1,0 +1,27 @@
+# 国内商品期货日线趋势策略的 YAML 默认参数。
+#
+# profile.strategies[].params 会覆盖此处同名构造参数；当前策略实际使用的标的池来自
+# 画像 data.download.symbols。本文件中的 universe 与 risk 是研究说明元数据，尚不直接
+# 驱动信号计算或风控。
+strategy:
+  # 必须与策略注册表中的 strategy_id 完全一致。
+  id: futures_trend
+  # 人类可读名称，用于配置与报告展示。
+  name: 国内商品期货日线趋势
+  # 动量窗口长度；信号使用 close / close.shift(lookback_days) - 1。
+  lookback_days: 60
+  # 研究策略声明的调仓频率；实际调度以交易画像为准。
+  rebalance_frequency: 1d
+  # 策略覆盖的五交易所连续合约研究池；实际下载列表以 profile 为准。
+  universe:
+    - RB_CONT
+    - CU_CONT
+    - I_CONT
+    - M_CONT
+    - TA_CONT
+    - SA_CONT
+    - SI_CONT
+    - SC_CONT
+  # 策略设计期望的风险上限说明；实际运行读取 profile.risk。
+  risk:
+    max_gross_exposure: 0.8

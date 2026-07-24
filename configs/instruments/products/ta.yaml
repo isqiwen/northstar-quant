@@ -1,0 +1,28 @@
+# PTA（TA）品种卡。
+version: 1
+product: TA
+name: 精对苯二甲酸
+exchange: CZCE
+contract:
+  multiplier: 5
+  tick_size: 2.0
+  delivery_month_rule: exchange_contract_specification
+trading:
+  timezone: Asia/Shanghai
+  has_night_session: true
+  session_rule: exchange_daily_schedule
+delivery:
+  last_trade_day_rule: exchange_contract_specification
+  individual_investor_rule: broker_and_exchange_delivery_month_restriction
+roll:
+  method: explicit_daily_contract_chain
+  reference_signals: [open_interest, volume, term_liquidity]
+risk:
+  dynamic_snapshot: [trading_sessions, margin_rate, commission, price_limits, position_limits, active_contract]
+research:
+  industry_chain: 原油与石脑油经 PX 环节生产 PTA，PTA 与乙二醇共同进入聚酯和纺织产业链。
+  supply_demand_drivers: 原油与 PX 成本、PTA 装置开工、聚酯开工、织造订单和终端纺服需求。
+  event_risks: 油价急变、装置检修或事故、聚酯需求骤降、出口订单和地缘风险。
+sources:
+  exchange: http://www.czce.com.cn/
+  daily_rule_source: exchange_and_broker_daily_notice

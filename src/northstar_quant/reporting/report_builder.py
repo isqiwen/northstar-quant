@@ -110,9 +110,6 @@ def _build_daily_alert_items(
     equity_change = float(live_account_attribution.get("equity_change") or 0.0)
     residual_pnl = float(live_account_attribution.get("residual_pnl") or 0.0)
     funding_cash_flow = float(live_account_attribution.get("funding_cash_flow") or 0.0)
-    corporate_action_cash_flow = float(
-        live_account_attribution.get("corporate_action_cash_flow") or 0.0
-    )
     alert_items: list[dict[str, str]] = []
 
     if traded_notional > 1e-8:
@@ -164,18 +161,6 @@ def _build_daily_alert_items(
                 ),
             }
         )
-    if abs(corporate_action_cash_flow) >= funding_threshold:
-        alert_items.append(
-            {
-                "code": "corporate_action_cash_flow",
-                "tag": "资金异常",
-                "severity": "warning",
-                "message": (
-                    f"公司行为现金流达到 {_format_amount(corporate_action_cash_flow)}，已高于 {_format_amount(funding_threshold)} 阈值。"
-                ),
-            }
-        )
-
     return alert_items
 
 
@@ -331,12 +316,10 @@ def _build_daily_recap_lines(
     ]
 
     non_trade_components = [
-        ("分红", live_account_attribution.get("dividend_cash_flow")),
         ("利息", live_account_attribution.get("interest_cash_flow")),
         ("费用", live_account_attribution.get("fee_cash_flow")),
         ("税费", live_account_attribution.get("tax_cash_flow")),
         ("资金划转", live_account_attribution.get("funding_cash_flow")),
-        ("公司行为", live_account_attribution.get("corporate_action_cash_flow")),
         ("其他非交易项", live_account_attribution.get("other_non_trade_cash_flow")),
     ]
     top_non_trade = _largest_named_component(non_trade_components)
@@ -408,12 +391,10 @@ def latest_live_account_attribution_summary(
         "price_pnl": row.price_pnl,
         "rebalance_pnl": row.rebalance_pnl,
         "execution_shortfall": row.execution_shortfall,
-        "dividend_cash_flow": row.dividend_cash_flow,
         "interest_cash_flow": row.interest_cash_flow,
         "fee_cash_flow": row.fee_cash_flow,
         "tax_cash_flow": row.tax_cash_flow,
         "funding_cash_flow": row.funding_cash_flow,
-        "corporate_action_cash_flow": row.corporate_action_cash_flow,
         "other_non_trade_cash_flow": row.other_non_trade_cash_flow,
         "total_non_trade_cash_flow": row.total_non_trade_cash_flow,
         "traded_notional": row.traded_notional,
@@ -422,12 +403,10 @@ def latest_live_account_attribution_summary(
     }
     cash_flow_rows = _non_zero_component_rows(
         [
-            ("分红现金流", row.dividend_cash_flow),
             ("利息现金流", row.interest_cash_flow),
             ("费用现金流", row.fee_cash_flow),
             ("税费现金流", row.tax_cash_flow),
             ("资金划转", row.funding_cash_flow),
-            ("公司行为现金流", row.corporate_action_cash_flow),
             ("其他非交易现金流", row.other_non_trade_cash_flow),
         ]
     )
@@ -458,12 +437,10 @@ def latest_live_account_attribution_summary(
         "price_pnl": row.price_pnl,
         "rebalance_pnl": row.rebalance_pnl,
         "execution_shortfall": row.execution_shortfall,
-        "dividend_cash_flow": row.dividend_cash_flow,
         "interest_cash_flow": row.interest_cash_flow,
         "fee_cash_flow": row.fee_cash_flow,
         "tax_cash_flow": row.tax_cash_flow,
         "funding_cash_flow": row.funding_cash_flow,
-        "corporate_action_cash_flow": row.corporate_action_cash_flow,
         "other_non_trade_cash_flow": row.other_non_trade_cash_flow,
         "total_non_trade_cash_flow": row.total_non_trade_cash_flow,
         "traded_notional": row.traded_notional,

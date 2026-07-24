@@ -26,7 +26,11 @@ _BLOCKING_ACCOUNT_ALERT_TAGS = {"账本异常", "资金异常"}
 
 @dataclass(slots=True)
 class PreflightCheck:
-    """单项 preflight 检查结果。"""
+    """一项实盘前检查的可审计结果。
+
+    ``blocking`` 为 true 的 fail 会使整轮 ``can_trade`` 为 false；warn 只记录风险提示，
+    不应被用于绕过真正的安全门禁。
+    """
 
     code: str
     status: str
@@ -41,7 +45,11 @@ class PreflightCheck:
 
 @dataclass(slots=True)
 class PreflightResult:
-    """整轮 preflight 汇总结果。"""
+    """一轮实盘前检查的不可变结论视图。
+
+    只有所有阻断项均未失败时才允许后续提交。它不自行下单，也不能替代订单路由时的
+    最后一层预交易风控，因为行情、账户状态可能在两者之间变化。
+    """
 
     profile_id: str
     checked_at: datetime
@@ -195,7 +203,12 @@ def build_preflight_result(
     data_manifest: Mapping[str, Any] | None = None,
     checked_at: datetime | None = None,
 ) -> PreflightResult:
-    """构建实盘 preflight 汇总结果。"""
+    """构建实盘前硬门禁结果。
+
+    检查账户身份与状态完整性、数据 manifest 与时效、信号和行情时间对齐、执行价格
+    来源、资金与持仓归因等条件。任一必需输入缺失时应生成阻断项，而不是填充默认值；
+    这使 production 路径保持失败关闭。
+    """
 
     checked_at = ensure_utc(checked_at or utc_now())
     result = PreflightResult(profile_id=profile.profile_id, checked_at=checked_at)
@@ -281,8 +294,8 @@ def build_preflight_result(
                 )
             if not manifest_source:
                 provenance_issues.append("manifest 缺少 data_source")
-            elif manifest_source == "demo":
-                provenance_issues.append("数据来源为 demo")
+            elif manifest_source != "akshare":
+                provenance_issues.append(f"数据来源不受支持：{manifest_source}")
 
         if provenance_issues:
             _append_check(

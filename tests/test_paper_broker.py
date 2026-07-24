@@ -17,7 +17,7 @@ def test_paper_broker_market_order_persists_positions_fills_and_quotes(tmp_path,
         result = broker.submit_order(
             OrderRequest(
                 strategy_id="paper-test",
-                symbol="AAPL",
+                symbol="MA2405",
                 side="BUY",
                 qty=10.0,
                 reference_price=100.0,
@@ -31,21 +31,21 @@ def test_paper_broker_market_order_persists_positions_fills_and_quotes(tmp_path,
 
         assert snapshot.open_orders == []
         assert len(snapshot.fills) == 1
-        assert positions["AAPL"].qty == 10.0
-        assert positions["AAPL"].avg_cost == 100.0
-        assert positions["AAPL"].market_price == 100.0
+        assert positions["MA2405"].qty == 10.0
+        assert positions["MA2405"].avg_cost == 100.0
+        assert positions["MA2405"].market_price == 100.0
         assert snapshot.account_values["CashBalance"] == 99000.0
         assert snapshot.account_values["NetLiquidation"] == 100000.0
 
         reloaded_broker = _make_paper_broker(tmp_path, monkeypatch)
         reloaded_snapshot = reloaded_broker.sync_state()
         reloaded_positions = {row.symbol: row for row in reloaded_snapshot.positions}
-        quotes = reloaded_broker.get_market_quotes(["AAPL", "MSFT"])
+        quotes = reloaded_broker.get_market_quotes(["MA2405", "TA2405"])
 
-        assert reloaded_positions["AAPL"].qty == 10.0
+        assert reloaded_positions["MA2405"].qty == 10.0
         assert len(reloaded_snapshot.fills) == 1
         assert len(quotes) == 1
-        assert quotes[0].symbol == "AAPL"
+        assert quotes[0].symbol == "MA2405"
         assert quotes[0].market_price == 100.0
         assert quotes[0].source == "paper_state"
     finally:
@@ -58,7 +58,7 @@ def test_paper_broker_limit_order_can_partial_fill_then_complete_on_next_sync(tm
         broker.submit_order(
             OrderRequest(
                 strategy_id="paper-test",
-                symbol="QQQ",
+                symbol="I2405",
                 side="BUY",
                 qty=10.0,
                 order_type="LMT",
@@ -75,7 +75,7 @@ def test_paper_broker_limit_order_can_partial_fill_then_complete_on_next_sync(tm
         assert first_snapshot.open_orders[0]["filled_qty"] == 5.0
         assert first_snapshot.open_orders[0]["remaining_qty"] == 5.0
         assert len(first_snapshot.fills) == 1
-        assert first_positions["QQQ"].qty == 5.0
+        assert first_positions["I2405"].qty == 5.0
 
         reloaded_broker = _make_paper_broker(tmp_path, monkeypatch)
         second_snapshot = reloaded_broker.sync_state()
@@ -83,8 +83,8 @@ def test_paper_broker_limit_order_can_partial_fill_then_complete_on_next_sync(tm
 
         assert second_snapshot.open_orders == []
         assert len(second_snapshot.fills) == 2
-        assert second_positions["QQQ"].qty == 10.0
-        assert second_positions["QQQ"].avg_cost == 100.0
+        assert second_positions["I2405"].qty == 10.0
+        assert second_positions["I2405"].avg_cost == 100.0
         assert second_snapshot.account_values["CashBalance"] == 99000.0
         assert second_snapshot.account_values["NetLiquidation"] == 100000.0
     finally:
@@ -97,7 +97,7 @@ def test_paper_broker_cancel_removes_unmarketable_open_order(tmp_path, monkeypat
         result = broker.submit_order(
             OrderRequest(
                 strategy_id="paper-test",
-                symbol="SPY",
+                symbol="RB2405",
                 side="BUY",
                 qty=10.0,
                 order_type="LMT",

@@ -30,20 +30,20 @@ def test_save_strategy_run_snapshot_persists_strategy_ledger_rows(tmp_path):
 
     output_frame = pl.DataFrame(
         [
-            {"date": date(2024, 3, 1), "symbol": "SPY", "signal_value": 1.0, "target_weight": 0.6},
-            {"date": date(2024, 3, 1), "symbol": "QQQ", "signal_value": 0.5, "target_weight": 0.4},
+            {"date": date(2024, 3, 1), "symbol": "RB2405", "signal_value": 1.0, "target_weight": 0.6},
+            {"date": date(2024, 3, 1), "symbol": "I2405", "signal_value": 0.5, "target_weight": 0.4},
         ]
     )
     market_df = pl.DataFrame(
         [
-            {"date": date(2024, 2, 29), "symbol": "SPY", "close": 500.0},
-            {"date": date(2024, 3, 1), "symbol": "QQQ", "close": 400.0},
+            {"date": date(2024, 2, 29), "symbol": "RB_CONT", "close": 3600.0},
+            {"date": date(2024, 3, 1), "symbol": "I_CONT", "close": 800.0},
         ]
     )
     signal_df = pl.DataFrame(
         [
-            {"date": date(2024, 3, 1), "symbol": "SPY", "close": 500.0},
-            {"date": date(2024, 3, 1), "symbol": "QQQ", "close": 400.0},
+            {"date": date(2024, 3, 1), "symbol": "RB_CONT", "close": 3600.0},
+            {"date": date(2024, 3, 1), "symbol": "I_CONT", "close": 800.0},
         ]
     )
 
@@ -51,13 +51,13 @@ def test_save_strategy_run_snapshot_persists_strategy_ledger_rows(tmp_path):
         save_strategy_run_snapshot(
             session,
             run_id="run-123",
-            profile_id="us_etf_daily",
+            profile_id="cn_futures_daily_live",
             pipeline_strategy_id="portfolio",
             output_type=StrategyOutputType.TARGET_WEIGHT,
             time_column="date",
             output_frame=output_frame,
-            selected_strategy_ids=["etf_rotation", "momentum"],
-            strategy_params={"etf_rotation": {"lookback": 90}, "momentum": {"window": 120}},
+            selected_strategy_ids=["futures_trend"],
+            strategy_params={"futures_trend": {"lookback_days": 60}},
             risk_limits={"max_single_weight": 0.35, "min_cash_buffer": 0.02},
             market_data_frame=market_df,
             signal_data_frame=signal_df,
@@ -75,20 +75,20 @@ def test_save_strategy_run_snapshot_persists_strategy_ledger_rows(tmp_path):
         )
 
     assert run_row is not None
-    assert run_row.profile_id == "us_etf_daily"
+    assert run_row.profile_id == "cn_futures_daily_live"
     assert run_row.pipeline_strategy_id == "portfolio"
     assert run_row.output_type == StrategyOutputType.TARGET_WEIGHT.value
     assert run_row.snapshot_count == 2
-    assert json.loads(run_row.selected_strategy_ids_json or "[]") == ["etf_rotation", "momentum"]
-    assert json.loads(run_row.strategy_params_json or "{}")["etf_rotation"]["lookback"] == 90
+    assert json.loads(run_row.selected_strategy_ids_json or "[]") == ["futures_trend"]
+    assert json.loads(run_row.strategy_params_json or "{}")["futures_trend"]["lookback_days"] == 60
     assert run_row.market_data_asof.date() == date(2024, 3, 1)
     assert run_row.signal_data_asof.date() == date(2024, 3, 1)
     assert run_row.output_asof.date() == date(2024, 3, 1)
 
     assert len(snapshot_rows) == 2
-    assert snapshot_rows[0].symbol == "QQQ"
+    assert snapshot_rows[0].symbol == "I2405"
     assert snapshot_rows[0].target_weight == 0.4
-    assert snapshot_rows[1].symbol == "SPY"
+    assert snapshot_rows[1].symbol == "RB2405"
     assert snapshot_rows[1].signal_value == 1.0
 
 
@@ -100,7 +100,7 @@ def test_save_account_snapshot_persists_account_ledger_row(tmp_path):
     snapshot = BrokerStateSnapshot(
         positions=[
             PositionSnapshot(
-                symbol="SPY",
+                symbol="RB2405",
                 qty=100.0,
                 market_price=500.0,
                 market_value=50000.0,
@@ -127,7 +127,7 @@ def test_save_account_snapshot_persists_account_ledger_row(tmp_path):
             broker="paper",
             snapshot=snapshot,
             run_id="run-abc",
-            profile_id="us_etf_daily",
+            profile_id="cn_futures_daily_live",
         )
         row = session.scalar(
             select(AccountSnapshotRecord).where(AccountSnapshotRecord.run_id == "run-abc")
@@ -157,7 +157,7 @@ def test_save_execution_plan_records_persists_execution_ledger_rows(tmp_path):
     Base.metadata.create_all(bind=engine)
     plans = [
         RebalanceOrderPlan(
-            symbol="SPY",
+            symbol="RB2405",
             side="BUY",
             qty=100.0,
             target_weight=0.5,
@@ -171,7 +171,7 @@ def test_save_execution_plan_records_persists_execution_ledger_rows(tmp_path):
             order_type="MKT",
         ),
         RebalanceOrderPlan(
-            symbol="QQQ",
+            symbol="I2405",
             side="SELL",
             qty=50.0,
             target_weight=0.2,
@@ -194,7 +194,7 @@ def test_save_execution_plan_records_persists_execution_ledger_rows(tmp_path):
             plans,
             run_id="run-plan-001",
             batch_id="batch-plan-001",
-            profile_id="us_etf_daily",
+            profile_id="cn_futures_daily_live",
             execution_planner_id="bar_close_rebalance",
         )
         rows = list(
@@ -207,11 +207,11 @@ def test_save_execution_plan_records_persists_execution_ledger_rows(tmp_path):
 
     assert count == 2
     assert len(rows) == 2
-    assert rows[0].symbol == "QQQ"
-    assert rows[0].plan_id == "batch-plan-001-0002-qqq"
+    assert rows[0].symbol == "I2405"
+    assert rows[0].plan_id == "batch-plan-001-0002-i2405"
     assert rows[0].order_semantic == "reduce"
     assert rows[0].limit_price == 399.0
-    assert rows[1].symbol == "SPY"
+    assert rows[1].symbol == "RB2405"
     assert rows[1].execution_reference_price == 501.0
 
 
@@ -227,7 +227,7 @@ def test_save_working_order_snapshots_persists_open_order_batch(tmp_path):
             [
                 {
                     "broker_order_id": "paper-001",
-                    "symbol": "SPY",
+                    "symbol": "RB2405",
                     "side": "BUY",
                     "qty": 100.0,
                     "filled_qty": 20.0,
@@ -241,7 +241,7 @@ def test_save_working_order_snapshots_persists_open_order_batch(tmp_path):
             ],
             broker="paper",
             run_id="run-open-001",
-            profile_id="us_etf_daily",
+            profile_id="cn_futures_daily_live",
             default_account="paper-account",
             observed_at=observed_at,
         )

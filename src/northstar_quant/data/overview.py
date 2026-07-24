@@ -38,10 +38,6 @@ def build_symbol_summary_table(market_df: pl.DataFrame) -> pd.DataFrame:
     ]
     if "adjusted_close" in market_df.columns:
         aggregations.append(pl.col("adjusted_close").last().alias("latest_adjusted_close"))
-    if "dividend" in market_df.columns:
-        aggregations.append(pl.col("dividend").sum().alias("total_dividend"))
-    if "split_factor" in market_df.columns:
-        aggregations.append(pl.col("split_factor").product().alias("cumulative_split_factor"))
 
     summary = (
         market_df.sort(["symbol", time_column])
@@ -115,8 +111,6 @@ def build_recent_candles(
     columns = [time_column, "symbol", "open", "high", "low", "close", "volume"]
     if "adjusted_close" in market_df.columns:
         columns.append("adjusted_close")
-    if "dividend" in market_df.columns:
-        columns.append("dividend")
 
     frame = (
         market_df.filter(pl.col("symbol") == symbol)

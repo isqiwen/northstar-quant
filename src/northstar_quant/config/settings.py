@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     env: str = Field(default="dev")
     timezone: str = Field(default="Asia/Shanghai")
     project_root: Path = Field(default=_PROJECT_ROOT)
-    default_profile_id: str = Field(default="cn_etf_daily_stateful_offline")
+    default_profile_id: str = Field(default="cn_futures_daily_trend_offline")
     profile_config_dir: Path = Field(default=Path("configs/profiles"))
 
     storage_dir: Path = Field(default=Path("storage"))
@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     database_url: str = Field(default="sqlite:///storage/northstar.db")
 
     # 券商与账户配置。
-    broker: Literal["paper", "ibkr"] = Field(default="paper")
+    broker: Literal["paper", "ctp"] = Field(default="paper")
     live_trading_enabled: bool = Field(default=False)
     kill_switch_enabled: bool = Field(default=False)
     default_cash: float = Field(default=100000.0, gt=0)
@@ -49,16 +49,8 @@ class Settings(BaseSettings):
     paper_fill_price_mode: Literal["close", "reference", "limit"] = Field(default="close")
     paper_account: str = Field(default="paper-account", min_length=1)
 
-    # IBKR 连接参数。
-    ibkr_host: str = Field(default="127.0.0.1")
-    ibkr_port: int = Field(default=7497, ge=1, le=65535)
-    ibkr_client_id: int = Field(default=7, ge=0)
-    ibkr_account: str | None = Field(default=None)
-    ibkr_readonly: bool = Field(default=True)
-    ibkr_instrument_registry_path: Path = Field(
-        default=Path("configs/instruments/ibkr.yaml")
-    )
-    ibkr_poll_interval_seconds: int = Field(default=15, gt=0)
+    # CTP 合约映射。CTP 交易适配器尚未实现，不能据此直接下单。
+    ctp_contract_mapping_path: Path = Field(default=Path("configs/instruments/ctp.yaml"))
     order_timeout_seconds: int = Field(default=300, gt=0)
     limit_price_offset_bps: float = Field(default=15.0, ge=0)
     limit_chase_max_steps: int = Field(default=3, ge=1, le=20)
@@ -67,7 +59,7 @@ class Settings(BaseSettings):
     limit_chase_fallback_mode: Literal["cancel", "market"] = Field(default="cancel")
     execution_lease_ttl_seconds: int = Field(default=120, ge=30, le=3600)
 
-    # 交易日历配置。默认使用上交所日历。
+    # 交易日历配置。期货夜盘须由期货数据/会话配置进一步约束，不能只依赖本默认值。
     exchange_calendar: str = Field(default="XSHG")
 
     # 告警相关。你说不想用 Telegram，这里默认改成企业微信机器人。
@@ -100,9 +92,8 @@ class Settings(BaseSettings):
     live_preflight_allow_valuation_price_fallback: bool = Field(default=False)
 
     # 报告与执行控制。
-    report_benchmark_symbol: str = Field(default="510300.SS")
-    etf_rotation_lookback_days: int = Field(default=126)
-    etf_rotation_top_n: int = Field(default=3)
+    report_benchmark_symbol: str = Field(default="RB_CONT")
+    futures_trend_lookback_days: int = Field(default=60)
     trading_currency: str = Field(default="CNY")
 
     # 日频调度器配置。
@@ -142,7 +133,7 @@ class Settings(BaseSettings):
             "storage_dir",
             "downloads_dir",
             "reports_dir",
-            "ibkr_instrument_registry_path",
+            "ctp_contract_mapping_path",
         ):
             value = Path(getattr(self, field_name))
             if not value.is_absolute():

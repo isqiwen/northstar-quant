@@ -7,12 +7,7 @@ from dataclasses import dataclass
 
 import polars as pl
 
-from northstar_quant.backtest.daily_stateful import (
-    DailyBacktestConfig,
-    run_daily_stateful_backtest,
-)
 from northstar_quant.backtest.event_engine import BacktestResult, run_event_backtest
-from northstar_quant.backtest.intraday_event_engine import run_intraday_event_backtest
 from northstar_quant.backtest.simulation import (
     SimulationBacktesterBase,
     periods_per_year_for_frequency,
@@ -131,6 +126,12 @@ def _matches(
     profile: TradingProfile,
     supported_backtest_engines: tuple[str, ...] = (),
 ) -> bool:
+    """判断一个回测器是否完整匹配画像维度。
+
+    注册项中的空元组表示该维度不设限制；非空时每一项都必须匹配。这样可以防止把
+    股票、分钟线或不同策略输出的回测器误用于当前国内期货日线研究。
+    """
+
     return (
         (not supported_markets or profile.market in supported_markets)
         and (not supported_asset_types or profile.asset_type in supported_asset_types)
@@ -209,7 +210,11 @@ def run_target_backtest(
     market_df: pl.DataFrame,
     targets: pl.DataFrame,
 ) -> BacktestResult:
-    """根据画像运行目标持仓回测。"""
+    """根据画像运行目标权重回测。
+
+    调用前的策略目标应已按信号日生成；所选回测器负责使用画像中允许的频率和引擎。
+    当前注册实现是连续合约的 ``weight_return`` 研究，不等同于保证金账户逐笔成交。
+    """
 
     definition = resolve_target_backtester(profile)
     return definition.backtester(profile, market_df, targets)
@@ -219,7 +224,7 @@ def run_simulation_backtest(
     profile: TradingProfile,
     *,
     strategy_name: str,
-    symbol: str = "510300.SS",
+    symbol: str = "RB_CONT",
 ) -> dict:
     """根据画像运行策略仿真回测。"""
 
@@ -236,6 +241,12 @@ def _run_bar_event_backtest(
     market_df: pl.DataFrame,
     targets: pl.DataFrame,
 ) -> BacktestResult:
+    """运行连续合约收益型事件回测。
+
+    ``periods_per_year`` 只用于把周期收益换算为年化统计，不会制造额外交易日。实际
+    成交延迟、换月、保证金和流动性约束不在这个轻量研究引擎中模拟。
+    """
+
     return run_event_backtest(
         market_df,
         targets,
@@ -243,120 +254,13 @@ def _run_bar_event_backtest(
     )
 
 
-def _run_intraday_event_backtest(
-    profile: TradingProfile,
-    market_df: pl.DataFrame,
-    targets: pl.DataFrame,
-) -> BacktestResult:
-    return run_intraday_event_backtest(
-        market_df,
-        targets,
-        periods_per_year=periods_per_year_for_frequency(profile.data_frequency),
-    )
-
-
-def _run_daily_stateful_backtest(
-    profile: TradingProfile,
-    market_df: pl.DataFrame,
-    targets: pl.DataFrame,
-) -> BacktestResult:
-    """按画像成本与市场规则运行可审计的日频状态机回测。"""
-
-    settings = profile.backtest
-    result = run_daily_stateful_backtest(
-        market_df,
-        targets,
-        config=DailyBacktestConfig(
-            initial_cash=settings.initial_cash,
-            commission_bps=settings.commission_bps,
-            min_commission=settings.min_commission,
-            slippage_bps=settings.slippage_bps,
-            lot_size=settings.lot_size,
-            execution_delay_sessions=settings.execution_delay_sessions,
-            sellable_after_sessions=settings.sellable_after_sessions,
-        ),
-        periods_per_year=periods_per_year_for_frequency(profile.data_frequency),
-    )
-    return result.summary
-
-
-def _build_backtrader_bar_simulation_backtester() -> SimulationBacktesterBase:
-    from northstar_quant.backtest.backtrader_runner import BacktraderBarSimulationBacktester
-
-    return BacktraderBarSimulationBacktester()
-
-
-def _build_intraday_signal_simulation_backtester() -> SimulationBacktesterBase:
-    from northstar_quant.backtest.intraday_runner import IntradaySignalSimulationBacktester
-
-    return IntradaySignalSimulationBacktester()
-
-
 register_target_backtester(
-    "bar_event_backtest",
+    "continuous_futures_research_backtest",
     _run_bar_event_backtest,
-    supported_markets=(Market.US, Market.CN),
-    supported_asset_types=(AssetType.ETF, AssetType.EQUITY),
-    supported_data_frequencies=(DataFrequency.D1, DataFrequency.W1),
-    supported_rebalance_frequencies=(RebalanceFrequency.D1, RebalanceFrequency.W1),
-    supported_strategy_families=(
-        StrategyFamily.MOMENTUM_ROTATION,
-        StrategyFamily.CROSS_SECTIONAL_SELECTION,
-        StrategyFamily.TREND_FOLLOWING,
-        StrategyFamily.MEAN_REVERSION,
-    ),
-    supported_backtest_engines=("weight_return",),
-)
-register_target_backtester(
-    "daily_stateful_backtest",
-    _run_daily_stateful_backtest,
-    supported_markets=(Market.US, Market.CN),
-    supported_asset_types=(AssetType.ETF, AssetType.EQUITY),
+    supported_markets=(Market.CN,),
+    supported_asset_types=(AssetType.FUTURES,),
     supported_data_frequencies=(DataFrequency.D1,),
     supported_rebalance_frequencies=(RebalanceFrequency.D1,),
-    supported_strategy_families=(
-        StrategyFamily.MOMENTUM_ROTATION,
-        StrategyFamily.CROSS_SECTIONAL_SELECTION,
-        StrategyFamily.TREND_FOLLOWING,
-        StrategyFamily.MEAN_REVERSION,
-    ),
-    supported_backtest_engines=("daily_stateful",),
-)
-register_target_backtester(
-    "intraday_event_backtest",
-    _run_intraday_event_backtest,
-    supported_markets=(Market.US, Market.CN),
-    supported_asset_types=(AssetType.EQUITY,),
-    supported_data_frequencies=(DataFrequency.M1, DataFrequency.M5, DataFrequency.M15, DataFrequency.H1),
-    supported_rebalance_frequencies=(
-        RebalanceFrequency.M1,
-        RebalanceFrequency.M5,
-        RebalanceFrequency.M15,
-        RebalanceFrequency.H1,
-    ),
-    supported_strategy_families=(StrategyFamily.INTRADAY_BREAKOUT,),
+    supported_strategy_families=(StrategyFamily.TREND_FOLLOWING,),
     supported_backtest_engines=("weight_return",),
-)
-register_simulation_backtester(
-    "backtrader_bar_simulation",
-    _build_backtrader_bar_simulation_backtester,
-    supported_markets=(Market.US, Market.CN),
-    supported_asset_types=(AssetType.ETF, AssetType.EQUITY),
-    supported_data_frequencies=(DataFrequency.D1, DataFrequency.W1),
-    supported_rebalance_frequencies=(RebalanceFrequency.D1, RebalanceFrequency.W1),
-    supported_strategy_families=(
-        StrategyFamily.MOMENTUM_ROTATION,
-        StrategyFamily.CROSS_SECTIONAL_SELECTION,
-        StrategyFamily.TREND_FOLLOWING,
-        StrategyFamily.MEAN_REVERSION,
-    ),
-)
-register_simulation_backtester(
-    "intraday_signal_simulation",
-    _build_intraday_signal_simulation_backtester,
-    supported_markets=(Market.US, Market.CN),
-    supported_asset_types=(AssetType.EQUITY,),
-    supported_data_frequencies=(DataFrequency.M1, DataFrequency.M5, DataFrequency.M15),
-    supported_rebalance_frequencies=(RebalanceFrequency.M1, RebalanceFrequency.M5, RebalanceFrequency.M15),
-    supported_strategy_families=(StrategyFamily.INTRADAY_BREAKOUT,),
 )

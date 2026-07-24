@@ -20,11 +20,11 @@ def test_save_order_result_persists_full_order_audit_context(tmp_path):
         save_order_result(
             session=session,
             order=OrderRequest(
-                strategy_id="intraday_breakout",
-                symbol="AAPL",
+                strategy_id="futures_trend",
+                symbol="RB2405",
                 side="BUY",
                 qty=100,
-                profile_id="us_stock_intraday_1m",
+                profile_id="cn_futures_15m_live",
                 target_weight=None,
                 order_type="LMT",
                 limit_price=101.25,
@@ -53,7 +53,7 @@ def test_save_order_result_persists_full_order_audit_context(tmp_path):
         )
 
     assert row is not None
-    assert row.profile_id == "us_stock_intraday_1m"
+    assert row.profile_id == "cn_futures_15m_live"
     assert row.order_semantic == "entry"
     assert row.target_weight is None
     assert row.order_type == "LMT"

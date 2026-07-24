@@ -1,0 +1,7 @@
+# 非 PDF 的本地资料不纳入版本控制；PDF 由仓库级 Git LFS 规则管理。
+/books/*
+!/books/.gitkeep
+!/books/*.pdf
+/papers/*
+!/papers/.gitkeep
+!/papers/*.pdf

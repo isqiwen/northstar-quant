@@ -23,7 +23,7 @@ class _FakeBroker:
         return self.snapshot
 
     def get_name(self) -> str:
-        return "ibkr"
+        return "ctp"
 
     def get_account(self) -> str:
         return "DU123456"
@@ -39,7 +39,7 @@ def test_reconcile_recovers_completed_order_and_cancel_terminal_states(tmp_path)
             {
                 "broker_order_id": "11",
                 "account": "DU123456",
-                "symbol": "QQQ",
+                "symbol": "I2405",
                 "side": "BUY",
                 "qty": 1.0,
                 "filled_qty": 0.0,
@@ -51,7 +51,7 @@ def test_reconcile_recovers_completed_order_and_cancel_terminal_states(tmp_path)
             {
                 "broker_order_id": "10",
                 "account": "DU123456",
-                "symbol": "SPY",
+                "symbol": "RB2405",
                 "side": "BUY",
                 "qty": 2.0,
                 "filled_qty": 0.0,
@@ -71,10 +71,10 @@ def test_reconcile_recovers_completed_order_and_cancel_terminal_states(tmp_path)
     with Session(engine, future=True) as session:
         completed_order = OrderRecord(
             strategy_id="core_portfolio",
-            symbol="SPY",
+            symbol="RB2405",
             side="BUY",
             qty=2.0,
-            broker="ibkr",
+            broker="ctp",
             account="DU123456",
             broker_order_id="10",
             status="PendingCancel",
@@ -82,10 +82,10 @@ def test_reconcile_recovers_completed_order_and_cancel_terminal_states(tmp_path)
         )
         open_order = OrderRecord(
             strategy_id="core_portfolio",
-            symbol="QQQ",
+            symbol="I2405",
             side="BUY",
             qty=1.0,
-            broker="ibkr",
+            broker="ctp",
             account="DU123456",
             broker_order_id="11",
             status="PendingSubmit",
@@ -93,10 +93,10 @@ def test_reconcile_recovers_completed_order_and_cancel_terminal_states(tmp_path)
         )
         other_account_order = OrderRecord(
             strategy_id="core_portfolio",
-            symbol="SPY",
+            symbol="RB2405",
             side="BUY",
             qty=2.0,
-            broker="ibkr",
+            broker="ctp",
             account="DU-OTHER",
             broker_order_id="10",
             status="PendingCancel",
@@ -108,7 +108,7 @@ def test_reconcile_recovers_completed_order_and_cancel_terminal_states(tmp_path)
             [
                 CancelRecord(
                     order_id=completed_order.id,
-                    broker="ibkr",
+                    broker="ctp",
                     broker_order_id="10",
                     account="DU123456",
                     status="PendingCancel",
@@ -116,7 +116,7 @@ def test_reconcile_recovers_completed_order_and_cancel_terminal_states(tmp_path)
                 ),
                 CancelRecord(
                     order_id=other_account_order.id,
-                    broker="ibkr",
+                    broker="ctp",
                     broker_order_id="10",
                     account="DU-OTHER",
                     status="PendingCancel",
@@ -179,7 +179,7 @@ def test_reconcile_does_not_finalize_cancel_from_non_terminal_order_state(tmp_pa
             symbol="IWM",
             side="BUY",
             qty=1.0,
-            broker="ibkr",
+            broker="ctp",
             account="DU123456",
             broker_order_id="12",
             status="PendingCancel",
@@ -189,7 +189,7 @@ def test_reconcile_does_not_finalize_cancel_from_non_terminal_order_state(tmp_pa
         session.flush()
         cancel = CancelRecord(
             order_id=order.id,
-            broker="ibkr",
+            broker="ctp",
             broker_order_id="12",
             account="DU123456",
             status="PendingCancel",
@@ -223,8 +223,8 @@ def test_reconcile_recovers_idless_completed_order_fill_and_failed_cancel(
                 "client_id": None,
                 "order_ref": "NSQ-crash-window",
                 "perm_id": 1001,
-                "con_id": 756733,
-                "symbol": "SPY",
+                "instrument_id": "rb2601",
+                "symbol": "RB2405",
                 "side": "BUY",
                 "qty": 2.0,
                 "filled_qty": 2.0,
@@ -237,7 +237,7 @@ def test_reconcile_recovers_idless_completed_order_fill_and_failed_cancel(
         fills=[
             FillSnapshot(
                 broker_order_id="77",
-                symbol="SPY",
+                symbol="RB2405",
                 qty=2.0,
                 price=499.5,
                 side="BUY",
@@ -247,7 +247,7 @@ def test_reconcile_recovers_idless_completed_order_fill_and_failed_cancel(
                 order_ref="NSQ-crash-window",
                 perm_id=1001,
                 client_id=7,
-                con_id=756733,
+                instrument_id="rb2601",
             )
         ],
         account_values={
@@ -262,15 +262,15 @@ def test_reconcile_recovers_idless_completed_order_fill_and_failed_cancel(
     with Session(engine, future=True) as session:
         order = OrderRecord(
             strategy_id="core_portfolio",
-            symbol="SPY",
+            symbol="RB2405",
             side="BUY",
             qty=2.0,
             order_type="LMT",
             limit_price=500.0,
-            broker="ibkr",
+            broker="ctp",
             account="DU123456",
             order_ref="NSQ-crash-window",
-            con_id=756733,
+            instrument_id="rb2601",
             reference_price=500.0,
             status="SubmissionUnknown",
         )
@@ -278,7 +278,7 @@ def test_reconcile_recovers_idless_completed_order_fill_and_failed_cancel(
         session.flush()
         cancel = CancelRecord(
             order_id=order.id,
-            broker="ibkr",
+            broker="ctp",
             broker_order_id="77",
             account="DU123456",
             status="CancelRequestFailed",
@@ -289,7 +289,7 @@ def test_reconcile_recovers_idless_completed_order_fill_and_failed_cancel(
 
         assert list_execution_recovery_blockers(
             session,
-            broker="ibkr",
+            broker="ctp",
             account="DU123456",
         )
         result = reconcile_broker_state(session, _FakeBroker(snapshot))
@@ -308,7 +308,7 @@ def test_reconcile_recovers_idless_completed_order_fill_and_failed_cancel(
         )
         blockers = list_execution_recovery_blockers(
             session,
-            broker="ibkr",
+            broker="ctp",
             account="DU123456",
         )
 
@@ -344,8 +344,8 @@ def test_idless_completed_order_cannot_finalize_legacy_cancel_by_similarity(
                 "client_id": 7,
                 "order_ref": "NSQ-another-order",
                 "perm_id": 2002,
-                "con_id": 756733,
-                "symbol": "SPY",
+                "instrument_id": "rb2601",
+                "symbol": "RB2405",
                 "side": "BUY",
                 "qty": 1.0,
                 "filled_qty": 0.0,
@@ -367,12 +367,12 @@ def test_idless_completed_order_cannot_finalize_legacy_cancel_by_similarity(
     with Session(engine, future=True) as session:
         legacy_order = OrderRecord(
             strategy_id="legacy",
-            symbol="SPY",
+            symbol="RB2405",
             side="BUY",
             qty=1.0,
             order_type="LMT",
             limit_price=500.0,
-            broker="ibkr",
+            broker="ctp",
             account="DU123456",
             broker_order_id="88",
             client_id=7,
@@ -382,7 +382,7 @@ def test_idless_completed_order_cannot_finalize_legacy_cancel_by_similarity(
         session.flush()
         legacy_cancel = CancelRecord(
             order_id=legacy_order.id,
-            broker="ibkr",
+            broker="ctp",
             broker_order_id="88",
             account="DU123456",
             status="PendingCancel",

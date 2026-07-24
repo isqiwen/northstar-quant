@@ -33,11 +33,11 @@ def test_recent_trade_attributions_returns_serializable_rows(tmp_path, monkeypat
                 run_id="run-001",
                 batch_id="batch-001",
                 plan_id="plan-001",
-                profile_id="us_etf_daily",
+                profile_id="cn_futures_daily_live",
                 account="paper-account",
                 strategy_id="core_portfolio",
                 execution_planner_id="bar_close_rebalance",
-                symbol="SPY",
+                symbol="RB2405",
                 side="BUY",
                 qty=100.0,
                 fill_price=100.5,
@@ -54,12 +54,12 @@ def test_recent_trade_attributions_returns_serializable_rows(tmp_path, monkeypat
         )
         session.commit()
 
-    rows = live_service.recent_trade_attributions(limit=5, profile_id="us_etf_daily")
+    rows = live_service.recent_trade_attributions(limit=5, profile_id="cn_futures_daily_live")
 
     assert len(rows) == 1
-    assert rows[0]["profile_id"] == "us_etf_daily"
+    assert rows[0]["profile_id"] == "cn_futures_daily_live"
     assert rows[0]["account"] == "paper-account"
-    assert rows[0]["symbol"] == "SPY"
+    assert rows[0]["symbol"] == "RB2405"
     assert rows[0]["implementation_shortfall_bps"] == 50.0
     assert rows[0]["attributed_at"] == "2024-03-04T15:36:00+00:00"
 
@@ -81,7 +81,7 @@ def test_recent_account_attributions_returns_serializable_rows(tmp_path, monkeyp
         session.add(
             AccountAttributionRecord(
                 run_id="run-002",
-                profile_id="us_etf_daily",
+                profile_id="cn_futures_daily_live",
                 broker="paper",
                 account="paper-account",
                 start_asof=datetime(2024, 3, 4, 15, 30, tzinfo=UTC),
@@ -95,14 +95,12 @@ def test_recent_account_attributions_returns_serializable_rows(tmp_path, monkeyp
                 price_pnl=200.0,
                 rebalance_pnl=20.0,
                 execution_shortfall=10.0,
-                dividend_cash_flow=30.0,
                 interest_cash_flow=5.0,
                 fee_cash_flow=-3.0,
                 tax_cash_flow=-2.0,
                 funding_cash_flow=10.0,
-                corporate_action_cash_flow=7.0,
                 other_non_trade_cash_flow=0.0,
-                total_non_trade_cash_flow=47.0,
+                total_non_trade_cash_flow=10.0,
                 traded_notional=2020.0,
                 fill_count=1,
                 residual_pnl=0.0,
@@ -115,10 +113,8 @@ def test_recent_account_attributions_returns_serializable_rows(tmp_path, monkeyp
     assert len(rows) == 1
     assert rows[0]["account"] == "paper-account"
     assert rows[0]["equity_change"] == 267.0
-    assert rows[0]["dividend_cash_flow"] == 30.0
     assert rows[0]["funding_cash_flow"] == 10.0
-    assert rows[0]["corporate_action_cash_flow"] == 7.0
-    assert rows[0]["total_non_trade_cash_flow"] == 47.0
+    assert rows[0]["total_non_trade_cash_flow"] == 10.0
     assert rows[0]["end_asof"] == "2024-03-04T15:45:00+00:00"
 
 
@@ -139,7 +135,7 @@ def test_recent_anomaly_events_returns_serializable_rows(tmp_path, monkeypatch):
         session.add(
             AnomalyEventRecord(
                 account_attribution_id=1,
-                profile_id="us_etf_daily",
+                profile_id="cn_futures_daily_live",
                 account="paper-account",
                 run_id="run-003",
                 report_type="daily",
@@ -153,10 +149,10 @@ def test_recent_anomaly_events_returns_serializable_rows(tmp_path, monkeypatch):
         )
         session.commit()
 
-    rows = live_service.recent_anomaly_events(limit=5, profile_id="us_etf_daily")
+    rows = live_service.recent_anomaly_events(limit=5, profile_id="cn_futures_daily_live")
 
     assert len(rows) == 1
-    assert rows[0]["profile_id"] == "us_etf_daily"
+    assert rows[0]["profile_id"] == "cn_futures_daily_live"
     assert rows[0]["alert_code"] == "execution_shortfall"
     assert rows[0]["alert_tag"] == "执行异常"
     assert rows[0]["detected_at"] == "2024-03-04T15:45:00+00:00"
@@ -185,7 +181,7 @@ def test_recent_run_health_and_soak_summary_return_serializable_rows(tmp_path, m
             [
                 RunHealthRecord(
                     run_id="paper-run-001",
-                    profile_id="us_etf_daily",
+                    profile_id="cn_futures_daily_live",
                     mode="paper_soak",
                     broker="paper",
                     account="paper-account",
@@ -210,9 +206,9 @@ def test_recent_run_health_and_soak_summary_return_serializable_rows(tmp_path, m
                 ),
                 RunHealthRecord(
                     run_id="shadow-run-001",
-                    profile_id="us_etf_daily",
+                    profile_id="cn_futures_daily_live",
                     mode="shadow_run",
-                    broker="ibkr",
+                    broker="ctp",
                     account="paper-account",
                     preflight_can_trade=False,
                     blocking_failure_count=1,
@@ -235,7 +231,7 @@ def test_recent_run_health_and_soak_summary_return_serializable_rows(tmp_path, m
                 ),
                 AnomalyEventRecord(
                     account_attribution_id=1,
-                    profile_id="us_etf_daily",
+                    profile_id="cn_futures_daily_live",
                     account="paper-account",
                     run_id="run-previous",
                     report_type="daily",
@@ -247,7 +243,7 @@ def test_recent_run_health_and_soak_summary_return_serializable_rows(tmp_path, m
                 ),
                 AnomalyEventRecord(
                     account_attribution_id=2,
-                    profile_id="us_etf_daily",
+                    profile_id="cn_futures_daily_live",
                     account="paper-account",
                     run_id="run-prev-window-1",
                     report_type="daily",
@@ -259,7 +255,7 @@ def test_recent_run_health_and_soak_summary_return_serializable_rows(tmp_path, m
                 ),
                 AnomalyEventRecord(
                     account_attribution_id=3,
-                    profile_id="us_etf_daily",
+                    profile_id="cn_futures_daily_live",
                     account="paper-account",
                     run_id="run-prev-window-2",
                     report_type="daily",
@@ -273,11 +269,11 @@ def test_recent_run_health_and_soak_summary_return_serializable_rows(tmp_path, m
         )
         session.commit()
 
-    rows = live_service.recent_run_health(limit=5, profile_id="us_etf_daily")
+    rows = live_service.recent_run_health(limit=5, profile_id="cn_futures_daily_live")
     summary = live_service.soak_summary(
         days=28,
         limit=5,
-        profile_id="us_etf_daily",
+        profile_id="cn_futures_daily_live",
         account="paper-account",
     )
 

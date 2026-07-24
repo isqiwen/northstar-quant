@@ -224,11 +224,8 @@ class DurableBrokerAdapter(BrokerAdapter):
             attempt_no=int(row.attempt_no),
             execution_policy_fingerprint=row.execution_policy_fingerprint,
             execution_planner_id=row.execution_planner_id,
-            broker_symbol=row.broker_symbol,
-            con_id=row.con_id,
-            sec_type=row.sec_type,
-            exchange=row.exchange,
-            primary_exchange=row.primary_exchange,
+            instrument_id=row.instrument_id,
+            exchange_id=row.exchange_id,
             currency=row.currency,
         )
 
@@ -300,7 +297,8 @@ class DurableBrokerAdapter(BrokerAdapter):
             "client_id": order.client_id,
             "order_ref": order.order_ref,
             "perm_id": order.perm_id,
-            "con_id": order.con_id,
+            "instrument_id": order.instrument_id,
+            "exchange_id": order.exchange_id,
             "status": order.status,
             "qty": float(order.qty),
             "filled_qty": order.filled_qty,
@@ -381,7 +379,8 @@ class DurableBrokerAdapter(BrokerAdapter):
             order_ref=order.order_ref,
             perm_id=order.perm_id,
             client_id=order.client_id,
-            con_id=order.con_id,
+            instrument_id=order.instrument_id,
+            exchange_id=order.exchange_id,
         )
         finalize_order_cancel_request(
             self.session,
@@ -421,7 +420,8 @@ class DurableBrokerAdapter(BrokerAdapter):
             order_ref=order.order_ref,
             perm_id=order.perm_id,
             client_id=order.client_id,
-            con_id=order.con_id,
+            instrument_id=order.instrument_id,
+            exchange_id=order.exchange_id,
         )
         if row is not None:
             update_single_order_status(

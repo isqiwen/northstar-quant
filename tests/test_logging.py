@@ -92,7 +92,7 @@ def test_setup_logging_writes_json_lines_with_top_level_fields(tmp_path, monkeyp
 
     try:
         setup_logging()
-        get_logger("test_logger", command="init-db", strategy="momentum", symbol="SPY").info("log test")
+        get_logger("test_logger", command="init-db", strategy="momentum", symbol="RB2405").info("log test")
 
         line = (tmp_path / "storage/logs/northstar.log").read_text(encoding="utf-8").strip().splitlines()[-1]
         payload = json.loads(line)
@@ -107,7 +107,7 @@ def test_setup_logging_writes_json_lines_with_top_level_fields(tmp_path, monkeyp
     assert payload["line"] > 0
     assert payload["command"] == "init-db"
     assert payload["strategy"] == "momentum"
-    assert payload["symbol"] == "SPY"
+    assert payload["symbol"] == "RB2405"
     assert "logger" not in payload
     assert "context" not in payload
     assert "message" not in payload

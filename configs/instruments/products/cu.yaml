@@ -1,0 +1,28 @@
+# 阴极铜（CU）品种卡。
+version: 1
+product: CU
+name: 阴极铜
+exchange: SHFE
+contract:
+  multiplier: 5
+  tick_size: 10.0
+  delivery_month_rule: exchange_contract_specification
+trading:
+  timezone: Asia/Shanghai
+  has_night_session: true
+  session_rule: exchange_daily_schedule
+delivery:
+  last_trade_day_rule: exchange_contract_specification
+  individual_investor_rule: broker_and_exchange_delivery_month_restriction
+roll:
+  method: explicit_daily_contract_chain
+  reference_signals: [open_interest, volume, term_liquidity]
+risk:
+  dynamic_snapshot: [trading_sessions, margin_rate, commission, price_limits, position_limits, active_contract]
+research:
+  industry_chain: 铜矿、冶炼、电解与精炼铜，主要流向电网、电缆、家电、汽车和新能源。
+  supply_demand_drivers: 全球铜矿供给、冶炼产能、电网投资、制造业周期、库存与美元汇率。
+  event_risks: 矿山罢工、海外政策、宏观流动性、汇率急变、库存异常和地缘冲突。
+sources:
+  exchange: https://www.shfe.com.cn/
+  daily_rule_source: exchange_and_broker_daily_notice

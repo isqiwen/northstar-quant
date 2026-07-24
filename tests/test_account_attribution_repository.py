@@ -26,7 +26,7 @@ def test_save_account_attribution_for_snapshot_splits_price_and_rebalance_pnl(tm
             [
                 PositionSnapshotRecord(
                     account="paper-account",
-                    symbol="SPY",
+                    symbol="RB2405",
                     qty=100.0,
                     market_price=100.0,
                     market_value=10000.0,
@@ -35,7 +35,7 @@ def test_save_account_attribution_for_snapshot_splits_price_and_rebalance_pnl(tm
                 ),
                 PositionSnapshotRecord(
                     account="paper-account",
-                    symbol="SPY",
+                    symbol="RB2405",
                     qty=120.0,
                     market_price=102.0,
                     market_value=12240.0,
@@ -44,7 +44,7 @@ def test_save_account_attribution_for_snapshot_splits_price_and_rebalance_pnl(tm
                 ),
                 AccountSnapshotRecord(
                     run_id="run-start",
-                    profile_id="us_etf_daily",
+                    profile_id="cn_futures_daily_live",
                     broker="paper",
                     account="paper-account",
                     position_snapshot_batch_id="pos-start",
@@ -58,19 +58,17 @@ def test_save_account_attribution_for_snapshot_splits_price_and_rebalance_pnl(tm
                     net_exposure=0.10,
                     account_values_json=json.dumps(
                         {
-                            "Dividends": 0.0,
                             "InterestAccruals": 0.0,
                             "Commissions": 0.0,
                             "WithholdingTax": 0.0,
                             "FundsTransfer": 0.0,
-                            "CashInLieu": 0.0,
                         }
                     ),
                     asof=start_asof,
                 ),
                 AccountSnapshotRecord(
                     run_id="run-end",
-                    profile_id="us_etf_daily",
+                    profile_id="cn_futures_daily_live",
                     broker="paper",
                     account="paper-account",
                     position_snapshot_batch_id="pos-end",
@@ -84,12 +82,10 @@ def test_save_account_attribution_for_snapshot_splits_price_and_rebalance_pnl(tm
                     net_exposure=0.1221,
                     account_values_json=json.dumps(
                         {
-                            "Dividends": 30.0,
                             "InterestAccruals": 5.0,
                             "Commissions": -3.0,
                             "WithholdingTax": -2.0,
                             "FundsTransfer": 10.0,
-                            "CashInLieu": 7.0,
                         }
                     ),
                     asof=end_asof,
@@ -99,11 +95,11 @@ def test_save_account_attribution_for_snapshot_splits_price_and_rebalance_pnl(tm
                     run_id="run-end",
                     batch_id="batch-001",
                     plan_id="plan-001",
-                    profile_id="us_etf_daily",
+                    profile_id="cn_futures_daily_live",
                     account="paper-account",
                     strategy_id="core_portfolio",
                     execution_planner_id="bar_close_rebalance",
-                    symbol="SPY",
+                    symbol="RB2405",
                     side="BUY",
                     qty=20.0,
                     fill_price=101.0,
@@ -144,14 +140,12 @@ def test_save_account_attribution_for_snapshot_splits_price_and_rebalance_pnl(tm
     assert row.price_pnl == 200.0
     assert row.rebalance_pnl == 20.0
     assert row.execution_shortfall == 10.0
-    assert row.dividend_cash_flow == 30.0
     assert row.interest_cash_flow == 5.0
     assert row.fee_cash_flow == -3.0
     assert row.tax_cash_flow == -2.0
     assert row.funding_cash_flow == 10.0
-    assert row.corporate_action_cash_flow == 7.0
     assert row.other_non_trade_cash_flow == 0.0
-    assert row.total_non_trade_cash_flow == 47.0
+    assert row.total_non_trade_cash_flow == 10.0
     assert row.traded_notional == 2020.0
     assert row.fill_count == 1
-    assert row.residual_pnl == 0.0
+    assert row.residual_pnl == 37.0

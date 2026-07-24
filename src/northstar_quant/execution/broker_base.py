@@ -41,7 +41,7 @@ class BrokerAdapter(ABC):
         """读取同一次执行尝试的持久化状态与券商身份。
 
         默认适配器没有持久化账本，返回 ``None``。具备持久化能力的包装器应
-        返回该 attempt 的 ``orderRef/clientId/permId/conId`` 以及成交进度，
+        返回该 attempt 的 ``orderRef/clientId/permId/instrumentId`` 以及成交进度，
         供重连后的追价逻辑精确匹配券商快照。
         """
 
@@ -105,11 +105,12 @@ class BrokerAdapter(ABC):
         order_ref: str | None = None,
         perm_id: int | None = None,
         client_id: int | None = None,
-        con_id: int | None = None,
+        instrument_id: str | None = None,
+        exchange_id: str | None = None,
     ) -> bool:
         """带完整券商身份撤单；默认适配器退化为普通撤单。"""
 
-        del order_ref, perm_id, client_id, con_id
+        del order_ref, perm_id, client_id, instrument_id, exchange_id
         return self.cancel_order(broker_order_id)
 
     def cancel_order_for_local_order(
@@ -139,11 +140,12 @@ class BrokerAdapter(ABC):
         order_ref: str | None = None,
         perm_id: int | None = None,
         client_id: int | None = None,
-        con_id: int | None = None,
+        instrument_id: str | None = None,
+        exchange_id: str | None = None,
     ) -> dict | None:
         """使用完整券商身份查询状态；默认退化为普通查询。"""
 
-        del order_ref, perm_id, client_id, con_id
+        del order_ref, perm_id, client_id, instrument_id, exchange_id
         return self.get_order_status(broker_order_id)
 
     def get_account(self) -> str | None:

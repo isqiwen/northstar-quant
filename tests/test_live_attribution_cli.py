@@ -8,7 +8,7 @@ runner = CliRunner()
 
 def test_live_trade_attribution_command_logs_payload(monkeypatch):
     captured: dict[str, object] = {}
-    payload = [{"symbol": "SPY", "implementation_shortfall": 50.0}]
+    payload = [{"symbol": "RB2405", "implementation_shortfall": 50.0}]
 
     monkeypatch.setattr("northstar_quant.cli.recent_trade_attributions", lambda **_: payload)
     monkeypatch.setattr(
@@ -18,14 +18,14 @@ def test_live_trade_attribution_command_logs_payload(monkeypatch):
 
     result = runner.invoke(
         app,
-        ["live", "trade-attribution", "--profile", "us_etf_daily", "--account", "paper", "--limit", "5"],
+        ["live", "trade-attribution", "--profile", "cn_futures_daily_live", "--account", "paper", "--limit", "5"],
     )
 
     assert result.exit_code == 0
     assert captured["data"] == payload
     assert captured["context"] == {
         "command": "live.trade-attribution",
-        "profile": "us_etf_daily",
+        "profile": "cn_futures_daily_live",
         "account": "paper",
         "limit": 5,
     }
@@ -43,14 +43,14 @@ def test_live_account_attribution_command_logs_payload(monkeypatch):
 
     result = runner.invoke(
         app,
-        ["live", "account-attribution", "--profile", "us_etf_daily", "--account", "paper", "--limit", "3"],
+        ["live", "account-attribution", "--profile", "cn_futures_daily_live", "--account", "paper", "--limit", "3"],
     )
 
     assert result.exit_code == 0
     assert captured["data"] == payload
     assert captured["context"] == {
         "command": "live.account-attribution",
-        "profile": "us_etf_daily",
+        "profile": "cn_futures_daily_live",
         "account": "paper",
         "limit": 3,
     }
@@ -68,14 +68,14 @@ def test_live_anomaly_events_command_logs_payload(monkeypatch):
 
     result = runner.invoke(
         app,
-        ["live", "anomaly-events", "--profile", "us_etf_daily", "--account", "paper", "--tag", "执行异常", "--limit", "4"],
+        ["live", "anomaly-events", "--profile", "cn_futures_daily_live", "--account", "paper", "--tag", "执行异常", "--limit", "4"],
     )
 
     assert result.exit_code == 0
     assert captured["data"] == payload
     assert captured["context"] == {
         "command": "live.anomaly-events",
-        "profile": "us_etf_daily",
+        "profile": "cn_futures_daily_live",
         "account": "paper",
         "alert_tag": "执行异常",
         "limit": 4,
@@ -85,7 +85,7 @@ def test_live_anomaly_events_command_logs_payload(monkeypatch):
 def test_live_preflight_command_logs_payload(monkeypatch):
     captured: dict[str, object] = {}
     payload = {
-        "profile_id": "us_etf_daily",
+        "profile_id": "cn_futures_daily_live",
         "can_trade": False,
         "blocking_failure_count": 1,
         "warning_count": 0,
@@ -100,14 +100,14 @@ def test_live_preflight_command_logs_payload(monkeypatch):
 
     result = runner.invoke(
         app,
-        ["live", "preflight", "--profile", "us_etf_daily"],
+        ["live", "preflight", "--profile", "cn_futures_daily_live"],
     )
 
     assert result.exit_code == 0
     assert captured["data"] == payload
     assert captured["context"] == {
         "command": "live.preflight",
-        "profile": "us_etf_daily",
+        "profile": "cn_futures_daily_live",
     }
 
 
@@ -123,14 +123,14 @@ def test_live_shadow_run_command_logs_payload(monkeypatch):
 
     result = runner.invoke(
         app,
-        ["live", "shadow-run", "--profile", "us_etf_daily"],
+        ["live", "shadow-run", "--profile", "cn_futures_daily_live"],
     )
 
     assert result.exit_code == 0
     assert captured["data"] == payload
     assert captured["context"] == {
         "command": "live.shadow-run",
-        "profile": "us_etf_daily",
+        "profile": "cn_futures_daily_live",
     }
 
 
@@ -146,14 +146,14 @@ def test_live_run_health_command_logs_payload(monkeypatch):
 
     result = runner.invoke(
         app,
-        ["live", "run-health", "--profile", "us_etf_daily", "--account", "paper", "--mode", "paper_soak", "--limit", "6"],
+        ["live", "run-health", "--profile", "cn_futures_daily_live", "--account", "paper", "--mode", "paper_soak", "--limit", "6"],
     )
 
     assert result.exit_code == 0
     assert captured["data"] == payload
     assert captured["context"] == {
         "command": "live.run-health",
-        "profile": "us_etf_daily",
+        "profile": "cn_futures_daily_live",
         "account": "paper",
         "mode": "paper_soak",
         "limit": 6,
@@ -172,14 +172,14 @@ def test_live_soak_summary_command_logs_payload(monkeypatch):
 
     result = runner.invoke(
         app,
-        ["live", "soak-summary", "--profile", "us_etf_daily", "--account", "paper", "--mode", "paper_soak", "--days", "28", "--limit", "10"],
+        ["live", "soak-summary", "--profile", "cn_futures_daily_live", "--account", "paper", "--mode", "paper_soak", "--days", "28", "--limit", "10"],
     )
 
     assert result.exit_code == 0
     assert captured["data"] == payload
     assert captured["context"] == {
         "command": "live.soak-summary",
-        "profile": "us_etf_daily",
+        "profile": "cn_futures_daily_live",
         "account": "paper",
         "mode": "paper_soak",
         "days": 28,

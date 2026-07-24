@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 
 from northstar_quant.config.settings import get_settings
-from northstar_quant.execution.ibkr_service import IBKRService
 
 
 def run_healthcheck() -> dict:
@@ -19,11 +18,7 @@ def run_healthcheck() -> dict:
         "reports_exists": Path(settings.reports_dir).exists(),
         "broker_mode": settings.broker,
     }
-    if settings.broker == 'ibkr':
-        try:
-            service = IBKRService()
-            payload['ibkr_connected'] = service.is_connected()
-        except Exception as exc:  # pragma: no cover
-            payload['ibkr_connected'] = False
-            payload['ibkr_error'] = str(exc)
+    if settings.broker == "ctp":
+        payload["ctp_execution_available"] = False
+        payload["ctp_execution_reason"] = "CTP 报单适配器尚未实现。"
     return payload

@@ -18,9 +18,9 @@ def test_save_fill_snapshots_creates_buy_trade_attribution(tmp_path):
     with Session(engine, future=True) as session:
         session.add(
             OrderRecord(
-                profile_id="us_etf_daily",
+                profile_id="cn_futures_daily_live",
                 strategy_id="core_portfolio",
-                symbol="SPY",
+                symbol="RB2405",
                 side="BUY",
                 qty=100.0,
                 order_type="MKT",
@@ -43,7 +43,7 @@ def test_save_fill_snapshots_creates_buy_trade_attribution(tmp_path):
             [
                 FillSnapshot(
                     broker_order_id="paper-123",
-                    symbol="SPY",
+                    symbol="RB2405",
                     qty=100.0,
                     price=100.5,
                     side="BUY",
@@ -78,9 +78,9 @@ def test_save_fill_snapshots_creates_sell_trade_attribution_with_correct_sign(tm
     with Session(engine, future=True) as session:
         session.add(
             OrderRecord(
-                profile_id="us_etf_daily",
+                profile_id="cn_futures_daily_live",
                 strategy_id="core_portfolio",
-                symbol="QQQ",
+                symbol="I2405",
                 side="SELL",
                 qty=50.0,
                 order_type="LMT",
@@ -102,7 +102,7 @@ def test_save_fill_snapshots_creates_sell_trade_attribution_with_correct_sign(tm
             [
                 FillSnapshot(
                     broker_order_id="paper-456",
-                    symbol="QQQ",
+                    symbol="I2405",
                     qty=50.0,
                     price=199.0,
                     side="SELL",
@@ -135,10 +135,10 @@ def test_save_fill_snapshots_uses_broker_execution_identity(tmp_path):
         session.add(
             OrderRecord(
                 strategy_id="core_portfolio",
-                symbol="SPY",
+                symbol="RB2405",
                 side="BUY",
                 qty=2.0,
-                broker="ibkr",
+                broker="ctp",
                 account="DU123456",
                 broker_order_id="42",
                 status="Submitted",
@@ -148,7 +148,7 @@ def test_save_fill_snapshots_uses_broker_execution_identity(tmp_path):
         session.commit()
         first = FillSnapshot(
             broker_order_id="42",
-            symbol="SPY",
+            symbol="RB2405",
             qty=2.0,
             price=500.0,
             side="BUY",
@@ -157,11 +157,11 @@ def test_save_fill_snapshots_uses_broker_execution_identity(tmp_path):
             exec_id="exec-42.1",
             perm_id=100,
             client_id=7,
-            con_id=756733,
+            instrument_id="rb2601",
         )
 
-        assert save_fill_snapshots(session, [first], broker="ibkr") == 1
-        assert save_fill_snapshots(session, [first], broker="ibkr") == 0
+        assert save_fill_snapshots(session, [first], broker="ctp") == 1
+        assert save_fill_snapshots(session, [first], broker="ctp") == 0
         fill_row = session.scalar(
             select(FillRecord).where(FillRecord.exec_id == "exec-42.1")
         )
@@ -170,9 +170,9 @@ def test_save_fill_snapshots_uses_broker_execution_identity(tmp_path):
         )
 
     assert fill_row is not None
-    assert fill_row.broker == "ibkr"
+    assert fill_row.broker == "ctp"
     assert fill_row.account == "DU123456"
-    assert fill_row.con_id == 756733
+    assert fill_row.instrument_id == "rb2601"
     assert order_row is not None
     assert order_row.status == "Filled"
 
@@ -188,28 +188,28 @@ def test_fill_identity_uses_perm_id_before_reused_order_id(tmp_path):
     with Session(engine, future=True) as session:
         client_one = OrderRecord(
             strategy_id="core",
-            symbol="SPY",
+            symbol="RB2405",
             side="BUY",
             qty=1.0,
-            broker="ibkr",
+            broker="ctp",
             account="DU123456",
             broker_order_id="42",
             client_id=1,
             perm_id=101,
-            con_id=756733,
+            instrument_id="rb2601",
             status="Submitted",
         )
         client_two = OrderRecord(
             strategy_id="core",
-            symbol="QQQ",
+            symbol="I2405",
             side="BUY",
             qty=1.0,
-            broker="ibkr",
+            broker="ctp",
             account="DU123456",
             broker_order_id="42",
             client_id=2,
             perm_id=202,
-            con_id=320227571,
+            instrument_id="i2601",
             status="Submitted",
         )
         session.add_all([client_one, client_two])
@@ -221,7 +221,7 @@ def test_fill_identity_uses_perm_id_before_reused_order_id(tmp_path):
                 [
                     FillSnapshot(
                         broker_order_id="42",
-                        symbol="QQQ",
+                        symbol="I2405",
                         qty=1.0,
                         price=500.0,
                         side="BUY",
@@ -230,10 +230,10 @@ def test_fill_identity_uses_perm_id_before_reused_order_id(tmp_path):
                         exec_id="exec-client-2",
                         perm_id=202,
                         client_id=2,
-                        con_id=320227571,
+                        instrument_id="i2601",
                     )
                 ],
-                broker="ibkr",
+                broker="ctp",
             )
             == 1
         )
@@ -258,15 +258,15 @@ def test_partial_fill_does_not_downgrade_cancelled_terminal_order(tmp_path):
     with Session(engine, future=True) as session:
         order = OrderRecord(
             strategy_id="core",
-            symbol="SPY",
+            symbol="RB2405",
             side="BUY",
             qty=2.0,
-            broker="ibkr",
+            broker="ctp",
             account="DU123456",
             broker_order_id="42",
             client_id=7,
             perm_id=100,
-            con_id=756733,
+            instrument_id="rb2601",
             status="Cancelled",
         )
         session.add(order)
@@ -278,7 +278,7 @@ def test_partial_fill_does_not_downgrade_cancelled_terminal_order(tmp_path):
                 [
                     FillSnapshot(
                         broker_order_id="42",
-                        symbol="SPY",
+                        symbol="RB2405",
                         qty=1.0,
                         price=500.0,
                         side="BUY",
@@ -287,10 +287,10 @@ def test_partial_fill_does_not_downgrade_cancelled_terminal_order(tmp_path):
                         exec_id="exec-partial",
                         perm_id=100,
                         client_id=7,
-                        con_id=756733,
+                        instrument_id="rb2601",
                     )
                 ],
-                broker="ibkr",
+                broker="ctp",
             )
             == 1
         )
@@ -312,10 +312,10 @@ def test_existing_unlinked_fill_is_backfilled_by_order_ref(tmp_path):
     with Session(engine, future=True) as session:
         order = OrderRecord(
             strategy_id="core",
-            symbol="SPY",
+            symbol="RB2405",
             side="BUY",
             qty=2.0,
-            broker="ibkr",
+            broker="ctp",
             account="DU123456",
             order_ref="NSQ-plan-1",
             reference_price=499.0,
@@ -325,11 +325,11 @@ def test_existing_unlinked_fill_is_backfilled_by_order_ref(tmp_path):
         session.flush()
         fill = FillRecord(
             order_id=None,
-            broker="ibkr",
+            broker="ctp",
             account="DU123456",
             exec_id="exec-backfill-1",
             broker_order_id="42",
-            symbol="SPY",
+            symbol="RB2405",
             side="BUY",
             qty=1.0,
             price=500.0,
@@ -343,7 +343,7 @@ def test_existing_unlinked_fill_is_backfilled_by_order_ref(tmp_path):
             [
                 FillSnapshot(
                     broker_order_id="42",
-                    symbol="SPY",
+                    symbol="RB2405",
                     qty=1.0,
                     price=500.0,
                     side="BUY",
@@ -353,10 +353,10 @@ def test_existing_unlinked_fill_is_backfilled_by_order_ref(tmp_path):
                     order_ref="NSQ-plan-1",
                     perm_id=1001,
                     client_id=7,
-                    con_id=756733,
+                    instrument_id="rb2601",
                 )
             ],
-            broker="ibkr",
+            broker="ctp",
         )
         refreshed_fill = session.get(FillRecord, fill.id)
         attribution = session.scalar(
@@ -383,14 +383,14 @@ def test_fill_ledger_does_not_reduce_completed_cumulative_progress(tmp_path):
     with Session(engine, future=True) as session:
         order = OrderRecord(
             strategy_id="core",
-            symbol="SPY",
+            symbol="RB2405",
             side="BUY",
             qty=2.0,
-            broker="ibkr",
+            broker="ctp",
             account="DU123456",
             order_ref="NSQ-plan-filled",
             perm_id=1002,
-            con_id=756733,
+            instrument_id="rb2601",
             status="Filled",
             filled_qty=2.0,
             remaining_qty=0.0,
@@ -404,7 +404,7 @@ def test_fill_ledger_does_not_reduce_completed_cumulative_progress(tmp_path):
                 [
                     FillSnapshot(
                         broker_order_id="43",
-                        symbol="SPY",
+                        symbol="RB2405",
                         qty=1.0,
                         price=500.0,
                         side="BUY",
@@ -414,10 +414,10 @@ def test_fill_ledger_does_not_reduce_completed_cumulative_progress(tmp_path):
                         order_ref="NSQ-plan-filled",
                         perm_id=1002,
                         client_id=7,
-                        con_id=756733,
+                        instrument_id="rb2601",
                     )
                 ],
-                broker="ibkr",
+                broker="ctp",
             )
             == 1
         )

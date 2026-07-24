@@ -31,7 +31,7 @@ from northstar_quant.live.durable_submission import (
 def _order(**overrides) -> OrderRequest:
     values = {
         "strategy_id": "core",
-        "symbol": "SPY",
+        "symbol": "RB2405",
         "side": "BUY",
         "qty": 2.0,
         "account": "DU123456",
@@ -76,7 +76,7 @@ class _RecordingBroker(BrokerAdapter):
         )
 
     def get_name(self) -> str:
-        return "ibkr"
+        return "ctp"
 
     def get_account(self) -> str:
         return "DU123456"
@@ -137,7 +137,7 @@ def test_concurrent_sessions_create_only_one_order_intent(tmp_path):
             row, created = prepare_order_submission(
                 session,
                 _order(),
-                broker="ibkr",
+                broker="ctp",
                 account="DU123456",
             )
             return row.id, created
@@ -158,22 +158,19 @@ def test_final_instrument_payload_is_persisted_before_broker_call(tmp_path):
 
     class _InstrumentBroker(_RecordingBroker):
         def prepare_order(self, order: OrderRequest) -> OrderRequest:
-            return replace(
-                order,
-                broker_symbol="SPY",
-                con_id=756733,
-                sec_type="STK",
-                exchange="SMART",
-                primary_exchange="ARCA",
-                currency="USD",
+                return replace(
+                    order,
+                    instrument_id="rb2601",
+                    exchange_id="SHFE",
+                    currency="CNY",
             )
 
     def assert_instrument_is_durable(_order_request: OrderRequest) -> None:
         with Session(engine, future=True) as observer:
             row = observer.scalar(select(OrderRecord))
             assert row is not None
-            assert row.con_id == 756733
-            assert row.broker_symbol == "SPY"
+            assert row.instrument_id == "rb2601"
+            assert row.exchange_id == "SHFE"
             assert row.request_fingerprint
 
     broker = _InstrumentBroker(on_submit=assert_instrument_is_durable)
@@ -266,7 +263,7 @@ def test_durable_adapter_lists_all_persisted_plan_attempts(tmp_path):
                 limit_price=500.0,
                 execution_policy_fingerprint="policy-v1",
             ),
-            broker="ibkr",
+            broker="ctp",
             account="DU123456",
         )
         prepare_order_submission(
@@ -277,7 +274,7 @@ def test_durable_adapter_lists_all_persisted_plan_attempts(tmp_path):
                 limit_price=None,
                 execution_policy_fingerprint="policy-v1",
             ),
-            broker="ibkr",
+            broker="ctp",
             account="DU123456",
         )
         attempts = DurableBrokerAdapter(
@@ -309,8 +306,8 @@ def test_confirmed_terminal_without_broker_order_id_is_replayed(tmp_path):
     with Session(engine, future=True) as session:
         row, _created = prepare_order_submission(
             session,
-            _order(con_id=756733),
-            broker="ibkr",
+            _order(instrument_id="rb2601"),
+            broker="ctp",
             account="DU123456",
         )
         row.status = "Filled"
@@ -321,7 +318,7 @@ def test_confirmed_terminal_without_broker_order_id_is_replayed(tmp_path):
         session.commit()
 
         replay = DurableBrokerAdapter(broker, session).submit_order(
-            _order(con_id=756733)
+            _order(instrument_id="rb2601")
         )
 
     assert replay.replayed is True
@@ -358,7 +355,7 @@ def test_unknown_submission_recovers_by_order_ref_without_resubmission(tmp_path)
                     "remaining_qty": 0.0,
                 }
             ],
-            broker="ibkr",
+            broker="ctp",
             account="DU123456",
         )
         assert updated == 1
@@ -382,12 +379,12 @@ def test_order_recovery_rejects_mismatched_instrument_identity(tmp_path):
     with Session(engine, future=True) as session:
         order = OrderRecord(
             strategy_id="core",
-            symbol="SPY",
+            symbol="RB2405",
             side="BUY",
             qty=2.0,
-            broker="ibkr",
+            broker="ctp",
             account="DU123456",
-            con_id=756733,
+            instrument_id="rb2601",
             order_ref=build_order_ref("plan-1", 1),
             status="SubmissionUnknown",
         )
@@ -405,12 +402,12 @@ def test_order_recovery_rejects_mismatched_instrument_identity(tmp_path):
                         "broker_order_id": "broker-wrong-contract",
                         "account": "DU123456",
                         "order_ref": build_order_ref("plan-1", 1),
-                        "con_id": 999999,
-                        "symbol": "SPY",
+                        "instrument_id": "rb2602",
+                        "symbol": "RB2405",
                         "status": "Filled",
                     }
                 ],
-                broker="ibkr",
+                broker="ctp",
                 account="DU123456",
             )
 
@@ -428,10 +425,10 @@ def test_order_recovery_uses_client_id_when_order_id_is_reused(tmp_path):
     with Session(engine, future=True) as session:
         client_one = OrderRecord(
             strategy_id="core",
-            symbol="SPY",
+            symbol="RB2405",
             side="BUY",
             qty=1.0,
-            broker="ibkr",
+            broker="ctp",
             account="DU123456",
             broker_order_id="42",
             client_id=1,
@@ -439,10 +436,10 @@ def test_order_recovery_uses_client_id_when_order_id_is_reused(tmp_path):
         )
         client_two = OrderRecord(
             strategy_id="core",
-            symbol="QQQ",
+            symbol="I2405",
             side="BUY",
             qty=1.0,
-            broker="ibkr",
+            broker="ctp",
             account="DU123456",
             broker_order_id="42",
             client_id=2,
@@ -459,14 +456,14 @@ def test_order_recovery_uses_client_id_when_order_id_is_reused(tmp_path):
                         "broker_order_id": "42",
                         "account": "DU123456",
                         "client_id": 2,
-                        "symbol": "QQQ",
+                        "symbol": "I2405",
                         "status": "Filled",
                         "qty": 1.0,
                         "filled_qty": 1.0,
                         "remaining_qty": 0.0,
                     }
                 ],
-                broker="ibkr",
+                broker="ctp",
                 account="DU123456",
             )
             == 1
@@ -486,14 +483,14 @@ def test_late_working_status_cannot_regress_terminal_fill_progress(tmp_path):
     with Session(engine, future=True) as session:
         order = OrderRecord(
             strategy_id="core",
-            symbol="SPY",
+            symbol="RB2405",
             side="BUY",
             qty=2.0,
-            broker="ibkr",
+            broker="ctp",
             account="DU123456",
             broker_order_id="42",
             client_id=7,
-            con_id=756733,
+            instrument_id="rb2601",
             status="Filled",
             filled_qty=2.0,
             remaining_qty=0.0,
@@ -508,8 +505,8 @@ def test_late_working_status_cannot_regress_terminal_fill_progress(tmp_path):
                     "broker_order_id": "42",
                     "account": "DU123456",
                     "client_id": 7,
-                    "con_id": 756733,
-                    "symbol": "SPY",
+                    "instrument_id": "rb2601",
+                    "symbol": "RB2405",
                     "side": "BUY",
                     "qty": 2.0,
                     "status": "Submitted",
@@ -517,7 +514,7 @@ def test_late_working_status_cannot_regress_terminal_fill_progress(tmp_path):
                     "remaining_qty": 2.0,
                 }
             ],
-            broker="ibkr",
+            broker="ctp",
             account="DU123456",
         )
         refreshed = session.get(OrderRecord, order.id)
@@ -537,14 +534,14 @@ def test_stale_cancelled_snapshot_cannot_regress_fill_progress(tmp_path):
     with Session(engine, future=True) as session:
         order = OrderRecord(
             strategy_id="core",
-            symbol="SPY",
+            symbol="RB2405",
             side="BUY",
             qty=2.0,
-            broker="ibkr",
+            broker="ctp",
             account="DU123456",
             broker_order_id="42",
             client_id=7,
-            con_id=756733,
+            instrument_id="rb2601",
             status="Cancelled",
             filled_qty=1.0,
             remaining_qty=1.0,
@@ -559,8 +556,8 @@ def test_stale_cancelled_snapshot_cannot_regress_fill_progress(tmp_path):
                     "broker_order_id": "42",
                     "account": "DU123456",
                     "client_id": 7,
-                    "con_id": 756733,
-                    "symbol": "SPY",
+                    "instrument_id": "rb2601",
+                    "symbol": "RB2405",
                     "side": "BUY",
                     "qty": 2.0,
                     "status": "Cancelled",
@@ -568,7 +565,7 @@ def test_stale_cancelled_snapshot_cannot_regress_fill_progress(tmp_path):
                     "remaining_qty": 2.0,
                 }
             ],
-            broker="ibkr",
+            broker="ctp",
             account="DU123456",
         )
         refreshed = session.get(OrderRecord, order.id)
@@ -588,14 +585,14 @@ def test_any_broker_status_rejects_progress_above_order_quantity(tmp_path):
     with Session(engine, future=True) as session:
         order = OrderRecord(
             strategy_id="core",
-            symbol="SPY",
+            symbol="RB2405",
             side="BUY",
             qty=2.0,
-            broker="ibkr",
+            broker="ctp",
             account="DU123456",
             broker_order_id="42",
             client_id=7,
-            con_id=756733,
+            instrument_id="rb2601",
             status="Submitted",
         )
         session.add(order)
@@ -609,8 +606,8 @@ def test_any_broker_status_rejects_progress_above_order_quantity(tmp_path):
                         "broker_order_id": "42",
                         "account": "DU123456",
                         "client_id": 7,
-                        "con_id": 756733,
-                        "symbol": "SPY",
+                        "instrument_id": "rb2601",
+                        "symbol": "RB2405",
                         "side": "BUY",
                         "qty": 2.0,
                         "status": "Cancelled",
@@ -618,7 +615,7 @@ def test_any_broker_status_rejects_progress_above_order_quantity(tmp_path):
                         "remaining_qty": 0.0,
                     }
                 ],
-                broker="ibkr",
+                broker="ctp",
                 account="DU123456",
             )
 
@@ -633,10 +630,10 @@ def test_terminal_order_rejects_duplicate_cancel_without_new_blocker(tmp_path):
     with Session(engine, future=True) as session:
         order = OrderRecord(
             strategy_id="core",
-            symbol="SPY",
+            symbol="RB2405",
             side="BUY",
             qty=2.0,
-            broker="ibkr",
+            broker="ctp",
             account="DU123456",
             broker_order_id="42",
             client_id=7,
@@ -653,7 +650,7 @@ def test_terminal_order_rejects_duplicate_cancel_without_new_blocker(tmp_path):
         ):
             prepare_order_cancel(
                 session,
-                broker="ibkr",
+                broker="ctp",
                 account="DU123456",
                 broker_order_id="42",
                 reason="late_duplicate",
@@ -678,10 +675,10 @@ def test_cancel_intent_uses_client_id_when_order_id_is_reused(tmp_path):
     with Session(engine, future=True) as session:
         client_one = OrderRecord(
             strategy_id="core",
-            symbol="SPY",
+            symbol="RB2405",
             side="BUY",
             qty=1.0,
-            broker="ibkr",
+            broker="ctp",
             account="DU123456",
             broker_order_id="42",
             client_id=1,
@@ -689,10 +686,10 @@ def test_cancel_intent_uses_client_id_when_order_id_is_reused(tmp_path):
         )
         client_two = OrderRecord(
             strategy_id="core",
-            symbol="QQQ",
+            symbol="I2405",
             side="BUY",
             qty=1.0,
-            broker="ibkr",
+            broker="ctp",
             account="DU123456",
             broker_order_id="42",
             client_id=2,
@@ -721,7 +718,7 @@ def test_stale_fencing_token_cannot_claim_prepared_order(tmp_path):
     with Session(engine, future=True) as session:
         first_token = try_acquire_execution_lease(
             session,
-            resource_key="live-submit:ibkr:DU123456",
+            resource_key="live-submit:ctp:DU123456",
             owner_token="owner-1",
             ttl_seconds=30,
             now=lease_now,
@@ -730,12 +727,12 @@ def test_stale_fencing_token_cannot_claim_prepared_order(tmp_path):
         prepare_order_submission(
             session,
             _order(),
-            broker="ibkr",
+            broker="ctp",
             account="DU123456",
         )
         second_token = try_acquire_execution_lease(
             session,
-            resource_key="live-submit:ibkr:DU123456",
+            resource_key="live-submit:ctp:DU123456",
             owner_token="owner-2",
             ttl_seconds=30,
             now=lease_now + timedelta(seconds=31),
@@ -746,7 +743,7 @@ def test_stale_fencing_token_cannot_claim_prepared_order(tmp_path):
             _RecordingBroker(),
             session,
             lease=SubmissionLease(
-                resource_key="live-submit:ibkr:DU123456",
+                resource_key="live-submit:ctp:DU123456",
                 owner_token="owner-1",
                 fencing_token=first_token,
                 ttl_seconds=30,
@@ -796,7 +793,7 @@ def test_cancel_intent_is_durable_before_broker_call_and_recovers_terminal(
                     "status": "Cancelled",
                 }
             ],
-            broker="ibkr",
+            broker="ctp",
             account="DU123456",
         )
         refreshed_cancel = session.get(CancelRecord, cancel_row.id)
@@ -844,7 +841,7 @@ def test_cancel_exception_is_not_reissued_before_completed_order_recovery(
                     "status": "Cancelled",
                 }
             ],
-            broker="ibkr",
+            broker="ctp",
             account="DU123456",
         )
 
@@ -862,21 +859,21 @@ def test_cancel_terminal_recovery_rejects_mismatched_instrument(tmp_path):
     with Session(engine, future=True) as session:
         order = OrderRecord(
             strategy_id="core",
-            symbol="SPY",
+            symbol="RB2405",
             side="BUY",
             qty=2.0,
-            broker="ibkr",
+            broker="ctp",
             account="DU123456",
             broker_order_id="broker-42",
             order_ref=build_order_ref("plan-1", 1),
-            con_id=756733,
+            instrument_id="rb2601",
             status="PendingCancel",
         )
         session.add(order)
         session.flush()
         cancel = CancelRecord(
             order_id=order.id,
-            broker="ibkr",
+            broker="ctp",
             broker_order_id="broker-42",
             account="DU123456",
             status="PendingCancel",
@@ -895,12 +892,12 @@ def test_cancel_terminal_recovery_rejects_mismatched_instrument(tmp_path):
                         "broker_order_id": "broker-42",
                         "account": "DU123456",
                         "order_ref": build_order_ref("plan-1", 1),
-                        "con_id": 999999,
-                        "symbol": "SPY",
+                        "instrument_id": "rb2602",
+                        "symbol": "RB2405",
                         "status": "Cancelled",
                     }
                 ],
-                broker="ibkr",
+                broker="ctp",
                 account="DU123456",
             )
 
@@ -918,21 +915,21 @@ def test_late_cancel_ack_cannot_downgrade_reconciled_terminal_state(tmp_path):
     with Session(engine, future=True) as setup:
         order = OrderRecord(
             strategy_id="core",
-            symbol="SPY",
+            symbol="RB2405",
             side="BUY",
             qty=2.0,
-            broker="ibkr",
+            broker="ctp",
             account="DU123456",
             broker_order_id="broker-42",
             order_ref=build_order_ref("plan-1", 1),
-            con_id=756733,
+            instrument_id="rb2601",
             status="Submitted",
         )
         setup.add(order)
         setup.flush()
         cancel = CancelRecord(
             order_id=order.id,
-            broker="ibkr",
+            broker="ctp",
             broker_order_id="broker-42",
             account="DU123456",
             status="CancelPrepared",
@@ -946,8 +943,8 @@ def test_late_cancel_ack_cannot_downgrade_reconciled_terminal_state(tmp_path):
         "broker_order_id": "broker-42",
         "account": "DU123456",
         "order_ref": build_order_ref("plan-1", 1),
-        "con_id": 756733,
-        "symbol": "SPY",
+        "instrument_id": "rb2601",
+        "symbol": "RB2405",
         "status": "Cancelled",
     }
     with Session(engine, future=True) as stale_session:
@@ -959,7 +956,7 @@ def test_late_cancel_ack_cannot_downgrade_reconciled_terminal_state(tmp_path):
                 update_order_statuses(
                     reconciler,
                     [terminal_row],
-                    broker="ibkr",
+                    broker="ctp",
                     account="DU123456",
                 )
                 == 1
@@ -968,7 +965,7 @@ def test_late_cancel_ack_cannot_downgrade_reconciled_terminal_state(tmp_path):
                 update_pending_cancel_statuses(
                     reconciler,
                     [terminal_row],
-                    broker="ibkr",
+                    broker="ctp",
                     account="DU123456",
                 )
                 == 1

@@ -34,10 +34,6 @@ from northstar_quant.db.repositories import (
     try_acquire_execution_lease,
 )
 from northstar_quant.db.session import SessionLocal
-from northstar_quant.execution.ibkr_adapter import IBKRBrokerAdapter
-from northstar_quant.execution.ibkr_service import IBKRService
-from northstar_quant.execution.limit_chase_executor import LimitChaseExecutor
-from northstar_quant.execution.limit_executor import build_limit_order
 from northstar_quant.execution.models import BrokerStateSnapshot, OrderRequest
 from northstar_quant.execution.pricing import (
     build_execution_reference_price_map,
@@ -106,12 +102,15 @@ def _pipeline_output_asof(pipeline) -> str:
     return str(isoformat() if callable(isoformat) else value)
 
 
-def _pick_broker(service: IBKRService | None = None):
+def _pick_broker():
     settings = get_settings()
-    if settings.broker == "ibkr":
-        return IBKRBrokerAdapter(service=service)
     if settings.broker == "paper":
         return PaperBrokerAdapter()
+    if settings.broker == "ctp":
+        raise NotImplementedError(
+            "CTP_EXECUTION_ADAPTER_REQUIRED: 已配置 CTP 合约映射，"
+            "但尚未实现 CTP 连接、报单和回报状态机。"
+        )
     raise ValueError(f"不支持的券商模式：{settings.broker}")
 
 
@@ -134,17 +133,6 @@ def _live_execution_guard_messages(broker_name: str, *, settings=None) -> list[s
             "需要显式设置 NORTHSTAR_LIVE_TRADING_ENABLED=true。"
         )
         return messages
-
-    if normalized_broker == "ibkr" and settings.ibkr_readonly:
-        messages.append(
-            "IBKR_READONLY: IBKR 连接处于只读模式；"
-            "真实下单前需要显式设置 NORTHSTAR_IBKR_READONLY=false。"
-        )
-
-    if normalized_broker == "ibkr" and not str(settings.ibkr_account or "").strip():
-        messages.append(
-            "IBKR_ACCOUNT_REQUIRED: 未显式配置目标 IBKR 账户，本次停止下单。"
-        )
 
     return messages
 
@@ -354,8 +342,7 @@ def run_live_preflight(profile_id: str | None = None) -> dict:
     signal_market_df = load_profile_signal_data(profile)
     valuation_prices = _latest_valuation_price_map(raw_market_df)
     pipeline = run_profile_strategy_pipeline(signal_market_df, profile, latest_only=True)
-    service = IBKRService() if get_settings().broker == "ibkr" else None
-    broker = _pick_broker(service)
+    broker = _pick_broker()
     broker.connect()
     try:
         state = broker.sync_state()
@@ -365,7 +352,7 @@ def run_live_preflight(profile_id: str | None = None) -> dict:
             execution_symbols,
             valuation_prices,
         )
-        account = getattr(broker, "account", None) or get_settings().ibkr_account
+        account = getattr(broker, "account", None)
         preflight = build_preflight_result(
             profile=profile,
             raw_market_df=raw_market_df,
@@ -546,13 +533,12 @@ def run_shadow_once(profile_id: str | None = None) -> dict:
     signal_market_df = load_profile_signal_data(profile)
     valuation_prices = _latest_valuation_price_map(raw_market_df)
 
-    service = IBKRService() if get_settings().broker == "ibkr" else None
-    broker = _pick_broker(service)
+    broker = _pick_broker()
     broker.connect()
     try:
         pipeline = run_profile_strategy_pipeline(signal_market_df, profile, latest_only=True)
         run_id = f"shadow-run-{uuid4().hex}"
-        account = getattr(broker, "account", None) or get_settings().ibkr_account
+        account = getattr(broker, "account", None)
         with SessionLocal() as session:
             save_strategy_run_snapshot(
                 session,
@@ -703,13 +689,12 @@ def run_live_once(profile_id: str | None = None) -> list[str]:
         limits.enforce_available_cash = True
     run_id = f"live-run-{uuid4().hex}"
 
-    service = IBKRService() if settings.broker == "ibkr" else None
-    broker = _pick_broker(service)
+    broker = _pick_broker()
     account_getter = getattr(broker, "get_account", None)
     account = str(
         (account_getter() if callable(account_getter) else None)
         or getattr(broker, "account", None)
-        or get_settings().ibkr_account
+
         or ""
     ).strip()
     if not account:
@@ -937,16 +922,6 @@ def run_live_once(profile_id: str | None = None) -> list[str]:
 
             messages: list[str] = []
             batch_halted_reason: str | None = None
-            chase_executor = (
-                LimitChaseExecutor(
-                    durable_broker,
-                    limits,
-                    risk_context=order_risk_context,
-                    submission_guard=submission_guard,
-                )
-                if get_settings().broker == "ibkr"
-                else None
-            )
             for idx, plan in enumerate(plans, start=1):
                 plan_id = plan.plan_id or f"{batch_id}-{idx:04d}-{plan.symbol.lower()}"
                 base_order = OrderRequest(
@@ -969,65 +944,17 @@ def run_live_once(profile_id: str | None = None) -> list[str]:
                     plan_id=plan_id,
                     execution_planner_id=planner.planner_id,
                 )
-                execution_reference_price = float(
-                    plan.execution_reference_price or plan.latest_price or 0.0
-                )
-                if (
-                    get_settings().broker == "ibkr"
-                    and chase_executor is not None
-                    and base_order.order_type.upper() == "MKT"
-                ):
-                    chase_result = chase_executor.execute(
-                        base_order,
-                        reference_price=execution_reference_price,
-                    )
-                    final_order = chase_result.final_order
-                    result = chase_result.final_result
-                    messages.append(
-                        f"{result.message} | 最终模式={chase_result.final_mode} | 尝试次数={len(chase_result.attempts)}"
-                    )
-                    run_logger.bind(
-                        strategy=final_order.strategy_id,
-                        symbol=final_order.symbol,
-                        order_semantic=final_order.order_semantic,
-                        run_id=run_id,
-                        batch_id=batch_id,
-                        plan_id=plan_id,
-                    ).info(
-                        "订单执行完成，symbol=%s，side=%s，status=%s，mode=%s，attempts=%s",
-                        final_order.symbol,
-                        final_order.side,
-                        result.status,
-                        chase_result.final_mode,
-                        len(chase_result.attempts),
-                    )
-                    if chase_result.final_mode == "uncertain_stop":
-                        batch_halted_reason = (
-                            "订单状态不确定，已停止本批次其余计划；"
-                            "必须先完成券商对账，才能启动下一轮执行。"
-                        )
-                        run_logger.bind(
-                            broker_order_id=result.broker_order_id,
-                            symbol=final_order.symbol,
-                            plan_id=plan_id,
-                        ).error(batch_halted_reason)
-                        break
-                else:
-                    order = (
-                        build_limit_order(base_order, reference_price=execution_reference_price)
-                        if get_settings().broker == "ibkr" and base_order.order_type.upper() == "MKT"
-                        else base_order
-                    )
-                    result = router.route(order)
-                    messages.append(result.message)
-                    run_logger.bind(
-                        strategy=order.strategy_id,
-                        symbol=order.symbol,
-                        order_semantic=order.order_semantic,
-                        run_id=run_id,
-                        batch_id=batch_id,
-                        plan_id=plan_id,
-                    ).info(
+                order = base_order
+                result = router.route(order)
+                messages.append(result.message)
+                run_logger.bind(
+                    strategy=order.strategy_id,
+                    symbol=order.symbol,
+                    order_semantic=order.order_semantic,
+                    run_id=run_id,
+                    batch_id=batch_id,
+                    plan_id=plan_id,
+                ).info(
                         "订单执行完成，symbol=%s，side=%s，status=%s",
                         order.symbol,
                         order.side,
@@ -1113,8 +1040,7 @@ def sync_broker_once() -> dict:
 
     sync_logger = logger.bind(command="live.sync")
     sync_logger.info("开始执行券商状态同步")
-    service = IBKRService() if get_settings().broker == "ibkr" else None
-    broker = _pick_broker(service)
+    broker = _pick_broker()
     broker.connect()
     try:
         with SessionLocal() as session:
@@ -1142,8 +1068,7 @@ def preview_rebalance(profile_id: str | None = None) -> list[dict]:
     signal_market_df = load_profile_signal_data(profile)
     valuation_prices = _latest_valuation_price_map(raw_market_df)
     pipeline = run_profile_strategy_pipeline(signal_market_df, profile, latest_only=True)
-    service = IBKRService() if get_settings().broker == "ibkr" else None
-    broker = _pick_broker(service)
+    broker = _pick_broker()
     broker.connect()
     try:
         state = broker.sync_state()
@@ -1243,8 +1168,7 @@ def poll_orders_and_fills_once() -> dict:
 
     poll_logger = logger.bind(command="live.poll")
     poll_logger.info("开始轮询订单状态与成交")
-    service = IBKRService() if get_settings().broker == "ibkr" else None
-    broker = _pick_broker(service)
+    broker = _pick_broker()
     broker.connect()
     try:
         with SessionLocal() as session:
@@ -1293,8 +1217,7 @@ def cancel_stale_orders_once() -> dict:
     cancel_logger = logger.bind(command="live.cancel-stale")
     cancel_logger.info("开始执行超时订单撤单")
     settings = get_settings()
-    service = IBKRService() if settings.broker == "ibkr" else None
-    broker = _pick_broker(service)
+    broker = _pick_broker()
     account = str(broker.get_account() or "").strip()
     if not account:
         raise RuntimeError("撤单前无法确定券商账户，已停止操作。")
@@ -1439,12 +1362,10 @@ def recent_account_attributions(
             "price_pnl": row.price_pnl,
             "rebalance_pnl": row.rebalance_pnl,
             "execution_shortfall": row.execution_shortfall,
-            "dividend_cash_flow": row.dividend_cash_flow,
             "interest_cash_flow": row.interest_cash_flow,
             "fee_cash_flow": row.fee_cash_flow,
             "tax_cash_flow": row.tax_cash_flow,
             "funding_cash_flow": row.funding_cash_flow,
-            "corporate_action_cash_flow": row.corporate_action_cash_flow,
             "other_non_trade_cash_flow": row.other_non_trade_cash_flow,
             "total_non_trade_cash_flow": row.total_non_trade_cash_flow,
             "traded_notional": row.traded_notional,

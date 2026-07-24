@@ -54,8 +54,13 @@ _SQLITE_ADDITIVE_PATCHES: tuple[tuple[str, str, str], ...] = (
     ),
     (
         "fill_records",
-        "con_id",
-        "ALTER TABLE fill_records ADD COLUMN con_id INTEGER",
+        "instrument_id",
+        "ALTER TABLE fill_records ADD COLUMN instrument_id VARCHAR(32)",
+    ),
+    (
+        "fill_records",
+        "exchange_id",
+        "ALTER TABLE fill_records ADD COLUMN exchange_id VARCHAR(16)",
     ),
     (
         "order_records",
@@ -94,28 +99,13 @@ _SQLITE_ADDITIVE_PATCHES: tuple[tuple[str, str, str], ...] = (
     ),
     (
         "order_records",
-        "broker_symbol",
-        "ALTER TABLE order_records ADD COLUMN broker_symbol VARCHAR(32)",
+        "instrument_id",
+        "ALTER TABLE order_records ADD COLUMN instrument_id VARCHAR(32)",
     ),
     (
         "order_records",
-        "con_id",
-        "ALTER TABLE order_records ADD COLUMN con_id INTEGER",
-    ),
-    (
-        "order_records",
-        "sec_type",
-        "ALTER TABLE order_records ADD COLUMN sec_type VARCHAR(16)",
-    ),
-    (
-        "order_records",
-        "exchange",
-        "ALTER TABLE order_records ADD COLUMN exchange VARCHAR(32)",
-    ),
-    (
-        "order_records",
-        "primary_exchange",
-        "ALTER TABLE order_records ADD COLUMN primary_exchange VARCHAR(32)",
+        "exchange_id",
+        "ALTER TABLE order_records ADD COLUMN exchange_id VARCHAR(16)",
     ),
     (
         "order_records",
@@ -259,11 +249,6 @@ _SQLITE_ADDITIVE_PATCHES: tuple[tuple[str, str, str], ...] = (
     ),
     (
         "account_attribution_records",
-        "dividend_cash_flow",
-        "ALTER TABLE account_attribution_records ADD COLUMN dividend_cash_flow FLOAT",
-    ),
-    (
-        "account_attribution_records",
         "interest_cash_flow",
         "ALTER TABLE account_attribution_records ADD COLUMN interest_cash_flow FLOAT",
     ),
@@ -281,11 +266,6 @@ _SQLITE_ADDITIVE_PATCHES: tuple[tuple[str, str, str], ...] = (
         "account_attribution_records",
         "funding_cash_flow",
         "ALTER TABLE account_attribution_records ADD COLUMN funding_cash_flow FLOAT",
-    ),
-    (
-        "account_attribution_records",
-        "corporate_action_cash_flow",
-        "ALTER TABLE account_attribution_records ADD COLUMN corporate_action_cash_flow FLOAT",
     ),
     (
         "account_attribution_records",

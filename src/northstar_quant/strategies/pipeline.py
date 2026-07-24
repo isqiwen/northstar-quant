@@ -1,4 +1,8 @@
-"""Canonical profile strategy pipeline shared by research, backtest, and live."""
+"""研究、回测和实盘共用的策略输出管线。
+
+管线只负责“标准行情 → 已注册策略 → 统一输出 → 组合与权重风控”；它不直接调用券商。
+不同输出类型不能混合，避免把交易计划误当作权重或把执行意图用于收益回测。
+"""
 
 from __future__ import annotations
 
@@ -23,7 +27,11 @@ logger = get_logger(__name__)
 
 
 def build_profile_risk_limits(profile: TradingProfile) -> RiskLimits:
-    """Build risk limits from profile risk overrides."""
+    """由画像风险覆盖与执行数量约束构造统一 RiskLimits。
+
+未知字段直接拒绝，避免 YAML 拼写错误使风险限制悄悄失效。画像显式风险优先；若未提供
+最小订单金额或数量步长，则从 execution 段补入相应默认值。
+    """
 
     supported_fields = set(RiskLimits.__dataclass_fields__)
     unknown_fields = sorted(set(profile.risk).difference(supported_fields))
@@ -46,10 +54,10 @@ def build_profile_risk_limits(profile: TradingProfile) -> RiskLimits:
 
 
 def parse_strategy_selection(strategy_name: str | None) -> tuple[str, ...] | None:
-    """Parse a CLI-style strategy selector.
+    """解析 CLI 风格策略选择器。
 
-    ``None`` / ``portfolio`` means "use all enabled strategies in the profile".
-    Otherwise returns the requested strategy IDs.
+    ``None``、``portfolio``、``profile`` 或 ``all`` 表示画像中全部启用策略；逗号分隔
+    字符串表示明确子集。子集是否启用由后续解析再次校验。
     """
 
     if strategy_name is None:
@@ -102,10 +110,10 @@ def build_selected_profile_strategies(
     profile: TradingProfile,
     strategy_ids: Sequence[str] | None = None,
 ) -> tuple[list[tuple[StrategyBase, float]], tuple[str, ...]]:
-    """Build selected strategies from the profile.
+    """从画像构建选中策略及其资本权重。
 
-    When a subset is requested, the subset capital weights are re-normalized so the
-    selected strategies still represent a full portfolio by themselves.
+    当只选择策略子集时，会将子集权重重新归一到 1，使研究结果代表完整子组合，而非
+    保留原组合的一小部分名义风险。全量运行时保持画像原始权重，交由组合层处理。
     """
 
     selected_ids = resolve_selected_profile_strategy_ids(profile, strategy_ids)
@@ -152,7 +160,12 @@ def run_profile_strategy_pipeline(
     strategy_ids: Sequence[str] | None = None,
     latest_only: bool = False,
 ) -> StrategyOutputBundle:
-    """Run the canonical strategy pipeline for a profile."""
+    """运行完整策略管线并返回带输出语义的 StrategyOutputBundle。
+
+    所有启用策略必须产生同一种输出：target_weight 可按资本权重合并并做组合风险缩放；
+    execution_intent 只合并意图；trade_plan 当前每个画像只允许一条策略，防止未经定义的
+    候选冲突和资金分配。``latest_only`` 只保留最新时点，但仍使用完整历史生成信号。
+    """
 
     strategies, selected_ids = build_selected_profile_strategies(
         profile,

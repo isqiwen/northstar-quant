@@ -7,7 +7,11 @@ from dataclasses import dataclass, field
 
 @dataclass(slots=True)
 class SymbolTradeState:
-    """单标的实时交易状态。"""
+    """单标的、单个交易时点的实时可交易状态。
+
+    此状态必须来自可信的行情或券商快照。未知值应保持 ``None``，由生产预交易门禁
+    按“缺失即拒绝”处理，不能假设标的可交易。
+    """
 
     is_suspended: bool = False
     limit_up_price: float | None = None
@@ -18,28 +22,33 @@ class SymbolTradeState:
 class RiskLimits:
     """统一风控限制。
 
-    这些字段既可用于事件回测，也可用于实时下单前检查。
-    后续你可以把它扩展为按市场、按策略、按账户的多层结构。
+    权重类字段用于策略和组合层；金额、数量、可用资金和交易状态字段用于订单提交前。
+    同一对象可在研究、模拟和实盘路径复用，但实盘必须配置可信账户与行情状态，不能
+    因字段为空而静默放宽检查。
     """
 
-    max_single_weight: float = 0.35
-    max_gross_exposure: float = 1.0
-    min_cash_buffer: float = 0.02
-    min_order_notional: float | None = None
-    max_order_notional: float | None = 50000.0
-    max_order_qty: float = 10000.0
-    order_qty_step: float | None = None
-    buy_qty_step: float | None = None
-    sell_qty_step: float | None = None
-    enforce_available_cash: bool = False
-    enforce_sellable_qty: bool = False
-    enforce_tradeable_state: bool = False
-    enforce_price_limit: bool = False
+    max_single_weight: float = 0.35  # 单个 symbol 的绝对目标权重上限；不等于保证金比例。
+    max_gross_exposure: float = 1.0  # 所有 symbol 绝对目标权重之和上限。
+    min_cash_buffer: float = 0.02  # 总暴露缩放后必须预留的账户权益比例。
+    min_order_notional: float | None = None  # 单笔委托名义金额下限；None 表示不设下限。
+    max_order_notional: float | None = 50000.0  # 单笔委托名义金额上限；None 表示不设上限。
+    max_order_qty: float = 10000.0  # 单笔委托数量上限；实际期货仍须受交易所限额约束。
+    order_qty_step: float | None = None  # 买卖通用数量步长；None 时不执行步长校验。
+    buy_qty_step: float | None = None  # 买入数量步长；提供时优先于通用步长。
+    sell_qty_step: float | None = None  # 卖出数量步长；提供时优先于通用步长。
+    enforce_available_cash: bool = False  # true 时买入前必须有足够可用资金或购买力。
+    enforce_sellable_qty: bool = False  # true 时卖出前必须有足够可卖数量。
+    enforce_tradeable_state: bool = False  # true 时缺少状态、停牌或不可交易都会拒绝。
+    enforce_price_limit: bool = False  # true 时委托价不得突破可信涨跌停边界。
 
 
 @dataclass(slots=True)
 class OrderRiskContext:
-    """订单路由期间的动态账户约束。"""
+    """一次订单路由批次内的动态账户约束与预留量。
+
+    同批次订单必须共享该对象：已提交但未完成的买入金额、卖出数量会先被预留，避免
+    多笔订单各自通过检查后合计超出资金或可卖持仓。
+    """
 
     available_cash: float | None = None
     position_qty_by_symbol: dict[str, float] = field(default_factory=dict)
