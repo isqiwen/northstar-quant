@@ -6,6 +6,8 @@
 
 from __future__ import annotations
 
+from dataclasses import asdict
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -16,7 +18,11 @@ import polars as pl
 
 from northstar_quant.config.trading_profile import TradingProfile, load_trading_profile
 from northstar_quant.config.settings import get_settings
-from northstar_quant.data.schema import to_signal_market_data
+from northstar_quant.data.schema import (
+    SCHEMA_VERSION,
+    to_signal_market_data,
+    validate_market_dataset,
+)
 
 
 def _resolve_path(path: str | Path) -> Path:
@@ -54,6 +60,29 @@ def load_parquet(path: str | Path) -> pl.DataFrame:
     return pl.read_parquet(path_obj)
 
 
+def sha256_file(path: str | Path) -> str:
+    """流式计算文件内容哈希，避免把大型行情文件整体读入内存。"""
+
+    digest = hashlib.sha256()
+    with _resolve_path(path).open("rb") as file_obj:
+        for chunk in iter(lambda: file_obj.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def profile_config_sha256(profile: TradingProfile) -> str:
+    """计算影响研究与执行语义的完整画像配置指纹。"""
+
+    payload = json.dumps(
+        asdict(profile),
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        default=str,
+    ).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
+
 def dataset_path(relative_path: str | Path) -> Path:
     """返回策略标准输入的 ``storage/market`` 路径，并确保父目录存在。"""
 
@@ -86,9 +115,55 @@ def profile_market_data_path(profile: TradingProfile | str | None = None) -> Pat
 
 
 def load_profile_market_data(profile: TradingProfile | str | None = None) -> pl.DataFrame:
-    """读取某个交易画像对应的市场数据。"""
+    """读取并验证某个交易画像对应的市场数据制品。
 
-    return load_parquet(profile_market_data_path(profile))
+    每次加载都会校验 schema、画像身份、行数和 Parquet 内容哈希。发布中标记、缺失
+    manifest 或任何错配都会失败关闭，避免策略读取到半发布或被替换的数据。
+    """
+
+    profile_obj = profile if isinstance(profile, TradingProfile) else load_trading_profile(profile)
+    data_path = profile_market_data_path(profile_obj)
+    marker_path = dataset_publication_marker_path(data_path)
+    if marker_path.exists():
+        raise RuntimeError(f"数据制品仍处于发布中，已拒绝读取：{data_path}")
+
+    manifest_path = dataset_manifest_path(data_path)
+    if not manifest_path.exists():
+        raise FileNotFoundError(f"数据 manifest 不存在，已拒绝读取：{manifest_path}")
+    manifest = load_json(manifest_path)
+    expected_hash = str(manifest.get("content_sha256") or "").strip().lower()
+    if len(expected_hash) != 64:
+        raise ValueError("数据 manifest 缺少有效的 content_sha256，请重新下载数据")
+    actual_hash = sha256_file(data_path)
+    if actual_hash != expected_hash:
+        raise ValueError(
+            f"数据内容哈希与 manifest 不一致，已拒绝读取：{data_path}"
+        )
+
+    df = load_parquet(data_path)
+    validation = validate_market_dataset(profile_obj, df)
+    identity_issues: list[str] = []
+    if str(manifest.get("profile_id") or "") != profile_obj.profile_id:
+        identity_issues.append("profile_id")
+    if str(manifest.get("dataset_id") or "") != profile_obj.data.dataset_id:
+        identity_issues.append("dataset_id")
+    if str(manifest.get("schema", {}).get("schema_version") or "") != SCHEMA_VERSION:
+        identity_issues.append("schema_version")
+    if int(manifest.get("row_count", -1)) != df.height:
+        identity_issues.append("row_count")
+    if str(manifest.get("profile_config_sha256") or "") != profile_config_sha256(
+        profile_obj
+    ):
+        identity_issues.append("profile_config_sha256")
+    if identity_issues:
+        raise ValueError(
+            "数据 manifest 与当前画像或文件不一致："
+            + ", ".join(identity_issues)
+            + "；请重新下载并生成数据制品"
+        )
+    if validation["schema_version"] != SCHEMA_VERSION:
+        raise ValueError("数据 schema 版本不受支持")
+    return df
 
 
 def load_profile_signal_data(profile: TradingProfile | str | None = None) -> pl.DataFrame:
@@ -123,6 +198,13 @@ def dataset_manifest_path(path: str | Path) -> Path:
 
     path_obj = _resolve_path(path)
     return path_obj.with_suffix(".manifest.json")
+
+
+def dataset_publication_marker_path(path: str | Path) -> Path:
+    """返回数据制品发布中标记路径。"""
+
+    path_obj = _resolve_path(path)
+    return path_obj.with_suffix(".publishing.json")
 
 
 def save_json(payload: dict[str, Any], path: str | Path) -> Path:

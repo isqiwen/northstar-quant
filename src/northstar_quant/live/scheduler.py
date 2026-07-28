@@ -8,7 +8,10 @@ from apscheduler.triggers.cron import CronTrigger
 from northstar_quant.config.settings import get_settings
 from northstar_quant.config.trading_profile import get_production_profile_id, load_trading_profile
 from northstar_quant.live.service import run_live_once, run_shadow_once, sync_broker_once
-from northstar_quant.live.trading_calendar import is_trading_session
+from northstar_quant.live.trading_calendar import (
+    is_last_trading_session_of_month,
+    is_trading_session,
+)
 from northstar_quant.logging_.logger import get_logger
 from northstar_quant.monitoring.alerts import send_alert
 from northstar_quant.reporting.email_sender import send_report_via_email
@@ -103,6 +106,25 @@ def _build_and_send_report(report_type: str) -> dict:
     return {"report_path": report_path, "email": email_result, "alert_sent": bool(alert_message)}
 
 
+def _build_monthly_report_if_due(
+    *,
+    calendar: str,
+    timezone: str,
+) -> dict | None:
+    """仅在画像日历的当月最后交易日生成和发送月报。"""
+
+    if not is_last_trading_session_of_month(
+        calendar=calendar,
+        timezone=timezone,
+        require_calendar=True,
+    ):
+        logger.bind(job_name="monthly_report").info(
+            "月报任务被跳过，原因=不是当月最后交易日"
+        )
+        return None
+    return _build_and_send_report("monthly")
+
+
 def run_scheduler() -> None:
     """启动阻塞式日频调度器。"""
 
@@ -178,7 +200,10 @@ def run_scheduler() -> None:
         replace_existing=True,
     )
     scheduler.add_job(
-        lambda: _build_and_send_report("monthly"),
+        lambda: _build_monthly_report_if_due(
+            calendar=profile_calendar,
+            timezone=profile_timezone,
+        ),
         _parse_cron(
             schedule.get("monthly_report_cron", settings.monthly_report_cron),
             timezone=profile_timezone,

@@ -1,11 +1,19 @@
 import polars as pl
 import pytest
+from dataclasses import replace
 
+from northstar_quant.config.settings import get_settings
+from northstar_quant.config.trading_profile import load_trading_profile
 from northstar_quant.portfolio.multi_strategy import (
     build_target_weight_portfolio,
     combine_strategy_targets,
 )
 from northstar_quant.risk.models import RiskLimits
+from northstar_quant.strategies import pipeline
+from northstar_quant.strategies.pipeline import (
+    build_profile_risk_limits,
+    enforce_profile_target_policy,
+)
 
 
 def _weights_by_symbol(targets: pl.DataFrame) -> dict[str, float]:
@@ -60,3 +68,45 @@ def test_build_target_weight_portfolio_preserves_cash_after_risk_constraints():
     assert weights["BBB"] == pytest.approx(0.35)
     assert float(combined["target_weight"].max()) == pytest.approx(0.35)
     assert float(combined["target_weight"].sum()) == pytest.approx(0.7)
+
+
+def test_long_only_profile_rejects_negative_target_weights():
+    profile = load_trading_profile()
+    profile = replace(
+        profile,
+        execution=replace(profile.execution, long_only=True),
+    )
+    targets = pl.DataFrame(
+        {
+            "symbol": ["RB_CONT"],
+            "target_weight": [-0.2],
+        }
+    )
+
+    with pytest.raises(ValueError, match="long_only=true"):
+        enforce_profile_target_policy(targets, profile)
+
+
+def test_profile_risk_uses_global_minimum_trade_value_as_last_resort(monkeypatch):
+    profile = load_trading_profile()
+    profile = replace(
+        profile,
+        execution=replace(profile.execution, rebalance_min_trade_value=None),
+    )
+    settings = get_settings().model_copy(update={"rebalance_min_trade_value": 888.0})
+    monkeypatch.setattr(pipeline, "get_settings", lambda: settings)
+
+    limits = build_profile_risk_limits(profile)
+
+    assert limits.min_order_notional == 888.0
+
+
+def test_production_profile_requires_dynamic_risk_flags():
+    profile = load_trading_profile()
+    profile = replace(
+        profile,
+        lifecycle=replace(profile.lifecycle, role="production"),
+    )
+
+    with pytest.raises(ValueError, match="必须显式启用动态风控"):
+        build_profile_risk_limits(profile)

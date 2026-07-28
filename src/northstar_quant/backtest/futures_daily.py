@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import date
+import math
 from typing import Iterable
 
 from northstar_quant.config.product_cards import load_product_cards
@@ -72,6 +73,17 @@ class FuturesTarget:
 
     def __post_init__(self) -> None:
         _require_actual_instrument_id(self.instrument_id, field_name="目标 instrument_id")
+        if isinstance(self.target_qty, bool) or not isinstance(self.target_qty, int):
+            raise ValueError("期货目标手数必须是整数")
+        for field_name in ("stop_price", "target_price"):
+            value = getattr(self, field_name)
+            if value is not None and (not math.isfinite(value) or value <= 0):
+                raise ValueError(f"期货目标 {field_name} 必须是正有限数")
+        if self.stop_price is not None and self.target_price is not None:
+            if self.target_qty > 0 and self.stop_price >= self.target_price:
+                raise ValueError("多头初始止损价必须低于止盈价")
+            if self.target_qty < 0 and self.stop_price <= self.target_price:
+                raise ValueError("空头初始止损价必须高于止盈价")
 
 
 @dataclass(frozen=True, slots=True)
@@ -256,13 +268,28 @@ def _process_rollovers(day, bars, specs, positions, cash, schedule, trades) -> f
         old_id, new_id = roll.from_instrument_id.upper(), roll.to_instrument_id.upper()
         if old_id not in specs or new_id not in specs or old_id not in bars or new_id not in bars:
             raise ValueError(f"换月缺少合约规格或开盘日线：{old_id} → {new_id}")
+        if specs[old_id].product != specs[new_id].product:
+            raise ValueError(f"换月前后必须属于同一品种：{old_id} → {new_id}")
         position = positions.get(old_id)
         if position is None:
             continue
+        if new_id in positions:
+            raise ValueError(f"换月新合约已存在持仓，无法安全合并：{new_id}")
         qty, stop, target = position.qty, position.stop_price, position.target_price
+        if not _rollover_margin_is_affordable(
+            old_id,
+            new_id,
+            bars,
+            specs,
+            positions,
+            cash,
+        ):
+            raise ValueError(f"换月后保证金或交易成本不足：{old_id} → {new_id}")
+        price_shift = bars[new_id].open - bars[old_id].open
         cash = _close(day, old_id, abs(qty), bars[old_id].open, "roll_close", specs, positions, cash, trades)
         cash = _open(day, new_id, qty, bars[new_id].open, "roll_open", specs, positions, cash, trades)
-        positions[new_id].stop_price, positions[new_id].target_price = stop, target
+        positions[new_id].stop_price = stop + price_shift if stop is not None else None
+        positions[new_id].target_price = target + price_shift if target is not None else None
     return cash
 
 
@@ -271,6 +298,7 @@ def _process_targets(day, bars, specs, positions, cash, targets, trades, rejecte
         instrument_id = target.instrument_id.upper()
         if instrument_id not in specs or instrument_id not in bars:
             raise ValueError(f"目标执行日缺少具体合约开盘日线：{instrument_id}")
+        _validate_target_protective_prices(target, bars[instrument_id].open)
         current = positions.get(instrument_id)
         current_qty = current.qty if current else 0
         delta = target.target_qty - current_qty
@@ -295,11 +323,85 @@ def _process_targets(day, bars, specs, positions, cash, targets, trades, rejecte
 
 def _target_margin_is_affordable(instrument_id, target_qty, bars, specs, positions, cash) -> bool:
     projected = {key: _Position(value.qty, value.settlement_price, value.stop_price, value.target_price) for key, value in positions.items()}
+    current_qty = projected[instrument_id].qty if instrument_id in projected else 0
     if target_qty:
         projected[instrument_id] = _Position(target_qty, bars[instrument_id].open, None, None)
     else:
         projected.pop(instrument_id, None)
-    return _margin_required(bars, specs, projected, use_close=False) <= cash + 1e-8
+    traded_qty = abs(target_qty - current_qty)
+    spec = specs[instrument_id]
+    trading_cost = traded_qty * (
+        spec.commission_per_lot
+        + spec.tick_size * spec.slippage_ticks * spec.multiplier
+    )
+    projected_equity = _equity_marked_at_open(bars, specs, positions, cash) - trading_cost
+    return _margin_required(bars, specs, projected, use_close=False) <= projected_equity + 1e-8
+
+
+def _rollover_margin_is_affordable(
+    old_id,
+    new_id,
+    bars,
+    specs,
+    positions,
+    cash,
+) -> bool:
+    """按两个开盘成交和方向性成本检查换月后的可用权益。"""
+
+    projected = {
+        key: _Position(
+            value.qty,
+            value.settlement_price,
+            value.stop_price,
+            value.target_price,
+        )
+        for key, value in positions.items()
+    }
+    qty = projected.pop(old_id).qty
+    projected[new_id] = _Position(qty, bars[new_id].open, None, None)
+    old_spec = specs[old_id]
+    new_spec = specs[new_id]
+    trading_cost = abs(qty) * (
+        old_spec.commission_per_lot
+        + old_spec.tick_size * old_spec.slippage_ticks * old_spec.multiplier
+        + new_spec.commission_per_lot
+        + new_spec.tick_size * new_spec.slippage_ticks * new_spec.multiplier
+    )
+    projected_equity = _equity_marked_at_open(bars, specs, positions, cash) - trading_cost
+    return _margin_required(bars, specs, projected, use_close=False) <= projected_equity + 1e-8
+
+
+def _equity_marked_at_open(bars, specs, positions, cash) -> float:
+    """把所有现有持仓按当日开盘价盯市，用于成交前保证金预测。"""
+
+    equity = float(cash)
+    for instrument_id, position in positions.items():
+        if instrument_id not in bars:
+            raise ValueError(f"持仓合约缺少开盘日线：{instrument_id}")
+        equity += (
+            position.qty
+            * (bars[instrument_id].open - position.settlement_price)
+            * specs[instrument_id].multiplier
+        )
+    return equity
+
+
+def _validate_target_protective_prices(
+    target: FuturesTarget,
+    execution_price: float,
+) -> None:
+    """校验初始保护价相对执行开盘价的方向，避免入场后立即反向触发。"""
+
+    if target.target_qty > 0:
+        if target.stop_price is not None and target.stop_price >= execution_price:
+            raise ValueError("多头初始止损价必须低于执行价")
+        if target.target_price is not None and target.target_price <= execution_price:
+            raise ValueError("多头初始止盈价必须高于执行价")
+    elif target.target_qty < 0:
+        if target.stop_price is not None and target.stop_price <= execution_price:
+            raise ValueError("空头初始止损价必须高于执行价")
+        if target.target_price is not None and target.target_price >= execution_price:
+            raise ValueError("空头初始止盈价必须低于执行价")
 
 
 def _process_protective_exits(day, bars, specs, positions, cash, trades) -> float:

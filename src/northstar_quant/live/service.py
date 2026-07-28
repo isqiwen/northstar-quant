@@ -183,10 +183,65 @@ def _send_alert_best_effort(
         )
 
 
+def _route_order_batch_fail_closed(
+    router: OrderRouter,
+    orders: list[OrderRequest],
+    *,
+    run_logger=logger,
+) -> tuple[list[str], str | None]:
+    """顺序路由一个订单批次；任一失败立即停止剩余订单并返回可审计原因。"""
+
+    messages: list[str] = []
+    for index, order in enumerate(orders, start=1):
+        try:
+            result = router.route(order)
+        except Exception as exc:
+            remaining = len(orders) - index
+            detail = str(exc).strip() or type(exc).__name__
+            halted_reason = (
+                "EXECUTION_BATCH_HALTED: "
+                f"第 {index} 笔 {order.symbol} 路由失败：{detail}；"
+                f"已停止剩余 {remaining} 笔订单。"
+            )
+            messages.append(halted_reason)
+            run_logger.bind(
+                strategy=order.strategy_id,
+                symbol=order.symbol,
+                order_semantic=order.order_semantic,
+                run_id=order.run_id,
+                batch_id=order.batch_id,
+                plan_id=order.plan_id,
+            ).exception(halted_reason)
+            return messages, halted_reason
+
+        messages.append(result.message)
+        run_logger.bind(
+            strategy=order.strategy_id,
+            symbol=order.symbol,
+            order_semantic=order.order_semantic,
+            run_id=order.run_id,
+            batch_id=order.batch_id,
+            plan_id=order.plan_id,
+        ).info(
+            "订单执行完成，symbol=%s，side=%s，status=%s",
+            order.symbol,
+            order.side,
+            result.status,
+        )
+    return messages, None
+
+
 def _latest_valuation_price_map(market_df: pl.DataFrame) -> dict[str, float]:
+    time_column = "timestamp" if "timestamp" in market_df.columns else "date"
+    latest_rows = (
+        market_df.sort(["symbol", time_column])
+        .group_by("symbol", maintain_order=True)
+        .tail(1)
+        .select(["symbol", "close"])
+    )
     return {
         str(row["symbol"]).strip().upper(): float(row["close"])
-        for row in market_df.group_by("symbol").tail(1).select(["symbol", "close"]).to_dicts()
+        for row in latest_rows.to_dicts()
     }
 
 
@@ -685,8 +740,6 @@ def run_live_once(profile_id: str | None = None) -> list[str]:
         latest_only=True,
     )
     limits = build_profile_risk_limits(profile)
-    if settings.broker != "paper":
-        limits.enforce_available_cash = True
     run_id = f"live-run-{uuid4().hex}"
 
     broker = _pick_broker()
@@ -837,7 +890,15 @@ def run_live_once(profile_id: str | None = None) -> list[str]:
                 send_alert("\n".join(recovery_messages), level="warning")
                 return recovery_messages
             drift = (
-                analyze_position_drift(session, pipeline.frame, valuation_prices)
+                analyze_position_drift(
+                    session,
+                    pipeline.frame,
+                    valuation_prices,
+                    broker=broker.get_name(),
+                    account=account,
+                    profile_id=profile.profile_id,
+                    equity=_extract_equity(state.account_values),
+                )
                 if pipeline.output_type == StrategyOutputType.TARGET_WEIGHT
                 else _empty_drift_result(pipeline.output_type)
             )
@@ -920,46 +981,36 @@ def run_live_once(profile_id: str | None = None) -> list[str]:
                 output_type=pipeline.output_type.value,
             ).info("执行计划器已选定，planner_id=%s", planner.planner_id)
 
-            messages: list[str] = []
-            batch_halted_reason: str | None = None
+            orders: list[OrderRequest] = []
             for idx, plan in enumerate(plans, start=1):
                 plan_id = plan.plan_id or f"{batch_id}-{idx:04d}-{plan.symbol.lower()}"
-                base_order = OrderRequest(
-                    strategy_id=plan.strategy_id,
-                    symbol=plan.symbol,
-                    side=plan.side,
-                    qty=round(plan.qty, 6),
-                    profile_id=profile.profile_id,
-                    target_weight=plan.target_weight,
-                    order_type=plan.order_type,
-                    limit_price=plan.limit_price,
-                    order_semantic=plan.order_semantic,
-                    account=account,
-                    reason=plan.reason,
-                    reference_price=plan.execution_reference_price or plan.latest_price,
-                    reference_price_source=execution_price_sources.get(plan.symbol),
-                    planned_trade_value=plan.estimated_trade_value,
-                    run_id=run_id,
-                    batch_id=batch_id,
-                    plan_id=plan_id,
-                    execution_planner_id=planner.planner_id,
-                )
-                order = base_order
-                result = router.route(order)
-                messages.append(result.message)
-                run_logger.bind(
-                    strategy=order.strategy_id,
-                    symbol=order.symbol,
-                    order_semantic=order.order_semantic,
-                    run_id=run_id,
-                    batch_id=batch_id,
-                    plan_id=plan_id,
-                ).info(
-                        "订单执行完成，symbol=%s，side=%s，status=%s",
-                        order.symbol,
-                        order.side,
-                        result.status,
+                orders.append(
+                    OrderRequest(
+                        strategy_id=plan.strategy_id,
+                        symbol=plan.symbol,
+                        side=plan.side,
+                        qty=round(plan.qty, 6),
+                        profile_id=profile.profile_id,
+                        target_weight=plan.target_weight,
+                        order_type=plan.order_type,
+                        limit_price=plan.limit_price,
+                        order_semantic=plan.order_semantic,
+                        account=account,
+                        reason=plan.reason,
+                        reference_price=plan.execution_reference_price or plan.latest_price,
+                        reference_price_source=execution_price_sources.get(plan.symbol),
+                        planned_trade_value=plan.estimated_trade_value,
+                        run_id=run_id,
+                        batch_id=batch_id,
+                        plan_id=plan_id,
+                        execution_planner_id=planner.planner_id,
                     )
+                )
+            messages, batch_halted_reason = _route_order_batch_fail_closed(
+                router,
+                orders,
+                run_logger=run_logger,
+            )
 
             drift_total = float(drift["summary"].get("total_abs_weight_diff", 0.0))
             run_health = _record_run_health(
@@ -1202,7 +1253,16 @@ def analyze_live_position_drift(profile_id: str | None = None) -> dict:
         return result
 
     with SessionLocal() as session:
-        result = analyze_position_drift(session, pipeline.frame, valuation_prices)
+        settings = get_settings()
+        account = settings.paper_account if settings.broker == "paper" else None
+        result = analyze_position_drift(
+            session,
+            pipeline.frame,
+            valuation_prices,
+            broker=settings.broker,
+            account=account,
+            profile_id=profile.profile_id,
+        )
     drift_logger.info(
         "持仓偏离分析完成，总偏离=%.4f，最大偏离=%.4f",
         result["summary"]["total_abs_weight_diff"],

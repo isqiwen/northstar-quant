@@ -3,6 +3,7 @@ import json
 
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
+from tests.postgresql import postgresql_test_url
 
 from northstar_quant.db.base import Base
 from northstar_quant.db.models import (
@@ -16,7 +17,7 @@ from northstar_quant.db.repositories import save_account_attribution_for_snapsho
 
 def test_save_account_attribution_for_snapshot_splits_price_and_rebalance_pnl(tmp_path):
     db_path = tmp_path / "account-attribution.db"
-    engine = create_engine(f"sqlite:///{db_path.as_posix()}", future=True)
+    engine = create_engine(postgresql_test_url(db_path), future=True)
     Base.metadata.create_all(bind=engine)
     start_asof = datetime(2024, 3, 4, 15, 30, tzinfo=UTC)
     end_asof = datetime(2024, 3, 4, 15, 45, tzinfo=UTC)

@@ -92,6 +92,10 @@ Keep new code in the narrowest existing module that owns the behavior. Do not cr
 
 Use `uv` for project commands.
 
+The repository is PostgreSQL-only. Database tests require the isolated
+`northstar_test` database configured by `NORTHSTAR_TEST_DATABASE_URL`; do not
+substitute SQLite to make tests easier to run.
+
 Before finishing ordinary code changes, run:
 
 ```bash
@@ -155,7 +159,7 @@ Generated or local-runtime files should generally remain untracked:
 - `.mypy_cache/`
 - `storage/`
 - `reports/`
-- local SQLite databases
+- PostgreSQL 本地数据目录和数据库备份
 - downloaded market data
 - broker state snapshots
 

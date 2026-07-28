@@ -4,6 +4,7 @@ from datetime import UTC, date, datetime
 import polars as pl
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
+from tests.postgresql import postgresql_test_url
 
 from northstar_quant.common.enums import StrategyOutputType
 from northstar_quant.db.base import Base
@@ -25,7 +26,7 @@ from northstar_quant.execution.models import BrokerStateSnapshot, PositionSnapsh
 
 def test_save_strategy_run_snapshot_persists_strategy_ledger_rows(tmp_path):
     db_path = tmp_path / "strategy-ledger.db"
-    engine = create_engine(f"sqlite:///{db_path.as_posix()}", future=True)
+    engine = create_engine(postgresql_test_url(db_path), future=True)
     Base.metadata.create_all(bind=engine)
 
     output_frame = pl.DataFrame(
@@ -94,7 +95,7 @@ def test_save_strategy_run_snapshot_persists_strategy_ledger_rows(tmp_path):
 
 def test_save_account_snapshot_persists_account_ledger_row(tmp_path):
     db_path = tmp_path / "account-ledger.db"
-    engine = create_engine(f"sqlite:///{db_path.as_posix()}", future=True)
+    engine = create_engine(postgresql_test_url(db_path), future=True)
     Base.metadata.create_all(bind=engine)
     asof = datetime(2024, 3, 4, 21, 0, tzinfo=UTC)
     snapshot = BrokerStateSnapshot(
@@ -153,7 +154,7 @@ def test_save_account_snapshot_persists_account_ledger_row(tmp_path):
 
 def test_save_execution_plan_records_persists_execution_ledger_rows(tmp_path):
     db_path = tmp_path / "execution-ledger.db"
-    engine = create_engine(f"sqlite:///{db_path.as_posix()}", future=True)
+    engine = create_engine(postgresql_test_url(db_path), future=True)
     Base.metadata.create_all(bind=engine)
     plans = [
         RebalanceOrderPlan(
@@ -217,7 +218,7 @@ def test_save_execution_plan_records_persists_execution_ledger_rows(tmp_path):
 
 def test_save_working_order_snapshots_persists_open_order_batch(tmp_path):
     db_path = tmp_path / "working-order-ledger.db"
-    engine = create_engine(f"sqlite:///{db_path.as_posix()}", future=True)
+    engine = create_engine(postgresql_test_url(db_path), future=True)
     Base.metadata.create_all(bind=engine)
     observed_at = datetime(2024, 3, 4, 21, 5, tzinfo=UTC)
 

@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
+from typing import TypedDict
 
 import polars as pl
 from jinja2 import Environment, FileSystemLoader
 
+from northstar_quant.backtest.event_engine import BacktestResult
 from northstar_quant.backtest.registry import run_target_backtest
 from northstar_quant.common.time import utc_now
 from northstar_quant.config.settings import get_settings
@@ -32,6 +34,14 @@ _TEMPLATE_MAP = {
     "weekly": "weekly_report.md.j2",
     "monthly": "monthly_report.md.j2",
 }
+
+
+class PeriodicBacktestView(TypedDict):
+    """周期报告需要的强类型回测视图。"""
+
+    period_label: str
+    metrics: dict[str, float]
+    analytics: dict[str, object]
 logger = get_logger(__name__, command="report.build")
 
 
@@ -611,6 +621,132 @@ def write_markdown_report(
     )
 
 
+def build_periodic_backtest_view(
+    result: BacktestResult,
+    report_type: str,
+    *,
+    periods_per_year: int = 252,
+) -> PeriodicBacktestView:
+    """从完整回测曲线提取日报、周报或月报对应的真实期间指标。"""
+
+    if report_type not in _TEMPLATE_MAP:
+        raise ValueError(f"不支持的报告类型：{report_type}")
+    if not result.equity_curve:
+        raise ValueError("回测结果缺少净值曲线，无法生成周期报告")
+
+    curve = sorted(
+        (
+            date.fromisoformat(str(item["date"])[:10]),
+            float(item["equity"]),
+        )
+        for item in result.equity_curve
+    )
+    end_date = curve[-1][0]
+    if report_type == "daily":
+        boundary = end_date
+        period_label = end_date.isoformat()
+    elif report_type == "weekly":
+        boundary = end_date - timedelta(days=end_date.weekday())
+        iso_year, iso_week, _ = end_date.isocalendar()
+        period_label = (
+            f"{iso_year}年第{iso_week:02d}周"
+            f"（{boundary.isoformat()} 至 {end_date.isoformat()}）"
+        )
+    else:
+        boundary = end_date.replace(day=1)
+        period_label = end_date.strftime("%Y-%m")
+
+    first_index = next(
+        index
+        for index, (current_date, _) in enumerate(curve)
+        if current_date >= boundary
+    )
+    scoped_curve = curve[first_index:]
+    baseline_equity = curve[first_index - 1][1] if first_index > 0 else 1.0
+    if baseline_equity <= 0:
+        raise ValueError("周期报告基准权益必须大于 0")
+
+    normalized_curve = [
+        (current_date, equity / baseline_equity)
+        for current_date, equity in scoped_curve
+    ]
+    running_max = 1.0
+    drawdown_rows: list[dict[str, float | str]] = []
+    for current_date, normalized_equity in normalized_curve:
+        running_max = max(running_max, normalized_equity)
+        drawdown_rows.append(
+            {
+                "date": current_date.isoformat(),
+                "drawdown": normalized_equity / running_max - 1.0,
+            }
+        )
+
+    period_return = normalized_curve[-1][1] - 1.0
+    observation_count = len(normalized_curve)
+    annualized_return = (
+        (1.0 + period_return) ** (periods_per_year / observation_count) - 1.0
+        if period_return > -1.0
+        else -1.0
+    )
+    turnover_by_date = {
+        date.fromisoformat(str(item["date"])[:10]): float(item["turnover"])
+        for item in result.turnover_curve
+    }
+    scoped_turnovers = [
+        turnover_by_date[current_date]
+        for current_date, _ in scoped_curve
+        if current_date in turnover_by_date
+    ]
+    period_turnover = (
+        sum(scoped_turnovers) / len(scoped_turnovers)
+        if scoped_turnovers
+        else 0.0
+    )
+    month_keys = {
+        current_date.strftime("%Y-%m")
+        for current_date, _ in scoped_curve
+    }
+
+    return {
+        "period_label": period_label,
+        "metrics": {
+            "期间收益率": period_return,
+            "期间年化收益率": annualized_return,
+            "期间最大回撤": min(
+                (float(item["drawdown"]) for item in drawdown_rows),
+                default=0.0,
+            ),
+            "期间平均换手": period_turnover,
+            "期间观测数": observation_count,
+        },
+        "analytics": {
+            "period_start": scoped_curve[0][0].isoformat(),
+            "period_end": end_date.isoformat(),
+            "equity_curve": [
+                {
+                    "date": current_date.isoformat(),
+                    "equity": normalized_equity,
+                }
+                for current_date, normalized_equity in normalized_curve
+            ],
+            "drawdown_curve": drawdown_rows,
+            "monthly_returns": [
+                item
+                for item in result.monthly_returns
+                if str(item.get("month")) in month_keys
+            ],
+            "turnover_curve": [
+                {
+                    "date": current_date.isoformat(),
+                    "turnover": turnover_by_date[current_date],
+                }
+                for current_date, _ in scoped_curve
+                if current_date in turnover_by_date
+            ],
+        },
+    }
+
+
 def build_periodic_report_only(
     report_type: str,
     strategy: str = "portfolio",
@@ -633,14 +769,12 @@ def build_periodic_report_only(
     holdings = latest_pipeline_output(pipeline)
     result = run_target_backtest(profile, market_df, pipeline.frame)
 
+    periodic_view = build_periodic_backtest_view(result, report_type)
     if report_type == "daily":
-        period_label = datetime.now().strftime("%Y-%m-%d")
         run_health_days = 28
     elif report_type == "weekly":
-        period_label = datetime.now().strftime("%Y 第%W周")
         run_health_days = 28
     else:
-        period_label = datetime.now().strftime("%Y-%m")
         run_health_days = 56
 
     live_account_attribution = (
@@ -656,19 +790,10 @@ def build_periodic_report_only(
     report_path = build_markdown_report(
         report_type=report_type,
         strategy_id=strategy,
-        metrics={
-            "total_return": result.total_return,
-            "annualized_return": result.annualized_return,
-            "max_drawdown": result.max_drawdown,
-            "turnover_estimate": result.turnover_estimate,
-        },
+        metrics=periodic_view["metrics"],
         holdings=holdings,
-        period_label=period_label,
-        analytics={
-            "equity_curve": result.equity_curve,
-            "drawdown_curve": result.drawdown_curve,
-            "monthly_returns": result.monthly_returns,
-        },
+        period_label=str(periodic_view["period_label"]),
+        analytics=periodic_view["analytics"],
         benchmark_symbol=profile.benchmark_symbol,
         live_account_attribution=live_account_attribution,
         run_health_summaries=run_health_summaries,

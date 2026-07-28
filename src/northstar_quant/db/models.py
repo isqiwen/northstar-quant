@@ -359,7 +359,27 @@ class PositionSnapshotRecord(Base):
     market_price: Mapped[float | None] = mapped_column(Float, default=None)
     market_value: Mapped[float | None] = mapped_column(Float, default=None)
     asof: Mapped[datetime] = mapped_column(UTCDateTime(), index=True, default=utc_now)
-    snapshot_batch_id: Mapped[str | None] = mapped_column(String(64), index=True, default=None)
+    snapshot_batch_id: Mapped[str] = mapped_column(String(64), index=True)
+
+
+class PositionSnapshotBatchRecord(Base):
+    """一次完整券商持仓快照的批次头。
+
+    明细表无法表达“本次同步确认账户为空仓”，因此批次头必须独立存在。broker、
+    account 与 profile_id 同时定义查询作用域，避免多账户环境读取到其他账户的最近
+    一批持仓。
+    """
+
+    __tablename__ = "position_snapshot_batch_records"
+
+    snapshot_batch_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    run_id: Mapped[str | None] = mapped_column(String(64), index=True, default=None)
+    profile_id: Mapped[str | None] = mapped_column(String(64), index=True, default=None)
+    broker: Mapped[str | None] = mapped_column(String(32), index=True, default=None)
+    account: Mapped[str | None] = mapped_column(String(64), index=True, default=None)
+    position_count: Mapped[int] = mapped_column(Integer, default=0)
+    asof: Mapped[datetime] = mapped_column(UTCDateTime(), index=True, default=utc_now)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utc_now)
 
 
 class AccountSnapshotRecord(Base):

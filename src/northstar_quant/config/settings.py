@@ -37,8 +37,10 @@ class Settings(BaseSettings):
     downloads_dir: Path = Field(default=Path("storage/downloads"))
     reports_dir: Path = Field(default=Path("reports"))
 
-    # 数据库配置。正式环境建议使用 PostgreSQL。
-    database_url: str = Field(default="sqlite:///storage/northstar.db")
+    # 数据库配置。项目只支持 PostgreSQL；凭据必须通过本地 .env 注入。
+    database_url: str = Field(
+        default="postgresql+psycopg://northstar@127.0.0.1:5432/northstar"
+    )
 
     # 券商与账户配置。
     broker: Literal["paper", "ctp"] = Field(default="paper")
@@ -63,7 +65,7 @@ class Settings(BaseSettings):
     exchange_calendar: str = Field(default="XSHG")
 
     # 告警相关。你说不想用 Telegram，这里默认改成企业微信机器人。
-    alert_mode: str = Field(default="console")
+    alert_mode: Literal["console", "wecom", "telegram"] = Field(default="console")
     wecom_webhook: str | None = Field(default=None)
     wecom_mentioned_mobile_list: str | None = Field(default=None)
     telegram_bot_token: str | None = Field(default=None)
@@ -90,6 +92,8 @@ class Settings(BaseSettings):
     live_preflight_daily_data_max_age_days: int = Field(default=4, gt=0)
     live_preflight_weekly_data_max_age_days: int = Field(default=10, gt=0)
     live_preflight_allow_valuation_price_fallback: bool = Field(default=False)
+    # 逗号分隔的真实交易数据提供器白名单；默认空值使非 paper 路径失败关闭。
+    approved_live_data_providers: str = Field(default="")
 
     # 报告与执行控制。
     report_benchmark_symbol: str = Field(default="RB_CONT")
@@ -103,7 +107,7 @@ class Settings(BaseSettings):
     broker_sync_cron: str = Field(default="0,15,30,45 9-16 * * 1-5")
     daily_report_cron: str = Field(default="45 16 * * 1-5")
     weekly_report_cron: str = Field(default="0 17 * * 5")
-    monthly_report_cron: str = Field(default="0 17 28-31 * *")
+    monthly_report_cron: str = Field(default="0 17 24-31 * *")
 
     # Dashboard 配置。
     dashboard_host: str = Field(default="127.0.0.1")
@@ -113,6 +117,7 @@ class Settings(BaseSettings):
         "broker",
         "paper_fill_price_mode",
         "limit_chase_fallback_mode",
+        "alert_mode",
         mode="before",
     )
     @classmethod
@@ -120,6 +125,19 @@ class Settings(BaseSettings):
         """统一环境变量中枚举型配置的大小写与空白。"""
 
         return value.strip().lower() if isinstance(value, str) else value
+
+    @field_validator("database_url")
+    @classmethod
+    def _require_postgresql(cls, value: str) -> str:
+        """拒绝 SQLite 等非 PostgreSQL 数据库，避免测试与运行语义分叉。"""
+
+        normalized = value.strip()
+        if not normalized.startswith("postgresql+psycopg://"):
+            raise ValueError(
+                "NORTHSTAR_DATABASE_URL 必须使用 postgresql+psycopg://，"
+                "本项目不再支持 SQLite。"
+            )
+        return normalized
 
     def model_post_init(self, __context: object) -> None:
         project_root = Path(self.project_root)
@@ -139,13 +157,6 @@ class Settings(BaseSettings):
             if not value.is_absolute():
                 value = project_root / value
             object.__setattr__(self, field_name, value)
-
-        if self.database_url.startswith("sqlite:///"):
-            db_path = Path(self.database_url.removeprefix("sqlite:///"))
-            if not db_path.is_absolute():
-                db_path = (project_root / db_path).resolve()
-                object.__setattr__(self, "database_url", f"sqlite:///{db_path.as_posix()}")
-
 
 @lru_cache
 def get_settings() -> Settings:

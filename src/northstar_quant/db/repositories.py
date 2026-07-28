@@ -35,6 +35,7 @@ from northstar_quant.db.models import (
     ExecutionPlanRecord,
     FillRecord,
     OrderRecord,
+    PositionSnapshotBatchRecord,
     PositionSnapshotRecord,
     RunHealthRecord,
     StrategyRunRecord,
@@ -52,31 +53,78 @@ from northstar_quant.execution.models import (
 )
 
 
-def save_position_snapshots(session: Session, snapshots: list[PositionSnapshot]) -> int:
+def save_position_snapshot_batch(
+    session: Session,
+    snapshots: list[PositionSnapshot],
+    *,
+    broker: str | None = None,
+    account: str | None = None,
+    profile_id: str | None = None,
+    run_id: str | None = None,
+    snapshot_batch_id: str | None = None,
+    asof: datetime | None = None,
+    commit: bool = True,
+) -> PositionSnapshotBatchRecord:
     """批量保存真实持仓快照。
 
     每次保存都视为一次完整的“持仓批次”：
     - 同一批共享一个 snapshot_batch_id
     - 同一批共享一个 asof
+    - 空仓也写入批次头，防止旧的非空批次继续被误读
 
     这样即便上游误传了逐行不同的时间戳，库里仍能保留稳定的批次边界。
     """
 
-    if not snapshots:
-        return 0
-
     asof_values = [ensure_utc(item.asof) for item in snapshots if item.asof is not None]
-    batch_asof = max(asof_values) if asof_values else utc_now()
-    batch_id = next(
-        (item.snapshot_batch_id for item in snapshots if item.snapshot_batch_id),
-        f"position-batch-{uuid4().hex}",
+    batch_asof = ensure_utc(asof) if asof is not None else (
+        max(asof_values) if asof_values else utc_now()
     )
+    item_batch_ids = {
+        str(item.snapshot_batch_id).strip()
+        for item in snapshots
+        if item.snapshot_batch_id
+    }
+    if snapshot_batch_id is not None:
+        item_batch_ids.add(str(snapshot_batch_id).strip())
+    if len(item_batch_ids) > 1:
+        raise ValueError("同一持仓快照包含多个 snapshot_batch_id")
+    batch_id = next(iter(item_batch_ids), f"position-batch-{uuid4().hex}")
 
-    count = 0
+    item_accounts = {
+        str(item.account).strip()
+        for item in snapshots
+        if item.account and str(item.account).strip()
+    }
+    normalized_account = str(account or "").strip() or None
+    if normalized_account is not None:
+        item_accounts.add(normalized_account)
+    if len(item_accounts) > 1:
+        raise ValueError("同一持仓快照包含多个账户，已拒绝写入")
+    resolved_account = next(iter(item_accounts), None)
+    normalized_broker = str(broker or "").strip().lower() or None
+
+    existing_batch = session.get(PositionSnapshotBatchRecord, batch_id)
+    if existing_batch is not None:
+        raise ValueError(f"持仓快照批次已存在：{batch_id}")
+
+    batch_row = PositionSnapshotBatchRecord(
+        snapshot_batch_id=batch_id,
+        run_id=run_id,
+        profile_id=profile_id,
+        broker=normalized_broker,
+        account=resolved_account,
+        position_count=len(snapshots),
+        asof=batch_asof,
+    )
+    session.add(batch_row)
+
     for item in snapshots:
+        item.snapshot_batch_id = batch_id
+        if item.account is None:
+            item.account = resolved_account
         session.add(
             PositionSnapshotRecord(
-                account=item.account,
+                account=resolved_account,
                 symbol=item.symbol,
                 qty=item.qty,
                 avg_cost=item.avg_cost,
@@ -86,9 +134,40 @@ def save_position_snapshots(session: Session, snapshots: list[PositionSnapshot])
                 snapshot_batch_id=batch_id,
             )
         )
-        count += 1
-    session.commit()
-    return count
+    if commit:
+        session.commit()
+        session.refresh(batch_row)
+    else:
+        session.flush()
+    return batch_row
+
+
+def save_position_snapshots(
+    session: Session,
+    snapshots: list[PositionSnapshot],
+    *,
+    broker: str | None = None,
+    account: str | None = None,
+    profile_id: str | None = None,
+    run_id: str | None = None,
+    snapshot_batch_id: str | None = None,
+    asof: datetime | None = None,
+    commit: bool = True,
+) -> int:
+    """兼容旧调用，保存完整批次并返回持仓明细数。"""
+
+    batch = save_position_snapshot_batch(
+        session,
+        snapshots,
+        broker=broker,
+        account=account,
+        profile_id=profile_id,
+        run_id=run_id,
+        snapshot_batch_id=snapshot_batch_id,
+        asof=asof,
+        commit=commit,
+    )
+    return int(batch.position_count)
 
 
 def _serialize_json(payload: object | None) -> str | None:
@@ -541,6 +620,7 @@ def save_fill_snapshots(
     fills: list[FillSnapshot],
     *,
     broker: str | None = None,
+    commit: bool = True,
 ) -> int:
     """批量保存成交快照。
 
@@ -646,7 +726,10 @@ def save_fill_snapshots(
         if order_row is not None:
             _update_order_progress_from_fill_ledger(session, order_row)
         count += 1
-    session.commit()
+    if commit:
+        session.commit()
+    else:
+        session.flush()
     return count
 
 
@@ -735,6 +818,7 @@ def save_working_order_snapshots(
     profile_id: str | None = None,
     default_account: str | None = None,
     observed_at: datetime | None = None,
+    commit: bool = True,
 ) -> dict[str, object]:
     """保存挂单快照账本。"""
 
@@ -772,7 +856,10 @@ def save_working_order_snapshots(
         )
         count += 1
 
-    session.commit()
+    if commit:
+        session.commit()
+    else:
+        session.flush()
     return {
         "count": count,
         "snapshot_batch_id": snapshot_batch_id if count > 0 else None,
@@ -786,17 +873,21 @@ def save_account_snapshot(
     snapshot: BrokerStateSnapshot,
     run_id: str | None = None,
     profile_id: str | None = None,
+    position_snapshot_batch_id: str | None = None,
+    commit: bool = True,
 ) -> AccountSnapshotRecord:
     """保存账户账本快照。"""
 
     account_values = snapshot.account_values or {}
-    account = _optional_text(account_values.get("Account"))
-    batch_id = next(
+    account = (
+        _optional_text(snapshot.account)
+        or _optional_text(account_values.get("Account"))
+        or next((item.account for item in snapshot.positions if item.account), None)
+    )
+    batch_id = position_snapshot_batch_id or next(
         (item.snapshot_batch_id for item in snapshot.positions if item.snapshot_batch_id),
         None,
     )
-    if account is None:
-        account = next((item.account for item in snapshot.positions if item.account), None)
 
     net_position_value = 0.0
     gross_position_value = 0.0
@@ -856,8 +947,11 @@ def save_account_snapshot(
         asof=ensure_utc(snapshot.asof),
     )
     session.add(row)
-    session.commit()
-    session.refresh(row)
+    if commit:
+        session.commit()
+        session.refresh(row)
+    else:
+        session.flush()
     return row
 
 
@@ -921,6 +1015,8 @@ def _trade_attribution_scope_clause(
 def save_account_attribution_for_snapshot(
     session: Session,
     ending_snapshot: AccountSnapshotRecord,
+    *,
+    commit: bool = True,
 ) -> AccountAttributionRecord | None:
     """基于相邻账户快照生成区间收益归因。"""
 
@@ -1060,8 +1156,11 @@ def save_account_attribution_for_snapshot(
         residual_pnl=residual_pnl,
     )
     session.add(row)
-    session.commit()
-    session.refresh(row)
+    if commit:
+        session.commit()
+        session.refresh(row)
+    else:
+        session.flush()
     return row
 
 
@@ -1735,6 +1834,7 @@ def update_order_statuses(
     *,
     broker: str | None = None,
     account: str | None = None,
+    commit: bool = True,
 ) -> int:
     """按券商返回的未完成订单 / 状态信息更新本地订单状态。"""
 
@@ -1887,7 +1987,10 @@ def update_order_statuses(
             order.last_submission_error = None
             order.updated_at = utc_now()
             updated += 1
-    session.commit()
+    if commit:
+        session.commit()
+    else:
+        session.flush()
     return updated
 
 
@@ -2131,6 +2234,7 @@ def update_pending_cancel_statuses(
     *,
     broker: str,
     account: str | None = None,
+    commit: bool = True,
 ) -> int:
     """用券商确认的订单终态恢复对应的待确认撤单记录。"""
 
@@ -2254,45 +2358,76 @@ def update_pending_cancel_statuses(
             cancel_row.status = new_status
             updated += 1
 
-    session.commit()
+    if commit:
+        session.commit()
+    else:
+        session.flush()
     return updated
 
 
-def list_latest_positions(session: Session) -> list[PositionSnapshotRecord]:
+def latest_account_snapshot(
+    session: Session,
+    *,
+    broker: str | None = None,
+    account: str | None = None,
+    profile_id: str | None = None,
+) -> AccountSnapshotRecord | None:
+    """按明确作用域读取最近账户权益快照。"""
+
+    stmt = select(AccountSnapshotRecord)
+    if broker is not None:
+        stmt = stmt.where(AccountSnapshotRecord.broker == broker.strip().lower())
+    stmt = _account_snapshot_scope_clause(
+        stmt,
+        profile_id=profile_id,
+        account=account,
+    )
+    return session.scalar(
+        stmt.order_by(
+            AccountSnapshotRecord.asof.desc(),
+            AccountSnapshotRecord.id.desc(),
+        ).limit(1)
+    )
+
+
+def list_latest_positions(
+    session: Session,
+    *,
+    broker: str | None = None,
+    account: str | None = None,
+    profile_id: str | None = None,
+) -> list[PositionSnapshotRecord]:
     """读取最近一次持仓快照。
 
-    新版本优先按 snapshot_batch_id 读取最新一整批持仓，
-    避免“逐行 asof 略有差异，结果只读到最后一条”的问题。
-
-    对历史旧数据，如果还没有 snapshot_batch_id，则回退到旧的 asof 逻辑。
+    按 broker/account/profile_id 选择最新批次头，再读取整批明细。批次头
+    position_count=0 时明确返回空列表；不存在批次头时同样返回空列表。
     """
 
-    latest_batch_id = session.scalar(
-        select(PositionSnapshotRecord.snapshot_batch_id)
-        .where(PositionSnapshotRecord.snapshot_batch_id.is_not(None))
-        .order_by(PositionSnapshotRecord.asof.desc(), PositionSnapshotRecord.id.desc())
-        .limit(1)
-    )
-    if latest_batch_id is not None:
-        return list(
-            session.scalars(
-                select(PositionSnapshotRecord)
-                .where(PositionSnapshotRecord.snapshot_batch_id == latest_batch_id)
-                .order_by(PositionSnapshotRecord.symbol.asc(), PositionSnapshotRecord.id.asc())
-            )
+    batch_stmt = select(PositionSnapshotBatchRecord)
+    if broker is not None:
+        batch_stmt = batch_stmt.where(
+            PositionSnapshotBatchRecord.broker == broker.strip().lower()
         )
-
-    latest_asof = session.scalar(
-        select(PositionSnapshotRecord.asof)
-        .order_by(PositionSnapshotRecord.asof.desc(), PositionSnapshotRecord.id.desc())
-        .limit(1)
+    if account is not None:
+        batch_stmt = batch_stmt.where(PositionSnapshotBatchRecord.account == account)
+    if profile_id is not None:
+        batch_stmt = batch_stmt.where(PositionSnapshotBatchRecord.profile_id == profile_id)
+    latest_batch = session.scalar(
+        batch_stmt.order_by(
+            PositionSnapshotBatchRecord.asof.desc(),
+            PositionSnapshotBatchRecord.created_at.desc(),
+        ).limit(1)
     )
-    if latest_asof is None:
+    if latest_batch is None or latest_batch.position_count == 0:
         return []
+
     return list(
         session.scalars(
             select(PositionSnapshotRecord)
-            .where(PositionSnapshotRecord.asof == latest_asof)
+            .where(
+                PositionSnapshotRecord.snapshot_batch_id
+                == latest_batch.snapshot_batch_id
+            )
             .order_by(PositionSnapshotRecord.symbol.asc(), PositionSnapshotRecord.id.asc())
         )
     )
@@ -2304,11 +2439,16 @@ def write_sync_log(
     sync_type: str,
     status: str,
     detail: str | None = None,
+    *,
+    commit: bool = True,
 ) -> None:
     """写入券商同步日志。"""
 
     session.add(BrokerSyncLog(broker=broker, sync_type=sync_type, status=status, detail=detail))
-    session.commit()
+    if commit:
+        session.commit()
+    else:
+        session.flush()
 
 
 def list_recent_orders(session: Session, limit: int = 50) -> list[OrderRecord]:
@@ -2562,10 +2702,21 @@ def list_run_health_records(
     )
 
 
-def aggregate_position_market_value(session: Session) -> float:
+def aggregate_position_market_value(
+    session: Session,
+    *,
+    broker: str | None = None,
+    account: str | None = None,
+    profile_id: str | None = None,
+) -> float:
     """估算最近一次真实持仓的总市值。"""
 
-    rows = list_latest_positions(session)
+    rows = list_latest_positions(
+        session,
+        broker=broker,
+        account=account,
+        profile_id=profile_id,
+    )
     total = 0.0
     for row in rows:
         total += float(row.market_value or 0.0)

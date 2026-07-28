@@ -238,7 +238,7 @@ def _validate_account_context(
     if context is None:
         if side == "BUY" and limits.enforce_available_cash:
             raise ValueError("买入订单缺少可用资金")
-        if side == "SELL" and limits.enforce_sellable_qty:
+        if side == "SELL" and (limits.enforce_sellable_qty or limits.long_only):
             raise ValueError("卖出订单缺少可卖数量")
         return
 
@@ -260,6 +260,8 @@ def _validate_account_context(
             raise ValueError("买入订单金额超过可用资金")
 
     if side == "SELL":
+        if not limits.enforce_sellable_qty and not limits.long_only:
+            return
         if limits.enforce_sellable_qty:
             if symbol not in context.sellable_qty_by_symbol:
                 raise ValueError("卖出订单缺少可卖数量")

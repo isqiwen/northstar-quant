@@ -50,3 +50,16 @@ def test_real_broker_calendar_check_fails_closed_when_dependency_unavailable(
             timezone="Asia/Shanghai",
             require_calendar=True,
         )
+
+
+def test_last_trading_session_of_month_uses_exchange_calendar():
+    assert trading_calendar.is_last_trading_session_of_month(
+        datetime(2024, 7, 31, 15, 0),
+        calendar="XSHG",
+        timezone="Asia/Shanghai",
+    )
+    assert not trading_calendar.is_last_trading_session_of_month(
+        datetime(2024, 7, 30, 15, 0),
+        calendar="XSHG",
+        timezone="Asia/Shanghai",
+    )

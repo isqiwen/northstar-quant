@@ -5,6 +5,7 @@ import smtplib
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from tests.postgresql import postgresql_test_url
 
 from northstar_quant.config.settings import get_settings
 from northstar_quant.db.base import Base
@@ -61,7 +62,7 @@ class _StartTLSFailureSMTP:
 
 def test_send_report_email_includes_daily_recap_in_body(tmp_path, monkeypatch):
     db_path = tmp_path / "report-email.db"
-    engine = create_engine(f"sqlite:///{db_path.as_posix()}", future=True)
+    engine = create_engine(postgresql_test_url(db_path), future=True)
     Base.metadata.create_all(bind=engine)
     testing_session = sessionmaker(
         bind=engine,

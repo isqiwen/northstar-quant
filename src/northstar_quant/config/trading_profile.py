@@ -114,6 +114,19 @@ class ProfileExecutionConfig:
     buy_qty_step: float | None = None  # 开仓方向数量步长；期货通常为 1 手。
     sell_qty_step: float | None = None  # 平仓或开空方向数量步长；由期货柜台规则确定。
 
+    def __post_init__(self) -> None:
+        if (
+            self.rebalance_min_trade_value is not None
+            and self.rebalance_min_trade_value < 0
+        ):
+            raise ValueError("execution.rebalance_min_trade_value 不能为负数")
+        if not 0.0 <= self.rebalance_weight_tolerance <= 1.0:
+            raise ValueError("execution.rebalance_weight_tolerance 必须在 [0, 1] 内")
+        for field_name in ("order_qty_step", "buy_qty_step", "sell_qty_step"):
+            value = getattr(self, field_name)
+            if value is not None and value <= 0:
+                raise ValueError(f"execution.{field_name} 必须大于 0")
+
 
 @dataclass(frozen=True, slots=True)
 class ProfileBacktestConfig:
@@ -127,6 +140,19 @@ class ProfileBacktestConfig:
     lot_size: int = 1  # 撮合数量必须满足的最小整手单位。
     execution_delay_sessions: int = 1  # 信号产生后延迟多少个交易时段成交，至少为 1 防未来函数。
     sellable_after_sessions: int = 0  # 保留的通用撮合字段；期货 T+0 研究画像应为 0。
+
+    def __post_init__(self) -> None:
+        if self.initial_cash <= 0:
+            raise ValueError("backtest.initial_cash 必须大于 0")
+        for field_name in ("commission_bps", "min_commission", "slippage_bps"):
+            if getattr(self, field_name) < 0:
+                raise ValueError(f"backtest.{field_name} 不能为负数")
+        if self.lot_size < 1:
+            raise ValueError("backtest.lot_size 至少为 1")
+        if self.execution_delay_sessions < 1:
+            raise ValueError("backtest.execution_delay_sessions 至少为 1")
+        if self.sellable_after_sessions < 0:
+            raise ValueError("backtest.sellable_after_sessions 不能为负数")
 
 
 @dataclass(frozen=True, slots=True)
@@ -404,7 +430,10 @@ def load_trading_profile(
     )
 
     download_config = ProfileDownloadConfig(
-        enabled=bool(download_raw.get("enabled", False)),
+        enabled=_parse_bool(
+            download_raw.get("enabled", False),
+            field_name="data.download.enabled",
+        ),
         provider=str(download_raw.get("provider", data_raw.get("provider", "akshare"))),
         symbols=tuple(str(symbol) for symbol in (download_raw.get("symbols", []) or [])),
         start_date=(
@@ -436,7 +465,10 @@ def load_trading_profile(
                 "adjusted_close" if data_frequency in {DataFrequency.D1, DataFrequency.W1} else "close",
             )
         ),
-        adjusted=bool(data_raw.get("adjusted", True)),
+        adjusted=_parse_bool(
+            data_raw.get("adjusted", True),
+            field_name="data.adjusted",
+        ),
         live_trading_eligible=_parse_bool(
             data_raw.get("live_trading_eligible", False),
             field_name="data.live_trading_eligible",
@@ -487,7 +519,10 @@ def load_trading_profile(
         ),
     )
     execution_config = ProfileExecutionConfig(
-        long_only=bool(execution_raw.get("long_only", True)),
+        long_only=_parse_bool(
+            execution_raw.get("long_only", True),
+            field_name="execution.long_only",
+        ),
         rebalance_min_trade_value=(
             float(execution_raw["rebalance_min_trade_value"])
             if execution_raw.get("rebalance_min_trade_value") is not None
@@ -554,7 +589,10 @@ def load_trading_profile(
                 else None
             ),
             capital_weight=float(item.get("capital_weight", 1.0)),
-            enabled=bool(item.get("enabled", True)),
+            enabled=_parse_bool(
+                item.get("enabled", True),
+                field_name=f"strategies.{item.get('strategy_id', 'unknown')}.enabled",
+            ),
             params=dict(item.get("params", {}) or {}),
         )
         for item in strategies_raw

@@ -10,18 +10,12 @@ from sqlalchemy.types import TypeDecorator
 
 
 class UTCDateTime(TypeDecorator[datetime]):
-    """Timezone-aware UTC datetime column.
+    """PostgreSQL ``TIMESTAMP WITH TIME ZONE`` 的 UTC 读写适配。"""
 
-    - PostgreSQL uses ``TIMESTAMP WITH TIME ZONE``.
-    - SQLite stores naive UTC values but always returns timezone-aware UTC datetimes.
-    """
-
-    impl = DateTime
+    impl = DateTime(timezone=True)
     cache_ok = True
 
     def load_dialect_impl(self, dialect: Dialect):
-        if dialect.name == "sqlite":
-            return dialect.type_descriptor(DateTime())
         return dialect.type_descriptor(DateTime(timezone=True))
 
     def process_bind_param(self, value: datetime | None, dialect: Dialect) -> datetime | None:
@@ -31,8 +25,6 @@ class UTCDateTime(TypeDecorator[datetime]):
             value = value.replace(tzinfo=UTC)
         else:
             value = value.astimezone(UTC)
-        if dialect.name == "sqlite":
-            return value.replace(tzinfo=None)
         return value
 
     def process_result_value(self, value: datetime | None, dialect: Dialect) -> datetime | None:

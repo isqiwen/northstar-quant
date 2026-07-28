@@ -101,6 +101,98 @@ def test_target_is_rejected_when_initial_margin_is_insufficient():
     assert result.rejected_targets == [f"{DAY_2}/RB2405: 保证金不足，目标手数 1 被拒绝"]
 
 
+def test_target_margin_check_includes_commission_and_slippage_costs():
+    result = run_daily_futures_backtest(
+        bars=[
+            _bar(DAY_1, "rb2405", 100, 101, 99, 100),
+            _bar(DAY_2, "rb2405", 100, 101, 99, 100),
+        ],
+        instrument_specs=[
+            _spec(
+                "rb2405",
+                margin_rate=0.1,
+                multiplier=10,
+                commission_per_lot=2,
+            )
+        ],
+        targets=[FuturesTarget(DAY_1, "rb2405", 1)],
+        initial_cash=101,
+    )
+
+    assert result.trades == []
+    assert len(result.rejected_targets) == 1
+
+
+def test_rollover_shifts_protective_prices_by_contract_basis():
+    result = run_daily_futures_backtest(
+        bars=[
+            _bar(DAY_1, "rb2405", 100, 101, 99, 100),
+            _bar(DAY_2, "rb2405", 100, 102, 99, 101),
+            _bar(DAY_3, "rb2405", 105, 106, 104, 105),
+            _bar(DAY_3, "rb2410", 120, 126, 109, 121),
+        ],
+        instrument_specs=[_spec("rb2405"), _spec("rb2410")],
+        targets=[
+            FuturesTarget(
+                DAY_1,
+                "rb2405",
+                1,
+                stop_price=95,
+                target_price=110,
+            )
+        ],
+        rollovers=[FuturesRollover(DAY_3, "rb2405", "rb2410")],
+        initial_cash=100_000,
+    )
+
+    assert [trade.reason for trade in result.trades] == [
+        "target_open",
+        "roll_close",
+        "roll_open",
+        "stop_loss",
+    ]
+    assert result.trades[-1].price == 110
+
+
+def test_rollover_fails_before_mutation_when_new_contract_margin_is_unaffordable():
+    with pytest.raises(ValueError, match="换月后保证金"):
+        run_daily_futures_backtest(
+            bars=[
+                _bar(DAY_1, "rb2405", 10, 11, 9, 10),
+                _bar(DAY_2, "rb2405", 10, 11, 9, 10),
+                _bar(DAY_3, "rb2405", 10, 11, 9, 10),
+                _bar(DAY_3, "rb2410", 100, 101, 99, 100),
+            ],
+            instrument_specs=[
+                _spec("rb2405", margin_rate=0.1),
+                _spec("rb2410", margin_rate=0.1),
+            ],
+            targets=[FuturesTarget(DAY_1, "rb2405", 1)],
+            rollovers=[FuturesRollover(DAY_3, "rb2405", "rb2410")],
+            initial_cash=50,
+        )
+
+
+def test_target_rejects_protective_prices_on_wrong_side_of_execution_price():
+    with pytest.raises(ValueError, match="多头初始止损价必须低于执行价"):
+        run_daily_futures_backtest(
+            bars=[
+                _bar(DAY_1, "rb2405", 100, 101, 99, 100),
+                _bar(DAY_2, "rb2405", 100, 101, 99, 100),
+            ],
+            instrument_specs=[_spec("rb2405")],
+            targets=[
+                FuturesTarget(
+                    DAY_1,
+                    "rb2405",
+                    1,
+                    stop_price=101,
+                    target_price=110,
+                )
+            ],
+        )
+
+
 def test_missing_bar_for_held_actual_contract_fails_closed():
     with pytest.raises(ValueError, match="持仓合约缺少日线"):
         run_daily_futures_backtest(

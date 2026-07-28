@@ -16,8 +16,8 @@ Northstar Quant 的目标不是提供“开箱即用的券商生产系统”，�
 ## 核心能力
 
 - **研究层**：通过 canonical strategy pipeline 做研究、扫描和快速验证
-- **回测层**：使用项目内置目标权重与策略仿真引擎；第三方引擎仍待独立交叉验证
-- **执行层**：支持本地 `paper` 流程验证；CTP 合约映射已实现，真实 CTP 报单适配器尚未实现
+- **回测层**：连续合约收益研究已接入佣金、最低佣金、滑点和信号延迟；实际合约另有逐日盯市状态机
+- **执行层**：`paper` 适配器可验证订单、成交、对账和报告基础设施；期货策略到实际合约计划尚未接通，CTP 报单适配器也未实现
 - **风控层**：包含全局风控、策略风控与交易前风控
 - **监控层**：包含日志、健康检查、企业微信 / Telegram 告警、Dashboard
 - **报告层**：支持日报、周报、月报、邮件发送、Markdown/PDF 报告归档
@@ -28,6 +28,7 @@ Northstar Quant 的目标不是提供“开箱即用的券商生产系统”，�
 - 构建与打包：`setuptools`
 - 依赖声明：`pyproject.toml`
 - 推荐环境管理与安装工具：`uv`
+- 数据库：`PostgreSQL 17`
 - ORM 与迁移：`SQLAlchemy` + `Alembic`
 - 数据与分析：`polars`、`pandas`、`numpy`
 - 回测：项目内置目标权重 / 事件仿真引擎
@@ -124,16 +125,37 @@ cp .env.example .env
 
 ### 2. 初始化数据库
 
-本地快速启动可直接执行：
+先在本地 `.env` 设置 `POSTGRES_PASSWORD`，并把同一密码写入
+`NORTHSTAR_DATABASE_URL` 与 `NORTHSTAR_TEST_DATABASE_URL`。如果本机使用 Docker，
+可启动仓库内置的 PostgreSQL 17：
 
 ```bash
-northstar init-db
+docker compose up -d postgres
 ```
 
-如果你希望按迁移历史管理数据库结构，使用：
+数据库健康后执行：
 
 ```bash
-alembic upgrade head
+uv run northstar init-db
+```
+
+该命令内部统一执行 Alembic 迁移，不再维护独立的 `create_all` 建库路径。
+也可以直接执行：
+
+```bash
+uv run alembic upgrade head
+```
+
+当前项目仍处于无历史业务数据的开发阶段，迁移基线已压缩为
+`0001_initial_schema`。从产生需要保留的数据或首次正式发布开始，只追加新迁移，
+不再重写该基线。
+
+测试固定使用独立的 `northstar_test` 数据库；每个数据库测试还会创建自己的隔离
+schema。PostgreSQL 健康后可直接运行：
+
+```bash
+uv run pytest
+uv run ruff check .
 ```
 
 ### 3. 生成或下载数据并跑通流程
@@ -213,7 +235,9 @@ northstar dashboard run
 - `configs/risk/*.yaml`、`configs/portfolio/*.yaml` 当前仍是设计样例或未来扩展点，尚未接入统一运行时加载
 - `.env`：数据库地址、券商参数、告警方式（`console / wecom / telegram`）、SMTP、调度 cron 等运行时配置
 
-默认数据库使用 `sqlite:///storage/northstar.db`，正式环境更建议切换为 PostgreSQL 并配合 `Alembic` 管理迁移。
+数据库统一使用 PostgreSQL，连接地址由本地 `.env` 中的
+`NORTHSTAR_DATABASE_URL` 提供；SQLite 不再属于支持范围。所有建库和结构升级均由
+Alembic 管理。
 日志系统当前也会读取 `configs/app.yaml` 里的 `logging` 段，用来控制日志级别、控制台输出、文件输出、日志目录以及按日滚动行为。
 当前活动日志文件默认为 `storage/logs/northstar.log`，历史滚动文件采用 `northstar-YYYY-MM-DD.log` 命名。控制台日志保留 `|` 风格的可读格式，主干顺序为时间、级别、`file:line`、消息；文件日志使用 JSON Lines，字段顺序为 `timestamp`、`level`、`file`、`line`、`msg`，再跟随 `command`、`strategy`、`symbol` 等顶层结构化字段。
 市场数据当前按两层目录管理：`storage/downloads/<provider>/<market>/<asset_type>/<data_frequency>/` 保存下载缓存，`storage/market/<market>/<asset_type>/<data_frequency>/` 保存标准化后的策略输入数据；每个数据文件都会配套生成 `.manifest.json` 元数据文件。
@@ -240,21 +264,24 @@ northstar dashboard run
 
 ## 实盘与报告能力
 
-当前项目已经具备以下实用能力：
+当前项目已经具备以下基础设施能力：
 
-- 从 paper 或未来的 CTP 适配器同步持仓
+- 从 paper 适配器同步持仓；未来的 CTP 适配器仍是明确扩展点
 - 将订单、成交、持仓快照持续落库
-- 基于目标权重生成再平衡计划
-- 支持限价执行、追价执行、超时撤单
+- 通过注册表承载目标权重计划器，但仓库没有可用于实际期货的内置 planner
+- 支持单笔市价/限价 paper 撮合与超时撤单；多轮追价目前只有配置和设计文档，未接入执行主流程
 - 支持交易日历过滤与日频调度
 - 支持企业微信 / Telegram 告警、邮件发送、Markdown/PDF 报告
 - 提供基于 `Streamlit` 的本地 Dashboard
 
 真实券商默认保持关闭和只读。订单 attempt 持久化在先、账户级 fencing 租约、
-instrument registry 和 completed/cancel 恢复已经落地；但仓库内 registry
+instrument registry 和 completed/cancel 恢复已经落地；但执行 planner registry
 默认为空，内置 offline 画像使用 AKShare 主力连续合约数据并明确设置
 `live_trading_eligible: false`。完成实际 CTP 合约核验、可信实盘数据切换和并发/崩溃
 恢复演练，并创建经核验的 production 画像前，不应开启真实资金。
+
+`paper` 适配器当前采用现货式现金/持仓记账，用于基础设施测试；它不模拟期货合约
+乘数、保证金、开平今/平昨和结算，因此不能被当作期货仿真交易账户。
 
 ## 文档索引
 

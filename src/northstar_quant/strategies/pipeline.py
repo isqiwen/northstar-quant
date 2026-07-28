@@ -12,6 +12,7 @@ import polars as pl
 
 from northstar_quant.common.enums import StrategyOutputType
 from northstar_quant.common.types import StrategyOutputBundle
+from northstar_quant.config.settings import get_settings
 from northstar_quant.config.trading_profile import TradingProfile
 from northstar_quant.logging_.logger import get_logger
 from northstar_quant.portfolio.multi_strategy import (
@@ -41,16 +42,100 @@ def build_profile_risk_limits(profile: TradingProfile) -> RiskLimits:
             f"{', '.join(unknown_fields)}"
         )
     risk_overrides = dict(profile.risk)
+    boolean_fields = {
+        "enforce_available_cash",
+        "enforce_sellable_qty",
+        "enforce_tradeable_state",
+        "enforce_price_limit",
+        "long_only",
+    }
+    for field_name in boolean_fields.intersection(risk_overrides):
+        risk_overrides[field_name] = _strict_risk_bool(
+            risk_overrides[field_name],
+            field_name=field_name,
+        )
+    numeric_fields = {
+        "max_single_weight",
+        "max_gross_exposure",
+        "min_cash_buffer",
+        "min_order_notional",
+        "max_order_notional",
+        "max_order_qty",
+        "order_qty_step",
+        "buy_qty_step",
+        "sell_qty_step",
+    }
+    for field_name in numeric_fields.intersection(risk_overrides):
+        if risk_overrides[field_name] is not None:
+            risk_overrides[field_name] = float(risk_overrides[field_name])
     if (
         "min_order_notional" not in risk_overrides
-        and profile.execution.rebalance_min_trade_value is not None
     ):
-        risk_overrides["min_order_notional"] = profile.execution.rebalance_min_trade_value
+        risk_overrides["min_order_notional"] = (
+            profile.execution.rebalance_min_trade_value
+            if profile.execution.rebalance_min_trade_value is not None
+            else get_settings().rebalance_min_trade_value
+        )
     for risk_key in ("order_qty_step", "buy_qty_step", "sell_qty_step"):
         execution_value = getattr(profile.execution, risk_key)
         if risk_key not in risk_overrides and execution_value is not None:
             risk_overrides[risk_key] = execution_value
-    return RiskLimits(**risk_overrides)
+    risk_overrides["long_only"] = profile.execution.long_only
+    limits = RiskLimits(**risk_overrides)
+    if profile.is_production:
+        required_flags = [
+            "enforce_available_cash",
+            "enforce_tradeable_state",
+            "enforce_price_limit",
+        ]
+        if limits.long_only:
+            required_flags.append("enforce_sellable_qty")
+        missing_flags = [
+            field_name
+            for field_name in required_flags
+            if not getattr(limits, field_name)
+        ]
+        if missing_flags:
+            raise ValueError(
+                f"production 画像 {profile.profile_id} 必须显式启用动态风控："
+                + ", ".join(missing_flags)
+            )
+    return limits
+
+
+def _strict_risk_bool(value: object, *, field_name: str) -> bool:
+    """严格解析 risk 段布尔值，拒绝 Python 字符串真值语义。"""
+
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, int) and value in {0, 1}:
+        return bool(value)
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"true", "1", "yes", "on"}:
+            return True
+        if normalized in {"false", "0", "no", "off"}:
+            return False
+    raise ValueError(f"风控字段 {field_name} 必须是明确的布尔值")
+
+
+def enforce_profile_target_policy(
+    frame: pl.DataFrame,
+    profile: TradingProfile,
+) -> pl.DataFrame:
+    """执行画像级目标方向政策；违规时失败关闭，不自动改写策略意图。"""
+
+    if frame.is_empty() or not profile.execution.long_only:
+        return frame
+    if "target_weight" not in frame.columns:
+        raise ValueError("long_only 目标检查缺少 target_weight 字段")
+    short_count = frame.filter(pl.col("target_weight") < -1e-12).height
+    if short_count:
+        raise ValueError(
+            f"画像 {profile.profile_id} 配置 long_only=true，"
+            f"但策略产生了 {short_count} 条负目标权重"
+        )
+    return frame
 
 
 def parse_strategy_selection(strategy_name: str | None) -> tuple[str, ...] | None:
@@ -223,6 +308,7 @@ def run_profile_strategy_pipeline(
                 limits,
                 time_column=time_column,
             )
+        combined = enforce_profile_target_policy(combined, profile)
     elif output_type == StrategyOutputType.EXECUTION_INTENT:
         combined = combine_strategy_execution_intents(
             strategy_frames,

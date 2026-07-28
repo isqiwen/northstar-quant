@@ -2,6 +2,7 @@ from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
+from tests.postgresql import postgresql_test_url
 
 from northstar_quant.db.base import Base
 from northstar_quant.db.models import CancelRecord, OrderRecord
@@ -28,7 +29,7 @@ class _FakeBroker:
 
 def test_cancel_stale_orders_writes_cancel_record(tmp_path):
     db_path = tmp_path / "cancel-ledger.db"
-    engine = create_engine(f"sqlite:///{db_path.as_posix()}", future=True)
+    engine = create_engine(postgresql_test_url(db_path), future=True)
     Base.metadata.create_all(bind=engine)
     stale_time = datetime.now(UTC) - timedelta(days=1)
 
@@ -95,7 +96,7 @@ def test_cancel_stale_orders_is_scoped_to_current_broker_client(tmp_path):
             return True
 
     engine = create_engine(
-        f"sqlite:///{(tmp_path / 'cancel-client-scope.db').as_posix()}",
+        postgresql_test_url(tmp_path / "cancel-client-scope.db"),
         future=True,
     )
     Base.metadata.create_all(bind=engine)
@@ -143,7 +144,7 @@ def test_cancel_stale_orders_is_scoped_to_current_broker_client(tmp_path):
 
 def test_cancel_stale_orders_never_crosses_broker_or_account(tmp_path):
     db_path = tmp_path / "cancel-scope.db"
-    engine = create_engine(f"sqlite:///{db_path.as_posix()}", future=True)
+    engine = create_engine(postgresql_test_url(db_path), future=True)
     Base.metadata.create_all(bind=engine)
     stale_time = datetime.now(UTC) - timedelta(days=1)
     broker = _FakeBroker()

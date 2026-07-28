@@ -6,6 +6,7 @@ from threading import Barrier
 import pytest
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
+from tests.postgresql import postgresql_test_url
 
 from northstar_quant.common.order_identity import build_order_ref
 from northstar_quant.common.time import utc_now
@@ -94,7 +95,7 @@ def test_order_intent_is_committed_before_broker_call_and_replay_is_idempotent(
     tmp_path,
 ):
     engine = create_engine(
-        f"sqlite:///{(tmp_path / 'durable.db').as_posix()}",
+        postgresql_test_url(tmp_path / "durable.db"),
         future=True,
     )
     Base.metadata.create_all(bind=engine)
@@ -125,7 +126,7 @@ def test_order_intent_is_committed_before_broker_call_and_replay_is_idempotent(
 
 def test_concurrent_sessions_create_only_one_order_intent(tmp_path):
     engine = create_engine(
-        f"sqlite:///{(tmp_path / 'concurrent-intent.db').as_posix()}",
+        postgresql_test_url(tmp_path / "concurrent-intent.db"),
         future=True,
     )
     Base.metadata.create_all(bind=engine)
@@ -151,7 +152,7 @@ def test_concurrent_sessions_create_only_one_order_intent(tmp_path):
 
 def test_final_instrument_payload_is_persisted_before_broker_call(tmp_path):
     engine = create_engine(
-        f"sqlite:///{(tmp_path / 'instrument-payload.db').as_posix()}",
+        postgresql_test_url(tmp_path / "instrument-payload.db"),
         future=True,
     )
     Base.metadata.create_all(bind=engine)
@@ -182,7 +183,7 @@ def test_final_instrument_payload_is_persisted_before_broker_call(tmp_path):
 
 def test_submission_exception_stays_unknown_and_cannot_be_retried(tmp_path):
     engine = create_engine(
-        f"sqlite:///{(tmp_path / 'unknown.db').as_posix()}",
+        postgresql_test_url(tmp_path / "unknown.db"),
         future=True,
     )
     Base.metadata.create_all(bind=engine)
@@ -209,7 +210,7 @@ def test_submission_exception_stays_unknown_and_cannot_be_retried(tmp_path):
 
 def test_same_idempotency_key_with_different_payload_fails_closed(tmp_path):
     engine = create_engine(
-        f"sqlite:///{(tmp_path / 'conflict.db').as_posix()}",
+        postgresql_test_url(tmp_path / "conflict.db"),
         future=True,
     )
     Base.metadata.create_all(bind=engine)
@@ -226,7 +227,7 @@ def test_same_idempotency_key_with_different_payload_fails_closed(tmp_path):
 
 def test_chase_restart_restores_persisted_price_and_quantity(tmp_path):
     engine = create_engine(
-        f"sqlite:///{(tmp_path / 'chase-restart.db').as_posix()}",
+        postgresql_test_url(tmp_path / "chase-restart.db"),
         future=True,
     )
     Base.metadata.create_all(bind=engine)
@@ -249,7 +250,7 @@ def test_chase_restart_restores_persisted_price_and_quantity(tmp_path):
 
 def test_durable_adapter_lists_all_persisted_plan_attempts(tmp_path):
     engine = create_engine(
-        f"sqlite:///{(tmp_path / 'plan-attempts.db').as_posix()}",
+        postgresql_test_url(tmp_path / "plan-attempts.db"),
         future=True,
     )
     Base.metadata.create_all(bind=engine)
@@ -297,7 +298,7 @@ def test_durable_adapter_lists_all_persisted_plan_attempts(tmp_path):
 
 def test_confirmed_terminal_without_broker_order_id_is_replayed(tmp_path):
     engine = create_engine(
-        f"sqlite:///{(tmp_path / 'terminal-without-order-id.db').as_posix()}",
+        postgresql_test_url(tmp_path / "terminal-without-order-id.db"),
         future=True,
     )
     Base.metadata.create_all(bind=engine)
@@ -331,7 +332,7 @@ def test_confirmed_terminal_without_broker_order_id_is_replayed(tmp_path):
 
 def test_unknown_submission_recovers_by_order_ref_without_resubmission(tmp_path):
     engine = create_engine(
-        f"sqlite:///{(tmp_path / 'recovery.db').as_posix()}",
+        postgresql_test_url(tmp_path / "recovery.db"),
         future=True,
     )
     Base.metadata.create_all(bind=engine)
@@ -371,7 +372,7 @@ def test_unknown_submission_recovers_by_order_ref_without_resubmission(tmp_path)
 
 def test_order_recovery_rejects_mismatched_instrument_identity(tmp_path):
     engine = create_engine(
-        f"sqlite:///{(tmp_path / 'identity-mismatch.db').as_posix()}",
+        postgresql_test_url(tmp_path / "identity-mismatch.db"),
         future=True,
     )
     Base.metadata.create_all(bind=engine)
@@ -417,7 +418,7 @@ def test_order_recovery_rejects_mismatched_instrument_identity(tmp_path):
 
 def test_order_recovery_uses_client_id_when_order_id_is_reused(tmp_path):
     engine = create_engine(
-        f"sqlite:///{(tmp_path / 'client-order-id.db').as_posix()}",
+        postgresql_test_url(tmp_path / "client-order-id.db"),
         future=True,
     )
     Base.metadata.create_all(bind=engine)
@@ -475,7 +476,7 @@ def test_order_recovery_uses_client_id_when_order_id_is_reused(tmp_path):
 
 def test_late_working_status_cannot_regress_terminal_fill_progress(tmp_path):
     engine = create_engine(
-        f"sqlite:///{(tmp_path / 'terminal-progress.db').as_posix()}",
+        postgresql_test_url(tmp_path / "terminal-progress.db"),
         future=True,
     )
     Base.metadata.create_all(bind=engine)
@@ -526,7 +527,7 @@ def test_late_working_status_cannot_regress_terminal_fill_progress(tmp_path):
 
 def test_stale_cancelled_snapshot_cannot_regress_fill_progress(tmp_path):
     engine = create_engine(
-        f"sqlite:///{(tmp_path / 'cancelled-progress.db').as_posix()}",
+        postgresql_test_url(tmp_path / "cancelled-progress.db"),
         future=True,
     )
     Base.metadata.create_all(bind=engine)
@@ -577,7 +578,7 @@ def test_stale_cancelled_snapshot_cannot_regress_fill_progress(tmp_path):
 
 def test_any_broker_status_rejects_progress_above_order_quantity(tmp_path):
     engine = create_engine(
-        f"sqlite:///{(tmp_path / 'invalid-progress.db').as_posix()}",
+        postgresql_test_url(tmp_path / "invalid-progress.db"),
         future=True,
     )
     Base.metadata.create_all(bind=engine)
@@ -622,7 +623,7 @@ def test_any_broker_status_rejects_progress_above_order_quantity(tmp_path):
 
 def test_terminal_order_rejects_duplicate_cancel_without_new_blocker(tmp_path):
     engine = create_engine(
-        f"sqlite:///{(tmp_path / 'terminal-cancel.db').as_posix()}",
+        postgresql_test_url(tmp_path / "terminal-cancel.db"),
         future=True,
     )
     Base.metadata.create_all(bind=engine)
@@ -663,7 +664,7 @@ def test_terminal_order_rejects_duplicate_cancel_without_new_blocker(tmp_path):
 
 def test_cancel_intent_uses_client_id_when_order_id_is_reused(tmp_path):
     engine = create_engine(
-        f"sqlite:///{(tmp_path / 'cancel-client-order-id.db').as_posix()}",
+        postgresql_test_url(tmp_path / "cancel-client-order-id.db"),
         future=True,
     )
     Base.metadata.create_all(bind=engine)
@@ -709,7 +710,7 @@ def test_cancel_intent_uses_client_id_when_order_id_is_reused(tmp_path):
 
 def test_stale_fencing_token_cannot_claim_prepared_order(tmp_path):
     engine = create_engine(
-        f"sqlite:///{(tmp_path / 'fencing.db').as_posix()}",
+        postgresql_test_url(tmp_path / "fencing.db"),
         future=True,
     )
     Base.metadata.create_all(bind=engine)
@@ -760,7 +761,7 @@ def test_cancel_intent_is_durable_before_broker_call_and_recovers_terminal(
     tmp_path,
 ):
     engine = create_engine(
-        f"sqlite:///{(tmp_path / 'cancel.db').as_posix()}",
+        postgresql_test_url(tmp_path / "cancel.db"),
         future=True,
     )
     Base.metadata.create_all(bind=engine)
@@ -808,7 +809,7 @@ def test_cancel_exception_is_not_reissued_before_completed_order_recovery(
     tmp_path,
 ):
     engine = create_engine(
-        f"sqlite:///{(tmp_path / 'cancel-unknown.db').as_posix()}",
+        postgresql_test_url(tmp_path / "cancel-unknown.db"),
         future=True,
     )
     Base.metadata.create_all(bind=engine)
@@ -851,7 +852,7 @@ def test_cancel_exception_is_not_reissued_before_completed_order_recovery(
 
 def test_cancel_terminal_recovery_rejects_mismatched_instrument(tmp_path):
     engine = create_engine(
-        f"sqlite:///{(tmp_path / 'cancel-identity.db').as_posix()}",
+        postgresql_test_url(tmp_path / "cancel-identity.db"),
         future=True,
     )
     Base.metadata.create_all(bind=engine)
@@ -907,7 +908,7 @@ def test_cancel_terminal_recovery_rejects_mismatched_instrument(tmp_path):
 
 def test_late_cancel_ack_cannot_downgrade_reconciled_terminal_state(tmp_path):
     engine = create_engine(
-        f"sqlite:///{(tmp_path / 'cancel-cas.db').as_posix()}",
+        postgresql_test_url(tmp_path / "cancel-cas.db"),
         future=True,
     )
     Base.metadata.create_all(bind=engine)

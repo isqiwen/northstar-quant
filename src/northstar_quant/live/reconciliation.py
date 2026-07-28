@@ -9,11 +9,12 @@ import polars as pl
 from sqlalchemy.orm import Session
 
 from northstar_quant.db.repositories import (
+    latest_account_snapshot,
     list_latest_positions,
     save_account_snapshot,
     save_account_attribution_for_snapshot,
     save_fill_snapshots,
-    save_position_snapshots,
+    save_position_snapshot_batch,
     save_working_order_snapshots,
     update_order_statuses,
     update_pending_cancel_statuses,
@@ -50,74 +51,128 @@ def reconcile_broker_state(
     if snapshot is None:
         snapshot = broker.sync_state()
     snapshot_account = str(snapshot.account or "").strip() or None
-    if not snapshot.state_complete:
-        raise RuntimeError("券商状态快照不完整，已停止对账写入。")
+    if not snapshot.state_complete or snapshot.state_errors:
+        error_detail = "；".join(str(item) for item in snapshot.state_errors)
+        suffix = f" 错误：{error_detail}" if error_detail else ""
+        raise RuntimeError(f"券商状态快照不完整，已停止对账写入。{suffix}")
+    if snapshot.asof is None:
+        raise RuntimeError("券商状态快照缺少 asof，已停止对账写入。")
+    missing_fill_timestamps = [
+        item.exec_id or item.broker_order_id
+        for item in snapshot.fills
+        if item.filled_at is None
+    ]
+    if missing_fill_timestamps:
+        raise RuntimeError(
+            "券商成交缺少 filled_at，已停止对账写入："
+            + ", ".join(str(item) for item in missing_fill_timestamps)
+        )
     if expected_account and snapshot_account != expected_account:
         raise RuntimeError(
             "券商状态账户与适配器目标账户不一致，已停止对账写入。"
         )
-    pos_count = save_position_snapshots(session, snapshot.positions)
-    broker_order_rows = [
-        *snapshot.open_orders,
-        *snapshot.completed_orders,
-    ]
-    updated_orders = update_order_statuses(
-        session,
-        broker_order_rows,
-        broker=broker_name,
-        account=snapshot_account,
-    )
-    # 先用 open/completed orders 恢复 orderRef/permId 等订单强身份，再落成交。
-    # 否则崩溃窗口中的 execution 会先以 order_id=NULL 去重，永久丢失归属。
-    fill_count = save_fill_snapshots(
-        session,
-        snapshot.fills,
-        broker=broker_name,
-    )
-    updated_cancels = update_pending_cancel_statuses(
-        session,
-        broker_order_rows,
-        broker=broker_name,
-        account=snapshot_account,
-    )
-    default_account = (
-        snapshot_account
-        or snapshot.account_values.get("Account")
-        if isinstance(snapshot.account_values, dict)
-        else None
-    ) or next((item.account for item in snapshot.positions if item.account), None)
-    working_order_snapshot = save_working_order_snapshots(
-        session,
-        snapshot.open_orders,
-        broker=broker_name,
-        run_id=run_id,
-        profile_id=profile_id,
-        default_account=default_account,
-        observed_at=snapshot.asof,
-    )
-    working_order_count = int(str(working_order_snapshot["count"]))
-    account_snapshot = save_account_snapshot(
-        session,
-        broker=broker_name,
-        snapshot=snapshot,
-        run_id=run_id,
-        profile_id=profile_id,
-    )
-    account_attribution = save_account_attribution_for_snapshot(session, account_snapshot)
-    write_sync_log(
-        session,
-        broker=broker_name,
-        sync_type='full_state',
-        status='success',
-        detail=(
-            f'positions={pos_count}, fills={fill_count}, open_orders={len(snapshot.open_orders)}, '
-            f'completed_orders={len(snapshot.completed_orders)}, '
-            f'updated_orders={updated_orders}, updated_cancels={updated_cancels}, '
-            f"working_order_snapshots={working_order_count}, "
-            f'account_snapshot_id={account_snapshot.id}, '
-            f'account_attribution_id={getattr(account_attribution, "id", None)}'
-        ),
-    )
+    try:
+        position_batch = save_position_snapshot_batch(
+            session,
+            snapshot.positions,
+            broker=broker_name,
+            account=snapshot_account or expected_account,
+            profile_id=profile_id,
+            run_id=run_id,
+            asof=snapshot.asof,
+            commit=False,
+        )
+        pos_count = int(position_batch.position_count)
+        broker_order_rows = [
+            *snapshot.open_orders,
+            *snapshot.completed_orders,
+        ]
+        updated_orders = update_order_statuses(
+            session,
+            broker_order_rows,
+            broker=broker_name,
+            account=snapshot_account,
+            commit=False,
+        )
+        # 先用 open/completed orders 恢复 orderRef/permId 等订单强身份，再落成交。
+        # 否则崩溃窗口中的 execution 会先以 order_id=NULL 去重，永久丢失归属。
+        fill_count = save_fill_snapshots(
+            session,
+            snapshot.fills,
+            broker=broker_name,
+            commit=False,
+        )
+        updated_cancels = update_pending_cancel_statuses(
+            session,
+            broker_order_rows,
+            broker=broker_name,
+            account=snapshot_account,
+            commit=False,
+        )
+        default_account = (
+            snapshot_account
+            or snapshot.account_values.get("Account")
+            if isinstance(snapshot.account_values, dict)
+            else None
+        ) or next((item.account for item in snapshot.positions if item.account), None)
+        working_order_snapshot = save_working_order_snapshots(
+            session,
+            snapshot.open_orders,
+            broker=broker_name,
+            run_id=run_id,
+            profile_id=profile_id,
+            default_account=default_account,
+            observed_at=snapshot.asof,
+            commit=False,
+        )
+        working_order_count = int(str(working_order_snapshot["count"]))
+        account_snapshot = save_account_snapshot(
+            session,
+            broker=broker_name,
+            snapshot=snapshot,
+            run_id=run_id,
+            profile_id=profile_id,
+            position_snapshot_batch_id=position_batch.snapshot_batch_id,
+            commit=False,
+        )
+        account_attribution = save_account_attribution_for_snapshot(
+            session,
+            account_snapshot,
+            commit=False,
+        )
+        write_sync_log(
+            session,
+            broker=broker_name,
+            sync_type="full_state",
+            status="success",
+            detail=(
+                f"positions={pos_count}, fills={fill_count}, "
+                f"open_orders={len(snapshot.open_orders)}, "
+                f"completed_orders={len(snapshot.completed_orders)}, "
+                f"updated_orders={updated_orders}, updated_cancels={updated_cancels}, "
+                f"working_order_snapshots={working_order_count}, "
+                f"account_snapshot_id={account_snapshot.id}, "
+                f"account_attribution_id={getattr(account_attribution, 'id', None)}"
+            ),
+            commit=False,
+        )
+        session.commit()
+    except Exception as exc:
+        session.rollback()
+        error_detail = f"{type(exc).__name__}: {exc}"
+        try:
+            write_sync_log(
+                session,
+                broker=broker_name,
+                sync_type="full_state",
+                status="failed",
+                detail=error_detail,
+            )
+        except Exception:
+            session.rollback()
+            reconcile_logger.exception("券商状态同步失败，且失败日志写入失败")
+        reconcile_logger.exception("券商状态同步失败，事务已回滚")
+        raise
     reconcile_logger.info(
         "券商状态同步完成，positions=%s，fills=%s，open_orders=%s，completed_orders=%s，updated_orders=%s，updated_cancels=%s，working_order_snapshots=%s，account_snapshot_id=%s，account_attribution_id=%s",
         pos_count,
@@ -146,7 +201,16 @@ def reconcile_broker_state(
     }
 
 
-def analyze_position_drift(session: Session, targets: pl.DataFrame, latest_prices: dict[str, float]) -> dict:
+def analyze_position_drift(
+    session: Session,
+    targets: pl.DataFrame,
+    latest_prices: dict[str, float],
+    *,
+    broker: str | None = None,
+    account: str | None = None,
+    profile_id: str | None = None,
+    equity: float | None = None,
+) -> dict:
     """分析真实持仓与目标仓位之间的差异。
 
     这是“实盘到底有没有跟上策略”的核心检查：
@@ -156,7 +220,12 @@ def analyze_position_drift(session: Session, targets: pl.DataFrame, latest_price
     """
 
     logger.bind(command="position.drift").info("开始计算持仓偏离")
-    latest_positions = list_latest_positions(session)
+    latest_positions = list_latest_positions(
+        session,
+        broker=broker,
+        account=account,
+        profile_id=profile_id,
+    )
     current_rows = []
     for pos in latest_positions:
         price = float(latest_prices.get(pos.symbol, pos.market_price or 0.0) or 0.0)
@@ -171,16 +240,23 @@ def analyze_position_drift(session: Session, targets: pl.DataFrame, latest_price
     current_df = pl.DataFrame(current_rows) if current_rows else pl.DataFrame({'symbol': [], 'current_qty': [], 'current_market_value': []})
     target_df = targets.select(['symbol', 'target_weight'])
 
-    total_market_value = 0.0
-    if not current_df.is_empty():
-        total_market_value = float(current_df['current_market_value'].sum())
-    if total_market_value <= 0:
-        total_market_value = 1.0
+    resolved_equity = float(equity) if equity is not None else None
+    if resolved_equity is None:
+        account_row = latest_account_snapshot(
+            session,
+            broker=broker,
+            account=account,
+            profile_id=profile_id,
+        )
+        if account_row is not None and account_row.net_liquidation is not None:
+            resolved_equity = float(account_row.net_liquidation)
+    if resolved_equity is None or resolved_equity <= 0:
+        raise ValueError("持仓偏离计算需要作用域内大于 0 的账户权益")
 
     merged = target_df.join(current_df, on='symbol', how='full', coalesce=True).fill_null(0.0)
     merged = merged.with_columns(
-        (pl.col('current_market_value') / total_market_value).alias('current_weight'),
-        (pl.col('target_weight') - pl.col('current_market_value') / total_market_value).alias('weight_diff'),
+        (pl.col('current_market_value') / resolved_equity).alias('current_weight'),
+        (pl.col('target_weight') - pl.col('current_market_value') / resolved_equity).alias('weight_diff'),
     )
     merged = merged.sort('weight_diff', descending=True)
 
@@ -194,6 +270,7 @@ def analyze_position_drift(session: Session, targets: pl.DataFrame, latest_price
     result = {
         'summary': {
             "position_count": position_count,
+            "equity": resolved_equity,
             "total_abs_weight_diff": total_abs_weight_diff,
             "max_abs_weight_diff": max_abs_weight_diff,
         },

@@ -3,6 +3,7 @@ from datetime import datetime
 
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
+from tests.postgresql import postgresql_test_url
 
 from northstar_quant.db.base import Base
 from northstar_quant.db.models import OrderRecord
@@ -12,7 +13,7 @@ from northstar_quant.execution.models import OrderRequest, OrderResult
 
 def test_save_order_result_persists_full_order_audit_context(tmp_path):
     db_path = tmp_path / "orders.db"
-    engine = create_engine(f"sqlite:///{db_path.as_posix()}", future=True)
+    engine = create_engine(postgresql_test_url(db_path), future=True)
     Base.metadata.create_all(bind=engine)
     submitted_at = datetime(2024, 3, 4, 15, 35, tzinfo=UTC)
 

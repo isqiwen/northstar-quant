@@ -152,3 +152,51 @@ def test_order_router_does_not_reserve_risk_capacity_for_idempotent_replay():
     )
 
     assert context.reserved_buy_notional == 0.0
+
+
+def test_long_only_router_rejects_opening_short_position():
+    broker = _AcceptingBroker()
+    router = OrderRouter(
+        broker,
+        RiskLimits(max_order_notional=None, long_only=True),
+        risk_context=OrderRiskContext(position_qty_by_symbol={}),
+    )
+
+    with pytest.raises(ValueError, match="超过可卖持仓"):
+        router.route(
+            OrderRequest(
+                strategy_id="test",
+                symbol="RB2405",
+                side="SELL",
+                qty=1.0,
+                reference_price=100.0,
+            )
+        )
+
+    assert broker.orders == []
+
+
+def test_non_long_only_router_allows_short_when_sellable_check_is_disabled():
+    broker = _AcceptingBroker()
+    router = OrderRouter(
+        broker,
+        RiskLimits(
+            max_order_notional=None,
+            long_only=False,
+            enforce_sellable_qty=False,
+        ),
+        risk_context=OrderRiskContext(position_qty_by_symbol={}),
+    )
+
+    result = router.route(
+        OrderRequest(
+            strategy_id="test",
+            symbol="RB2405",
+            side="SELL",
+            qty=1.0,
+            reference_price=100.0,
+        )
+    )
+
+    assert result.accepted is True
+    assert len(broker.orders) == 1

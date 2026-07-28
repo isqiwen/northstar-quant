@@ -243,14 +243,22 @@ def _run_bar_event_backtest(
 ) -> BacktestResult:
     """运行连续合约收益型事件回测。
 
-    ``periods_per_year`` 只用于把周期收益换算为年化统计，不会制造额外交易日。实际
-    成交延迟、换月、保证金和流动性约束不在这个轻量研究引擎中模拟。
+    ``periods_per_year`` 只用于把周期收益换算为年化统计，不会制造额外交易日。画像
+    中的资金、佣金、滑点和信号延迟会传入收益型引擎；换月、保证金和流动性约束仍不
+    在这个轻量研究引擎中模拟。
     """
 
     return run_event_backtest(
         market_df,
         targets,
         periods_per_year=periods_per_year_for_frequency(profile.data_frequency),
+        initial_cash=profile.backtest.initial_cash,
+        commission_bps=profile.backtest.commission_bps,
+        min_commission=profile.backtest.min_commission,
+        slippage_bps=profile.backtest.slippage_bps,
+        execution_delay_sessions=profile.backtest.execution_delay_sessions,
+        lot_size=profile.backtest.lot_size,
+        sellable_after_sessions=profile.backtest.sellable_after_sessions,
     )
 
 

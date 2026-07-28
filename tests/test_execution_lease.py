@@ -4,6 +4,7 @@ from threading import Barrier
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
+from tests.postgresql import postgresql_test_url
 
 from northstar_quant.common.time import utc_now
 from northstar_quant.db.base import Base
@@ -16,7 +17,7 @@ from northstar_quant.db.repositories import (
 
 def test_execution_lease_is_account_scoped_and_fenced_across_sessions(tmp_path):
     engine = create_engine(
-        f"sqlite:///{(tmp_path / 'leases.db').as_posix()}",
+        postgresql_test_url(tmp_path / "leases.db"),
         future=True,
     )
     Base.metadata.create_all(bind=engine)
@@ -96,7 +97,7 @@ def test_execution_lease_is_account_scoped_and_fenced_across_sessions(tmp_path):
 
 def test_same_owner_renews_without_incrementing_fencing_token(tmp_path):
     engine = create_engine(
-        f"sqlite:///{(tmp_path / 'same-owner.db').as_posix()}",
+        postgresql_test_url(tmp_path / "same-owner.db"),
         future=True,
     )
     Base.metadata.create_all(bind=engine)
@@ -124,7 +125,7 @@ def test_same_owner_renews_without_incrementing_fencing_token(tmp_path):
 
 def test_concurrent_sessions_cannot_both_acquire_account_lease(tmp_path):
     engine = create_engine(
-        f"sqlite:///{(tmp_path / 'concurrent-lease.db').as_posix()}",
+        postgresql_test_url(tmp_path / "concurrent-lease.db"),
         future=True,
     )
     Base.metadata.create_all(bind=engine)

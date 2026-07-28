@@ -11,7 +11,6 @@ import plotly.graph_objects as go
 import polars as pl
 import streamlit as st
 from sqlalchemy import text
-from sqlalchemy.exc import OperationalError
 
 from northstar_quant.config.settings import get_settings
 from northstar_quant.config.trading_profile import (
@@ -60,18 +59,8 @@ def render_dashboard() -> None:
 def _render_live_overview(settings: Any) -> None:
     with SessionLocal() as session:
         positions = list_latest_positions(session)
-        orders = []
-        fills = []
-        try:
-            orders = list_recent_orders(session, limit=100)
-        except OperationalError as exc:
-            if not _render_legacy_schema_hint(exc):
-                raise
-        try:
-            fills = list_recent_fills(session, limit=100)
-        except OperationalError as exc:
-            if not _render_legacy_schema_hint(exc):
-                raise
+        orders = list_recent_orders(session, limit=100)
+        fills = list_recent_fills(session, limit=100)
         pos_value = aggregate_position_market_value(session)
 
         c1, c2, c3 = st.columns(3)
@@ -174,21 +163,6 @@ def _render_live_overview(settings: Any) -> None:
             st.dataframe(file_df, use_container_width=True)
         else:
             st.info("\u62a5\u544a\u76ee\u5f55\u5c1a\u4e0d\u5b58\u5728\u3002")
-
-
-def _render_legacy_schema_hint(exc: OperationalError) -> bool:
-    message = str(exc)
-    if "no such column" not in message:
-        return False
-    st.error(
-        "\u5f53\u524d SQLite \u6570\u636e\u5e93\u7ed3\u6784\u6bd4\u4ee3\u7801\u65e7\uff0c"
-        "\u8bf7\u5148\u8fd0\u884c `northstar init-db` \u8865\u9f50\u672c\u5730\u7f3a\u5931\u5b57\u6bb5\uff1b"
-        "\u5982\u679c\u4f60\u662f\u6309 Alembic \u7ba1\u7406\u8fc1\u79fb\uff0c"
-        "\u5219\u8fd0\u884c `alembic upgrade head`\u3002"
-    )
-    with st.expander("\u67e5\u770b\u6570\u636e\u5e93\u9519\u8bef\u8be6\u60c5", expanded=False):
-        st.code(message)
-    return True
 
 
 def _render_data_overview(settings: Any) -> None:

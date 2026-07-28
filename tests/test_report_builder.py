@@ -1,18 +1,64 @@
 from datetime import UTC, datetime
 from pathlib import Path
 
+import pytest
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
+from tests.postgresql import postgresql_test_url
 
+from northstar_quant.backtest.event_engine import BacktestResult
 from northstar_quant.config.settings import get_settings
 from northstar_quant.db.base import Base
 from northstar_quant.db.models import AccountAttributionRecord, AnomalyEventRecord
 from northstar_quant.reporting import report_builder
 
 
+def test_periodic_backtest_views_use_distinct_daily_weekly_and_monthly_windows():
+    result = BacktestResult(
+        total_return=0.10,
+        annualized_return=0.20,
+        max_drawdown=-0.05,
+        turnover_estimate=0.30,
+        equity_curve=[
+            {"date": "2024-01-31", "equity": 1.00},
+            {"date": "2024-02-01", "equity": 1.01},
+            {"date": "2024-02-02", "equity": 1.02},
+            {"date": "2024-02-05", "equity": 1.04},
+            {"date": "2024-02-06", "equity": 1.03},
+            {"date": "2024-02-07", "equity": 1.05},
+        ],
+        monthly_returns=[
+            {"month": "2024-01", "return": 0.01},
+            {"month": "2024-02", "return": 0.05},
+        ],
+        turnover_curve=[
+            {"date": "2024-01-31", "turnover": 0.1},
+            {"date": "2024-02-01", "turnover": 0.2},
+            {"date": "2024-02-02", "turnover": 0.3},
+            {"date": "2024-02-05", "turnover": 0.4},
+            {"date": "2024-02-06", "turnover": 0.5},
+            {"date": "2024-02-07", "turnover": 0.6},
+        ],
+    )
+
+    daily = report_builder.build_periodic_backtest_view(result, "daily")
+    weekly = report_builder.build_periodic_backtest_view(result, "weekly")
+    monthly = report_builder.build_periodic_backtest_view(result, "monthly")
+
+    assert daily["metrics"]["期间收益率"] == pytest.approx(1.05 / 1.03 - 1.0)
+    assert weekly["metrics"]["期间收益率"] == pytest.approx(1.05 / 1.02 - 1.0)
+    assert monthly["metrics"]["期间收益率"] == pytest.approx(1.05 / 1.00 - 1.0)
+    assert daily["metrics"]["期间观测数"] == 1
+    assert weekly["metrics"]["期间观测数"] == 3
+    assert monthly["metrics"]["期间观测数"] == 5
+    assert monthly["analytics"]["monthly_returns"] == [
+        {"month": "2024-02", "return": 0.05}
+    ]
+
+
 def test_daily_report_includes_latest_account_attribution(tmp_path, monkeypatch):
     db_path = tmp_path / "report-builder.db"
-    engine = create_engine(f"sqlite:///{db_path.as_posix()}", future=True)
+    engine = create_engine(postgresql_test_url(db_path), future=True)
     Base.metadata.create_all(bind=engine)
     testing_session = sessionmaker(
         bind=engine,
@@ -91,7 +137,7 @@ def test_daily_report_includes_latest_account_attribution(tmp_path, monkeypatch)
 
 def test_daily_report_emits_alert_lines_when_thresholds_are_breached(tmp_path, monkeypatch):
     db_path = tmp_path / "report-builder-alert.db"
-    engine = create_engine(f"sqlite:///{db_path.as_posix()}", future=True)
+    engine = create_engine(postgresql_test_url(db_path), future=True)
     Base.metadata.create_all(bind=engine)
     testing_session = sessionmaker(
         bind=engine,
@@ -179,7 +225,7 @@ def test_daily_report_emits_alert_lines_when_thresholds_are_breached(tmp_path, m
 
 def test_daily_report_emits_funding_alerts_for_large_cash_flows(tmp_path, monkeypatch):
     db_path = tmp_path / "report-builder-funding-alert.db"
-    engine = create_engine(f"sqlite:///{db_path.as_posix()}", future=True)
+    engine = create_engine(postgresql_test_url(db_path), future=True)
     Base.metadata.create_all(bind=engine)
     testing_session = sessionmaker(
         bind=engine,
@@ -289,7 +335,7 @@ def test_daily_report_includes_run_health_section(tmp_path, monkeypatch):
 
 def test_record_daily_anomaly_events_is_idempotent(tmp_path, monkeypatch):
     db_path = tmp_path / "report-builder-anomaly-events.db"
-    engine = create_engine(f"sqlite:///{db_path.as_posix()}", future=True)
+    engine = create_engine(postgresql_test_url(db_path), future=True)
     Base.metadata.create_all(bind=engine)
     testing_session = sessionmaker(
         bind=engine,

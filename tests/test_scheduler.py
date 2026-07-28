@@ -140,6 +140,39 @@ def test_build_and_send_weekly_report_keeps_info_success_alert(monkeypatch):
     assert calls == [("info", "weekly 报告邮件发送成功：/tmp/weekly_report.md")]
 
 
+def test_monthly_report_runs_only_on_last_trading_session(monkeypatch):
+    calls: list[str] = []
+    monkeypatch.setattr(
+        live_scheduler,
+        "_build_and_send_report",
+        lambda report_type: calls.append(report_type) or {"report_path": "/tmp/monthly.md"},
+    )
+    monkeypatch.setattr(
+        live_scheduler,
+        "is_last_trading_session_of_month",
+        lambda **_kwargs: False,
+    )
+
+    skipped = live_scheduler._build_monthly_report_if_due(
+        calendar="XSHG",
+        timezone="Asia/Shanghai",
+    )
+
+    monkeypatch.setattr(
+        live_scheduler,
+        "is_last_trading_session_of_month",
+        lambda **_kwargs: True,
+    )
+    generated = live_scheduler._build_monthly_report_if_due(
+        calendar="XSHG",
+        timezone="Asia/Shanghai",
+    )
+
+    assert skipped is None
+    assert generated == {"report_path": "/tmp/monthly.md"}
+    assert calls == ["monthly"]
+
+
 def test_run_scheduler_registers_shadow_run_job(monkeypatch):
     added_job_ids: list[str] = []
     scheduler_timezones: list[str] = []

@@ -8,6 +8,7 @@ OHLC，避免只替换 close 而造成高低价与收盘价口径不一致。
 from __future__ import annotations
 
 from dataclasses import asdict
+import math
 from typing import Any
 
 import polars as pl
@@ -71,6 +72,8 @@ def validate_market_dataset(
     """
 
     profile_obj = profile if isinstance(profile, TradingProfile) else load_trading_profile(profile)
+    if df.is_empty():
+        raise ValueError(f"画像 {profile_obj.profile_id} 的数据集不能为空")
     expected_columns = expected_market_columns(profile_obj)
     missing_columns = [column for column in expected_columns if column not in df.columns]
     if missing_columns:
@@ -112,6 +115,79 @@ def validate_market_dataset(
             f"画像 {profile_obj.profile_id} 配置的 price_field={configured_price_field} 不在数据集中"
         )
 
+    numeric_columns = [
+        column
+        for column in ("open", "high", "low", "close", "adjusted_close", "volume")
+        if column in expected_columns
+    ]
+    for column in numeric_columns:
+        values = df.get_column(column).to_list()
+        invalid_count = sum(
+            1
+            for value in values
+            if not isinstance(value, (int, float)) or not math.isfinite(float(value))
+        )
+        if invalid_count:
+            raise ValueError(
+                f"画像 {profile_obj.profile_id} 的数据集字段 {column} "
+                f"存在 {invalid_count} 个非有限或非数值值"
+            )
+
+    for column in ("open", "high", "low", "close", "adjusted_close"):
+        if column not in expected_columns:
+            continue
+        invalid_count = int(df.filter(pl.col(column) <= 0).height)
+        if invalid_count:
+            raise ValueError(
+                f"画像 {profile_obj.profile_id} 的价格字段 {column} "
+                f"存在 {invalid_count} 个非正值"
+            )
+    if "volume" in expected_columns:
+        negative_volume_count = int(df.filter(pl.col("volume") < 0).height)
+        if negative_volume_count:
+            raise ValueError(
+                f"画像 {profile_obj.profile_id} 的 volume 存在 "
+                f"{negative_volume_count} 个负值"
+            )
+
+    invalid_ohlc_count = int(
+        df.filter(
+            (pl.col("high") < pl.max_horizontal("open", "close", "low"))
+            | (pl.col("low") > pl.min_horizontal("open", "close", "high"))
+        ).height
+    )
+    if invalid_ohlc_count:
+        raise ValueError(
+            f"画像 {profile_obj.profile_id} 的数据集存在 "
+            f"{invalid_ohlc_count} 条不一致 OHLC"
+        )
+
+    blank_symbol_count = int(
+        df.filter(pl.col("symbol").cast(pl.String).str.strip_chars() == "").height
+    )
+    if blank_symbol_count:
+        raise ValueError(
+            f"画像 {profile_obj.profile_id} 的 symbol 存在 {blank_symbol_count} 个空字符串"
+        )
+
+    expected_symbols = set(profile_obj.data.download.symbols)
+    actual_symbols = {
+        str(symbol).strip()
+        for symbol in df.get_column("symbol").unique().to_list()
+    }
+    missing_symbols = sorted(expected_symbols.difference(actual_symbols))
+    unexpected_symbols = sorted(actual_symbols.difference(expected_symbols))
+    if expected_symbols and (missing_symbols or unexpected_symbols):
+        details: list[str] = []
+        if missing_symbols:
+            details.append("缺少：" + ", ".join(missing_symbols))
+        if unexpected_symbols:
+            details.append("意外出现：" + ", ".join(unexpected_symbols))
+        raise ValueError(
+            f"画像 {profile_obj.profile_id} 的标的集合与配置不一致；"
+            + "；".join(details)
+        )
+
     return {
         "schema_version": SCHEMA_VERSION,
         "expected_columns": expected_columns,
@@ -123,6 +199,11 @@ def validate_market_dataset(
         "default_price_field": default_price_field(profile_obj.data_frequency),
         "null_counts": null_counts,
         "duplicate_key_count": duplicate_key_count,
+        "finite_numeric_values": True,
+        "positive_price_values": True,
+        "ohlc_consistent": True,
+        "expected_symbols": sorted(expected_symbols),
+        "actual_symbols": sorted(actual_symbols),
         "dimensions": asdict(profile_obj.dimensions),
     }
 

@@ -170,6 +170,11 @@ def _is_working_order(row: dict) -> bool:
 
 
 def _fill_affects_planning(fill: FillSnapshot, snapshot_asof: datetime) -> bool:
+    if fill.filled_at is None:
+        raise ValueError(
+            "BROKER_FILL_TIMESTAMP_REQUIRED: 成交缺少 filled_at，"
+            "无法判断是否已反映在持仓快照中。"
+        )
     return ensure_utc(fill.filled_at) > snapshot_asof
 
 
@@ -185,6 +190,11 @@ def project_broker_state_positions(broker_state: BrokerStateSnapshot) -> list[Po
     同方向订单。它不是券商官方持仓，也不能用于账务或保证金结算。
     """
 
+    if broker_state.asof is None:
+        raise ValueError(
+            "BROKER_STATE_TIMESTAMP_REQUIRED: 券商状态缺少 asof，"
+            "无法安全投影计划持仓。"
+        )
     snapshot_asof = ensure_utc(broker_state.asof)
     qty_by_symbol: dict[str, float] = defaultdict(float)
 
@@ -258,7 +268,45 @@ def build_execution_plan(
     definition = resolve_execution_planner(profile, output_type)
     planning_positions = project_broker_state_positions(broker_state)
     plans = definition.planner(profile, output, planning_positions, latest_prices, equity)
+    plans = _apply_rebalance_tolerance(
+        plans,
+        tolerance=profile.execution.rebalance_weight_tolerance,
+        equity=equity,
+    )
     for plan in plans:
         if not plan.reason:
             plan.reason = f"{profile.rebalance_frequency.value}_rebalance"
     return plans
+
+
+def _apply_rebalance_tolerance(
+    plans: list[RebalanceOrderPlan],
+    *,
+    tolerance: float,
+    equity: float | None,
+) -> list[RebalanceOrderPlan]:
+    """过滤目标与当前权重差异落在容忍带内的计划。
+
+    计划缺少目标权重、当前数量、可信价格或账户权益时无法证明落在容忍带内，因此保留
+    计划交给后续风控，而不是猜测并静默删除。
+    """
+
+    if tolerance <= 0:
+        return plans
+    if equity is None or equity <= 0:
+        return plans
+    filtered: list[RebalanceOrderPlan] = []
+    for plan in plans:
+        price = plan.execution_reference_price or plan.latest_price
+        if (
+            plan.target_weight is None
+            or plan.current_qty is None
+            or price is None
+            or price <= 0
+        ):
+            filtered.append(plan)
+            continue
+        current_weight = float(plan.current_qty) * float(price) / float(equity)
+        if abs(float(plan.target_weight) - current_weight) + 1e-12 >= tolerance:
+            filtered.append(plan)
+    return filtered

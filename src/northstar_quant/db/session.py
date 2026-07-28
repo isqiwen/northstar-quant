@@ -9,10 +9,14 @@ from northstar_quant.config.settings import get_settings
 
 
 def make_engine():
-    """创建数据库引擎。"""
+    """创建 PostgreSQL 数据库引擎。"""
 
     settings = get_settings()
-    return create_engine(settings.database_url, future=True)
+    return create_engine(
+        settings.database_url,
+        future=True,
+        pool_pre_ping=True,
+    )
 
 
 SessionLocal = sessionmaker(bind=make_engine(), autoflush=False, autocommit=False, expire_on_commit=False, future=True)

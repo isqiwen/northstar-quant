@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from tests.postgresql import postgresql_test_url
 
 from northstar_quant.db.base import Base
 from northstar_quant.db.models import (
@@ -15,7 +16,7 @@ from northstar_quant.live import service as live_service
 
 def test_recent_trade_attributions_returns_serializable_rows(tmp_path, monkeypatch):
     db_path = tmp_path / "trade-attribution-service.db"
-    engine = create_engine(f"sqlite:///{db_path.as_posix()}", future=True)
+    engine = create_engine(postgresql_test_url(db_path), future=True)
     Base.metadata.create_all(bind=engine)
     testing_session = sessionmaker(
         bind=engine,
@@ -66,7 +67,7 @@ def test_recent_trade_attributions_returns_serializable_rows(tmp_path, monkeypat
 
 def test_recent_account_attributions_returns_serializable_rows(tmp_path, monkeypatch):
     db_path = tmp_path / "account-attribution-service.db"
-    engine = create_engine(f"sqlite:///{db_path.as_posix()}", future=True)
+    engine = create_engine(postgresql_test_url(db_path), future=True)
     Base.metadata.create_all(bind=engine)
     testing_session = sessionmaker(
         bind=engine,
@@ -120,7 +121,7 @@ def test_recent_account_attributions_returns_serializable_rows(tmp_path, monkeyp
 
 def test_recent_anomaly_events_returns_serializable_rows(tmp_path, monkeypatch):
     db_path = tmp_path / "anomaly-events-service.db"
-    engine = create_engine(f"sqlite:///{db_path.as_posix()}", future=True)
+    engine = create_engine(postgresql_test_url(db_path), future=True)
     Base.metadata.create_all(bind=engine)
     testing_session = sessionmaker(
         bind=engine,
@@ -160,7 +161,7 @@ def test_recent_anomaly_events_returns_serializable_rows(tmp_path, monkeypatch):
 
 def test_recent_run_health_and_soak_summary_return_serializable_rows(tmp_path, monkeypatch):
     db_path = tmp_path / "run-health-service.db"
-    engine = create_engine(f"sqlite:///{db_path.as_posix()}", future=True)
+    engine = create_engine(postgresql_test_url(db_path), future=True)
     Base.metadata.create_all(bind=engine)
     testing_session = sessionmaker(
         bind=engine,

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import math
 
 
 @dataclass(slots=True)
@@ -40,6 +41,44 @@ class RiskLimits:
     enforce_sellable_qty: bool = False  # true 时卖出前必须有足够可卖数量。
     enforce_tradeable_state: bool = False  # true 时缺少状态、停牌或不可交易都会拒绝。
     enforce_price_limit: bool = False  # true 时委托价不得突破可信涨跌停边界。
+    long_only: bool = True  # true 时卖出数量不得超过当前多头持仓；缺少持仓状态即拒绝。
+
+    def __post_init__(self) -> None:
+        """拒绝会反转或静默放宽风控语义的非法阈值。"""
+
+        for field_name in ("max_single_weight", "max_gross_exposure", "min_cash_buffer"):
+            value = float(getattr(self, field_name))
+            if not math.isfinite(value) or value < 0:
+                raise ValueError(f"风控字段 {field_name} 必须是非负有限数")
+        if self.max_single_weight > 1:
+            raise ValueError("风控字段 max_single_weight 不能大于 1")
+        if self.min_cash_buffer >= 1:
+            raise ValueError("风控字段 min_cash_buffer 必须小于 1")
+        for field_name in ("min_order_notional", "max_order_notional"):
+            value = getattr(self, field_name)
+            if value is not None and (not math.isfinite(value) or value < 0):
+                raise ValueError(f"风控字段 {field_name} 必须是非负有限数或 None")
+        if (
+            self.min_order_notional is not None
+            and self.max_order_notional is not None
+            and self.min_order_notional > self.max_order_notional
+        ):
+            raise ValueError("min_order_notional 不能大于 max_order_notional")
+        if not math.isfinite(self.max_order_qty) or self.max_order_qty <= 0:
+            raise ValueError("风控字段 max_order_qty 必须是正有限数")
+        for field_name in ("order_qty_step", "buy_qty_step", "sell_qty_step"):
+            value = getattr(self, field_name)
+            if value is not None and (not math.isfinite(value) or value <= 0):
+                raise ValueError(f"风控字段 {field_name} 必须是正有限数或 None")
+        for field_name in (
+            "enforce_available_cash",
+            "enforce_sellable_qty",
+            "enforce_tradeable_state",
+            "enforce_price_limit",
+            "long_only",
+        ):
+            if not isinstance(getattr(self, field_name), bool):
+                raise ValueError(f"风控字段 {field_name} 必须是布尔值")
 
 
 @dataclass(slots=True)

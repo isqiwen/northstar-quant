@@ -20,12 +20,15 @@ from northstar_quant.data.providers.akshare import download_akshare_main_continu
 from northstar_quant.data.schema import validate_market_dataset
 from northstar_quant.data.storage import (
     dataset_manifest_path,
+    dataset_publication_marker_path,
     load_json,
-    load_parquet,
+    load_profile_market_data,
+    profile_config_sha256,
     profile_download_cache_path,
     profile_market_data_path,
     save_json,
     save_parquet,
+    sha256_file,
 )
 
 DataProvider = Callable[[TradingProfile], pl.DataFrame]
@@ -189,6 +192,7 @@ def _build_manifest(
         symbols = sorted({str(symbol) for symbol in df.get_column("symbol").to_list()})
 
     return {
+        "manifest_version": "data_manifest_v2",
         "profile_id": profile.profile_id,
         "profile_name": profile.name,
         "dimensions": asdict(profile.dimensions),
@@ -207,6 +211,10 @@ def _build_manifest(
         "dataset_id": profile.data.dataset_id,
         "live_trading_eligible": profile.data.live_trading_eligible,
         "data_path": str(data_path),
+        "content_sha256": sha256_file(data_path),
+        "content_size_bytes": data_path.stat().st_size,
+        "profile_config_sha256": profile_config_sha256(profile),
+        "versions": asdict(profile.versions),
         "row_count": df.height,
         "symbol_count": len(symbols),
         "symbols": symbols,
@@ -230,6 +238,48 @@ def _build_manifest(
     }
 
 
+def _publish_dataset_artifact(
+    profile: TradingProfile,
+    data_source: str,
+    df: pl.DataFrame,
+    *,
+    target_path: Path,
+    validation: dict[str, Any],
+    symbol_quality: list[dict[str, Any]],
+) -> tuple[Path, Path]:
+    """按“发布中标记 → Parquet → manifest → 清标记”发布一份数据制品。
+
+    两个文件无法依靠文件系统实现跨文件原子替换，因此加载器同时验证标记和内容哈希。
+    正常异常会清理标记；若进程被强制终止，残留标记会让后续读取失败关闭。
+    """
+
+    marker_path = dataset_publication_marker_path(target_path)
+    save_json(
+        {
+            "profile_id": profile.profile_id,
+            "target_path": str(target_path),
+            "started_at": datetime.now().isoformat(timespec="seconds"),
+        },
+        marker_path,
+    )
+    try:
+        data_path = save_parquet(df, target_path)
+        manifest_path = save_json(
+            _build_manifest(
+                profile,
+                data_source,
+                df,
+                data_path=data_path,
+                validation=validation,
+                symbol_quality=symbol_quality,
+            ),
+            dataset_manifest_path(data_path),
+        )
+        return data_path, manifest_path
+    finally:
+        marker_path.unlink(missing_ok=True)
+
+
 def read_profile_manifest(profile_id: str | None = None) -> dict[str, Any]:
     """读取某个交易画像对应的数据 manifest。"""
 
@@ -247,7 +297,7 @@ def validate_profile_data(profile_id: str | None = None) -> dict[str, Any]:
 
     profile = load_trading_profile(profile_id)
     dataset_path = profile_market_data_path(profile)
-    df = load_parquet(dataset_path)
+    df = load_profile_market_data(profile)
     validation = validate_market_dataset(profile, df)
     try:
         data_source = read_profile_manifest(profile.profile_id).get(
@@ -297,30 +347,21 @@ def download_profile_data(
         detail = "；".join(regression_issues)
         raise ValueError(f"下载数据质量回退，已拒绝覆盖现有数据：{detail}")
 
-    cache_path = save_parquet(df, profile_download_cache_path(profile, provider_id))
-    dataset_path = save_parquet(df, dataset_target)
-
-    cache_manifest = save_json(
-        _build_manifest(
-            profile,
-            provider_id,
-            df,
-            data_path=cache_path,
-            validation=validation,
-            symbol_quality=symbol_quality,
-        ),
-        dataset_manifest_path(cache_path),
+    cache_path, cache_manifest = _publish_dataset_artifact(
+        profile,
+        provider_id,
+        df,
+        target_path=profile_download_cache_path(profile, provider_id),
+        validation=validation,
+        symbol_quality=symbol_quality,
     )
-    dataset_manifest = save_json(
-        _build_manifest(
-            profile,
-            provider_id,
-            df,
-            data_path=dataset_path,
-            validation=validation,
-            symbol_quality=symbol_quality,
-        ),
-        dataset_manifest_path(dataset_path),
+    dataset_path, dataset_manifest = _publish_dataset_artifact(
+        profile,
+        provider_id,
+        df,
+        target_path=dataset_target,
+        validation=validation,
+        symbol_quality=symbol_quality,
     )
 
     start, end = _temporal_range(df)

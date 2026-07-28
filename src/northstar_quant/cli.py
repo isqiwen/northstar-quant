@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import asdict
-from datetime import datetime
 
 import click
 import typer
@@ -53,6 +52,7 @@ from northstar_quant.reporting.email_sender import send_report_via_email
 from northstar_quant.reporting.pdf_renderer import markdown_to_pdf
 from northstar_quant.reporting.report_builder import (
     build_report_email_subject,
+    build_periodic_backtest_view,
     build_markdown_report,
     latest_live_account_attribution_summary,
     record_daily_anomaly_events,
@@ -595,6 +595,7 @@ def _report_command(
 
     holdings = latest_pipeline_output(pipeline)
     result = run_target_backtest(profile_obj, market_df, pipeline.frame)
+    periodic_view = build_periodic_backtest_view(result, report_type)
     live_account_attribution = (
         latest_live_account_attribution_summary(profile_id=resolved_profile)
         if report_type == "daily"
@@ -603,19 +604,10 @@ def _report_command(
     path = build_markdown_report(
         report_type,
         strategy,
-        {
-            "total_return": result.total_return,
-            "annualized_return": result.annualized_return,
-            "max_drawdown": result.max_drawdown,
-            "turnover_estimate": result.turnover_estimate,
-        },
+        periodic_view["metrics"],
         holdings,
-        period_label=_period_label(report_type),
-        analytics={
-            "equity_curve": result.equity_curve,
-            "drawdown_curve": result.drawdown_curve,
-            "monthly_returns": result.monthly_returns,
-        },
+        period_label=str(periodic_view["period_label"]),
+        analytics=periodic_view["analytics"],
         benchmark_symbol=profile_obj.benchmark_symbol,
         live_account_attribution=live_account_attribution,
     )
@@ -643,16 +635,6 @@ def _report_command(
             strategy=strategy,
             profile=resolved_profile,
         )
-
-
-def _period_label(report_type: str) -> str:
-    now = datetime.now()
-    if report_type == "daily":
-        return now.strftime("%Y-%m-%d")
-    if report_type == "weekly":
-        return now.strftime("%Y 第%W周")
-    return now.strftime("%Y-%m")
-
 
 @dashboard_app.command("run", **_COMMAND_KWARGS)
 def dashboard_run_command() -> None:

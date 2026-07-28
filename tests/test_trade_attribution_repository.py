@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
+from tests.postgresql import postgresql_test_url
 
 from northstar_quant.db.base import Base
 from northstar_quant.db.models import FillRecord, OrderRecord, TradeAttributionRecord
@@ -11,7 +12,7 @@ from northstar_quant.execution.models import FillSnapshot
 
 def test_save_fill_snapshots_creates_buy_trade_attribution(tmp_path):
     db_path = tmp_path / "buy-attribution.db"
-    engine = create_engine(f"sqlite:///{db_path.as_posix()}", future=True)
+    engine = create_engine(postgresql_test_url(db_path), future=True)
     Base.metadata.create_all(bind=engine)
     filled_at = datetime(2024, 3, 4, 15, 36, tzinfo=UTC)
 
@@ -71,7 +72,7 @@ def test_save_fill_snapshots_creates_buy_trade_attribution(tmp_path):
 
 def test_save_fill_snapshots_creates_sell_trade_attribution_with_correct_sign(tmp_path):
     db_path = tmp_path / "sell-attribution.db"
-    engine = create_engine(f"sqlite:///{db_path.as_posix()}", future=True)
+    engine = create_engine(postgresql_test_url(db_path), future=True)
     Base.metadata.create_all(bind=engine)
     filled_at = datetime(2024, 3, 4, 15, 36, tzinfo=UTC)
 
@@ -127,7 +128,7 @@ def test_save_fill_snapshots_creates_sell_trade_attribution_with_correct_sign(tm
 
 def test_save_fill_snapshots_uses_broker_execution_identity(tmp_path):
     db_path = tmp_path / "fill-identity.db"
-    engine = create_engine(f"sqlite:///{db_path.as_posix()}", future=True)
+    engine = create_engine(postgresql_test_url(db_path), future=True)
     Base.metadata.create_all(bind=engine)
     filled_at = datetime(2024, 3, 4, 15, 36, tzinfo=UTC)
 
@@ -179,7 +180,7 @@ def test_save_fill_snapshots_uses_broker_execution_identity(tmp_path):
 
 def test_fill_identity_uses_perm_id_before_reused_order_id(tmp_path):
     engine = create_engine(
-        f"sqlite:///{(tmp_path / 'fill-client-identity.db').as_posix()}",
+        postgresql_test_url(tmp_path / "fill-client-identity.db"),
         future=True,
     )
     Base.metadata.create_all(bind=engine)
@@ -249,7 +250,7 @@ def test_fill_identity_uses_perm_id_before_reused_order_id(tmp_path):
 
 def test_partial_fill_does_not_downgrade_cancelled_terminal_order(tmp_path):
     engine = create_engine(
-        f"sqlite:///{(tmp_path / 'fill-terminal.db').as_posix()}",
+        postgresql_test_url(tmp_path / "fill-terminal.db"),
         future=True,
     )
     Base.metadata.create_all(bind=engine)
@@ -303,7 +304,7 @@ def test_partial_fill_does_not_downgrade_cancelled_terminal_order(tmp_path):
 
 def test_existing_unlinked_fill_is_backfilled_by_order_ref(tmp_path):
     engine = create_engine(
-        f"sqlite:///{(tmp_path / 'fill-order-ref-backfill.db').as_posix()}",
+        postgresql_test_url(tmp_path / "fill-order-ref-backfill.db"),
         future=True,
     )
     Base.metadata.create_all(bind=engine)
@@ -374,7 +375,7 @@ def test_existing_unlinked_fill_is_backfilled_by_order_ref(tmp_path):
 
 def test_fill_ledger_does_not_reduce_completed_cumulative_progress(tmp_path):
     engine = create_engine(
-        f"sqlite:///{(tmp_path / 'fill-progress-monotonic.db').as_posix()}",
+        postgresql_test_url(tmp_path / "fill-progress-monotonic.db"),
         future=True,
     )
     Base.metadata.create_all(bind=engine)

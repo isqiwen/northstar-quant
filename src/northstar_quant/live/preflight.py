@@ -267,6 +267,11 @@ def build_preflight_result(
             )
 
         provenance_issues: list[str] = []
+        approved_live_providers = {
+            item.strip().lower()
+            for item in get_settings().approved_live_data_providers.split(",")
+            if item.strip()
+        }
         manifest_source = (
             str(data_manifest.get("data_source") or "").strip().lower()
             if data_manifest is not None
@@ -294,8 +299,17 @@ def build_preflight_result(
                 )
             if not manifest_source:
                 provenance_issues.append("manifest 缺少 data_source")
-            elif manifest_source != "akshare":
-                provenance_issues.append(f"数据来源不受支持：{manifest_source}")
+            elif not approved_live_providers:
+                provenance_issues.append("未配置真实交易数据提供器白名单")
+            elif manifest_source not in approved_live_providers:
+                provenance_issues.append(
+                    f"数据来源未进入真实交易白名单：{manifest_source}"
+                )
+            content_sha256 = str(data_manifest.get("content_sha256") or "")
+            if len(content_sha256) != 64:
+                provenance_issues.append("manifest 缺少有效的数据内容哈希")
+            if str(data_manifest.get("manifest_version") or "") != "data_manifest_v2":
+                provenance_issues.append("manifest 版本不受支持")
 
         if provenance_issues:
             _append_check(
@@ -313,6 +327,7 @@ def build_preflight_result(
                 configured_download_provider=profile.data.download.provider,
                 live_trading_eligible=profile.data.live_trading_eligible,
                 manifest_data_source=manifest_source or None,
+                approved_live_data_providers=sorted(approved_live_providers),
             )
         else:
             _append_check(
@@ -323,6 +338,7 @@ def build_preflight_result(
                 message=f"真实券商数据来源门禁通过，data_source={manifest_source}。",
                 broker=normalized_broker,
                 manifest_data_source=manifest_source,
+                approved_live_data_providers=sorted(approved_live_providers),
             )
 
     market_asof = _latest_frame_asof(raw_market_df)
