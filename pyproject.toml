@@ -63,3 +63,10 @@ target-version = "py311"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = ["--strict-markers"]
+markers = [
+  "unit: 不访问真实数据库或外部服务的快速测试",
+  "integration: 使用 PostgreSQL 或验证多个模块协作的集成测试",
+  "contract: 验证架构、迁移、CLI 和运维脚本契约",
+  "e2e: 验证完整业务闭环的端到端测试",
+]

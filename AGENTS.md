@@ -24,6 +24,8 @@ alembic/                  Database migration scripts
 configs/                  App, profile, data, strategy, and execution configs
 docs/                     Architecture and operating notes
 scripts/                  Development and demo scripts
+scripts/deploy/           Linux artifact deployment and systemd release scripts
+scripts/deploy.sh         Public Linux deployment entrypoint
 src/northstar_quant/      Application package
 templates/                Report templates
 tests/                    Test suite
@@ -119,7 +121,12 @@ Report whether it passes or fails. Do not claim the codebase is type-clean unles
 - Do not revert unrelated user changes.
 - Keep changes focused and small.
 - Add or update tests for changed behavior.
-- Preserve existing public CLI commands unless the user asks for a breaking change.
+- This is a greenfield, pre-release project. Backward compatibility is not required
+  until the user explicitly declares a production baseline or retained business data.
+- Prefer direct breaking changes and update every caller, test, config, script, and
+  document in the same change. Do not add deprecated aliases, compatibility wrappers,
+  fallback paths, dual schemas, or migrations whose only purpose is preserving
+  unshipped behavior.
 - Prefer structured data models and explicit config over ad hoc dictionaries when the behavior is durable.
 - Avoid broad `except Exception` in live, execution, broker, and persistence paths unless the exception is logged and the resulting behavior is intentionally safe.
 
@@ -147,21 +154,28 @@ uv run northstar live sync
 ```
 
 Do not start long-running schedulers or dashboards unless the user asks for them.
+Linux deployment must default to `SERVICE_MODE=health`. Starting a non-paper
+scheduler requires explicit confirmation and must preserve all application
+preflight and kill-switch checks.
 
 ## Generated Files
 
 Generated or local-runtime files should generally remain untracked:
 
 - `.env`
+- `.env.production`
+- `deploy.env`
 - `.venv/`
 - `.pytest_cache/`
 - `.ruff_cache/`
 - `.mypy_cache/`
+- `logs/`
 - `storage/`
 - `reports/`
 - PostgreSQL 本地数据目录和数据库备份
 - downloaded market data
 - broker state snapshots
+- deployment artifacts under `dist/`
 
 If a generated artifact needs to be tracked, explain why before adding it.
 

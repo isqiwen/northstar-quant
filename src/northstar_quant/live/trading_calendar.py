@@ -108,3 +108,47 @@ def is_last_trading_session_of_month(
             ) from exc
         raise
     return int(next_session.month) != local_dt.month
+
+
+def is_last_trading_session_of_year(
+    dt: datetime | None = None,
+    *,
+    calendar: str | None = None,
+    timezone: str | None = None,
+    require_calendar: bool = True,
+) -> bool:
+    """判断当前日期是否为该日历当年最后一个交易日。"""
+
+    settings = get_settings()
+    timezone_name = timezone or settings.scheduler_timezone
+    calendar_name = calendar or settings.exchange_calendar
+    if dt is None:
+        local_dt = now_local(timezone_name)
+    elif dt.tzinfo is None:
+        local_dt = dt.replace(tzinfo=ZoneInfo(timezone_name))
+    else:
+        local_dt = dt.astimezone(ZoneInfo(timezone_name))
+
+    if xcals is None:
+        if require_calendar:
+            raise RuntimeError("交易日历依赖不可用，无法判断年末交易日。")
+        if local_dt.weekday() >= 5:
+            return False
+        next_day = local_dt + timedelta(days=1)
+        while next_day.weekday() >= 5:
+            next_day += timedelta(days=1)
+        return next_day.year != local_dt.year
+
+    try:
+        cal = xcals.get_calendar(calendar_name)
+        session_label = local_dt.date()
+        if not cal.is_session(session_label):
+            return False
+        next_session = cal.next_session(session_label)
+    except Exception as exc:
+        if require_calendar:
+            raise RuntimeError(
+                f"无法使用交易日历 {calendar_name} 判断年末交易日。"
+            ) from exc
+        raise
+    return int(next_session.year) != local_dt.year

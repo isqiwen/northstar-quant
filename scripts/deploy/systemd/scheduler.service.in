@@ -1,0 +1,42 @@
+[Unit]
+Description=Northstar Quant 调度器
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=@SERVICE_USER@
+Group=@SERVICE_USER@
+WorkingDirectory=@CURRENT_LINK@
+EnvironmentFile=@ENV_FILE@
+Environment=HOME=@SERVICE_HOME@
+Environment=NORTHSTAR_PROJECT_ROOT=@CURRENT_LINK@
+Environment=NORTHSTAR_STORAGE_DIR=@SHARED_DIR@/storage
+Environment=NORTHSTAR_DOWNLOADS_DIR=@SHARED_DIR@/storage/downloads
+Environment=NORTHSTAR_REPORTS_DIR=@SHARED_DIR@/reports
+Environment=UV_CACHE_DIR=@SHARED_DIR@/uv-cache
+Environment=UV_PYTHON_INSTALL_DIR=@SHARED_DIR@/python
+Environment=XDG_CACHE_HOME=@SHARED_DIR@/cache
+Environment=MPLCONFIGDIR=@SHARED_DIR@/matplotlib
+ExecStart=@CURRENT_LINK@/.venv/bin/northstar live scheduler
+Restart=on-failure
+RestartSec=5
+KillSignal=SIGINT
+TimeoutStopSec=60
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictRealtime=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ReadWritePaths=@SHARED_DIR@
+
+[Install]
+WantedBy=multi-user.target

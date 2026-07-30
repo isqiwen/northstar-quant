@@ -1,0 +1,129 @@
+{
+  "version": "2.0.0",
+  "options": {
+    "cwd": "${workspaceFolder}",
+    "env": {
+      "NORTHSTAR_BROKER": "paper",
+      "NORTHSTAR_LIVE_TRADING_ENABLED": "false"
+    }
+  },
+  "tasks": [
+    {
+      "label": "开发环境：初始化",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/setup_dev.sh",
+      "problemMatcher": []
+    },
+    {
+      "label": "数据库：启动 PostgreSQL",
+      "type": "shell",
+      "command": "docker",
+      "args": [
+        "compose",
+        "up",
+        "-d",
+        "postgres"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "数据库：停止 PostgreSQL",
+      "type": "shell",
+      "command": "docker",
+      "args": [
+        "compose",
+        "stop",
+        "postgres"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "数据库：执行迁移",
+      "type": "shell",
+      "command": "uv",
+      "args": [
+        "run",
+        "northstar",
+        "init-db"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "测试：快速单元测试",
+      "type": "shell",
+      "command": "uv",
+      "args": [
+        "run",
+        "pytest",
+        "-m",
+        "unit"
+      ],
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "测试：集成测试",
+      "type": "shell",
+      "command": "uv",
+      "args": [
+        "run",
+        "pytest",
+        "-m",
+        "integration"
+      ],
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "测试：运行 Pytest",
+      "type": "shell",
+      "command": "uv",
+      "args": [
+        "run",
+        "pytest"
+      ],
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "质量：运行 Ruff",
+      "type": "shell",
+      "command": "uv",
+      "args": [
+        "run",
+        "ruff",
+        "check",
+        "."
+      ],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "部署：构建演练",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/deploy.sh",
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "ALLOW_DIRTY": "1",
+          "DRY_RUN": "1",
+          "NORTHSTAR_BROKER": "paper",
+          "NORTHSTAR_LIVE_TRADING_ENABLED": "false"
+        }
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "部署：发布到 Linux",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/deploy.sh",
+      "problemMatcher": []
+    }
+  ]
+}

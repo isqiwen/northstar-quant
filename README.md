@@ -20,7 +20,7 @@ Northstar Quant 的目标不是提供“开箱即用的券商生产系统”，�
 - **执行层**：`paper` 适配器可验证订单、成交、对账和报告基础设施；期货策略到实际合约计划尚未接通，CTP 报单适配器也未实现
 - **风控层**：包含全局风控、策略风控与交易前风控
 - **监控层**：包含日志、健康检查、企业微信 / Telegram 告警、Dashboard
-- **报告层**：支持日报、周报、月报、邮件发送、Markdown/PDF 报告归档
+- **报告层**：支持日报、周报、月报、年报、邮件发送、Markdown/PDF 报告归档
 
 ## 技术栈
 
@@ -52,9 +52,17 @@ uv sync --extra dev
 
 ```text
 Northstar/
+├─ .codex/                     Codex 项目级安全配置
+├─ .vscode/                    VS Code 设置、扩展建议与开发任务
 ├─ alembic/                    数据库迁移脚本
 ├─ configs/                    应用、策略、风控、数据配置
 ├─ docs/                       架构与专题文档
+├─ scripts/
+│  ├─ dev/                     开发环境初始化内部模块
+│  ├─ deploy/                  Linux 版本发布与 systemd 部署模块
+│  ├─ README.md                脚本入口与职责说明
+│  ├─ deploy.sh                Linux 一键部署入口
+│  └─ setup_dev.sh             macOS/Linux 开发环境入口
 ├─ src/northstar_quant/
 │  ├─ backtest/                目标权重与策略仿真回测入口
 │  ├─ common/                  通用类型与路径工具
@@ -69,7 +77,12 @@ Northstar/
 │  ├─ risk/                    多层风控
 │  └─ strategies/              策略实现
 ├─ templates/                  报告模板
-├─ tests/                      测试
+├─ tests/
+│  ├─ unit/                    快速单元测试
+│  ├─ integration/             PostgreSQL 与跨模块集成测试
+│  ├─ contract/                架构、迁移、CLI 与部署契约
+│  ├─ e2e/                     完整业务闭环测试
+│  └─ support/                 公共 fixture 与测试构造器
 ├─ pyproject.toml              项目配置与依赖声明
 └─ README.md                   项目说明
 ```
@@ -78,24 +91,13 @@ Northstar/
 
 ### 0. 安装 `uv`
 
-如果你的机器上还没有 `uv`，建议先按官方方式安装。
-
-macOS / Linux：
+项目开发环境只支持 macOS 和 Linux。如果机器上还没有 `uv`，建议先按官方方式安装：
 
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-Windows PowerShell：
-
-```powershell
-powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-```
-
-如果你更习惯用系统包管理器，也可以使用：
-
-- macOS（Homebrew）：`brew install uv`
-- Windows（WinGet）：`winget install --id=astral-sh.uv -e`
+macOS 也可以使用 Homebrew：`brew install uv`。
 
 安装完成后，建议先确认命令可用：
 
@@ -103,37 +105,52 @@ powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | ie
 uv --version
 ```
 
-### 1. 创建环境并安装依赖
+### 1. 安装 Docker
 
-Windows PowerShell：
-
-```powershell
-uv venv
-.venv\Scripts\Activate.ps1
-uv pip install -e ".[dev]"
-Copy-Item .env.example .env
-```
-
-macOS / Linux：
+macOS 使用 Docker Desktop：
 
 ```bash
-uv venv
-source .venv/bin/activate
-uv pip install -e ".[dev]"
-cp .env.example .env
+brew install --cask docker
+open -a Docker
 ```
 
-### 2. 初始化数据库
-
-先在本地 `.env` 设置 `POSTGRES_PASSWORD`，并把同一密码写入
-`NORTHSTAR_DATABASE_URL` 与 `NORTHSTAR_TEST_DATABASE_URL`。如果本机使用 Docker，
-可启动仓库内置的 PostgreSQL 17：
+首次启动时需要在 Docker Desktop 界面中完成许可确认和初始化。等待 Docker 启动完成后
+再执行验证命令：
 
 ```bash
-docker compose up -d postgres
+docker --version
+docker compose version
+docker info
 ```
 
-数据库健康后执行：
+Linux 开发机可以使用 Docker 官方面向测试和开发环境的便捷安装脚本：
+
+```bash
+curl -fsSL https://get.docker.com -o /tmp/northstar-get-docker.sh
+sudo sh /tmp/northstar-get-docker.sh
+sudo systemctl enable --now docker
+sudo usermod -aG docker "$USER"
+```
+
+执行后需要注销并重新登录，使 `docker` 用户组生效，然后运行上面的三条验证命令。
+生产服务器应按照 [Docker Engine 官方安装文档](https://docs.docker.com/engine/install/)
+配置软件源和版本，不使用便捷安装脚本。
+
+### 2. 创建环境并安装依赖
+
+开发环境固定使用仓库内置 Docker PostgreSQL。在 macOS 或 Linux 上直接运行初始化脚本：
+
+```bash
+scripts/setup_dev.sh
+```
+
+该脚本会检查 `uv`、Docker 与 Docker Compose，创建本地 `.env`，为固定数据库用户
+`northstar` 生成随机开发密码，启动 PostgreSQL，并执行依赖同步、数据库迁移和基础检查。
+密码只保存在本地 `.env`；脚本不会提交该文件，也不会启用真实交易。
+
+### 3. 初始化数据库
+
+`scripts/setup_dev.sh` 已经完成本地 PostgreSQL 启动和迁移。若需要手动重新迁移，可执行：
 
 ```bash
 uv run northstar init-db
@@ -154,11 +171,16 @@ uv run alembic upgrade head
 schema。PostgreSQL 健康后可直接运行：
 
 ```bash
+uv run pytest -m unit
+uv run pytest -m integration
 uv run pytest
 uv run ruff check .
 ```
 
-### 3. 生成或下载数据并跑通流程
+测试分层、marker 和公共 fixture 说明见
+[`tests/README.md`](tests/README.md)。
+
+### 4. 生成或下载数据并跑通流程
 
 ```bash
 northstar data profiles
@@ -171,6 +193,31 @@ northstar backtest event portfolio --profile cn_futures_daily_trend_offline
 生成研究信号，不能用于下单，并通过 AKShare 自动下载研究数据。需要接入真实期货数据时，复制该文件
 并显式配置合约规格、连续合约规则、实际合约映射及经核验的数据来源；不要把连续合约研究画像直接放入
 `simulated/` 或 `live/`。
+
+## Linux 部署
+
+部署脚本采用版本目录、原子切换和失败回退。先创建本地非敏感配置与生产环境文件：
+
+```bash
+cp deploy.env.example deploy.env
+cp .env.production.example .env.production
+```
+
+完成配置后，首次部署执行：
+
+```bash
+UPLOAD_ENV=1 SETUP_SERVER=1 scripts/deploy.sh
+```
+
+后续发布只需：
+
+```bash
+scripts/deploy.sh
+```
+
+默认 `SERVICE_MODE=health`，只部署、迁移并运行健康检查，不启动交易调度器。完整目录结构、
+回退语义和 scheduler 安全门槛见
+[`docs/14_Linux一键部署.md`](docs/14_Linux一键部署.md)。
 
 ## 常用命令
 
@@ -211,10 +258,17 @@ northstar live scheduler
 northstar report daily --strategy futures_trend
 northstar report weekly --strategy futures_trend
 northstar report monthly --strategy futures_trend
-northstar report send reports/futures_trend_daily_report.md
-northstar report pdf reports/futures_trend_daily_report.md
+northstar report yearly --strategy futures_trend
+northstar report send reports/daily/cn_futures_daily_trend_offline/futures_trend/20260730/report.md
+northstar report pdf reports/daily/cn_futures_daily_trend_offline/futures_trend/20260730/report.md
 northstar dashboard run
 ```
+
+报告按 `类型/画像/策略/周期/` 分层保存，每个周期目录包含 `report.md`、
+`report.json`，生成 PDF 后还会包含 `report.pdf`。例如事件回测目录为
+`reports/backtest/cn_futures_daily_trend_offline/portfolio/20150105-20260730/`；
+日报周期目录使用 `YYYYMMDD`，周报使用 `YYYY-Www`，月报使用 `YYYY-MM`，
+年报使用 `YYYY`。
 
 启动 Dashboard 后，可以直接在“数据概览”页查看某个交易画像的数据覆盖区间、标的摘要、归一化价格走势、最近 K 线以及原始数据快照。
 
@@ -239,7 +293,7 @@ northstar dashboard run
 `NORTHSTAR_DATABASE_URL` 提供；SQLite 不再属于支持范围。所有建库和结构升级均由
 Alembic 管理。
 日志系统当前也会读取 `configs/app.yaml` 里的 `logging` 段，用来控制日志级别、控制台输出、文件输出、日志目录以及按日滚动行为。
-当前活动日志文件默认为 `storage/logs/northstar.log`，历史滚动文件采用 `northstar-YYYY-MM-DD.log` 命名。控制台日志保留 `|` 风格的可读格式，主干顺序为时间、级别、`file:line`、消息；文件日志使用 JSON Lines，字段顺序为 `timestamp`、`level`、`file`、`line`、`msg`，再跟随 `command`、`strategy`、`symbol` 等顶层结构化字段。
+当前活动日志文件默认为 `logs/northstar.log`，历史滚动文件采用 `northstar-YYYY-MM-DD.log` 命名。控制台日志保留 `|` 风格的可读格式，主干顺序为时间、级别、`file:line`、消息；文件日志使用 JSON Lines，字段顺序为 `timestamp`、`level`、`file`、`line`、`msg`，再跟随 `command`、`strategy`、`symbol` 等顶层结构化字段。
 市场数据当前按两层目录管理：`storage/downloads/<provider>/<market>/<asset_type>/<data_frequency>/` 保存下载缓存，`storage/market/<market>/<asset_type>/<data_frequency>/` 保存标准化后的策略输入数据；每个数据文件都会配套生成 `.manifest.json` 元数据文件。
 当前内置的数据提供器包括：
 
@@ -291,7 +345,7 @@ instrument registry 和 completed/cancel 恢复已经落地；但执行 planner 
 - [实盘执行现状与增强说明](docs/04_实盘执行现状与增强说明.md)
 - [限价执行、超时撤单、交易日历与 Dashboard](docs/05_限价执行_超时撤单_交易日历与Dashboard.md)
 - [限价单追价执行器](docs/06_限价单追价执行器.md)
-- [邮件发送日报、周报、月报](docs/07_邮件发送日报_周报_月报.md)
+- [邮件发送日报、周报、月报、年报](docs/07_邮件发送日报_周报_月报_年报.md)
 - [邮件附件 PDF 报告](docs/08_邮件附件PDF报告.md)
 - [正式版 PDF 报告版式](docs/09_正式版PDF报告版式.md)
 - [架构审核与演进路线](docs/10_架构审核与演进路线.md)

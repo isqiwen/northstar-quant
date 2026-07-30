@@ -23,6 +23,7 @@ class Settings(BaseSettings):
         env_prefix="NORTHSTAR_",
         env_file=".env",
         env_file_encoding="utf-8",
+        env_ignore_empty=True,
         extra="ignore",
     )
 
@@ -108,6 +109,7 @@ class Settings(BaseSettings):
     daily_report_cron: str = Field(default="45 16 * * 1-5")
     weekly_report_cron: str = Field(default="0 17 * * 5")
     monthly_report_cron: str = Field(default="0 17 24-31 * *")
+    yearly_report_cron: str = Field(default="15 17 * 12 *")
 
     # Dashboard 配置。
     dashboard_host: str = Field(default="127.0.0.1")

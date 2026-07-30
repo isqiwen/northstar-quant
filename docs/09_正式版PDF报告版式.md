@@ -11,13 +11,13 @@
 ## 设计目标
 
 1. 更适合归档和打印
-2. 更适合作为周报 / 月报正式附件发送
-3. 仍然以 Markdown 作为单一事实来源
+2. 更适合作为周报 / 月报 / 年报正式附件发送
+3. Markdown 保存正文，配套 JSON 保存指标与图表数据
 
 ## 渲染流程
 
 ```text
-Markdown 报告
+report.md + report.json
     ↓
 解析元信息 / 指标 / 持仓
     ↓
@@ -29,6 +29,6 @@ Markdown 报告
 ## 命令示例
 
 ```bash
-northstar report pdf reports/futures_trend_daily_report.md
+northstar report pdf reports/daily/cn_futures_daily_trend_offline/futures_trend/20260730/report.md
 northstar report daily --send-email --send-pdf
 ```

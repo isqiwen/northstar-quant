@@ -10,6 +10,7 @@ from northstar_quant.config.trading_profile import get_production_profile_id, lo
 from northstar_quant.live.service import run_live_once, run_shadow_once, sync_broker_once
 from northstar_quant.live.trading_calendar import (
     is_last_trading_session_of_month,
+    is_last_trading_session_of_year,
     is_trading_session,
 )
 from northstar_quant.logging_.logger import get_logger
@@ -125,6 +126,25 @@ def _build_monthly_report_if_due(
     return _build_and_send_report("monthly")
 
 
+def _build_yearly_report_if_due(
+    *,
+    calendar: str,
+    timezone: str,
+) -> dict | None:
+    """仅在画像日历的当年最后交易日生成和发送年报。"""
+
+    if not is_last_trading_session_of_year(
+        calendar=calendar,
+        timezone=timezone,
+        require_calendar=True,
+    ):
+        logger.bind(job_name="yearly_report").info(
+            "年报任务被跳过，原因=不是当年最后交易日"
+        )
+        return None
+    return _build_and_send_report("yearly")
+
+
 def run_scheduler() -> None:
     """启动阻塞式日频调度器。"""
 
@@ -209,6 +229,18 @@ def run_scheduler() -> None:
             timezone=profile_timezone,
         ),
         id="monthly_report",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        lambda: _build_yearly_report_if_due(
+            calendar=profile_calendar,
+            timezone=profile_timezone,
+        ),
+        _parse_cron(
+            schedule.get("yearly_report_cron", settings.yearly_report_cron),
+            timezone=profile_timezone,
+        ),
+        id="yearly_report",
         replace_existing=True,
     )
 

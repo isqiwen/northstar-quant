@@ -1,6 +1,6 @@
 """邮件发送模块。
 
-这里负责把日报 / 周报 / 月报通过 SMTP 发送出去。
+这里负责把日报 / 周报 / 月报 / 年报通过 SMTP 发送出去。
 设计原则：
 1. 报告先本地生成，确保有审计副本；
 2. 再把 Markdown 转成 HTML 邮件发送；
@@ -19,6 +19,7 @@ import markdown
 
 from northstar_quant.config.settings import get_settings
 from northstar_quant.logging_.logger import get_logger
+from northstar_quant.reporting.artifacts import report_artifact_label
 from northstar_quant.reporting.pdf_renderer import markdown_to_pdf
 
 logger = get_logger(__name__)
@@ -107,7 +108,8 @@ def send_report_via_email(
     msg = EmailMessage()
     msg['From'] = settings.smtp_sender
     msg['To'] = ', '.join(recipients)
-    msg['Subject'] = subject or f"{settings.report_email_subject_prefix} - {path.stem}"
+    artifact_label = report_artifact_label(path)
+    msg['Subject'] = subject or f"{settings.report_email_subject_prefix} - {artifact_label}"
     msg.set_content(markdown_text)
     msg.add_alternative(html_body, subtype='html')
 

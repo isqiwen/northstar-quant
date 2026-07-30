@@ -34,15 +34,21 @@ pip-wheel-metadata/
 .env
 .env.*
 !.env.example
+!.env.production.example
+deploy.env
 
 # IDE / OS files
 .idea/
-.vscode/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
 *.code-workspace
 .DS_Store
 Thumbs.db
 
 # Runtime outputs
+logs/
 storage/
 reports/
 .streamlit/

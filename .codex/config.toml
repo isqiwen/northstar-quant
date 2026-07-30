@@ -1,0 +1,7 @@
+# 项目级 Codex 配置只在仓库被标记为受信任时生效。
+# 交易与工程约束由根目录 AGENTS.md 维护，避免在多个位置重复。
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+
+[sandbox_workspace_write]
+network_access = true

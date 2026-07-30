@@ -56,7 +56,7 @@ from northstar_quant.reporting.report_builder import (
     build_markdown_report,
     latest_live_account_attribution_summary,
     record_daily_anomaly_events,
-    write_markdown_report,
+    build_event_backtest_report,
 )
 from northstar_quant.strategies.pipeline import (
     latest_pipeline_output,
@@ -276,10 +276,17 @@ def event_backtest_command(
         "turnover_estimate": result.turnover_estimate,
     }
     holdings = latest_pipeline_output(pipeline)
-    report_path = write_markdown_report(
+    backtest_start = str(result.equity_curve[0]["date"])
+    backtest_end = str(result.equity_curve[-1]["date"])
+    report_path = build_event_backtest_report(
         strategy,
         metrics,
         holdings,
+        period_label=f"{backtest_start} 至 {backtest_end}",
+        artifact_period=(
+            f"{backtest_start.replace('-', '')}-{backtest_end.replace('-', '')}"
+        ),
+        profile_id=resolved_profile,
         analytics={
             "equity_curve": result.equity_curve,
             "drawdown_curve": result.drawdown_curve,
@@ -343,6 +350,16 @@ def monthly_report_command(
     send_pdf: bool = typer.Option(True, "--send-pdf/--no-send-pdf", help="发送邮件时是否自动附加 PDF 报告"),
 ) -> None:
     _report_command("monthly", strategy, profile=profile, send_email=send_email, send_pdf=send_pdf)
+
+
+@report_app.command("yearly", **_COMMAND_KWARGS)
+def yearly_report_command(
+    strategy: str = typer.Option("portfolio", "--strategy", "-s"),
+    profile: str | None = typer.Option(None, "--profile", "-p", help=_PROFILE_OPTION_HELP),
+    send_email: bool = typer.Option(False, "--send-email", help="生成后立即发送邮件。"),
+    send_pdf: bool = typer.Option(True, "--send-pdf/--no-send-pdf", help="发送邮件时是否自动附加 PDF 报告"),
+) -> None:
+    _report_command("yearly", strategy, profile=profile, send_email=send_email, send_pdf=send_pdf)
 
 
 @report_app.command("send", **_COMMAND_KWARGS)
@@ -607,6 +624,8 @@ def _report_command(
         periodic_view["metrics"],
         holdings,
         period_label=str(periodic_view["period_label"]),
+        artifact_period=str(periodic_view["artifact_period"]),
+        profile_id=resolved_profile,
         analytics=periodic_view["analytics"],
         benchmark_symbol=profile_obj.benchmark_symbol,
         live_account_attribution=live_account_attribution,

@@ -24,8 +24,8 @@ logging:
   console_enabled: true
   # 是否写入 JSON Lines 审计日志；正式运行建议保持 true。
   file_enabled: true
-  # 相对项目根目录的日志输出目录；storage/ 默认不纳入 Git。
-  directory: storage/logs
+  # 相对项目根目录的日志输出目录；日志与 storage、reports 同级且不纳入 Git。
+  directory: logs
   # 当前活动日志文件名；轮转后的文件会带日期后缀。
   filename: northstar.log
   # 按什么周期轮转；midnight 表示每天午夜切换新文件。

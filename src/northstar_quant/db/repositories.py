@@ -142,34 +142,6 @@ def save_position_snapshot_batch(
     return batch_row
 
 
-def save_position_snapshots(
-    session: Session,
-    snapshots: list[PositionSnapshot],
-    *,
-    broker: str | None = None,
-    account: str | None = None,
-    profile_id: str | None = None,
-    run_id: str | None = None,
-    snapshot_batch_id: str | None = None,
-    asof: datetime | None = None,
-    commit: bool = True,
-) -> int:
-    """兼容旧调用，保存完整批次并返回持仓明细数。"""
-
-    batch = save_position_snapshot_batch(
-        session,
-        snapshots,
-        broker=broker,
-        account=account,
-        profile_id=profile_id,
-        run_id=run_id,
-        snapshot_batch_id=snapshot_batch_id,
-        asof=asof,
-        commit=commit,
-    )
-    return int(batch.position_count)
-
-
 def _serialize_json(payload: object | None) -> str | None:
     if payload is None:
         return None

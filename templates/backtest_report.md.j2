@@ -1,0 +1,29 @@
+# Northstar Quant 事件回测报告
+
+- 生成时间：{{ generated_at }}
+- 报告周期：{{ period_label }}
+- 画像：{{ profile_id or "N/A" }}
+- 策略：{{ strategy_id }}
+- 基准：{{ benchmark_symbol }}
+
+## 一、绩效摘要
+{% for key, value in metrics.items() %}
+- **{{ key }}**：{{ value }}
+{% endfor %}
+
+## 二、期末目标权重
+{% if holdings %}
+| 标的 | 目标权重 | 信号值 |
+|---|---:|---:|
+{% for row in holdings %}
+| {{ row.symbol }} | {{ row.target_weight }} | {{ row.signal_value }} |
+{% endfor %}
+{% else %}
+暂无目标权重。
+{% endif %}
+
+## 三、研究限制
+
+- 本报告展示研究回测结果，不代表真实账户收益或可执行订单。
+- 成本、滑点、保证金、换月、涨跌停和成交约束以画像中的回测配置与引擎能力为准。
+- 连续合约研究信号不能直接用于真实合约下单。

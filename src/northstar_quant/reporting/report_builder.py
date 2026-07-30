@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import TypedDict
@@ -23,6 +24,10 @@ from northstar_quant.db.repositories import (
 from northstar_quant.db.session import SessionLocal
 from northstar_quant.logging_.logger import get_logger
 from northstar_quant.monitoring.run_health import soak_summary
+from northstar_quant.reporting.artifacts import (
+    REPORT_SCHEMA_VERSION,
+    report_artifact_label,
+)
 from northstar_quant.strategies.pipeline import (
     latest_pipeline_output,
     parse_strategy_selection,
@@ -30,19 +35,51 @@ from northstar_quant.strategies.pipeline import (
 )
 
 _TEMPLATE_MAP = {
+    "backtest": "backtest_report.md.j2",
     "daily": "daily_report.md.j2",
     "weekly": "weekly_report.md.j2",
     "monthly": "monthly_report.md.j2",
+    "yearly": "yearly_report.md.j2",
 }
+_PERIODIC_REPORT_TYPES = {"daily", "weekly", "monthly", "yearly"}
 
 
 class PeriodicBacktestView(TypedDict):
     """周期报告需要的强类型回测视图。"""
 
     period_label: str
+    artifact_period: str
     metrics: dict[str, float]
     analytics: dict[str, object]
+
+
 logger = get_logger(__name__, command="report.build")
+
+
+def _safe_report_filename_part(value: str) -> str:
+    """把报告标识规范为不含路径语义的稳定文件名片段。"""
+
+    normalized = re.sub(r"[^A-Za-z0-9._-]+", "-", value.strip())
+    normalized = normalized.strip(".-_")
+    if not normalized:
+        raise ValueError("报告文件名片段不能为空")
+    return normalized
+
+
+def _build_report_artifact_path(
+    *,
+    report_type: str,
+    strategy_id: str,
+    profile_id: str,
+    artifact_period: str,
+) -> Path:
+    report_group = "backtest" if report_type == "backtest" else report_type
+    return Path(
+        _safe_report_filename_part(report_group),
+        _safe_report_filename_part(profile_id),
+        _safe_report_filename_part(strategy_id),
+        _safe_report_filename_part(artifact_period),
+    )
 
 
 def _format_report_datetime(value: datetime | None) -> str | None:
@@ -525,13 +562,15 @@ def build_report_email_subject(
 
     settings = get_settings()
     prefix = subject_prefix or settings.report_email_subject_prefix
-    report_type_label = {"daily": "日报", "weekly": "周报", "monthly": "月报"}.get(
-        report_type,
-        report_type,
-    )
+    report_type_label = {
+        "daily": "日报",
+        "weekly": "周报",
+        "monthly": "月报",
+        "yearly": "年报",
+    }.get(report_type, report_type)
     tag_summary = _resolve_alert_tag_summary(live_account_attribution)
     middle = f"{report_type_label} {tag_summary}".strip()
-    return f"{prefix} - {middle} - {Path(report_path).stem}"
+    return f"{prefix} - {middle} - {report_artifact_label(report_path)}"
 
 
 def record_daily_anomaly_events(
@@ -567,13 +606,15 @@ def build_markdown_report(
     metrics: dict,
     holdings: pl.DataFrame | None = None,
     period_label: str | None = None,
+    artifact_period: str | None = None,
+    profile_id: str | None = None,
     analytics: dict | None = None,
     benchmark_symbol: str | None = None,
     live_account_attribution: dict[str, object] | None = None,
     run_health_summaries: list[dict[str, object]] | None = None,
     run_health_days: int | None = None,
 ) -> str:
-    """生成中文 Markdown 报告。"""
+    """生成包含 Markdown 与结构化 JSON 的报告制品目录。"""
 
     settings = get_settings()
     settings.reports_dir.mkdir(parents=True, exist_ok=True)
@@ -581,40 +622,92 @@ def build_markdown_report(
     env = Environment(loader=FileSystemLoader(settings.project_root / "templates"))
     template = env.get_template(_TEMPLATE_MAP[report_type])
 
+    if not profile_id:
+        raise ValueError("生成报告必须提供 profile_id")
+    resolved_period_label = period_label or report_type
+    resolved_artifact_period = artifact_period or _safe_report_filename_part(
+        resolved_period_label
+    )
+    artifact_path = _build_report_artifact_path(
+        report_type=report_type,
+        strategy_id=strategy_id,
+        profile_id=profile_id,
+        artifact_period=resolved_artifact_period,
+    )
+    artifact_id = artifact_path.as_posix()
+    report_dir = settings.reports_dir / artifact_path
+    report_dir.mkdir(parents=True, exist_ok=True)
+
+    generated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    resolved_benchmark_symbol = benchmark_symbol or settings.report_benchmark_symbol
+    holdings_payload = [] if holdings is None else holdings.to_dicts()
+    analytics_payload = analytics or {}
     payload = {
-        "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "period_label": period_label or report_type,
+        "generated_at": generated_at,
+        "period_label": resolved_period_label,
+        "profile_id": profile_id,
         "strategy_id": strategy_id,
         "metrics": metrics,
-        "benchmark_symbol": benchmark_symbol or settings.report_benchmark_symbol,
-        "holdings": [] if holdings is None else holdings.to_dicts(),
+        "benchmark_symbol": resolved_benchmark_symbol,
+        "holdings": holdings_payload,
         "live_account_attribution": live_account_attribution,
         "run_health_summaries": run_health_summaries or [],
         "run_health_days": run_health_days,
-        "analytics_json": json.dumps(analytics or {}, ensure_ascii=False, indent=2),
     }
 
     output = template.render(**payload)
-    path = settings.reports_dir / f"{strategy_id}_{report_type}_report.md"
-    Path(path).write_text(output, encoding="utf-8")
-    return str(path)
+    markdown_path = report_dir / "report.md"
+    markdown_path.write_text(output, encoding="utf-8")
+
+    report_data = {
+        "schema_version": REPORT_SCHEMA_VERSION,
+        "artifact_id": artifact_id,
+        "report_type": report_type,
+        "generated_at": generated_at,
+        "period_label": resolved_period_label,
+        "artifact_period": resolved_artifact_period,
+        "profile_id": profile_id,
+        "strategy_id": strategy_id,
+        "benchmark_symbol": resolved_benchmark_symbol,
+        "metrics": metrics,
+        "holdings": holdings_payload,
+        "analytics": analytics_payload,
+        "live_account_attribution": live_account_attribution,
+        "run_health_summaries": run_health_summaries or [],
+        "run_health_days": run_health_days,
+    }
+    (report_dir / "report.json").write_text(
+        json.dumps(report_data, ensure_ascii=False, indent=2, default=str),
+        encoding="utf-8",
+    )
+    stale_pdf_path = report_dir / "report.pdf"
+    if stale_pdf_path.exists():
+        stale_pdf_path.unlink()
+    return str(markdown_path)
 
 
-def write_markdown_report(
+def build_event_backtest_report(
     strategy_id: str,
     metrics: dict,
     holdings: pl.DataFrame | None = None,
+    *,
+    period_label: str | None = None,
+    artifact_period: str,
+    profile_id: str,
     analytics: dict | None = None,
     benchmark_symbol: str | None = None,
     live_account_attribution: dict[str, object] | None = None,
 ) -> str:
-    """兼容旧接口：默认生成日报。"""
+    """生成事件回测报告。"""
 
     return build_markdown_report(
-        "daily",
+        "backtest",
         strategy_id,
         metrics,
         holdings,
+        period_label=period_label,
+        artifact_period=artifact_period,
+        profile_id=profile_id,
         analytics=analytics,
         benchmark_symbol=benchmark_symbol,
         live_account_attribution=live_account_attribution,
@@ -627,9 +720,9 @@ def build_periodic_backtest_view(
     *,
     periods_per_year: int = 252,
 ) -> PeriodicBacktestView:
-    """从完整回测曲线提取日报、周报或月报对应的真实期间指标。"""
+    """从完整回测曲线提取日报、周报、月报或年报的真实期间指标。"""
 
-    if report_type not in _TEMPLATE_MAP:
+    if report_type not in _PERIODIC_REPORT_TYPES:
         raise ValueError(f"不支持的报告类型：{report_type}")
     if not result.equity_curve:
         raise ValueError("回测结果缺少净值曲线，无法生成周期报告")
@@ -645,16 +738,23 @@ def build_periodic_backtest_view(
     if report_type == "daily":
         boundary = end_date
         period_label = end_date.isoformat()
+        artifact_period = end_date.strftime("%Y%m%d")
     elif report_type == "weekly":
         boundary = end_date - timedelta(days=end_date.weekday())
         iso_year, iso_week, _ = end_date.isocalendar()
+        artifact_period = f"{iso_year}-W{iso_week:02d}"
         period_label = (
             f"{iso_year}年第{iso_week:02d}周"
             f"（{boundary.isoformat()} 至 {end_date.isoformat()}）"
         )
-    else:
+    elif report_type == "monthly":
         boundary = end_date.replace(day=1)
         period_label = end_date.strftime("%Y-%m")
+        artifact_period = period_label
+    else:
+        boundary = end_date.replace(month=1, day=1)
+        period_label = f"{end_date.year}年（截至 {end_date.isoformat()}）"
+        artifact_period = str(end_date.year)
 
     first_index = next(
         index
@@ -709,6 +809,7 @@ def build_periodic_backtest_view(
 
     return {
         "period_label": period_label,
+        "artifact_period": artifact_period,
         "metrics": {
             "期间收益率": period_return,
             "期间年化收益率": annualized_return,
@@ -774,8 +875,10 @@ def build_periodic_report_only(
         run_health_days = 28
     elif report_type == "weekly":
         run_health_days = 28
-    else:
+    elif report_type == "monthly":
         run_health_days = 56
+    else:
+        run_health_days = 365
 
     live_account_attribution = (
         latest_live_account_attribution_summary(profile_id=profile.profile_id)
@@ -793,6 +896,8 @@ def build_periodic_report_only(
         metrics=periodic_view["metrics"],
         holdings=holdings,
         period_label=str(periodic_view["period_label"]),
+        artifact_period=str(periodic_view["artifact_period"]),
+        profile_id=profile.profile_id,
         analytics=periodic_view["analytics"],
         benchmark_symbol=profile.benchmark_symbol,
         live_account_attribution=live_account_attribution,

@@ -9,15 +9,14 @@
 6. 正文页：保留 Markdown 正文，满足审计与归档。
 
 设计原则：
-- Markdown 仍然是单一事实来源，避免维护两套报告模板；
+- Markdown 只承载人类可读正文，结构化指标与图表数据统一读取同目录的 report.json；
 - PDF 渲染尽量正式、稳健、可维护；
 - 中文可读性优先，不依赖外部字体文件；
-- 即使解析不到全部结构，也要保证至少能稳定生成正文 PDF。
+- 缺少结构化报告数据时明确失败，避免生成内容不完整却看似正常的 PDF。
 """
 
 from __future__ import annotations
 
-import json
 import math
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -37,6 +36,8 @@ from reportlab.lib.units import mm
 from reportlab.pdfbase.cidfonts import UnicodeCIDFont
 from reportlab.pdfbase.pdfmetrics import registerFont
 from reportlab.platypus import Flowable, PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
+from northstar_quant.reporting.artifacts import load_report_data
 
 
 @dataclass
@@ -98,12 +99,16 @@ def _split_table_row(line: str) -> list[str]:
 
 
 def _infer_report_type(title: str) -> str:
+    if '回测报告' in title:
+        return '回测报告'
     if '日报' in title:
         return '日报'
     if '周报' in title:
         return '周报'
     if '月报' in title:
         return '月报'
+    if '年报' in title:
+        return '年报'
     return '报告'
 
 
@@ -122,77 +127,46 @@ def _parse_metric_value(value: str) -> float | None:
 def parse_markdown_report(markdown_path: str | Path) -> ReportStructure:
     md_path = Path(markdown_path)
     lines = md_path.read_text(encoding='utf-8').splitlines()
-    result = ReportStructure()
+    data = load_report_data(md_path)
 
-    i = 0
-    current_section_title = ''
-    while i < len(lines):
-        raw = lines[i].rstrip('\n')
-        line = raw.strip()
+    title = next(
+        (
+            _clean_inline_markup(line.strip()[2:])
+            for line in lines
+            if line.strip().startswith("# ")
+        ),
+        "Northstar Quant 报告",
+    )
+    metrics = data.get("metrics") or {}
+    holdings = data.get("holdings") or []
+    analytics = data.get("analytics") or {}
+    if not isinstance(metrics, dict):
+        raise ValueError("report.json 的 metrics 必须是对象")
+    if not isinstance(holdings, list):
+        raise ValueError("report.json 的 holdings 必须是数组")
+    if not isinstance(analytics, dict):
+        raise ValueError("report.json 的 analytics 必须是对象")
 
-        if line.startswith('# '):
-            result.meta.title = _clean_inline_markup(line[2:])
-            result.meta.report_type = _infer_report_type(result.meta.title)
-            i += 1
-            continue
-
-        if line.startswith('- ') and '：' in line and not current_section_title:
-            key, value = line[2:].split('：', 1)
-            key = _clean_inline_markup(key)
-            value = _clean_inline_markup(value)
-            if key == '生成时间':
-                result.meta.generated_at = value
-            elif key == '报告周期':
-                result.meta.period_label = value
-            elif key == '策略':
-                result.meta.strategy_id = value
-            elif key == '基准':
-                result.meta.benchmark_symbol = value
-            i += 1
-            continue
-
-        if line.startswith('## '):
-            current_section_title = _clean_inline_markup(line[3:])
-            i += 1
-            continue
-
-        if line.startswith('- ') and '：' in line and any(k in current_section_title for k in ['绩效', '指标', '概览']):
-            key, value = line[2:].split('：', 1)
-            result.metrics.append(MetricItem(_clean_inline_markup(key), _clean_inline_markup(value)))
-            i += 1
-            continue
-
-        if current_section_title.startswith('四、图表数据') and line.startswith('```json'):
-            buffer = []
-            i += 1
-            while i < len(lines) and not lines[i].strip().startswith('```'):
-                buffer.append(lines[i])
-                i += 1
-            try:
-                result.analytics = json.loads('\n'.join(buffer)) if buffer else {}
-            except json.JSONDecodeError:
-                result.analytics = {}
-            i += 1
-            continue
-
-        if line.startswith('|'):
-            rows = []
-            while i < len(lines) and lines[i].strip().startswith('|'):
-                current = lines[i].strip()
-                if not _looks_like_table_separator(current):
-                    rows.append(_split_table_row(current))
-                i += 1
-            if rows and rows[0][:3] == ['标的', '目标权重', '信号值']:
-                for row in rows[1:]:
-                    if len(row) >= 3:
-                        result.holdings.append({'symbol': row[0], 'target_weight': row[1], 'signal_value': row[2]})
-            continue
-
-        i += 1
-
-    if not result.meta.report_type:
-        result.meta.report_type = _infer_report_type(result.meta.title)
-    return result
+    return ReportStructure(
+        meta=ReportMeta(
+            title=title,
+            generated_at=str(data.get("generated_at") or ""),
+            period_label=str(data.get("period_label") or ""),
+            strategy_id=str(data.get("strategy_id") or ""),
+            benchmark_symbol=str(data.get("benchmark_symbol") or ""),
+            report_type=_infer_report_type(title),
+        ),
+        metrics=[
+            MetricItem(str(key), str(value))
+            for key, value in metrics.items()
+        ],
+        holdings=[
+            {str(key): str(value) for key, value in row.items()}
+            for row in holdings
+            if isinstance(row, dict)
+        ],
+        analytics=analytics,
+    )
 
 
 def _draw_page_frame(canvas, doc, meta: ReportMeta, font_name: str) -> None:
@@ -483,16 +457,6 @@ def _append_markdown_lines(story: list, lines: Iterable[str], styles, font_name:
             story.append(Spacer(1, 1.4 * mm))
             i += 1
             continue
-        if stripped.startswith('## 四、图表数据'):
-            i += 1
-            while i < len(lines) and not lines[i].strip().startswith('```json'):
-                i += 1
-            if i < len(lines) and lines[i].strip().startswith('```json'):
-                i += 1
-                while i < len(lines) and not lines[i].strip().startswith('```'):
-                    i += 1
-                i += 1
-            continue
         if stripped.startswith('## '):
             story.append(Paragraph(_clean_inline_markup(stripped[3:]), styles['NSQSectionTitle']))
             i += 1
@@ -573,7 +537,7 @@ def markdown_to_pdf(markdown_path: str | Path, output_path: str | Path | None = 
     for text in [
         '本报告基于系统回测、策略目标仓位和账户同步结果自动生成，仅用于研究、复盘和执行审计。',
         '除非显式说明，报告中的绩效指标不代表未来收益承诺，也不构成投资建议。',
-        '若图表数据缺失，系统会退化为摘要型 PDF，优先保证可读性与可归档性。',
+        '图表与指标读取同目录 report.json；结构化数据缺失时系统会拒绝生成不完整 PDF。',
         '如需实盘使用，应结合交易成本、流动性、时区、券商返回状态与对账记录综合判断。',
     ]:
         story.append(Paragraph(text, styles['NSQBullet'], bulletText='•'))

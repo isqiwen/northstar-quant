@@ -20,7 +20,7 @@ _DEFAULT_LOGGING_CONFIG: dict[str, Any] = {
     "level": "INFO",
     "console_enabled": True,
     "file_enabled": True,
-    "directory": "storage/logs",
+    "directory": "logs",
     "filename": "northstar.log",
     "when": "midnight",
     "interval": 1,
