@@ -41,6 +41,12 @@ class StrategyRunRecord(Base):
     """策略账本中的运行级快照。"""
 
     __tablename__ = "strategy_run_records"
+    __table_args__ = (
+        UniqueConstraint(
+            "run_id",
+            name="uq_strategy_run_records_run_id",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     run_id: Mapped[str] = mapped_column(String(64), index=True)
@@ -105,6 +111,12 @@ class ExecutionPlanRecord(Base):
     reason: Mapped[str | None] = mapped_column(Text, default=None)
     order_type: Mapped[str | None] = mapped_column(String(16), default=None)
     limit_price: Mapped[float | None] = mapped_column(Float, default=None)
+    instrument_id: Mapped[str | None] = mapped_column(String(32), default=None)
+    exchange_id: Mapped[str | None] = mapped_column(String(16), default=None)
+    ctp_offset: Mapped[str | None] = mapped_column(String(24), default=None)
+    volume_multiple: Mapped[int | None] = mapped_column(Integer, default=None)
+    margin_rate: Mapped[float | None] = mapped_column(Float, default=None)
+    required_margin: Mapped[float | None] = mapped_column(Float, default=None)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utc_now)
 
 
@@ -155,6 +167,10 @@ class OrderRecord(Base):
     account: Mapped[str | None] = mapped_column(String(64), index=True, default=None)
     instrument_id: Mapped[str | None] = mapped_column(String(32), index=True, default=None)
     exchange_id: Mapped[str | None] = mapped_column(String(16), default=None)
+    ctp_offset: Mapped[str | None] = mapped_column(String(24), default=None)
+    volume_multiple: Mapped[int | None] = mapped_column(Integer, default=None)
+    margin_rate: Mapped[float | None] = mapped_column(Float, default=None)
+    required_margin: Mapped[float | None] = mapped_column(Float, default=None)
     currency: Mapped[str | None] = mapped_column(String(8), default=None)
     reference_price: Mapped[float | None] = mapped_column(Float, default=None)
     reference_price_source: Mapped[str | None] = mapped_column(String(32), default=None)
@@ -254,6 +270,7 @@ class FillRecord(Base):
     client_id: Mapped[int | None] = mapped_column(Integer, default=None)
     instrument_id: Mapped[str | None] = mapped_column(String(32), index=True, default=None)
     exchange_id: Mapped[str | None] = mapped_column(String(16), default=None)
+    ctp_offset: Mapped[str | None] = mapped_column(String(24), default=None)
     broker_order_id: Mapped[str | None] = mapped_column(String(128), index=True, default=None)
     symbol: Mapped[str] = mapped_column(String(32), index=True)
     side: Mapped[str | None] = mapped_column(String(8), default=None)
@@ -358,6 +375,12 @@ class PositionSnapshotRecord(Base):
     avg_cost: Mapped[float | None] = mapped_column(Float, default=None)
     market_price: Mapped[float | None] = mapped_column(Float, default=None)
     market_value: Mapped[float | None] = mapped_column(Float, default=None)
+    instrument_id: Mapped[str | None] = mapped_column(String(32), default=None)
+    exchange_id: Mapped[str | None] = mapped_column(String(16), default=None)
+    long_today_qty: Mapped[float | None] = mapped_column(Float, default=None)
+    long_yesterday_qty: Mapped[float | None] = mapped_column(Float, default=None)
+    short_today_qty: Mapped[float | None] = mapped_column(Float, default=None)
+    short_yesterday_qty: Mapped[float | None] = mapped_column(Float, default=None)
     asof: Mapped[datetime] = mapped_column(UTCDateTime(), index=True, default=utc_now)
     snapshot_batch_id: Mapped[str] = mapped_column(String(64), index=True)
 
@@ -475,6 +498,27 @@ class AnomalyEventRecord(Base):
     report_path: Mapped[str | None] = mapped_column(Text, default=None)
     detected_at: Mapped[datetime] = mapped_column(UTCDateTime(), index=True, default=utc_now)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utc_now)
+
+
+class RuntimeRiskRecord(Base):
+    """盘中实时风控的一次持久化结论。"""
+
+    __tablename__ = "runtime_risk_records"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    profile_id: Mapped[str] = mapped_column(String(64), index=True)
+    broker: Mapped[str] = mapped_column(String(32), index=True)
+    account: Mapped[str | None] = mapped_column(String(64), index=True, default=None)
+    can_submit: Mapped[bool] = mapped_column(Boolean, index=True, default=False)
+    blocking_failure_count: Mapped[int] = mapped_column(Integer, default=0)
+    warning_count: Mapped[int] = mapped_column(Integer, default=0)
+    checks_json: Mapped[str] = mapped_column(Text)
+    checked_at: Mapped[datetime] = mapped_column(UTCDateTime(), index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        UTCDateTime(),
+        index=True,
+        default=utc_now,
+    )
 
 
 class RunHealthRecord(Base):

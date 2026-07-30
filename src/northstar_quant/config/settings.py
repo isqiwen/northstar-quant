@@ -44,7 +44,7 @@ class Settings(BaseSettings):
     )
 
     # 券商与账户配置。
-    broker: Literal["paper", "ctp"] = Field(default="paper")
+    broker: Literal["paper", "ctp_sim", "ctp"] = Field(default="paper")
     live_trading_enabled: bool = Field(default=False)
     kill_switch_enabled: bool = Field(default=False)
     default_cash: float = Field(default=100000.0, gt=0)
@@ -52,7 +52,12 @@ class Settings(BaseSettings):
     paper_fill_price_mode: Literal["close", "reference", "limit"] = Field(default="close")
     paper_account: str = Field(default="paper-account", min_length=1)
 
-    # CTP 合约映射。CTP 交易适配器尚未实现，不能据此直接下单。
+    # ctp_sim 是隔离的本地语义仿真，不连接交易前置；真实 CTP 适配器仍未实现。
+    ctp_sim_account: str = Field(default="ctp-sim-account", min_length=1)
+    ctp_sim_state_path: Path = Field(default=Path("storage/ctp_sim_broker_state.json"))
+    ctp_sim_contract_mapping_path: Path = Field(
+        default=Path("configs/instruments/ctp_sim.yaml")
+    )
     ctp_contract_mapping_path: Path = Field(default=Path("configs/instruments/ctp.yaml"))
     order_timeout_seconds: int = Field(default=300, gt=0)
     limit_price_offset_bps: float = Field(default=15.0, ge=0)
@@ -93,18 +98,30 @@ class Settings(BaseSettings):
     live_preflight_daily_data_max_age_days: int = Field(default=4, gt=0)
     live_preflight_weekly_data_max_age_days: int = Field(default=10, gt=0)
     live_preflight_allow_valuation_price_fallback: bool = Field(default=False)
+    daily_target_max_age_days: int = Field(default=4, gt=0)
     # 逗号分隔的真实交易数据提供器白名单；默认空值使非 paper 路径失败关闭。
     approved_live_data_providers: str = Field(default="")
+
+    # 盘中实时风控。结论过期、账户状态缺失或阈值超限时，真实订单失败关闭。
+    runtime_risk_gate_max_age_seconds: int = Field(default=90, gt=0)
+    runtime_risk_max_state_age_seconds: int = Field(default=30, gt=0)
+    runtime_risk_max_quote_age_seconds: int = Field(default=15, gt=0)
+    runtime_risk_max_margin_ratio: float = Field(default=0.75, gt=0, le=1)
+    runtime_risk_min_available_funds_ratio: float = Field(default=0.15, ge=0, lt=1)
+    runtime_risk_max_quote_spread_bps: float = Field(default=100.0, gt=0)
+    runtime_risk_max_open_orders: int = Field(default=50, ge=0)
 
     # 报告与执行控制。
     report_benchmark_symbol: str = Field(default="RB_CONT")
     futures_trend_lookback_days: int = Field(default=60)
     trading_currency: str = Field(default="CNY")
 
-    # 日频调度器配置。
+    # 低频策略、盘中执行与实时风控的独立调度配置。
     scheduler_timezone: str = Field(default="Asia/Shanghai")
     shadow_run_cron: str = Field(default="20 15 * * 1-5")
-    rebalance_cron: str = Field(default="35 15 * * 1-5")
+    daily_signal_cron: str = Field(default="20 15 * * 1-5")
+    execution_cron: str = Field(default="5 9,21 * * 1-5")
+    runtime_risk_cron: str = Field(default="*/1 * * * 1-5")
     broker_sync_cron: str = Field(default="0,15,30,45 9-16 * * 1-5")
     daily_report_cron: str = Field(default="45 16 * * 1-5")
     weekly_report_cron: str = Field(default="0 17 * * 5")
@@ -153,6 +170,8 @@ class Settings(BaseSettings):
             "storage_dir",
             "downloads_dir",
             "reports_dir",
+            "ctp_sim_state_path",
+            "ctp_sim_contract_mapping_path",
             "ctp_contract_mapping_path",
         ):
             value = Path(getattr(self, field_name))

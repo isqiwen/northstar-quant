@@ -39,6 +39,6 @@ def test_init_db_uses_alembic_head_and_is_idempotent(tmp_path, monkeypatch):
             revision = connection.scalar(
                 text("SELECT version_num FROM alembic_version")
             )
-        assert revision == "0001_initial_schema"
+        assert revision == "0003_ctp_sim_execution_semantics"
     finally:
         get_settings.cache_clear()

@@ -15,6 +15,19 @@ import polars as pl
 
 from northstar_quant.common.enums import DataFrequency
 from northstar_quant.config.trading_profile import TradingProfile, load_trading_profile
+from northstar_quant.data.futures_actual import (
+    ACTUAL_FUTURES_DAILY_COLUMNS,
+    ACTUAL_FUTURES_DAILY_SCHEMA_VERSION,
+    is_actual_futures_daily_profile,
+    validate_actual_futures_dataset,
+)
+from northstar_quant.data.futures_intraday import (
+    ACTUAL_FUTURES_INTRADAY_COLUMNS,
+    ACTUAL_FUTURES_INTRADAY_SCHEMA_VERSION,
+    build_intraday_continuous_signal_data,
+    is_actual_futures_intraday_profile,
+    validate_actual_futures_intraday_dataset,
+)
 
 SCHEMA_VERSION = "market_data_v2"
 STANDARD_DAILY_COLUMNS = [
@@ -55,6 +68,10 @@ def expected_market_columns(profile: TradingProfile | str | None = None) -> list
     """按画像频率返回必须存在的标准字段，返回副本避免调用方修改全局常量。"""
 
     profile_obj = profile if isinstance(profile, TradingProfile) else load_trading_profile(profile)
+    if is_actual_futures_daily_profile(profile_obj):
+        return list(ACTUAL_FUTURES_DAILY_COLUMNS)
+    if is_actual_futures_intraday_profile(profile_obj):
+        return list(ACTUAL_FUTURES_INTRADAY_COLUMNS)
     if profile_obj.data_frequency in {DataFrequency.D1, DataFrequency.W1}:
         return list(STANDARD_DAILY_COLUMNS)
     return list(STANDARD_INTRADAY_COLUMNS)
@@ -72,6 +89,10 @@ def validate_market_dataset(
     """
 
     profile_obj = profile if isinstance(profile, TradingProfile) else load_trading_profile(profile)
+    if is_actual_futures_daily_profile(profile_obj):
+        return validate_actual_futures_dataset(profile_obj, df)
+    if is_actual_futures_intraday_profile(profile_obj):
+        return validate_actual_futures_intraday_dataset(profile_obj, df)
     if df.is_empty():
         raise ValueError(f"画像 {profile_obj.profile_id} 的数据集不能为空")
     expected_columns = expected_market_columns(profile_obj)
@@ -208,6 +229,19 @@ def validate_market_dataset(
     }
 
 
+def schema_version_for_profile(
+    profile: TradingProfile | str | None = None,
+) -> str:
+    """返回画像数据制品应使用的 schema 版本。"""
+
+    profile_obj = profile if isinstance(profile, TradingProfile) else load_trading_profile(profile)
+    if is_actual_futures_daily_profile(profile_obj):
+        return ACTUAL_FUTURES_DAILY_SCHEMA_VERSION
+    if is_actual_futures_intraday_profile(profile_obj):
+        return ACTUAL_FUTURES_INTRADAY_SCHEMA_VERSION
+    return SCHEMA_VERSION
+
+
 def to_signal_market_data(
     profile: TradingProfile | str | None,
     market_df: pl.DataFrame,
@@ -220,6 +254,14 @@ def to_signal_market_data(
     """
 
     profile_obj = profile if isinstance(profile, TradingProfile) else load_trading_profile(profile)
+    if is_actual_futures_daily_profile(profile_obj):
+        from northstar_quant.data.futures_actual import (
+            build_adjusted_continuous_signal_data,
+        )
+
+        return build_adjusted_continuous_signal_data(market_df)
+    if is_actual_futures_intraday_profile(profile_obj):
+        return build_intraday_continuous_signal_data(market_df)
     configured_price_field = profile_obj.data.price_field or default_price_field(
         profile_obj.data_frequency
     )

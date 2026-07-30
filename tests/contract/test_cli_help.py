@@ -32,3 +32,32 @@ def test_root_help_short_and_long_flags_match():
     assert short_help.exit_code == 0
     assert long_help.exit_code == 0
     assert short_help.output == long_help.output
+
+
+def test_data_help_exposes_local_import_and_actual_daily_provider():
+    help_result = runner.invoke(app, ["data", "--help"])
+    providers_result = runner.invoke(app, ["data", "providers"])
+
+    assert help_result.exit_code == 0
+    assert "import-file" in help_result.output
+    assert providers_result.exit_code == 0
+    assert "akshare_actual_daily" in providers_result.output
+    assert "Traceback" not in providers_result.output
+
+
+def test_backtest_help_exposes_single_profile_driven_entrypoint():
+    result = runner.invoke(app, ["backtest", "--help"])
+
+    assert result.exit_code == 0
+    assert "run" in result.output
+    assert "event" not in result.output
+    assert "bt" not in result.output
+
+
+def test_live_help_exposes_separate_signal_execution_and_risk_commands():
+    result = runner.invoke(app, ["live", "--help"])
+
+    assert result.exit_code == 0
+    assert "signal" in result.output
+    assert "execute" in result.output
+    assert "risk-check" in result.output

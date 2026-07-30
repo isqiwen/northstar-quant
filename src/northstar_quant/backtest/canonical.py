@@ -1,7 +1,7 @@
 """把统一策略输出安全分派到对应回测器。
 
 策略可以输出目标权重、交易意图或交易计划；三者的成交语义不同，不能为了“能运行”
-而互相转换。本模块只允许当前已验证的目标权重输出进入连续合约收益回测。
+而互相转换。本模块只允许目标权重输出进入画像明确选择的回测器。
 """
 
 from __future__ import annotations
@@ -20,8 +20,8 @@ def run_strategy_output_backtest(
 ) -> BacktestResult:
     """根据输出类型选择已匹配的回测器，并拒绝语义不完整的转换。
 
-    ``TARGET_WEIGHT`` 使用收益率型研究回测；``TRADE_PLAN`` 必须等待逐日持仓与撮合
-    状态机，不得按权重收益偷换假设；其他输出类型同样明确失败关闭。
+    ``TARGET_WEIGHT`` 可由连续收益研究、实际合约逐日或分钟订单回放引擎处理；
+    ``TRADE_PLAN`` 尚未定义组合资金分配和成交语义，因此仍明确失败关闭。
     """
 
     if output_bundle.output_type == StrategyOutputType.TARGET_WEIGHT:

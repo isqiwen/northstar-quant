@@ -16,8 +16,8 @@ Northstar Quant 的目标不是提供“开箱即用的券商生产系统”，�
 ## 核心能力
 
 - **研究层**：通过 canonical strategy pipeline 做研究、扫描和快速验证
-- **回测层**：连续合约收益研究已接入佣金、最低佣金、滑点和信号延迟；实际合约另有逐日盯市状态机
-- **执行层**：`paper` 适配器可验证订单、成交、对账和报告基础设施；期货策略到实际合约计划尚未接通，CTP 报单适配器也未实现
+- **回测层**：连续合约用于快速信号研究；实际合约画像支持无跳跃信号、显式换月、参考手续费、保证金、涨跌停和成交量约束
+- **执行层**：`paper` 验证通用基础设施；`ctp_sim` 验证期货具体合约、保证金、开平仓、异步回报和恢复；真实 CTP 适配器仍未实现
 - **风控层**：包含全局风控、策略风控与交易前风控
 - **监控层**：包含日志、健康检查、企业微信 / Telegram 告警、Dashboard
 - **报告层**：支持日报、周报、月报、年报、邮件发送、Markdown/PDF 报告归档
@@ -64,7 +64,7 @@ Northstar/
 │  ├─ deploy.sh                Linux 一键部署入口
 │  └─ setup_dev.sh             macOS/Linux 开发环境入口
 ├─ src/northstar_quant/
-│  ├─ backtest/                目标权重与策略仿真回测入口
+│  ├─ backtest/                日线回测器与可选分钟回放状态机
 │  ├─ common/                  通用类型与路径工具
 │  ├─ config/                  配置加载与设置模型
 │  ├─ data/                    数据读写与样例数据
@@ -186,13 +186,42 @@ uv run ruff check .
 northstar data profiles
 northstar data download --profile cn_futures_daily_trend_offline
 northstar research futures-trend --profile cn_futures_daily_trend_offline
-northstar backtest event portfolio --profile cn_futures_daily_trend_offline
+northstar backtest run portfolio --profile cn_futures_daily_trend_offline
 ```
 
-仓库只内置 `cn_futures_daily_trend_offline` 一个安全的离线研究画像。它以商品期货连续合约
-生成研究信号，不能用于下单，并通过 AKShare 自动下载研究数据。需要接入真实期货数据时，复制该文件
-并显式配置合约规格、连续合约规则、实际合约映射及经核验的数据来源；不要把连续合约研究画像直接放入
-`simulated/` 或 `live/`。
+仓库内置三个安全的离线画像：
+
+- `cn_futures_daily_trend_offline`：连续合约快速收益研究；
+- `cn_futures_daily_actual_offline`：低频策略的主要验证路径，使用实际合约逐日保证金回测；
+- `cn_futures_intraday_replay_offline`：可选的分钟盘口与订单生命周期专项回放。
+
+三个画像都不能下单，也不能直接改成 `simulated` 或 `live`。
+
+另有 `cn_futures_daily_trend_simulated` 用于本地 CTP 语义仿真。它只接受
+`NORTHSTAR_BROKER=ctp_sim`，不会连接真实交易柜台。完整演练步骤见
+[`configs/profiles/simulated/README.md`](configs/profiles/simulated/README.md)。
+
+实际合约日线可通过 AKShare 自动下载并回测：
+
+```bash
+northstar data download \
+  --profile cn_futures_daily_actual_offline
+northstar backtest run portfolio \
+  --profile cn_futures_daily_actual_offline
+```
+
+分钟回放不是低频日常流程；只有准备验证容量、委托生命周期或上线前执行细节时，才导入
+专门的分钟数据：
+
+```bash
+northstar data import-file /path/to/actual_contracts_intraday.parquet \
+  --profile cn_futures_intraday_replay_offline
+northstar backtest run portfolio \
+  --profile cn_futures_intraday_replay_offline
+```
+
+字段契约、换月口径和剩余边界见
+[`docs/12_期货回测器说明.md`](docs/12_期货回测器说明.md)。
 
 ## Linux 部署
 
@@ -229,6 +258,8 @@ northstar init-db
 northstar data profiles
 northstar data providers
 northstar data download --profile cn_futures_daily_trend_offline
+northstar data download --profile cn_futures_daily_actual_offline
+northstar data import-file /path/to/actual_contracts_intraday.parquet --profile cn_futures_intraday_replay_offline
 northstar data validate --profile cn_futures_daily_trend_offline
 northstar data manifest --profile cn_futures_daily_trend_offline
 ```
@@ -237,12 +268,17 @@ northstar data manifest --profile cn_futures_daily_trend_offline
 
 ```bash
 northstar research futures-trend --profile cn_futures_daily_trend_offline
-northstar backtest event futures_trend --profile cn_futures_daily_trend_offline
+northstar backtest run futures_trend --profile cn_futures_daily_trend_offline
+northstar backtest run futures_trend --profile cn_futures_daily_actual_offline
+northstar backtest run futures_trend --profile cn_futures_intraday_replay_offline
 ```
 
 ### 实盘执行
 
 ```bash
+northstar live signal
+northstar live risk-check
+northstar live execute
 northstar live preview-rebalance
 northstar live sync
 northstar live run
@@ -251,6 +287,12 @@ northstar live drift
 northstar live cancel-stale
 northstar live scheduler
 ```
+
+低频实盘链路分为三个独立任务：`signal` 只在完整日线封盘后计算并冻结目标，
+`execute` 在下一可交易时段读取冻结目标，`risk-check` 在盘中持续检查账户状态、
+可用资金、保证金、持仓、挂单和实时报价。`live run` 只是人工操作时串行调用前两层；
+scheduler 会分别调度三层。相同决策日的目标不能被静默覆盖，重复执行使用稳定批次和
+订单幂等身份。
 
 ### 报告与监控
 
@@ -298,9 +340,16 @@ Alembic 管理。
 当前内置的数据提供器包括：
 
 - `akshare`：通过 AKShare 的新浪主力连续合约接口自动下载国内期货日线
+- `akshare_actual_daily`：下载交易所实际合约日线，并合并前一交易日的金十主力参考规则
 
 交易画像里的 `data.download` 段负责描述下载行为，例如下载提供器、symbol 列表、开始日期、结束日期和下载选项；`data.path` 负责描述标准化后数据集在 `storage/market` 下的目标位置。这样同一套 CLI 可以同时覆盖“在线下载、缓存落盘、标准数据集落盘、manifest 追踪、研究读取”整个流程。
-国内期货日线数据的标准表 schema 为：`date / symbol / open / high / low / close / adjusted_close / volume`。连续合约研究画像使用 `close`；`adjusted_close` 仅作为数据提供器可选的连续序列调整字段，不能替代实际交割合约价格。可通过 `northstar data validate --profile ...` 校验。
+连续期货日线 schema 为
+`date / symbol / open / high / low / close / adjusted_close / volume`。实际合约画像使用
+独立的 `actual_futures_daily_v1` schema，包含结算价、参考费率、保证金、涨跌停、
+研究限仓、主力选择日期和时段完整性。提供器按日缓存行情和规则快照，公开规则缺日时
+拒绝发布，不沿用旧值。分钟回放使用 `actual_futures_intraday_v1`，额外要求
+`timestamp`、夜/日盘标识、买一卖一与盘口量、日终标记。可通过
+`northstar data validate --profile ...` 校验。
 
 ## 架构说明
 
@@ -314,28 +363,32 @@ Alembic 管理。
 6. 监控层：负责日志、健康检查、告警与报告
 
 策略、回测、执行、报告等能力通过 CLI 统一暴露，入口位于 `src/northstar_quant/cli.py`。
-当前唯一运行时画像为：`CN × FUTURES × 1d × 1d × trend_following`。
+三个离线画像都使用日频趋势信号。常规低频流程只需要连续合约研究画像和实际合约日线
+画像；分钟回放画像的原始行情频率为 `1m`、`data.signal_frequency` 为 `1d`，仅在
+执行专项验证时使用。各画像的数据契约和回测引擎不能互换。
 
 ## 实盘与报告能力
 
 当前项目已经具备以下基础设施能力：
 
-- 从 paper 适配器同步持仓；未来的 CTP 适配器仍是明确扩展点
+- 从 paper 或 ctp_sim 适配器同步持仓；真实 CTP 适配器仍是明确扩展点
 - 将订单、成交、持仓快照持续落库
-- 通过注册表承载目标权重计划器，但仓库没有可用于实际期货的内置 planner
+- 内置日线期货计划器，把连续策略信号映射为具体合约并生成明确开平仓计划
 - 支持单笔市价/限价 paper 撮合与超时撤单；多轮追价目前只有配置和设计文档，未接入执行主流程
-- 支持交易日历过滤与日频调度
+- 支持日频目标、盘中执行和实时风控的独立调度
+- 实时风控结论持久化；真实订单提交前要求最新结论仍然新鲜且允许交易
 - 支持企业微信 / Telegram 告警、邮件发送、Markdown/PDF 报告
 - 提供基于 `Streamlit` 的本地 Dashboard
 
 真实券商默认保持关闭和只读。订单 attempt 持久化在先、账户级 fencing 租约、
-instrument registry 和 completed/cancel 恢复已经落地；但执行 planner registry
-默认为空，内置 offline 画像使用 AKShare 主力连续合约数据并明确设置
+instrument registry、期货日线 planner 和 completed/cancel 恢复已经落地；内置 offline
+画像使用 AKShare 主力连续合约数据并明确设置
 `live_trading_eligible: false`。完成实际 CTP 合约核验、可信实盘数据切换和并发/崩溃
 恢复演练，并创建经核验的 production 画像前，不应开启真实资金。
 
-`paper` 适配器当前采用现货式现金/持仓记账，用于基础设施测试；它不模拟期货合约
-乘数、保证金、开平今/平昨和结算，因此不能被当作期货仿真交易账户。
+`paper` 采用现货式现金/持仓记账，只用于通用基础设施测试。期货流程使用 `ctp_sim`：
+它模拟合约乘数、保证金、今昨仓和开平仓，但不包含真实柜台认证、结算确认、期货公司
+费率和交易前置网络行为，不能把结果解释为真实 CTP 联调完成。
 
 ## 文档索引
 

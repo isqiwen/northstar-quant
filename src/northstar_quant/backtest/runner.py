@@ -11,7 +11,8 @@ from typing import Any
 
 from northstar_quant.backtest.canonical import run_strategy_output_backtest
 from northstar_quant.config.trading_profile import load_trading_profile
-from northstar_quant.data.storage import load_profile_signal_data
+from northstar_quant.data.schema import to_signal_market_data
+from northstar_quant.data.storage import load_profile_market_data
 from northstar_quant.strategies.pipeline import (
     latest_pipeline_output,
     resolve_selected_profile_strategy_ids,
@@ -28,15 +29,16 @@ def run_profile_backtest(profile_id: str | None = None) -> dict[str, Any]:
     """
 
     profile = load_trading_profile(profile_id)
-    market_df = load_profile_signal_data(profile)
+    raw_market_df = load_profile_market_data(profile)
+    signal_market_df = to_signal_market_data(profile, raw_market_df)
     selected_strategy_ids = resolve_selected_profile_strategy_ids(profile)
     pipeline = run_profile_strategy_pipeline(
-        market_df,
+        signal_market_df,
         profile,
         latest_only=False,
     )
     latest_holdings = latest_pipeline_output(pipeline)
-    result = run_strategy_output_backtest(profile, market_df, pipeline)
+    result = run_strategy_output_backtest(profile, raw_market_df, pipeline)
 
     return {
         "profile_id": profile.profile_id,
@@ -51,4 +53,6 @@ def run_profile_backtest(profile_id: str | None = None) -> dict[str, Any]:
         if "symbol" in latest_holdings.columns
         else [],
         "latest_holdings": latest_holdings.to_dicts(),
+        "trade_count": len(result.trades),
+        "rejected_order_count": len(result.rejected_orders),
     }

@@ -64,6 +64,7 @@ class CtpContractRegistry:
     """不可变 CTP 合约映射表。"""
 
     version: int
+    broker: str
     contracts: tuple[CtpContractMapping, ...]
 
     def resolve_continuous(self, continuous_symbol: str) -> CtpContractMapping:
@@ -122,6 +123,8 @@ def get_ctp_contract_mapping_path(config_path: str | Path | None = None) -> Path
 
 def load_ctp_contract_registry(
     config_path: str | Path | None = None,
+    *,
+    expected_broker: str | None = None,
 ) -> CtpContractRegistry:
     """读取并严格校验 CTP 合约映射，不缓存以支持人工换月。"""
 
@@ -137,15 +140,22 @@ def load_ctp_contract_registry(
     version = payload["version"]
     if isinstance(version, bool) or not isinstance(version, int) or version != 1:
         raise CtpContractMappingError("CTP 合约映射 version 当前必须为整数 1。")
-    if _required_string(payload["broker"], "broker").lower() != "ctp":
-        raise CtpContractMappingError("CTP 合约映射 broker 必须为 ctp。")
+    broker = _required_string(payload["broker"], "broker").lower()
+    if broker not in {"ctp", "ctp_sim"}:
+        raise CtpContractMappingError("CTP 合约映射 broker 必须为 ctp 或 ctp_sim。")
+    normalized_expected_broker = str(expected_broker or "").strip().lower()
+    if normalized_expected_broker and broker != normalized_expected_broker:
+        raise CtpContractMappingError(
+            "CTP_CONTRACT_BROKER_MISMATCH: 合约映射 broker "
+            f"{broker} 与当前适配器 {normalized_expected_broker} 不一致。"
+        )
 
     raw_contracts = payload["contracts"]
     if not isinstance(raw_contracts, list):
         raise CtpContractMappingError("CTP 合约映射 contracts 必须是列表。")
     contracts = tuple(_parse_contract(item, index) for index, item in enumerate(raw_contracts))
     _validate_unique(contracts)
-    return CtpContractRegistry(version=version, contracts=contracts)
+    return CtpContractRegistry(version=version, broker=broker, contracts=contracts)
 
 
 def _parse_contract(item: Any, index: int) -> CtpContractMapping:

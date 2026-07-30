@@ -245,10 +245,11 @@ def build_profile_strategy(
         )
     if (
         definition.supported_data_frequencies
-        and profile.data_frequency not in definition.supported_data_frequencies
+        and profile.strategy_data_frequency not in definition.supported_data_frequencies
     ):
         raise ValueError(
-            f"策略 {strategy_config.strategy_id} 不支持数据频率 {profile.data_frequency.value}，"
+            f"策略 {strategy_config.strategy_id} 不支持信号频率 "
+            f"{profile.strategy_data_frequency.value}，"
             f"仅支持 {', '.join(item.value for item in definition.supported_data_frequencies)}"
         )
     return build_strategy(strategy_config.strategy_id, params=strategy_config.params)

@@ -17,6 +17,7 @@ import polars as pl
 
 from northstar_quant.config.trading_profile import TradingProfile, load_trading_profile, list_trading_profiles
 from northstar_quant.data.providers.akshare import download_akshare_main_continuous
+from northstar_quant.data.providers.akshare_actual import download_akshare_actual_daily
 from northstar_quant.data.schema import validate_market_dataset
 from northstar_quant.data.storage import (
     dataset_manifest_path,
@@ -204,6 +205,7 @@ def _build_manifest(
         "market": profile.market,
         "asset_type": profile.asset_type,
         "data_frequency": profile.data_frequency,
+        "signal_frequency": profile.strategy_data_frequency,
         "rebalance_frequency": profile.rebalance_frequency,
         "strategy_family": profile.strategy_family,
         "price_field": profile.data.price_field,
@@ -335,6 +337,11 @@ def download_profile_data(
     """
 
     profile = load_trading_profile(profile_id)
+    if not profile.data.download.enabled:
+        raise ValueError(
+            f"画像 {profile.profile_id} 禁止自动下载；请使用 `northstar data import-file` "
+            "导入已核验的数据制品"
+        )
     provider_id = provider_override or profile.data.download.provider or profile.data.provider
     provider = get_data_provider(provider_id)
     df = provider(profile)
@@ -388,6 +395,81 @@ def download_profile_data(
     )
 
 
+def import_profile_data(
+    source_path: str | Path,
+    profile_id: str | None = None,
+) -> DataDownloadResult:
+    """导入并发布一份由用户核验的本地行情文件。
+
+    该入口只接受画像明确关闭自动下载的数据集。支持 Parquet 和 CSV；导入后仍执行
+    完整 schema、主力日历、动态规则和内容哈希校验，不会直接信任源文件。
+    """
+
+    profile = load_trading_profile(profile_id)
+    if profile.data.download.enabled:
+        raise ValueError(
+            f"画像 {profile.profile_id} 已启用自动下载，不允许通过本地导入覆盖"
+        )
+    path = Path(source_path).expanduser().resolve()
+    if not path.is_file():
+        raise FileNotFoundError(f"待导入数据文件不存在：{path}")
+    suffix = path.suffix.lower()
+    if suffix == ".parquet":
+        df = pl.read_parquet(path)
+    elif suffix == ".csv":
+        df = pl.read_csv(path, try_parse_dates=True)
+    else:
+        raise ValueError("本地数据导入仅支持 .parquet 或 .csv 文件")
+
+    validation = validate_market_dataset(profile, df)
+    symbol_quality = _symbol_quality_summary(df)
+    dataset_target = profile_market_data_path(profile)
+    regression_issues = _quality_regression_issues(
+        _load_existing_manifest(dataset_target),
+        symbol_quality,
+    )
+    if regression_issues:
+        raise ValueError(
+            "导入数据质量回退，已拒绝覆盖现有数据：" + "；".join(regression_issues)
+        )
+
+    data_source = f"local_file:{path.name}"
+    cache_path, cache_manifest = _publish_dataset_artifact(
+        profile,
+        data_source,
+        df,
+        target_path=profile_download_cache_path(profile, profile.data.provider),
+        validation=validation,
+        symbol_quality=symbol_quality,
+    )
+    dataset_path, dataset_manifest = _publish_dataset_artifact(
+        profile,
+        data_source,
+        df,
+        target_path=dataset_target,
+        validation=validation,
+        symbol_quality=symbol_quality,
+    )
+    start, end = _temporal_range(df)
+    return DataDownloadResult(
+        profile_id=profile.profile_id,
+        data_source=data_source,
+        currency=profile.currency,
+        price_field=profile.data.price_field,
+        schema_version=str(validation["schema_version"]),
+        dataset_path=str(dataset_path),
+        dataset_manifest_path=str(dataset_manifest),
+        cache_path=str(cache_path),
+        cache_manifest_path=str(cache_manifest),
+        row_count=df.height,
+        symbol_count=df.get_column("symbol").n_unique(),
+        columns=list(df.columns),
+        start=start,
+        end=end,
+        symbol_quality=symbol_quality,
+    )
+
+
 def list_profile_data_summaries() -> list[dict[str, Any]]:
     """列出所有交易画像的数据配置摘要。"""
 
@@ -405,6 +487,7 @@ def list_profile_data_summaries() -> list[dict[str, Any]]:
                 "market": profile.market,
                 "asset_type": profile.asset_type,
                 "data_frequency": profile.data_frequency,
+                "signal_frequency": profile.strategy_data_frequency,
                 "rebalance_frequency": profile.rebalance_frequency,
                 "strategy_family": profile.strategy_family,
                 "dimension_key": profile.dimension_key,
@@ -427,3 +510,4 @@ def list_profile_data_summaries() -> list[dict[str, Any]]:
 
 
 register_data_provider("akshare", download_akshare_main_continuous)
+register_data_provider("akshare_actual_daily", download_akshare_actual_daily)

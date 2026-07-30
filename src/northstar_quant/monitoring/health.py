@@ -9,7 +9,10 @@ from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine, inspect, text
 
 from northstar_quant.config.settings import get_settings
-from northstar_quant.config.trading_profile import load_trading_profile
+from northstar_quant.config.trading_profile import (
+    ensure_broker_profile,
+    load_trading_profile,
+)
 from northstar_quant.data.storage import load_profile_market_data
 
 
@@ -65,14 +68,31 @@ def run_healthcheck() -> dict:
             )
         )
     else:
-        checks.append(
-            _check(
-                "default_profile",
-                "pass",
-                f"默认交易画像可加载：{profile.profile_id}。",
-                role=profile.lifecycle.role,
+        try:
+            if settings.broker in {"ctp_sim", "ctp"}:
+                ensure_broker_profile(
+                    profile,
+                    broker=settings.broker,
+                    context="health",
+                )
+        except ValueError as exc:
+            checks.append(
+                _check(
+                    "default_profile",
+                    "fail",
+                    f"默认交易画像与券商模式不匹配：{exc}",
+                    role=profile.lifecycle.role,
+                )
             )
-        )
+        else:
+            checks.append(
+                _check(
+                    "default_profile",
+                    "pass",
+                    f"默认交易画像可加载：{profile.profile_id}。",
+                    role=profile.lifecycle.role,
+                )
+            )
 
     try:
         engine = create_engine(settings.database_url, future=True)
@@ -165,6 +185,14 @@ def run_healthcheck() -> dict:
                 "CTP 报单适配器尚未实现，禁止真实交易。",
             )
         )
+    elif settings.broker == "ctp_sim":
+        checks.append(
+            _check(
+                "broker_capability",
+                "pass",
+                "当前为 ctp_sim 本地语义仿真，不连接真实交易柜台。",
+            )
+        )
     else:
         checks.append(
             _check(
@@ -196,4 +224,8 @@ def run_healthcheck() -> dict:
     if settings.broker == "ctp":
         payload["ctp_execution_available"] = False
         payload["ctp_execution_reason"] = "CTP 报单适配器尚未实现。"
+    elif settings.broker == "ctp_sim":
+        payload["ctp_simulation_available"] = True
+        payload["ctp_execution_available"] = False
+        payload["ctp_execution_reason"] = "仅本地语义仿真，未连接真实 CTP 前置。"
     return payload

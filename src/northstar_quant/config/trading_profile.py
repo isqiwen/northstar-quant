@@ -50,7 +50,7 @@ class ProfileDownloadConfig:
     """交易画像中的数据下载配置；只描述如何取得数据，不代表数据已经可信。"""
 
     enabled: bool = False  # 是否允许 ``data download`` 为该画像发起自动下载。
-    provider: str = "akshare"  # 下载提供器；当前只支持国内期货连续合约的 akshare。
+    provider: str = "akshare"  # 下载提供器 ID，如连续合约 akshare 或实际日线 akshare_actual_daily。
     symbols: tuple[str, ...] = ()  # 下载标的池，使用数据源可识别的符号格式。
     start_date: str | None = None  # 下载起始日期，YYYY-MM-DD；为空时由提供器决定。
     end_date: str | None = None  # 下载结束日期，YYYY-MM-DD；为空通常下载至最新可得日期。
@@ -61,9 +61,10 @@ class ProfileDownloadConfig:
 class ProfileDataConfig:
     """交易画像中的标准数据集、价格口径和真实交易资格。"""
 
-    provider: str = "akshare"  # 标准数据集的来源标识；当前只支持 akshare。
+    provider: str = "akshare"  # 标准数据集的来源标识，必须与数据实际血缘一致。
     dataset_id: str = "core"  # 数据集逻辑版本/名称，用于 manifest 与画像匹配。
     path: str = ""  # 相对 storage/market 的标准化数据文件路径。
+    signal_frequency: DataFrequency | None = None  # 策略实际读取的频率；为空时等于原始行情频率。
     price_field: str = "close"  # 策略和研究使用的价格列，如 close 或 adjusted_close。
     adjusted: bool = True  # 数据集是否按复权语义处理；不替代 price_field 的明确选择。
     live_trading_eligible: bool = False  # 真实交易数据资格开关，默认 false 且不能单独放行下单。
@@ -137,22 +138,32 @@ class ProfileBacktestConfig:
     commission_bps: float = 0.0  # 单边费率，单位为基点；1 bp = 0.01%。
     min_commission: float = 0.0  # 单笔最低佣金，计价货币与画像 currency 一致。
     slippage_bps: float = 0.0  # 成交滑点假设，单位为基点；用于保守模拟。
+    slippage_ticks: float = 0.0  # 实际期货合约逐日撮合的单边滑点 tick 数。
+    max_volume_participation: float = 1.0  # 单日单合约最多参与成交量的比例。
     lot_size: int = 1  # 撮合数量必须满足的最小整手单位。
     execution_delay_sessions: int = 1  # 信号产生后延迟多少个交易时段成交，至少为 1 防未来函数。
     sellable_after_sessions: int = 0  # 保留的通用撮合字段；期货 T+0 研究画像应为 0。
+    order_ttl_bars: int = 1  # 分钟回放委托最多经过多少根可交易 bar，超时后自动撤单。
+    queue_ahead_ratio: float = 0.0  # 被动限价单假设排在当根成交量之前的比例。
 
     def __post_init__(self) -> None:
         if self.initial_cash <= 0:
             raise ValueError("backtest.initial_cash 必须大于 0")
-        for field_name in ("commission_bps", "min_commission", "slippage_bps"):
+        for field_name in ("commission_bps", "min_commission", "slippage_bps", "slippage_ticks"):
             if getattr(self, field_name) < 0:
                 raise ValueError(f"backtest.{field_name} 不能为负数")
+        if not 0 < self.max_volume_participation <= 1:
+            raise ValueError("backtest.max_volume_participation 必须位于 (0, 1]")
         if self.lot_size < 1:
             raise ValueError("backtest.lot_size 至少为 1")
         if self.execution_delay_sessions < 1:
             raise ValueError("backtest.execution_delay_sessions 至少为 1")
         if self.sellable_after_sessions < 0:
             raise ValueError("backtest.sellable_after_sessions 不能为负数")
+        if self.order_ttl_bars < 1:
+            raise ValueError("backtest.order_ttl_bars 至少为 1")
+        if not 0 <= self.queue_ahead_ratio <= 1:
+            raise ValueError("backtest.queue_ahead_ratio 必须位于 [0, 1]")
 
 
 @dataclass(frozen=True, slots=True)
@@ -174,7 +185,7 @@ class TradingProfile:
     name: str  # 面向人类的简短中文名称，不参与程序路由。
     market: Market  # 市场枚举：CN、US、HK；影响日历、规则和适配器选择。
     asset_type: AssetType  # 本项目固定为 FUTURES。
-    data_frequency: DataFrequency  # 行情/信号频率，如 1d、1w、1m。
+    data_frequency: DataFrequency  # 原始行情频率，如 1d、1w、1m。
     rebalance_frequency: RebalanceFrequency  # 允许调整目标持仓的频率，不必等于数据频率。
     strategy_family: StrategyFamily  # 画像默认策略分类；具体策略可在 strategies 内覆盖。
     currency: str  # 计价货币，当前仅支持 CNY；费用和金额阈值均使用该货币。
@@ -190,7 +201,7 @@ class TradingProfile:
     backtest: ProfileBacktestConfig = field(default_factory=ProfileBacktestConfig)  # 回测撮合假设。
     versions: ProfileVersionConfig = field(default_factory=ProfileVersionConfig)  # 可追溯性版本锚点。
     risk: dict[str, Any] = field(default_factory=dict)  # RiskLimits 支持字段的画像级覆盖，未知字段会拒绝。
-    schedule: dict[str, Any] = field(default_factory=dict)  # cron 配置，如 rebalance_cron、daily_report_cron。
+    schedule: dict[str, Any] = field(default_factory=dict)  # cron 配置，如 daily_signal_cron、execution_cron。
     metadata: dict[str, Any] = field(default_factory=dict)  # 未建模顶层字段；仅保留，不应假定影响交易行为。
 
     @property
@@ -215,11 +226,17 @@ class TradingProfile:
     def is_production(self) -> bool:
         return self.lifecycle.is_production
 
+    @property
+    def strategy_data_frequency(self) -> DataFrequency:
+        """返回策略信号频率；分钟回放可使用日线策略信号。"""
+
+        return self.data.signal_frequency or self.data_frequency
+
     def strategy_dimensions(self, strategy: ProfileStrategyConfig) -> TradingDimensions:
         return TradingDimensions(
             market=self.market,
             asset_type=self.asset_type,
-            data_frequency=self.data_frequency,
+            data_frequency=self.strategy_data_frequency,
             rebalance_frequency=self.rebalance_frequency,
             strategy_family=strategy.strategy_family or self.strategy_family,
         )
@@ -344,6 +361,36 @@ def ensure_production_profile(profile: TradingProfile, *, context: str) -> Tradi
     )
 
 
+def ensure_broker_profile(
+    profile: TradingProfile,
+    *,
+    broker: str,
+    context: str,
+) -> TradingProfile:
+    """校验画像与券商边界，禁止仿真和真实账户互相借用画像。"""
+
+    normalized_broker = str(broker or "").strip().lower()
+    if normalized_broker != "ctp_sim":
+        return ensure_production_profile(profile, context=context)
+    if profile.lifecycle.role != "simulated":
+        raise ValueError(
+            f"{context} 使用 ctp_sim 时仅允许 simulated 画像；"
+            f"当前 {profile.profile_id} 的角色为 {profile.lifecycle.role}。"
+        )
+    futures = profile.futures
+    if (
+        profile.asset_type != AssetType.FUTURES
+        or futures is None
+        or futures.symbols_are_continuous
+        or not futures.execution_allowed
+    ):
+        raise ValueError(
+            f"{context} 的 ctp_sim 画像必须使用具体期货合约数据并设置 "
+            "futures.execution_allowed=true。"
+        )
+    return profile
+
+
 def _validate_profile_directory(
     path: Path,
     profile_dir: Path,
@@ -459,6 +506,11 @@ def load_trading_profile(
                 f"{data_frequency.value.lower()}/core.parquet",
             )
         ),
+        signal_frequency=(
+            _parse_enum(DataFrequency, data_raw["signal_frequency"])
+            if data_raw.get("signal_frequency") is not None
+            else None
+        ),
         price_field=str(
             data_raw.get(
                 "price_field",
@@ -546,9 +598,14 @@ def load_trading_profile(
         ),
     )
     backtest_engine = str(backtest_raw.get("engine", "weight_return")).strip().lower()
-    if backtest_engine not in {"weight_return"}:
+    if backtest_engine not in {
+        "weight_return",
+        "futures_daily",
+        "futures_intraday_replay",
+    }:
         raise ValueError(
-            "配置字段 backtest.engine 当前仅支持期货连续合约研究引擎 weight_return"
+            "配置字段 backtest.engine 仅支持 weight_return、futures_daily "
+            "或 futures_intraday_replay"
         )
     backtest_config = ProfileBacktestConfig(
         engine=backtest_engine,
@@ -556,6 +613,10 @@ def load_trading_profile(
         commission_bps=float(backtest_raw.get("commission_bps", 0.0)),
         min_commission=float(backtest_raw.get("min_commission", 0.0)),
         slippage_bps=float(backtest_raw.get("slippage_bps", 0.0)),
+        slippage_ticks=float(backtest_raw.get("slippage_ticks", 0.0)),
+        max_volume_participation=float(
+            backtest_raw.get("max_volume_participation", 1.0)
+        ),
         lot_size=_parse_positive_int(
             backtest_raw.get("lot_size", 1),
             field_name="backtest.lot_size",
@@ -571,7 +632,52 @@ def load_trading_profile(
             field_name="backtest.sellable_after_sessions",
             minimum=0,
         ),
+        order_ttl_bars=_parse_positive_int(
+            backtest_raw.get("order_ttl_bars", 1),
+            field_name="backtest.order_ttl_bars",
+            minimum=1,
+        ),
+        queue_ahead_ratio=float(backtest_raw.get("queue_ahead_ratio", 0.0)),
     )
+    if backtest_engine in {"futures_daily", "futures_intraday_replay"}:
+        if futures_config is None or futures_config.symbols_are_continuous:
+            raise ValueError(f"{backtest_engine} 引擎必须使用具体实际合约数据")
+        if (
+            backtest_engine == "futures_intraday_replay"
+            and data_config.download.enabled
+        ):
+            raise ValueError(
+                "futures_intraday_replay 分钟画像只允许导入已核验的本地数据制品"
+            )
+        if (
+            backtest_engine == "futures_daily"
+            and data_config.download.enabled
+            and data_config.download.provider != "akshare_actual_daily"
+        ):
+            raise ValueError(
+                "futures_daily 自动下载只允许使用 akshare_actual_daily 提供器"
+            )
+        if any(
+            value != 0
+            for value in (
+                backtest_config.commission_bps,
+                backtest_config.min_commission,
+                backtest_config.slippage_bps,
+            )
+        ):
+            raise ValueError(
+                f"{backtest_engine} 使用动态规则快照计费，"
+                "通用 bps/最低佣金字段必须为 0"
+            )
+    if backtest_engine == "futures_daily" and data_frequency != DataFrequency.D1:
+        raise ValueError("futures_daily 引擎的原始行情频率必须为 1d")
+    if backtest_engine == "futures_intraday_replay":
+        if data_frequency != DataFrequency.M1:
+            raise ValueError("futures_intraday_replay 引擎的原始行情频率必须为 1m")
+        if data_config.signal_frequency != DataFrequency.D1:
+            raise ValueError(
+                "futures_intraday_replay 当前必须配置 data.signal_frequency: 1d"
+            )
     version_config = ProfileVersionConfig(
         profile=str(versions_raw.get("profile", "v1")),
         benchmark=str(versions_raw.get("benchmark", "v1")),

@@ -7,7 +7,13 @@ from apscheduler.triggers.cron import CronTrigger
 
 from northstar_quant.config.settings import get_settings
 from northstar_quant.config.trading_profile import get_production_profile_id, load_trading_profile
-from northstar_quant.live.service import run_live_once, run_shadow_once, sync_broker_once
+from northstar_quant.live.service import (
+    execute_latest_targets_once,
+    run_runtime_risk_monitor_once,
+    run_shadow_once,
+    sync_broker_once,
+)
+from northstar_quant.live.target_service import generate_daily_targets_once
 from northstar_quant.live.trading_calendar import (
     is_last_trading_session_of_month,
     is_last_trading_session_of_year,
@@ -47,6 +53,7 @@ def _guarded_job(
     *,
     calendar: str | None = None,
     timezone: str | None = None,
+    notify_on_skip: bool = True,
 ):
     """包装任务，在非交易日直接跳过。"""
 
@@ -59,7 +66,8 @@ def _guarded_job(
             calendar_kwargs["timezone"] = timezone
         if not is_trading_session(**calendar_kwargs):
             job_logger.info("调度任务被跳过，原因=非交易日")
-            send_alert(f"跳过任务 {job_name}：今天不是交易日。", level="info")
+            if notify_on_skip:
+                send_alert(f"跳过任务 {job_name}：今天不是交易日。", level="info")
             return None
         job_logger.info("开始执行调度任务")
         return func()
@@ -175,6 +183,22 @@ def run_scheduler() -> None:
     )
     scheduler.add_job(
         _guarded_job(
+            "daily_signal",
+            lambda: generate_daily_targets_once(profile.profile_id),
+            calendar=profile_calendar,
+            timezone=profile_timezone,
+        ),
+        _parse_cron(
+            schedule.get("daily_signal_cron", settings.daily_signal_cron),
+            timezone=profile_timezone,
+        ),
+        id="daily_signal",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+    )
+    scheduler.add_job(
+        _guarded_job(
             "daily_shadow_run",
             lambda: run_shadow_once(profile.profile_id),
             calendar=profile_calendar,
@@ -186,20 +210,41 @@ def run_scheduler() -> None:
         ),
         id="daily_shadow_run",
         replace_existing=True,
+        max_instances=1,
+        coalesce=True,
     )
     scheduler.add_job(
         _guarded_job(
-            "daily_rebalance",
-            lambda: run_live_once(profile.profile_id),
+            "daily_execution",
+            lambda: execute_latest_targets_once(profile.profile_id),
             calendar=profile_calendar,
             timezone=profile_timezone,
         ),
         _parse_cron(
-            schedule.get("rebalance_cron", settings.rebalance_cron),
+            schedule.get("execution_cron", settings.execution_cron),
             timezone=profile_timezone,
         ),
-        id="daily_rebalance",
+        id="daily_execution",
         replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+    )
+    scheduler.add_job(
+        _guarded_job(
+            "runtime_risk",
+            lambda: run_runtime_risk_monitor_once(profile.profile_id),
+            calendar=profile_calendar,
+            timezone=profile_timezone,
+            notify_on_skip=False,
+        ),
+        _parse_cron(
+            schedule.get("runtime_risk_cron", settings.runtime_risk_cron),
+            timezone=profile_timezone,
+        ),
+        id="runtime_risk",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
     )
     scheduler.add_job(
         lambda: _build_and_send_report("daily"),

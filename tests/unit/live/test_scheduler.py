@@ -236,7 +236,7 @@ def test_run_scheduler_registers_shadow_run_job(monkeypatch):
             self.timezone = timezone
             scheduler_timezones.append(timezone)
 
-        def add_job(self, func, trigger, id, replace_existing=True):
+        def add_job(self, func, trigger, id, replace_existing=True, **_kwargs):
             del func, trigger, replace_existing
             added_job_ids.append(id)
 
@@ -255,7 +255,7 @@ def test_run_scheduler_registers_shadow_run_job(monkeypatch):
     monkeypatch.setattr(
         live_scheduler,
         "_guarded_job",
-        lambda job_name, func, *, calendar=None, timezone=None: (
+        lambda job_name, func, *, calendar=None, timezone=None, **_kwargs: (
             guard_contexts.append((job_name, calendar, timezone))
             or func
         ),
@@ -268,8 +268,10 @@ def test_run_scheduler_registers_shadow_run_job(monkeypatch):
             scheduler_timezone="America/New_York",
             exchange_calendar="XSHG",
             shadow_run_cron="20 15 * * 1-5",
+            daily_signal_cron="20 15 * * 1-5",
+            execution_cron="5 9,21 * * 1-5",
+            runtime_risk_cron="*/1 * * * 1-5",
             broker_sync_cron="0,15,30,45 9-16 * * 1-5",
-            rebalance_cron="35 15 * * 1-5",
             daily_report_cron="45 16 * * 1-5",
             weekly_report_cron="0 17 * * 5",
             monthly_report_cron="0 17 28-31 * *",
@@ -293,12 +295,16 @@ def test_run_scheduler_registers_shadow_run_job(monkeypatch):
         live_scheduler.run_scheduler()
 
     assert "daily_shadow_run" in added_job_ids
-    assert "daily_rebalance" in added_job_ids
+    assert "daily_signal" in added_job_ids
+    assert "daily_execution" in added_job_ids
+    assert "runtime_risk" in added_job_ids
     assert "yearly_report" in added_job_ids
     assert scheduler_timezones == ["America/New_York"]
-    assert trigger_timezones == ["America/New_York"] * 7
+    assert trigger_timezones == ["America/New_York"] * 9
     assert guard_contexts == [
         ("broker_sync", "XNYS", "America/New_York"),
+        ("daily_signal", "XNYS", "America/New_York"),
         ("daily_shadow_run", "XNYS", "America/New_York"),
-        ("daily_rebalance", "XNYS", "America/New_York"),
+        ("daily_execution", "XNYS", "America/New_York"),
+        ("runtime_risk", "XNYS", "America/New_York"),
     ]

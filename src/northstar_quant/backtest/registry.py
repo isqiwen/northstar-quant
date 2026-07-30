@@ -8,15 +8,15 @@ from dataclasses import dataclass
 import polars as pl
 
 from northstar_quant.backtest.event_engine import BacktestResult, run_event_backtest
-from northstar_quant.backtest.simulation import (
-    SimulationBacktesterBase,
-    periods_per_year_for_frequency,
+from northstar_quant.backtest.futures_actual_adapter import run_actual_futures_backtest
+from northstar_quant.backtest.futures_intraday_adapter import (
+    run_actual_futures_intraday_replay,
 )
+from northstar_quant.backtest.metrics import periods_per_year_for_frequency
 from northstar_quant.common.enums import AssetType, DataFrequency, Market, RebalanceFrequency, StrategyFamily
 from northstar_quant.config.trading_profile import TradingProfile
 
 TargetBacktester = Callable[[TradingProfile, pl.DataFrame, pl.DataFrame], BacktestResult]
-SimulationBacktesterFactory = Callable[[], SimulationBacktesterBase]
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,21 +33,7 @@ class TargetBacktesterDefinition:
     supported_backtest_engines: tuple[str, ...] = ()
 
 
-@dataclass(frozen=True, slots=True)
-class SimulationBacktesterDefinition:
-    """策略仿真回测器注册元数据。"""
-
-    backtester_id: str
-    backtester_factory: SimulationBacktesterFactory
-    supported_markets: tuple[Market, ...] = ()
-    supported_asset_types: tuple[AssetType, ...] = ()
-    supported_data_frequencies: tuple[DataFrequency, ...] = ()
-    supported_rebalance_frequencies: tuple[RebalanceFrequency, ...] = ()
-    supported_strategy_families: tuple[StrategyFamily, ...] = ()
-
-
 _TARGET_BACKTESTERS: dict[str, TargetBacktesterDefinition] = {}
-_SIMULATION_BACKTESTERS: dict[str, SimulationBacktesterDefinition] = {}
 
 
 def register_target_backtester(
@@ -78,42 +64,10 @@ def register_target_backtester(
     )
 
 
-def register_simulation_backtester(
-    backtester_id: str,
-    backtester_factory: SimulationBacktesterFactory,
-    *,
-    supported_markets: tuple[Market, ...] = (),
-    supported_asset_types: tuple[AssetType, ...] = (),
-    supported_data_frequencies: tuple[DataFrequency, ...] = (),
-    supported_rebalance_frequencies: tuple[RebalanceFrequency, ...] = (),
-    supported_strategy_families: tuple[StrategyFamily, ...] = (),
-    replace: bool = False,
-) -> None:
-    """注册策略仿真回测器。"""
-
-    if backtester_id in _SIMULATION_BACKTESTERS and not replace:
-        raise ValueError(f"策略仿真回测器已注册：{backtester_id}")
-    _SIMULATION_BACKTESTERS[backtester_id] = SimulationBacktesterDefinition(
-        backtester_id=backtester_id,
-        backtester_factory=backtester_factory,
-        supported_markets=supported_markets,
-        supported_asset_types=supported_asset_types,
-        supported_data_frequencies=supported_data_frequencies,
-        supported_rebalance_frequencies=supported_rebalance_frequencies,
-        supported_strategy_families=supported_strategy_families,
-    )
-
-
 def list_target_backtesters() -> list[str]:
     """列出已注册的目标持仓回测器。"""
 
     return sorted(_TARGET_BACKTESTERS)
-
-
-def list_simulation_backtesters() -> list[str]:
-    """列出已注册的策略仿真回测器。"""
-
-    return sorted(_SIMULATION_BACKTESTERS)
 
 
 def _matches(
@@ -180,31 +134,6 @@ def resolve_target_backtester(profile: TradingProfile) -> TargetBacktesterDefini
     return matches[0]
 
 
-def resolve_simulation_backtester(profile: TradingProfile) -> SimulationBacktesterDefinition:
-    """按五维为策略仿真回测选择实现。"""
-
-    matches = [
-        definition
-        for definition in _SIMULATION_BACKTESTERS.values()
-        if _matches(
-            supported_markets=definition.supported_markets,
-            supported_asset_types=definition.supported_asset_types,
-            supported_data_frequencies=definition.supported_data_frequencies,
-            supported_rebalance_frequencies=definition.supported_rebalance_frequencies,
-            supported_strategy_families=definition.supported_strategy_families,
-            profile=profile,
-        )
-    ]
-    if not matches:
-        raise LookupError(f"未找到适用于画像 {profile.dimension_key} 的策略仿真回测器")
-    if len(matches) > 1:
-        matched_ids = ", ".join(sorted(item.backtester_id for item in matches))
-        raise LookupError(
-            f"画像 {profile.dimension_key} 匹配到多个策略仿真回测器：{matched_ids}"
-        )
-    return matches[0]
-
-
 def run_target_backtest(
     profile: TradingProfile,
     market_df: pl.DataFrame,
@@ -213,27 +142,11 @@ def run_target_backtest(
     """根据画像运行目标权重回测。
 
     调用前的策略目标应已按信号日生成；所选回测器负责使用画像中允许的频率和引擎。
-    当前注册实现是连续合约的 ``weight_return`` 研究，不等同于保证金账户逐笔成交。
+    当前三种实现分别服务于连续收益研究、实际合约逐日回测和分钟订单回放。
     """
 
     definition = resolve_target_backtester(profile)
     return definition.backtester(profile, market_df, targets)
-
-
-def run_simulation_backtest(
-    profile: TradingProfile,
-    *,
-    strategy_name: str,
-    symbol: str = "RB_CONT",
-) -> dict:
-    """根据画像运行策略仿真回测。"""
-
-    definition = resolve_simulation_backtester(profile)
-    return definition.backtester_factory().run(
-        profile,
-        strategy_name=strategy_name,
-        symbol=symbol,
-    )
 
 
 def _run_bar_event_backtest(
@@ -271,4 +184,26 @@ register_target_backtester(
     supported_rebalance_frequencies=(RebalanceFrequency.D1,),
     supported_strategy_families=(StrategyFamily.TREND_FOLLOWING,),
     supported_backtest_engines=("weight_return",),
+)
+
+register_target_backtester(
+    "actual_futures_daily_backtest",
+    run_actual_futures_backtest,
+    supported_markets=(Market.CN,),
+    supported_asset_types=(AssetType.FUTURES,),
+    supported_data_frequencies=(DataFrequency.D1,),
+    supported_rebalance_frequencies=(RebalanceFrequency.D1,),
+    supported_strategy_families=(StrategyFamily.TREND_FOLLOWING,),
+    supported_backtest_engines=("futures_daily",),
+)
+
+register_target_backtester(
+    "actual_futures_intraday_replay_backtest",
+    run_actual_futures_intraday_replay,
+    supported_markets=(Market.CN,),
+    supported_asset_types=(AssetType.FUTURES,),
+    supported_data_frequencies=(DataFrequency.M1,),
+    supported_rebalance_frequencies=(RebalanceFrequency.D1,),
+    supported_strategy_families=(StrategyFamily.TREND_FOLLOWING,),
+    supported_backtest_engines=("futures_intraday_replay",),
 )

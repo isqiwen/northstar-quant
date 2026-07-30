@@ -19,7 +19,7 @@ import polars as pl
 from northstar_quant.config.trading_profile import TradingProfile, load_trading_profile
 from northstar_quant.config.settings import get_settings
 from northstar_quant.data.schema import (
-    SCHEMA_VERSION,
+    schema_version_for_profile,
     to_signal_market_data,
     validate_market_dataset,
 )
@@ -133,7 +133,9 @@ def load_profile_market_data(profile: TradingProfile | str | None = None) -> pl.
     manifest = load_json(manifest_path)
     expected_hash = str(manifest.get("content_sha256") or "").strip().lower()
     if len(expected_hash) != 64:
-        raise ValueError("数据 manifest 缺少有效的 content_sha256，请重新下载数据")
+        raise ValueError(
+            "数据 manifest 缺少有效的 content_sha256，请重新下载或导入数据"
+        )
     actual_hash = sha256_file(data_path)
     if actual_hash != expected_hash:
         raise ValueError(
@@ -147,7 +149,8 @@ def load_profile_market_data(profile: TradingProfile | str | None = None) -> pl.
         identity_issues.append("profile_id")
     if str(manifest.get("dataset_id") or "") != profile_obj.data.dataset_id:
         identity_issues.append("dataset_id")
-    if str(manifest.get("schema", {}).get("schema_version") or "") != SCHEMA_VERSION:
+    expected_schema_version = schema_version_for_profile(profile_obj)
+    if str(manifest.get("schema", {}).get("schema_version") or "") != expected_schema_version:
         identity_issues.append("schema_version")
     if int(manifest.get("row_count", -1)) != df.height:
         identity_issues.append("row_count")
@@ -159,9 +162,9 @@ def load_profile_market_data(profile: TradingProfile | str | None = None) -> pl.
         raise ValueError(
             "数据 manifest 与当前画像或文件不一致："
             + ", ".join(identity_issues)
-            + "；请重新下载并生成数据制品"
+            + "；请重新下载或导入并生成数据制品"
         )
-    if validation["schema_version"] != SCHEMA_VERSION:
+    if validation["schema_version"] != expected_schema_version:
         raise ValueError("数据 schema 版本不受支持")
     return df
 

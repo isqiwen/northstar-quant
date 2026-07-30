@@ -91,6 +91,15 @@ class OrderSemantic(StringEnum):
     REVERSE = "reverse"
 
 
+class CtpOffset(StringEnum):
+    """CTP 开平仓标志。"""
+
+    OPEN = "open"
+    CLOSE = "close"
+    CLOSE_TODAY = "close_today"
+    CLOSE_YESTERDAY = "close_yesterday"
+
+
 class ProductSessionRule(StringEnum):
     """品种卡中交易时段的权威解析规则。"""
 

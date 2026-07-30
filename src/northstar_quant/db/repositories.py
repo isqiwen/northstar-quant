@@ -37,6 +37,7 @@ from northstar_quant.db.models import (
     OrderRecord,
     PositionSnapshotBatchRecord,
     PositionSnapshotRecord,
+    RuntimeRiskRecord,
     RunHealthRecord,
     StrategyRunRecord,
     StrategySnapshotRecord,
@@ -130,6 +131,12 @@ def save_position_snapshot_batch(
                 avg_cost=item.avg_cost,
                 market_price=item.market_price,
                 market_value=item.market_value,
+                instrument_id=item.instrument_id,
+                exchange_id=item.exchange_id,
+                long_today_qty=item.long_today_qty,
+                long_yesterday_qty=item.long_yesterday_qty,
+                short_today_qty=item.short_today_qty,
+                short_yesterday_qty=item.short_yesterday_qty,
                 asof=batch_asof,
                 snapshot_batch_id=batch_id,
             )
@@ -369,6 +376,64 @@ def save_strategy_run_snapshot(
     return row
 
 
+def get_strategy_run_by_run_id(
+    session: Session,
+    run_id: str,
+) -> StrategyRunRecord | None:
+    """按稳定运行 ID 读取策略快照头。"""
+
+    return session.scalar(
+        select(StrategyRunRecord).where(
+            StrategyRunRecord.run_id == str(run_id).strip()
+        )
+    )
+
+
+def latest_strategy_run(
+    session: Session,
+    *,
+    profile_id: str,
+    run_id_prefix: str | None = None,
+) -> StrategyRunRecord | None:
+    """读取画像最近一次已经冻结的策略输出。"""
+
+    stmt = select(StrategyRunRecord).where(
+        StrategyRunRecord.profile_id == str(profile_id).strip()
+    )
+    normalized_prefix = str(run_id_prefix or "").strip()
+    if normalized_prefix:
+        stmt = stmt.where(StrategyRunRecord.run_id.startswith(normalized_prefix))
+    return session.scalar(
+        stmt
+        .order_by(
+            StrategyRunRecord.output_asof.desc(),
+            StrategyRunRecord.created_at.desc(),
+            StrategyRunRecord.id.desc(),
+        )
+        .limit(1)
+    )
+
+
+def list_strategy_snapshots_for_run(
+    session: Session,
+    *,
+    run_id: str,
+) -> list[StrategySnapshotRecord]:
+    """按稳定运行 ID 读取逐标的策略输出。"""
+
+    return list(
+        session.scalars(
+            select(StrategySnapshotRecord)
+            .where(StrategySnapshotRecord.run_id == str(run_id).strip())
+            .order_by(
+                StrategySnapshotRecord.asof.asc(),
+                StrategySnapshotRecord.symbol.asc(),
+                StrategySnapshotRecord.id.asc(),
+            )
+        )
+    )
+
+
 def save_execution_plan_records(
     session: Session,
     plans: Sequence[RebalanceOrderPlan],
@@ -408,6 +473,12 @@ def save_execution_plan_records(
                 reason=_optional_text(plan.reason),
                 order_type=_optional_text(plan.order_type),
                 limit_price=_optional_float(plan.limit_price),
+                instrument_id=_optional_text(plan.instrument_id),
+                exchange_id=_optional_text(plan.exchange_id),
+                ctp_offset=_optional_text(plan.ctp_offset),
+                volume_multiple=plan.volume_multiple,
+                margin_rate=_optional_float(plan.margin_rate),
+                required_margin=_optional_float(plan.required_margin),
             )
         )
         count += 1
@@ -519,6 +590,17 @@ def _assert_fill_matches_order(
             "FILL_ORDER_IDENTITY_MISMATCH: "
             f"order_id={order_row.id}，field=side，"
             f"persisted={order_row.side}，observed={item.side}。"
+        )
+    if (
+        order_row.ctp_offset
+        and item.ctp_offset
+        and str(order_row.ctp_offset).strip().lower()
+        != str(item.ctp_offset).strip().lower()
+    ):
+        raise RuntimeError(
+            "FILL_ORDER_IDENTITY_MISMATCH: "
+            f"order_id={order_row.id}，field=ctp_offset，"
+            f"persisted={order_row.ctp_offset}，observed={item.ctp_offset}。"
         )
 
 
@@ -679,6 +761,7 @@ def save_fill_snapshots(
             client_id=item.client_id,
             instrument_id=item.instrument_id,
             exchange_id=item.exchange_id,
+            ctp_offset=item.ctp_offset,
             broker_order_id=item.broker_order_id,
             symbol=item.symbol,
             side=item.side,
@@ -1335,6 +1418,10 @@ def save_order_result(
         account=order.account,
         instrument_id=order.instrument_id,
         exchange_id=order.exchange_id,
+        ctp_offset=order.ctp_offset,
+        volume_multiple=order.volume_multiple,
+        margin_rate=order.margin_rate,
+        required_margin=order.required_margin,
         currency=order.currency,
         reference_price=order.reference_price,
         reference_price_source=order.reference_price_source,
@@ -1404,6 +1491,9 @@ def prepare_order_submission(
         attempt_no=order.attempt_no,
         instrument_id=order.instrument_id,
         exchange_id=order.exchange_id,
+        ctp_offset=order.ctp_offset,
+        volume_multiple=order.volume_multiple,
+        margin_rate=order.margin_rate,
         currency=order.currency,
         execution_policy_fingerprint=order.execution_policy_fingerprint,
     )
@@ -1443,6 +1533,10 @@ def prepare_order_submission(
         account=normalized_account,
         instrument_id=order.instrument_id,
         exchange_id=order.exchange_id,
+        ctp_offset=order.ctp_offset,
+        volume_multiple=order.volume_multiple,
+        margin_rate=order.margin_rate,
+        required_margin=order.required_margin,
         currency=order.currency,
         reference_price=order.reference_price,
         reference_price_source=order.reference_price_source,
@@ -2585,6 +2679,62 @@ def count_anomaly_events(
     if end_at is not None:
         stmt = stmt.where(AnomalyEventRecord.detected_at < ensure_utc(end_at))
     return int(session.scalar(stmt) or 0)
+
+
+def save_runtime_risk_record(
+    session: Session,
+    *,
+    profile_id: str,
+    broker: str,
+    account: str | None,
+    can_submit: bool,
+    blocking_failure_count: int,
+    warning_count: int,
+    checks: Sequence[dict[str, object]],
+    checked_at: datetime,
+) -> RuntimeRiskRecord:
+    """保存盘中风控结论，供监控和每笔订单提交门禁复用。"""
+
+    row = RuntimeRiskRecord(
+        profile_id=str(profile_id).strip(),
+        broker=str(broker).strip().lower(),
+        account=_optional_text(account),
+        can_submit=bool(can_submit),
+        blocking_failure_count=int(blocking_failure_count),
+        warning_count=int(warning_count),
+        checks_json=_serialize_json(list(checks)) or "[]",
+        checked_at=ensure_utc(checked_at),
+    )
+    session.add(row)
+    session.commit()
+    session.refresh(row)
+    return row
+
+
+def latest_runtime_risk_record(
+    session: Session,
+    *,
+    profile_id: str,
+    broker: str,
+    account: str | None,
+) -> RuntimeRiskRecord | None:
+    """读取指定画像和账户最近一次盘中风控结论。"""
+
+    stmt = select(RuntimeRiskRecord).where(
+        RuntimeRiskRecord.profile_id == str(profile_id).strip(),
+        RuntimeRiskRecord.broker == str(broker).strip().lower(),
+    )
+    normalized_account = _optional_text(account)
+    if normalized_account is None:
+        stmt = stmt.where(RuntimeRiskRecord.account.is_(None))
+    else:
+        stmt = stmt.where(RuntimeRiskRecord.account == normalized_account)
+    return session.scalar(
+        stmt.order_by(
+            RuntimeRiskRecord.checked_at.desc(),
+            RuntimeRiskRecord.id.desc(),
+        ).limit(1)
+    )
 
 
 def save_run_health_record(

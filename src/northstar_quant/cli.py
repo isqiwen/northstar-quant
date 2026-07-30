@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import asdict
+from pathlib import Path
 
 import click
 import typer
@@ -12,9 +13,7 @@ from typer.completion import install_callback, show_callback
 from typer.core import TyperCommand, TyperGroup
 
 from northstar_quant.backtest.registry import (
-    resolve_simulation_backtester,
     resolve_target_backtester,
-    run_simulation_backtest,
     run_target_backtest,
 )
 from northstar_quant.backtest.runner import run_profile_backtest
@@ -23,17 +22,20 @@ from northstar_quant.config.settings import get_settings
 from northstar_quant.config.trading_profile import load_trading_profile, resolve_profile_id
 from northstar_quant.data.downloader import (
     download_profile_data,
+    import_profile_data,
     list_data_providers,
     list_profile_data_summaries,
     read_profile_manifest,
     validate_profile_data,
 )
-from northstar_quant.data.storage import load_profile_signal_data
+from northstar_quant.data.schema import to_signal_market_data
+from northstar_quant.data.storage import load_profile_market_data
 from northstar_quant.db.init_db import init_db
 from northstar_quant.live.scheduler import run_scheduler
 from northstar_quant.live.service import (
     analyze_live_position_drift,
     cancel_stale_orders_once,
+    execute_latest_targets_once,
     poll_orders_and_fills_once,
     preview_rebalance,
     recent_anomaly_events,
@@ -42,10 +44,12 @@ from northstar_quant.live.service import (
     recent_trade_attributions,
     run_live_preflight,
     run_live_once,
+    run_runtime_risk_monitor_once,
     run_shadow_once,
     soak_summary,
     sync_broker_once,
 )
+from northstar_quant.live.target_service import generate_daily_targets_once
 from northstar_quant.logging_.logger import get_logger, setup_logging
 from northstar_quant.monitoring.health import run_healthcheck
 from northstar_quant.reporting.email_sender import send_report_via_email
@@ -56,7 +60,7 @@ from northstar_quant.reporting.report_builder import (
     build_markdown_report,
     latest_live_account_attribution_summary,
     record_daily_anomaly_events,
-    build_event_backtest_report,
+    build_backtest_report,
 )
 from northstar_quant.strategies.pipeline import (
     latest_pipeline_output,
@@ -195,10 +199,41 @@ def data_download_command(
     """根据交易画像下载或生成数据，并规范落盘。"""
 
     resolved_profile = resolve_profile_id(profile)
-    result = download_profile_data(resolved_profile, provider_override=provider)
+    try:
+        result = download_profile_data(resolved_profile, provider_override=provider)
+    except (KeyError, ValueError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
     _log_json(
         asdict(result),
         command="data.download",
+        profile=resolved_profile,
+        data_source=result.data_source,
+    )
+
+
+@data_app.command("import-file", **_COMMAND_KWARGS)
+def data_import_file_command(
+    source: Path = typer.Argument(
+        ...,
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+        readable=True,
+        resolve_path=True,
+        help="已核验的 Parquet 或 CSV 数据文件。",
+    ),
+    profile: str | None = typer.Option(None, "--profile", "-p", help=_PROFILE_OPTION_HELP),
+) -> None:
+    """校验并导入禁止自动下载的本地数据制品。"""
+
+    resolved_profile = resolve_profile_id(profile)
+    try:
+        result = import_profile_data(source, resolved_profile)
+    except (FileNotFoundError, ValueError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    _log_json(
+        asdict(result),
+        command="data.import-file",
         profile=resolved_profile,
         data_source=result.data_source,
     )
@@ -235,19 +270,30 @@ def research_futures_trend_command(
     _log_json(result, command="research.futures-trend", strategy="futures_trend", profile=resolved_profile)
 
 
-@backtest_app.command("event", **_COMMAND_KWARGS)
-def event_backtest_command(
+@backtest_app.command("run", **_COMMAND_KWARGS)
+def backtest_run_command(
     strategy: str = typer.Argument("portfolio"),
     profile: str | None = typer.Option(None, "--profile", "-p", help=_PROFILE_OPTION_HELP),
 ) -> None:
-    """运行目标持仓事件回测。"""
+    """按画像选择回测器并运行目标持仓回测。"""
 
     resolved_profile = resolve_profile_id(profile)
     profile_obj = load_trading_profile(resolved_profile)
-    market_df = load_profile_signal_data(resolved_profile)
+    try:
+        raw_market_df = load_profile_market_data(resolved_profile)
+    except FileNotFoundError as exc:
+        command = (
+            "northstar data download"
+            if profile_obj.data.download.enabled
+            else "northstar data import-file /path/to/actual_contracts.parquet"
+        )
+        raise typer.BadParameter(
+            f"{exc}。请先执行 `{command} --profile {resolved_profile}`"
+        ) from exc
+    signal_market_df = to_signal_market_data(profile_obj, raw_market_df)
     try:
         pipeline = run_profile_strategy_pipeline(
-            market_df,
+            signal_market_df,
             profile_obj,
             strategy_ids=parse_strategy_selection(strategy),
             latest_only=False,
@@ -257,14 +303,14 @@ def event_backtest_command(
 
     if pipeline.output_type != StrategyOutputType.TARGET_WEIGHT:
         raise typer.BadParameter(
-            f"策略 {strategy} 的输出类型为 {pipeline.output_type.value}，不能使用 event 回测。"
-            "请改用 `northstar backtest bt`。"
+            f"策略 {strategy} 的输出类型为 {pipeline.output_type.value}，不能使用 run 回测。"
+            "当前三个正式回测器只接受 target_weight。"
         )
 
     targets = pipeline.frame
     try:
         backtester = resolve_target_backtester(profile_obj)
-        result = run_target_backtest(profile_obj, market_df, targets)
+        result = run_target_backtest(profile_obj, raw_market_df, targets)
     except LookupError as exc:
         raise typer.BadParameter(str(exc)) from exc
 
@@ -274,11 +320,13 @@ def event_backtest_command(
         "annualized_return": result.annualized_return,
         "max_drawdown": result.max_drawdown,
         "turnover_estimate": result.turnover_estimate,
+        "trade_count": len(result.trades),
+        "rejected_order_count": len(result.rejected_orders),
     }
     holdings = latest_pipeline_output(pipeline)
     backtest_start = str(result.equity_curve[0]["date"])
     backtest_end = str(result.equity_curve[-1]["date"])
-    report_path = build_event_backtest_report(
+    report_path = build_backtest_report(
         strategy,
         metrics,
         holdings,
@@ -291,35 +339,21 @@ def event_backtest_command(
             "equity_curve": result.equity_curve,
             "drawdown_curve": result.drawdown_curve,
             "monthly_returns": result.monthly_returns,
+            "turnover_curve": result.turnover_curve,
+            "trades": result.trades,
+            "orders": result.orders,
+            "rejected_orders": result.rejected_orders,
         },
         benchmark_symbol=profile_obj.benchmark_symbol,
     )
 
-    _log_json(metrics, command="backtest.event", strategy=strategy, profile=resolved_profile)
+    _log_json(metrics, command="backtest.run", strategy=strategy, profile=resolved_profile)
     _log_message(
         f"报告已生成：{report_path}",
-        command="backtest.event",
+        command="backtest.run",
         strategy=strategy,
         profile=resolved_profile,
     )
-
-
-@backtest_app.command("bt", **_COMMAND_KWARGS)
-def bt_backtest_command(
-    strategy: str = typer.Argument("portfolio"),
-    profile: str | None = typer.Option(None, "--profile", "-p", help=_PROFILE_OPTION_HELP),
-) -> None:
-    """运行策略仿真回测。"""
-
-    resolved_profile = resolve_profile_id(profile)
-    profile_obj = load_trading_profile(resolved_profile)
-    try:
-        backtester = resolve_simulation_backtester(profile_obj)
-        result = run_simulation_backtest(profile_obj, strategy_name=strategy)
-    except (LookupError, ValueError) as exc:
-        raise typer.BadParameter(str(exc)) from exc
-    result["backtester"] = backtester.backtester_id
-    _log_json(result, command="backtest.bt", strategy=strategy, profile=resolved_profile)
 
 
 @report_app.command("daily", **_COMMAND_KWARGS)
@@ -388,11 +422,48 @@ def report_pdf_command(
 def live_run_command(
     profile: str | None = typer.Option(None, "--profile", "-p", help=_PROFILE_OPTION_HELP),
 ) -> None:
-    """执行一次完整实盘主流程。"""
+    """串行生成日频目标并执行一次，主要用于人工操作。"""
 
     resolved_profile = resolve_profile_id(profile)
     messages = run_live_once(profile_id=resolved_profile)
     _log_json(messages, command="live.run", profile=resolved_profile)
+
+
+@live_app.command("signal", **_COMMAND_KWARGS)
+def live_signal_command(
+    profile: str | None = typer.Option(None, "--profile", "-p", help=_PROFILE_OPTION_HELP),
+) -> None:
+    """收盘后生成并冻结一份日频目标快照。"""
+
+    resolved_profile = resolve_profile_id(profile)
+    snapshot = generate_daily_targets_once(profile_id=resolved_profile)
+    _log_json(
+        snapshot.to_dict(),
+        command="live.signal",
+        profile=resolved_profile,
+    )
+
+
+@live_app.command("execute", **_COMMAND_KWARGS)
+def live_execute_command(
+    profile: str | None = typer.Option(None, "--profile", "-p", help=_PROFILE_OPTION_HELP),
+) -> None:
+    """读取最新冻结目标并执行一次盘中再平衡。"""
+
+    resolved_profile = resolve_profile_id(profile)
+    messages = execute_latest_targets_once(profile_id=resolved_profile)
+    _log_json(messages, command="live.execute", profile=resolved_profile)
+
+
+@live_app.command("risk-check", **_COMMAND_KWARGS)
+def live_risk_check_command(
+    profile: str | None = typer.Option(None, "--profile", "-p", help=_PROFILE_OPTION_HELP),
+) -> None:
+    """独立检查账户、保证金、持仓和实时行情风险。"""
+
+    resolved_profile = resolve_profile_id(profile)
+    result = run_runtime_risk_monitor_once(profile_id=resolved_profile)
+    _log_json(result, command="live.risk-check", profile=resolved_profile)
 
 
 @live_app.command("preflight", **_COMMAND_KWARGS)
@@ -594,10 +665,11 @@ def _report_command(
 ) -> None:
     resolved_profile = resolve_profile_id(profile)
     profile_obj = load_trading_profile(resolved_profile)
-    market_df = load_profile_signal_data(profile_obj)
+    raw_market_df = load_profile_market_data(profile_obj)
+    signal_market_df = to_signal_market_data(profile_obj, raw_market_df)
     try:
         pipeline = run_profile_strategy_pipeline(
-            market_df,
+            signal_market_df,
             profile_obj,
             strategy_ids=parse_strategy_selection(strategy),
             latest_only=False,
@@ -611,7 +683,7 @@ def _report_command(
         )
 
     holdings = latest_pipeline_output(pipeline)
-    result = run_target_backtest(profile_obj, market_df, pipeline.frame)
+    result = run_target_backtest(profile_obj, raw_market_df, pipeline.frame)
     periodic_view = build_periodic_backtest_view(result, report_type)
     live_account_attribution = (
         latest_live_account_attribution_summary(profile_id=resolved_profile)

@@ -192,6 +192,7 @@ class DurableBrokerAdapter(BrokerAdapter):
             ("side", row.side, order.side),
             ("order_type", row.order_type, order.order_type),
             ("order_semantic", row.order_semantic, order.order_semantic),
+            ("ctp_offset", row.ctp_offset, order.ctp_offset),
         )
         for field_name, persisted, regenerated in immutable_pairs:
             if str(persisted or "").strip().upper() != str(
@@ -226,6 +227,11 @@ class DurableBrokerAdapter(BrokerAdapter):
             execution_planner_id=row.execution_planner_id,
             instrument_id=row.instrument_id,
             exchange_id=row.exchange_id,
+            ctp_offset=row.ctp_offset,
+            volume_multiple=row.volume_multiple,
+            margin_rate=row.margin_rate,
+            required_margin=row.required_margin,
+            order_ref=row.order_ref,
             currency=row.currency,
         )
 
@@ -299,6 +305,7 @@ class DurableBrokerAdapter(BrokerAdapter):
             "perm_id": order.perm_id,
             "instrument_id": order.instrument_id,
             "exchange_id": order.exchange_id,
+            "ctp_offset": order.ctp_offset,
             "status": order.status,
             "qty": float(order.qty),
             "filled_qty": order.filled_qty,

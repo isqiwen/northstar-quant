@@ -20,6 +20,7 @@ _ACCEPTED_EXECUTION_SOURCES = {
     "broker_snapshot",
     "broker_snapshot_delayed",
     "paper_state",
+    "ctp_sim_market_data",
 }
 _BLOCKING_ACCOUNT_ALERT_TAGS = {"账本异常", "资金异常"}
 
@@ -201,6 +202,7 @@ def build_preflight_result(
     broker_name: str | None = None,
     expected_account: str | None = None,
     data_manifest: Mapping[str, Any] | None = None,
+    runtime_risk_assessment: Mapping[str, Any] | None = None,
     checked_at: datetime | None = None,
 ) -> PreflightResult:
     """构建实盘前硬门禁结果。
@@ -215,6 +217,42 @@ def build_preflight_result(
     max_data_age = _max_data_age(profile)
 
     normalized_broker = str(broker_name or "").strip().lower()
+    if runtime_risk_assessment is None:
+        if normalized_broker and normalized_broker != "paper":
+            _append_check(
+                result,
+                code="runtime_risk_gate",
+                status="fail",
+                blocking=True,
+                message=(
+                    "RUNTIME_RISK_REQUIRED: 缺少盘中实时风控结论，"
+                    "真实订单失败关闭。"
+                ),
+            )
+    else:
+        runtime_can_submit = runtime_risk_assessment.get("can_submit") is True
+        blocking_messages = [
+            str(message)
+            for message in runtime_risk_assessment.get("blocking_messages", [])
+            if str(message).strip()
+        ]
+        _append_check(
+            result,
+            code="runtime_risk_gate",
+            status="pass" if runtime_can_submit else "fail",
+            blocking=True,
+            message=(
+                "盘中实时风控检查通过。"
+                if runtime_can_submit
+                else "RUNTIME_RISK_BLOCKED: "
+                + ("；".join(blocking_messages) or "盘中实时风控未通过。")
+            ),
+            runtime_checked_at=runtime_risk_assessment.get("checked_at"),
+            runtime_blocking_failure_count=runtime_risk_assessment.get(
+                "blocking_failure_count"
+            ),
+        )
+
     if normalized_broker and normalized_broker != "paper":
         normalized_expected_account = str(expected_account or "").strip()
         normalized_state_account = str(broker_state.account or "").strip()
@@ -277,7 +315,8 @@ def build_preflight_result(
             if data_manifest is not None
             else ""
         )
-        if not profile.data.live_trading_eligible:
+        is_real_ctp = normalized_broker == "ctp"
+        if is_real_ctp and not profile.data.live_trading_eligible:
             provenance_issues.append("画像未显式声明数据可用于真实交易")
         if data_manifest is None:
             provenance_issues.append("缺少数据 manifest")
@@ -293,15 +332,15 @@ def build_preflight_result(
                 provenance_issues.append(
                     f"manifest dataset_id 不匹配: {manifest_dataset_id or 'N/A'}"
                 )
-            if manifest_live_eligible is not True:
+            if is_real_ctp and manifest_live_eligible is not True:
                 provenance_issues.append(
                     "manifest 未记录生成时的数据实盘资格"
                 )
             if not manifest_source:
                 provenance_issues.append("manifest 缺少 data_source")
-            elif not approved_live_providers:
+            elif is_real_ctp and not approved_live_providers:
                 provenance_issues.append("未配置真实交易数据提供器白名单")
-            elif manifest_source not in approved_live_providers:
+            elif is_real_ctp and manifest_source not in approved_live_providers:
                 provenance_issues.append(
                     f"数据来源未进入真实交易白名单：{manifest_source}"
                 )
@@ -318,7 +357,7 @@ def build_preflight_result(
                 status="fail",
                 blocking=True,
                 message=(
-                    "真实券商数据来源门禁未通过："
+                    f"{'真实 CTP' if is_real_ctp else 'CTP 仿真'}数据来源门禁未通过："
                     + "；".join(provenance_issues)
                     + "，本次只同步不交易。"
                 ),
@@ -335,7 +374,10 @@ def build_preflight_result(
                 code="data_provenance",
                 status="pass",
                 blocking=True,
-                message=f"真实券商数据来源门禁通过，data_source={manifest_source}。",
+                message=(
+                    f"{'真实 CTP' if is_real_ctp else 'CTP 仿真'}"
+                    f"数据来源门禁通过，data_source={manifest_source}。"
+                ),
                 broker=normalized_broker,
                 manifest_data_source=manifest_source,
                 approved_live_data_providers=sorted(approved_live_providers),

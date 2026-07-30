@@ -16,7 +16,8 @@ from northstar_quant.backtest.registry import run_target_backtest
 from northstar_quant.common.time import utc_now
 from northstar_quant.config.settings import get_settings
 from northstar_quant.config.trading_profile import load_trading_profile
-from northstar_quant.data.storage import load_profile_signal_data
+from northstar_quant.data.schema import to_signal_market_data
+from northstar_quant.data.storage import load_profile_market_data
 from northstar_quant.db.repositories import (
     list_recent_account_attributions,
     replace_anomaly_events_for_account_attribution,
@@ -686,7 +687,7 @@ def build_markdown_report(
     return str(markdown_path)
 
 
-def build_event_backtest_report(
+def build_backtest_report(
     strategy_id: str,
     metrics: dict,
     holdings: pl.DataFrame | None = None,
@@ -698,7 +699,7 @@ def build_event_backtest_report(
     benchmark_symbol: str | None = None,
     live_account_attribution: dict[str, object] | None = None,
 ) -> str:
-    """生成事件回测报告。"""
+    """生成画像驱动的回测报告。"""
 
     return build_markdown_report(
         "backtest",
@@ -856,9 +857,10 @@ def build_periodic_report_only(
     """仅生成周期报告，供调度器调用。"""
 
     profile = load_trading_profile(profile_id)
-    market_df = load_profile_signal_data(profile)
+    raw_market_df = load_profile_market_data(profile)
+    signal_market_df = to_signal_market_data(profile, raw_market_df)
     pipeline = run_profile_strategy_pipeline(
-        market_df,
+        signal_market_df,
         profile,
         strategy_ids=parse_strategy_selection(strategy),
         latest_only=False,
@@ -868,7 +870,7 @@ def build_periodic_report_only(
             f"策略 {strategy} 的输出类型为 {pipeline.output_type.value}，当前周期报告仅支持 target_weight 型策略。"
         )
     holdings = latest_pipeline_output(pipeline)
-    result = run_target_backtest(profile, market_df, pipeline.frame)
+    result = run_target_backtest(profile, raw_market_df, pipeline.frame)
 
     periodic_view = build_periodic_backtest_view(result, report_type)
     if report_type == "daily":

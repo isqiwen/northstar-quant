@@ -7,7 +7,20 @@ from northstar_quant.backtest.futures_daily import (
     FuturesInstrumentSpec,
     FuturesRollover,
     FuturesTarget,
+    FuturesWeightTarget,
     run_daily_futures_backtest,
+)
+from northstar_quant.backtest.futures_intraday import (
+    FuturesIntradayBar,
+    FuturesReplayResult,
+    IntradayWeightTarget,
+    OrderOffset,
+    OrderSide,
+    OrderStatus,
+    OrderType,
+    ReplayCancellation,
+    ReplayOrderRequest,
+    run_intraday_futures_replay,
 )
 
 __all__ = [
@@ -15,8 +28,19 @@ __all__ = [
     "FuturesDailyBacktestResult",
     "FuturesDailyBar",
     "FuturesInstrumentSpec",
+    "FuturesIntradayBar",
+    "FuturesReplayResult",
     "FuturesRollover",
     "FuturesTarget",
+    "FuturesWeightTarget",
+    "IntradayWeightTarget",
+    "OrderOffset",
+    "OrderSide",
+    "OrderStatus",
+    "OrderType",
+    "ReplayCancellation",
+    "ReplayOrderRequest",
     "run_daily_futures_backtest",
     "run_event_backtest",
+    "run_intraday_futures_replay",
 ]

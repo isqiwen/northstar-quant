@@ -64,6 +64,9 @@ def build_order_request_fingerprint(
     attempt_no: int,
     instrument_id: str | None = None,
     exchange_id: str | None = None,
+    ctp_offset: str | None = None,
+    volume_multiple: int | None = None,
+    margin_rate: float | None = None,
     currency: str | None = None,
     execution_policy_fingerprint: str | None = None,
 ) -> str:
@@ -91,6 +94,21 @@ def build_order_request_fingerprint(
         "exchange_id": (
             str(exchange_id).strip().upper()
             if exchange_id is not None
+            else None
+        ),
+        "ctp_offset": (
+            str(ctp_offset).strip().lower()
+            if ctp_offset is not None
+            else None
+        ),
+        "volume_multiple": (
+            int(volume_multiple)
+            if volume_multiple is not None
+            else None
+        ),
+        "margin_rate": (
+            _canonical_decimal(margin_rate)
+            if margin_rate is not None
             else None
         ),
         "currency": str(currency).strip().upper() if currency is not None else None,
@@ -183,6 +201,7 @@ def build_execution_plan_id(
     symbol: str,
     side: str,
     order_semantic: str | None,
+    ctp_offset: str | None = None,
 ) -> str:
     """生成与列表顺序无关的稳定执行计划身份。"""
 
@@ -193,6 +212,7 @@ def build_execution_plan_id(
             str(symbol).strip().upper(),
             str(side).strip().upper(),
             str(order_semantic or "").strip().lower(),
+            str(ctp_offset or "").strip().lower(),
         )
     )
     return f"plan-{sha256(identity.encode('utf-8')).hexdigest()[:24]}"

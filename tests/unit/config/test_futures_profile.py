@@ -5,9 +5,14 @@ from pathlib import Path
 import polars as pl
 import pytest
 
-from northstar_quant.common.enums import AssetType
+from northstar_quant.backtest.registry import (
+    list_target_backtesters,
+    resolve_target_backtester,
+)
 from northstar_quant.backtest.runner import run_profile_backtest
+from northstar_quant.common.enums import AssetType
 from northstar_quant.config.trading_profile import (
+    ensure_broker_profile,
     ensure_production_profile,
     list_trading_profiles,
     load_trading_profile,
@@ -15,22 +20,57 @@ from northstar_quant.config.trading_profile import (
 from northstar_quant.config.settings import get_settings
 from northstar_quant.data import storage
 from northstar_quant.data import downloader
-from northstar_quant.data.downloader import download_profile_data, validate_profile_data
+from northstar_quant.data.downloader import (
+    download_profile_data,
+    import_profile_data,
+    validate_profile_data,
+)
 from northstar_quant.data.storage import (
     load_json,
     load_profile_signal_data,
     save_parquet,
 )
+from tests.support.futures_actual import (
+    actual_futures_frame,
+    actual_futures_intraday_frame,
+)
 
 
-def test_runtime_only_exposes_futures_research_profile():
+def test_runtime_exposes_continuous_and_actual_futures_research_profiles():
     profile = load_trading_profile()
 
-    assert list_trading_profiles() == ["cn_futures_daily_trend_offline"]
+    assert list_trading_profiles() == [
+        "cn_futures_daily_actual_offline",
+        "cn_futures_daily_trend_offline",
+        "cn_futures_daily_trend_simulated",
+        "cn_futures_intraday_replay_offline",
+    ]
     assert profile.asset_type == AssetType.FUTURES
     assert profile.futures is not None
     assert profile.futures.symbols_are_continuous is True
     assert profile.futures.execution_allowed is False
+
+    actual = load_trading_profile("cn_futures_daily_actual_offline")
+    assert actual.backtest.engine == "futures_daily"
+    assert actual.futures is not None
+    assert actual.futures.symbols_are_continuous is False
+    assert actual.futures.execution_allowed is False
+    assert actual.data.download.enabled is True
+    assert actual.data.download.provider == "akshare_actual_daily"
+
+    intraday = load_trading_profile("cn_futures_intraday_replay_offline")
+    assert intraday.backtest.engine == "futures_intraday_replay"
+    assert intraday.data_frequency.value == "1m"
+    assert intraday.strategy_data_frequency.value == "1d"
+    assert list_target_backtesters() == [
+        "actual_futures_daily_backtest",
+        "actual_futures_intraday_replay_backtest",
+        "continuous_futures_research_backtest",
+    ]
+    assert (
+        resolve_target_backtester(intraday).backtester_id
+        == "actual_futures_intraday_replay_backtest"
+    )
 
 
 def _download_fixture_data() -> pl.DataFrame:
@@ -104,6 +144,64 @@ def test_continuous_futures_profile_can_run_research_but_not_execution(monkeypat
     assert len(manifest["profile_config_sha256"]) == 64
 
 
+def test_actual_contract_profile_can_download_and_run_full_backtest(
+    monkeypatch,
+    tmp_path: Path,
+):
+    isolated_storage = tmp_path / "storage"
+    isolated_settings = get_settings().model_copy(
+        update={
+            "storage_dir": isolated_storage,
+            "downloads_dir": isolated_storage / "downloads",
+        }
+    )
+    monkeypatch.setattr(storage, "get_settings", lambda: isolated_settings)
+    monkeypatch.setitem(
+        downloader._PROVIDERS,
+        "akshare_actual_daily",
+        lambda _profile: actual_futures_frame(day_count=70, roll_offset=35),
+    )
+
+    downloaded = download_profile_data("cn_futures_daily_actual_offline")
+    validation = validate_profile_data("cn_futures_daily_actual_offline")
+    backtest = run_profile_backtest("cn_futures_daily_actual_offline")
+
+    assert downloaded.schema_version == "actual_futures_daily_v1"
+    assert validation["no_lookahead_active_contracts"] is True
+    assert backtest["trade_count"] > 0
+    assert backtest["symbols"] == ["RB_CONT"]
+
+
+def test_intraday_contract_profile_can_import_and_run_full_replay(
+    monkeypatch,
+    tmp_path: Path,
+):
+    isolated_storage = tmp_path / "storage"
+    isolated_settings = get_settings().model_copy(
+        update={
+            "storage_dir": isolated_storage,
+            "downloads_dir": isolated_storage / "downloads",
+        }
+    )
+    monkeypatch.setattr(storage, "get_settings", lambda: isolated_settings)
+    source_path = tmp_path / "actual_contracts_intraday.parquet"
+    actual_futures_intraday_frame(day_count=70, roll_offset=35).write_parquet(
+        source_path
+    )
+
+    imported = import_profile_data(
+        source_path,
+        "cn_futures_intraday_replay_offline",
+    )
+    validation = validate_profile_data("cn_futures_intraday_replay_offline")
+    backtest = run_profile_backtest("cn_futures_intraday_replay_offline")
+
+    assert imported.schema_version == "actual_futures_intraday_v1"
+    assert validation["quote_replay_ready"] is True
+    assert backtest["trade_count"] > 0
+    assert backtest["symbols"] == ["RB_CONT"]
+
+
 def test_profile_data_load_rejects_parquet_tampering(monkeypatch, tmp_path: Path):
     isolated_storage = tmp_path / "storage"
     isolated_settings = get_settings().model_copy(
@@ -132,6 +230,24 @@ def test_continuous_futures_profile_is_rejected_for_production_execution():
 
     with pytest.raises(ValueError, match="连续合约"):
         ensure_production_profile(profile, context="测试")
+
+
+def test_ctp_sim_requires_simulated_executable_profile():
+    simulated = load_trading_profile("cn_futures_daily_trend_simulated")
+    research = load_trading_profile("cn_futures_daily_actual_offline")
+
+    assert (
+        ensure_broker_profile(
+            simulated,
+            broker="ctp_sim",
+            context="测试",
+        )
+        is simulated
+    )
+    with pytest.raises(ValueError, match="仅允许 simulated 画像"):
+        ensure_broker_profile(research, broker="ctp_sim", context="测试")
+    with pytest.raises(ValueError, match="仅允许使用 production 画像"):
+        ensure_broker_profile(simulated, broker="ctp", context="测试")
 
 
 def test_futures_profile_requires_contract_specification(tmp_path: Path):

@@ -29,3 +29,24 @@ def test_healthcheck_marks_ctp_as_blocked(monkeypatch, tmp_path):
         item for item in payload["checks"] if item["code"] == "broker_capability"
     )
     assert broker_check["status"] == "fail"
+
+
+def test_healthcheck_labels_ctp_sim_as_local_simulation(monkeypatch, tmp_path):
+    settings = get_settings().model_copy(
+        update={
+            "broker": "ctp_sim",
+            "storage_dir": tmp_path / "storage",
+            "reports_dir": tmp_path / "reports",
+            "database_url": postgresql_test_url(tmp_path / "missing.db"),
+        }
+    )
+    monkeypatch.setattr(health, "get_settings", lambda: settings)
+
+    payload = health.run_healthcheck()
+
+    broker_check = next(
+        item for item in payload["checks"] if item["code"] == "broker_capability"
+    )
+    assert broker_check["status"] == "pass"
+    assert payload["ctp_simulation_available"] is True
+    assert payload["ctp_execution_available"] is False

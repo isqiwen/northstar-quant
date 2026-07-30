@@ -21,6 +21,7 @@ class OrderRiskInput(Protocol):
     limit_price: float | None
     reference_price: float | None
     planned_trade_value: float | None
+    required_margin: float | None
 
 
 def _require_finite_positive(value: float, message: str) -> float:
@@ -51,6 +52,19 @@ def _resolve_order_notional(order: OrderRiskInput) -> float | None:
     return max(candidates) if candidates else None
 
 
+def _funds_requirement(order: OrderRiskInput) -> float | None:
+    """返回订单需要预留的资金；期货开仓优先使用保证金。"""
+
+    required_margin = getattr(order, "required_margin", None)
+    if required_margin is not None and float(required_margin) > 0:
+        if not math.isfinite(float(required_margin)):
+            raise ValueError("订单保证金需求必须是有限数")
+        return float(required_margin)
+    if order.side.strip().upper() == "BUY":
+        return _resolve_order_notional(order)
+    return None
+
+
 def _validate_qty_step(qty: float, step: float | None) -> None:
     if step is None:
         return
@@ -68,6 +82,8 @@ def _normalize_symbol(symbol: str) -> str:
 
 def _coerce_finite_float(value: object) -> float | None:
     if value is None:
+        return None
+    if not isinstance(value, str | bytes | int | float):
         return None
     try:
         parsed = float(value)
@@ -172,6 +188,25 @@ def reserve_open_orders_in_context(
             context.unresolved_open_order_count += 1
             continue
 
+        if str(row.get("ctp_offset") or "").strip().lower() == "open":
+            frozen_margin = _coerce_positive_float(row.get("required_margin"))
+            if frozen_margin is None:
+                price_basis = _open_order_price_basis(row, normalized_reference_prices)
+                multiplier = _coerce_positive_float(row.get("volume_multiple"))
+                margin_rate = _coerce_positive_float(row.get("margin_rate"))
+                if (
+                    price_basis is None
+                    or multiplier is None
+                    or margin_rate is None
+                ):
+                    context.unresolved_open_order_count += 1
+                    continue
+                frozen_margin = (
+                    remaining_qty * price_basis * multiplier * margin_rate
+                )
+            context.reserved_buy_notional += frozen_margin
+            continue
+
         if side == "BUY":
             notional = _open_order_notional(row)
             if notional is None:
@@ -236,8 +271,19 @@ def _validate_account_context(
     symbol = _normalize_symbol(order.symbol)
 
     if context is None:
-        if side == "BUY" and limits.enforce_available_cash:
-            raise ValueError("买入订单缺少可用资金")
+        requires_futures_margin = (
+            getattr(order, "required_margin", None) is not None
+            and float(getattr(order, "required_margin")) > 0
+        )
+        if (
+            (side == "BUY" or requires_futures_margin)
+            and limits.enforce_available_cash
+        ):
+            raise ValueError(
+                "期货开仓订单缺少可用资金"
+                if requires_futures_margin
+                else "买入订单缺少可用资金"
+            )
         if side == "SELL" and (limits.enforce_sellable_qty or limits.long_only):
             raise ValueError("卖出订单缺少可卖数量")
         return
@@ -245,19 +291,25 @@ def _validate_account_context(
     if context.unresolved_open_order_count > 0:
         raise ValueError("账户存在无法解析的未完成订单")
 
-    if side == "BUY":
+    funds_requirement = _funds_requirement(order)
+    uses_futures_margin = (
+        getattr(order, "required_margin", None) is not None
+        and float(getattr(order, "required_margin")) > 0
+    )
+    if funds_requirement is not None:
         if context.available_cash is None:
             if limits.enforce_available_cash:
-                raise ValueError("买入订单缺少可用资金")
+                raise ValueError("订单缺少可用资金")
             return
         if not math.isfinite(float(context.available_cash)):
-            raise ValueError("买入订单可用资金无效")
-        order_notional = _resolve_order_notional(order)
-        if order_notional is None:
-            raise ValueError("买入可用资金检查缺少价格基准")
+            raise ValueError("订单可用资金无效")
         available_cash = float(context.available_cash) - float(context.reserved_buy_notional)
-        if order_notional > available_cash + 1e-8:
-            raise ValueError("买入订单金额超过可用资金")
+        if funds_requirement > available_cash + 1e-8:
+            raise ValueError(
+                "期货开仓保证金超过可用资金"
+                if uses_futures_margin
+                else "买入订单金额超过可用资金"
+            )
 
     if side == "SELL":
         if not limits.enforce_sellable_qty and not limits.long_only:
@@ -287,10 +339,9 @@ def reserve_order_context(context: OrderRiskContext | None, order: OrderRiskInpu
 
     side = order.side.strip().upper()
     symbol = _normalize_symbol(order.symbol)
-    if side == "BUY":
-        order_notional = _resolve_order_notional(order)
-        if order_notional is not None:
-            context.reserved_buy_notional += order_notional
+    funds_requirement = _funds_requirement(order)
+    if funds_requirement is not None:
+        context.reserved_buy_notional += funds_requirement
     elif side == "SELL":
         context.reserved_sell_qty_by_symbol[symbol] = (
             float(context.reserved_sell_qty_by_symbol.get(symbol, 0.0)) + float(order.qty)
@@ -305,10 +356,12 @@ def release_order_context(context: OrderRiskContext | None, order: OrderRiskInpu
 
     side = order.side.strip().upper()
     symbol = _normalize_symbol(order.symbol)
-    if side == "BUY":
-        order_notional = _resolve_order_notional(order)
-        if order_notional is not None:
-            context.reserved_buy_notional = max(0.0, context.reserved_buy_notional - order_notional)
+    funds_requirement = _funds_requirement(order)
+    if funds_requirement is not None:
+        context.reserved_buy_notional = max(
+            0.0,
+            context.reserved_buy_notional - funds_requirement,
+        )
     elif side == "SELL":
         reserved_qty = float(context.reserved_sell_qty_by_symbol.get(symbol, 0.0))
         remaining_qty = max(0.0, reserved_qty - float(order.qty))

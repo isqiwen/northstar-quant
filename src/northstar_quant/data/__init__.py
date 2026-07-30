@@ -2,6 +2,7 @@
 
 from northstar_quant.data.downloader import (
     download_profile_data,
+    import_profile_data,
     list_data_providers,
     list_profile_data_summaries,
     read_profile_manifest,
@@ -15,6 +16,7 @@ from northstar_quant.data.storage import (
 
 __all__ = [
     "download_profile_data",
+    "import_profile_data",
     "list_data_providers",
     "list_profile_data_summaries",
     "load_profile_market_data",

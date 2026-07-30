@@ -25,6 +25,9 @@ class BacktestResult:
     drawdown_curve: list[dict[str, float | str]] = field(default_factory=list)
     monthly_returns: list[dict[str, float | str]] = field(default_factory=list)
     turnover_curve: list[dict[str, float | str]] = field(default_factory=list)
+    trades: list[dict[str, object]] = field(default_factory=list)
+    orders: list[dict[str, object]] = field(default_factory=list)
+    rejected_orders: list[str] = field(default_factory=list)
 
 
 def run_event_backtest(

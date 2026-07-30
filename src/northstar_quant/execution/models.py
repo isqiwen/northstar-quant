@@ -37,6 +37,11 @@ class OrderRequest:
     execution_planner_id: str | None = None
     instrument_id: str | None = None
     exchange_id: str | None = None
+    ctp_offset: str | None = None
+    volume_multiple: int | None = None
+    margin_rate: float | None = None
+    required_margin: float | None = None
+    order_ref: str | None = None
     currency: str | None = None
 
 
@@ -75,6 +80,10 @@ class PositionSnapshot:
     account: str | None = None
     instrument_id: str | None = None
     exchange_id: str | None = None
+    long_today_qty: float | None = None
+    long_yesterday_qty: float | None = None
+    short_today_qty: float | None = None
+    short_yesterday_qty: float | None = None
     asof: datetime | None = None
     snapshot_batch_id: str | None = None
 
@@ -100,6 +109,7 @@ class FillSnapshot:
     client_id: int | None = None
     instrument_id: str | None = None
     exchange_id: str | None = None
+    ctp_offset: str | None = None
 
 
 @dataclass(slots=True)
@@ -144,6 +154,20 @@ class RebalanceOrderPlan:
     order_type: str = "MKT"
     limit_price: float | None = None
     plan_id: str | None = None
+    instrument_id: str | None = None
+    exchange_id: str | None = None
+    ctp_offset: str | None = None
+    volume_multiple: int | None = None
+    margin_rate: float | None = None
+    required_margin: float | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class FuturesExecutionRule:
+    """某个具体期货合约在本轮执行使用的动态规则快照。"""
+
+    margin_rate: float
+    max_position_lots: int | None = None
 
 
 @dataclass(slots=True)
