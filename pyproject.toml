@@ -70,3 +70,11 @@ markers = [
   "contract: 验证架构、迁移、CLI 和运维脚本契约",
   "e2e: 验证完整业务闭环的端到端测试",
 ]
+
+[tool.mypy]
+python_version = "3.11"
+platform = "linux"
+show_error_codes = true
+pretty = false
+color_output = false
+error_summary = false

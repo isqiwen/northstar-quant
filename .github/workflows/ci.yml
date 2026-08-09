@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: PostgreSQL 测试与静态检查
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: northstar
+          POSTGRES_PASSWORD: northstar_ci_password
+          POSTGRES_DB: northstar
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U northstar -d northstar"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      NORTHSTAR_ENV: test
+      NORTHSTAR_DATABASE_URL: postgresql+psycopg://northstar:northstar_ci_password@127.0.0.1:5432/northstar
+      NORTHSTAR_TEST_DATABASE_URL: postgresql+psycopg://northstar:northstar_ci_password@127.0.0.1:5432/northstar_test
+      NORTHSTAR_BROKER: paper
+      NORTHSTAR_LIVE_TRADING_ENABLED: "false"
+      NORTHSTAR_KILL_SWITCH_ENABLED: "false"
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 配置 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 配置 uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: 安装锁定依赖
+        run: uv sync --extra dev --locked
+
+      - name: 创建隔离测试数据库
+        env:
+          PGPASSWORD: northstar_ci_password
+        run: >-
+          psql -h 127.0.0.1 -p 5432 -U northstar -d postgres
+          -v ON_ERROR_STOP=1 -c "CREATE DATABASE northstar_test;"
+
+      - name: 验证迁移
+        run: uv run alembic upgrade head
+
+      - name: 运行测试
+        run: uv run pytest
+
+      - name: 运行 Ruff
+        run: uv run ruff check .
+
+      - name: 验证 mypy 类型基线
+        run: uv run python scripts/check_mypy_baseline.py check
+
+      - name: 验证 Pull Request 未新增类型错误
+        if: github.event_name == 'pull_request'
+        run: >-
+          uv run python scripts/check_mypy_baseline.py ratchet
+          --base-revision "${{ github.event.pull_request.base.sha }}"

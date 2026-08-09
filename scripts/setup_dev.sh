@@ -22,7 +22,7 @@ require_docker
 configure_dev_env
 
 log "同步 Python 开发依赖..."
-uv sync --extra dev
+uv sync --extra dev --locked
 
 log "启动 Docker PostgreSQL..."
 start_postgres

@@ -1,11 +1,23 @@
 # Scripts
 
-脚本按职责组织，日常只需要记住两个入口。
+脚本按职责组织，日常只需要记住三个入口。
 
 | 脚本 | 是否直接运行 | 用途 |
 | --- | --- | --- |
 | `setup_dev.sh` | 是 | 在 macOS/Linux 初始化 Docker PostgreSQL 开发环境。 |
+| `setup_dev.ps1` | 是 | 在 Windows PowerShell 初始化 Docker PostgreSQL 开发环境。 |
 | `deploy.sh` | 是 | 检查、构建、上传并部署到 Linux 服务器。 |
+
+Windows 首次运行前，手动从 `.env.example` 创建本地 `.env` 并设置非空
+`POSTGRES_PASSWORD`，然后在项目根目录执行：
+
+```powershell
+.\scripts\setup_dev.ps1
+```
+
+PowerShell 入口不会创建或改写 `.env`，只会启动本地 Docker PostgreSQL、确保
+`northstar` 与 `northstar_test` 两个开发数据库存在，随后运行迁移、健康检查、测试和 Ruff。
+它在当前进程中强制使用 `paper` 并禁用实盘，不会下载市场数据或调用 live 命令。
 
 开发环境内部模块：
 

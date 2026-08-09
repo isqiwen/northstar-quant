@@ -45,7 +45,7 @@ Northstar Quant 的目标不是提供“开箱即用的券商生产系统”，�
 仓库已提交 `uv.lock`，开发和验证应优先使用锁定环境：
 
 ```bash
-uv sync --extra dev
+uv sync --extra dev --locked
 ```
 
 ## 目录结构
@@ -62,6 +62,7 @@ Northstar/
 │  ├─ deploy/                  Linux 版本发布与 systemd 部署模块
 │  ├─ README.md                脚本入口与职责说明
 │  ├─ deploy.sh                Linux 一键部署入口
+│  ├─ setup_dev.ps1            Windows PowerShell 开发环境入口
 │  └─ setup_dev.sh             macOS/Linux 开发环境入口
 ├─ src/northstar_quant/
 │  ├─ backtest/                日线回测器与可选分钟回放状态机
@@ -91,13 +92,16 @@ Northstar/
 
 ### 0. 安装 `uv`
 
-项目开发环境只支持 macOS 和 Linux。如果机器上还没有 `uv`，建议先按官方方式安装：
+项目开发环境支持 macOS、Linux 和 Windows。请按 `uv` 官方安装说明完成安装；macOS/Linux
+可使用：
 
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
 macOS 也可以使用 Homebrew：`brew install uv`。
+
+Windows 可使用 `winget install --id=astral-sh.uv -e`，或按 [uv 官方安装说明](https://docs.astral.sh/uv/getting-started/installation/) 选择其他方式。
 
 安装完成后，建议先确认命令可用：
 
@@ -136,6 +140,9 @@ sudo usermod -aG docker "$USER"
 生产服务器应按照 [Docker Engine 官方安装文档](https://docs.docker.com/engine/install/)
 配置软件源和版本，不使用便捷安装脚本。
 
+Windows 使用 Docker Desktop；完成其首次初始化后，同样执行 `docker --version`、
+`docker compose version` 和 `docker info` 确认 Docker daemon 已就绪。
+
 ### 2. 创建环境并安装依赖
 
 开发环境固定使用仓库内置 Docker PostgreSQL。在 macOS 或 Linux 上直接运行初始化脚本：
@@ -148,9 +155,21 @@ scripts/setup_dev.sh
 `northstar` 生成随机开发密码，启动 PostgreSQL，并执行依赖同步、数据库迁移和基础检查。
 密码只保存在本地 `.env`；脚本不会提交该文件，也不会启用真实交易。
 
+Windows PowerShell 使用独立入口。它有意不创建或修改 `.env`，先由操作者完成一次本地
+初始化并设置非空数据库密码：
+
+```powershell
+Copy-Item .env.example .env
+# 编辑 .env，将 POSTGRES_PASSWORD 设为仅供本机开发使用的非空值
+.\scripts\setup_dev.ps1
+```
+
+该入口只在当前 PowerShell 进程中生成数据库连接串，并强制 `paper` 与
+`NORTHSTAR_LIVE_TRADING_ENABLED=false`；它不会下载市场数据、启动调度器或调用真实交易。
+
 ### 3. 初始化数据库
 
-`scripts/setup_dev.sh` 已经完成本地 PostgreSQL 启动和迁移。若需要手动重新迁移，可执行：
+`scripts/setup_dev.sh` 或 `scripts/setup_dev.ps1` 已经完成本地 PostgreSQL 启动和迁移。若需要手动重新迁移，可执行：
 
 ```bash
 uv run northstar init-db
@@ -175,6 +194,7 @@ uv run pytest -m unit
 uv run pytest -m integration
 uv run pytest
 uv run ruff check .
+uv run python scripts/check_mypy_baseline.py check
 ```
 
 测试分层、marker 和公共 fixture 说明见
@@ -333,7 +353,6 @@ northstar dashboard run
 - `configs/profiles/`：按连接边界组织的交易画像配置；`offline/` 不连接券商，`simulated/` 连接模拟账户，`live/` 连接真实账户
 - `configs/strategy/*.yaml`：策略配置
 - `configs/futures/*.yaml`：连续合约研究规格；连续 symbol 明确不可交易
-- `configs/risk/*.yaml`、`configs/portfolio/*.yaml` 当前仍是设计样例或未来扩展点，尚未接入统一运行时加载
 - `.env`：数据库地址、券商参数、告警方式（`console / wecom / telegram`）、SMTP、调度 cron 等运行时配置
 
 数据库统一使用 PostgreSQL，连接地址由本地 `.env` 中的
@@ -409,6 +428,7 @@ instrument registry、期货日线 planner 和 completed/cancel 恢复已经落�
 - [正式版 PDF 报告版式](docs/09_正式版PDF报告版式.md)
 - [架构审核与演进路线](docs/10_架构审核与演进路线.md)
 - [代码与配置注释规范](docs/11_代码注释规范.md)
+- [项目主规划与实施状态](docs/15_项目主规划与实施状态.md)
 
 ## 当前状态与边界
 

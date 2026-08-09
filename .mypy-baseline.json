@@ -1,0 +1,639 @@
+{
+  "schema_version": 1,
+  "mypy_version": "1.20.0",
+  "arguments": [
+    "--output=json",
+    "--python-version=3.11",
+    "--platform=linux",
+    "--no-incremental",
+    "--no-pretty",
+    "--no-color-output",
+    "--no-error-summary",
+    "src/northstar_quant"
+  ],
+  "diagnostics": [
+    {
+      "file": "src/northstar_quant/backtest/event_engine.py",
+      "line": 8,
+      "column": 0,
+      "code": "import-untyped",
+      "message": "Library stubs not installed for \"pandas\""
+    },
+    {
+      "file": "src/northstar_quant/config/futures_contracts.py",
+      "line": 136,
+      "column": 24,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/northstar_quant/config/product_cards.py",
+      "line": 152,
+      "column": 23,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/northstar_quant/config/yaml_loader.py",
+      "line": 6,
+      "column": 0,
+      "code": "import-untyped",
+      "message": "Library stubs not installed for \"yaml\""
+    },
+    {
+      "file": "src/northstar_quant/data/overview.py",
+      "line": 8,
+      "column": 0,
+      "code": "import-untyped",
+      "message": "Library stubs not installed for \"pandas\""
+    },
+    {
+      "file": "src/northstar_quant/data/providers/akshare.py",
+      "line": 53,
+      "column": 0,
+      "code": "import-untyped",
+      "message": "Skipping analyzing \"akshare\": module is installed, but missing library stubs or py.typed marker"
+    },
+    {
+      "file": "src/northstar_quant/db/repositories.py",
+      "line": 220,
+      "column": 21,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/northstar_quant/db/repositories.py",
+      "line": 975,
+      "column": 8,
+      "code": "operator",
+      "message": "Unsupported operand types for / (\"float\" and \"None\")"
+    },
+    {
+      "file": "src/northstar_quant/db/repositories.py",
+      "line": 980,
+      "column": 8,
+      "code": "operator",
+      "message": "Unsupported operand types for / (\"float\" and \"None\")"
+    },
+    {
+      "file": "src/northstar_quant/db/repositories.py",
+      "line": 1149,
+      "column": 45,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"float | None\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/northstar_quant/db/repositories.py",
+      "line": 1157,
+      "column": 45,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"float | None\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/northstar_quant/db/repositories.py",
+      "line": 1183,
+      "column": 10,
+      "code": "assignment",
+      "message": "Incompatible types in assignment (expression has type \"AccountAttributionRecord\", variable has type \"PositionSnapshotRecord\")"
+    },
+    {
+      "file": "src/northstar_quant/db/repositories.py",
+      "line": 1219,
+      "column": 11,
+      "code": "return-value",
+      "message": "Incompatible return value type (got \"PositionSnapshotRecord\", expected \"AccountAttributionRecord | None\")"
+    },
+    {
+      "file": "src/northstar_quant/db/repositories.py",
+      "line": 2571,
+      "column": 50,
+      "code": "arg-type",
+      "message": "Argument 1 to \"where\" of \"Select\" has incompatible type \"bool\"; expected \"ColumnElement[bool] | _HasClauseElement[bool] | SQLCoreOperations[bool] | ExpressionElementRole[bool] | TypedColumnsClauseRole[bool] | Callable[[], ColumnElement[bool]] | LambdaElement\""
+    },
+    {
+      "file": "src/northstar_quant/execution/paper_broker.py",
+      "line": 203,
+      "column": 27,
+      "code": "assignment",
+      "message": "Incompatible types in assignment (expression has type \"float | None\", variable has type \"float\")"
+    },
+    {
+      "file": "src/northstar_quant/execution/paper_broker.py",
+      "line": 416,
+      "column": 27,
+      "code": "arg-type",
+      "message": "Argument \"account_values\" to \"BrokerStateSnapshot\" has incompatible type \"dict[str, float]\"; expected \"dict[str, float | str]\""
+    },
+    {
+      "file": "src/northstar_quant/live/preflight.py",
+      "line": 494,
+      "column": 97,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"float | None\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/northstar_quant/live/preflight.py",
+      "line": 498,
+      "column": 25,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"float | None\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/northstar_quant/live/preflight.py",
+      "line": 527,
+      "column": 81,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"float | None\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/northstar_quant/live/preflight.py",
+      "line": 528,
+      "column": 37,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"float | None\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/northstar_quant/live/scheduler.py",
+      "line": 5,
+      "column": 0,
+      "code": "import-untyped",
+      "message": "Skipping analyzing \"apscheduler.schedulers.blocking\": module is installed, but missing library stubs or py.typed marker"
+    },
+    {
+      "file": "src/northstar_quant/live/scheduler.py",
+      "line": 6,
+      "column": 0,
+      "code": "import-untyped",
+      "message": "Skipping analyzing \"apscheduler.triggers.cron\": module is installed, but missing library stubs or py.typed marker"
+    },
+    {
+      "file": "src/northstar_quant/live/scheduler.py",
+      "line": 269,
+      "column": 21,
+      "code": "arg-type",
+      "message": "Argument \"calendar\" to \"_build_monthly_report_if_due\" has incompatible type \"Any | None\"; expected \"str\""
+    },
+    {
+      "file": "src/northstar_quant/live/scheduler.py",
+      "line": 270,
+      "column": 21,
+      "code": "arg-type",
+      "message": "Argument \"timezone\" to \"_build_monthly_report_if_due\" has incompatible type \"Any | None\"; expected \"str\""
+    },
+    {
+      "file": "src/northstar_quant/live/scheduler.py",
+      "line": 281,
+      "column": 21,
+      "code": "arg-type",
+      "message": "Argument \"calendar\" to \"_build_yearly_report_if_due\" has incompatible type \"Any | None\"; expected \"str\""
+    },
+    {
+      "file": "src/northstar_quant/live/scheduler.py",
+      "line": 282,
+      "column": 21,
+      "code": "arg-type",
+      "message": "Argument \"timezone\" to \"_build_yearly_report_if_due\" has incompatible type \"Any | None\"; expected \"str\""
+    },
+    {
+      "file": "src/northstar_quant/live/trading_calendar.py",
+      "line": 15,
+      "column": 0,
+      "code": "import-untyped",
+      "message": "Skipping analyzing \"exchange_calendars\": module is installed, but missing library stubs or py.typed marker"
+    },
+    {
+      "file": "src/northstar_quant/logging_/logger.py",
+      "line": 89,
+      "column": 32,
+      "code": "override",
+      "message": "Argument 2 of \"process\" is incompatible with supertype \"logging.LoggerAdapter\"; supertype defines the argument type as \"MutableMapping[str, Any]\""
+    },
+    {
+      "file": "src/northstar_quant/logging_/logger.py",
+      "line": 91,
+      "column": 23,
+      "code": "arg-type",
+      "message": "Argument 1 to \"dict\" has incompatible type \"Mapping[str, object] | None\"; expected \"SupportsKeysAndGetItem[str, object]\""
+    },
+    {
+      "file": "src/northstar_quant/logging_/logger.py",
+      "line": 104,
+      "column": 22,
+      "code": "arg-type",
+      "message": "Argument 1 to \"dict\" has incompatible type \"Mapping[str, object] | None\"; expected \"SupportsKeysAndGetItem[str, object]\""
+    },
+    {
+      "file": "src/northstar_quant/monitoring/dashboard.py",
+      "line": 8,
+      "column": 0,
+      "code": "import-untyped",
+      "message": "Library stubs not installed for \"pandas\""
+    },
+    {
+      "file": "src/northstar_quant/monitoring/dashboard.py",
+      "line": 9,
+      "column": 0,
+      "code": "import-untyped",
+      "message": "Skipping analyzing \"plotly\": module is installed, but missing library stubs or py.typed marker"
+    },
+    {
+      "file": "src/northstar_quant/monitoring/dashboard.py",
+      "line": 9,
+      "column": 0,
+      "code": "import-untyped",
+      "message": "Skipping analyzing \"plotly.express\": module is installed, but missing library stubs or py.typed marker"
+    },
+    {
+      "file": "src/northstar_quant/monitoring/dashboard.py",
+      "line": 10,
+      "column": 0,
+      "code": "import-untyped",
+      "message": "Skipping analyzing \"plotly.graph_objects\": module is installed, but missing library stubs or py.typed marker"
+    },
+    {
+      "file": "src/northstar_quant/portfolio/multi_strategy.py",
+      "line": 116,
+      "column": 24,
+      "code": "type-var",
+      "message": "Value of type variable \"SupportsRichComparisonT\" of \"sorted\" cannot be \"object\""
+    },
+    {
+      "file": "src/northstar_quant/reporting/email_sender.py",
+      "line": 18,
+      "column": 0,
+      "code": "import-untyped",
+      "message": "Library stubs not installed for \"markdown\""
+    },
+    {
+      "file": "src/northstar_quant/reporting/email_sender.py",
+      "line": 122,
+      "column": 30,
+      "code": "arg-type",
+      "message": "Argument 1 to \"SMTP_SSL\" has incompatible type \"str | None\"; expected \"str\""
+    },
+    {
+      "file": "src/northstar_quant/reporting/email_sender.py",
+      "line": 127,
+      "column": 26,
+      "code": "arg-type",
+      "message": "Argument 1 to \"SMTP\" has incompatible type \"str | None\"; expected \"str\""
+    },
+    {
+      "file": "src/northstar_quant/reporting/pdf_renderer.py",
+      "line": 25,
+      "column": 0,
+      "code": "import-untyped",
+      "message": "Library stubs not installed for \"reportlab.graphics\""
+    },
+    {
+      "file": "src/northstar_quant/reporting/pdf_renderer.py",
+      "line": 26,
+      "column": 0,
+      "code": "import-untyped",
+      "message": "Library stubs not installed for \"reportlab.graphics.charts.barcharts\""
+    },
+    {
+      "file": "src/northstar_quant/reporting/pdf_renderer.py",
+      "line": 27,
+      "column": 0,
+      "code": "import-untyped",
+      "message": "Library stubs not installed for \"reportlab.graphics.charts.lineplots\""
+    },
+    {
+      "file": "src/northstar_quant/reporting/pdf_renderer.py",
+      "line": 28,
+      "column": 0,
+      "code": "import-untyped",
+      "message": "Library stubs not installed for \"reportlab.graphics.charts.legends\""
+    },
+    {
+      "file": "src/northstar_quant/reporting/pdf_renderer.py",
+      "line": 29,
+      "column": 0,
+      "code": "import-untyped",
+      "message": "Library stubs not installed for \"reportlab.graphics.charts.piecharts\""
+    },
+    {
+      "file": "src/northstar_quant/reporting/pdf_renderer.py",
+      "line": 30,
+      "column": 0,
+      "code": "import-untyped",
+      "message": "Library stubs not installed for \"reportlab.graphics.shapes\""
+    },
+    {
+      "file": "src/northstar_quant/reporting/pdf_renderer.py",
+      "line": 31,
+      "column": 0,
+      "code": "import-untyped",
+      "message": "Library stubs not installed for \"reportlab.lib\""
+    },
+    {
+      "file": "src/northstar_quant/reporting/pdf_renderer.py",
+      "line": 32,
+      "column": 0,
+      "code": "import-untyped",
+      "message": "Library stubs not installed for \"reportlab.lib.enums\""
+    },
+    {
+      "file": "src/northstar_quant/reporting/pdf_renderer.py",
+      "line": 33,
+      "column": 0,
+      "code": "import-untyped",
+      "message": "Library stubs not installed for \"reportlab.lib.pagesizes\""
+    },
+    {
+      "file": "src/northstar_quant/reporting/pdf_renderer.py",
+      "line": 34,
+      "column": 0,
+      "code": "import-untyped",
+      "message": "Library stubs not installed for \"reportlab.lib.styles\""
+    },
+    {
+      "file": "src/northstar_quant/reporting/pdf_renderer.py",
+      "line": 35,
+      "column": 0,
+      "code": "import-untyped",
+      "message": "Library stubs not installed for \"reportlab.lib.units\""
+    },
+    {
+      "file": "src/northstar_quant/reporting/pdf_renderer.py",
+      "line": 36,
+      "column": 0,
+      "code": "import-untyped",
+      "message": "Library stubs not installed for \"reportlab.pdfbase.cidfonts\""
+    },
+    {
+      "file": "src/northstar_quant/reporting/pdf_renderer.py",
+      "line": 37,
+      "column": 0,
+      "code": "import-untyped",
+      "message": "Library stubs not installed for \"reportlab.pdfbase.pdfmetrics\""
+    },
+    {
+      "file": "src/northstar_quant/reporting/pdf_renderer.py",
+      "line": 38,
+      "column": 0,
+      "code": "import-untyped",
+      "message": "Library stubs not installed for \"reportlab.platypus\""
+    },
+    {
+      "file": "src/northstar_quant/reporting/pdf_renderer.py",
+      "line": 137,
+      "column": 23,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/northstar_quant/reporting/report_builder.py",
+      "line": 244,
+      "column": 28,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/northstar_quant/reporting/report_builder.py",
+      "line": 245,
+      "column": 26,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/northstar_quant/reporting/report_builder.py",
+      "line": 246,
+      "column": 32,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/northstar_quant/reporting/report_builder.py",
+      "line": 247,
+      "column": 28,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/northstar_quant/reporting/report_builder.py",
+      "line": 248,
+      "column": 26,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/northstar_quant/reporting/report_builder.py",
+      "line": 249,
+      "column": 25,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/northstar_quant/reporting/report_builder.py",
+      "line": 250,
+      "column": 30,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/northstar_quant/reporting/report_builder.py",
+      "line": 330,
+      "column": 21,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"__iter__\"; maybe \"__dir__\" or \"__str__\"? (not iterable)"
+    },
+    {
+      "file": "src/northstar_quant/reporting/report_builder.py",
+      "line": 351,
+      "column": 11,
+      "code": "call-overload",
+      "message": "No overload variant of \"int\" matches argument type \"object\""
+    },
+    {
+      "file": "src/northstar_quant/reporting/report_builder.py",
+      "line": 352,
+      "column": 16,
+      "code": "call-overload",
+      "message": "No overload variant of \"int\" matches argument type \"object\""
+    },
+    {
+      "file": "src/northstar_quant/reporting/report_builder.py",
+      "line": 353,
+      "column": 27,
+      "code": "call-overload",
+      "message": "No overload variant of \"int\" matches argument type \"object\""
+    },
+    {
+      "file": "src/northstar_quant/reporting/report_builder.py",
+      "line": 354,
+      "column": 24,
+      "code": "call-overload",
+      "message": "No overload variant of \"int\" matches argument type \"object\""
+    },
+    {
+      "file": "src/northstar_quant/reporting/report_builder.py",
+      "line": 355,
+      "column": 39,
+      "code": "call-overload",
+      "message": "No overload variant of \"int\" matches argument type \"object\""
+    },
+    {
+      "file": "src/northstar_quant/reporting/report_builder.py",
+      "line": 356,
+      "column": 27,
+      "code": "call-overload",
+      "message": "No overload variant of \"int\" matches argument type \"object\""
+    },
+    {
+      "file": "src/northstar_quant/reporting/report_builder.py",
+      "line": 357,
+      "column": 29,
+      "code": "call-overload",
+      "message": "No overload variant of \"int\" matches argument type \"object\""
+    },
+    {
+      "file": "src/northstar_quant/reporting/report_builder.py",
+      "line": 358,
+      "column": 24,
+      "code": "call-overload",
+      "message": "No overload variant of \"int\" matches argument type \"object\""
+    },
+    {
+      "file": "src/northstar_quant/reporting/report_builder.py",
+      "line": 359,
+      "column": 22,
+      "code": "call-overload",
+      "message": "No overload variant of \"int\" matches argument type \"object\""
+    },
+    {
+      "file": "src/northstar_quant/reporting/report_builder.py",
+      "line": 363,
+      "column": 24,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"__iter__\"; maybe \"__dir__\" or \"__str__\"? (not iterable)"
+    },
+    {
+      "file": "src/northstar_quant/reporting/report_builder.py",
+      "line": 380,
+      "column": 52,
+      "code": "arg-type",
+      "message": "Argument 1 to \"_format_bps\" has incompatible type \"object\"; expected \"float | None\""
+    },
+    {
+      "file": "src/northstar_quant/reporting/report_builder.py",
+      "line": 381,
+      "column": 52,
+      "code": "arg-type",
+      "message": "Argument 1 to \"_format_amount\" has incompatible type \"object\"; expected \"float | None\""
+    },
+    {
+      "file": "src/northstar_quant/reporting/report_builder.py",
+      "line": 440,
+      "column": 26,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/northstar_quant/reporting/report_builder.py",
+      "line": 441,
+      "column": 22,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/northstar_quant/reporting/report_builder.py",
+      "line": 442,
+      "column": 26,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/northstar_quant/reporting/report_builder.py",
+      "line": 443,
+      "column": 32,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/northstar_quant/reporting/report_builder.py",
+      "line": 444,
+      "column": 28,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/northstar_quant/reporting/report_builder.py",
+      "line": 445,
+      "column": 28,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/northstar_quant/reporting/report_builder.py",
+      "line": 446,
+      "column": 17,
+      "code": "call-overload",
+      "message": "No overload variant of \"int\" matches argument type \"object\""
+    },
+    {
+      "file": "src/northstar_quant/reporting/report_builder.py",
+      "line": 447,
+      "column": 25,
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
+    },
+    {
+      "file": "src/northstar_quant/reporting/report_builder.py",
+      "line": 463,
+      "column": 45,
+      "code": "arg-type",
+      "message": "Argument 1 to \"_largest_named_component\" has incompatible type \"list[tuple[str, object]]\"; expected \"list[tuple[str, float | None]]\""
+    },
+    {
+      "file": "src/northstar_quant/reporting/report_builder.py",
+      "line": 552,
+      "column": 8,
+      "code": "arg-type",
+      "message": "Argument 1 to \"_build_daily_alert_items\" has incompatible type \"dict[str, float | None]\"; expected \"dict[str, object] | None\""
+    },
+    {
+      "file": "src/northstar_quant/reporting/report_builder.py",
+      "line": 593,
+      "column": 12,
+      "code": "arg-type",
+      "message": "Argument 1 to \"_build_daily_recap_lines\" has incompatible type \"dict[str, float | None]\"; expected \"dict[str, object] | None\""
+    },
+    {
+      "file": "src/northstar_quant/reporting/report_builder.py",
+      "line": 612,
+      "column": 21,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"__iter__\"; maybe \"__dir__\" or \"__str__\"? (not iterable)"
+    },
+    {
+      "file": "src/northstar_quant/reporting/report_builder.py",
+      "line": 617,
+      "column": 21,
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"__iter__\"; maybe \"__dir__\" or \"__str__\"? (not iterable)"
+    },
+    {
+      "file": "src/northstar_quant/reporting/report_builder.py",
+      "line": 683,
+      "column": 35,
+      "code": "call-overload",
+      "message": "No overload variant of \"int\" matches argument type \"object\""
+    },
+    {
+      "file": "src/northstar_quant/reporting/report_builder.py",
+      "line": 690,
+      "column": 24,
+      "code": "call-overload",
+      "message": "No overload variant of \"list\" matches argument type \"object\""
+    },
+    {
+      "file": "src/northstar_quant/strategies/futures_trend.py",
+      "line": 19,
+      "column": 30,
+      "code": "assignment",
+      "message": "Incompatible types in assignment (expression has type \"tuple[str, str]\", base class \"DateBasedStrategyBase\" defined the type as \"tuple[str, str, str, str, str, str, str]\")"
+    }
+  ]
+}

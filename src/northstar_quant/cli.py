@@ -6,6 +6,7 @@ import json
 import logging
 from dataclasses import asdict
 from pathlib import Path
+from typing import Any, Final, cast
 
 import click
 import typer
@@ -62,11 +63,13 @@ from northstar_quant.strategies.pipeline import (
     parse_strategy_selection,
 )
 
-_HELP_CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
-_PROFILE_OPTION_HELP = "交易画像 ID，默认使用配置中的默认画像。"
+_HELP_CONTEXT_SETTINGS: Final = {"help_option_names": ["-h", "--help"]}
+_PROFILE_OPTION_HELP: Final = "交易画像 ID，默认使用配置中的默认画像。"
 
 
-class _ChineseHelpOptionMixin:
+class ChineseTyperGroup(TyperGroup):
+    """为命令组提供中文帮助选项。"""
+
     def get_help_option(self, ctx: click.Context) -> click.Option | None:
         option = super().get_help_option(ctx)
         if option is not None:
@@ -74,24 +77,28 @@ class _ChineseHelpOptionMixin:
         return option
 
 
-class ChineseTyperGroup(_ChineseHelpOptionMixin, TyperGroup):
-    pass
+class ChineseTyperCommand(TyperCommand):
+    """为单个命令提供中文帮助选项。"""
+
+    def get_help_option(self, ctx: click.Context) -> click.Option | None:
+        option = super().get_help_option(ctx)
+        if option is not None:
+            option.help = "显示帮助并退出。"
+        return option
 
 
-class ChineseTyperCommand(_ChineseHelpOptionMixin, TyperCommand):
-    pass
-
-
-_GROUP_KWARGS = {
+# Typer 的装饰器关键字同时包含类、字典与布尔值；当前类型存根无法为这类可复用参数包
+# 表达准确的 ``**kwargs`` 形状。把 Any 限制在 CLI 框架边界，业务命令保持完整类型检查。
+_GROUP_KWARGS: Final[dict[str, Any]] = {
     "cls": ChineseTyperGroup,
     "context_settings": _HELP_CONTEXT_SETTINGS,
     "add_completion": False,
 }
-_CALLBACK_KWARGS = {
+_CALLBACK_KWARGS: Final[dict[str, Any]] = {
     "cls": ChineseTyperGroup,
     "context_settings": _HELP_CONTEXT_SETTINGS,
 }
-_COMMAND_KWARGS = {
+_COMMAND_KWARGS: Final[dict[str, Any]] = {
     "cls": ChineseTyperCommand,
     "context_settings": _HELP_CONTEXT_SETTINGS,
 }
@@ -140,10 +147,12 @@ def main(
     """CLI 启动时初始化日志。"""
 
     setup_logging()
+    # Typer 的完成回调运行时接受 None，当前类型签名却把 param 标为必填；该参数不会被使用。
+    completion_parameter = cast(click.Parameter, None)
     if install_completion:
-        install_callback(ctx, None, install_completion)
+        install_callback(ctx, completion_parameter, install_completion)
     if show_completion:
-        show_callback(ctx, None, show_completion)
+        show_callback(ctx, completion_parameter, show_completion)
 
 
 @app.command(
