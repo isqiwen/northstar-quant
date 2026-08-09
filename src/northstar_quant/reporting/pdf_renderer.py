@@ -121,7 +121,70 @@ def _parse_metric_value(value: str) -> float | None:
         num = float(cleaned)
     except ValueError:
         return None
+    if not math.isfinite(num):
+        return None
     return num / 100.0 if is_percent else num
+
+
+def _format_metric_display(key: object, value: object) -> str:
+    """以与 Markdown 报告一致的单位显示结构化指标。"""
+
+    if value is None:
+        return "N/A（样本不足或不适用）"
+    if isinstance(value, bool):
+        return str(value)
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return str(value)
+    if not math.isfinite(number):
+        return "N/A（非有限值）"
+    key_text = str(key)
+    if any(marker in key_text for marker in ("事件数", "观测数", "周期数", "订单数", "成交数量")):
+        return f"{number:,.0f}" if number.is_integer() else f"{number:,.4f}"
+    if key_text in {"累计手续费", "累计成交名义金额"}:
+        return f"{number:,.2f}"
+    if any(
+        marker in key_text
+        for marker in (
+            "收益率",
+            "波动率",
+            "回撤",
+            "占比",
+            "换手",
+            "跟踪误差",
+            "超额收益",
+            "保证金/权益",
+            "可用资金/权益",
+        )
+    ):
+        return f"{number:.2%}"
+    if "比率" in key_text:
+        return f"{number:.4f}"
+    return f"{number:.6f}"
+
+
+def _nonzero_holding_weights(
+    holdings: list[dict[str, str]],
+    *,
+    limit: int = 8,
+) -> list[tuple[str, float]]:
+    """提取可绘制的非零目标权重，保留多空方向。"""
+
+    weights: list[tuple[str, float]] = []
+    for row in holdings[:limit]:
+        value = _parse_metric_value(str(row.get("target_weight", "")))
+        if value is None or abs(value) <= 1e-12:
+            continue
+        weights.append((str(row.get("symbol", "未知标的")), float(value)))
+    return weights
+
+
+def _format_absolute_weight(value: float) -> str:
+    """以绝对值展示权重，方向由调用方单独标注。"""
+
+    absolute = abs(value)
+    return f"{absolute:.2%}" if absolute <= 1 else f"{absolute:.2f}"
 
 
 def parse_markdown_report(markdown_path: str | Path) -> ReportStructure:
@@ -157,7 +220,7 @@ def parse_markdown_report(markdown_path: str | Path) -> ReportStructure:
             report_type=_infer_report_type(title),
         ),
         metrics=[
-            MetricItem(str(key), str(value))
+            MetricItem(str(key), _format_metric_display(key, value))
             for key, value in metrics.items()
         ],
         holdings=[
@@ -226,10 +289,29 @@ def _metric_cards(metrics: list[MetricItem], font_name: str) -> Table:
 
 
 def _build_metrics_bar_chart(metrics: list[MetricItem], font_name: str) -> Drawing:
-    parsed = [(m.key, _parse_metric_value(m.value)) for m in metrics]
-    parsed = [(k, v) for k, v in parsed if v is not None][:6]
+    # 条形图只能放同为收益率/风险比例的无量纲指标。成交数量、手续费、观测数等
+    # 混入同一坐标轴会制造看似精确但没有比较意义的图形。
+    chartable_keys = {
+        "总收益率",
+        "年化收益率",
+        "年化波动率",
+        "最大回撤",
+        "基准总收益率",
+        "相对基准总超额收益",
+        "total_return",
+        "annualized_return",
+        "max_drawdown",
+    }
+    parsed: list[tuple[str, float]] = []
+    for metric in metrics:
+        if metric.key not in chartable_keys:
+            continue
+        value = _parse_metric_value(metric.value)
+        if value is not None:
+            parsed.append((metric.key, value))
+    parsed = parsed[:6]
     drawing = Drawing(170 * mm, 75 * mm)
-    drawing.add(String(12 * mm, 66 * mm, '关键指标条形图', fontName=font_name, fontSize=11, fillColor=colors.HexColor('#0f172a')))
+    drawing.add(String(12 * mm, 66 * mm, '收益与风险比例指标', fontName=font_name, fontSize=11, fillColor=colors.HexColor('#0f172a')))
     if not parsed:
         drawing.add(String(12 * mm, 50 * mm, '暂无可绘制的数值型关键指标', fontName=font_name, fontSize=10, fillColor=colors.HexColor('#64748b')))
         return drawing
@@ -260,22 +342,20 @@ def _build_metrics_bar_chart(metrics: list[MetricItem], font_name: str) -> Drawi
 
 def _build_holdings_pie_chart(holdings: list[dict[str, str]], font_name: str) -> Drawing:
     drawing = Drawing(170 * mm, 82 * mm)
-    drawing.add(String(12 * mm, 74 * mm, '持仓权重分布', fontName=font_name, fontSize=11, fillColor=colors.HexColor('#0f172a')))
-    weights = []
-    for row in holdings[:8]:
-        value = _parse_metric_value(str(row.get('target_weight', '')))
-        if value is not None:
-            weights.append((str(row.get('symbol', '未知标的')), float(value)))
+    drawing.add(String(12 * mm, 74 * mm, '绝对目标权重分布（方向见图例）', fontName=font_name, fontSize=11, fillColor=colors.HexColor('#0f172a')))
+    weights = _nonzero_holding_weights(holdings)
     if not weights:
-        drawing.add(String(12 * mm, 55 * mm, '暂无可绘制的持仓权重信息', fontName=font_name, fontSize=10, fillColor=colors.HexColor('#64748b')))
+        drawing.add(String(12 * mm, 55 * mm, '暂无非零目标权重，未绘制绝对暴露分布', fontName=font_name, fontSize=10, fillColor=colors.HexColor('#64748b')))
         return drawing
     pie = Pie()
     pie.x = 10 * mm
     pie.y = 6 * mm
     pie.width = 62 * mm
     pie.height = 62 * mm
-    pie.data = [max(v, 0) for _, v in weights]
-    pie.labels = [k for k, _ in weights]
+    # 饼图不能表达负数。以绝对权重展示总暴露，并在标签与图例中保留多空方向，
+    # 避免全空仓时数据和为零导致 ReportLab 除零，也避免把空头误标成零权重。
+    pie.data = [abs(v) for _, v in weights]
+    pie.labels = [f"{name} {'多头' if value > 0 else '空头'}" for name, value in weights]
     pie.slices.strokeWidth = 0.5
     palette = ['#2563eb', '#60a5fa', '#93c5fd', '#38bdf8', '#0ea5e9', '#0284c7', '#7dd3fc', '#bae6fd']
     for idx in range(min(len(weights), len(palette))):
@@ -289,21 +369,56 @@ def _build_holdings_pie_chart(holdings: list[dict[str, str]], font_name: str) ->
     legend.alignment = 'right'
     legend.fontName = font_name
     legend.fontSize = 8.5
-    legend.colorNamePairs = [(pie.slices[idx].fillColor, f"{name}  {value:.2%}" if abs(value) <= 1 else f"{name}  {value:.2f}") for idx, (name, value) in enumerate(weights)]
+    legend.colorNamePairs = [
+        (
+            pie.slices[idx].fillColor,
+            f"{name} {'多头' if value > 0 else '空头'} {_format_absolute_weight(value)}",
+        )
+        for idx, (name, value) in enumerate(weights)
+    ]
     drawing.add(legend)
     return drawing
 
 
 def _build_equity_curve_chart(analytics: dict, font_name: str) -> Drawing:
     drawing = Drawing(170 * mm, 78 * mm)
-    drawing.add(String(12 * mm, 70 * mm, '净值曲线', fontName=font_name, fontSize=11, fillColor=colors.HexColor('#0f172a')))
+    drawing.add(String(12 * mm, 70 * mm, '策略净值曲线（含可用基准）', fontName=font_name, fontSize=11, fillColor=colors.HexColor('#0f172a')))
     curve = analytics.get('equity_curve') or []
     if len(curve) < 2:
         drawing.add(String(12 * mm, 52 * mm, '暂无足够净值序列数据', fontName=font_name, fontSize=10, fillColor=colors.HexColor('#64748b')))
         return drawing
-    points = [(idx, float(item.get('equity', 0.0))) for idx, item in enumerate(curve[-60:])]
-    min_y = min(y for _, y in points)
-    max_y = max(y for _, y in points)
+    visible_curve = curve[-60:]
+    points = [(idx, float(item.get('equity', 0.0))) for idx, item in enumerate(visible_curve)]
+    chart_series = [points]
+    values = [value for _, value in points]
+    benchmark = analytics.get('benchmark') or {}
+    benchmark_curve = benchmark.get('equity_curve') if isinstance(benchmark, dict) else None
+    if (
+        isinstance(benchmark, dict)
+        and benchmark.get('status') == 'available'
+        and isinstance(benchmark_curve, list)
+    ):
+        benchmark_by_date = {
+            str(item.get('date', ''))[:10]: _parse_metric_value(str(item.get('equity', '')))
+            for item in benchmark_curve
+            if isinstance(item, dict)
+        }
+        aligned = [
+            benchmark_by_date.get(str(item.get('date', ''))[:10])
+            for item in visible_curve
+        ]
+        if aligned and all(value is not None for value in aligned):
+            benchmark_points = [
+                (index, float(value))
+                for index, value in enumerate(aligned)
+                if value is not None
+            ]
+            chart_series.append(benchmark_points)
+            values.extend(value for _, value in benchmark_points)
+            drawing.add(String(105 * mm, 65 * mm, '蓝：策略', fontName=font_name, fontSize=8, fillColor=colors.HexColor('#2563eb')))
+            drawing.add(String(130 * mm, 65 * mm, '橙：基准', fontName=font_name, fontSize=8, fillColor=colors.HexColor('#ea580c')))
+    min_y = min(values)
+    max_y = max(values)
     if abs(max_y - min_y) < 1e-9:
         max_y = min_y + 0.01
     chart = LinePlot()
@@ -311,9 +426,12 @@ def _build_equity_curve_chart(analytics: dict, font_name: str) -> Drawing:
     chart.y = 10 * mm
     chart.height = 52 * mm
     chart.width = 145 * mm
-    chart.data = [points]
+    chart.data = chart_series
     chart.lines[0].strokeColor = colors.HexColor('#2563eb')
     chart.lines[0].strokeWidth = 2
+    if len(chart_series) > 1:
+        chart.lines[1].strokeColor = colors.HexColor('#ea580c')
+        chart.lines[1].strokeWidth = 1.5
     chart.xValueAxis.labels.fontName = font_name
     chart.xValueAxis.labels.fontSize = 8
     chart.yValueAxis.labels.fontName = font_name
@@ -397,14 +515,10 @@ def _build_monthly_heatmap_table(analytics: dict, font_name: str) -> Table:
 
 def _build_holdings_bar_chart(holdings: list[dict[str, str]], font_name: str) -> Drawing:
     drawing = Drawing(170 * mm, 78 * mm)
-    drawing.add(String(12 * mm, 70 * mm, '持仓权重条形图', fontName=font_name, fontSize=11, fillColor=colors.HexColor('#0f172a')))
-    weights = []
-    for row in holdings[:8]:
-        value = _parse_metric_value(str(row.get('target_weight', '')))
-        if value is not None:
-            weights.append((str(row.get('symbol', '未知标的')), float(value)))
+    drawing.add(String(12 * mm, 70 * mm, '目标权重条形图（正=多头，负=空头）', fontName=font_name, fontSize=11, fillColor=colors.HexColor('#0f172a')))
+    weights = _nonzero_holding_weights(holdings)
     if not weights:
-        drawing.add(String(12 * mm, 52 * mm, '暂无可绘制的持仓权重数据', fontName=font_name, fontSize=10, fillColor=colors.HexColor('#64748b')))
+        drawing.add(String(12 * mm, 52 * mm, '暂无非零目标权重数据', fontName=font_name, fontSize=10, fillColor=colors.HexColor('#64748b')))
         return drawing
     chart = VerticalBarChart()
     chart.x = 12 * mm
@@ -417,8 +531,19 @@ def _build_holdings_bar_chart(holdings: list[dict[str, str]], font_name: str) ->
     chart.categoryAxis.labels.fontSize = 8
     chart.valueAxis.labels.fontName = font_name
     chart.valueAxis.labels.fontSize = 8
-    chart.valueAxis.valueMin = 0
-    chart.valueAxis.valueMax = max(v for _, v in weights) * 1.2
+    values = [value for _, value in weights]
+    max_abs = max(abs(value) for value in values)
+    padding = max(max_abs * 0.1, 0.01)
+    chart.valueAxis.valueMin = min(0.0, min(values)) - (
+        padding if min(values) < 0 else 0.0
+    )
+    chart.valueAxis.valueMax = max(0.0, max(values)) + (
+        padding if max(values) > 0 else 0.0
+    )
+    chart.valueAxis.valueStep = max(
+        (chart.valueAxis.valueMax - chart.valueAxis.valueMin) / 5,
+        0.01,
+    )
     chart.bars[0].fillColor = colors.HexColor('#0ea5e9')
     drawing.add(chart)
     return drawing

@@ -10,7 +10,10 @@ from typing import Any, cast
 import pandas as pd  # type: ignore[import-untyped]
 import polars as pl
 
-from northstar_quant.backtest.event_engine import BacktestResult
+from northstar_quant.backtest.event_engine import (
+    BacktestResult,
+    _drawdown_from_initial_equity,
+)
 from northstar_quant.backtest.futures_daily import FuturesInstrumentSpec
 from northstar_quant.backtest.futures_intraday import (
     FuturesIntradayBar,
@@ -184,7 +187,7 @@ def _to_backtest_result(
     curve = curve.set_index("date")
     normalized = curve["equity"].astype(float) / initial_cash
     returns = normalized.pct_change().fillna(normalized.iloc[0] - 1.0)
-    drawdown = normalized / normalized.cummax() - 1.0
+    drawdown = _drawdown_from_initial_equity(normalized)
     total_return = float(normalized.iloc[-1] - 1.0)
     annualized_return = (
         -1.0
@@ -222,6 +225,10 @@ def _to_backtest_result(
                 "equity": float(row["equity"]) / initial_cash,
                 "margin": float(row["margin"]),
                 "available_funds": float(row["available_funds"]),
+                "margin_ratio": float(row["margin"])
+                / max(abs(float(row["equity"])), 1e-12),
+                "available_funds_ratio": float(row["available_funds"])
+                / max(abs(float(row["equity"])), 1e-12),
             }
             for timestamp, row in curve.iterrows()
         ],
@@ -242,6 +249,9 @@ def _to_backtest_result(
                 **asdict(trade),
                 "trading_day": trade.trading_day.isoformat(),
                 "timestamp": trade.timestamp.isoformat(),
+                "notional": float(
+                    trade.qty * trade.price * specs[trade.instrument_id].multiplier
+                ),
             }
             for trade in replay.trades
         ],

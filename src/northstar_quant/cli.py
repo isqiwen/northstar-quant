@@ -12,14 +12,12 @@ import typer
 from typer.completion import install_callback, show_callback
 from typer.core import TyperCommand, TyperGroup
 
-from northstar_quant.backtest.registry import (
-    resolve_target_backtester,
-    run_target_backtest,
+from northstar_quant.backtest.runner import (
+    run_profile_backtest,
+    run_profile_backtest_run,
 )
-from northstar_quant.backtest.runner import run_profile_backtest
-from northstar_quant.common.enums import StrategyOutputType
 from northstar_quant.config.settings import get_settings
-from northstar_quant.config.trading_profile import load_trading_profile, resolve_profile_id
+from northstar_quant.config.trading_profile import resolve_profile_id
 from northstar_quant.data.downloader import (
     download_profile_data,
     import_profile_data,
@@ -28,8 +26,6 @@ from northstar_quant.data.downloader import (
     read_profile_manifest,
     validate_profile_data,
 )
-from northstar_quant.data.schema import to_signal_market_data
-from northstar_quant.data.storage import load_profile_market_data
 from northstar_quant.db.init_db import init_db
 from northstar_quant.live.scheduler import run_scheduler
 from northstar_quant.live.service import (
@@ -63,9 +59,7 @@ from northstar_quant.reporting.report_builder import (
     build_backtest_report,
 )
 from northstar_quant.strategies.pipeline import (
-    latest_pipeline_output,
     parse_strategy_selection,
-    run_profile_strategy_pipeline,
 )
 
 _HELP_CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
@@ -275,79 +269,41 @@ def backtest_run_command(
     strategy: str = typer.Argument("portfolio"),
     profile: str | None = typer.Option(None, "--profile", "-p", help=_PROFILE_OPTION_HELP),
 ) -> None:
-    """按画像选择回测器并运行目标持仓回测。"""
+    """运行唯一历史回测工作流，并生成带运行清单的报告。"""
 
     resolved_profile = resolve_profile_id(profile)
-    profile_obj = load_trading_profile(resolved_profile)
     try:
-        raw_market_df = load_profile_market_data(resolved_profile)
-    except FileNotFoundError as exc:
-        command = (
-            "northstar data download"
-            if profile_obj.data.download.enabled
-            else "northstar data import-file /path/to/actual_contracts.parquet"
-        )
-        raise typer.BadParameter(
-            f"{exc}。请先执行 `{command} --profile {resolved_profile}`"
-        ) from exc
-    signal_market_df = to_signal_market_data(profile_obj, raw_market_df)
-    try:
-        pipeline = run_profile_strategy_pipeline(
-            signal_market_df,
-            profile_obj,
+        run = run_profile_backtest_run(
+            resolved_profile,
             strategy_ids=parse_strategy_selection(strategy),
-            latest_only=False,
         )
-    except ValueError as exc:
-        raise typer.BadParameter(str(exc)) from exc
-
-    if pipeline.output_type != StrategyOutputType.TARGET_WEIGHT:
+    except FileNotFoundError as exc:
         raise typer.BadParameter(
-            f"策略 {strategy} 的输出类型为 {pipeline.output_type.value}，不能使用 run 回测。"
-            "当前三个正式回测器只接受 target_weight。"
-        )
-
-    targets = pipeline.frame
-    try:
-        backtester = resolve_target_backtester(profile_obj)
-        result = run_target_backtest(profile_obj, raw_market_df, targets)
-    except LookupError as exc:
+            f"{exc}。请先执行 `northstar data download --profile {resolved_profile}` "
+            "或导入已审计的实际合约数据。"
+        ) from exc
+    except (LookupError, ValueError) as exc:
         raise typer.BadParameter(str(exc)) from exc
-
-    metrics = {
-        "backtester": backtester.backtester_id,
-        "total_return": result.total_return,
-        "annualized_return": result.annualized_return,
-        "max_drawdown": result.max_drawdown,
-        "turnover_estimate": result.turnover_estimate,
-        "trade_count": len(result.trades),
-        "rejected_order_count": len(result.rejected_orders),
-    }
-    holdings = latest_pipeline_output(pipeline)
-    backtest_start = str(result.equity_curve[0]["date"])
-    backtest_end = str(result.equity_curve[-1]["date"])
-    report_path = build_backtest_report(
-        strategy,
-        metrics,
-        holdings,
-        period_label=f"{backtest_start} 至 {backtest_end}",
-        artifact_period=(
-            f"{backtest_start.replace('-', '')}-{backtest_end.replace('-', '')}"
-        ),
-        profile_id=resolved_profile,
-        analytics={
-            "equity_curve": result.equity_curve,
-            "drawdown_curve": result.drawdown_curve,
-            "monthly_returns": result.monthly_returns,
-            "turnover_curve": result.turnover_curve,
-            "trades": result.trades,
-            "orders": result.orders,
-            "rejected_orders": result.rejected_orders,
-        },
-        benchmark_symbol=profile_obj.benchmark_symbol,
+    try:
+        report_path = build_backtest_report(
+            strategy,
+            run.metrics,
+            run.latest_holdings,
+            period_label=run.period_label,
+            artifact_period=run.artifact_period,
+            profile_id=run.profile.profile_id,
+            analytics=run.analytics,
+            benchmark_symbol=run.profile.benchmark_symbol,
+            backtest_run=run.manifest,
+        )
+    except (LookupError, ValueError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    _log_json(
+        {**run.metrics, "run_id": run.run_id},
+        command="backtest.run",
+        strategy=strategy,
+        profile=resolved_profile,
     )
-
-    _log_json(metrics, command="backtest.run", strategy=strategy, profile=resolved_profile)
     _log_message(
         f"报告已生成：{report_path}",
         command="backtest.run",
@@ -664,27 +620,14 @@ def _report_command(
     send_pdf: bool = True,
 ) -> None:
     resolved_profile = resolve_profile_id(profile)
-    profile_obj = load_trading_profile(resolved_profile)
-    raw_market_df = load_profile_market_data(profile_obj)
-    signal_market_df = to_signal_market_data(profile_obj, raw_market_df)
     try:
-        pipeline = run_profile_strategy_pipeline(
-            signal_market_df,
-            profile_obj,
+        run = run_profile_backtest_run(
+            resolved_profile,
             strategy_ids=parse_strategy_selection(strategy),
-            latest_only=False,
         )
-    except ValueError as exc:
+    except (LookupError, ValueError) as exc:
         raise typer.BadParameter(str(exc)) from exc
-
-    if pipeline.output_type != StrategyOutputType.TARGET_WEIGHT:
-        raise typer.BadParameter(
-            f"策略 {strategy} 的输出类型为 {pipeline.output_type.value}，当前周期报告只支持 target_weight 型策略。"
-        )
-
-    holdings = latest_pipeline_output(pipeline)
-    result = run_target_backtest(profile_obj, raw_market_df, pipeline.frame)
-    periodic_view = build_periodic_backtest_view(result, report_type)
+    periodic_view = build_periodic_backtest_view(run.result, report_type)
     live_account_attribution = (
         latest_live_account_attribution_summary(profile_id=resolved_profile)
         if report_type == "daily"
@@ -694,13 +637,14 @@ def _report_command(
         report_type,
         strategy,
         periodic_view["metrics"],
-        holdings,
+        run.latest_holdings,
         period_label=str(periodic_view["period_label"]),
         artifact_period=str(periodic_view["artifact_period"]),
         profile_id=resolved_profile,
         analytics=periodic_view["analytics"],
-        benchmark_symbol=profile_obj.benchmark_symbol,
+        benchmark_symbol=run.profile.benchmark_symbol,
         live_account_attribution=live_account_attribution,
+        backtest_run=run.manifest,
     )
     if report_type == "daily":
         record_daily_anomaly_events(path, live_account_attribution)

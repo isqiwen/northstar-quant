@@ -548,6 +548,9 @@ def _settle_and_apply_margin(
         result.rejected_targets.append(
             f"{day}: 保证金追缴平仓未能完整成交，剩余保证金 {remaining_margin:.2f}"
         )
+        raise ValueError(
+            f"{day} 日终保证金不足且强平未能完整成交，回测已停止"
+        )
     return cash
 
 

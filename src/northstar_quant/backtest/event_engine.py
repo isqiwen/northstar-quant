@@ -14,7 +14,8 @@ class BacktestResult:
     """回测结果摘要。
 
     除了最常用的核心指标，本对象还额外保留净值曲线、回撤曲线与月度收益，
-    方便报告层生成更像正式研究材料的图表页。
+    方便报告层生成更像正式研究材料的图表页。正式适配器输出的 ``equity_curve``
+    统一使用初始权益为 1.0 的归一化口径；金额类补充字段必须自行标注单位或比例。
     """
 
     total_return: float
@@ -28,6 +29,13 @@ class BacktestResult:
     trades: list[dict[str, object]] = field(default_factory=list)
     orders: list[dict[str, object]] = field(default_factory=list)
     rejected_orders: list[str] = field(default_factory=list)
+
+
+def _drawdown_from_initial_equity(equity: pd.Series) -> pd.Series:
+    """以初始归一化权益 1.0 作为回撤高点的下限。"""
+
+    running_max = equity.cummax().clip(lower=1.0)
+    return equity / running_max - 1.0
 
 
 def run_event_backtest(
@@ -131,8 +139,7 @@ def run_event_backtest(
         equity.iloc[-1] ** (periods_per_year / max(len(equity), 1)) - 1.0
     )
 
-    running_max = equity.cummax()
-    drawdown = equity / running_max - 1.0
+    drawdown = _drawdown_from_initial_equity(equity)
     max_drawdown = float(drawdown.min())
 
     turnover = float(pd.Series(turnover_values, index=returns.index).mean())

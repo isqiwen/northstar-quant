@@ -101,6 +101,18 @@ def test_profile_risk_uses_global_minimum_trade_value_as_last_resort(monkeypatch
     assert limits.min_order_notional == 888.0
 
 
+def test_profile_rejects_conflicting_long_only_settings():
+    profile = load_trading_profile()
+    profile = replace(
+        profile,
+        execution=replace(profile.execution, long_only=False),
+        risk={**profile.risk, "long_only": True},
+    )
+
+    with pytest.raises(ValueError, match="risk.long_only.*execution.long_only 冲突"):
+        build_profile_risk_limits(profile)
+
+
 def test_production_profile_requires_dynamic_risk_flags():
     profile = load_trading_profile()
     profile = replace(

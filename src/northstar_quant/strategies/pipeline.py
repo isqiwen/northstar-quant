@@ -80,6 +80,14 @@ def build_profile_risk_limits(profile: TradingProfile) -> RiskLimits:
         execution_value = getattr(profile.execution, risk_key)
         if risk_key not in risk_overrides and execution_value is not None:
             risk_overrides[risk_key] = execution_value
+    if (
+        "long_only" in risk_overrides
+        and risk_overrides["long_only"] != profile.execution.long_only
+    ):
+        raise ValueError(
+            f"交易画像 {profile.profile_id} 的 risk.long_only 与 "
+            "execution.long_only 冲突；目标方向政策必须只有一个明确值"
+        )
     risk_overrides["long_only"] = profile.execution.long_only
     limits = RiskLimits(**risk_overrides)
     if profile.is_production:

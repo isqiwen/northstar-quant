@@ -6,18 +6,15 @@ import json
 import re
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import TypedDict
+from typing import Mapping, TypedDict
 
 import polars as pl
 from jinja2 import Environment, FileSystemLoader
 
 from northstar_quant.backtest.event_engine import BacktestResult
-from northstar_quant.backtest.registry import run_target_backtest
+from northstar_quant.backtest.runner import run_profile_backtest_run
 from northstar_quant.common.time import utc_now
 from northstar_quant.config.settings import get_settings
-from northstar_quant.config.trading_profile import load_trading_profile
-from northstar_quant.data.schema import to_signal_market_data
-from northstar_quant.data.storage import load_profile_market_data
 from northstar_quant.db.repositories import (
     list_recent_account_attributions,
     replace_anomaly_events_for_account_attribution,
@@ -30,9 +27,7 @@ from northstar_quant.reporting.artifacts import (
     report_artifact_label,
 )
 from northstar_quant.strategies.pipeline import (
-    latest_pipeline_output,
     parse_strategy_selection,
-    run_profile_strategy_pipeline,
 )
 
 _TEMPLATE_MAP = {
@@ -43,6 +38,19 @@ _TEMPLATE_MAP = {
     "yearly": "yearly_report.md.j2",
 }
 _PERIODIC_REPORT_TYPES = {"daily", "weekly", "monthly", "yearly"}
+_MIN_ANNUALIZED_PERIOD_OBSERVATIONS = 20
+_PERCENT_METRIC_MARKERS = (
+    "收益率",
+    "波动率",
+    "回撤",
+    "占比",
+    "换手",
+    "跟踪误差",
+    "超额收益",
+    "保证金/权益",
+    "可用资金/权益",
+)
+_COUNT_METRIC_MARKERS = ("事件数", "观测数", "周期数", "订单数", "成交数量")
 
 
 class PeriodicBacktestView(TypedDict):
@@ -50,7 +58,7 @@ class PeriodicBacktestView(TypedDict):
 
     period_label: str
     artifact_period: str
-    metrics: dict[str, float]
+    metrics: dict[str, object]
     analytics: dict[str, object]
 
 
@@ -73,14 +81,96 @@ def _build_report_artifact_path(
     strategy_id: str,
     profile_id: str,
     artifact_period: str,
+    run_id: str | None = None,
 ) -> Path:
     report_group = "backtest" if report_type == "backtest" else report_type
-    return Path(
+    parts = [
         _safe_report_filename_part(report_group),
         _safe_report_filename_part(profile_id),
         _safe_report_filename_part(strategy_id),
         _safe_report_filename_part(artifact_period),
+    ]
+    if run_id:
+        parts.append(_safe_report_filename_part(run_id))
+    return Path(*parts)
+
+
+def _report_json_default(value: object) -> str:
+    """仅转换报告允许的日期和路径类型，其他未知对象直接失败关闭。"""
+
+    if isinstance(value, (date, datetime)):
+        return value.isoformat()
+    if isinstance(value, Path):
+        return str(value)
+    raise TypeError(f"报告结构化数据包含不支持的类型：{type(value).__name__}")
+
+
+def _serialize_report_json(payload: Mapping[str, object]) -> str:
+    """序列化不允许 NaN/Infinity 的审计 JSON。"""
+
+    return json.dumps(
+        payload,
+        ensure_ascii=False,
+        indent=2,
+        default=_report_json_default,
+        allow_nan=False,
     )
+
+
+def _reuse_immutable_backtest_artifact(
+    report_dir: Path,
+    *,
+    manifest_json: str,
+) -> str | None:
+    """复用同一运行 ID 的完整制品，拒绝静默覆盖审计记录。"""
+
+    if not report_dir.exists():
+        return None
+
+    manifest_path = report_dir / "manifest.json"
+    markdown_path = report_dir / "report.md"
+    report_json_path = report_dir / "report.json"
+    if not manifest_path.is_file():
+        if any(report_dir.iterdir()):
+            raise ValueError(
+                f"回测制品目录 {report_dir} 已存在但缺少运行清单；"
+                "为避免覆盖不可审计文件，已拒绝写入。"
+            )
+        return None
+    existing_manifest = manifest_path.read_text(encoding="utf-8")
+    if existing_manifest != manifest_json:
+        raise ValueError(
+            f"回测运行 ID 对应的清单与现有制品不一致：{report_dir}；"
+            "已拒绝覆盖。"
+        )
+    if markdown_path.is_file() and report_json_path.is_file():
+        return str(markdown_path)
+    raise ValueError(
+        f"回测制品目录 {report_dir} 不完整；"
+        "为避免混合不同运行结果，已拒绝覆盖。"
+    )
+
+
+def _display_report_metric(key: object, value: object) -> object:
+    """把结构化数值渲染为适合人读的单位，同时保留 JSON 原始值。"""
+
+    if value is None:
+        return "N/A（样本不足或不适用）"
+    if isinstance(value, bool):
+        return value
+    if not isinstance(value, (int, float)):
+        return value
+    key_text = str(key)
+    number = float(value)
+    if any(marker in key_text for marker in _COUNT_METRIC_MARKERS):
+        return f"{number:,.0f}" if number.is_integer() else f"{number:,.4f}"
+    if key_text in {"累计手续费", "累计成交名义金额"}:
+        return f"{number:,.2f}"
+    if any(marker in key_text for marker in _PERCENT_METRIC_MARKERS):
+        return f"{number:.2%}"
+    if "比率" in key_text:
+        return f"{number:.4f}"
+    return f"{number:.6f}"
 
 
 def _format_report_datetime(value: datetime | None) -> str | None:
@@ -614,6 +704,7 @@ def build_markdown_report(
     live_account_attribution: dict[str, object] | None = None,
     run_health_summaries: list[dict[str, object]] | None = None,
     run_health_days: int | None = None,
+    backtest_run: dict[str, object] | None = None,
 ) -> str:
     """生成包含 Markdown 与结构化 JSON 的报告制品目录。"""
 
@@ -629,36 +720,54 @@ def build_markdown_report(
     resolved_artifact_period = artifact_period or _safe_report_filename_part(
         resolved_period_label
     )
+    run_id: str | None = None
+    if backtest_run is not None:
+        candidate = str(backtest_run.get("run_id") or "").strip()
+        if not candidate:
+            raise ValueError("回测运行清单缺少 run_id")
+        run_id = candidate
     artifact_path = _build_report_artifact_path(
         report_type=report_type,
         strategy_id=strategy_id,
         profile_id=profile_id,
         artifact_period=resolved_artifact_period,
+        run_id=run_id if report_type == "backtest" else None,
     )
     artifact_id = artifact_path.as_posix()
     report_dir = settings.reports_dir / artifact_path
+    manifest_json = (
+        _serialize_report_json(backtest_run) if backtest_run is not None else None
+    )
+    if report_type == "backtest" and manifest_json is not None:
+        existing_artifact = _reuse_immutable_backtest_artifact(
+            report_dir,
+            manifest_json=manifest_json,
+        )
+        if existing_artifact is not None:
+            return existing_artifact
     report_dir.mkdir(parents=True, exist_ok=True)
 
     generated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     resolved_benchmark_symbol = benchmark_symbol or settings.report_benchmark_symbol
     holdings_payload = [] if holdings is None else holdings.to_dicts()
     analytics_payload = analytics or {}
+    display_metrics = {
+        key: _display_report_metric(key, value) for key, value in metrics.items()
+    }
     payload = {
         "generated_at": generated_at,
         "period_label": resolved_period_label,
         "profile_id": profile_id,
         "strategy_id": strategy_id,
-        "metrics": metrics,
+        "metrics": display_metrics,
         "benchmark_symbol": resolved_benchmark_symbol,
         "holdings": holdings_payload,
+        "analytics": analytics_payload,
         "live_account_attribution": live_account_attribution,
         "run_health_summaries": run_health_summaries or [],
         "run_health_days": run_health_days,
+        "backtest_run": backtest_run,
     }
-
-    output = template.render(**payload)
-    markdown_path = report_dir / "report.md"
-    markdown_path.write_text(output, encoding="utf-8")
 
     report_data = {
         "schema_version": REPORT_SCHEMA_VERSION,
@@ -676,11 +785,16 @@ def build_markdown_report(
         "live_account_attribution": live_account_attribution,
         "run_health_summaries": run_health_summaries or [],
         "run_health_days": run_health_days,
+        "backtest_run": backtest_run,
     }
-    (report_dir / "report.json").write_text(
-        json.dumps(report_data, ensure_ascii=False, indent=2, default=str),
-        encoding="utf-8",
-    )
+    report_json = _serialize_report_json(report_data)
+    output = template.render(**payload)
+    markdown_path = report_dir / "report.md"
+    markdown_path.write_text(output, encoding="utf-8")
+    (report_dir / "report.json").write_text(report_json, encoding="utf-8")
+    if backtest_run is not None:
+        assert manifest_json is not None
+        (report_dir / "manifest.json").write_text(manifest_json, encoding="utf-8")
     stale_pdf_path = report_dir / "report.pdf"
     if stale_pdf_path.exists():
         stale_pdf_path.unlink()
@@ -698,6 +812,7 @@ def build_backtest_report(
     analytics: dict | None = None,
     benchmark_symbol: str | None = None,
     live_account_attribution: dict[str, object] | None = None,
+    backtest_run: dict[str, object] | None = None,
 ) -> str:
     """生成画像驱动的回测报告。"""
 
@@ -712,6 +827,7 @@ def build_backtest_report(
         analytics=analytics,
         benchmark_symbol=benchmark_symbol,
         live_account_attribution=live_account_attribution,
+        backtest_run=backtest_run,
     )
 
 
@@ -784,11 +900,13 @@ def build_periodic_backtest_view(
 
     period_return = normalized_curve[-1][1] - 1.0
     observation_count = len(normalized_curve)
-    annualized_return = (
-        (1.0 + period_return) ** (periods_per_year / observation_count) - 1.0
-        if period_return > -1.0
-        else -1.0
-    )
+    annualized_return: float | None = None
+    if observation_count >= _MIN_ANNUALIZED_PERIOD_OBSERVATIONS:
+        annualized_return = (
+            (1.0 + period_return) ** (periods_per_year / observation_count) - 1.0
+            if period_return > -1.0
+            else -1.0
+        )
     turnover_by_date = {
         date.fromisoformat(str(item["date"])[:10]): float(item["turnover"])
         for item in result.turnover_curve
@@ -813,7 +931,7 @@ def build_periodic_backtest_view(
         "artifact_period": artifact_period,
         "metrics": {
             "期间收益率": period_return,
-            "期间年化收益率": annualized_return,
+            "期间年化收益率（至少 20 个权益观测）": annualized_return,
             "期间最大回撤": min(
                 (float(item["drawdown"]) for item in drawdown_rows),
                 default=0.0,
@@ -856,23 +974,11 @@ def build_periodic_report_only(
 ) -> str:
     """仅生成周期报告，供调度器调用。"""
 
-    profile = load_trading_profile(profile_id)
-    raw_market_df = load_profile_market_data(profile)
-    signal_market_df = to_signal_market_data(profile, raw_market_df)
-    pipeline = run_profile_strategy_pipeline(
-        signal_market_df,
-        profile,
+    run = run_profile_backtest_run(
+        profile_id,
         strategy_ids=parse_strategy_selection(strategy),
-        latest_only=False,
     )
-    if pipeline.output_type.value != "target_weight":
-        raise ValueError(
-            f"策略 {strategy} 的输出类型为 {pipeline.output_type.value}，当前周期报告仅支持 target_weight 型策略。"
-        )
-    holdings = latest_pipeline_output(pipeline)
-    result = run_target_backtest(profile, raw_market_df, pipeline.frame)
-
-    periodic_view = build_periodic_backtest_view(result, report_type)
+    periodic_view = build_periodic_backtest_view(run.result, report_type)
     if report_type == "daily":
         run_health_days = 28
     elif report_type == "weekly":
@@ -883,12 +989,12 @@ def build_periodic_report_only(
         run_health_days = 365
 
     live_account_attribution = (
-        latest_live_account_attribution_summary(profile_id=profile.profile_id)
+        latest_live_account_attribution_summary(profile_id=run.profile.profile_id)
         if report_type == "daily"
         else None
     )
     run_health_summaries = rolling_run_health_summaries(
-        profile_id=profile.profile_id,
+        profile_id=run.profile.profile_id,
         days=run_health_days,
     )
 
@@ -896,15 +1002,16 @@ def build_periodic_report_only(
         report_type=report_type,
         strategy_id=strategy,
         metrics=periodic_view["metrics"],
-        holdings=holdings,
+        holdings=run.latest_holdings,
         period_label=str(periodic_view["period_label"]),
         artifact_period=str(periodic_view["artifact_period"]),
-        profile_id=profile.profile_id,
+        profile_id=run.profile.profile_id,
         analytics=periodic_view["analytics"],
-        benchmark_symbol=profile.benchmark_symbol,
+        benchmark_symbol=run.profile.benchmark_symbol,
         live_account_attribution=live_account_attribution,
         run_health_summaries=run_health_summaries,
         run_health_days=run_health_days,
+        backtest_run=run.manifest,
     )
     if report_type == "daily":
         record_daily_anomaly_events(report_path, live_account_attribution)

@@ -223,6 +223,10 @@ northstar backtest run portfolio \
 字段契约、换月口径和剩余边界见
 [`docs/12_期货回测器说明.md`](docs/12_期货回测器说明.md)。
 
+第一次自行实现策略、创建独立画像、运行回测并分析报告，请按
+[`docs/00_第一个策略与回测教程.md`](docs/00_第一个策略与回测教程.md) 操作；教程只使用
+离线研究路径，不会连接券商。
+
 ## Linux 部署
 
 部署脚本采用版本目录、原子切换和失败回退。先创建本地非敏感配置与生产环境文件：
@@ -306,9 +310,10 @@ northstar report pdf reports/daily/cn_futures_daily_trend_offline/futures_trend/
 northstar dashboard run
 ```
 
-报告按 `类型/画像/策略/周期/` 分层保存，每个周期目录包含 `report.md`、
-`report.json`，生成 PDF 后还会包含 `report.pdf`。例如事件回测目录为
-`reports/backtest/cn_futures_daily_trend_offline/portfolio/20150105-20260730/`；
+报告按 `类型/画像/策略/周期/` 分层保存，回测还会追加不可变的 `run_id` 目录。每个
+报告目录包含 `report.md`、`report.json`，回测目录还包含 `manifest.json`，生成 PDF 后
+还会包含 `report.pdf`。例如回测目录为
+`reports/backtest/cn_futures_daily_trend_offline/portfolio/20150105-20260730/bt-<run_id>/`；
 日报周期目录使用 `YYYYMMDD`，周报使用 `YYYY-Www`，月报使用 `YYYY-MM`，
 年报使用 `YYYY`。
 
@@ -392,6 +397,7 @@ instrument registry、期货日线 planner 和 completed/cancel 恢复已经落�
 
 ## 文档索引
 
+- [第一个策略与回测教程](docs/00_第一个策略与回测教程.md)
 - [架构总览](docs/01_架构总览.md)
 - [配置说明](docs/02_配置说明.md)
 - [模块设计说明](docs/03_模块设计说明.md)

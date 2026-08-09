@@ -1,9 +1,13 @@
 from datetime import date, timedelta
 
+import pandas as pd
 import polars as pl
 import pytest
 
-from northstar_quant.backtest.event_engine import run_event_backtest
+from northstar_quant.backtest.event_engine import (
+    _drawdown_from_initial_equity,
+    run_event_backtest,
+)
 
 
 def test_run_event_backtest_supports_month_end_resample():
@@ -109,6 +113,38 @@ def test_event_backtest_execution_delay_changes_realized_return():
     )
 
     assert one_session.total_return > three_sessions.total_return
+
+
+def test_event_backtest_honors_explicit_zero_weight_as_flatten_signal():
+    start = date(2024, 1, 2)
+    dates = [start + timedelta(days=offset) for offset in range(6)]
+    market_df = pl.DataFrame(
+        {
+            "date": dates,
+            "symbol": ["RB_CONT"] * len(dates),
+            "close": [100.0, 110.0, 120.0, 110.0, 55.0, 60.0],
+        }
+    )
+    targets = pl.DataFrame(
+        {
+            "date": [dates[2], dates[3]],
+            "symbol": ["RB_CONT", "RB_CONT"],
+            "target_weight": [1.0, 0.0],
+        }
+    )
+
+    result = run_event_backtest(market_df, targets, execution_delay_sessions=1)
+
+    equities = {row["date"]: row["equity"] for row in result.equity_curve}
+    assert equities[dates[4].isoformat()] == pytest.approx(equities[dates[3].isoformat()])
+
+
+def test_drawdown_includes_initial_equity_before_first_observation():
+    equity = pd.Series([0.9, 0.95, 1.1, 1.0])
+
+    drawdown = _drawdown_from_initial_equity(equity)
+
+    assert drawdown.tolist() == pytest.approx([-0.1, -0.05, 0.0, -1.0 / 11.0])
 
 
 @pytest.mark.parametrize(

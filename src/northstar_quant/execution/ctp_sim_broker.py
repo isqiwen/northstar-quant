@@ -9,12 +9,11 @@ from __future__ import annotations
 from contextlib import contextmanager
 from dataclasses import replace
 from datetime import date, datetime
-import fcntl
 from functools import wraps
 import json
 import math
 from pathlib import Path
-from typing import cast
+from typing import Any, TextIO, cast
 
 from northstar_quant.common.enums import CtpOffset
 from northstar_quant.common.order_identity import build_order_ref
@@ -37,6 +36,18 @@ from northstar_quant.execution.models import (
 from northstar_quant.execution.pricing import normalize_symbols
 
 
+fcntl: Any = None
+msvcrt: Any = None
+try:  # pragma: no cover - the active platform determines the covered branch.
+    import fcntl as _fcntl
+except ModuleNotFoundError:  # Windows does not provide fcntl.
+    import msvcrt as _msvcrt
+
+    msvcrt = _msvcrt
+else:
+    fcntl = _fcntl
+
+
 def _locked_state(method):
     """让一次仿真柜台读改写在跨进程文件锁内完成。"""
 
@@ -47,6 +58,35 @@ def _locked_state(method):
             return method(self, *args, **kwargs)
 
     return wrapped
+
+
+def _lock_state_file(lock_file: TextIO) -> None:
+    """获取跨进程状态文件锁，兼容 Linux 与 Windows。"""
+
+    if fcntl is not None:
+        fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+        return
+
+    assert msvcrt is not None
+    lock_file.seek(0, 2)
+    if lock_file.tell() == 0:
+        # Windows 的 msvcrt.locking 不能锁定空文件中的字节范围。
+        lock_file.write("0")
+        lock_file.flush()
+    lock_file.seek(0)
+    msvcrt.locking(lock_file.fileno(), msvcrt.LK_LOCK, 1)
+
+
+def _unlock_state_file(lock_file: TextIO) -> None:
+    """释放由 _lock_state_file 获取的文件锁。"""
+
+    if fcntl is not None:
+        fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+        return
+
+    assert msvcrt is not None
+    lock_file.seek(0)
+    msvcrt.locking(lock_file.fileno(), msvcrt.LK_UNLCK, 1)
 
 
 class CtpSimBrokerAdapter(BrokerAdapter):
@@ -78,11 +118,11 @@ class CtpSimBrokerAdapter(BrokerAdapter):
     @contextmanager
     def _state_lock(self):
         with self.lock_path.open("a+", encoding="utf-8") as lock_file:
-            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+            _lock_state_file(lock_file)
             try:
                 yield
             finally:
-                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+                _unlock_state_file(lock_file)
 
     def _empty_state(self) -> dict:
         return {

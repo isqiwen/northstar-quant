@@ -144,6 +144,20 @@ def test_target_margin_check_includes_commission_and_slippage_costs():
     assert len(result.rejected_targets) == 1
 
 
+def test_margin_call_failure_fails_closed_when_forced_close_has_no_liquidity():
+    with pytest.raises(ValueError, match="日终保证金不足且强平未能完整成交"):
+        run_daily_futures_backtest(
+            bars=[
+                _bar(DAY_1, "rb2405", 100, 101, 99, 100),
+                _bar(DAY_2, "rb2405", 100, 101, 99, 100),
+                _bar(DAY_3, "rb2405", 200, 201, 199, 200, volume=0),
+            ],
+            instrument_specs=[_spec("rb2405", multiplier=10)],
+            targets=[FuturesTarget(DAY_1, "rb2405", -1)],
+            initial_cash=150,
+        )
+
+
 def test_rollover_shifts_protective_prices_by_contract_basis():
     result = run_daily_futures_backtest(
         bars=[

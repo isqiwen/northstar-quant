@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from functools import lru_cache
+import math
 from pathlib import Path
 from typing import Any, TypeVar, cast
 
@@ -21,6 +22,33 @@ from northstar_quant.config.yaml_loader import load_yaml
 
 
 EnumValue = TypeVar("EnumValue", bound=StringEnum)
+
+_PROFILE_TOP_LEVEL_FIELDS = frozenset(
+    {
+        "profile_id",
+        "name",
+        "market",
+        "asset_type",
+        "data_frequency",
+        "rebalance_frequency",
+        "strategy_family",
+        "currency",
+        "timezone",
+        "calendar",
+        "universe_id",
+        "benchmark_symbol",
+        "data",
+        "futures",
+        "strategies",
+        "lifecycle",
+        "execution",
+        "backtest",
+        "versions",
+        "risk",
+        "schedule",
+        "metadata",
+    }
+)
 
 
 def _parse_enum(enum_cls: type[EnumValue], value: str | EnumValue) -> EnumValue:
@@ -43,6 +71,21 @@ def _parse_bool(value: object, *, field_name: str) -> bool:
         if normalized in {"false", "0", "no", "off"}:
             return False
     raise ValueError(f"配置字段 {field_name} 必须是明确的布尔值")
+
+
+def _validate_profile_top_level_fields(raw: dict[str, Any]) -> None:
+    """拒绝拼错的顶层画像字段，避免风控或回测配置静默失效。"""
+
+    unknown = sorted(set(raw).difference(_PROFILE_TOP_LEVEL_FIELDS))
+    if unknown:
+        raise ValueError(
+            "交易画像包含未知顶层字段："
+            + ", ".join(unknown)
+            + "；仅允许显式 metadata 承载非运行时信息"
+        )
+    metadata = raw.get("metadata")
+    if metadata is not None and not isinstance(metadata, dict):
+        raise ValueError("配置字段 metadata 必须是对象")
 
 
 @dataclass(frozen=True, slots=True)
@@ -90,6 +133,25 @@ class ProfileStrategyConfig:
     capital_weight: float = 1.0  # 多策略组合前的资金权重；管线会按规则归一或校验。
     enabled: bool = True  # false 时保留配置但不参与策略管线。
     params: dict[str, Any] = field(default_factory=dict)  # 对策略构造器默认参数的显式覆盖。
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.strategy_id, str) or not self.strategy_id.strip():
+            raise ValueError("strategies.strategy_id 必须是非空字符串")
+        object.__setattr__(self, "strategy_id", self.strategy_id.strip())
+
+        if isinstance(self.capital_weight, bool):
+            raise ValueError("strategies.capital_weight 必须是有限且非负的数值")
+        try:
+            capital_weight = float(self.capital_weight)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                "strategies.capital_weight 必须是有限且非负的数值"
+            ) from exc
+        if not math.isfinite(capital_weight) or capital_weight < 0:
+            raise ValueError("strategies.capital_weight 必须是有限且非负的数值")
+        object.__setattr__(self, "capital_weight", capital_weight)
+        if not isinstance(self.enabled, bool):
+            raise ValueError("strategies.enabled 必须是明确的布尔值")
 
 
 @dataclass(frozen=True, slots=True)
@@ -202,7 +264,33 @@ class TradingProfile:
     versions: ProfileVersionConfig = field(default_factory=ProfileVersionConfig)  # 可追溯性版本锚点。
     risk: dict[str, Any] = field(default_factory=dict)  # RiskLimits 支持字段的画像级覆盖，未知字段会拒绝。
     schedule: dict[str, Any] = field(default_factory=dict)  # cron 配置，如 daily_signal_cron、execution_cron。
-    metadata: dict[str, Any] = field(default_factory=dict)  # 未建模顶层字段；仅保留，不应假定影响交易行为。
+    metadata: dict[str, Any] = field(default_factory=dict)  # 显式非运行时元数据；不应假定影响交易行为。
+
+    def __post_init__(self) -> None:
+        strategy_ids = [strategy.strategy_id for strategy in self.strategies]
+        duplicate_ids = sorted(
+            strategy_id
+            for strategy_id in set(strategy_ids)
+            if strategy_ids.count(strategy_id) > 1
+        )
+        if duplicate_ids:
+            raise ValueError(
+                "交易画像 strategies.strategy_id 不能重复："
+                + ", ".join(duplicate_ids)
+            )
+
+        enabled_strategies = [
+            strategy for strategy in self.strategies if strategy.enabled
+        ]
+        if not enabled_strategies:
+            raise ValueError("交易画像至少需要一条 enabled=true 的策略")
+        enabled_weight_total = sum(
+            strategy.capital_weight for strategy in enabled_strategies
+        )
+        if not math.isfinite(enabled_weight_total) or enabled_weight_total <= 0:
+            raise ValueError(
+                "交易画像 enabled 策略的 capital_weight 总和必须大于 0"
+            )
 
     @property
     def enabled_strategies(self) -> tuple[ProfileStrategyConfig, ...]:
@@ -445,10 +533,15 @@ def load_trading_profile(
         )
 
     raw = load_yaml(path)
+    if not isinstance(raw, dict):
+        raise ValueError(f"交易画像配置顶层必须是对象：{path}")
+    _validate_profile_top_level_fields(raw)
     data_raw = raw.get("data", {}) or {}
     futures_raw = raw.get("futures")
     download_raw = data_raw.get("download", {}) or {}
     strategies_raw = raw.get("strategies", []) or []
+    if not isinstance(strategies_raw, list):
+        raise ValueError("配置字段 strategies 必须是列表")
     lifecycle_raw = raw.get("lifecycle", {}) or {}
     execution_raw = raw.get("execution", {}) or {}
     backtest_raw = raw.get("backtest", {}) or {}
@@ -686,23 +779,35 @@ def load_trading_profile(
         risk_policy=str(versions_raw.get("risk_policy", "v1")),
     )
 
-    strategy_configs = tuple(
-        ProfileStrategyConfig(
-            strategy_id=str(item["strategy_id"]),
-            strategy_family=(
-                _parse_enum(StrategyFamily, item["strategy_family"])
-                if item.get("strategy_family") is not None
-                else None
-            ),
-            capital_weight=float(item.get("capital_weight", 1.0)),
-            enabled=_parse_bool(
-                item.get("enabled", True),
-                field_name=f"strategies.{item.get('strategy_id', 'unknown')}.enabled",
-            ),
-            params=dict(item.get("params", {}) or {}),
+    strategy_configs_list: list[ProfileStrategyConfig] = []
+    for index, item in enumerate(strategies_raw):
+        if not isinstance(item, dict):
+            raise ValueError(f"strategies[{index}] 必须是对象")
+        strategy_id_raw = item.get("strategy_id")
+        if not isinstance(strategy_id_raw, str) or not strategy_id_raw.strip():
+            raise ValueError(f"strategies[{index}].strategy_id 必须是非空字符串")
+        params_raw = item.get("params", {}) or {}
+        if not isinstance(params_raw, dict):
+            raise ValueError(f"strategies[{index}].params 必须是对象")
+        strategy_configs_list.append(
+            ProfileStrategyConfig(
+                strategy_id=strategy_id_raw.strip(),
+                strategy_family=(
+                    _parse_enum(StrategyFamily, item["strategy_family"])
+                    if item.get("strategy_family") is not None
+                    else None
+                ),
+                capital_weight=item.get("capital_weight", 1.0),
+                enabled=_parse_bool(
+                    item.get("enabled", True),
+                    field_name=f"strategies.{strategy_id_raw.strip()}.enabled",
+                ),
+                params=dict(params_raw),
+            )
         )
-        for item in strategies_raw
-    )
+    strategy_configs = tuple(strategy_configs_list)
+    if not strategy_configs:
+        raise ValueError("交易画像至少需要一条 enabled=true 的策略")
 
     default_strategy_family = (
         strategy_configs[0].strategy_family.value
@@ -710,34 +815,7 @@ def load_trading_profile(
         else StrategyFamily.TREND_FOLLOWING.value
     )
 
-    metadata = {
-        key: value
-        for key, value in raw.items()
-        if key
-        not in {
-            "profile_id",
-            "name",
-            "market",
-            "asset_type",
-            "data_frequency",
-            "rebalance_frequency",
-            "strategy_family",
-            "currency",
-            "timezone",
-            "calendar",
-            "universe_id",
-            "benchmark_symbol",
-            "data",
-            "futures",
-            "strategies",
-            "lifecycle",
-            "execution",
-            "backtest",
-            "versions",
-            "risk",
-            "schedule",
-        }
-    }
+    metadata = dict(raw.get("metadata", {}) or {})
 
     return TradingProfile(
         profile_id=str(raw.get("profile_id", resolved_profile_id)),

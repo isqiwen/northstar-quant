@@ -51,18 +51,21 @@ class FuturesTrendStrategy(DailyStrategyBase):
 
         rows: list[dict[str, object]] = []
         for current_date, signals in returns.dropna(how="all").iterrows():
-            active = signals.dropna()
-            active = active[active.abs() > 1e-12]
-            if active.empty:
-                continue
-            weight = 1.0 / len(active)
-            for symbol, signal in active.items():
+            valid = signals.dropna()
+            active = valid[valid.abs() > 1e-12]
+            active_weight = 1.0 / len(active) if not active.empty else 0.0
+            for symbol, signal in valid.items():
+                # 每个已经形成信号的标的都必须显式给出该期目标。否则下游的
+                # 前向填充会把“信号归零”误解成“继续持有上一期仓位”。
+                target_weight = (
+                    active_weight if signal > 1e-12 else -active_weight if signal < -1e-12 else 0.0
+                )
                 rows.append(
                     {
                         "date": current_date.date() if hasattr(current_date, "date") else current_date,
                         "symbol": symbol,
                         "signal_value": float(signal),
-                        "target_weight": float(weight if signal > 0 else -weight),
+                        "target_weight": float(target_weight),
                     }
                 )
         return self.to_targets_frame(rows)

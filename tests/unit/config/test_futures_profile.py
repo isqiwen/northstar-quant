@@ -302,6 +302,9 @@ data:
 strategies:
   - strategy_id: futures_trend
     enabled: "{boolean_value}"
+  # Keep one enabled strategy so this boolean fixture remains valid.
+  - strategy_id: futures_trend_validation_anchor
+    enabled: true
 """.strip(),
         encoding="utf-8",
     )
@@ -323,4 +326,111 @@ def test_profile_rejects_ambiguous_boolean_strings(tmp_path: Path):
     profile_id = _write_boolean_profile(tmp_path, boolean_value="maybe")
 
     with pytest.raises(ValueError, match="必须是明确的布尔值"):
+        load_trading_profile(profile_id, tmp_path)
+
+
+def test_profile_rejects_unknown_top_level_fields_instead_of_ignoring_them(
+    tmp_path: Path,
+):
+    profile_id = _write_boolean_profile(tmp_path, boolean_value="false")
+    path = tmp_path / "offline" / f"{profile_id}.yaml"
+    path.write_text(
+        path.read_text(encoding="utf-8") + "\nrisks:\n  max_gross_exposure: 0.1\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="未知顶层字段：risks"):
+        load_trading_profile(profile_id, tmp_path)
+
+
+@pytest.mark.parametrize("strategy_id", ("", "   "))
+def test_profile_rejects_empty_strategy_id(tmp_path: Path, strategy_id: str):
+    profile_id = _write_boolean_profile(tmp_path, boolean_value="false")
+    path = tmp_path / "offline" / f"{profile_id}.yaml"
+    path.write_text(
+        path.read_text(encoding="utf-8").replace(
+            "strategy_id: futures_trend",
+            f'strategy_id: "{strategy_id}"',
+            1,
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="strategy_id"):
+        load_trading_profile(profile_id, tmp_path)
+
+
+def test_profile_rejects_duplicate_strategy_ids(tmp_path: Path):
+    profile_id = _write_boolean_profile(tmp_path, boolean_value="false")
+    path = tmp_path / "offline" / f"{profile_id}.yaml"
+    path.write_text(
+        path.read_text(encoding="utf-8").replace(
+            "strategy_id: futures_trend_validation_anchor",
+            "strategy_id: futures_trend",
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="不能重复"):
+        load_trading_profile(profile_id, tmp_path)
+
+
+@pytest.mark.parametrize("capital_weight", ("-0.01", "nan", "inf"))
+def test_profile_rejects_invalid_strategy_capital_weight(
+    tmp_path: Path,
+    capital_weight: str,
+):
+    profile_id = _write_boolean_profile(tmp_path, boolean_value="false")
+    path = tmp_path / "offline" / f"{profile_id}.yaml"
+    path.write_text(
+        path.read_text(encoding="utf-8").replace(
+            '  - strategy_id: futures_trend\n    enabled: "false"',
+            "  - strategy_id: futures_trend\n"
+            f'    enabled: "false"\n    capital_weight: {capital_weight}',
+            1,
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="capital_weight"):
+        load_trading_profile(profile_id, tmp_path)
+
+
+def test_profile_requires_an_enabled_strategy(tmp_path: Path):
+    profile_id = _write_boolean_profile(tmp_path, boolean_value="false")
+    path = tmp_path / "offline" / f"{profile_id}.yaml"
+    path.write_text(
+        path.read_text(encoding="utf-8").replace(
+            "strategy_id: futures_trend_validation_anchor\n    enabled: true",
+            "strategy_id: futures_trend_validation_anchor\n    enabled: false",
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="enabled=true"):
+        load_trading_profile(profile_id, tmp_path)
+
+
+def test_profile_rejects_empty_strategy_list(tmp_path: Path):
+    profile_id = _write_boolean_profile(tmp_path, boolean_value="false")
+    path = tmp_path / "offline" / f"{profile_id}.yaml"
+    content = path.read_text(encoding="utf-8")
+    path.write_text(content[: content.index("strategies:")] + "strategies: []\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="enabled=true"):
+        load_trading_profile(profile_id, tmp_path)
+
+
+def test_profile_requires_positive_enabled_strategy_weight_total(tmp_path: Path):
+    profile_id = _write_boolean_profile(tmp_path, boolean_value="false")
+    path = tmp_path / "offline" / f"{profile_id}.yaml"
+    path.write_text(
+        path.read_text(encoding="utf-8").replace(
+            "strategy_id: futures_trend_validation_anchor\n    enabled: true",
+            "strategy_id: futures_trend_validation_anchor\n    enabled: true\n    capital_weight: 0.0",
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="capital_weight 总和"):
         load_trading_profile(profile_id, tmp_path)
