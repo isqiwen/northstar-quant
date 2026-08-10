@@ -32,3 +32,6 @@ uv run northstar live preview-rebalance \
 
 `live execute` 会写入仿真订单；随后使用 `live poll` 或 `live sync` 取得异步成交并对账。
 首次演练建议先运行两次 `live sync`，建立账户快照和区间归因基线。
+
+这条流程只会修改本地 `ctp_sim` 状态和开发数据库，绝不连接期货公司。完整能力边界见
+[`docs/04_实盘执行现状与增强说明.md`](../../../docs/04_实盘执行现状与增强说明.md)。

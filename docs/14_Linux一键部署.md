@@ -9,8 +9,8 @@
 它不负责创建生产 PostgreSQL、配置云防火墙、购买服务器或申请券商权限。生产数据库应
 独立部署并具备自动备份，不能复用开发环境的 Docker 数据卷。
 
-当前仓库没有 production 画像，也没有完整 CTP 报单适配器。部署配置必须保持
-`SERVICE_MODE=health`、`NORTHSTAR_BROKER=paper` 和
+当前仓库没有 production 画像，也没有完整 CTP 报单适配器。因此当前唯一可用的部署模式是
+`SERVICE_MODE=health`，并且必须保持 `NORTHSTAR_BROKER=paper` 和
 `NORTHSTAR_LIVE_TRADING_ENABLED=false`。
 
 ## 服务器要求
@@ -127,13 +127,15 @@ northstar health
 
 ### scheduler
 
-长期运行：
+这是**未来** production 阶段的 systemd 模板，不是当前可启动服务。当前没有 production
+画像，执行下列命令会在画像/preflight 阶段失败关闭：
 
 ```bash
 northstar live scheduler
 ```
 
-paper 调度器要求：
+只有在生产画像、真实 CTP adapter、经授权数据、完整 preflight 和阶段审批全部完成后，
+才可评估 scheduler 模式。届时 paper 调度器仍要求：
 
 ```text
 NORTHSTAR_BROKER=paper
