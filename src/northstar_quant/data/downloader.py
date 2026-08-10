@@ -15,6 +15,15 @@ from typing import Any
 
 import polars as pl
 
+from northstar_quant.config.data_sources import data_source_config_sha256, get_data_source
+from northstar_quant.config.instrument_universes import (
+    instrument_universe_sha256,
+    load_instrument_universe,
+)
+from northstar_quant.config.research_admission import (
+    load_research_admission_policy,
+    research_admission_policy_sha256,
+)
 from northstar_quant.config.trading_profile import TradingProfile, load_trading_profile, list_trading_profiles
 from northstar_quant.data.providers.akshare import download_akshare_main_continuous
 from northstar_quant.data.providers.akshare_actual import download_akshare_actual_daily
@@ -43,6 +52,7 @@ class DataDownloadResult:
 
     profile_id: str
     data_source: str
+    source_id: str
     currency: str
     price_field: str
     schema_version: str
@@ -180,6 +190,7 @@ def _build_manifest(
     data_path: Path,
     validation: dict[str, Any],
     symbol_quality: list[dict[str, Any]],
+    ingestion: dict[str, object],
 ) -> dict[str, Any]:
     """构建不可替代原始数据本身的轻量血缘记录。
 
@@ -193,7 +204,7 @@ def _build_manifest(
         symbols = sorted({str(symbol) for symbol in df.get_column("symbol").to_list()})
 
     return {
-        "manifest_version": "data_manifest_v2",
+        "manifest_version": "data_manifest_v3",
         "profile_id": profile.profile_id,
         "profile_name": profile.name,
         "dimensions": asdict(profile.dimensions),
@@ -217,6 +228,7 @@ def _build_manifest(
         "content_size_bytes": data_path.stat().st_size,
         "profile_config_sha256": profile_config_sha256(profile),
         "versions": asdict(profile.versions),
+        "governance": _build_governance_metadata(profile),
         "row_count": df.height,
         "symbol_count": len(symbols),
         "symbols": symbols,
@@ -237,6 +249,38 @@ def _build_manifest(
             "end_date": profile.data.download.end_date,
             "options": dict(profile.data.download.options),
         },
+        "ingestion": ingestion,
+    }
+
+
+def _build_governance_metadata(profile: TradingProfile) -> dict[str, object]:
+    """冻结数据源、品种池和准入政策的配置指纹。
+
+    该段不含合同原件、账号、绝对路径或凭据；它只允许读取者确认本次数据制品受哪一份
+    治理配置约束。没有 source_id 的临时测试画像显式标记为 unbound，不能作为正式研究
+    准入证据。
+    """
+
+    if not profile.data.source_id:
+        return {"status": "unbound"}
+    source = get_data_source(profile.data.source_id)
+    universe = load_instrument_universe(profile.universe_id)
+    policy_id = profile.research_admission.policy_id
+    policy = load_research_admission_policy(policy_id) if policy_id else None
+    return {
+        "status": "bound",
+        "source_id": source.source_id,
+        "source_adapter_id": source.adapter_id,
+        "source_tier": source.tier,
+        "source_status": source.status,
+        "license_status": source.license.status,
+        "source_config_sha256": data_source_config_sha256(source),
+        "universe_id": universe.universe_id,
+        "universe_config_sha256": instrument_universe_sha256(universe),
+        "admission_policy_id": policy.policy_id if policy is not None else None,
+        "admission_policy_config_sha256": (
+            research_admission_policy_sha256(policy) if policy is not None else None
+        ),
     }
 
 
@@ -248,6 +292,7 @@ def _publish_dataset_artifact(
     target_path: Path,
     validation: dict[str, Any],
     symbol_quality: list[dict[str, Any]],
+    ingestion: dict[str, object],
 ) -> tuple[Path, Path]:
     """按“发布中标记 → Parquet → manifest → 清标记”发布一份数据制品。
 
@@ -274,6 +319,7 @@ def _publish_dataset_artifact(
                 data_path=data_path,
                 validation=validation,
                 symbol_quality=symbol_quality,
+                ingestion=ingestion,
             ),
             dataset_manifest_path(data_path),
         )
@@ -342,7 +388,13 @@ def download_profile_data(
             f"画像 {profile.profile_id} 禁止自动下载；请使用 `northstar data import-file` "
             "导入已核验的数据制品"
         )
-    provider_id = provider_override or profile.data.download.provider or profile.data.provider
+    configured_provider = profile.data.download.provider or profile.data.provider
+    if provider_override is not None and provider_override.strip() != configured_provider:
+        raise ValueError(
+            "--provider 不能绕过画像绑定的数据源 adapter；"
+            f"当前画像只允许 {configured_provider}"
+        )
+    provider_id = configured_provider
     provider = get_data_provider(provider_id)
     df = provider(profile)
     validation = validate_market_dataset(profile, df)
@@ -361,6 +413,7 @@ def download_profile_data(
         target_path=profile_download_cache_path(profile, provider_id),
         validation=validation,
         symbol_quality=symbol_quality,
+        ingestion={"kind": "download", "adapter_id": provider_id},
     )
     dataset_path, dataset_manifest = _publish_dataset_artifact(
         profile,
@@ -369,6 +422,7 @@ def download_profile_data(
         target_path=dataset_target,
         validation=validation,
         symbol_quality=symbol_quality,
+        ingestion={"kind": "download", "adapter_id": provider_id},
     )
 
     start, end = _temporal_range(df)
@@ -379,6 +433,7 @@ def download_profile_data(
     return DataDownloadResult(
         profile_id=profile.profile_id,
         data_source=provider_id,
+        source_id=profile.data.source_id,
         currency=profile.currency,
         price_field=profile.data.price_field,
         schema_version=str(validation["schema_version"]),
@@ -433,7 +488,7 @@ def import_profile_data(
             "导入数据质量回退，已拒绝覆盖现有数据：" + "；".join(regression_issues)
         )
 
-    data_source = f"local_file:{path.name}"
+    data_source = profile.data.provider
     cache_path, cache_manifest = _publish_dataset_artifact(
         profile,
         data_source,
@@ -441,6 +496,7 @@ def import_profile_data(
         target_path=profile_download_cache_path(profile, profile.data.provider),
         validation=validation,
         symbol_quality=symbol_quality,
+        ingestion={"kind": "local_file", "file_name": path.name},
     )
     dataset_path, dataset_manifest = _publish_dataset_artifact(
         profile,
@@ -449,11 +505,13 @@ def import_profile_data(
         target_path=dataset_target,
         validation=validation,
         symbol_quality=symbol_quality,
+        ingestion={"kind": "local_file", "file_name": path.name},
     )
     start, end = _temporal_range(df)
     return DataDownloadResult(
         profile_id=profile.profile_id,
         data_source=data_source,
+        source_id=profile.data.source_id,
         currency=profile.currency,
         price_field=profile.data.price_field,
         schema_version=str(validation["schema_version"]),
@@ -493,6 +551,7 @@ def list_profile_data_summaries() -> list[dict[str, Any]]:
                 "dimension_key": profile.dimension_key,
                 "dataset_id": profile.data.dataset_id,
                 "data_source": profile.data.download.provider or profile.data.provider,
+                "source_id": profile.data.source_id or None,
                 "live_trading_eligible": profile.data.live_trading_eligible,
                 "currency": profile.currency,
                 "price_field": profile.data.price_field,
@@ -504,6 +563,7 @@ def list_profile_data_summaries() -> list[dict[str, Any]]:
                 "dataset_path": str(profile_market_data_path(profile)),
                 "cache_path": str(profile_download_cache_path(profile)),
                 "symbols": list(profile.data.download.symbols),
+                "research_admission": asdict(profile.research_admission),
             }
         )
     return summaries

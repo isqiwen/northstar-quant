@@ -1,0 +1,8 @@
+version: 1
+universe_id: cn_commodity_actual_contracts_intraday
+name: 实际合约分钟回放工程验收样本
+market: CN
+asset_type: FUTURES
+status: research_only
+members:
+  - {product: RB, exchange: SHFE, continuous_symbol: RB_CONT, admission_tier: sample}

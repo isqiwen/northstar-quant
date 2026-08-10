@@ -11,6 +11,7 @@ from tests.support.paths import PROJECT_ROOT
 
 README_PATH = PROJECT_ROOT / "README.md"
 ROADMAP_PATH = PROJECT_ROOT / "docs" / "15_项目主规划与实施状态.md"
+ADMISSION_POLICY_PATH = PROJECT_ROOT / "docs" / "16_研究准入政策与数据治理.md"
 CONFIG_GUIDE_PATH = PROJECT_ROOT / "docs" / "02_配置说明.md"
 TUTORIAL_PATH = PROJECT_ROOT / "docs" / "00_第一个策略与回测教程.md"
 
@@ -38,6 +39,24 @@ def test_roadmap_is_linked_and_preserves_all_phase_gates() -> None:
         "13_审计修复与上线门槛.md",
     ):
         assert (ROADMAP_PATH.parent / filename).is_file()
+
+
+def test_research_admission_policy_is_linked_and_keeps_fail_closed_boundaries() -> None:
+    readme = _read(README_PATH)
+    policy = _read(ADMISSION_POLICY_PATH)
+
+    assert "(docs/16_研究准入政策与数据治理.md)" in readme
+    assert "procurement_pending" in policy
+    assert "pending_owner_approval" in policy
+    assert "不适用范围：模拟交易授权、真实 CTP、真实资金" in policy
+    assert (PROJECT_ROOT / "configs" / "data" / "sources.yaml").is_file()
+    assert (
+        PROJECT_ROOT
+        / "configs"
+        / "research"
+        / "admission"
+        / "cn_commodity_futures_research_conservative_v1.yaml"
+    ).is_file()
 
 
 def test_configuration_documentation_matches_safe_runtime_defaults() -> None:

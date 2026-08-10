@@ -52,6 +52,8 @@ versions:
   risk_policy: futures-margin-allocation-v1
 data:
   provider: akshare_actual_daily
+  # 当前公开数据只用于工程验收；候选策略准入会要求另行授权的商业实际合约数据。
+  source_id: akshare_actual_daily_public_v1
   dataset_id: akshare_actual_contracts_with_reference_rules_v1
   live_trading_eligible: false
   path: cn/futures/1d/actual_contracts.parquet
@@ -81,6 +83,9 @@ data:
         SA: 100
         SC: 100
       request_interval_seconds: 0.2
+research_admission:
+  enabled: true
+  policy_id: cn_commodity_futures_research_conservative_v1
 strategies:
   - strategy_id: futures_trend
     strategy_family: trend_following

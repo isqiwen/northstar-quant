@@ -57,6 +57,12 @@ def test_runtime_exposes_continuous_and_actual_futures_research_profiles():
     assert actual.futures.execution_allowed is False
     assert actual.data.download.enabled is True
     assert actual.data.download.provider == "akshare_actual_daily"
+    assert actual.data.source_id == "akshare_actual_daily_public_v1"
+    assert actual.research_admission.enabled is True
+    assert (
+        actual.research_admission.policy_id
+        == "cn_commodity_futures_research_conservative_v1"
+    )
 
     intraday = load_trading_profile("cn_futures_intraday_replay_offline")
     assert intraday.backtest.engine == "futures_intraday_replay"
@@ -139,9 +145,11 @@ def test_continuous_futures_profile_can_run_research_but_not_execution(monkeypat
         "SC_CONT",
     }
     manifest = load_json(Path(result.dataset_manifest_path))
-    assert manifest["manifest_version"] == "data_manifest_v2"
+    assert manifest["manifest_version"] == "data_manifest_v3"
     assert len(manifest["content_sha256"]) == 64
     assert len(manifest["profile_config_sha256"]) == 64
+    assert manifest["governance"]["source_id"] == "akshare_continuous_public_v1"
+    assert manifest["governance"]["universe_id"] == "cn_commodity_continuous_core"
 
 
 def test_actual_contract_profile_can_download_and_run_full_backtest(

@@ -16,6 +16,15 @@ from typing import Any
 
 import polars as pl
 
+from northstar_quant.config.data_sources import data_source_config_sha256, get_data_source
+from northstar_quant.config.instrument_universes import (
+    instrument_universe_sha256,
+    load_instrument_universe,
+)
+from northstar_quant.config.research_admission import (
+    load_research_admission_policy,
+    research_admission_policy_sha256,
+)
 from northstar_quant.config.trading_profile import TradingProfile, load_trading_profile
 from northstar_quant.config.settings import get_settings
 from northstar_quant.data.schema import (
@@ -158,6 +167,7 @@ def load_profile_market_data(profile: TradingProfile | str | None = None) -> pl.
         profile_obj
     ):
         identity_issues.append("profile_config_sha256")
+    identity_issues.extend(_governance_identity_issues(profile_obj, manifest))
     if identity_issues:
         raise ValueError(
             "数据 manifest 与当前画像或文件不一致："
@@ -167,6 +177,40 @@ def load_profile_market_data(profile: TradingProfile | str | None = None) -> pl.
     if validation["schema_version"] != expected_schema_version:
         raise ValueError("数据 schema 版本不受支持")
     return df
+
+
+def _governance_identity_issues(
+    profile: TradingProfile,
+    manifest: dict[str, Any],
+) -> list[str]:
+    """校验 manifest 冻结的数据治理引用，避免只改 YAML 后复用旧数据。"""
+
+    if not profile.data.source_id:
+        return []
+    governance = manifest.get("governance")
+    if not isinstance(governance, dict) or governance.get("status") != "bound":
+        return ["governance"]
+    source = get_data_source(profile.data.source_id)
+    universe = load_instrument_universe(profile.universe_id)
+    expected: dict[str, object] = {
+        "source_id": source.source_id,
+        "source_adapter_id": source.adapter_id,
+        "source_config_sha256": data_source_config_sha256(source),
+        "universe_id": universe.universe_id,
+        "universe_config_sha256": instrument_universe_sha256(universe),
+        "admission_policy_id": profile.research_admission.policy_id,
+    }
+    policy_id = profile.research_admission.policy_id
+    if policy_id is not None:
+        policy = load_research_admission_policy(policy_id)
+        expected["admission_policy_config_sha256"] = research_admission_policy_sha256(policy)
+    else:
+        expected["admission_policy_config_sha256"] = None
+    return [
+        f"governance.{field}"
+        for field, value in expected.items()
+        if governance.get(field) != value
+    ]
 
 
 def load_profile_signal_data(profile: TradingProfile | str | None = None) -> pl.DataFrame:
