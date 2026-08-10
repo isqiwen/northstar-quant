@@ -47,6 +47,8 @@ versions:
   risk_policy: futures-margin-allocation-v1
 data:
   provider: local_actual_contracts
+  # 本地导入文件的上游授权必须单独核验，不能因通过 schema 就变成候选研究数据。
+  source_id: local_actual_contracts_import_v1
   dataset_id: actual_contracts_intraday_quotes_v1
   live_trading_eligible: false
   path: cn/futures/1m/actual_contracts.parquet
@@ -58,6 +60,9 @@ data:
     enabled: false
     provider: local_actual_contracts
     symbols: []
+research_admission:
+  enabled: true
+  policy_id: cn_commodity_futures_research_conservative_v1
 strategies:
   - strategy_id: futures_trend
     strategy_family: trend_following

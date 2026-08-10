@@ -83,6 +83,8 @@ versions:
 data:
   # 标准化数据来源标识；当前仅注册 akshare。
   provider: akshare
+  # 技术 adapter 与法律/运营数据来源分离；公开源只能用于探索研究。
+  source_id: akshare_continuous_public_v1
   # 数据集逻辑名称；写入 manifest，用于避免错把其他数据集用于此画像。
   dataset_id: continuous_research
   # 来源为 Sina 主力连续序列；只能研究，不能代表实际可交易合约、结算或真实下单数据。
@@ -127,6 +129,10 @@ data:
         SC_CONT: SC0
       # 上游公开接口可能限流；按品种顺序请求时保留的秒数。
       request_interval_seconds: 1.0
+research_admission:
+  # 连续合约收益研究不能通过实际合约候选准入。
+  enabled: false
+  policy_id: null
 strategies:
   # 可并列配置多条策略；当前只有一条趋势策略。
   - strategy_id: futures_trend

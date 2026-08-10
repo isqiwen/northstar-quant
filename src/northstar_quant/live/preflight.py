@@ -347,7 +347,7 @@ def build_preflight_result(
             content_sha256 = str(data_manifest.get("content_sha256") or "")
             if len(content_sha256) != 64:
                 provenance_issues.append("manifest 缺少有效的数据内容哈希")
-            if str(data_manifest.get("manifest_version") or "") != "data_manifest_v2":
+            if str(data_manifest.get("manifest_version") or "") != "data_manifest_v3":
                 provenance_issues.append("manifest 版本不受支持")
 
         if provenance_issues:

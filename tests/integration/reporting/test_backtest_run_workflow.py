@@ -50,10 +50,16 @@ def test_actual_daily_backtest_run_writes_one_auditable_report_artifact(
 
     assert first_run.run_id == second_run.run_id
     assert first_run.manifest["data"]["content_sha256"]
+    assert (
+        first_run.manifest["data"]["governance"]["source_id"]
+        == "akshare_actual_daily_public_v1"
+    )
     assert first_run.manifest["strategy"]["target_row_count"] > 0
     assert first_run.analytics["benchmark"]["status"] == "available"
     assert first_run.analytics["execution"]["detail_level"] == "fills_and_target_events"
     assert first_run.metrics["成交事件数"] == len(first_run.result.trades)
+    assert first_run.analytics["admission"]["status"] == "INSUFFICIENT_EVIDENCE"
+    assert first_run.metrics["研究准入结论"] == "INSUFFICIENT_EVIDENCE"
 
     report_path = Path(
         report_builder.build_backtest_report(
@@ -84,10 +90,16 @@ def test_actual_daily_backtest_run_writes_one_auditable_report_artifact(
     assert report_data["backtest_run"]["run_id"] == first_run.run_id
     assert artifact_manifest == first_run.manifest
     assert artifact_manifest["output_checksums"]["result_sha256"]
+    assert artifact_manifest["research_admission"]["status"] == "INSUFFICIENT_EVIDENCE"
+    assert artifact_manifest["effective_configuration"]["research_admission"][
+        "policy_id"
+    ] == "cn_commodity_futures_research_conservative_v1"
     content = report_path.read_text(encoding="utf-8")
     assert "基准比较与执行审计" in content
     assert "基准状态：可用" in content
     assert "可复现性与审计" in content
+    assert "研究准入结论" in content
+    assert "INSUFFICIENT_EVIDENCE" in content
     first_holding = first_run.latest_holdings.to_dicts()[0]
     assert (
         f"| {first_holding['symbol']} | {float(first_holding['target_weight']):.2%} |"
@@ -151,3 +163,29 @@ def test_actual_daily_backtest_run_writes_one_auditable_report_artifact(
         report_path.with_name("report.json").read_text(encoding="utf-8")
     )
     assert cli_report_data["backtest_run"]["run_id"] == first_run.run_id
+
+    assess_result = runner.invoke(
+        cli.app,
+        [
+            "research",
+            "assess",
+            "portfolio",
+            "--profile",
+            "cn_futures_daily_actual_offline",
+        ],
+    )
+    assert assess_result.exit_code == 0, assess_result.output
+    assert "INSUFFICIENT_EVIDENCE" in assess_result.output
+
+    require_pass_result = runner.invoke(
+        cli.app,
+        [
+            "research",
+            "assess",
+            "portfolio",
+            "--profile",
+            "cn_futures_daily_actual_offline",
+            "--require-pass",
+        ],
+    )
+    assert require_pass_result.exit_code == 2

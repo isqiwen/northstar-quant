@@ -49,3 +49,14 @@ def test_intraday_contract_rejects_future_active_selection():
 
     with pytest.raises(ValueError, match="selection_date"):
         validate_actual_futures_intraday_dataset(profile, market)
+
+
+def test_intraday_contract_rejects_product_outside_profile_universe():
+    profile = load_trading_profile("cn_futures_intraday_replay_offline")
+    market = actual_futures_intraday_frame().with_columns(
+        pl.lit("CU").alias("product"),
+        pl.lit("SHFE").alias("exchange"),
+    )
+
+    with pytest.raises(ValueError, match="不属于画像品种池"):
+        validate_actual_futures_intraday_dataset(profile, market)

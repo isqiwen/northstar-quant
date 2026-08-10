@@ -14,6 +14,10 @@ from typing import Any
 import polars as pl
 
 from northstar_quant.common.enums import AssetType, DataFrequency
+from northstar_quant.config.instrument_universes import (
+    load_instrument_universe,
+    validate_actual_product_membership,
+)
 from northstar_quant.config.product_cards import load_product_cards
 from northstar_quant.config.trading_profile import TradingProfile
 
@@ -215,6 +219,19 @@ def validate_actual_futures_dataset(
     _validate_active_contract_schedule(normalized)
     _validate_pre_settlement_continuity(normalized)
     actual_symbols = sorted(normalized.get_column("symbol").unique().to_list())
+    observed_product_exchanges = {
+        product: str(
+            normalized.filter(pl.col("product") == product)
+            .get_column("exchange")
+            .unique()
+            .item()
+        )
+        for product in dataset_products
+    }
+    universe_validation = validate_actual_product_membership(
+        load_instrument_universe(profile.universe_id),
+        observed_product_exchanges,
+    )
     return {
         "schema_version": ACTUAL_FUTURES_DAILY_SCHEMA_VERSION,
         "expected_columns": list(ACTUAL_FUTURES_DAILY_COLUMNS),
@@ -230,6 +247,7 @@ def validate_actual_futures_dataset(
         "ohlc_consistent": True,
         "actual_symbols": actual_symbols,
         "products": sorted(dataset_products),
+        "universe": universe_validation,
         "no_lookahead_active_contracts": True,
         "complete_trading_sessions": True,
     }

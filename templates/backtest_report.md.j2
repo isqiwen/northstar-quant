@@ -69,7 +69,31 @@
 暂无目标权重。
 {% endif %}
 
-## 四、可复现性与审计
+## 四、研究准入结论
+{% set admission = analytics.admission if analytics else none %}
+{% if admission %}
+
+- 准入政策：`{{ admission.policy_id or "未配置" }}`
+- 准入状态：**{{ admission.status }}**
+- 可进入人工研究评审：{{ "是" if admission.eligible_for_human_review else "否" }}
+- 阻断项数量：{{ admission.blocking_check_count }}
+- 结论说明：{{ admission.summary }}
+
+{% if admission.checks %}
+| 检查项 | 状态 | 实际值 | 阈值/要求 | 说明 |
+|---|---|---|---|---|
+{% for check in admission.checks %}
+| `{{ check.check_id }}` | {{ check.status }} | {{ check.actual }} | {{ check.threshold }} | {{ check.message }} |
+{% endfor %}
+{% endif %}
+
+> `PASS` 只表示可进入具名人工研究评审，不代表模拟、实盘、券商访问或真实资金授权。任何 `FAIL` 或 `MISSING` 都不得通过修改报告文字或降低门槛绕过。
+{% else %}
+
+> 本画像未配置候选策略研究准入政策；结果只可作探索或工程验收。
+{% endif %}
+
+## 五、可复现性与审计
 {% if backtest_run %}
 
 - 回测运行 ID：`{{ backtest_run.run_id }}`
@@ -87,7 +111,7 @@
 本报告未附回测运行清单，不能作为完整可复现实验制品。
 {% endif %}
 
-## 五、研究限制
+## 六、研究限制
 
 - 本报告展示研究回测结果，不代表真实账户收益或可执行订单。
 - 成本、滑点、保证金、换月、涨跌停和成交约束以画像中的回测配置与引擎能力为准。

@@ -63,7 +63,7 @@ def test_preflight_rejects_live_provider_when_allowlist_is_empty(monkeypatch):
         monkeypatch,
         allowlist="",
         manifest={
-            "manifest_version": "data_manifest_v2",
+            "manifest_version": "data_manifest_v3",
             "profile_id": "cn_futures_daily_trend_offline",
             "dataset_id": "continuous_research",
             "live_trading_eligible": True,
@@ -81,7 +81,7 @@ def test_preflight_accepts_explicitly_approved_hashed_provider(monkeypatch):
         monkeypatch,
         allowlist="verified_vendor",
         manifest={
-            "manifest_version": "data_manifest_v2",
+            "manifest_version": "data_manifest_v3",
             "profile_id": "cn_futures_daily_trend_offline",
             "dataset_id": "continuous_research",
             "live_trading_eligible": True,

@@ -20,6 +20,7 @@ from typing import Any
 import polars as pl
 
 from northstar_quant import __version__
+from northstar_quant.backtest.admission import evaluate_research_admission
 from northstar_quant.backtest.event_engine import BacktestResult
 from northstar_quant.backtest.metrics import periods_per_year_for_frequency
 from northstar_quant.backtest.registry import resolve_target_backtester
@@ -42,7 +43,7 @@ from northstar_quant.strategies.pipeline import (
 )
 
 
-BACKTEST_MANIFEST_SCHEMA_VERSION = "northstar_backtest_manifest_v1"
+BACKTEST_MANIFEST_SCHEMA_VERSION = "northstar_backtest_manifest_v2"
 _EPSILON = 1e-12
 _MIN_STATISTICAL_OBSERVATIONS = 20
 
@@ -145,6 +146,14 @@ def run_profile_backtest_run(
         sample_is_sufficient=bool(performance["sample_is_sufficient"]),
     )
     execution = _build_execution_analytics(result, backtester_id=backtester.backtester_id)
+    admission = evaluate_research_admission(
+        profile,
+        source_manifest=source_manifest,
+        raw_market_df=raw_market_df,
+        equity_curve=evaluation_curve,
+        performance=performance,
+        execution=execution,
+    ).to_dict()
     analytics: dict[str, object] = {
         "equity_curve": evaluation_curve,
         "drawdown_curve": evaluation["drawdown_curve"],
@@ -159,6 +168,7 @@ def run_profile_backtest_run(
         "performance": performance,
         "benchmark": benchmark,
         "execution": execution,
+        "admission": admission,
     }
     metrics = _build_report_metrics(
         result,
@@ -167,6 +177,7 @@ def run_profile_backtest_run(
         execution=execution,
         backtester_id=backtester.backtester_id,
         evaluation=evaluation["metadata"],
+        admission=admission,
     )
     manifest = _build_run_manifest(
         profile=profile,
@@ -178,6 +189,7 @@ def run_profile_backtest_run(
         periods_per_year=periods_per_year,
         analytics=analytics,
         evaluation=evaluation["metadata"],
+        admission=admission,
     )
     return BacktestRun(
         profile=profile,
@@ -196,6 +208,7 @@ def run_profile_backtest(profile_id: str | None = None) -> dict[str, Any]:
     """保留研究摘要 API，并委托给唯一的完整回测工作流。"""
 
     run = run_profile_backtest_run(profile_id)
+    admission = run.analytics.get("admission")
     return {
         "profile_id": run.profile.profile_id,
         "run_id": run.run_id,
@@ -212,6 +225,9 @@ def run_profile_backtest(profile_id: str | None = None) -> dict[str, Any]:
         "latest_holdings": run.latest_holdings.to_dicts(),
         "trade_count": len(run.result.trades),
         "rejected_order_count": len(run.result.rejected_orders),
+        "research_admission_status": (
+            admission.get("status") if isinstance(admission, Mapping) else None
+        ),
     }
 
 
@@ -228,6 +244,7 @@ def _load_safe_source_manifest(profile: TradingProfile) -> dict[str, object]:
         "content_sha256": raw.get("content_sha256"),
         "profile_config_sha256": raw.get("profile_config_sha256"),
         "schema_version": schema.get("schema_version") if isinstance(schema, dict) else None,
+        "schema": schema if isinstance(schema, dict) else None,
         "row_count": raw.get("row_count"),
         "symbol_count": raw.get("symbol_count"),
         "symbols": raw.get("symbols"),
@@ -236,6 +253,8 @@ def _load_safe_source_manifest(profile: TradingProfile) -> dict[str, object]:
         "end": raw.get("end"),
         "quality": raw.get("quality"),
         "versions": raw.get("versions"),
+        "governance": raw.get("governance"),
+        "ingestion": raw.get("ingestion"),
     }
 
 
@@ -651,6 +670,7 @@ def _build_report_metrics(
     execution: dict[str, object],
     backtester_id: str,
     evaluation: object,
+    admission: Mapping[str, object],
 ) -> dict[str, object]:
     """构造报告展示指标，并在键名中保留口径与不可用状态。"""
 
@@ -675,6 +695,9 @@ def _build_report_metrics(
         metrics["热身排除权益观测数"] = evaluation.get(
             "warmup_excluded_observation_count"
         )
+    metrics["研究准入结论"] = admission.get("status")
+    metrics["研究准入政策"] = admission.get("policy_id")
+    metrics["研究准入阻断项"] = admission.get("blocking_check_count")
     if benchmark.get("status") == "available":
         metrics.update(
             {
@@ -722,6 +745,7 @@ def _build_run_manifest(
     periods_per_year: int,
     analytics: dict[str, object],
     evaluation: object,
+    admission: Mapping[str, object],
 ) -> dict[str, object]:
     """建立输入指纹和输出校验和，不依赖报告写入时的当前时间。"""
 
@@ -752,6 +776,11 @@ def _build_run_manifest(
         "data_price_field": profile.data.price_field,
         "data_adjusted": profile.data.adjusted,
         "calendar": profile.calendar,
+        "research_admission": {
+            "profile": asdict(profile.research_admission),
+            "policy_id": admission.get("policy_id"),
+            "policy_config_sha256": admission.get("policy_config_sha256"),
+        },
     }
     fingerprint_inputs = {
         "schema_version": BACKTEST_MANIFEST_SCHEMA_VERSION,
@@ -765,6 +794,7 @@ def _build_run_manifest(
         "strategy": strategy,
         "engine": engine,
         "effective_configuration": effective_configuration,
+        "research_admission": dict(admission),
     }
     fingerprint = _json_sha256(fingerprint_inputs)
     result_payload = asdict(result)
@@ -787,6 +817,7 @@ def _build_run_manifest(
         "strategy": strategy,
         "engine": engine,
         "effective_configuration": effective_configuration,
+        "research_admission": dict(admission),
         "output_checksums": output_checksums,
         "reproducibility_note": _reproducibility_note(code),
     }

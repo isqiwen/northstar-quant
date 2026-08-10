@@ -17,6 +17,9 @@ from northstar_quant.common.enums import (
     StringEnum,
 )
 from northstar_quant.common.types import TradingDimensions
+from northstar_quant.config.data_sources import get_data_source
+from northstar_quant.config.instrument_universes import load_instrument_universe
+from northstar_quant.config.research_admission import load_research_admission_policy
 from northstar_quant.config.settings import get_settings
 from northstar_quant.config.yaml_loader import load_yaml
 
@@ -46,6 +49,7 @@ _PROFILE_TOP_LEVEL_FIELDS = frozenset(
         "versions",
         "risk",
         "schedule",
+        "research_admission",
         "metadata",
     }
 )
@@ -105,6 +109,7 @@ class ProfileDataConfig:
     """交易画像中的标准数据集、价格口径和真实交易资格。"""
 
     provider: str = "akshare"  # 标准数据集的来源标识，必须与数据实际血缘一致。
+    source_id: str = ""  # 数据法律/运营来源 ID；与技术 adapter provider 分离，不能为空时会严格校验。
     dataset_id: str = "core"  # 数据集逻辑版本/名称，用于 manifest 与画像匹配。
     path: str = ""  # 相对 storage/market 的标准化数据文件路径。
     signal_frequency: DataFrequency | None = None  # 策略实际读取的频率；为空时等于原始行情频率。
@@ -240,6 +245,26 @@ class ProfileVersionConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class ProfileResearchAdmissionConfig:
+    """画像绑定的候选策略研究准入政策。
+
+    这不是运行时风控，也不会改变 ``execution_allowed``。启用后仅在离线回测报告中形成
+    可审计结论；候选提升仍需独立人工审批。
+    """
+
+    enabled: bool = False
+    policy_id: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.policy_id is not None:
+            if not isinstance(self.policy_id, str) or not self.policy_id.strip():
+                raise ValueError("research_admission.policy_id 必须是非空字符串或 null")
+            object.__setattr__(self, "policy_id", self.policy_id.strip())
+        if self.enabled and self.policy_id is None:
+            raise ValueError("research_admission.enabled=true 时必须配置 policy_id")
+
+
+@dataclass(frozen=True, slots=True)
 class TradingProfile:
     """统一描述一次完整交易流程；字段注释是 YAML 的运行时语义参考。"""
 
@@ -262,6 +287,9 @@ class TradingProfile:
     execution: ProfileExecutionConfig = field(default_factory=ProfileExecutionConfig)  # 再平衡/手数执行约束。
     backtest: ProfileBacktestConfig = field(default_factory=ProfileBacktestConfig)  # 回测撮合假设。
     versions: ProfileVersionConfig = field(default_factory=ProfileVersionConfig)  # 可追溯性版本锚点。
+    research_admission: ProfileResearchAdmissionConfig = field(
+        default_factory=ProfileResearchAdmissionConfig
+    )  # 候选研究准入政策绑定。
     risk: dict[str, Any] = field(default_factory=dict)  # RiskLimits 支持字段的画像级覆盖，未知字段会拒绝。
     schedule: dict[str, Any] = field(default_factory=dict)  # cron 配置，如 daily_signal_cron、execution_cron。
     metadata: dict[str, Any] = field(default_factory=dict)  # 显式非运行时元数据；不应假定影响交易行为。
@@ -546,6 +574,16 @@ def load_trading_profile(
     execution_raw = raw.get("execution", {}) or {}
     backtest_raw = raw.get("backtest", {}) or {}
     versions_raw = raw.get("versions", {}) or {}
+    research_admission_raw = raw.get("research_admission", {}) or {}
+    if not isinstance(research_admission_raw, dict):
+        raise ValueError("配置字段 research_admission 必须是对象")
+    unknown_research_admission = sorted(
+        set(research_admission_raw).difference({"enabled", "policy_id"})
+    )
+    if unknown_research_admission:
+        raise ValueError(
+            "research_admission 包含未知字段：" + ", ".join(unknown_research_admission)
+        )
 
     configured_profile_id = str(raw.get("profile_id") or "").strip()
     if configured_profile_id != resolved_profile_id:
@@ -590,6 +628,7 @@ def load_trading_profile(
     )
     data_config = ProfileDataConfig(
         provider=str(data_raw.get("provider", "akshare")),
+        source_id=str(data_raw.get("source_id", "")).strip(),
         dataset_id=str(data_raw.get("dataset_id", "core")),
         path=str(
             data_raw.get(
@@ -778,6 +817,17 @@ def load_trading_profile(
         execution_policy=str(versions_raw.get("execution_policy", "v1")),
         risk_policy=str(versions_raw.get("risk_policy", "v1")),
     )
+    research_admission_config = ProfileResearchAdmissionConfig(
+        enabled=_parse_bool(
+            research_admission_raw.get("enabled", False),
+            field_name="research_admission.enabled",
+        ),
+        policy_id=(
+            str(research_admission_raw["policy_id"])
+            if research_admission_raw.get("policy_id") is not None
+            else None
+        ),
+    )
 
     strategy_configs_list: list[ProfileStrategyConfig] = []
     for index, item in enumerate(strategies_raw):
@@ -817,7 +867,7 @@ def load_trading_profile(
 
     metadata = dict(raw.get("metadata", {}) or {})
 
-    return TradingProfile(
+    profile = TradingProfile(
         profile_id=str(raw.get("profile_id", resolved_profile_id)),
         name=str(raw.get("name", resolved_profile_id)),
         market=market,
@@ -840,10 +890,83 @@ def load_trading_profile(
         execution=execution_config,
         backtest=backtest_config,
         versions=version_config,
+        research_admission=research_admission_config,
         risk=dict(raw.get("risk", {}) or {}),
         schedule=dict(raw.get("schedule", {}) or {}),
         metadata=metadata,
     )
+    _validate_profile_governance_references(profile)
+    return profile
+
+
+def _validate_profile_governance_references(profile: TradingProfile) -> None:
+    """校验正式画像的数据源、品种池和准入政策外键。
+
+    测试夹具可不设置 ``data.source_id``，但仓库随附的运行画像必须显式绑定来源；缺少
+    绑定的画像也无法生成带治理血缘的正式数据制品。
+    """
+
+    if not profile.data.source_id:
+        return
+
+    source = get_data_source(profile.data.source_id)
+    if source.adapter_id != profile.data.provider:
+        raise ValueError(
+            f"画像 {profile.profile_id} 的 data.provider={profile.data.provider} 与 "
+            f"数据源 {source.source_id} 的 adapter_id={source.adapter_id} 不一致"
+        )
+    if profile.data.download.enabled and source.adapter_id != profile.data.download.provider:
+        raise ValueError(
+            f"画像 {profile.profile_id} 的 data.download.provider 与数据源 adapter_id 不一致"
+        )
+    if not source.supports(
+        market=profile.market.value,
+        asset_type=profile.asset_type.value,
+        frequency=profile.data_frequency.value,
+    ):
+        raise ValueError(f"数据源 {source.source_id} 不支持画像 {profile.profile_id} 的数据维度")
+    if profile.data.live_trading_eligible and not source.license.allows_live_trading:
+        raise ValueError(
+            f"画像 {profile.profile_id} 声明 live_trading_eligible=true，"
+            f"但数据源 {source.source_id} 未授权 live_trading"
+        )
+
+    universe = load_instrument_universe(profile.universe_id)
+    if universe.market != profile.market.value or universe.asset_type != profile.asset_type.value:
+        raise ValueError(f"画像 {profile.profile_id} 与品种池 {universe.universe_id} 的维度不一致")
+    if profile.benchmark_symbol.upper() not in universe.continuous_symbols:
+        raise ValueError(
+            f"画像 {profile.profile_id} 的 benchmark_symbol 不属于品种池 {universe.universe_id}"
+        )
+    if profile.data.download.enabled:
+        configured_symbols = {symbol.upper() for symbol in profile.data.download.symbols}
+        if profile.futures is not None and profile.futures.symbols_are_continuous:
+            expected_symbols = set(universe.continuous_symbols)
+        elif profile.asset_type == AssetType.FUTURES:
+            expected_symbols = set(universe.products)
+        else:
+            expected_symbols = set()
+        if expected_symbols and configured_symbols != expected_symbols:
+            raise ValueError(
+                f"画像 {profile.profile_id} 的 data.download.symbols 必须与品种池 "
+                f"{universe.universe_id} 完全一致"
+            )
+
+    if not profile.research_admission.enabled:
+        return
+    policy_id = profile.research_admission.policy_id
+    if policy_id is None:
+        raise ValueError("research_admission 已启用但缺少 policy_id")
+    policy = load_research_admission_policy(policy_id)
+    if (
+        policy.scope.market != profile.market.value
+        or policy.scope.asset_type != profile.asset_type.value
+    ):
+        raise ValueError(f"研究准入政策 {policy.policy_id} 与画像 {profile.profile_id} 的维度不一致")
+    if profile.backtest.engine not in policy.scope.allowed_backtest_engines:
+        raise ValueError(
+            f"研究准入政策 {policy.policy_id} 不适用于回测器 {profile.backtest.engine}"
+        )
 
 
 def _parse_positive_int(value: object, *, field_name: str, minimum: int) -> int:

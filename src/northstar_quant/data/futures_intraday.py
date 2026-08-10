@@ -8,6 +8,10 @@ from typing import Any
 import polars as pl
 
 from northstar_quant.common.enums import AssetType, DataFrequency
+from northstar_quant.config.instrument_universes import (
+    load_instrument_universe,
+    validate_actual_product_membership,
+)
 from northstar_quant.config.product_cards import load_product_cards
 from northstar_quant.config.trading_profile import TradingProfile
 from northstar_quant.data.futures_actual import (
@@ -217,6 +221,20 @@ def validate_actual_futures_intraday_dataset(
     _validate_timestamp_order(normalized)
     _validate_active_schedule(normalized)
     _validate_pre_settlement(normalized)
+    products = set(normalized.get_column("product").unique().to_list())
+    observed_product_exchanges = {
+        product: str(
+            normalized.filter(pl.col("product") == product)
+            .get_column("exchange")
+            .unique()
+            .item()
+        )
+        for product in products
+    }
+    universe_validation = validate_actual_product_membership(
+        load_instrument_universe(profile.universe_id),
+        observed_product_exchanges,
+    )
     return {
         "schema_version": ACTUAL_FUTURES_INTRADAY_SCHEMA_VERSION,
         "expected_columns": list(ACTUAL_FUTURES_INTRADAY_COLUMNS),
@@ -230,7 +248,8 @@ def validate_actual_futures_intraday_dataset(
         "finite_numeric_values": True,
         "positive_price_values": True,
         "ohlc_consistent": True,
-        "products": sorted(normalized.get_column("product").unique().to_list()),
+        "products": sorted(products),
+        "universe": universe_validation,
         "no_lookahead_active_contracts": True,
         "complete_trading_sessions": True,
         "quote_replay_ready": True,

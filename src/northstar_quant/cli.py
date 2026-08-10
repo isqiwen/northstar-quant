@@ -17,6 +17,7 @@ from northstar_quant.backtest.runner import (
     run_profile_backtest,
     run_profile_backtest_run,
 )
+from northstar_quant.config.data_sources import list_data_source_summaries
 from northstar_quant.config.settings import get_settings
 from northstar_quant.config.trading_profile import resolve_profile_id
 from northstar_quant.data.downloader import (
@@ -189,15 +190,32 @@ def data_profiles_command() -> None:
 
 @data_app.command("providers", **_COMMAND_KWARGS)
 def data_providers_command() -> None:
-    """列出当前可用的数据提供器。"""
+    """列出当前已注册的技术数据 adapter（不代表数据授权）。"""
 
-    _log_json({"providers": list_data_providers()}, command="data.providers")
+    _log_json(
+        {
+            "providers": list_data_providers(),
+            "note": "adapter 可用不等于供应商合同、用途或候选研究准入已获授权。",
+        },
+        command="data.providers",
+    )
+
+
+@data_app.command("sources", **_COMMAND_KWARGS)
+def data_sources_command() -> None:
+    """列出配置化数据源、授权状态和候选研究资格。"""
+
+    _log_json({"sources": list_data_source_summaries()}, command="data.sources")
 
 
 @data_app.command("download", **_COMMAND_KWARGS)
 def data_download_command(
     profile: str | None = typer.Option(None, "--profile", "-p", help=_PROFILE_OPTION_HELP),
-    provider: str | None = typer.Option(None, "--provider", help="覆盖画像中配置的数据提供器。"),
+    provider: str | None = typer.Option(
+        None,
+        "--provider",
+        help="仅可重复指定画像已绑定的 adapter；不可借此切换数据来源。",
+    ),
 ) -> None:
     """根据交易画像下载或生成数据，并规范落盘。"""
 
@@ -271,6 +289,50 @@ def research_futures_trend_command(
     resolved_profile = resolve_profile_id(profile)
     result = run_profile_backtest(profile_id=resolved_profile)
     _log_json(result, command="research.futures-trend", strategy="futures_trend", profile=resolved_profile)
+
+
+@research_app.command("assess", **_COMMAND_KWARGS)
+def research_assess_command(
+    strategy: str = typer.Argument("portfolio"),
+    profile: str | None = typer.Option(None, "--profile", "-p", help=_PROFILE_OPTION_HELP),
+    require_pass: bool = typer.Option(
+        False,
+        "--require-pass",
+        help="准入不是 PASS 时以非零状态退出，适用于人工审批或 CI 门禁。",
+    ),
+) -> None:
+    """运行同一回测工作流，并只输出候选策略研究准入结论。"""
+
+    resolved_profile = resolve_profile_id(profile)
+    try:
+        run = run_profile_backtest_run(
+            resolved_profile,
+            strategy_ids=parse_strategy_selection(strategy),
+        )
+    except FileNotFoundError as exc:
+        raise typer.BadParameter(
+            f"{exc}。请先下载或导入已核验的数据制品。"
+        ) from exc
+    except (LookupError, ValueError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    admission = run.analytics["admission"]
+    _log_json(
+        {"run_id": run.run_id, "admission": admission},
+        command="research.assess",
+        strategy=strategy,
+        profile=resolved_profile,
+    )
+    # 审批脚本和 CI 需要可捕获的结构化输出；日志并不等同于 CLI 标准输出。
+    typer.echo(
+        json.dumps(
+            {"run_id": run.run_id, "admission": admission},
+            ensure_ascii=False,
+            indent=2,
+            default=str,
+        )
+    )
+    if require_pass and isinstance(admission, dict) and admission.get("status") != "PASS":
+        raise typer.Exit(code=2)
 
 
 @backtest_app.command("run", **_COMMAND_KWARGS)

@@ -45,6 +45,7 @@ versions:
   risk_policy: futures-margin-allocation-v1
 data:
   provider: akshare_actual_daily
+  source_id: akshare_actual_daily_public_v1
   dataset_id: akshare_actual_contracts_simulated_v1
   live_trading_eligible: false
   path: cn/futures/1d/actual_contracts_simulated.parquet
@@ -69,6 +70,10 @@ data:
         SA: 100
         SC: 100
       request_interval_seconds: 0.2
+research_admission:
+  # 本地 CTP 语义演练不由研究准入结论自动放行。
+  enabled: false
+  policy_id: null
 strategies:
   - strategy_id: futures_trend
     strategy_family: trend_following

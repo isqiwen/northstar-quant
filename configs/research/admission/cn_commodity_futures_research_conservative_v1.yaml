@@ -1,0 +1,55 @@
+# 候选研究门槛，不是模拟、实盘或券商下单授权。
+# status 必须由项目所有者在合同、交易所证据和审批记录齐备后显式改为 active。
+version: 1
+policy_id: cn_commodity_futures_research_conservative_v1
+name: 中国商品期货候选策略保守研究准入 v1
+status: pending_owner_approval
+scope:
+  market: CN
+  asset_type: FUTURES
+  allowed_backtest_engines: [futures_daily, futures_intraday_replay]
+source:
+  required_source_id: wind_wds_server_v1
+  secondary_validation_source_id: ifind_quant_api_v1
+  require_secondary_source_validation: true
+  required_source_tier: commercial_licensed
+  require_active_license: true
+  required_purposes: [internal_research, historical_backtest, model_validation]
+universe:
+  universe_id: cn_commodity_futures_research_core_v1
+  required_member_tier: core
+  min_product_coverage_ratio: 1.0
+data:
+  min_complete_history_years: 8
+  target_history_years: 10
+  min_total_history_sessions: 2016
+  require_actual_contract_data: true
+  require_authoritative_trading_calendar: true
+  require_complete_night_and_day_sessions: true
+  require_authoritative_dynamic_rules: true
+  max_unknown_missing_sessions: 0
+  max_unresolved_official_mismatches: 0
+sample:
+  min_oos_years: 3
+  min_oos_trading_days: 720
+  min_walk_forward_folds: 3
+  min_positive_net_folds: 3
+  min_completed_oos_round_trips: 60
+  min_net_sharpe: 0.5
+risk:
+  max_oos_drawdown_fraction: 0.2
+  max_margin_to_equity: 0.5
+  min_available_funds_to_equity: 0.5
+  max_margin_call_count: 0
+  max_forced_liquidation_count: 0
+stress:
+  cost_stress_multipliers: [1.0, 1.5, 2.0]
+  require_all_scenarios_pass: true
+robustness:
+  require_parameter_neighborhood_stability: true
+  min_parameter_neighbor_count: 8
+  min_passing_neighbor_fraction: 0.6
+  require_immutable_trial_ledger: true
+promotion:
+  allow_research_to_simulated: false
+  requires_named_human_approval: true

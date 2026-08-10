@@ -37,12 +37,17 @@ def test_root_help_short_and_long_flags_match():
 def test_data_help_exposes_local_import_and_actual_daily_provider():
     help_result = runner.invoke(app, ["data", "--help"])
     providers_result = runner.invoke(app, ["data", "providers"])
+    sources_result = runner.invoke(app, ["data", "sources"])
 
     assert help_result.exit_code == 0
     assert "import-file" in help_result.output
+    assert "sources" in help_result.output
     assert providers_result.exit_code == 0
     assert "akshare_actual_daily" in providers_result.output
     assert "Traceback" not in providers_result.output
+    assert sources_result.exit_code == 0
+    assert "wind_wds_server_v1" in sources_result.output
+    assert "procurement_pending" in sources_result.output
 
 
 def test_backtest_help_exposes_single_profile_driven_entrypoint():
@@ -52,6 +57,13 @@ def test_backtest_help_exposes_single_profile_driven_entrypoint():
     assert "run" in result.output
     assert "event" not in result.output
     assert "bt" not in result.output
+
+
+def test_research_help_exposes_configuration_backed_admission_assessment():
+    result = runner.invoke(app, ["research", "--help"])
+
+    assert result.exit_code == 0
+    assert "assess" in result.output
 
 
 def test_live_help_exposes_separate_signal_execution_and_risk_commands():

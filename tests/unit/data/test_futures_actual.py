@@ -63,6 +63,17 @@ def test_actual_contract_schema_rejects_incomplete_sessions():
         validate_market_dataset(profile, frame)
 
 
+def test_actual_contract_schema_rejects_product_outside_profile_universe():
+    profile = load_trading_profile("cn_futures_daily_actual_offline")
+    frame = _actual_frame().with_columns(
+        pl.lit("I").alias("product"),
+        pl.lit("DCE").alias("exchange"),
+    )
+
+    with pytest.raises(ValueError, match="不属于画像品种池"):
+        validate_market_dataset(profile, frame)
+
+
 def _actual_frame() -> pl.DataFrame:
     prices = {
         DAY_1: {"RB2405": 100.0, "RB2410": 200.0},
