@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-REPORT_SCHEMA_VERSION = "northstar_report_v1"
+from northstar_quant.common.reporting import REPORT_SCHEMA_VERSION
 
 
 def load_report_data(report_path: str | Path) -> dict[str, object]:

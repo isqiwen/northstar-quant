@@ -1,12 +1,28 @@
+import json
+
+import pytest
+
 from northstar_quant.config.settings import get_settings
 from northstar_quant.execution.models import OrderRequest
 from northstar_quant.execution.paper_broker import PaperBrokerAdapter
 
 
-def _make_paper_broker(tmp_path, monkeypatch, *, default_cash: float = 100000.0) -> PaperBrokerAdapter:
+def _make_paper_broker(
+    tmp_path,
+    monkeypatch,
+    *,
+    default_cash: float = 100000.0,
+    paper_account: str = "paper-test",
+    state_path=None,
+) -> PaperBrokerAdapter:
     monkeypatch.setenv("NORTHSTAR_STORAGE_DIR", str(tmp_path / "storage"))
     monkeypatch.setenv("NORTHSTAR_DEFAULT_CASH", str(default_cash))
     monkeypatch.setenv("NORTHSTAR_PAPER_FILL_PRICE_MODE", "reference")
+    monkeypatch.setenv("NORTHSTAR_PAPER_ACCOUNT", paper_account)
+    if state_path is None:
+        monkeypatch.delenv("NORTHSTAR_PAPER_STATE_PATH", raising=False)
+    else:
+        monkeypatch.setenv("NORTHSTAR_PAPER_STATE_PATH", str(state_path))
     get_settings.cache_clear()
     return PaperBrokerAdapter()
 
@@ -161,5 +177,60 @@ def test_paper_broker_updates_avg_cost_and_equity_across_multiple_fills(tmp_path
         assert snapshot.account_values["CashBalance"] == 97900.0
         assert snapshot.account_values["GrossPositionValue"] == 2200.0
         assert snapshot.account_values["NetLiquidation"] == 100100.0
+    finally:
+        get_settings.cache_clear()
+
+
+def test_paper_broker_state_isolated_by_account(tmp_path, monkeypatch):
+    try:
+        alpha = _make_paper_broker(tmp_path, monkeypatch, paper_account="paper-alpha")
+        alpha.submit_order(
+            OrderRequest(
+                strategy_id="paper-test",
+                symbol="RB2405",
+                side="BUY",
+                qty=1.0,
+                reference_price=100.0,
+            )
+        )
+        alpha.sync_state()
+
+        beta = _make_paper_broker(tmp_path, monkeypatch, paper_account="paper-beta")
+        beta_snapshot = beta.sync_state()
+
+        assert alpha.state_path == (
+            tmp_path / "storage/brokers/paper/paper-alpha/state.json"
+        )
+        assert beta.state_path == (
+            tmp_path / "storage/brokers/paper/paper-beta/state.json"
+        )
+        assert beta_snapshot.positions == []
+        assert json.loads(alpha.state_path.read_text(encoding="utf-8"))["account"] == "paper-alpha"
+    finally:
+        get_settings.cache_clear()
+
+
+def test_paper_broker_explicit_state_path_cannot_be_reused_by_another_account(
+    tmp_path,
+    monkeypatch,
+):
+    shared_state_path = tmp_path / "storage" / "isolated" / "paper-state.json"
+    try:
+        alpha = _make_paper_broker(
+            tmp_path,
+            monkeypatch,
+            paper_account="paper-alpha",
+            state_path=shared_state_path,
+        )
+
+        assert alpha.state_path == shared_state_path
+
+        with pytest.raises(ValueError, match="PAPER_STATE_ACCOUNT_MISMATCH"):
+            _make_paper_broker(
+                tmp_path,
+                monkeypatch,
+                paper_account="paper-beta",
+                state_path=shared_state_path,
+            )
     finally:
         get_settings.cache_clear()

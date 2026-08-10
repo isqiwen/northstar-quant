@@ -8,12 +8,26 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
+import re
 from typing import Literal
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
+_LOCAL_ACCOUNT_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")
+
+
+def normalize_local_state_account(value: str) -> str:
+    """规范本地模拟账户标识，避免它作为路径片段时发生路径穿越。"""
+
+    normalized = value.strip()
+    if not _LOCAL_ACCOUNT_ID_PATTERN.fullmatch(normalized):
+        raise ValueError(
+            "本地 Paper/CTP 模拟账户只能使用 1-64 位字母、数字、下划线或连字符，"
+            "且必须以字母或数字开头。"
+        )
+    return normalized
 
 
 class Settings(BaseSettings):
@@ -35,8 +49,11 @@ class Settings(BaseSettings):
     profile_config_dir: Path = Field(default=Path("configs/profiles"))
 
     storage_dir: Path = Field(default=Path("storage"))
+    # 未显式配置时在 model_post_init 中派生为 storage_dir / "downloads"。
     downloads_dir: Path = Field(default=Path("storage/downloads"))
     reports_dir: Path = Field(default=Path("reports"))
+    # None 表示沿用 configs/app.yaml 的 logging.directory。
+    log_dir: Path | None = Field(default=None)
 
     # 数据库配置。项目只支持 PostgreSQL；凭据必须通过本地 .env 注入。
     database_url: str = Field(
@@ -51,10 +68,15 @@ class Settings(BaseSettings):
     rebalance_min_trade_value: float = Field(default=500.0, ge=0)
     paper_fill_price_mode: Literal["close", "reference", "limit"] = Field(default="close")
     paper_account: str = Field(default="paper-account", min_length=1)
+    # 未显式配置时在 model_post_init 中派生为
+    # storage_dir / "brokers" / "paper" / paper_account / "state.json"。
+    paper_state_path: Path = Field(default=Path("storage/brokers/paper/state.json"))
 
     # ctp_sim 是隔离的本地语义仿真，不连接交易前置；真实 CTP 适配器仍未实现。
     ctp_sim_account: str = Field(default="ctp-sim-account", min_length=1)
-    ctp_sim_state_path: Path = Field(default=Path("storage/ctp_sim_broker_state.json"))
+    # 未显式配置时在 model_post_init 中派生为
+    # storage_dir / "brokers" / "ctp_sim" / ctp_sim_account / "state.json"。
+    ctp_sim_state_path: Path = Field(default=Path("storage/brokers/ctp_sim/state.json"))
     ctp_sim_contract_mapping_path: Path = Field(
         default=Path("configs/instruments/ctp_sim.yaml")
     )
@@ -158,6 +180,13 @@ class Settings(BaseSettings):
             )
         return normalized
 
+    @field_validator("paper_account", "ctp_sim_account")
+    @classmethod
+    def _validate_local_state_account(cls, value: str) -> str:
+        """限制本地账户标识，避免其参与状态路径时产生路径穿越。"""
+
+        return normalize_local_state_account(value)
+
     def model_post_init(self, __context: object) -> None:
         project_root = Path(self.project_root)
         if not project_root.is_absolute():
@@ -168,9 +197,7 @@ class Settings(BaseSettings):
         for field_name in (
             "profile_config_dir",
             "storage_dir",
-            "downloads_dir",
             "reports_dir",
-            "ctp_sim_state_path",
             "ctp_sim_contract_mapping_path",
             "ctp_contract_mapping_path",
         ):
@@ -178,6 +205,66 @@ class Settings(BaseSettings):
             if not value.is_absolute():
                 value = project_root / value
             object.__setattr__(self, field_name, value)
+
+        if "downloads_dir" in self.model_fields_set:
+            downloads_dir = Path(self.downloads_dir)
+            if not downloads_dir.is_absolute():
+                downloads_dir = project_root / downloads_dir
+        else:
+            downloads_dir = self.storage_dir / "downloads"
+        object.__setattr__(self, "downloads_dir", downloads_dir)
+
+        paper_state_path = _resolve_local_state_path(
+            self.paper_state_path
+            if "paper_state_path" in self.model_fields_set
+            else self.storage_dir / "brokers" / "paper" / self.paper_account / "state.json",
+            project_root=project_root,
+            storage_dir=self.storage_dir,
+            setting_name="NORTHSTAR_PAPER_STATE_PATH",
+        )
+        object.__setattr__(self, "paper_state_path", paper_state_path)
+
+        ctp_sim_state_path = _resolve_local_state_path(
+            self.ctp_sim_state_path
+            if "ctp_sim_state_path" in self.model_fields_set
+            else self.storage_dir / "brokers" / "ctp_sim" / self.ctp_sim_account / "state.json",
+            project_root=project_root,
+            storage_dir=self.storage_dir,
+            setting_name="NORTHSTAR_CTP_SIM_STATE_PATH",
+        )
+        object.__setattr__(self, "ctp_sim_state_path", ctp_sim_state_path)
+
+        if self.log_dir is not None:
+            log_dir = Path(self.log_dir)
+            if not log_dir.is_absolute():
+                log_dir = project_root / log_dir
+            object.__setattr__(self, "log_dir", log_dir)
+
+
+def _resolve_local_state_path(
+    value: str | Path,
+    *,
+    project_root: Path,
+    storage_dir: Path,
+    setting_name: str,
+) -> Path:
+    """将本地模拟状态限制在 storage 根内，使部署白名单与运行时一致。"""
+
+    state_path = Path(value)
+    if not state_path.is_absolute():
+        state_path = project_root / state_path
+    resolved_state_path = state_path.resolve()
+    resolved_storage_dir = storage_dir.resolve()
+    try:
+        resolved_state_path.relative_to(resolved_storage_dir)
+    except ValueError as exc:
+        raise ValueError(
+            f"{setting_name} 必须位于 NORTHSTAR_STORAGE_DIR 内；"
+            "如需迁移本地模拟状态，请调整 NORTHSTAR_STORAGE_DIR。"
+        ) from exc
+    if resolved_state_path == resolved_storage_dir:
+        raise ValueError(f"{setting_name} 必须指向 NORTHSTAR_STORAGE_DIR 内的状态文件。")
+    return resolved_state_path
 
 @lru_cache
 def get_settings() -> Settings:

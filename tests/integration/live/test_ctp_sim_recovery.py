@@ -13,9 +13,10 @@ def test_ctp_sim_disconnect_recovery_reconciles_order_fill_and_position(
     monkeypatch,
     postgresql_session_factory,
 ):
+    monkeypatch.setenv("NORTHSTAR_STORAGE_DIR", str(tmp_path / "storage"))
     monkeypatch.setenv(
         "NORTHSTAR_CTP_SIM_STATE_PATH",
-        str(tmp_path / "ctp_sim_state.json"),
+        str(tmp_path / "storage" / "ctp_sim_state.json"),
     )
     monkeypatch.setenv("NORTHSTAR_CTP_SIM_ACCOUNT", "ctp-sim-recovery")
     monkeypatch.setenv("NORTHSTAR_DEFAULT_CASH", "1000000")

@@ -9,9 +9,10 @@ from northstar_quant.execution.models import OrderRequest
 
 
 def _broker(tmp_path, monkeypatch) -> CtpSimBrokerAdapter:
+    monkeypatch.setenv("NORTHSTAR_STORAGE_DIR", str(tmp_path / "storage"))
     monkeypatch.setenv(
         "NORTHSTAR_CTP_SIM_STATE_PATH",
-        str(tmp_path / "ctp_sim_state.json"),
+        str(tmp_path / "storage" / "ctp_sim_state.json"),
     )
     monkeypatch.setenv("NORTHSTAR_CTP_SIM_ACCOUNT", "ctp-sim-test")
     monkeypatch.setenv("NORTHSTAR_DEFAULT_CASH", "1000000")
@@ -104,5 +105,25 @@ def test_ctp_sim_requires_explicit_shfe_close_and_tracks_yesterday(
         assert snapshot.positions[0].long_today_qty == 0.0
         assert snapshot.positions[0].long_yesterday_qty == 1.0
         assert snapshot.fills[-1].ctp_offset == "close_yesterday"
+    finally:
+        get_settings.cache_clear()
+
+
+def test_ctp_sim_account_override_derives_an_independent_state_path(tmp_path, monkeypatch):
+    monkeypatch.setenv("NORTHSTAR_STORAGE_DIR", str(tmp_path / "storage"))
+    monkeypatch.setenv("NORTHSTAR_CTP_SIM_ACCOUNT", "ctp-sim-configured")
+    monkeypatch.delenv("NORTHSTAR_CTP_SIM_STATE_PATH", raising=False)
+    get_settings.cache_clear()
+    try:
+        overridden = CtpSimBrokerAdapter(account="ctp-sim-override")
+        configured = CtpSimBrokerAdapter()
+
+        assert overridden.state_path == (
+            tmp_path / "storage/brokers/ctp_sim/ctp-sim-override/state.json"
+        )
+        assert configured.state_path == (
+            tmp_path / "storage/brokers/ctp_sim/ctp-sim-configured/state.json"
+        )
+        assert overridden.state_path != configured.state_path
     finally:
         get_settings.cache_clear()

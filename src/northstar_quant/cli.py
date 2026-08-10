@@ -18,6 +18,10 @@ from northstar_quant.backtest.runner import (
     run_profile_backtest_run,
 )
 from northstar_quant.config.data_sources import list_data_source_summaries
+from northstar_quant.config.output_retention import (
+    OutputRetentionConfigError,
+    load_output_retention_policy,
+)
 from northstar_quant.config.settings import get_settings
 from northstar_quant.config.trading_profile import resolve_profile_id
 from northstar_quant.data.downloader import (
@@ -27,6 +31,10 @@ from northstar_quant.data.downloader import (
     list_profile_data_summaries,
     read_profile_manifest,
     validate_profile_data,
+)
+from northstar_quant.data.output_cleanup import (
+    OutputCleanupSafetyError,
+    cleanup_output_files,
 )
 from northstar_quant.db.init_db import init_db
 from northstar_quant.live.scheduler import run_scheduler
@@ -278,6 +286,35 @@ def data_validate_command(
 
     resolved_profile = resolve_profile_id(profile)
     _log_json(validate_profile_data(resolved_profile), command="data.validate", profile=resolved_profile)
+
+
+@data_app.command("cleanup", **_COMMAND_KWARGS)
+def data_cleanup_command(
+    apply: bool = typer.Option(
+        False,
+        "--apply",
+        help="实际删除；缺省时只预览，且仍需在清理策略中显式 enabled=true。",
+    ),
+    config: Path | None = typer.Option(
+        None,
+        "--config",
+        help="运行输出清理策略 YAML；默认 configs/maintenance/output_retention.yaml。",
+    ),
+) -> None:
+    """预览或清理过期下载缓存与安全临时文件，绝不处理标准行情或报告。"""
+
+    try:
+        policy = load_output_retention_policy(config)
+        result = cleanup_output_files(policy, apply=apply)
+    except (OutputRetentionConfigError, OutputCleanupSafetyError, ValueError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    _log_json(
+        asdict(result),
+        command="data.cleanup",
+        mode=result.mode,
+        planned_target_count=len(result.plan.targets),
+        deleted_file_count=len(result.deleted_paths),
+    )
 
 
 @research_app.command("futures-trend", **_COMMAND_KWARGS)

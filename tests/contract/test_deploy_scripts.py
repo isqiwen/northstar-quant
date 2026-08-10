@@ -14,6 +14,14 @@ from tests.support.paths import PROJECT_ROOT
 
 ROOT_DIR = PROJECT_ROOT
 DEPLOY_DIR = ROOT_DIR / "scripts" / "deploy"
+RUNTIME_PATH_KEYS = (
+    "RUNTIME_STORAGE_DIR",
+    "RUNTIME_DOWNLOADS_DIR",
+    "RUNTIME_REPORTS_DIR",
+    "RUNTIME_LOG_DIR",
+    "RUNTIME_CACHE_DIR",
+    "RUNTIME_MATPLOTLIB_DIR",
+)
 
 
 def _resolve_bash_executable() -> str:
@@ -211,3 +219,163 @@ def test_non_paper_scheduler_requires_explicit_confirmation(tmp_path: Path) -> N
     assert rejected.returncode != 0
     assert "CONFIRM_LIVE_DEPLOY=YES" in rejected.stderr
     assert accepted.returncode == 0, accepted.stderr
+
+
+def test_runtime_output_paths_are_configurable_and_consistent() -> None:
+    config_example = (ROOT_DIR / "deploy.env.example").read_text(encoding="utf-8")
+    config_loader = (DEPLOY_DIR / "lib" / "config.sh").read_text(encoding="utf-8")
+    deploy_script = (DEPLOY_DIR / "deploy.sh").read_text(encoding="utf-8")
+    provision_script = (DEPLOY_DIR / "provision.sh").read_text(encoding="utf-8")
+    release_script = (DEPLOY_DIR / "install-release.sh").read_text(encoding="utf-8")
+
+    for key in RUNTIME_PATH_KEYS:
+        assert f"{key}=" in config_example
+        assert key in config_loader
+        assert key in deploy_script
+        assert key in provision_script
+        assert key in release_script
+
+    for template_name in ("health.service.in", "scheduler.service.in"):
+        template = (DEPLOY_DIR / "systemd" / template_name).read_text(encoding="utf-8")
+        assert "Environment=NORTHSTAR_STORAGE_DIR=@RUNTIME_STORAGE_DIR@" in template
+        assert "Environment=NORTHSTAR_DOWNLOADS_DIR=@RUNTIME_DOWNLOADS_DIR@" in template
+        assert "Environment=NORTHSTAR_REPORTS_DIR=@RUNTIME_REPORTS_DIR@" in template
+        assert "Environment=NORTHSTAR_LOG_DIR=@RUNTIME_LOG_DIR@" in template
+        assert "Environment=XDG_CACHE_HOME=@RUNTIME_CACHE_DIR@" in template
+        assert "Environment=MPLCONFIGDIR=@RUNTIME_MATPLOTLIB_DIR@" in template
+        assert "ReadWritePaths=@SHARED_DIR@ @RUNTIME_STORAGE_DIR@" in template
+        assert "@RUNTIME_LOG_DIR@" in template
+
+    assert 'NORTHSTAR_STORAGE_DIR="${RUNTIME_STORAGE_DIR}"' in release_script
+    assert 'NORTHSTAR_DOWNLOADS_DIR="${RUNTIME_DOWNLOADS_DIR}"' in release_script
+    assert 'NORTHSTAR_REPORTS_DIR="${RUNTIME_REPORTS_DIR}"' in release_script
+    assert 'NORTHSTAR_LOG_DIR="${RUNTIME_LOG_DIR}"' in release_script
+    assert 'ln -s "${RUNTIME_LOG_DIR}" "${STAGE_DIR}/logs"' in release_script
+
+
+def test_runtime_output_path_defaults_and_custom_values() -> None:
+    command = """
+set -euo pipefail
+source "$1/lib/common.sh"
+source "$1/lib/runtime_paths.sh"
+RUNTIME_STORAGE_DIR="$2"
+RUNTIME_DOWNLOADS_DIR="$3"
+RUNTIME_REPORTS_DIR="$4"
+RUNTIME_LOG_DIR="$5"
+RUNTIME_CACHE_DIR="$6"
+RUNTIME_MATPLOTLIB_DIR="$7"
+deploy_configure_runtime_paths /srv/northstar/northstar-quant
+printf '%s|%s|%s|%s|%s|%s\\n' "$RUNTIME_STORAGE_DIR" "$RUNTIME_DOWNLOADS_DIR" "$RUNTIME_REPORTS_DIR" "$RUNTIME_LOG_DIR" "$RUNTIME_CACHE_DIR" "$RUNTIME_MATPLOTLIB_DIR"
+"""
+
+    default_result = _run_bash(
+        "-c",
+        command,
+        BASH_EXECUTABLE,
+        _bash_path(DEPLOY_DIR),
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        check=False,
+        capture_output=True,
+    )
+
+    assert default_result.returncode == 0, default_result.stderr
+    assert default_result.stdout.strip().split("|") == [
+        "/srv/northstar/northstar-quant/shared/storage",
+        "/srv/northstar/northstar-quant/shared/storage/downloads",
+        "/srv/northstar/northstar-quant/shared/reports",
+        "/srv/northstar/northstar-quant/shared/logs",
+        "/srv/northstar/northstar-quant/shared/cache",
+        "/srv/northstar/northstar-quant/shared/matplotlib",
+    ]
+
+    derived_downloads_result = _run_bash(
+        "-c",
+        command,
+        BASH_EXECUTABLE,
+        _bash_path(DEPLOY_DIR),
+        "/mnt/northstar-quant/storage",
+        "",
+        "",
+        "",
+        "",
+        "",
+        check=False,
+        capture_output=True,
+    )
+
+    assert derived_downloads_result.returncode == 0, derived_downloads_result.stderr
+    assert derived_downloads_result.stdout.strip().split("|")[:2] == [
+        "/mnt/northstar-quant/storage",
+        "/mnt/northstar-quant/storage/downloads",
+    ]
+
+    custom_result = _run_bash(
+        "-c",
+        command,
+        BASH_EXECUTABLE,
+        _bash_path(DEPLOY_DIR),
+        "/mnt/northstar-quant/storage",
+        "/mnt/northstar-quant/downloads",
+        "/mnt/northstar-quant/reports",
+        "/var/log/northstar-quant",
+        "/var/cache/northstar-quant",
+        "/var/cache/northstar-quant/matplotlib",
+        check=False,
+        capture_output=True,
+    )
+
+    assert custom_result.returncode == 0, custom_result.stderr
+    assert custom_result.stdout.strip().split("|") == [
+        "/mnt/northstar-quant/storage",
+        "/mnt/northstar-quant/downloads",
+        "/mnt/northstar-quant/reports",
+        "/var/log/northstar-quant",
+        "/var/cache/northstar-quant",
+        "/var/cache/northstar-quant/matplotlib",
+    ]
+
+
+def test_runtime_output_paths_reject_unsafe_location() -> None:
+    relative_path_command = """
+set -euo pipefail
+source "$1/lib/common.sh"
+source "$1/lib/runtime_paths.sh"
+RUNTIME_STORAGE_DIR=relative/storage
+deploy_configure_runtime_paths /srv/northstar/northstar-quant
+"""
+
+    relative_path_result = _run_bash(
+        "-c",
+        relative_path_command,
+        BASH_EXECUTABLE,
+        _bash_path(DEPLOY_DIR),
+        check=False,
+        capture_output=True,
+    )
+
+    assert relative_path_result.returncode != 0
+    assert "RUNTIME_STORAGE_DIR" in relative_path_result.stderr
+
+    release_path_command = """
+set -euo pipefail
+source "$1/lib/common.sh"
+source "$1/lib/runtime_paths.sh"
+RUNTIME_STORAGE_DIR=/srv/northstar/northstar-quant/releases/storage
+deploy_configure_runtime_paths /srv/northstar/northstar-quant
+"""
+    release_path_result = _run_bash(
+        "-c",
+        release_path_command,
+        BASH_EXECUTABLE,
+        _bash_path(DEPLOY_DIR),
+        check=False,
+        capture_output=True,
+    )
+
+    assert release_path_result.returncode != 0
+    assert "releases" in release_path_result.stderr

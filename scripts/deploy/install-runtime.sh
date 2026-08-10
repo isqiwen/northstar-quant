@@ -3,6 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/lib/common.sh"
+source "${SCRIPT_DIR}/lib/runtime_paths.sh"
 
 APP_NAME="${APP_NAME:-northstar-quant}"
 SERVICE_USER="${SERVICE_USER:-northstar}"
@@ -38,6 +39,8 @@ case "${SERVICE_HOME}${APP_ROOT}" in
     deploy_fail "部署路径只能包含字母、数字、点、下划线、连字符和斜杠。"
     ;;
 esac
+
+deploy_configure_runtime_paths "${APP_ROOT}"
 
 if [ "$(uname -s)" != "Linux" ]; then
   deploy_fail "生产运行时安装脚本只支持 Linux。"
@@ -113,20 +116,23 @@ for runtime_dir in \
   "${SERVICE_HOME}" \
   "${APP_ROOT}" \
   "${APP_ROOT}/releases" \
-  "${APP_ROOT}/shared" \
-  "${APP_ROOT}/shared/incoming" \
-  "${APP_ROOT}/shared/logs" \
-  "${APP_ROOT}/shared/reports" \
-  "${APP_ROOT}/shared/storage" \
-  "${APP_ROOT}/shared/python" \
-  "${APP_ROOT}/shared/uv-cache"; do
+  "${SHARED_DIR}" \
+  "${SHARED_DIR}/incoming" \
+  "${RUNTIME_LOG_DIR}" \
+  "${RUNTIME_REPORTS_DIR}" \
+  "${RUNTIME_STORAGE_DIR}" \
+  "${RUNTIME_DOWNLOADS_DIR}" \
+  "${RUNTIME_CACHE_DIR}" \
+  "${RUNTIME_MATPLOTLIB_DIR}" \
+  "${SHARED_DIR}/python" \
+  "${SHARED_DIR}/uv-cache"; do
   deploy_as_root install -d -o "${SERVICE_USER}" -g "${SERVICE_USER}" -m 0750 "${runtime_dir}"
 done
 
 deploy_log "准备 Python ${PYTHON_VERSION}"
 deploy_as_user "${SERVICE_USER}" env \
-  UV_CACHE_DIR="${APP_ROOT}/shared/uv-cache" \
-  UV_PYTHON_INSTALL_DIR="${APP_ROOT}/shared/python" \
+  UV_CACHE_DIR="${SHARED_DIR}/uv-cache" \
+  UV_PYTHON_INSTALL_DIR="${SHARED_DIR}/python" \
   /usr/local/bin/uv python install "${PYTHON_VERSION}"
 
 deploy_log "Linux 运行时安装完成"

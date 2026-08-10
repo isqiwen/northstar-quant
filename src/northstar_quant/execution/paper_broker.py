@@ -35,8 +35,8 @@ class PaperBrokerAdapter(BrokerAdapter):
     def __init__(self) -> None:
         self.settings = get_settings()
         self.account = self.settings.paper_account
-        self.state_path = self.settings.storage_dir / "paper_broker_state.json"
-        self.settings.storage_dir.mkdir(parents=True, exist_ok=True)
+        self.state_path = self.settings.paper_state_path
+        self.state_path.parent.mkdir(parents=True, exist_ok=True)
         self._state = self._load_state()
 
     def _empty_state(self) -> dict:
@@ -67,7 +67,7 @@ class PaperBrokerAdapter(BrokerAdapter):
             self._save_state()
             return state
 
-        raw = json.loads(self.state_path.read_text(encoding="utf-8"))
+        raw = self._load_matching_state()
         state = self._empty_state()
         state["cash"] = float(raw.get("cash", state["cash"]) or state["cash"])
         state["positions"] = dict(raw.get("positions", {}) or {})
@@ -83,7 +83,7 @@ class PaperBrokerAdapter(BrokerAdapter):
     def _save_state(self) -> None:
         tmp_path = self.state_path.with_suffix(".tmp")
         tmp_path.write_text(
-            json.dumps(self._state, ensure_ascii=True, indent=2, sort_keys=True),
+            json.dumps({**self._state, "account": self.account}, ensure_ascii=True, indent=2, sort_keys=True),
             encoding="utf-8",
         )
         tmp_path.replace(self.state_path)
@@ -471,3 +471,17 @@ class PaperBrokerAdapter(BrokerAdapter):
 
     def get_name(self) -> str:
         return "paper"
+
+    def _require_matching_state_account(self, raw: dict) -> dict:
+        persisted_account = raw.get("account")
+        if persisted_account != self.account:
+            raise ValueError(
+                "PAPER_STATE_ACCOUNT_MISMATCH: "
+                f"状态文件属于账户 {persisted_account!r}，当前账户为 {self.account!r}。"
+            )
+        return raw
+
+    def _load_matching_state(self) -> dict:
+        return self._require_matching_state_account(
+            json.loads(self.state_path.read_text(encoding="utf-8"))
+        )

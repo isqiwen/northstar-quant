@@ -34,6 +34,7 @@ from northstar_quant.db.repositories import (
     list_recent_orders,
 )
 from northstar_quant.db.session import SessionLocal
+from northstar_quant.monitoring.report_catalog import list_recent_report_artifacts
 
 
 def render_dashboard() -> None:
@@ -145,11 +146,7 @@ def _render_live_overview(settings: Any) -> None:
         report_dir = Path(settings.reports_dir)
         st.subheader("\u6700\u8fd1\u62a5\u544a\u6587\u4ef6")
         if report_dir.exists():
-            files = sorted(
-                report_dir.glob("*.md"),
-                key=lambda path: path.stat().st_mtime,
-                reverse=True,
-            )[:20]
+            files = list_recent_report_artifacts(report_dir)
             file_df = pd.DataFrame(
                 [
                     {

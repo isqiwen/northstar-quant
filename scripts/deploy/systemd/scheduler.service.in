@@ -11,13 +11,14 @@ WorkingDirectory=@CURRENT_LINK@
 EnvironmentFile=@ENV_FILE@
 Environment=HOME=@SERVICE_HOME@
 Environment=NORTHSTAR_PROJECT_ROOT=@CURRENT_LINK@
-Environment=NORTHSTAR_STORAGE_DIR=@SHARED_DIR@/storage
-Environment=NORTHSTAR_DOWNLOADS_DIR=@SHARED_DIR@/storage/downloads
-Environment=NORTHSTAR_REPORTS_DIR=@SHARED_DIR@/reports
+Environment=NORTHSTAR_STORAGE_DIR=@RUNTIME_STORAGE_DIR@
+Environment=NORTHSTAR_DOWNLOADS_DIR=@RUNTIME_DOWNLOADS_DIR@
+Environment=NORTHSTAR_REPORTS_DIR=@RUNTIME_REPORTS_DIR@
+Environment=NORTHSTAR_LOG_DIR=@RUNTIME_LOG_DIR@
 Environment=UV_CACHE_DIR=@SHARED_DIR@/uv-cache
 Environment=UV_PYTHON_INSTALL_DIR=@SHARED_DIR@/python
-Environment=XDG_CACHE_HOME=@SHARED_DIR@/cache
-Environment=MPLCONFIGDIR=@SHARED_DIR@/matplotlib
+Environment=XDG_CACHE_HOME=@RUNTIME_CACHE_DIR@
+Environment=MPLCONFIGDIR=@RUNTIME_MATPLOTLIB_DIR@
 ExecStart=@CURRENT_LINK@/.venv/bin/northstar live scheduler
 Restart=on-failure
 RestartSec=5
@@ -36,7 +37,7 @@ RestrictSUIDSGID=true
 LockPersonality=true
 RestrictRealtime=true
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
-ReadWritePaths=@SHARED_DIR@
+ReadWritePaths=@SHARED_DIR@ @RUNTIME_STORAGE_DIR@ @RUNTIME_DOWNLOADS_DIR@ @RUNTIME_REPORTS_DIR@ @RUNTIME_LOG_DIR@ @RUNTIME_CACHE_DIR@ @RUNTIME_MATPLOTLIB_DIR@
 
 [Install]
 WantedBy=multi-user.target

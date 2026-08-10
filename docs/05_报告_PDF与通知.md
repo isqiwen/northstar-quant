@@ -15,6 +15,11 @@
 | `manifest.json` | 回测制品的输入、配置、代码和结果指纹；周期报告不一定包含。 |
 | `report.pdf` | 按需生成的阅读/归档副本。 |
 
+官方报告位于 `NORTHSTAR_REPORTS_DIR/<类型>/<画像>/<策略>/<周期>[/<run-id>]/`。回测使用
+`run-id` 作为不可变制品身份；周期报告按其周期更新同一目录。Dashboard 会递归发现同时拥有
+有效 `report.json` 且 `artifact_id` 与目录一致的 `report.md`，不会把手工 Markdown 或残缺
+目录误认为正式报告。
+
 PDF 从现有 `report.md` 与 `report.json` 渲染，不会改变 Markdown、JSON 或回测 manifest。
 多空期货持仓会以正负方向展示；全空仓或全空头组合会明确标注，而不是伪造饼图。
 
@@ -38,6 +43,9 @@ uv run northstar report pdf <report.md 的路径>
 
 回测报告的研究准入、数据质量和统计样本不足会如实显示。报告生成成功不等于策略通过
 候选研究准入，更不等于获得 simulated、CTP 或真实资金授权。
+
+报告、标准市场数据和回测 manifest 是研究证据，项目没有自动删除它们的任务。`northstar data
+cleanup` 只处理下载缓存和明确安全的临时文件；具体双重确认与范围见[配置说明](02_配置说明.md)。
 
 ## 邮件通知
 

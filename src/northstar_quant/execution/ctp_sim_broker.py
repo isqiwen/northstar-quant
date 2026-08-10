@@ -23,7 +23,7 @@ from northstar_quant.config.ctp_contract_mapping import (
     CtpContractMapping,
     load_ctp_contract_registry,
 )
-from northstar_quant.config.settings import get_settings
+from northstar_quant.config.settings import get_settings, normalize_local_state_account
 from northstar_quant.execution.broker_base import BrokerAdapter
 from northstar_quant.execution.models import (
     BrokerStateSnapshot,
@@ -102,8 +102,22 @@ class CtpSimBrokerAdapter(BrokerAdapter):
         account: str | None = None,
     ) -> None:
         settings = get_settings()
-        self.account = str(account or settings.ctp_sim_account).strip()
-        self.state_path = Path(state_path or settings.ctp_sim_state_path).resolve()
+        self.account = normalize_local_state_account(
+            str(settings.ctp_sim_account if account is None else account)
+        )
+        if state_path is None:
+            resolved_state_path = (
+                settings.ctp_sim_state_path
+                if account is None
+                else settings.storage_dir
+                / "brokers"
+                / "ctp_sim"
+                / self.account
+                / "state.json"
+            )
+        else:
+            resolved_state_path = Path(state_path)
+        self.state_path = Path(resolved_state_path).resolve()
         self.registry = load_ctp_contract_registry(
             mapping_path or settings.ctp_sim_contract_mapping_path,
             expected_broker="ctp_sim",

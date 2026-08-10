@@ -111,3 +111,57 @@ def test_setup_logging_writes_json_lines_with_top_level_fields(tmp_path, monkeyp
     assert "logger" not in payload
     assert "context" not in payload
     assert "message" not in payload
+
+
+def test_log_dir_environment_override_preserves_yaml_rotation_rules(tmp_path, monkeypatch):
+    config_dir = tmp_path / "configs"
+    config_dir.mkdir()
+    (config_dir / "app.yaml").write_text(
+        "\n".join(
+            [
+                "logging:",
+                "  console_enabled: false",
+                "  file_enabled: true",
+                "  directory: logs/from-yaml",
+                "  filename: audit.log",
+                "  when: H",
+                "  interval: 6",
+                "  backup_count: 9",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    log_dir = tmp_path / "runtime" / "audit-logs"
+
+    monkeypatch.setenv("NORTHSTAR_PROJECT_ROOT", str(tmp_path))
+    monkeypatch.setenv("NORTHSTAR_LOG_DIR", str(log_dir))
+    get_settings.cache_clear()
+
+    try:
+        config = _load_logging_config()
+        setup_logging()
+    finally:
+        get_settings.cache_clear()
+
+    assert config["directory"] == str(log_dir)
+    assert config["filename"] == "audit.log"
+    assert config["when"] == "H"
+    assert config["interval"] == 6
+    assert config["backup_count"] == 9
+    assert (log_dir / "audit.log").exists()
+
+
+def test_log_dir_environment_override_applies_when_app_yaml_is_missing(tmp_path, monkeypatch):
+    log_dir = tmp_path / "runtime" / "audit-logs"
+    monkeypatch.setenv("NORTHSTAR_PROJECT_ROOT", str(tmp_path))
+    monkeypatch.setenv("NORTHSTAR_LOG_DIR", str(log_dir))
+    get_settings.cache_clear()
+
+    try:
+        config = _load_logging_config()
+    finally:
+        get_settings.cache_clear()
+
+    assert config["directory"] == str(log_dir)
+    assert config["filename"] == "northstar.log"
+    assert config["backup_count"] == 14

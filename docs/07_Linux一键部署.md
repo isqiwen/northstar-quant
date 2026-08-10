@@ -43,6 +43,28 @@ DEPLOY_HOST=deploy@example.com
 SERVICE_MODE=health
 ```
 
+`deploy.env` 还是运行时可写目录的唯一部署配置来源。默认所有目录位于
+`/srv/northstar/northstar-quant/shared/`；若要使用独立数据盘，显式设置下列绝对路径，
+而不是修改发布版本目录：
+
+```text
+RUNTIME_STORAGE_DIR=/mnt/northstar-quant/storage
+RUNTIME_DOWNLOADS_DIR=/mnt/northstar-quant/storage/downloads
+RUNTIME_REPORTS_DIR=/mnt/northstar-quant/reports
+RUNTIME_LOG_DIR=/var/log/northstar-quant
+RUNTIME_CACHE_DIR=/var/cache/northstar-quant
+RUNTIME_MATPLOTLIB_DIR=/var/cache/northstar-quant/matplotlib
+```
+
+这些字段在示例配置中默认留空：脚本会从 `SERVICE_HOME` 和 `APP_NAME` 派生原有目录；只设置
+`RUNTIME_STORAGE_DIR` 并继续留空 `RUNTIME_DOWNLOADS_DIR` 时，下载目录自动派生为
+`<RUNTIME_STORAGE_DIR>/downloads`。其余非空字段均按指定路径生效。
+
+部署脚本只接受 `/srv`、`/var/lib`、`/var/cache`、`/var/log`、`/mnt` 或 `/data` 下的路径，
+拒绝相对路径和含 `.`、`..` 路径段的值。首次安装和后续发布都会以服务用户创建这些目录，
+权限为 `0750`。systemd 的可写白名单、发布前的 `init-db`/`health` 命令，以及版本目录中的
+`storage`、`reports`、`logs` 链接使用同一组配置；不要通过手工软链接绕过它。
+
 生产密钥和数据库 URL 使用 `.env.production`：
 
 ```bash
@@ -50,8 +72,16 @@ cp .env.production.example .env.production
 chmod 600 .env.production
 ```
 
-必须替换 `NORTHSTAR_DATABASE_URL` 中的 `CHANGE_ME`，并根据服务器目录调整
-`NORTHSTAR_STORAGE_DIR` 和 `NORTHSTAR_REPORTS_DIR`。这两个本地文件均被 Git 忽略。
+必须替换 `NORTHSTAR_DATABASE_URL` 中的 `CHANGE_ME`。`.env.production` 中的
+`NORTHSTAR_STORAGE_DIR`、`NORTHSTAR_DOWNLOADS_DIR` 和 `NORTHSTAR_REPORTS_DIR` 仅供手工
+在版本目录运行 CLI 时使用；它们应与 `deploy.env` 的 `RUNTIME_*_DIR` 保持一致。通过部署
+脚本和 systemd 启动时，后者始终覆盖前者。两个本地文件均被 Git 忽略；不要把密码、令牌或
+数据库 URL 写入 `deploy.env`。
+
+无需为 Paper broker 设置固定状态文件路径：默认状态按账户写入
+`<RUNTIME_STORAGE_DIR>/brokers/paper/<NORTHSTAR_PAPER_ACCOUNT>/state.json`。这保证部署
+切换到独立数据盘时，Paper 状态仍与数据目录一起迁移；只有明确的迁移或恢复场景才应在
+`.env.production` 中取消注释 `NORTHSTAR_PAPER_STATE_PATH`。
 
 ## 部署命令
 
@@ -91,7 +121,8 @@ uv run pytest
 
 ## 服务器目录
 
-默认目录结构：
+默认目录结构如下；若设置了 `RUNTIME_*_DIR`，可写的 `storage`、`reports`、`logs`、
+`cache` 和 `matplotlib` 可位于独立路径，不必在 `shared/` 下。
 
 ```text
 /srv/northstar/northstar-quant/
@@ -110,8 +141,9 @@ uv run pytest
     └── uv-cache/
 ```
 
-每个版本拥有独立 `.venv`，`storage`、`reports` 和生产 `.env` 在版本间共享。
-依赖通过远端 `uv sync --frozen --no-dev --no-editable` 从 `uv.lock` 安装。
+每个版本拥有独立 `.venv`，生产 `.env` 与 `python`、`uv-cache` 保存在 `shared/`；
+`storage`、`reports`、`logs` 则通过版本目录软链接指向配置的运行时目录。依赖通过远端
+`uv sync --frozen --no-dev --no-editable` 从 `uv.lock` 安装。
 
 ## 服务模式
 

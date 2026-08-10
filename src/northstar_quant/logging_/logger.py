@@ -136,11 +136,14 @@ def _load_logging_config(config_path: str | Path = "configs/app.yaml") -> dict[s
     if not path.is_absolute():
         path = get_settings().project_root / path
     if not path.exists():
-        return dict(_DEFAULT_LOGGING_CONFIG)
-
-    raw_config = load_yaml(path)
-    logging_config = raw_config.get("logging", {}) or {}
-    merged = {**_DEFAULT_LOGGING_CONFIG, **logging_config}
+        merged = dict(_DEFAULT_LOGGING_CONFIG)
+    else:
+        raw_config = load_yaml(path)
+        logging_config = raw_config.get("logging", {}) or {}
+        merged = {**_DEFAULT_LOGGING_CONFIG, **logging_config}
+    settings = get_settings()
+    if settings.log_dir is not None:
+        merged["directory"] = str(settings.log_dir)
     merged["level"] = str(merged["level"]).upper()
     merged["interval"] = int(merged["interval"])
     merged["backup_count"] = int(merged["backup_count"])

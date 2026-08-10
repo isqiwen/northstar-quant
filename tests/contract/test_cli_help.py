@@ -36,12 +36,17 @@ def test_root_help_short_and_long_flags_match():
 
 def test_data_help_exposes_local_import_and_actual_daily_provider():
     help_result = runner.invoke(app, ["data", "--help"])
+    cleanup_help_result = runner.invoke(app, ["data", "cleanup", "--help"])
     providers_result = runner.invoke(app, ["data", "providers"])
     sources_result = runner.invoke(app, ["data", "sources"])
 
     assert help_result.exit_code == 0
     assert "import-file" in help_result.output
     assert "sources" in help_result.output
+    assert "cleanup" in help_result.output
+    assert cleanup_help_result.exit_code == 0
+    assert "--apply" in cleanup_help_result.output
+    assert "--config" in cleanup_help_result.output
     assert providers_result.exit_code == 0
     assert "akshare_actual_daily" in providers_result.output
     assert "Traceback" not in providers_result.output

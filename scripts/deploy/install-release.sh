@@ -4,6 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/lib/common.sh"
 source "${SCRIPT_DIR}/lib/safety.sh"
+source "${SCRIPT_DIR}/lib/runtime_paths.sh"
 
 APP_NAME="${APP_NAME:-northstar-quant}"
 SERVICE_USER="${SERVICE_USER:-northstar}"
@@ -61,6 +62,8 @@ case "${APP_ROOT}" in
     deploy_fail "APP_ROOT 必须位于 SERVICE_HOME 下。"
     ;;
 esac
+
+deploy_configure_runtime_paths "${APP_ROOT}"
 
 case "${SERVICE_MODE}" in
   health|scheduler)
@@ -123,10 +126,13 @@ run_release_command() {
     HOME="${SERVICE_HOME}" \
     UV_CACHE_DIR="${SHARED_DIR}/uv-cache" \
     UV_PYTHON_INSTALL_DIR="${SHARED_DIR}/python" \
+    XDG_CACHE_HOME="${RUNTIME_CACHE_DIR}" \
+    MPLCONFIGDIR="${RUNTIME_MATPLOTLIB_DIR}" \
     NORTHSTAR_PROJECT_ROOT="${release_dir}" \
-    NORTHSTAR_STORAGE_DIR="${SHARED_DIR}/storage" \
-    NORTHSTAR_DOWNLOADS_DIR="${SHARED_DIR}/storage/downloads" \
-    NORTHSTAR_REPORTS_DIR="${SHARED_DIR}/reports" \
+    NORTHSTAR_STORAGE_DIR="${RUNTIME_STORAGE_DIR}" \
+    NORTHSTAR_DOWNLOADS_DIR="${RUNTIME_DOWNLOADS_DIR}" \
+    NORTHSTAR_REPORTS_DIR="${RUNTIME_REPORTS_DIR}" \
+    NORTHSTAR_LOG_DIR="${RUNTIME_LOG_DIR}" \
     /bin/bash -c 'cd "$1"; shift; exec "$@"' bash "${release_dir}" "$@"
 }
 
@@ -147,6 +153,12 @@ write_systemd_unit() {
     -e "s|@ENV_FILE@|${ENV_FILE}|g" \
     -e "s|@SERVICE_HOME@|${SERVICE_HOME}|g" \
     -e "s|@SHARED_DIR@|${SHARED_DIR}|g" \
+    -e "s|@RUNTIME_STORAGE_DIR@|${RUNTIME_STORAGE_DIR}|g" \
+    -e "s|@RUNTIME_DOWNLOADS_DIR@|${RUNTIME_DOWNLOADS_DIR}|g" \
+    -e "s|@RUNTIME_REPORTS_DIR@|${RUNTIME_REPORTS_DIR}|g" \
+    -e "s|@RUNTIME_LOG_DIR@|${RUNTIME_LOG_DIR}|g" \
+    -e "s|@RUNTIME_CACHE_DIR@|${RUNTIME_CACHE_DIR}|g" \
+    -e "s|@RUNTIME_MATPLOTLIB_DIR@|${RUNTIME_MATPLOTLIB_DIR}|g" \
     "${template_file}" > "${temp_unit}"; then
     rm -f "${temp_unit}"
     return 1
@@ -217,13 +229,19 @@ deploy_validate_production_env "${ENV_FILE}" "${SERVICE_MODE}" "${CONFIRM_LIVE_D
 validate_artifact
 
 deploy_as_root install -d -o "${SERVICE_USER}" -g "${SERVICE_USER}" -m 0750 \
-  "${RELEASES_DIR}" \
-  "${SHARED_DIR}/cache" \
-  "${SHARED_DIR}/logs" \
-  "${SHARED_DIR}/matplotlib" \
-  "${SHARED_DIR}/reports" \
-  "${SHARED_DIR}/storage" \
+  "${SHARED_DIR}" \
+  "${SHARED_DIR}/incoming" \
+  "${RUNTIME_CACHE_DIR}" \
+  "${RUNTIME_LOG_DIR}" \
+  "${RUNTIME_MATPLOTLIB_DIR}" \
+  "${RUNTIME_REPORTS_DIR}" \
+  "${RUNTIME_STORAGE_DIR}" \
+  "${RUNTIME_DOWNLOADS_DIR}" \
+  "${SHARED_DIR}/python" \
   "${SHARED_DIR}/uv-cache"
+
+deploy_as_root install -d -o "${SERVICE_USER}" -g "${SERVICE_USER}" -m 0750 \
+  "${RELEASES_DIR}"
 
 RELEASE_DIR="${RELEASES_DIR}/${RELEASE_ID}"
 if deploy_as_root test -e "${RELEASE_DIR}"; then
@@ -246,9 +264,9 @@ for forbidden_path in .env .venv logs storage reports; do
 done
 
 deploy_as_root ln -s "${ENV_FILE}" "${STAGE_DIR}/.env"
-deploy_as_root ln -s "${SHARED_DIR}/logs" "${STAGE_DIR}/logs"
-deploy_as_root ln -s "${SHARED_DIR}/storage" "${STAGE_DIR}/storage"
-deploy_as_root ln -s "${SHARED_DIR}/reports" "${STAGE_DIR}/reports"
+deploy_as_root ln -s "${RUNTIME_LOG_DIR}" "${STAGE_DIR}/logs"
+deploy_as_root ln -s "${RUNTIME_STORAGE_DIR}" "${STAGE_DIR}/storage"
+deploy_as_root ln -s "${RUNTIME_REPORTS_DIR}" "${STAGE_DIR}/reports"
 deploy_as_root chown -R "${SERVICE_USER}:${SERVICE_USER}" "${STAGE_DIR}"
 
 deploy_log "按 uv.lock 安装生产依赖"
@@ -256,6 +274,8 @@ deploy_as_user "${SERVICE_USER}" env \
   HOME="${SERVICE_HOME}" \
   UV_CACHE_DIR="${SHARED_DIR}/uv-cache" \
   UV_PYTHON_INSTALL_DIR="${SHARED_DIR}/python" \
+  XDG_CACHE_HOME="${RUNTIME_CACHE_DIR}" \
+  MPLCONFIGDIR="${RUNTIME_MATPLOTLIB_DIR}" \
   /usr/local/bin/uv sync \
   --directory "${STAGE_DIR}" \
   --frozen \

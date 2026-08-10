@@ -145,6 +145,12 @@ def test_configuration_documentation_matches_safe_runtime_defaults() -> None:
     assert "configs/data/sources.yaml" in config_guide
     assert "research_admission" in config_guide
     assert "ctp_sim" in config_guide
+    assert "NORTHSTAR_DOWNLOADS_DIR" in config_guide
+    assert "NORTHSTAR_LOG_DIR" in config_guide
+    assert "northstar data cleanup" in config_guide
+    assert "标准市场数据" in config_guide
+    assert "PostgreSQL 服务的独立数据卷" in config_guide
+    assert (PROJECT_ROOT / "configs" / "maintenance" / "output_retention.yaml").is_file()
     assert Settings.model_fields["broker"].default == "paper"
     assert Settings.model_fields["live_trading_enabled"].default is False
     assert Settings.model_fields["kill_switch_enabled"].default is False
