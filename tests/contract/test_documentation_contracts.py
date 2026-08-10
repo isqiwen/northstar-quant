@@ -11,23 +11,24 @@ from tests.support.paths import PROJECT_ROOT
 
 README_PATH = PROJECT_ROOT / "README.md"
 DOCS_INDEX_PATH = PROJECT_ROOT / "docs" / "README.md"
-ROADMAP_PATH = PROJECT_ROOT / "docs" / "15_项目主规划与实施状态.md"
-ADMISSION_POLICY_PATH = PROJECT_ROOT / "docs" / "16_研究准入政策与数据治理.md"
+ROADMAP_PATH = PROJECT_ROOT / "docs" / "08_项目主规划与实施状态.md"
+ADMISSION_POLICY_PATH = PROJECT_ROOT / "docs" / "09_研究准入政策与数据治理.md"
 CONFIG_GUIDE_PATH = PROJECT_ROOT / "docs" / "02_配置说明.md"
 TUTORIAL_PATH = PROJECT_ROOT / "docs" / "00_第一个策略与回测教程.md"
 LOCAL_LINK_PATTERN = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
+NUMBERED_DOCUMENT_PATTERN = re.compile(r"^(\d{2})_.+\.md$")
 
 CANONICAL_DOCUMENTS = (
     "00_第一个策略与回测教程.md",
     "01_架构总览.md",
     "02_配置说明.md",
-    "04_实盘执行现状与增强说明.md",
-    "07_邮件发送日报_周报_月报_年报.md",
-    "11_代码注释规范.md",
-    "12_期货回测器说明.md",
-    "14_Linux一键部署.md",
-    "15_项目主规划与实施状态.md",
-    "16_研究准入政策与数据治理.md",
+    "03_执行与安全边界.md",
+    "04_期货回测器说明.md",
+    "05_报告_PDF与通知.md",
+    "06_代码与配置注释规范.md",
+    "07_Linux一键部署.md",
+    "08_项目主规划与实施状态.md",
+    "09_研究准入政策与数据治理.md",
 )
 
 RETIRED_DUPLICATE_DOCUMENTS = (
@@ -76,6 +77,19 @@ def test_docs_index_is_the_only_canonical_navigation() -> None:
         assert not (DOCS_INDEX_PATH.parent / filename).exists()
 
 
+def test_numbered_docs_are_continuous() -> None:
+    numbered_documents = sorted(
+        path.name
+        for path in DOCS_INDEX_PATH.parent.glob("*.md")
+        if NUMBERED_DOCUMENT_PATTERN.fullmatch(path.name)
+    )
+
+    assert numbered_documents == list(CANONICAL_DOCUMENTS)
+    assert [filename[:2] for filename in numbered_documents] == [
+        f"{index:02d}" for index in range(len(CANONICAL_DOCUMENTS))
+    ]
+
+
 def test_local_markdown_links_resolve() -> None:
     broken_links: list[str] = []
     for markdown_path in _markdown_files():
@@ -91,16 +105,16 @@ def test_roadmap_is_linked_and_preserves_all_phase_gates() -> None:
     readme = _read(README_PATH)
     roadmap = _read(ROADMAP_PATH)
 
-    assert "[项目主规划与实施状态](docs/15_项目主规划与实施状态.md)" in readme
+    assert "[项目主规划与实施状态](docs/08_项目主规划与实施状态.md)" in readme
     for phase in range(8):
         assert f"### P{phase}：" in roadmap
     assert "AI 实施协议" in roadmap
     assert "P0-01 至 P0-06" in roadmap
     for filename in (
         "01_架构总览.md",
-        "04_实盘执行现状与增强说明.md",
-        "12_期货回测器说明.md",
-        "16_研究准入政策与数据治理.md",
+        "03_执行与安全边界.md",
+        "04_期货回测器说明.md",
+        "09_研究准入政策与数据治理.md",
     ):
         assert (ROADMAP_PATH.parent / filename).is_file()
 
@@ -109,7 +123,7 @@ def test_research_admission_policy_is_linked_and_keeps_fail_closed_boundaries() 
     readme = _read(README_PATH)
     policy = _read(ADMISSION_POLICY_PATH)
 
-    assert "(docs/16_研究准入政策与数据治理.md)" in readme
+    assert "(docs/09_研究准入政策与数据治理.md)" in readme
     assert "procurement_pending" in policy
     assert "pending_owner_approval" in policy
     assert "不适用范围：模拟交易授权、真实 CTP、真实资金" in policy

@@ -54,4 +54,4 @@ UPLOAD_ENV=1 SETUP_SERVER=1 scripts/deploy.sh
 scripts/deploy.sh
 ```
 
-完整说明见 `docs/14_Linux一键部署.md`。
+完整说明见 `docs/07_Linux一键部署.md`。

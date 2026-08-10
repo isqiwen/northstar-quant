@@ -65,7 +65,7 @@ uv run northstar backtest run portfolio --profile cn_futures_daily_trend_offline
 
 低频候选策略的正式研究路径是：连续合约探索 → 实际合约日线回测 →（仅在执行细节改变
 结论时）分钟回放。具体数据契约与三类回测器见
-[期货回测器说明](docs/12_期货回测器说明.md)。
+[期货回测器说明](docs/04_期货回测器说明.md)。
 
 ## 配置与数据治理
 
@@ -74,7 +74,7 @@ uv run northstar backtest run portfolio --profile cn_futures_daily_trend_offline
 
 当前公开 AKShare 和本地导入数据只能用于探索或工程验收。商业供应商、授权边界、核心
 品种、样本外阈值和候选策略准入结论见
-[研究准入政策与数据治理](docs/16_研究准入政策与数据治理.md)。其状态是
+[研究准入政策与数据治理](docs/09_研究准入政策与数据治理.md)。其状态是
 `procurement_pending` / `pending_owner_approval`，默认失败关闭。
 
 ## 当前运行边界
@@ -84,16 +84,16 @@ uv run northstar backtest run portfolio --profile cn_futures_daily_trend_offline
 - `live` 子命令受画像、数据、preflight、风险门禁和 kill switch 保护；当前没有
   production 画像，因此调度器会失败关闭；
 - Linux 部署默认只运行 `health` 服务，详见
-  [Linux 一键部署](docs/14_Linux一键部署.md)。
+  [Linux 一键部署](docs/07_Linux一键部署.md)。
 
 ## 文档
 
 完整阅读路径与唯一权威文档见 [文档导航](docs/README.md)。特别是：
 
 - [架构总览](docs/01_架构总览.md)
-- [执行与安全边界](docs/04_实盘执行现状与增强说明.md)
-- [项目主规划与实施状态](docs/15_项目主规划与实施状态.md)
-- [研究准入政策与数据治理](docs/16_研究准入政策与数据治理.md)
+- [执行与安全边界](docs/03_执行与安全边界.md)
+- [项目主规划与实施状态](docs/08_项目主规划与实施状态.md)
+- [研究准入政策与数据治理](docs/09_研究准入政策与数据治理.md)
 
 ## License
 
