@@ -1,23 +1,9 @@
-# 应用级默认值与日志规则。
-#
-# 交易研究、数据和执行的实际行为以交易画像为准；app 段目前用于表达项目默认定位，
-# 不会覆盖 configs/profiles 中同名字段。日志段由启动阶段直接读取。
-app:
-  # 用于日志、界面和报告展示的项目名称。
-  name: Northstar Quant
-  # 运行环境标签，仅用于识别环境；不是实盘开关。
-  env: dev
-  # 默认时区；画像未显式指定 timezone 时才会使用。
-  timezone: Asia/Shanghai
-  # 默认市场、资产类型、频率与策略类别；画像中的值优先。
-  market: CN
-  asset_type: FUTURES
-  data_frequency: 1d
-  rebalance_frequency: 1d
-  strategy_family: trend_following
+# 完整的非秘密应用配置示例。
+# 此文件只用于展示和初始化，运行时绝不读取它。请复制为 configs/app.yaml 后编辑；
+# 开发与生产环境都只读取完整的 app.yaml，二者字段结构必须完全一致。
+# 数据库密码、令牌等秘密仍只放在 .env 或操作系统环境变量中。
 
-# 运行输出目录的唯一真源。相对路径相对于项目根目录；如需本机或服务器覆盖，
-# 复制 app.local.example.yaml 为 app.local.yaml，并完整填写本段。
+# 运行输出目录的唯一真源。相对路径相对于项目根目录。
 runtime:
   # 标准行情、下载缓存、模拟账户状态等本地持久化文件根目录。
   storage_dir: storage

@@ -9,6 +9,7 @@ import tarfile
 from pathlib import Path
 
 import pytest
+import yaml
 
 from tests.support.paths import PROJECT_ROOT
 
@@ -135,6 +136,8 @@ def test_build_artifact_contains_only_runtime_sources(tmp_path: Path) -> None:
     assert "uv.lock" in names
     assert "src/northstar_quant/cli.py" in names
     assert "configs/profiles/offline/cn_futures_daily_trend_offline.yaml" in names
+    assert "configs/app.example.yaml" in names
+    assert "configs/app.yaml" not in names
     assert ".env" not in names
     assert ".venv" not in names
     assert not any(Path(name).name.startswith("._") for name in names)
@@ -143,8 +146,11 @@ def test_build_artifact_contains_only_runtime_sources(tmp_path: Path) -> None:
     assert not any(name.startswith("reports/") for name in names)
     assert not any(name.startswith("tests/") for name in names)
     assert "configs/app.local.yaml" not in names
+    assert "configs/app.local.example.yaml" not in names
 
     builder = (DEPLOY_DIR / "build-artifact.sh").read_text(encoding="utf-8")
+    assert "configs/app.example.yaml" in builder
+    assert "--exclude='configs/app.yaml'" in builder
     assert "--exclude='configs/app.local.yaml'" in builder
 
 
@@ -255,11 +261,18 @@ def test_runtime_output_paths_are_configurable_and_consistent() -> None:
         assert "ReadWritePaths=@SHARED_DIR@ @RUNTIME_STORAGE_DIR@" in template
         assert "@RUNTIME_LOG_DIR@" in template
 
-    assert 'deploy_write_runtime_config "${STAGE_DIR}/configs/app.local.yaml" "${SERVICE_USER}"' in release_script
+    active_config_write = (
+        'deploy_write_active_app_config \\\n'
+        '  "${STAGE_DIR}/configs/app.example.yaml" \\\n'
+        '  "${STAGE_DIR}/configs/app.yaml" \\\n'
+        '  "${SERVICE_USER}"'
+    )
+    assert active_config_write in release_script
+    assert 'deploy_write_runtime_config "${STAGE_DIR}/configs/app.local.yaml" "${SERVICE_USER}"' not in release_script
     assert 'ln -s "${APP_LOCAL_CONFIG_FILE}" "${STAGE_DIR}/configs/app.local.yaml"' not in release_script
     assert '"${SHARED_DIR}/config/app.local.yaml"' not in release_script
-    assert "deploy_write_runtime_config" not in runtime_install_script
-    assert release_script.index('deploy_write_runtime_config "${STAGE_DIR}/configs/app.local.yaml"') < release_script.index(
+    assert "deploy_write_active_app_config" not in runtime_install_script
+    assert release_script.index(active_config_write) < release_script.index(
         'run_release_command "${STAGE_DIR}" "${STAGE_DIR}/.venv/bin/northstar" init-db'
     )
     cutover = release_script.split('deploy_log "停止当前服务，准备原子切换 current"', maxsplit=1)[1]
@@ -293,11 +306,16 @@ def test_runtime_output_paths_are_configurable_and_consistent() -> None:
         "NORTHSTAR_LOG_DIR",
     ):
         assert environment_name not in run_release_command
-    assert "deploy_render_runtime_config()" in runtime_paths
+    assert "deploy_render_active_app_config()" in runtime_paths
     assert 'mv -Tf "${target_temp}" "${config_file}"' in runtime_paths
 
 
-def test_runtime_config_renders_storage_downloads_reports_and_logs() -> None:
+def test_active_app_config_renders_runtime_paths_from_full_template(tmp_path: Path) -> None:
+    template_file = tmp_path / "app.example.yaml"
+    template_file.write_text(
+        (ROOT_DIR / "configs" / "app.example.yaml").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
     command = """
 set -euo pipefail
 source "$1/lib/common.sh"
@@ -306,7 +324,7 @@ RUNTIME_STORAGE_DIR=/mnt/northstar-quant/market-storage
 RUNTIME_DOWNLOADS_DIR=/data/northstar-quant/download-cache
 RUNTIME_REPORTS_DIR=/mnt/northstar-quant/reports
 RUNTIME_LOG_DIR=/var/log/northstar-quant
-deploy_render_runtime_config
+deploy_render_active_app_config "$2"
 """
 
     result = _run_bash(
@@ -314,20 +332,22 @@ deploy_render_runtime_config
         command,
         BASH_EXECUTABLE,
         _bash_path(DEPLOY_DIR),
+        _bash_path(template_file),
         check=False,
         capture_output=True,
     )
 
     assert result.returncode == 0, result.stderr
-    assert result.stdout.splitlines() == [
-        "# 此文件由 scripts/deploy 自动生成，请勿手工编辑。",
-        "# 修改运行时输出目录请编辑部署机对应的 deploy.env 后重新发布。",
-        "runtime:",
-        '  storage_dir: "/mnt/northstar-quant/market-storage"',
-        '  downloads_dir: "/data/northstar-quant/download-cache"',
-        '  reports_dir: "/mnt/northstar-quant/reports"',
-        '  log_dir: "/var/log/northstar-quant"',
-    ]
+    rendered = yaml.safe_load(result.stdout)
+    template = yaml.safe_load(template_file.read_text(encoding="utf-8"))
+    assert set(rendered) == set(template)
+    assert rendered["logging"] == template["logging"]
+    assert rendered["runtime"] == {
+        "storage_dir": "/mnt/northstar-quant/market-storage",
+        "downloads_dir": "/data/northstar-quant/download-cache",
+        "reports_dir": "/mnt/northstar-quant/reports",
+        "log_dir": "/var/log/northstar-quant",
+    }
 
 
 def test_runtime_output_path_defaults_and_custom_values() -> None:

@@ -16,7 +16,7 @@ from pydantic import Field, field_validator
 from pydantic.fields import FieldInfo
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
 
-from northstar_quant.config.app_runtime import load_app_runtime_paths
+from northstar_quant.config.app_runtime import load_app_config
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 _LOCAL_ACCOUNT_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")
@@ -88,7 +88,7 @@ class _RejectLegacyRuntimePathEnvironmentSource(PydanticBaseSettingsSource):
             names = "、".join(sorted(seen))
             raise ValueError(
                 f"不再接受运行输出路径环境变量：{names}。"
-                "请从 OS/.env 中删除这些变量，并改为在 configs/app.local.yaml 的 "
+                "请从 OS/.env 中删除这些变量，并改为在 configs/app.yaml 的 "
                 "runtime 段中完整配置 storage_dir、downloads_dir、reports_dir、log_dir。"
             )
         return {}
@@ -305,37 +305,27 @@ class Settings(BaseSettings):
                 value = project_root / value
             object.__setattr__(self, field_name, value)
 
-        runtime_paths = (
-            None
-            if ENV_DISABLED_FIELDS.issubset(self.model_fields_set)
-            else load_app_runtime_paths(project_root)
+        # 无论调用方是否显式传入测试/嵌入式路径，均先校验唯一活动配置。
+        # 否则 app.yaml 缺失或遗留 app.local.yaml 时可绕过失败关闭边界。
+        runtime_paths = load_app_config(project_root).runtime
+        configured_storage_dir = (
+            self.storage_dir
+            if "storage_dir" in self.model_fields_set
+            else runtime_paths.storage_dir
         )
-        configured_downloads_dir: Path | None
-
-        if runtime_paths is None:
-            configured_storage_dir = self.storage_dir
-            configured_downloads_dir = self.downloads_dir
-            configured_reports_dir = self.reports_dir
-            configured_log_dir = self.log_dir
-        else:
-            configured_storage_dir = (
-                self.storage_dir
-                if "storage_dir" in self.model_fields_set
-                else runtime_paths.storage_dir
-            )
-            configured_downloads_dir = (
-                self.downloads_dir
-                if "downloads_dir" in self.model_fields_set
-                else runtime_paths.downloads_dir
-            )
-            configured_reports_dir = (
-                self.reports_dir
-                if "reports_dir" in self.model_fields_set
-                else runtime_paths.reports_dir
-            )
-            configured_log_dir = (
-                self.log_dir if "log_dir" in self.model_fields_set else runtime_paths.log_dir
-            )
+        configured_downloads_dir = (
+            self.downloads_dir
+            if "downloads_dir" in self.model_fields_set
+            else runtime_paths.downloads_dir
+        )
+        configured_reports_dir = (
+            self.reports_dir
+            if "reports_dir" in self.model_fields_set
+            else runtime_paths.reports_dir
+        )
+        configured_log_dir = (
+            self.log_dir if "log_dir" in self.model_fields_set else runtime_paths.log_dir
+        )
 
         storage_dir = _resolve_runtime_setting_path(
             configured_storage_dir,
@@ -409,7 +399,7 @@ def _resolve_local_state_path(
     except ValueError as exc:
         raise ValueError(
             f"{setting_name} 必须位于 runtime.storage_dir 内；"
-            "如需迁移本地模拟状态，请调整 configs/app.local.yaml 的 runtime.storage_dir。"
+            "如需迁移本地模拟状态，请调整 configs/app.yaml 的 runtime.storage_dir。"
         ) from exc
     if resolved_state_path == resolved_storage_dir:
         raise ValueError(f"{setting_name} 必须指向 runtime.storage_dir 内的状态文件。")

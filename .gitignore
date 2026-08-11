@@ -36,6 +36,9 @@ pip-wheel-metadata/
 !.env.example
 !.env.production.example
 deploy.env
+configs/app.yaml
+# 已废弃但仍可能遗留在旧开发机上的局部覆盖文件；应用会明确拒绝它，
+# 仍忽略以防误加入版本库。
 configs/app.local.yaml
 
 # IDE / OS files

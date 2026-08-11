@@ -349,20 +349,23 @@ deploy_log "解压版本 ${RELEASE_ID}"
 STAGE_DIR="$(deploy_as_root mktemp -d "${RELEASES_DIR}/.${RELEASE_ID}.stage.XXXXXX")"
 deploy_as_root tar -xzf "${ARTIFACT_TARBALL}" -C "${STAGE_DIR}"
 
-for required_path in pyproject.toml uv.lock alembic.ini src configs; do
+for required_path in pyproject.toml uv.lock alembic.ini src configs configs/app.example.yaml; do
   if ! deploy_as_root test -e "${STAGE_DIR}/${required_path}"; then
     deploy_fail "部署制品缺少：${required_path}"
   fi
 done
-for forbidden_path in .env .venv logs storage reports configs/app.local.yaml; do
+for forbidden_path in .env .venv logs storage reports configs/app.yaml configs/app.local.yaml; do
   if deploy_as_root test -e "${STAGE_DIR}/${forbidden_path}"; then
     deploy_fail "部署制品不应包含运行时路径：${forbidden_path}"
   fi
 done
 
 deploy_as_root ln -s "${ENV_FILE}" "${STAGE_DIR}/.env"
-deploy_log "写入新版本运行时目录配置"
-deploy_write_runtime_config "${STAGE_DIR}/configs/app.local.yaml" "${SERVICE_USER}"
+deploy_log "从完整模板生成新版本活动应用配置"
+deploy_write_active_app_config \
+  "${STAGE_DIR}/configs/app.example.yaml" \
+  "${STAGE_DIR}/configs/app.yaml" \
+  "${SERVICE_USER}"
 deploy_as_root ln -s "${RUNTIME_LOG_DIR}" "${STAGE_DIR}/logs"
 deploy_as_root ln -s "${RUNTIME_STORAGE_DIR}" "${STAGE_DIR}/storage"
 deploy_as_root ln -s "${RUNTIME_REPORTS_DIR}" "${STAGE_DIR}/reports"

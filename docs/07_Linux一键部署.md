@@ -62,12 +62,16 @@ RUNTIME_MATPLOTLIB_DIR=/var/cache/northstar-quant/matplotlib
 
 部署脚本只接受 `/srv`、`/var/lib`、`/var/cache`、`/var/log`、`/mnt` 或 `/data` 下的路径，
 拒绝相对路径和含 `.`、`..` 路径段的值。首次安装和后续发布都会以服务用户创建这些目录，
-权限为 `0750`。部署脚本会将已校验的四个业务输出路径原子写入**待发布版本**的
-`configs/app.local.yaml`；发布前迁移和健康检查使用这份配置，失败时随 stage 清理，旧版本的
-配置不会变化。应用通过此 YAML 读取 `storage`、`downloads`、`reports` 和 `logs`，而 systemd
+权限为 `0750`。部署脚本会以制品内的 `configs/app.example.yaml` 为模板，将已校验的四个业务输出
+路径原子写入**待发布版本**完整的 `configs/app.yaml`；发布前迁移和健康检查使用这份配置，失败时
+随 stage 清理，旧版本的配置不会变化。应用通过此 YAML 读取 `storage`、`downloads`、`reports` 和 `logs`，而 systemd
 仅用 `RUNTIME_*_DIR` 设置可写白名单和缓存目录。切换 `current` 前脚本会先停止旧服务，避免
 旧进程在重载配置时读取新版本路径。不要通过手工软链接或在 `.env.production` 重复设置这四个
 `NORTHSTAR_*_DIR` 绕过该边界。
+
+生成的活动文件始终与示例具有完全相同的字段。当前部署只从 `deploy.env` 注入四个运行目录；
+其余非敏感应用规则（例如日志轮转）随已审阅的 `configs/app.example.yaml` 版本冻结。不要在服务器
+上事后手改 release 内的 `app.yaml`；需要变更通用规则时，应修改模板、测试并重新发布。
 
 生产密钥和数据库 URL 使用 `.env.production`：
 
@@ -78,8 +82,8 @@ chmod 600 .env.production
 
 必须替换 `NORTHSTAR_DATABASE_URL` 中的 `CHANGE_ME`。`.env.production` 只保存数据库 URL、
 令牌等敏感运行时变量；业务输出目录以 `deploy.env` 为唯一部署来源，并由发布过程在每个新版本
-生成 `configs/app.local.yaml`。两个本地文件均被 Git 忽略；不要把密码、令牌或数据库 URL 写入
-`deploy.env`。
+生成完整的 `configs/app.yaml`。`configs/app.yaml`、`.env.production` 与 `deploy.env` 均被 Git
+忽略；不要把密码、令牌或数据库 URL 写入 `deploy.env`。
 
 无需为 Paper broker 设置固定状态文件路径：默认状态按账户写入
 `<runtime.storage_dir>/brokers/paper/<NORTHSTAR_PAPER_ACCOUNT>/state.json`。这保证部署
@@ -144,7 +148,7 @@ uv run pytest
     └── uv-cache/
 ```
 
-每个版本拥有独立 `.venv`，并在安装时生成自身的 `configs/app.local.yaml`；生产 `.env` 与
+每个版本拥有独立 `.venv`，并在安装时生成自身完整的 `configs/app.yaml`；生产 `.env` 与
 `python`、`uv-cache` 保存在 `shared/`。`storage`、`reports`、`logs` 均通过版本目录软链接指向
 配置的运行时目录。依赖通过远端 `uv sync --frozen --no-dev --no-editable` 从 `uv.lock` 安装。
 

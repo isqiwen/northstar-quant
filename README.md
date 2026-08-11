@@ -37,7 +37,8 @@ Copy-Item .env.example .env
 
 两个入口都会同步锁定依赖、启动本地 Docker PostgreSQL、迁移 `northstar` 与
 `northstar_test`、执行健康检查、完整测试和 Ruff；不会下载市场数据、启动调度器或调用
-真实交易。
+真实交易。它们还会在首次运行时从 `configs/app.example.yaml` 创建唯一会被程序读取的
+本地 `configs/app.yaml`；后续只编辑这一份活动配置。
 
 常用的手动质量检查：
 

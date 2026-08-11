@@ -18,6 +18,8 @@ Windows 首次运行前，手动从 `.env.example` 创建本地 `.env` 并设置
 PowerShell 入口不会创建或改写 `.env`，只会启动本地 Docker PostgreSQL、确保
 `northstar` 与 `northstar_test` 两个开发数据库存在，随后运行迁移、健康检查、测试和 Ruff。
 它在当前进程中强制使用 `paper` 并禁用实盘，不会下载市场数据或调用 live 命令。
+两个开发入口都会在缺失时从 `configs/app.example.yaml` 创建完整的活动配置
+`configs/app.yaml`；示例文件不会被程序读取，后续仅编辑活动文件。
 
 开发环境内部模块：
 

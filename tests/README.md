@@ -32,8 +32,16 @@ Copy-Item .env.example .env
 
 ## 手动命令
 
-先确保 Docker 已启动，且 `.env` 中的 `POSTGRES_PASSWORD` 非空。数据库测试使用
-`northstar_test`，每个测试还会创建隔离 schema。
+先确保 Docker 已启动，`.env` 中的 `POSTGRES_PASSWORD` 非空，并存在完整的活动应用配置
+`configs/app.yaml`。两个开发初始化入口会自动创建它；若只运行手动命令且该文件缺失，先执行：
+
+```powershell
+Copy-Item configs/app.example.yaml configs/app.yaml
+```
+
+Git Bash/macOS/Linux 使用 `cp configs/app.example.yaml configs/app.yaml`。示例文件本身不会被
+应用读取；测试与应用都只读取活动文件。数据库测试使用 `northstar_test`，每个测试还会创建隔离
+schema。
 
 ```powershell
 # 全量测试

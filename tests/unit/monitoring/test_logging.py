@@ -8,6 +8,19 @@ from northstar_quant.config.settings import get_settings
 from northstar_quant.logging_.logger import _load_logging_config, _rotation_namer, get_logger, setup_logging
 
 
+_DEFAULT_LOGGING = {
+    "level": "INFO",
+    "console_enabled": True,
+    "file_enabled": True,
+    "filename": "northstar.log",
+    "when": "midnight",
+    "interval": 1,
+    "backup_count": 14,
+    "encoding": "utf-8",
+    "format": "%(asctime)s | %(levelname)-8s | %(filename)s:%(lineno)d | %(message)s",
+}
+
+
 def _write_app_config(
     project_root: Path,
     *,
@@ -25,7 +38,7 @@ def _write_app_config(
                     "reports_dir": "reports",
                     "log_dir": log_dir,
                 },
-                "logging": logging or {},
+                "logging": {**_DEFAULT_LOGGING, **(logging or {})},
             },
             allow_unicode=True,
             sort_keys=False,
@@ -157,7 +170,7 @@ def test_runtime_log_dir_preserves_yaml_rotation_rules(tmp_path, monkeypatch):
     assert (tmp_path / log_dir / "audit.log").exists()
 
 
-def test_logging_directory_key_is_rejected(tmp_path, monkeypatch):
+def test_logging_unknown_key_is_rejected(tmp_path, monkeypatch):
     _write_app_config(
         tmp_path,
         logging={"directory": "legacy-logs"},
@@ -166,7 +179,7 @@ def test_logging_directory_key_is_rejected(tmp_path, monkeypatch):
     get_settings.cache_clear()
 
     try:
-        with pytest.raises(ValueError, match="logging.directory 已移除"):
+        with pytest.raises(ValueError, match="logging 必须完整包含且只包含"):
             _load_logging_config()
     finally:
         get_settings.cache_clear()

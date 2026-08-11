@@ -13,6 +13,9 @@ $ErrorActionPreference = "Stop"
 
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
 $EnvFile = Join-Path $ProjectRoot ".env"
+$AppConfigExample = Join-Path $ProjectRoot "configs\app.example.yaml"
+$AppConfig = Join-Path $ProjectRoot "configs\app.yaml"
+$LegacyAppConfig = Join-Path $ProjectRoot "configs\app.local.yaml"
 
 function Write-Step {
     param([string]$Message)
@@ -35,6 +38,21 @@ function Require-Command {
     if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) {
         Fail "未找到 $Name。$HelpText"
     }
+}
+
+function Ensure-ActiveAppConfig {
+    if (Test-Path -LiteralPath $LegacyAppConfig) {
+        Fail "发现已废弃的 configs/app.local.yaml。请将需要保留的值完整迁入 configs/app.yaml，然后删除该文件。"
+    }
+    if (-not (Test-Path -LiteralPath $AppConfigExample)) {
+        Fail "未找到 configs/app.example.yaml；无法创建活动应用配置。"
+    }
+    if (Test-Path -LiteralPath $AppConfig) {
+        return
+    }
+
+    Copy-Item -LiteralPath $AppConfigExample -Destination $AppConfig
+    Write-Host "已从 configs/app.example.yaml 创建本地活动配置 configs/app.yaml。"
 }
 
 function Get-EnvFileValue {
@@ -137,6 +155,8 @@ if ([string]::IsNullOrWhiteSpace($PostgresPassword)) {
 if ($PostgresPassword -match "[\r\n]") {
     Fail "POSTGRES_PASSWORD 不能包含换行符。"
 }
+
+Ensure-ActiveAppConfig
 
 $PostgresPort = Get-EnvFileValue -Path $EnvFile -Key "POSTGRES_PORT"
 if ([string]::IsNullOrWhiteSpace($PostgresPort)) {

@@ -89,61 +89,110 @@ deploy_configure_runtime_paths() {
   done
 }
 
-# 运行时路径只在部署端的 deploy.env 中维护。部署时将已经过校验的业务
-# 输出路径写入待发布版本的配置文件，应用进程不再依赖 systemd 或发布前命令注入同名
-# NORTHSTAR_*_DIR 环境变量。调用方必须先执行 deploy_configure_runtime_paths。
-deploy_render_runtime_config() {
-  cat <<EOF
-# 此文件由 scripts/deploy 自动生成，请勿手工编辑。
-# 修改运行时输出目录请编辑部署机对应的 deploy.env 后重新发布。
-runtime:
-  storage_dir: "${RUNTIME_STORAGE_DIR}"
-  downloads_dir: "${RUNTIME_DOWNLOADS_DIR}"
-  reports_dir: "${RUNTIME_REPORTS_DIR}"
-  log_dir: "${RUNTIME_LOG_DIR}"
-EOF
+# 运行时路径只在部署端的 deploy.env 中维护。每次发布均以完整、非秘密的
+# configs/app.example.yaml 为基底，生成该 release 私有的活动 configs/app.yaml。
+# 应用进程不依赖 systemd 或发布前命令注入同名 NORTHSTAR_*_DIR 环境变量；调用方必须先
+# 执行 deploy_configure_runtime_paths。
+deploy_render_active_app_config() {
+  local template_file="$1"
+
+  if [ ! -f "${template_file}" ]; then
+    printf "完整应用配置模板不存在：%s\n" "${template_file}" >&2
+    return 1
+  fi
+
+  # 路径值已由 deploy_configure_runtime_paths 规范化为安全字符集，因此可安全作为 awk
+  # 变量写入双引号 YAML 标量。仅替换 runtime 的四个直属字段，其余内容按模板原样保留。
+  awk \
+    -v storage_dir="${RUNTIME_STORAGE_DIR}" \
+    -v downloads_dir="${RUNTIME_DOWNLOADS_DIR}" \
+    -v reports_dir="${RUNTIME_REPORTS_DIR}" \
+    -v log_dir="${RUNTIME_LOG_DIR}" '
+      /^[[:space:]]*runtime:[[:space:]]*(#.*)?$/ {
+        runtime_count += 1
+        in_runtime = 1
+        print
+        next
+      }
+      in_runtime && /^[^[:space:]#]/ {
+        in_runtime = 0
+      }
+      in_runtime && /^[[:space:]]+storage_dir:[[:space:]]*/ {
+        storage_count += 1
+        match($0, /^[[:space:]]*/)
+        print substr($0, RSTART, RLENGTH) "storage_dir: \"" storage_dir "\""
+        next
+      }
+      in_runtime && /^[[:space:]]+downloads_dir:[[:space:]]*/ {
+        downloads_count += 1
+        match($0, /^[[:space:]]*/)
+        print substr($0, RSTART, RLENGTH) "downloads_dir: \"" downloads_dir "\""
+        next
+      }
+      in_runtime && /^[[:space:]]+reports_dir:[[:space:]]*/ {
+        reports_count += 1
+        match($0, /^[[:space:]]*/)
+        print substr($0, RSTART, RLENGTH) "reports_dir: \"" reports_dir "\""
+        next
+      }
+      in_runtime && /^[[:space:]]+log_dir:[[:space:]]*/ {
+        log_count += 1
+        match($0, /^[[:space:]]*/)
+        print substr($0, RSTART, RLENGTH) "log_dir: \"" log_dir "\""
+        next
+      }
+      { print }
+      END {
+        if (runtime_count != 1 || storage_count != 1 || downloads_count != 1 || \
+            reports_count != 1 || log_count != 1) {
+          print "完整应用配置模板的 runtime 段必须恰好包含 storage_dir、downloads_dir、reports_dir 和 log_dir。" > "/dev/stderr"
+          exit 1
+        }
+      }
+    ' "${template_file}"
 }
 
-# 原子写入待发布版本的 app.local.yaml。配置内容不包含密钥，但仍按服务用户私有文件
-# 写入，避免发布中途让健康检查读取到半截 YAML。发布失败时随 stage 一并清理，旧版本
-# 的配置不会变化。
-deploy_write_runtime_config() {
-  local config_file="$1"
-  local service_user="$2"
+# 原子写入待发布版本的完整活动 app.yaml。配置内容不包含密钥，但仍按服务用户私有文件
+# 写入，避免发布中途让迁移或健康检查读取到半截 YAML。发布失败时它会随 stage 一并清理，
+# 已发布版本的配置不会变化。
+deploy_write_active_app_config() {
+  local template_file="$1"
+  local config_file="$2"
+  local service_user="$3"
   local config_dir
   local source_temp=""
   local target_temp=""
 
   config_dir="$(dirname -- "${config_file}")"
-  source_temp="$(mktemp "${TMPDIR:-/tmp}/northstar-runtime-config.XXXXXX")" || \
-    deploy_fail "无法创建运行时配置临时文件。"
+  source_temp="$(mktemp "${TMPDIR:-/tmp}/northstar-app-config.XXXXXX")" || \
+    deploy_fail "无法创建活动应用配置临时文件。"
 
-  if ! deploy_render_runtime_config > "${source_temp}"; then
+  if ! deploy_render_active_app_config "${template_file}" > "${source_temp}"; then
     rm -f -- "${source_temp}"
-    deploy_fail "无法生成运行时目录配置。"
+    deploy_fail "无法从完整模板生成活动应用配置。"
   fi
 
   if ! deploy_as_root install -d -o "${service_user}" -g "${service_user}" -m 0750 "${config_dir}"; then
     rm -f -- "${source_temp}"
-    deploy_fail "无法创建运行时配置目录：${config_dir}"
+    deploy_fail "无法创建活动应用配置目录：${config_dir}"
   fi
 
-  if ! target_temp="$(deploy_as_root mktemp "${config_dir}/.app.local.yaml.XXXXXX")"; then
+  if ! target_temp="$(deploy_as_root mktemp "${config_dir}/.app.yaml.XXXXXX")"; then
     rm -f -- "${source_temp}"
-    deploy_fail "无法创建运行时配置目标临时文件。"
+    deploy_fail "无法创建活动应用配置目标临时文件。"
   fi
 
   if ! deploy_as_root install -m 0600 -o "${service_user}" -g "${service_user}" \
     "${source_temp}" "${target_temp}"; then
     deploy_as_root rm -f -- "${target_temp}" || true
     rm -f -- "${source_temp}"
-    deploy_fail "无法写入运行时配置临时文件。"
+    deploy_fail "无法写入活动应用配置临时文件。"
   fi
 
   if ! deploy_as_root mv -Tf "${target_temp}" "${config_file}"; then
     deploy_as_root rm -f -- "${target_temp}" || true
     rm -f -- "${source_temp}"
-    deploy_fail "无法原子更新运行时配置：${config_file}"
+    deploy_fail "无法原子更新活动应用配置：${config_file}"
   fi
 
   rm -f -- "${source_temp}"

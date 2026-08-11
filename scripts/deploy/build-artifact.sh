@@ -35,11 +35,16 @@ for required_path in "${required_paths[@]}"; do
     deploy_fail "构建制品缺少必需路径：${required_path}"
   fi
 done
+if [ ! -f "${ROOT_DIR}/configs/app.example.yaml" ]; then
+  deploy_fail "构建制品缺少完整应用配置模板：configs/app.example.yaml"
+fi
 
 deploy_log "收集运行所需文件"
 mkdir -p "${BUNDLE_DIR}"
 tar -C "${ROOT_DIR}" \
+  --exclude='configs/app.yaml' \
   --exclude='configs/app.local.yaml' \
+  --exclude='configs/app.local.example.yaml' \
   -cf - "${required_paths[@]}" | tar -C "${BUNDLE_DIR}" -xf -
 
 cat > "${BUNDLE_DIR}/DEPLOY_ARTIFACT_META.txt" <<EOF

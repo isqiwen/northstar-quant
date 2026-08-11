@@ -202,27 +202,6 @@
       "message": "Skipping analyzing \"exchange_calendars\": module is installed, but missing library stubs or py.typed marker"
     },
     {
-      "file": "src/northstar_quant/logging_/logger.py",
-      "line": 89,
-      "column": 32,
-      "code": "override",
-      "message": "Argument 2 of \"process\" is incompatible with supertype \"logging.LoggerAdapter\"; supertype defines the argument type as \"MutableMapping[str, Any]\""
-    },
-    {
-      "file": "src/northstar_quant/logging_/logger.py",
-      "line": 91,
-      "column": 23,
-      "code": "arg-type",
-      "message": "Argument 1 to \"dict\" has incompatible type \"Mapping[str, object] | None\"; expected \"SupportsKeysAndGetItem[str, object]\""
-    },
-    {
-      "file": "src/northstar_quant/logging_/logger.py",
-      "line": 104,
-      "column": 22,
-      "code": "arg-type",
-      "message": "Argument 1 to \"dict\" has incompatible type \"Mapping[str, object] | None\"; expected \"SupportsKeysAndGetItem[str, object]\""
-    },
-    {
       "file": "src/northstar_quant/monitoring/dashboard.py",
       "line": 8,
       "column": 0,

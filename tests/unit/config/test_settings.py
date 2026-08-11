@@ -31,7 +31,18 @@ def _write_runtime_config(
                     "downloads_dir": downloads_dir,
                     "reports_dir": reports_dir,
                     "log_dir": log_dir,
-                }
+                },
+                "logging": {
+                    "level": "INFO",
+                    "console_enabled": True,
+                    "file_enabled": True,
+                    "filename": "northstar.log",
+                    "when": "midnight",
+                    "interval": 1,
+                    "backup_count": 14,
+                    "encoding": "utf-8",
+                    "format": "%(asctime)s | %(levelname)s | %(message)s",
+                },
             },
             allow_unicode=True,
             sort_keys=False,
@@ -128,6 +139,31 @@ def test_runtime_paths_are_only_disabled_environment_fields():
         "NORTHSTAR_REPORTS_DIR",
         "NORTHSTAR_LOG_DIR",
     }
+
+
+def test_explicit_runtime_paths_do_not_bypass_active_config_validation(tmp_path):
+    with pytest.raises(ValueError, match="活动应用配置不存在"):
+        Settings(
+            _env_file=None,
+            project_root=tmp_path,
+            storage_dir="explicit/storage",
+            downloads_dir="explicit/downloads",
+            reports_dir="explicit/reports",
+            log_dir="explicit/logs",
+        )
+
+    _write_runtime_config(tmp_path)
+    (tmp_path / "configs" / "app.local.yaml").write_text("runtime: {}\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="已废弃的 configs/app.local.yaml"):
+        Settings(
+            _env_file=None,
+            project_root=tmp_path,
+            storage_dir="explicit/storage",
+            downloads_dir="explicit/downloads",
+            reports_dir="explicit/reports",
+            log_dir="explicit/logs",
+        )
 
 
 @pytest.mark.parametrize("field", ["paper_state_path", "ctp_sim_state_path"])

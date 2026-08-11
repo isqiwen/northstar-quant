@@ -22,6 +22,7 @@ def test_powershell_dev_setup_uses_local_postgresql_and_safe_runtime_mode() -> N
     assert "NORTHSTAR_TEST_DATABASE_URL" in content
     assert '$env:NORTHSTAR_BROKER = "paper"' in content
     assert '$env:NORTHSTAR_LIVE_TRADING_ENABLED = "false"' in content
+    assert 'Copy-Item -LiteralPath $AppConfigExample -Destination $AppConfig' in content
     assert "uv sync --extra dev --locked" in content
     assert "uv run pytest" in content
     assert "uv run ruff check ." in content

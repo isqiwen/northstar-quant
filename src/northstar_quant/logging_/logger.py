@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Mapping, MutableMapping
 from datetime import datetime, timezone
 from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
@@ -11,23 +12,10 @@ from typing import Any
 
 import structlog
 
+from northstar_quant.config.app_runtime import load_app_config
 from northstar_quant.config.settings import get_settings
-from northstar_quant.config.yaml_loader import load_yaml
 
 _STANDARD_LOG_RECORD_FIELDS = set(logging.makeLogRecord({}).__dict__.keys()) | {"message", "asctime"}
-
-_DEFAULT_LOGGING_CONFIG: dict[str, Any] = {
-    "level": "INFO",
-    "console_enabled": True,
-    "file_enabled": True,
-    # 日志目录由 runtime.log_dir 提供，不能在 logging 段中重复配置。
-    "filename": "northstar.log",
-    "when": "midnight",
-    "interval": 1,
-    "backup_count": 14,
-    "encoding": "utf-8",
-    "format": "%(asctime)s | %(levelname)-8s | %(filename)s:%(lineno)d | %(message)s",
-}
 
 
 def _extract_context(record: logging.LogRecord) -> dict[str, Any]:
@@ -86,10 +74,17 @@ class JsonLinesFormatter(logging.Formatter):
 class ContextLoggerAdapter(logging.LoggerAdapter):
     """支持 bind 的结构化 logger。"""
 
-    def process(self, msg: Any, kwargs: dict[str, Any]) -> tuple[Any, dict[str, Any]]:
-        extra = dict(kwargs.get("extra") or {})
-        context = dict(self.extra)
-        context.update(extra.pop("context", {}) or {})
+    def process(
+        self,
+        msg: Any,
+        kwargs: MutableMapping[str, Any],
+    ) -> tuple[Any, MutableMapping[str, Any]]:
+        raw_extra = kwargs.get("extra")
+        extra = dict(raw_extra) if isinstance(raw_extra, Mapping) else {}
+        context = dict(self.extra) if self.extra is not None else {}
+        bound_context = extra.pop("context", None)
+        if isinstance(bound_context, Mapping):
+            context.update(bound_context)
 
         filtered_context = {
             key: value
@@ -101,7 +96,7 @@ class ContextLoggerAdapter(logging.LoggerAdapter):
         return msg, kwargs
 
     def bind(self, **context: Any) -> "ContextLoggerAdapter":
-        merged = dict(self.extra)
+        merged = dict(self.extra) if self.extra is not None else {}
         merged.update(context)
         return ContextLoggerAdapter(self.logger, merged)
 
@@ -129,27 +124,24 @@ def _rotation_namer(default_name: str) -> str:
     return str(path.with_name(rotated_name))
 
 
-def _load_logging_config(config_path: str | Path = "configs/app.yaml") -> dict[str, Any]:
-    """读取日志规则，并从运行时 YAML 取得唯一的日志目录。"""
+def _load_logging_config() -> dict[str, Any]:
+    """从唯一活动配置读取经过严格校验的日志规则。"""
 
-    path = Path(config_path)
-    if not path.is_absolute():
-        path = get_settings().project_root / path
-    if not path.exists():
-        merged = dict(_DEFAULT_LOGGING_CONFIG)
-    else:
-        raw_config = load_yaml(path)
-        logging_config = raw_config.get("logging", {}) or {}
-        if "directory" in logging_config:
-            raise ValueError(
-                "logging.directory 已移除；请在 configs/app.local.yaml 的 runtime.log_dir 配置日志目录"
-            )
-        merged = {**_DEFAULT_LOGGING_CONFIG, **logging_config}
     settings = get_settings()
-    merged["directory"] = str(settings.log_dir)
-    merged["level"] = str(merged["level"]).upper()
-    merged["interval"] = int(merged["interval"])
-    merged["backup_count"] = int(merged["backup_count"])
+    config = load_app_config(settings.project_root)
+    logging_config = config.logging
+    merged: dict[str, Any] = {
+        "level": logging_config.level,
+        "console_enabled": logging_config.console_enabled,
+        "file_enabled": logging_config.file_enabled,
+        "filename": logging_config.filename,
+        "when": logging_config.when,
+        "interval": logging_config.interval,
+        "backup_count": logging_config.backup_count,
+        "encoding": logging_config.encoding,
+        "format": logging_config.format,
+        "directory": str(settings.log_dir),
+    }
 
     if not merged["console_enabled"] and not merged["file_enabled"]:
         merged["console_enabled"] = True

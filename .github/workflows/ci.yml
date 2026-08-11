@@ -45,6 +45,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: 创建活动应用配置
+        run: cp configs/app.example.yaml configs/app.yaml
+
       - name: 配置 Python
         uses: actions/setup-python@v5
         with:

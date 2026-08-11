@@ -19,7 +19,7 @@ def test_mypy_baseline_is_versioned_and_sorted() -> None:
     assert baseline["mypy_version"] == "1.20.0"
     diagnostics = baseline["diagnostics"]
     assert isinstance(diagnostics, list)
-    assert len(diagnostics) == 89
+    assert len(diagnostics) == 86
     assert diagnostics == sorted(
         diagnostics,
         key=lambda item: (
@@ -42,4 +42,4 @@ def test_mypy_baseline_matches_current_source() -> None:
     )
 
     assert result.returncode == 0, result.stderr
-    assert "mypy 类型基线通过：89 条已记录诊断。" in result.stdout
+    assert "mypy 类型基线通过：86 条已记录诊断。" in result.stdout
