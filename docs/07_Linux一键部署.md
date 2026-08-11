@@ -62,8 +62,12 @@ RUNTIME_MATPLOTLIB_DIR=/var/cache/northstar-quant/matplotlib
 
 部署脚本只接受 `/srv`、`/var/lib`、`/var/cache`、`/var/log`、`/mnt` 或 `/data` 下的路径，
 拒绝相对路径和含 `.`、`..` 路径段的值。首次安装和后续发布都会以服务用户创建这些目录，
-权限为 `0750`。systemd 的可写白名单、发布前的 `init-db`/`health` 命令，以及版本目录中的
-`storage`、`reports`、`logs` 链接使用同一组配置；不要通过手工软链接绕过它。
+权限为 `0750`。部署脚本会将已校验的四个业务输出路径原子写入**待发布版本**的
+`configs/app.local.yaml`；发布前迁移和健康检查使用这份配置，失败时随 stage 清理，旧版本的
+配置不会变化。应用通过此 YAML 读取 `storage`、`downloads`、`reports` 和 `logs`，而 systemd
+仅用 `RUNTIME_*_DIR` 设置可写白名单和缓存目录。切换 `current` 前脚本会先停止旧服务，避免
+旧进程在重载配置时读取新版本路径。不要通过手工软链接或在 `.env.production` 重复设置这四个
+`NORTHSTAR_*_DIR` 绕过该边界。
 
 生产密钥和数据库 URL 使用 `.env.production`：
 
@@ -72,14 +76,13 @@ cp .env.production.example .env.production
 chmod 600 .env.production
 ```
 
-必须替换 `NORTHSTAR_DATABASE_URL` 中的 `CHANGE_ME`。`.env.production` 中的
-`NORTHSTAR_STORAGE_DIR`、`NORTHSTAR_DOWNLOADS_DIR` 和 `NORTHSTAR_REPORTS_DIR` 仅供手工
-在版本目录运行 CLI 时使用；它们应与 `deploy.env` 的 `RUNTIME_*_DIR` 保持一致。通过部署
-脚本和 systemd 启动时，后者始终覆盖前者。两个本地文件均被 Git 忽略；不要把密码、令牌或
-数据库 URL 写入 `deploy.env`。
+必须替换 `NORTHSTAR_DATABASE_URL` 中的 `CHANGE_ME`。`.env.production` 只保存数据库 URL、
+令牌等敏感运行时变量；业务输出目录以 `deploy.env` 为唯一部署来源，并由发布过程在每个新版本
+生成 `configs/app.local.yaml`。两个本地文件均被 Git 忽略；不要把密码、令牌或数据库 URL 写入
+`deploy.env`。
 
 无需为 Paper broker 设置固定状态文件路径：默认状态按账户写入
-`<RUNTIME_STORAGE_DIR>/brokers/paper/<NORTHSTAR_PAPER_ACCOUNT>/state.json`。这保证部署
+`<runtime.storage_dir>/brokers/paper/<NORTHSTAR_PAPER_ACCOUNT>/state.json`。这保证部署
 切换到独立数据盘时，Paper 状态仍与数据目录一起迁移；只有明确的迁移或恢复场景才应在
 `.env.production` 中取消注释 `NORTHSTAR_PAPER_STATE_PATH`。
 
@@ -141,9 +144,9 @@ uv run pytest
     └── uv-cache/
 ```
 
-每个版本拥有独立 `.venv`，生产 `.env` 与 `python`、`uv-cache` 保存在 `shared/`；
-`storage`、`reports`、`logs` 则通过版本目录软链接指向配置的运行时目录。依赖通过远端
-`uv sync --frozen --no-dev --no-editable` 从 `uv.lock` 安装。
+每个版本拥有独立 `.venv`，并在安装时生成自身的 `configs/app.local.yaml`；生产 `.env` 与
+`python`、`uv-cache` 保存在 `shared/`。`storage`、`reports`、`logs` 均通过版本目录软链接指向
+配置的运行时目录。依赖通过远端 `uv sync --frozen --no-dev --no-editable` 从 `uv.lock` 安装。
 
 ## 服务模式
 

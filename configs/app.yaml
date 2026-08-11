@@ -16,6 +16,18 @@ app:
   rebalance_frequency: 1d
   strategy_family: trend_following
 
+# 运行输出目录的唯一真源。相对路径相对于项目根目录；如需本机或服务器覆盖，
+# 复制 app.local.example.yaml 为 app.local.yaml，并完整填写本段。
+runtime:
+  # 标准行情、下载缓存、模拟账户状态等本地持久化文件根目录。
+  storage_dir: storage
+  # null 表示自动使用 storage_dir/downloads；只有需要独立磁盘时才填写路径。
+  downloads_dir: null
+  # 回测、日报和 PDF 等正式报告制品根目录。
+  reports_dir: reports
+  # JSON Lines 审计日志根目录。
+  log_dir: logs
+
 # 统一日志设置。日志是运行审计的一部分，不应关闭文件日志来规避问题追踪。
 logging:
   # Python 日志最低级别；INFO 适合日常运行，排障时可临时调整为 DEBUG。
@@ -24,8 +36,6 @@ logging:
   console_enabled: true
   # 是否写入 JSON Lines 审计日志；正式运行建议保持 true。
   file_enabled: true
-  # 相对项目根目录的日志输出目录；可由 NORTHSTAR_LOG_DIR 仅覆盖目录，其他轮转规则仍以本段为准。
-  directory: logs
   # 当前活动日志文件名；轮转后的文件会带日期后缀。
   filename: northstar.log
   # 按什么周期轮转；midnight 表示每天午夜切换新文件。

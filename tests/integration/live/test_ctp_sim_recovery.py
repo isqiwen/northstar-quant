@@ -1,6 +1,7 @@
 from sqlalchemy import select
 
-from northstar_quant.config.settings import get_settings
+import northstar_quant.execution.ctp_sim_broker as ctp_sim_broker
+from northstar_quant.config.settings import Settings, get_settings
 from northstar_quant.db.models import FillRecord, OrderRecord, PositionSnapshotRecord
 from northstar_quant.execution.ctp_sim_broker import CtpSimBrokerAdapter
 from northstar_quant.execution.models import OrderRequest
@@ -13,14 +14,17 @@ def test_ctp_sim_disconnect_recovery_reconciles_order_fill_and_position(
     monkeypatch,
     postgresql_session_factory,
 ):
-    monkeypatch.setenv("NORTHSTAR_STORAGE_DIR", str(tmp_path / "storage"))
-    monkeypatch.setenv(
-        "NORTHSTAR_CTP_SIM_STATE_PATH",
-        str(tmp_path / "storage" / "ctp_sim_state.json"),
+    settings = Settings(
+        _env_file=None,
+        storage_dir=tmp_path / "storage",
+        downloads_dir=tmp_path / "storage" / "downloads",
+        reports_dir=tmp_path / "reports",
+        log_dir=tmp_path / "logs",
+        ctp_sim_state_path=tmp_path / "storage" / "ctp_sim_state.json",
+        ctp_sim_account="ctp-sim-recovery",
+        default_cash=1000000,
     )
-    monkeypatch.setenv("NORTHSTAR_CTP_SIM_ACCOUNT", "ctp-sim-recovery")
-    monkeypatch.setenv("NORTHSTAR_DEFAULT_CASH", "1000000")
-    get_settings.cache_clear()
+    monkeypatch.setattr(ctp_sim_broker, "get_settings", lambda: settings)
     try:
         broker = CtpSimBrokerAdapter()
         broker.connect()

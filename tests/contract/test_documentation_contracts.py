@@ -145,8 +145,9 @@ def test_configuration_documentation_matches_safe_runtime_defaults() -> None:
     assert "configs/data/sources.yaml" in config_guide
     assert "research_admission" in config_guide
     assert "ctp_sim" in config_guide
-    assert "NORTHSTAR_DOWNLOADS_DIR" in config_guide
-    assert "NORTHSTAR_LOG_DIR" in config_guide
+    assert "runtime.downloads_dir" in config_guide
+    assert "runtime.log_dir" in config_guide
+    assert "configs/app.local.yaml" in config_guide
     assert "northstar data cleanup" in config_guide
     assert "标准市场数据" in config_guide
     assert "PostgreSQL 服务的独立数据卷" in config_guide

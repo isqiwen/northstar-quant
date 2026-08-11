@@ -1,26 +1,50 @@
 import json
 from pathlib import Path
 
+import pytest
+import yaml
+
 from northstar_quant.config.settings import get_settings
 from northstar_quant.logging_.logger import _load_logging_config, _rotation_namer, get_logger, setup_logging
 
 
-def test_load_logging_config_from_app_yaml(tmp_path, monkeypatch):
-    config_dir = tmp_path / "configs"
-    config_dir.mkdir()
+def _write_app_config(
+    project_root: Path,
+    *,
+    log_dir: str = "logs",
+    logging: dict[str, object] | None = None,
+) -> None:
+    config_dir = project_root / "configs"
+    config_dir.mkdir(parents=True, exist_ok=True)
     (config_dir / "app.yaml").write_text(
-        "\n".join(
-            [
-                "logging:",
-                "  level: DEBUG",
-                "  console_enabled: false",
-                "  file_enabled: true",
-                "  directory: logs/custom",
-                "  filename: app.log",
-                "  backup_count: 3",
-            ]
+        yaml.safe_dump(
+            {
+                "runtime": {
+                    "storage_dir": "storage",
+                    "downloads_dir": None,
+                    "reports_dir": "reports",
+                    "log_dir": log_dir,
+                },
+                "logging": logging or {},
+            },
+            allow_unicode=True,
+            sort_keys=False,
         ),
         encoding="utf-8",
+    )
+
+
+def test_load_logging_config_from_app_yaml(tmp_path, monkeypatch):
+    _write_app_config(
+        tmp_path,
+        log_dir="logs/custom",
+        logging={
+            "level": "DEBUG",
+            "console_enabled": False,
+            "file_enabled": True,
+            "filename": "app.log",
+            "backup_count": 3,
+        },
     )
 
     monkeypatch.setenv("NORTHSTAR_PROJECT_ROOT", str(tmp_path))
@@ -34,25 +58,19 @@ def test_load_logging_config_from_app_yaml(tmp_path, monkeypatch):
     assert config["level"] == "DEBUG"
     assert config["console_enabled"] is False
     assert config["file_enabled"] is True
-    assert config["directory"] == "logs/custom"
+    assert config["directory"] == str(tmp_path / "logs/custom")
     assert config["filename"] == "app.log"
     assert config["backup_count"] == 3
 
 
 def test_setup_logging_creates_log_file(tmp_path, monkeypatch):
-    config_dir = tmp_path / "configs"
-    config_dir.mkdir()
-    (config_dir / "app.yaml").write_text(
-        "\n".join(
-            [
-                "logging:",
-                "  console_enabled: false",
-                "  file_enabled: true",
-                "  directory: logs",
-                "  filename: northstar.log",
-            ]
-        ),
-        encoding="utf-8",
+    _write_app_config(
+        tmp_path,
+        logging={
+            "console_enabled": False,
+            "file_enabled": True,
+            "filename": "northstar.log",
+        },
     )
 
     monkeypatch.setenv("NORTHSTAR_PROJECT_ROOT", str(tmp_path))
@@ -72,19 +90,13 @@ def test_rotation_namer_uses_date_before_log_suffix():
 
 
 def test_setup_logging_writes_json_lines_with_top_level_fields(tmp_path, monkeypatch):
-    config_dir = tmp_path / "configs"
-    config_dir.mkdir()
-    (config_dir / "app.yaml").write_text(
-        "\n".join(
-            [
-                "logging:",
-                "  console_enabled: false",
-                "  file_enabled: true",
-                "  directory: logs",
-                "  filename: northstar.log",
-            ]
-        ),
-        encoding="utf-8",
+    _write_app_config(
+        tmp_path,
+        logging={
+            "console_enabled": False,
+            "file_enabled": True,
+            "filename": "northstar.log",
+        },
     )
 
     monkeypatch.setenv("NORTHSTAR_PROJECT_ROOT", str(tmp_path))
@@ -113,28 +125,22 @@ def test_setup_logging_writes_json_lines_with_top_level_fields(tmp_path, monkeyp
     assert "message" not in payload
 
 
-def test_log_dir_environment_override_preserves_yaml_rotation_rules(tmp_path, monkeypatch):
-    config_dir = tmp_path / "configs"
-    config_dir.mkdir()
-    (config_dir / "app.yaml").write_text(
-        "\n".join(
-            [
-                "logging:",
-                "  console_enabled: false",
-                "  file_enabled: true",
-                "  directory: logs/from-yaml",
-                "  filename: audit.log",
-                "  when: H",
-                "  interval: 6",
-                "  backup_count: 9",
-            ]
-        ),
-        encoding="utf-8",
+def test_runtime_log_dir_preserves_yaml_rotation_rules(tmp_path, monkeypatch):
+    log_dir = "runtime/audit-logs"
+    _write_app_config(
+        tmp_path,
+        log_dir=log_dir,
+        logging={
+            "console_enabled": False,
+            "file_enabled": True,
+            "filename": "audit.log",
+            "when": "H",
+            "interval": 6,
+            "backup_count": 9,
+        },
     )
-    log_dir = tmp_path / "runtime" / "audit-logs"
 
     monkeypatch.setenv("NORTHSTAR_PROJECT_ROOT", str(tmp_path))
-    monkeypatch.setenv("NORTHSTAR_LOG_DIR", str(log_dir))
     get_settings.cache_clear()
 
     try:
@@ -143,18 +149,32 @@ def test_log_dir_environment_override_preserves_yaml_rotation_rules(tmp_path, mo
     finally:
         get_settings.cache_clear()
 
-    assert config["directory"] == str(log_dir)
+    assert config["directory"] == str(tmp_path / log_dir)
     assert config["filename"] == "audit.log"
     assert config["when"] == "H"
     assert config["interval"] == 6
     assert config["backup_count"] == 9
-    assert (log_dir / "audit.log").exists()
+    assert (tmp_path / log_dir / "audit.log").exists()
 
 
-def test_log_dir_environment_override_applies_when_app_yaml_is_missing(tmp_path, monkeypatch):
-    log_dir = tmp_path / "runtime" / "audit-logs"
+def test_logging_directory_key_is_rejected(tmp_path, monkeypatch):
+    _write_app_config(
+        tmp_path,
+        logging={"directory": "legacy-logs"},
+    )
     monkeypatch.setenv("NORTHSTAR_PROJECT_ROOT", str(tmp_path))
-    monkeypatch.setenv("NORTHSTAR_LOG_DIR", str(log_dir))
+    get_settings.cache_clear()
+
+    try:
+        with pytest.raises(ValueError, match="logging.directory 已移除"):
+            _load_logging_config()
+    finally:
+        get_settings.cache_clear()
+
+
+def test_default_logging_rules_use_runtime_log_dir(tmp_path, monkeypatch):
+    _write_app_config(tmp_path, log_dir="runtime/default-logs")
+    monkeypatch.setenv("NORTHSTAR_PROJECT_ROOT", str(tmp_path))
     get_settings.cache_clear()
 
     try:
@@ -162,6 +182,6 @@ def test_log_dir_environment_override_applies_when_app_yaml_is_missing(tmp_path,
     finally:
         get_settings.cache_clear()
 
-    assert config["directory"] == str(log_dir)
+    assert config["directory"] == str(tmp_path / "runtime/default-logs")
     assert config["filename"] == "northstar.log"
     assert config["backup_count"] == 14

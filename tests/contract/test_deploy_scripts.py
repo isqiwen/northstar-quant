@@ -142,6 +142,10 @@ def test_build_artifact_contains_only_runtime_sources(tmp_path: Path) -> None:
     assert not any(name.startswith("storage/") for name in names)
     assert not any(name.startswith("reports/") for name in names)
     assert not any(name.startswith("tests/") for name in names)
+    assert "configs/app.local.yaml" not in names
+
+    builder = (DEPLOY_DIR / "build-artifact.sh").read_text(encoding="utf-8")
+    assert "--exclude='configs/app.local.yaml'" in builder
 
 
 def test_health_deploy_accepts_safe_production_environment(tmp_path: Path) -> None:
@@ -224,9 +228,14 @@ def test_non_paper_scheduler_requires_explicit_confirmation(tmp_path: Path) -> N
 def test_runtime_output_paths_are_configurable_and_consistent() -> None:
     config_example = (ROOT_DIR / "deploy.env.example").read_text(encoding="utf-8")
     config_loader = (DEPLOY_DIR / "lib" / "config.sh").read_text(encoding="utf-8")
+    runtime_paths = (DEPLOY_DIR / "lib" / "runtime_paths.sh").read_text(encoding="utf-8")
     deploy_script = (DEPLOY_DIR / "deploy.sh").read_text(encoding="utf-8")
     provision_script = (DEPLOY_DIR / "provision.sh").read_text(encoding="utf-8")
+    runtime_install_script = (DEPLOY_DIR / "install-runtime.sh").read_text(encoding="utf-8")
     release_script = (DEPLOY_DIR / "install-release.sh").read_text(encoding="utf-8")
+    run_release_command = release_script.split("run_release_command() {", maxsplit=1)[1].split(
+        "\n}\n\nrender_systemd_unit", maxsplit=1
+    )[0]
 
     for key in RUNTIME_PATH_KEYS:
         assert f"{key}=" in config_example
@@ -237,20 +246,88 @@ def test_runtime_output_paths_are_configurable_and_consistent() -> None:
 
     for template_name in ("health.service.in", "scheduler.service.in"):
         template = (DEPLOY_DIR / "systemd" / template_name).read_text(encoding="utf-8")
-        assert "Environment=NORTHSTAR_STORAGE_DIR=@RUNTIME_STORAGE_DIR@" in template
-        assert "Environment=NORTHSTAR_DOWNLOADS_DIR=@RUNTIME_DOWNLOADS_DIR@" in template
-        assert "Environment=NORTHSTAR_REPORTS_DIR=@RUNTIME_REPORTS_DIR@" in template
-        assert "Environment=NORTHSTAR_LOG_DIR=@RUNTIME_LOG_DIR@" in template
+        assert "Environment=NORTHSTAR_STORAGE_DIR=" not in template
+        assert "Environment=NORTHSTAR_DOWNLOADS_DIR=" not in template
+        assert "Environment=NORTHSTAR_REPORTS_DIR=" not in template
+        assert "Environment=NORTHSTAR_LOG_DIR=" not in template
         assert "Environment=XDG_CACHE_HOME=@RUNTIME_CACHE_DIR@" in template
         assert "Environment=MPLCONFIGDIR=@RUNTIME_MATPLOTLIB_DIR@" in template
         assert "ReadWritePaths=@SHARED_DIR@ @RUNTIME_STORAGE_DIR@" in template
         assert "@RUNTIME_LOG_DIR@" in template
 
-    assert 'NORTHSTAR_STORAGE_DIR="${RUNTIME_STORAGE_DIR}"' in release_script
-    assert 'NORTHSTAR_DOWNLOADS_DIR="${RUNTIME_DOWNLOADS_DIR}"' in release_script
-    assert 'NORTHSTAR_REPORTS_DIR="${RUNTIME_REPORTS_DIR}"' in release_script
-    assert 'NORTHSTAR_LOG_DIR="${RUNTIME_LOG_DIR}"' in release_script
+    assert 'deploy_write_runtime_config "${STAGE_DIR}/configs/app.local.yaml" "${SERVICE_USER}"' in release_script
+    assert 'ln -s "${APP_LOCAL_CONFIG_FILE}" "${STAGE_DIR}/configs/app.local.yaml"' not in release_script
+    assert '"${SHARED_DIR}/config/app.local.yaml"' not in release_script
+    assert "deploy_write_runtime_config" not in runtime_install_script
+    assert release_script.index('deploy_write_runtime_config "${STAGE_DIR}/configs/app.local.yaml"') < release_script.index(
+        'run_release_command "${STAGE_DIR}" "${STAGE_DIR}/.venv/bin/northstar" init-db'
+    )
+    cutover = release_script.split('deploy_log "停止当前服务，准备原子切换 current"', maxsplit=1)[1]
+    assert cutover.index('systemctl stop "${SYSTEMD_SERVICE_NAME}.service"') < cutover.index(
+        "switch_current_release"
+    )
+    assert "backup_systemd_unit()" in release_script
+    assert "restore_systemd_unit()" in release_script
+    assert "render_systemd_unit()" in release_script
+    assert "install_rendered_systemd_unit()" in release_script
+    activation = release_script.split('deploy_log "渲染新版本 systemd 服务配置"', maxsplit=1)[1]
+    assert activation.index("render_systemd_unit || ! backup_systemd_unit") < activation.index(
+        'systemctl stop "${SYSTEMD_SERVICE_NAME}.service"'
+    )
+    assert activation.index('systemctl stop "${SYSTEMD_SERVICE_NAME}.service"') < activation.index(
+        "install_rendered_systemd_unit"
+    ) < activation.index("switch_current_release")
+    assert "recover_interrupted_cutover()" in release_script
+    assert "trap 'recover_interrupted_cutover $?' ERR" in release_script
+    rollback = release_script.split("rollback_release() {", maxsplit=1)[1].split(
+        "\n}\n\nprune_old_releases", maxsplit=1
+    )[0]
+    assert rollback.index("restore_systemd_unit") < rollback.index(
+        'systemctl restart "${SYSTEMD_SERVICE_NAME}.service"'
+    )
     assert 'ln -s "${RUNTIME_LOG_DIR}" "${STAGE_DIR}/logs"' in release_script
+    for environment_name in (
+        "NORTHSTAR_STORAGE_DIR",
+        "NORTHSTAR_DOWNLOADS_DIR",
+        "NORTHSTAR_REPORTS_DIR",
+        "NORTHSTAR_LOG_DIR",
+    ):
+        assert environment_name not in run_release_command
+    assert "deploy_render_runtime_config()" in runtime_paths
+    assert 'mv -Tf "${target_temp}" "${config_file}"' in runtime_paths
+
+
+def test_runtime_config_renders_storage_downloads_reports_and_logs() -> None:
+    command = """
+set -euo pipefail
+source "$1/lib/common.sh"
+source "$1/lib/runtime_paths.sh"
+RUNTIME_STORAGE_DIR=/mnt/northstar-quant/market-storage
+RUNTIME_DOWNLOADS_DIR=/data/northstar-quant/download-cache
+RUNTIME_REPORTS_DIR=/mnt/northstar-quant/reports
+RUNTIME_LOG_DIR=/var/log/northstar-quant
+deploy_render_runtime_config
+"""
+
+    result = _run_bash(
+        "-c",
+        command,
+        BASH_EXECUTABLE,
+        _bash_path(DEPLOY_DIR),
+        check=False,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.splitlines() == [
+        "# 此文件由 scripts/deploy 自动生成，请勿手工编辑。",
+        "# 修改运行时输出目录请编辑部署机对应的 deploy.env 后重新发布。",
+        "runtime:",
+        '  storage_dir: "/mnt/northstar-quant/market-storage"',
+        '  downloads_dir: "/data/northstar-quant/download-cache"',
+        '  reports_dir: "/mnt/northstar-quant/reports"',
+        '  log_dir: "/var/log/northstar-quant"',
+    ]
 
 
 def test_runtime_output_path_defaults_and_custom_values() -> None:

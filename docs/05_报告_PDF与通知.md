@@ -15,7 +15,7 @@
 | `manifest.json` | 回测制品的输入、配置、代码和结果指纹；周期报告不一定包含。 |
 | `report.pdf` | 按需生成的阅读/归档副本。 |
 
-官方报告位于 `NORTHSTAR_REPORTS_DIR/<类型>/<画像>/<策略>/<周期>[/<run-id>]/`。回测使用
+官方报告位于 `runtime.reports_dir/<类型>/<画像>/<策略>/<周期>[/<run-id>]/`。回测使用
 `run-id` 作为不可变制品身份；周期报告按其周期更新同一目录。Dashboard 会递归发现同时拥有
 有效 `report.json` 且 `artifact_id` 与目录一致的 `report.md`，不会把手工 Markdown 或残缺
 目录误认为正式报告。

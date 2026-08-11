@@ -36,6 +36,7 @@ pip-wheel-metadata/
 !.env.example
 !.env.production.example
 deploy.env
+configs/app.local.yaml
 
 # IDE / OS files
 .idea/

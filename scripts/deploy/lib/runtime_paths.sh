@@ -88,3 +88,63 @@ deploy_configure_runtime_paths() {
       "${app_root}"
   done
 }
+
+# 运行时路径只在部署端的 deploy.env 中维护。部署时将已经过校验的业务
+# 输出路径写入待发布版本的配置文件，应用进程不再依赖 systemd 或发布前命令注入同名
+# NORTHSTAR_*_DIR 环境变量。调用方必须先执行 deploy_configure_runtime_paths。
+deploy_render_runtime_config() {
+  cat <<EOF
+# 此文件由 scripts/deploy 自动生成，请勿手工编辑。
+# 修改运行时输出目录请编辑部署机对应的 deploy.env 后重新发布。
+runtime:
+  storage_dir: "${RUNTIME_STORAGE_DIR}"
+  downloads_dir: "${RUNTIME_DOWNLOADS_DIR}"
+  reports_dir: "${RUNTIME_REPORTS_DIR}"
+  log_dir: "${RUNTIME_LOG_DIR}"
+EOF
+}
+
+# 原子写入待发布版本的 app.local.yaml。配置内容不包含密钥，但仍按服务用户私有文件
+# 写入，避免发布中途让健康检查读取到半截 YAML。发布失败时随 stage 一并清理，旧版本
+# 的配置不会变化。
+deploy_write_runtime_config() {
+  local config_file="$1"
+  local service_user="$2"
+  local config_dir
+  local source_temp=""
+  local target_temp=""
+
+  config_dir="$(dirname -- "${config_file}")"
+  source_temp="$(mktemp "${TMPDIR:-/tmp}/northstar-runtime-config.XXXXXX")" || \
+    deploy_fail "无法创建运行时配置临时文件。"
+
+  if ! deploy_render_runtime_config > "${source_temp}"; then
+    rm -f -- "${source_temp}"
+    deploy_fail "无法生成运行时目录配置。"
+  fi
+
+  if ! deploy_as_root install -d -o "${service_user}" -g "${service_user}" -m 0750 "${config_dir}"; then
+    rm -f -- "${source_temp}"
+    deploy_fail "无法创建运行时配置目录：${config_dir}"
+  fi
+
+  if ! target_temp="$(deploy_as_root mktemp "${config_dir}/.app.local.yaml.XXXXXX")"; then
+    rm -f -- "${source_temp}"
+    deploy_fail "无法创建运行时配置目标临时文件。"
+  fi
+
+  if ! deploy_as_root install -m 0600 -o "${service_user}" -g "${service_user}" \
+    "${source_temp}" "${target_temp}"; then
+    deploy_as_root rm -f -- "${target_temp}" || true
+    rm -f -- "${source_temp}"
+    deploy_fail "无法写入运行时配置临时文件。"
+  fi
+
+  if ! deploy_as_root mv -Tf "${target_temp}" "${config_file}"; then
+    deploy_as_root rm -f -- "${target_temp}" || true
+    rm -f -- "${source_temp}"
+    deploy_fail "无法原子更新运行时配置：${config_file}"
+  fi
+
+  rm -f -- "${source_temp}"
+}

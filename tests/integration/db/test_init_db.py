@@ -1,10 +1,12 @@
 from sqlalchemy import create_engine, inspect, text
-from tests.support.postgresql import postgresql_test_url
 
-from northstar_quant.config.settings import get_settings
+import northstar_quant.config.settings as settings_module
+import northstar_quant.db.init_db as init_db_module
+from northstar_quant.config.settings import Settings, get_settings
 from northstar_quant.db import models  # noqa: F401
 from northstar_quant.db.base import Base
 from northstar_quant.db.init_db import _redact_database_url, init_db
+from tests.support.postgresql import postgresql_test_url
 
 
 def test_redact_database_url_hides_password():
@@ -22,9 +24,16 @@ def test_init_db_uses_alembic_head_and_is_idempotent(tmp_path, monkeypatch):
     storage_dir = tmp_path / "storage"
     database_url = postgresql_test_url(db_path)
 
-    monkeypatch.setenv("NORTHSTAR_DATABASE_URL", database_url)
-    monkeypatch.setenv("NORTHSTAR_STORAGE_DIR", str(storage_dir))
-    get_settings.cache_clear()
+    settings = Settings(
+        _env_file=None,
+        database_url=database_url,
+        storage_dir=storage_dir,
+        downloads_dir=storage_dir / "downloads",
+        reports_dir=tmp_path / "reports",
+        log_dir=tmp_path / "logs",
+    )
+    monkeypatch.setattr(settings_module, "get_settings", lambda: settings)
+    monkeypatch.setattr(init_db_module, "get_settings", lambda: settings)
 
     try:
         init_db()

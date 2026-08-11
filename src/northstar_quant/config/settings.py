@@ -7,15 +7,91 @@
 from __future__ import annotations
 
 from functools import lru_cache
+import os
 from pathlib import Path
 import re
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import Field, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic.fields import FieldInfo
+from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
+
+from northstar_quant.config.app_runtime import load_app_runtime_paths
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 _LOCAL_ACCOUNT_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")
+
+# 这四个字段保留在模型中，便于测试显式构造 Settings；运行时真源始终是 YAML。
+ENV_DISABLED_FIELDS = frozenset({"storage_dir", "downloads_dir", "reports_dir", "log_dir"})
+LEGACY_RUNTIME_PATH_ENV_VARS = frozenset(
+    f"NORTHSTAR_{field.upper()}" for field in ENV_DISABLED_FIELDS
+)
+
+
+class _ExcludedSettingsFieldsSource(PydanticBaseSettingsSource):
+    """从一个设置来源中删除只允许 YAML/显式构造的字段。"""
+
+    def __init__(
+        self,
+        settings_cls: type[BaseSettings],
+        source: PydanticBaseSettingsSource,
+    ) -> None:
+        super().__init__(settings_cls)
+        self._source = source
+
+    def get_field_value(
+        self,
+        field: FieldInfo,
+        field_name: str,
+    ) -> tuple[Any, str, bool]:
+        return None, field_name, False
+
+    def __call__(self) -> dict[str, Any]:
+        return {
+            field_name: value
+            for field_name, value in self._source().items()
+            if field_name not in ENV_DISABLED_FIELDS
+        }
+
+
+class _RejectLegacyRuntimePathEnvironmentSource(PydanticBaseSettingsSource):
+    """阻止旧输出路径变量悄悄覆盖可审计的 YAML 配置。"""
+
+    def __init__(
+        self,
+        settings_cls: type[BaseSettings],
+        *sources: PydanticBaseSettingsSource,
+    ) -> None:
+        super().__init__(settings_cls)
+        self._sources = sources
+
+    def get_field_value(
+        self,
+        field: FieldInfo,
+        field_name: str,
+    ) -> tuple[Any, str, bool]:
+        return None, field_name, False
+
+    def __call__(self) -> dict[str, Any]:
+        seen: set[str] = set()
+        for source in self._sources:
+            env_vars = getattr(source, "env_vars", {})
+            if not isinstance(env_vars, dict):
+                continue
+            seen.update(
+                str(name).upper()
+                for name in env_vars
+                if str(name).upper() in LEGACY_RUNTIME_PATH_ENV_VARS
+            )
+
+        if seen:
+            names = "、".join(sorted(seen))
+            raise ValueError(
+                f"不再接受运行输出路径环境变量：{names}。"
+                "请从 OS/.env 中删除这些变量，并改为在 configs/app.local.yaml 的 "
+                "runtime 段中完整配置 storage_dir、downloads_dir、reports_dir、log_dir。"
+            )
+        return {}
 
 
 def normalize_local_state_account(value: str) -> str:
@@ -41,6 +117,29 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
+        """保留敏感环境变量，同时让运行输出路径只由 YAML 决定。"""
+
+        return (
+            init_settings,
+            _RejectLegacyRuntimePathEnvironmentSource(
+                settings_cls,
+                env_settings,
+                dotenv_settings,
+            ),
+            _ExcludedSettingsFieldsSource(settings_cls, env_settings),
+            _ExcludedSettingsFieldsSource(settings_cls, dotenv_settings),
+            _ExcludedSettingsFieldsSource(settings_cls, file_secret_settings),
+        )
+
     app_name: str = Field(default="Northstar Quant")
     env: str = Field(default="dev")
     timezone: str = Field(default="Asia/Shanghai")
@@ -48,12 +147,14 @@ class Settings(BaseSettings):
     default_profile_id: str = Field(default="cn_futures_daily_trend_offline")
     profile_config_dir: Path = Field(default=Path("configs/profiles"))
 
+    # 运行输出路径由 configs/app.yaml 的 runtime 段提供。保留这些字段只供测试
+    # 显式构造 Settings 使用；它们绝不接受环境变量或 .env 注入。
     storage_dir: Path = Field(default=Path("storage"))
-    # 未显式配置时在 model_post_init 中派生为 storage_dir / "downloads"。
+    # YAML 中的 null 在 model_post_init 中表示从最终 storage_dir 派生为
+    # storage_dir / "downloads"。字段本身在设置对象完成构造后始终是 Path。
     downloads_dir: Path = Field(default=Path("storage/downloads"))
     reports_dir: Path = Field(default=Path("reports"))
-    # None 表示沿用 configs/app.yaml 的 logging.directory。
-    log_dir: Path | None = Field(default=None)
+    log_dir: Path = Field(default=Path("logs"))
 
     # 数据库配置。项目只支持 PostgreSQL；凭据必须通过本地 .env 注入。
     database_url: str = Field(
@@ -196,8 +297,6 @@ class Settings(BaseSettings):
 
         for field_name in (
             "profile_config_dir",
-            "storage_dir",
-            "reports_dir",
             "ctp_sim_contract_mapping_path",
             "ctp_contract_mapping_path",
         ):
@@ -206,12 +305,59 @@ class Settings(BaseSettings):
                 value = project_root / value
             object.__setattr__(self, field_name, value)
 
-        if "downloads_dir" in self.model_fields_set:
-            downloads_dir = Path(self.downloads_dir)
-            if not downloads_dir.is_absolute():
-                downloads_dir = project_root / downloads_dir
+        runtime_paths = (
+            None
+            if ENV_DISABLED_FIELDS.issubset(self.model_fields_set)
+            else load_app_runtime_paths(project_root)
+        )
+        configured_downloads_dir: Path | None
+
+        if runtime_paths is None:
+            configured_storage_dir = self.storage_dir
+            configured_downloads_dir = self.downloads_dir
+            configured_reports_dir = self.reports_dir
+            configured_log_dir = self.log_dir
         else:
-            downloads_dir = self.storage_dir / "downloads"
+            configured_storage_dir = (
+                self.storage_dir
+                if "storage_dir" in self.model_fields_set
+                else runtime_paths.storage_dir
+            )
+            configured_downloads_dir = (
+                self.downloads_dir
+                if "downloads_dir" in self.model_fields_set
+                else runtime_paths.downloads_dir
+            )
+            configured_reports_dir = (
+                self.reports_dir
+                if "reports_dir" in self.model_fields_set
+                else runtime_paths.reports_dir
+            )
+            configured_log_dir = (
+                self.log_dir if "log_dir" in self.model_fields_set else runtime_paths.log_dir
+            )
+
+        storage_dir = _resolve_runtime_setting_path(
+            configured_storage_dir,
+            project_root,
+        )
+        reports_dir = _resolve_runtime_setting_path(
+            configured_reports_dir,
+            project_root,
+        )
+        log_dir = _resolve_runtime_setting_path(
+            configured_log_dir,
+            project_root,
+        )
+        downloads_dir = (
+            storage_dir / "downloads"
+            if configured_downloads_dir is None
+            else _resolve_runtime_setting_path(configured_downloads_dir, project_root)
+        )
+
+        object.__setattr__(self, "storage_dir", storage_dir)
+        object.__setattr__(self, "reports_dir", reports_dir)
+        object.__setattr__(self, "log_dir", log_dir)
         object.__setattr__(self, "downloads_dir", downloads_dir)
 
         paper_state_path = _resolve_local_state_path(
@@ -234,11 +380,14 @@ class Settings(BaseSettings):
         )
         object.__setattr__(self, "ctp_sim_state_path", ctp_sim_state_path)
 
-        if self.log_dir is not None:
-            log_dir = Path(self.log_dir)
-            if not log_dir.is_absolute():
-                log_dir = project_root / log_dir
-            object.__setattr__(self, "log_dir", log_dir)
+
+def _resolve_runtime_setting_path(value: str | Path, project_root: Path) -> Path:
+    """将 YAML 或测试显式传入的运行输出路径解析为绝对路径。"""
+
+    path = Path(value)
+    if not path.is_absolute():
+        path = project_root / path
+    return path.resolve()
 
 
 def _resolve_local_state_path(
@@ -259,11 +408,11 @@ def _resolve_local_state_path(
         resolved_state_path.relative_to(resolved_storage_dir)
     except ValueError as exc:
         raise ValueError(
-            f"{setting_name} 必须位于 NORTHSTAR_STORAGE_DIR 内；"
-            "如需迁移本地模拟状态，请调整 NORTHSTAR_STORAGE_DIR。"
+            f"{setting_name} 必须位于 runtime.storage_dir 内；"
+            "如需迁移本地模拟状态，请调整 configs/app.local.yaml 的 runtime.storage_dir。"
         ) from exc
     if resolved_state_path == resolved_storage_dir:
-        raise ValueError(f"{setting_name} 必须指向 NORTHSTAR_STORAGE_DIR 内的状态文件。")
+        raise ValueError(f"{setting_name} 必须指向 runtime.storage_dir 内的状态文件。")
     return resolved_state_path
 
 @lru_cache
@@ -276,4 +425,14 @@ def get_settings() -> Settings:
 def load_settings() -> Settings:
     """重新读取一次运行时配置，不使用进程缓存。"""
 
-    return Settings()
+    return Settings(_env_file=_default_env_file())  # type: ignore[call-arg]
+
+
+def _default_env_file() -> Path:
+    """让全局设置读取其项目根目录下的 .env，而非调用进程的当前目录。"""
+
+    configured_root = os.getenv("NORTHSTAR_PROJECT_ROOT")
+    project_root = Path(configured_root) if configured_root else _PROJECT_ROOT
+    if not project_root.is_absolute():
+        project_root = _PROJECT_ROOT / project_root
+    return project_root.resolve() / ".env"

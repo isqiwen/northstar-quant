@@ -6,7 +6,7 @@
 version: 1
 enabled: false
 
-# 只针对 NORTHSTAR_DOWNLOADS_DIR 下的下载缓存，不涉及 storage/market、reports 或日志。
+# 只针对 runtime.downloads_dir 下的下载缓存，不涉及 storage/market、reports 或日志。
 download_cache_retention_days: 30
 
 # 只匹配本项目原子写入流程遗留的 .<target>.<random>.tmp 文件。

@@ -2,7 +2,8 @@ import json
 
 import pytest
 
-from northstar_quant.config.settings import get_settings
+import northstar_quant.execution.paper_broker as paper_broker
+from northstar_quant.config.settings import Settings, get_settings
 from northstar_quant.execution.models import OrderRequest
 from northstar_quant.execution.paper_broker import PaperBrokerAdapter
 
@@ -15,15 +16,19 @@ def _make_paper_broker(
     paper_account: str = "paper-test",
     state_path=None,
 ) -> PaperBrokerAdapter:
-    monkeypatch.setenv("NORTHSTAR_STORAGE_DIR", str(tmp_path / "storage"))
-    monkeypatch.setenv("NORTHSTAR_DEFAULT_CASH", str(default_cash))
-    monkeypatch.setenv("NORTHSTAR_PAPER_FILL_PRICE_MODE", "reference")
-    monkeypatch.setenv("NORTHSTAR_PAPER_ACCOUNT", paper_account)
-    if state_path is None:
-        monkeypatch.delenv("NORTHSTAR_PAPER_STATE_PATH", raising=False)
-    else:
-        monkeypatch.setenv("NORTHSTAR_PAPER_STATE_PATH", str(state_path))
-    get_settings.cache_clear()
+    storage_dir = tmp_path / "storage"
+    settings = Settings(
+        _env_file=None,
+        storage_dir=storage_dir,
+        downloads_dir=storage_dir / "downloads",
+        reports_dir=tmp_path / "reports",
+        log_dir=tmp_path / "logs",
+        default_cash=default_cash,
+        paper_fill_price_mode="reference",
+        paper_account=paper_account,
+        **({"paper_state_path": state_path} if state_path is not None else {}),
+    )
+    monkeypatch.setattr(paper_broker, "get_settings", lambda: settings)
     return PaperBrokerAdapter()
 
 

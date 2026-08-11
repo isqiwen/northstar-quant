@@ -1,0 +1,10 @@
+# 本机或单台服务器的运行输出目录覆盖示例。
+#
+# 复制为 configs/app.local.yaml 后编辑；该文件会被 Git 忽略，且只能包含 runtime。
+# 四个字段必须完整存在，避免不同机器因部分覆盖而把制品写入意外位置。
+runtime:
+  storage_dir: storage
+  # null 表示从上面的 storage_dir 派生为 storage_dir/downloads。
+  downloads_dir: null
+  reports_dir: reports
+  log_dir: logs

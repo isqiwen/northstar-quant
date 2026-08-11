@@ -38,7 +38,9 @@ done
 
 deploy_log "收集运行所需文件"
 mkdir -p "${BUNDLE_DIR}"
-tar -C "${ROOT_DIR}" -cf - "${required_paths[@]}" | tar -C "${BUNDLE_DIR}" -xf -
+tar -C "${ROOT_DIR}" \
+  --exclude='configs/app.local.yaml' \
+  -cf - "${required_paths[@]}" | tar -C "${BUNDLE_DIR}" -xf -
 
 cat > "${BUNDLE_DIR}/DEPLOY_ARTIFACT_META.txt" <<EOF
 revision=${REVISION}

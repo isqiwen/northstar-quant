@@ -20,7 +20,7 @@ _DEFAULT_LOGGING_CONFIG: dict[str, Any] = {
     "level": "INFO",
     "console_enabled": True,
     "file_enabled": True,
-    "directory": "logs",
+    # 日志目录由 runtime.log_dir 提供，不能在 logging 段中重复配置。
     "filename": "northstar.log",
     "when": "midnight",
     "interval": 1,
@@ -130,7 +130,7 @@ def _rotation_namer(default_name: str) -> str:
 
 
 def _load_logging_config(config_path: str | Path = "configs/app.yaml") -> dict[str, Any]:
-    """读取日志配置并补齐默认值。"""
+    """读取日志规则，并从运行时 YAML 取得唯一的日志目录。"""
 
     path = Path(config_path)
     if not path.is_absolute():
@@ -140,10 +140,13 @@ def _load_logging_config(config_path: str | Path = "configs/app.yaml") -> dict[s
     else:
         raw_config = load_yaml(path)
         logging_config = raw_config.get("logging", {}) or {}
+        if "directory" in logging_config:
+            raise ValueError(
+                "logging.directory 已移除；请在 configs/app.local.yaml 的 runtime.log_dir 配置日志目录"
+            )
         merged = {**_DEFAULT_LOGGING_CONFIG, **logging_config}
     settings = get_settings()
-    if settings.log_dir is not None:
-        merged["directory"] = str(settings.log_dir)
+    merged["directory"] = str(settings.log_dir)
     merged["level"] = str(merged["level"]).upper()
     merged["interval"] = int(merged["interval"])
     merged["backup_count"] = int(merged["backup_count"])

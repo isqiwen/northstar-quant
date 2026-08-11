@@ -2,21 +2,25 @@ from datetime import timedelta
 
 import pytest
 
+import northstar_quant.execution.ctp_sim_broker as ctp_sim_broker
 from northstar_quant.common.time import utc_now
-from northstar_quant.config.settings import get_settings
+from northstar_quant.config.settings import Settings, get_settings
 from northstar_quant.execution.ctp_sim_broker import CtpSimBrokerAdapter
 from northstar_quant.execution.models import OrderRequest
 
 
 def _broker(tmp_path, monkeypatch) -> CtpSimBrokerAdapter:
-    monkeypatch.setenv("NORTHSTAR_STORAGE_DIR", str(tmp_path / "storage"))
-    monkeypatch.setenv(
-        "NORTHSTAR_CTP_SIM_STATE_PATH",
-        str(tmp_path / "storage" / "ctp_sim_state.json"),
+    settings = Settings(
+        _env_file=None,
+        storage_dir=tmp_path / "storage",
+        downloads_dir=tmp_path / "storage" / "downloads",
+        reports_dir=tmp_path / "reports",
+        log_dir=tmp_path / "logs",
+        ctp_sim_state_path=tmp_path / "storage" / "ctp_sim_state.json",
+        ctp_sim_account="ctp-sim-test",
+        default_cash=1000000,
     )
-    monkeypatch.setenv("NORTHSTAR_CTP_SIM_ACCOUNT", "ctp-sim-test")
-    monkeypatch.setenv("NORTHSTAR_DEFAULT_CASH", "1000000")
-    get_settings.cache_clear()
+    monkeypatch.setattr(ctp_sim_broker, "get_settings", lambda: settings)
     broker = CtpSimBrokerAdapter()
     broker.connect()
     broker.seed_market_quotes({"RB2610": 3100.0})
@@ -110,10 +114,15 @@ def test_ctp_sim_requires_explicit_shfe_close_and_tracks_yesterday(
 
 
 def test_ctp_sim_account_override_derives_an_independent_state_path(tmp_path, monkeypatch):
-    monkeypatch.setenv("NORTHSTAR_STORAGE_DIR", str(tmp_path / "storage"))
-    monkeypatch.setenv("NORTHSTAR_CTP_SIM_ACCOUNT", "ctp-sim-configured")
-    monkeypatch.delenv("NORTHSTAR_CTP_SIM_STATE_PATH", raising=False)
-    get_settings.cache_clear()
+    settings = Settings(
+        _env_file=None,
+        storage_dir=tmp_path / "storage",
+        downloads_dir=tmp_path / "storage" / "downloads",
+        reports_dir=tmp_path / "reports",
+        log_dir=tmp_path / "logs",
+        ctp_sim_account="ctp-sim-configured",
+    )
+    monkeypatch.setattr(ctp_sim_broker, "get_settings", lambda: settings)
     try:
         overridden = CtpSimBrokerAdapter(account="ctp-sim-override")
         configured = CtpSimBrokerAdapter()

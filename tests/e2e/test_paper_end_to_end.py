@@ -6,9 +6,8 @@
 
 from pathlib import Path
 
-from tests.support.paths import PROJECT_ROOT
-
-from northstar_quant.config.settings import get_settings
+import northstar_quant.execution.paper_broker as paper_broker
+from northstar_quant.config.settings import Settings, get_settings
 from northstar_quant.execution.models import OrderRequest
 from northstar_quant.execution.paper_broker import PaperBrokerAdapter
 from northstar_quant.live.reconciliation import reconcile_broker_state
@@ -20,12 +19,17 @@ def test_paper_order_reconcile_attribution_and_report_infrastructure(
     monkeypatch,
     postgresql_session_factory,
 ):
-    monkeypatch.setenv("NORTHSTAR_STORAGE_DIR", str(tmp_path / "storage"))
-    monkeypatch.setenv("NORTHSTAR_REPORTS_DIR", str(tmp_path / "reports"))
-    monkeypatch.setenv("NORTHSTAR_DEFAULT_CASH", "100000")
-    monkeypatch.setenv("NORTHSTAR_PAPER_ACCOUNT", "paper-e2e")
-    monkeypatch.setenv("NORTHSTAR_PAPER_FILL_PRICE_MODE", "reference")
-    get_settings.cache_clear()
+    settings = Settings(
+        _env_file=None,
+        storage_dir=tmp_path / "storage",
+        downloads_dir=tmp_path / "storage" / "downloads",
+        reports_dir=tmp_path / "reports",
+        log_dir=tmp_path / "logs",
+        default_cash=100000,
+        paper_account="paper-e2e",
+        paper_fill_price_mode="reference",
+    )
+    monkeypatch.setattr(paper_broker, "get_settings", lambda: settings)
     try:
         broker = PaperBrokerAdapter()
         testing_session = postgresql_session_factory
@@ -69,12 +73,6 @@ def test_paper_order_reconcile_attribution_and_report_infrastructure(
             )
 
         monkeypatch.setattr(report_builder, "SessionLocal", testing_session)
-        settings = get_settings().model_copy(
-            update={
-                "project_root": PROJECT_ROOT,
-                "reports_dir": tmp_path / "reports",
-            }
-        )
         monkeypatch.setattr(report_builder, "get_settings", lambda: settings)
         attribution = report_builder.latest_live_account_attribution_summary(
             profile_id="paper-infrastructure-test",
