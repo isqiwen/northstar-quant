@@ -83,6 +83,15 @@ def test_top_level_deploy_entrypoint_forwards_help() -> None:
     assert "scripts/deploy.sh" in result.stdout
 
 
+def test_deploy_entrypoint_uses_single_active_env_file() -> None:
+    content = (DEPLOY_DIR / "deploy.sh").read_text(encoding="utf-8")
+
+    assert "ENV_FILE=.env" in content
+    assert 'ENV_FILE="${ENV_FILE:-${ROOT_DIR}/.env}"' in content
+    assert '"${ENV_FILE##*/}" != ".env"' in content
+    assert 'ENV_FILE="${ENV_FILE:-${ROOT_DIR}/.env.production}"' not in content
+
+
 def _run_safety_check(
     env_file: Path,
     *,
@@ -155,7 +164,7 @@ def test_build_artifact_contains_only_runtime_sources(tmp_path: Path) -> None:
 
 
 def test_health_deploy_accepts_safe_production_environment(tmp_path: Path) -> None:
-    env_file = tmp_path / ".env.production"
+    env_file = tmp_path / ".env"
     env_file.write_text(
         "\n".join(
             [
@@ -178,7 +187,7 @@ def test_health_deploy_accepts_safe_production_environment(tmp_path: Path) -> No
 
 
 def test_health_deploy_rejects_live_environment(tmp_path: Path) -> None:
-    env_file = tmp_path / ".env.production"
+    env_file = tmp_path / ".env"
     env_file.write_text(
         "\n".join(
             [
@@ -202,7 +211,7 @@ def test_health_deploy_rejects_live_environment(tmp_path: Path) -> None:
 
 
 def test_non_paper_scheduler_requires_explicit_confirmation(tmp_path: Path) -> None:
-    env_file = tmp_path / ".env.production"
+    env_file = tmp_path / ".env"
     env_file.write_text(
         "\n".join(
             [

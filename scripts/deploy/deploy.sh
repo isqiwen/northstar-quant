@@ -20,8 +20,8 @@ usage() {
 常用环境变量：
   DEPLOY_CONFIG=deploy.env       非敏感部署配置
   RUNTIME_*_DIR                  可写数据、报告、日志和缓存目录（配置于 deploy.env）
-  ENV_FILE=.env.production      首次上传的生产环境文件
-  UPLOAD_ENV=1                  更新服务器生产环境文件
+  ENV_FILE=.env                 待上传的活动环境文件（默认项目根目录 .env）
+  UPLOAD_ENV=1                  更新服务器活动环境文件（必须通过 production 门禁）
   SETUP_SERVER=1                安装 Linux、uv、Python 和服务用户
   ALLOW_DIRTY=1                 允许从未提交工作区构建
   SKIP_TESTS=1                  跳过本地 Pytest，不建议用于正式发布
@@ -68,7 +68,9 @@ RUNTIME_LOG_DIR="${RUNTIME_LOG_DIR:-}"
 RUNTIME_CACHE_DIR="${RUNTIME_CACHE_DIR:-}"
 RUNTIME_MATPLOTLIB_DIR="${RUNTIME_MATPLOTLIB_DIR:-}"
 
-ENV_FILE="${ENV_FILE:-${ROOT_DIR}/.env.production}"
+ENV_FILE="${ENV_FILE:-${ROOT_DIR}/.env}"
+ENV_TEMPLATE="${ROOT_DIR}/.env.example"
+ENV_SCHEMA_SYNC_SCRIPT="${ROOT_DIR}/scripts/dev/sync_env_schema.py"
 UPLOAD_ENV="${UPLOAD_ENV:-0}"
 SETUP_SERVER="${SETUP_SERVER:-0}"
 ALLOW_DIRTY="${ALLOW_DIRTY:-0}"
@@ -147,10 +149,21 @@ if [ -z "${DEPLOY_HOST}" ]; then
   deploy_fail "DEPLOY_HOST 不能为空，请填写 ${DEPLOY_CONFIG}。"
 fi
 if [ "${UPLOAD_ENV}" = "1" ] && [ ! -f "${ENV_FILE}" ]; then
-  deploy_fail "未找到生产环境文件：${ENV_FILE}"
+  deploy_fail "未找到待上传的活动环境文件：${ENV_FILE}。默认使用项目根目录 .env；也可通过 ENV_FILE 显式指定。"
+fi
+if [ "${UPLOAD_ENV}" = "1" ] && [ "${ENV_FILE##*/}" != ".env" ]; then
+  deploy_fail "ENV_FILE 必须指向名为 .env 的唯一活动环境文件，不能使用 .env.production 等第二套配置。"
 fi
 if [ "${UPLOAD_ENV}" = "1" ]; then
-  deploy_log "校验生产环境文件"
+  if [ ! -f "${ENV_TEMPLATE}" ] || [ ! -f "${ENV_SCHEMA_SYNC_SCRIPT}" ]; then
+    deploy_fail "缺少 .env.example 或环境文件结构校验器，无法安全上传活动 .env。"
+  fi
+  deploy_need_cmd uv
+  deploy_log "校验待上传活动 .env 的完整字段结构"
+  uv run python "${ENV_SCHEMA_SYNC_SCRIPT}" \
+    --template "${ENV_TEMPLATE}" \
+    --active "${ENV_FILE}"
+  deploy_log "校验待上传活动 .env（要求 NORTHSTAR_ENV=production）"
   deploy_validate_production_env \
     "${ENV_FILE}" \
     "${SERVICE_MODE}" \
@@ -263,7 +276,7 @@ deploy_log "上传应用制品"
 deploy_scp "${ARTIFACT_PATH}" "${DEPLOY_HOST}:${REMOTE_ARTIFACT}"
 
 if [ "${UPLOAD_ENV}" = "1" ]; then
-  deploy_log "上传生产环境文件"
+  deploy_log "上传活动 .env"
   deploy_scp "${ENV_FILE}" "${DEPLOY_HOST}:${REMOTE_ENV}"
 fi
 

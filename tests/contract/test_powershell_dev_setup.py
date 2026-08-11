@@ -22,21 +22,24 @@ def test_powershell_dev_setup_uses_local_postgresql_and_safe_runtime_mode() -> N
     assert "NORTHSTAR_TEST_DATABASE_URL" in content
     assert '$env:NORTHSTAR_BROKER = "paper"' in content
     assert '$env:NORTHSTAR_LIVE_TRADING_ENABLED = "false"' in content
+    assert '$env:NORTHSTAR_KILL_SWITCH_ENABLED = "false"' in content
     assert 'Copy-Item -LiteralPath $AppConfigExample -Destination $AppConfig' in content
+    assert 'Copy-Item -LiteralPath $EnvExample -Destination $EnvFile' in content
+    assert "sync_env_schema.py" in content
+    assert "New-DevPostgresPassword" in content
     assert "uv sync --extra dev --locked" in content
     assert "uv run pytest" in content
     assert "uv run ruff check ." in content
 
 
-def test_powershell_dev_setup_does_not_write_env_or_start_trading_paths() -> None:
+def test_powershell_dev_setup_only_manages_local_env_and_never_starts_trading_paths() -> None:
     content = SCRIPT_PATH.read_text(encoding="utf-8").lower()
 
     assert "data download" not in content
     assert "live run" not in content
     assert "live scheduler" not in content
-    assert "set-content" not in content
-    assert "add-content" not in content
-    assert "writealltext" not in content
+    assert "set-envfilevalue" in content
+    assert "postgres_password" in content
 
 
 def test_powershell_dev_setup_has_valid_syntax_when_powershell_is_available() -> None:

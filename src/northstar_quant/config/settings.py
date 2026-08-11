@@ -17,6 +17,10 @@ from pydantic.fields import FieldInfo
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
 
 from northstar_quant.config.app_runtime import load_app_config
+from northstar_quant.config.environment_file import (
+    ENVIRONMENT_FILE_AUXILIARY_KEYS,
+    validate_active_environment_file,
+)
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 _LOCAL_ACCOUNT_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")
@@ -111,7 +115,9 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(
         env_prefix="NORTHSTAR_",
-        env_file=".env",
+        # 只允许 load_settings() 显式传入项目根目录下经过结构校验的活动 .env。
+        # 直接构造 Settings 主要用于隔离测试，不能悄悄读取调用目录中的文件。
+        env_file=None,
         env_file_encoding="utf-8",
         env_ignore_empty=True,
         extra="ignore",
@@ -413,9 +419,27 @@ def get_settings() -> Settings:
 
 
 def load_settings() -> Settings:
-    """重新读取一次运行时配置，不使用进程缓存。"""
+    """重新读取唯一活动 `.env` 与 `configs/app.yaml`，不使用进程缓存。"""
 
-    return Settings(_env_file=_default_env_file())  # type: ignore[call-arg]
+    env_file = _default_env_file()
+    validate_active_environment_file(
+        env_file,
+        expected_keys=active_environment_file_keys(),
+        retired_keys=LEGACY_RUNTIME_PATH_ENV_VARS,
+    )
+    return Settings(_env_file=env_file)  # type: ignore[call-arg]
+
+
+def active_environment_file_keys() -> frozenset[str]:
+    """构造 `.env.example` 与活动 `.env` 共用的完整键集合。"""
+
+    env_prefix = str(Settings.model_config["env_prefix"])
+    settings_keys = {
+        f"{env_prefix}{field_name.upper()}"
+        for field_name in Settings.model_fields
+        if field_name not in ENV_DISABLED_FIELDS
+    }
+    return frozenset(settings_keys | ENVIRONMENT_FILE_AUXILIARY_KEYS)
 
 
 def _default_env_file() -> Path:

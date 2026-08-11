@@ -22,13 +22,12 @@ scripts/setup_dev.sh
 Windows PowerShell：
 
 ```powershell
-Copy-Item .env.example .env
-# 设置本地非空 POSTGRES_PASSWORD 后执行
 .\scripts\setup_dev.ps1
 ```
 
 入口会同步锁定依赖、启动本地 Docker PostgreSQL、迁移应用库和隔离测试库、运行健康检查、
-`pytest` 与 Ruff。它强制 `paper` 和禁用 live，不会下载市场数据或提交订单。
+`pytest` 与 Ruff。它会创建或迁移完整的本地 `.env`，强制 `paper` 和禁用 live，不会下载市场数据
+或提交订单。
 
 ## 手动命令
 

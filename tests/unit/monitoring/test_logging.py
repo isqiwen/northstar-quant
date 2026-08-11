@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from northstar_quant.config.settings import get_settings
+from northstar_quant.config.settings import active_environment_file_keys, get_settings
 from northstar_quant.logging_.logger import _load_logging_config, _rotation_namer, get_logger, setup_logging
 
 
@@ -43,6 +43,10 @@ def _write_app_config(
             allow_unicode=True,
             sort_keys=False,
         ),
+        encoding="utf-8",
+    )
+    (project_root / ".env").write_text(
+        "\n".join(f"{key}=" for key in sorted(active_environment_file_keys())) + "\n",
         encoding="utf-8",
     )
 

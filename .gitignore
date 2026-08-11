@@ -33,8 +33,9 @@ pip-wheel-metadata/
 # Local environment files
 .env
 .env.*
+# 旧版环境文件写入器可能在中断时留下此类临时密钥文件。
+..env.*.tmp
 !.env.example
-!.env.production.example
 deploy.env
 configs/app.yaml
 # 已废弃但仍可能遗留在旧开发机上的局部覆盖文件；应用会明确拒绝它，

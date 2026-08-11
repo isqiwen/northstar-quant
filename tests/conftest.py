@@ -13,6 +13,7 @@ from tests.support.database import (
     create_postgresql_session_factory,
     create_postgresql_test_engine,
 )
+from tests.support.paths import PROJECT_ROOT
 from tests.support.postgresql import cleanup_postgresql_test_schemas
 
 _TEST_LAYERS = ("unit", "integration", "contract", "e2e")
@@ -27,7 +28,9 @@ def _configure_safe_test_runtime_settings() -> None:
     if os.getenv("NORTHSTAR_DATABASE_URL") is not None:
         return
 
-    dotenv_database_url = dotenv_values(".env").get("NORTHSTAR_DATABASE_URL")
+    dotenv_database_url = dotenv_values(PROJECT_ROOT / ".env").get(
+        "NORTHSTAR_DATABASE_URL"
+    )
     if isinstance(dotenv_database_url, str) and dotenv_database_url.startswith(
         "postgresql+psycopg://"
     ):

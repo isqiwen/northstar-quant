@@ -6,10 +6,13 @@ import pytest
 from pydantic import ValidationError
 import yaml
 
+from northstar_quant.config.environment_file import ActiveEnvironmentFileError
 from northstar_quant.config.settings import (
     ENV_DISABLED_FIELDS,
     LEGACY_RUNTIME_PATH_ENV_VARS,
     Settings,
+    active_environment_file_keys,
+    load_settings,
 )
 
 
@@ -139,6 +142,31 @@ def test_runtime_paths_are_only_disabled_environment_fields():
         "NORTHSTAR_REPORTS_DIR",
         "NORTHSTAR_LOG_DIR",
     }
+
+
+def test_load_settings_requires_a_complete_active_environment_file(tmp_path, monkeypatch):
+    _write_runtime_config(tmp_path)
+    monkeypatch.setenv("NORTHSTAR_PROJECT_ROOT", str(tmp_path))
+
+    with pytest.raises(ActiveEnvironmentFileError, match="请先复制 .env.example 为 .env"):
+        load_settings()
+
+    (tmp_path / ".env").write_text("NORTHSTAR_ENV=dev\n", encoding="utf-8")
+    with pytest.raises(ActiveEnvironmentFileError, match="缺少字段"):
+        load_settings()
+
+
+def test_load_settings_accepts_complete_active_environment_file(tmp_path, monkeypatch):
+    _write_runtime_config(tmp_path)
+    monkeypatch.setenv("NORTHSTAR_PROJECT_ROOT", str(tmp_path))
+    (tmp_path / ".env").write_text(
+        "\n".join(f"{key}=" for key in sorted(active_environment_file_keys())) + "\n",
+        encoding="utf-8",
+    )
+
+    settings = load_settings()
+
+    assert settings.project_root == tmp_path
 
 
 def test_explicit_runtime_paths_do_not_bypass_active_config_validation(tmp_path):

@@ -30,15 +30,14 @@ scripts/setup_dev.sh
 Windows PowerShell：
 
 ```powershell
-Copy-Item .env.example .env
-# 编辑 .env，将 POSTGRES_PASSWORD 设为仅供本机开发使用的非空值
 .\scripts\setup_dev.ps1
 ```
 
 两个入口都会同步锁定依赖、启动本地 Docker PostgreSQL、迁移 `northstar` 与
 `northstar_test`、执行健康检查、完整测试和 Ruff；不会下载市场数据、启动调度器或调用
-真实交易。它们还会在首次运行时从 `configs/app.example.yaml` 创建唯一会被程序读取的
-本地 `configs/app.yaml`；后续只编辑这一份活动配置。
+真实交易。它们还会在首次运行时创建完整的唯一活动文件 `.env` 与
+`configs/app.yaml`；旧 `.env` 会在保留值的前提下迁移并备份。后续只编辑这两份活动配置，
+不要把 `.env.example` 或 `configs/app.example.yaml` 当作运行时配置。
 
 常用的手动质量检查：
 

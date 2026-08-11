@@ -163,7 +163,7 @@ preflight and kill-switch checks.
 Generated or local-runtime files should generally remain untracked:
 
 - `.env`
-- `.env.production`
+- `.env.before-schema-migration-*`
 - `deploy.env`
 - `.venv/`
 - `.pytest_cache/`

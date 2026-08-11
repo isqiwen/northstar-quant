@@ -12,6 +12,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.engine import URL, make_url
 from sqlalchemy.schema import CreateSchema, DropSchema
 
+from tests.support.paths import PROJECT_ROOT
+
 _DEFAULT_TEST_DATABASE_URL = (
     "postgresql+psycopg://northstar@127.0.0.1:5432/northstar_test"
 )
@@ -20,7 +22,7 @@ _LOCK = Lock()
 
 
 def _base_test_url() -> URL:
-    dotenv_database_url = dotenv_values(".env").get(
+    dotenv_database_url = dotenv_values(PROJECT_ROOT / ".env").get(
         "NORTHSTAR_TEST_DATABASE_URL"
     )
     database_url = (

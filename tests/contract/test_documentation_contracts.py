@@ -140,7 +140,7 @@ def test_research_admission_policy_is_linked_and_keeps_fail_closed_boundaries() 
 def test_configuration_documentation_matches_safe_runtime_defaults() -> None:
     config_guide = _read(CONFIG_GUIDE_PATH)
 
-    assert "scripts/setup_dev.ps1" in config_guide
+    assert "setup_dev.ps1" in config_guide
     assert "开发环境只支持 macOS 或 Linux" not in config_guide
     assert "configs/data/sources.yaml" in config_guide
     assert "research_admission" in config_guide

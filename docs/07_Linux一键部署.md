@@ -66,29 +66,36 @@ RUNTIME_MATPLOTLIB_DIR=/var/cache/northstar-quant/matplotlib
 路径原子写入**待发布版本**完整的 `configs/app.yaml`；发布前迁移和健康检查使用这份配置，失败时
 随 stage 清理，旧版本的配置不会变化。应用通过此 YAML 读取 `storage`、`downloads`、`reports` 和 `logs`，而 systemd
 仅用 `RUNTIME_*_DIR` 设置可写白名单和缓存目录。切换 `current` 前脚本会先停止旧服务，避免
-旧进程在重载配置时读取新版本路径。不要通过手工软链接或在 `.env.production` 重复设置这四个
+旧进程在重载配置时读取新版本路径。不要通过手工软链接或在活动 `.env` 重复设置这四个
 `NORTHSTAR_*_DIR` 绕过该边界。
 
 生成的活动文件始终与示例具有完全相同的字段。当前部署只从 `deploy.env` 注入四个运行目录；
 其余非敏感应用规则（例如日志轮转）随已审阅的 `configs/app.example.yaml` 版本冻结。不要在服务器
 上事后手改 release 内的 `app.yaml`；需要变更通用规则时，应修改模板、测试并重新发布。
 
-生产密钥和数据库 URL 使用 `.env.production`：
+生产密钥和数据库 URL 使用唯一活动文件 `.env`。请在**独立的部署工作树**中创建它，不要把开发
+工作树中 `NORTHSTAR_ENV=dev` 的 `.env` 拿来上传：
 
 ```bash
-cp .env.production.example .env.production
-chmod 600 .env.production
+cp .env.example .env
+chmod 600 .env
 ```
 
-必须替换 `NORTHSTAR_DATABASE_URL` 中的 `CHANGE_ME`。`.env.production` 只保存数据库 URL、
-令牌等敏感运行时变量；业务输出目录以 `deploy.env` 为唯一部署来源，并由发布过程在每个新版本
-生成完整的 `configs/app.yaml`。`configs/app.yaml`、`.env.production` 与 `deploy.env` 均被 Git
+必须把 `NORTHSTAR_ENV` 设为 `production`，并替换 `NORTHSTAR_DATABASE_URL` 中的 `CHANGE_ME`。
+部署脚本会在上传前先校验 `.env.example` 的完整字段结构，再验证这两个条件；若缺字段、仍是开发值或
+不安全的 broker/live 组合，都会失败关闭。`.env` 只保存数据库 URL、令牌等敏感运行时变量；业务输出目录以 `deploy.env` 为唯一部署来源，并由发布过程
+在每个新版本生成完整的 `configs/app.yaml`。`configs/app.yaml`、`.env` 与 `deploy.env` 均被 Git
 忽略；不要把密码、令牌或数据库 URL 写入 `deploy.env`。
+
+首次发布使用 `UPLOAD_ENV=1` 将部署工作树中的 `.env` 安装为服务器
+`/srv/northstar/northstar-quant/shared/.env`；每个 release 只读这个同名活动文件。后续如需更新
+环境变量，仍显式设置 `UPLOAD_ENV=1`。自动化场景可用 `ENV_FILE=/安全路径/.env` 指定上传来源，
+但文件名与字段结构仍应与 `.env.example` 一致，且必须通过 `NORTHSTAR_ENV=production` 门禁。
 
 无需为 Paper broker 设置固定状态文件路径：默认状态按账户写入
 `<runtime.storage_dir>/brokers/paper/<NORTHSTAR_PAPER_ACCOUNT>/state.json`。这保证部署
 切换到独立数据盘时，Paper 状态仍与数据目录一起迁移；只有明确的迁移或恢复场景才应在
-`.env.production` 中取消注释 `NORTHSTAR_PAPER_STATE_PATH`。
+活动 `.env` 中取消注释 `NORTHSTAR_PAPER_STATE_PATH`。
 
 ## 部署命令
 
@@ -98,7 +105,7 @@ chmod 600 .env.production
 DRY_RUN=1 scripts/deploy.sh
 ```
 
-首次部署需要安装服务器运行时并上传生产环境文件：
+首次部署需要安装服务器运行时并上传活动 `.env`：
 
 ```bash
 UPLOAD_ENV=1 SETUP_SERVER=1 scripts/deploy.sh
