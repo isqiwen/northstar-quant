@@ -29,6 +29,7 @@ _NTFY_TOPIC_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 _NTFY_TOKEN_PATTERN = re.compile(r"^tk_[A-Za-z0-9]{29}$")
 _NTFY_LOOPBACK_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
 _NTFY_PUBLIC_SERVICE_HOSTS = frozenset({"ntfy.sh"})
+_DASHBOARD_LOOPBACK_HOST = "127.0.0.1"
 
 # 这四个字段保留在模型中，便于测试显式构造 Settings；运行时真源始终是 YAML。
 ENV_DISABLED_FIELDS = frozenset({"storage_dir", "downloads_dir", "reports_dir", "log_dir"})
@@ -261,8 +262,8 @@ class Settings(BaseSettings):
     monthly_report_cron: str = Field(default="0 17 24-31 * *")
     yearly_report_cron: str = Field(default="15 17 * 12 *")
 
-    # Dashboard 配置。
-    dashboard_host: str = Field(default="127.0.0.1")
+    # Dashboard 只能监听 IPv4 loopback；远程查看通过 SSH 隧道或 VPN，不提供公网绑定开关。
+    dashboard_host: str = Field(default=_DASHBOARD_LOOPBACK_HOST)
     dashboard_port: int = Field(default=8501, ge=1, le=65535)
 
     @field_validator(
@@ -288,6 +289,19 @@ class Settings(BaseSettings):
             raise ValueError(
                 "NORTHSTAR_DATABASE_URL 必须使用 postgresql+psycopg://，"
                 "本项目不再支持 SQLite。"
+            )
+        return normalized
+
+    @field_validator("dashboard_host")
+    @classmethod
+    def _require_dashboard_loopback(cls, value: str) -> str:
+        """拒绝 Dashboard 监听公网或局域网地址。"""
+
+        normalized = value.strip()
+        if normalized != _DASHBOARD_LOOPBACK_HOST:
+            raise ValueError(
+                "NORTHSTAR_DASHBOARD_HOST 只能是 127.0.0.1；"
+                "远程访问请使用 SSH 隧道或受控 VPN，不能直接暴露 Dashboard。"
             )
         return normalized
 

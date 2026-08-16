@@ -18,6 +18,10 @@ from northstar_quant.backtest.runner import (
     run_profile_backtest_run,
 )
 from northstar_quant.config.data_sources import list_data_source_summaries
+from northstar_quant.config.database_backup_readiness import (
+    DatabaseBackupReadinessConfigError,
+    load_database_backup_readiness_policy,
+)
 from northstar_quant.config.output_retention import (
     OutputRetentionConfigError,
     load_output_retention_policy,
@@ -58,6 +62,9 @@ from northstar_quant.live.service import (
 from northstar_quant.live.target_service import generate_daily_targets_once
 from northstar_quant.logging_.logger import get_logger, setup_logging
 from northstar_quant.monitoring.health import run_healthcheck
+from northstar_quant.monitoring.database_backup_readiness import (
+    evaluate_database_backup_readiness,
+)
 from northstar_quant.reporting.email_sender import send_report_via_email
 from northstar_quant.reporting.pdf_renderer import markdown_to_pdf
 from northstar_quant.reporting.report_builder import (
@@ -120,6 +127,8 @@ live_app = typer.Typer(help="实盘相关命令。", **_GROUP_KWARGS)
 report_app = typer.Typer(help="报告相关命令。", **_GROUP_KWARGS)
 dashboard_app = typer.Typer(help="Dashboard 相关命令。", **_GROUP_KWARGS)
 data_app = typer.Typer(help="数据下载与数据集管理命令。", **_GROUP_KWARGS)
+ops_app = typer.Typer(help="运维就绪检查命令。", **_GROUP_KWARGS)
+backup_app = typer.Typer(help="PostgreSQL 备份与恢复证据命令。", **_GROUP_KWARGS)
 
 app.add_typer(backtest_app, name="backtest")
 app.add_typer(research_app, name="research")
@@ -127,6 +136,8 @@ app.add_typer(live_app, name="live")
 app.add_typer(report_app, name="report")
 app.add_typer(dashboard_app, name="dashboard")
 app.add_typer(data_app, name="data")
+ops_app.add_typer(backup_app, name="backup")
+app.add_typer(ops_app, name="ops")
 
 
 def _log_message(message: str, level: int = logging.INFO, **context: object) -> None:
@@ -183,10 +194,40 @@ def init_db_command() -> None:
     help="检查项目当前运行状态，包括目录、环境和券商连接模式等基础健康信息。",
     **_COMMAND_KWARGS,
 )
-def health_command() -> None:
+def health_command(
+    fail_on_blocked: bool = typer.Option(
+        False,
+        "--fail-on-blocked",
+        help="健康状态为 blocked 时以退出码 2 退出；默认仅输出检查结果。",
+    ),
+) -> None:
     """检查项目当前运行状态。"""
 
-    _log_json(run_healthcheck(), command="health")
+    payload = run_healthcheck()
+    _log_json(payload, command="health")
+    if fail_on_blocked and payload.get("status") == "blocked":
+        raise typer.Exit(code=2)
+
+
+@backup_app.command("status", **_COMMAND_KWARGS)
+def backup_status_command(
+    config: Path | None = typer.Option(
+        None,
+        "--config",
+        help="备份就绪策略路径；默认 configs/maintenance/database_backup_readiness.yaml。",
+    ),
+) -> None:
+    """只读检查 PostgreSQL 备份与隔离恢复演练证据，不执行备份或恢复。"""
+
+    try:
+        policy = load_database_backup_readiness_policy(config)
+        result = evaluate_database_backup_readiness(
+            policy,
+            storage_dir=get_settings().storage_dir,
+        )
+    except (DatabaseBackupReadinessConfigError, ValueError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    _log_json(result.to_dict(), command="ops.backup.status")
 
 
 @data_app.command("profiles", **_COMMAND_KWARGS)
@@ -794,8 +835,27 @@ def dashboard_run_command() -> None:
         "run",
         "src/northstar_quant/monitoring/dashboard.py",
         "--server.address",
-        settings.dashboard_host,
+        # Settings 也会拒绝非 loopback 值；这里再次固定地址，避免未来调用方绕过配置层。
+        "127.0.0.1",
         "--server.port",
         str(settings.dashboard_port),
+        "--server.headless",
+        "true",
+        "--server.enableCORS",
+        "true",
+        "--server.enableXsrfProtection",
+        "true",
+        "--server.enableStaticServing",
+        "false",
+        "--server.fileWatcherType",
+        "none",
+        "--browser.gatherUsageStats",
+        "false",
+        "--client.toolbarMode",
+        "viewer",
+        "--client.showErrorDetails",
+        "none",
+        "--client.showErrorLinks",
+        "false",
     ]
     raise typer.Exit(code=subprocess.call(cmd))

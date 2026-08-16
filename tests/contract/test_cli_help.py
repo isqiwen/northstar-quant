@@ -1,6 +1,12 @@
+import subprocess
+import sys
+from types import SimpleNamespace
+
 from typer.testing import CliRunner
 
-from northstar_quant.cli import app
+import northstar_quant.cli as cli
+
+app = cli.app
 
 
 runner = CliRunner()
@@ -78,3 +84,60 @@ def test_live_help_exposes_separate_signal_execution_and_risk_commands():
     assert "signal" in result.output
     assert "execute" in result.output
     assert "risk-check" in result.output
+
+
+def test_ops_backup_status_help_is_explicitly_read_only():
+    ops_help = runner.invoke(app, ["ops", "--help"])
+    backup_help = runner.invoke(app, ["ops", "backup", "status", "--help"])
+
+    assert ops_help.exit_code == 0
+    assert "backup" in ops_help.output
+    assert backup_help.exit_code == 0
+    assert "--config" in backup_help.output
+    assert "不执行备份或恢复" in backup_help.output
+
+
+def test_dashboard_run_keeps_streamlit_private_and_hardened(monkeypatch):
+    commands: list[list[str]] = []
+    monkeypatch.setattr(cli, "setup_logging", lambda: None)
+    monkeypatch.setattr(
+        cli,
+        "get_settings",
+        lambda: SimpleNamespace(dashboard_host="0.0.0.0", dashboard_port=8517),
+    )
+    monkeypatch.setattr(subprocess, "call", lambda command: commands.append(command) or 0)
+
+    result = runner.invoke(app, ["dashboard", "run"])
+
+    assert result.exit_code == 0, result.output
+    assert commands == [
+        [
+            sys.executable,
+            "-m",
+            "streamlit",
+            "run",
+            "src/northstar_quant/monitoring/dashboard.py",
+            "--server.address",
+            "127.0.0.1",
+            "--server.port",
+            "8517",
+            "--server.headless",
+            "true",
+            "--server.enableCORS",
+            "true",
+            "--server.enableXsrfProtection",
+            "true",
+            "--server.enableStaticServing",
+            "false",
+            "--server.fileWatcherType",
+            "none",
+            "--browser.gatherUsageStats",
+            "false",
+            "--client.toolbarMode",
+            "viewer",
+            "--client.showErrorDetails",
+            "none",
+            "--client.showErrorLinks",
+            "false",
+        ]
+    ]

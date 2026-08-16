@@ -1,5 +1,10 @@
 # Scripts
 
+私网 Dashboard 不使用 Docker、Caddy 或 `80`/`443`。只有在 `deploy.env` 明确设置
+`DASHBOARD_DEPLOY_ENABLED=1` 时，发布流程才会管理独立的
+`<SYSTEMD_SERVICE_NAME>-dashboard.service`；它固定监听 `127.0.0.1`，不会替换主
+health/scheduler 服务。访问步骤与不公开暴露的边界见[Linux 一键部署](../docs/07_Linux一键部署.md#私网-dashboard可选)。
+
 脚本按职责组织，日常只需要记住三个入口。
 
 | 脚本 | 是否直接运行 | 用途 |
@@ -39,7 +44,7 @@ Linux 部署内部模块：
 | `deploy/install-runtime.sh` | 安装 Ubuntu/Debian 运行时、uv、Python 和服务用户。 |
 | `deploy/install-release.sh` | 安装锁定依赖、迁移、健康检查、原子切换和失败回退。 |
 | `deploy/lib/*.sh` | 公共函数、SSH 连接复用与非敏感部署配置读取。 |
-| `deploy/systemd/*.service.in` | health 和 scheduler 的 systemd 安全模板。 |
+| `deploy/systemd/*.service.in` | health、scheduler 与默认关闭的私网 Dashboard systemd 安全模板。 |
 
 可选的私有 ntfy 服务由 Linux 部署流程管理，但 Docker 与 Docker Compose 必须预先安装在远程服务器。
 在 `deploy.env` 中设置 `NTFY_DEPLOY_ENABLED=1` 并填写域名、ACME 邮箱及数据目录后，首次部署还必须创建

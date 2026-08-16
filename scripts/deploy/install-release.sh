@@ -18,6 +18,7 @@ CONFIRM_LIVE_DEPLOY="${CONFIRM_LIVE_DEPLOY:-NO}"
 ARTIFACT_TARBALL="${ARTIFACT_TARBALL:-${1:-}}"
 ARTIFACT_SHA256="${ARTIFACT_SHA256:-}"
 RELEASE_ID="${RELEASE_ID:-}"
+DASHBOARD_DEPLOY_ENABLED="${DASHBOARD_DEPLOY_ENABLED:-0}"
 
 if [ "$(uname -s)" != "Linux" ]; then
   deploy_fail "版本安装脚本只支持 Linux。"
@@ -33,6 +34,10 @@ RELEASES_DIR="${APP_ROOT}/releases"
 SHARED_DIR="${APP_ROOT}/shared"
 CURRENT_LINK="${APP_ROOT}/current"
 ENV_FILE="${SHARED_DIR}/.env"
+DASHBOARD_SERVICE_NAME="${SYSTEMD_SERVICE_NAME}-dashboard"
+DASHBOARD_UNIT_FILE="/etc/systemd/system/${DASHBOARD_SERVICE_NAME}.service"
+DASHBOARD_HOME_DIR=""
+DASHBOARD_DEPLOY_STATUS="disabled"
 STAGE_DIR=""
 PREVIOUS_RELEASE=""
 SYSTEMD_UNIT_FILE="/etc/systemd/system/${SYSTEMD_SERVICE_NAME}.service"
@@ -40,12 +45,15 @@ PREVIOUS_SYSTEMD_UNIT_FILE=""
 PREVIOUS_SYSTEMD_UNIT_EXISTS=false
 SYSTEMD_UNIT_BACKUP_CREATED=false
 RENDERED_SYSTEMD_UNIT_FILE=""
+RENDERED_DASHBOARD_SYSTEMD_UNIT_FILE=""
 CUTOVER_ACTIVE=false
 
 deploy_assert_safe_name "APP_NAME" "${APP_NAME}"
 deploy_assert_safe_name "SERVICE_USER" "${SERVICE_USER}"
 deploy_assert_safe_name "SYSTEMD_SERVICE_NAME" "${SYSTEMD_SERVICE_NAME}"
 deploy_assert_safe_name "RELEASE_ID" "${RELEASE_ID}"
+deploy_assert_safe_name "DASHBOARD_SERVICE_NAME" "${DASHBOARD_SERVICE_NAME}"
+deploy_assert_bool "DASHBOARD_DEPLOY_ENABLED" "${DASHBOARD_DEPLOY_ENABLED}"
 
 case "${SERVICE_HOME}" in
   /srv/*)
@@ -70,6 +78,7 @@ case "${APP_ROOT}" in
 esac
 
 deploy_configure_runtime_paths "${APP_ROOT}"
+DASHBOARD_HOME_DIR="${RUNTIME_CACHE_DIR}/dashboard"
 
 case "${SERVICE_MODE}" in
   health|scheduler)
@@ -137,10 +146,18 @@ cleanup_rendered_systemd_unit() {
   fi
 }
 
+cleanup_rendered_dashboard_systemd_unit() {
+  if [ -n "${RENDERED_DASHBOARD_SYSTEMD_UNIT_FILE}" ]; then
+    rm -f "${RENDERED_DASHBOARD_SYSTEMD_UNIT_FILE}" || true
+    RENDERED_DASHBOARD_SYSTEMD_UNIT_FILE=""
+  fi
+}
+
 cleanup_deployment_temporary_files() {
   cleanup_stage
   cleanup_systemd_unit_backup
   cleanup_rendered_systemd_unit
+  cleanup_rendered_dashboard_systemd_unit
 }
 trap cleanup_deployment_temporary_files EXIT
 
@@ -183,6 +200,88 @@ render_systemd_unit() {
     cleanup_rendered_systemd_unit
     return 1
   fi
+}
+
+render_dashboard_systemd_unit() {
+  local template_file="${SCRIPT_DIR}/systemd/dashboard.service.in"
+
+  if [ ! -f "${template_file}" ]; then
+    printf "Dashboard systemd 模板不存在：%s\n" "${template_file}" >&2
+    return 1
+  fi
+
+  RENDERED_DASHBOARD_SYSTEMD_UNIT_FILE="$(mktemp)" || return 1
+  if ! sed \
+    -e "s|@SERVICE_USER@|${SERVICE_USER}|g" \
+    -e "s|@CURRENT_LINK@|${CURRENT_LINK}|g" \
+    -e "s|@ENV_FILE@|${ENV_FILE}|g" \
+    -e "s|@SERVICE_HOME@|${SERVICE_HOME}|g" \
+    -e "s|@SHARED_DIR@|${SHARED_DIR}|g" \
+    -e "s|@DASHBOARD_HOME_DIR@|${DASHBOARD_HOME_DIR}|g" \
+    -e "s|@RUNTIME_LOG_DIR@|${RUNTIME_LOG_DIR}|g" \
+    -e "s|@RUNTIME_CACHE_DIR@|${RUNTIME_CACHE_DIR}|g" \
+    -e "s|@RUNTIME_MATPLOTLIB_DIR@|${RUNTIME_MATPLOTLIB_DIR}|g" \
+    "${template_file}" > "${RENDERED_DASHBOARD_SYSTEMD_UNIT_FILE}"; then
+    cleanup_rendered_dashboard_systemd_unit
+    return 1
+  fi
+}
+
+install_dashboard_systemd_unit() {
+  if [ -z "${RENDERED_DASHBOARD_SYSTEMD_UNIT_FILE}" ]; then
+    printf "尚未渲染 Dashboard systemd 服务配置。\n" >&2
+    return 1
+  fi
+
+  if ! deploy_as_root install -m 0644 -o root -g root \
+    "${RENDERED_DASHBOARD_SYSTEMD_UNIT_FILE}" "${DASHBOARD_UNIT_FILE}"; then
+    return 1
+  fi
+  deploy_as_root systemctl daemon-reload || return 1
+  deploy_as_root systemctl enable "${DASHBOARD_SERVICE_NAME}.service" >/dev/null || return 1
+  deploy_as_root systemctl restart "${DASHBOARD_SERVICE_NAME}.service" || return 1
+  deploy_as_root systemctl is-active --quiet "${DASHBOARD_SERVICE_NAME}.service"
+}
+
+disable_dashboard_systemd_unit() {
+  # 即使 unit 文件已被人工删除，已加载的旧服务也可能仍在运行；默认关闭必须先尝试停用它。
+  deploy_as_root systemctl disable --now "${DASHBOARD_SERVICE_NAME}.service" >/dev/null 2>&1 || true
+  if deploy_as_root systemctl is-active --quiet "${DASHBOARD_SERVICE_NAME}.service"; then
+    printf "无法停止私网 Dashboard 服务：%s.service\n" "${DASHBOARD_SERVICE_NAME}" >&2
+    return 1
+  fi
+  if deploy_as_root test -e "${DASHBOARD_UNIT_FILE}" ||
+    deploy_as_root test -L "${DASHBOARD_UNIT_FILE}"; then
+    deploy_as_root rm -f "${DASHBOARD_UNIT_FILE}" || return 1
+  fi
+  deploy_as_root systemctl daemon-reload
+}
+
+configure_dashboard_systemd_unit() {
+  if [ "${DASHBOARD_DEPLOY_ENABLED}" = "0" ]; then
+    disable_dashboard_systemd_unit
+    DASHBOARD_DEPLOY_STATUS="disabled"
+    return
+  fi
+
+  deploy_log "渲染并启动私网 Dashboard 服务"
+  render_dashboard_systemd_unit || return 1
+  install_dashboard_systemd_unit || return 1
+  DASHBOARD_DEPLOY_STATUS="enabled"
+}
+
+fail_closed_dashboard_systemd_unit() {
+  deploy_as_root systemctl disable --now "${DASHBOARD_SERVICE_NAME}.service" >/dev/null 2>&1 || true
+  deploy_as_root rm -f "${DASHBOARD_UNIT_FILE}" >/dev/null 2>&1 || true
+  deploy_as_root systemctl daemon-reload >/dev/null 2>&1 || true
+  if deploy_as_root systemctl is-active --quiet "${DASHBOARD_SERVICE_NAME}.service"; then
+    return 1
+  fi
+  if deploy_as_root test -e "${DASHBOARD_UNIT_FILE}" ||
+    deploy_as_root test -L "${DASHBOARD_UNIT_FILE}"; then
+    return 1
+  fi
+  DASHBOARD_DEPLOY_STATUS="disabled_after_failure"
 }
 
 install_rendered_systemd_unit() {
@@ -337,6 +436,11 @@ deploy_as_root install -d -o "${SERVICE_USER}" -g "${SERVICE_USER}" -m 0750 \
   "${SHARED_DIR}/python" \
   "${SHARED_DIR}/uv-cache"
 
+if [ "${DASHBOARD_DEPLOY_ENABLED}" = "1" ]; then
+  deploy_as_root install -d -o "${SERVICE_USER}" -g "${SERVICE_USER}" -m 0750 \
+    "${DASHBOARD_HOME_DIR}"
+fi
+
 deploy_as_root install -d -o "${SERVICE_USER}" -g "${SERVICE_USER}" -m 0750 \
   "${RELEASES_DIR}"
 
@@ -389,7 +493,7 @@ deploy_log "执行数据库迁移"
 run_release_command "${STAGE_DIR}" "${STAGE_DIR}/.venv/bin/northstar" init-db
 
 deploy_log "执行发布前健康检查"
-run_release_command "${STAGE_DIR}" "${STAGE_DIR}/.venv/bin/northstar" health
+run_release_command "${STAGE_DIR}" "${STAGE_DIR}/.venv/bin/northstar" health --fail-on-blocked
 
 deploy_as_root mv "${STAGE_DIR}" "${RELEASE_DIR}"
 STAGE_DIR=""
@@ -429,9 +533,18 @@ if ! activate_service; then
 fi
 
 CUTOVER_ACTIVE=false
+if ! configure_dashboard_systemd_unit; then
+  if ! fail_closed_dashboard_systemd_unit; then
+    deploy_as_root journalctl -u "${DASHBOARD_SERVICE_NAME}" -n 80 --no-pager >&2 || true
+    deploy_fail "主服务已切换成功，但无法确认私网 Dashboard 已关闭；请立即人工检查 ${DASHBOARD_SERVICE_NAME}.service。"
+  fi
+  deploy_log "私网 Dashboard 配置或启动失败，已关闭该观察服务；主 health/scheduler 服务保持本次发布版本。"
+fi
+
 prune_old_releases
 cleanup_systemd_unit_backup
 cleanup_rendered_systemd_unit
+cleanup_rendered_dashboard_systemd_unit
 trap - ERR INT TERM
 trap - EXIT
 
@@ -440,3 +553,4 @@ printf "release=%s\n" "${RELEASE_DIR}"
 printf "current=%s\n" "$(readlink -f "${CURRENT_LINK}")"
 printf "service=%s.service\n" "${SYSTEMD_SERVICE_NAME}"
 printf "mode=%s\n" "${SERVICE_MODE}"
+printf "dashboard=%s\n" "${DASHBOARD_DEPLOY_STATUS}"

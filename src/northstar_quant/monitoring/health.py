@@ -8,12 +8,19 @@ from alembic.config import Config
 from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine, inspect, text
 
+from northstar_quant.config.database_backup_readiness import (
+    DatabaseBackupReadinessConfigError,
+    load_database_backup_readiness_policy,
+)
 from northstar_quant.config.settings import get_settings
 from northstar_quant.config.trading_profile import (
     ensure_broker_profile,
     load_trading_profile,
 )
 from northstar_quant.data.storage import load_profile_market_data
+from northstar_quant.monitoring.database_backup_readiness import (
+    evaluate_database_backup_readiness,
+)
 
 
 def _check(code: str, status: str, message: str, **details) -> dict:
@@ -176,6 +183,30 @@ def run_healthcheck() -> dict:
             ),
         )
     )
+
+    try:
+        backup_policy = load_database_backup_readiness_policy()
+        backup_readiness = evaluate_database_backup_readiness(
+            backup_policy,
+            storage_dir=settings.storage_dir,
+        )
+    except DatabaseBackupReadinessConfigError as exc:
+        checks.append(
+            _check(
+                "database_backup_recovery_readiness",
+                "fail",
+                f"PostgreSQL 备份/恢复就绪策略无效：{exc}",
+            )
+        )
+    else:
+        checks.append(
+            _check(
+                "database_backup_recovery_readiness",
+                backup_readiness.status,
+                backup_readiness.message,
+                **backup_readiness.details,
+            )
+        )
 
     if settings.broker == "ctp":
         checks.append(

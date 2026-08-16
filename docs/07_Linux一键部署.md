@@ -290,7 +290,32 @@ uv run pytest
 northstar health
 ```
 
-该模式会迁移和验证应用，但不会启动 Dashboard、调度器或任何交易执行流程。
+默认配置下，该模式会迁移和验证应用，但不会启动 Dashboard、调度器或任何交易执行流程。
+
+### 私网 Dashboard（可选）
+
+Dashboard 是只读观察界面，不是交易许可、鉴权门户或公网 Web 服务。默认
+`DASHBOARD_DEPLOY_ENABLED=0`；只有在 `deploy.env` 显式设为 `1` 时，发布流程才会
+管理独立的 `<SYSTEMD_SERVICE_NAME>-dashboard.service`。它不会改变
+`SERVICE_MODE=health` 或 `SERVICE_MODE=scheduler` 的含义，也不会替换这两个主服务。
+
+该服务固定监听 `127.0.0.1`，应用也会拒绝任何其他
+`NORTHSTAR_DASHBOARD_HOST` 值；不配置 Caddy、Docker、反向代理或 `80`/`443` 端口。远程查看使用
+SSH 隧道或受控 VPN，例如默认端口：
+
+```bash
+ssh -N -L 8501:127.0.0.1:8501 deploy@example.com
+```
+
+然后在本机浏览器打开 `http://127.0.0.1:8501`。如修改
+`NORTHSTAR_DASHBOARD_PORT`，隧道两侧端口必须同步调整。验收时至少确认服务器监听地址仅为
+loopback、Dashboard systemd 服务正常，以及公网防火墙没有放行该端口。
+
+发布主服务成功后才会更新 Dashboard。若 Dashboard 自身启动失败，部署会强制关闭并移除该可选服务，
+主服务仍保持本次已验证的发布版本，远端输出会明确为
+`dashboard=disabled_after_failure`；若连“已关闭”都无法确认，部署会失败并要求立即人工检查。
+当前 Dashboard 会显示账户、订单、成交、报告路径与行情摘要，且没有登录、角色控制或独立只读数据库
+身份，因此绝不能面向公网或共享给不受信任的用户。
 
 ### scheduler
 
@@ -330,6 +355,42 @@ kill switch、账户核验和风控。
 
 默认保留最近五个版本，且至少保留两个版本。
 
+### PostgreSQL 备份与恢复证据
+
+本部署脚本**不会**创建 PostgreSQL 备份、安装对象存储客户端、配置 WAL 归档，也不会把数据库凭据
+交给应用以外的服务。生产 PostgreSQL 必须由独立、最小权限的备份系统负责；开发 Docker 数据卷、
+`pg_dump` 文件留在同一台服务器或“任务执行成功”都不能视为可恢复的备份。
+
+第一阶段只提供诚实的观测门禁。`configs/maintenance/database_backup_readiness.yaml` 默认关闭；启用后，
+独立运维流程须在以下位置写入**无秘密**证据：
+
+```text
+<runtime.storage_dir>/operations/database-backup/readiness.json
+```
+
+证据必须记录一个逻辑备份制品的 UUID、SHA-256、大小、完成 UTC 时间，以及对**同一制品**执行隔离
+PostgreSQL 恢复演练的完成 UTC 时间、`passed` 状态和方法名。它不能包含 DSN、主机、路径、对象存储
+桶、账户、令牌或密码。不要为了消除告警手工伪造该文件：应用只能验证证据结构和时效，无法独立验证
+外部介质或恢复目标，所以完整证据仍只显示 `warn`，永远不会显示 `pass`。
+
+```bash
+# 仅查看证据，不会备份、恢复或修改任何文件。
+sudo -u northstar /srv/northstar/northstar-quant/current/.venv/bin/northstar \
+  ops backup status
+
+# 发布预检和 health systemd 服务均使用此门禁：只有 blocked 才返回退出码 2。
+sudo -u northstar /srv/northstar/northstar-quant/current/.venv/bin/northstar \
+  health --fail-on-blocked
+```
+
+启用策略后，证据缺失、损坏、过期、指向不同制品或恢复演练失败会使 health 为 `blocked`，从而阻断
+后续发布。策略关闭时结果为 `skipped`，明确表示“未检查”，而不是“备份正常”。这项能力只覆盖
+PostgreSQL 备份/恢复就绪；Paper/`ctp_sim` 状态、正式报告与依法允许复制的行情数据仍需分别纳入
+经授权的备份范围。
+
+在进入真实 CTP 或实盘前，必须升级为独立故障域的加密备份、PITR（基础备份加 WAL 归档）、书面
+RPO/RTO、备份新鲜度告警和至少定期的隔离恢复演练。不能仅依赖本项目的证据检查作为灾难恢复方案。
+
 ## 运维命令
 
 查看状态：
@@ -358,6 +419,3 @@ ssh deploy@example.com 'sudo systemctl start northstar-quant'
 ssh deploy@example.com \
   'readlink -f /srv/northstar/northstar-quant/current'
 ```
-
-Dashboard 不属于默认 systemd 服务。确需远程查看时，应监听 `127.0.0.1` 并通过
-SSH 隧道或 VPN 访问，不直接暴露公网。

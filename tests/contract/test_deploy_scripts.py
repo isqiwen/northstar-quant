@@ -283,6 +283,9 @@ def test_runtime_output_paths_are_configurable_and_consistent() -> None:
         assert "ReadWritePaths=@SHARED_DIR@ @RUNTIME_STORAGE_DIR@" in template
         assert "@RUNTIME_LOG_DIR@" in template
 
+    health_template = (DEPLOY_DIR / "systemd" / "health.service.in").read_text(encoding="utf-8")
+    assert "ExecStart=@CURRENT_LINK@/.venv/bin/northstar health --fail-on-blocked" in health_template
+
     active_config_write = (
         'deploy_write_active_app_config \\\n'
         '  "${STAGE_DIR}/configs/app.example.yaml" \\\n'
@@ -297,6 +300,10 @@ def test_runtime_output_paths_are_configurable_and_consistent() -> None:
     assert release_script.index(active_config_write) < release_script.index(
         'run_release_command "${STAGE_DIR}" "${STAGE_DIR}/.venv/bin/northstar" init-db'
     )
+    assert (
+        'run_release_command "${STAGE_DIR}" "${STAGE_DIR}/.venv/bin/northstar" '
+        'health --fail-on-blocked'
+    ) in release_script
     cutover = release_script.split('deploy_log "停止当前服务，准备原子切换 current"', maxsplit=1)[1]
     assert cutover.index('systemctl stop "${SYSTEMD_SERVICE_NAME}.service"') < cutover.index(
         "switch_current_release"
@@ -911,6 +918,92 @@ def test_private_ntfy_bootstrap_uses_private_remote_staging_directory() -> None:
         deploy_script,
     ), "远端临时工作目录必须以 0700 创建"
     assert 'deploy_scp "${NTFY_BOOTSTRAP_FILE}" "${DEPLOY_HOST}:${REMOTE_NTFY_BOOTSTRAP}"' in deploy_script
+
+
+def _load_dashboard_deploy_config(config_file: Path) -> subprocess.CompletedProcess[str]:
+    """加载 Dashboard 的非敏感部署开关。"""
+
+    command = """
+set -euo pipefail
+source "$1/lib/common.sh"
+source "$1/lib/config.sh"
+unset DASHBOARD_DEPLOY_ENABLED || true
+deploy_load_config "$2"
+printf '%s\\n' "${DASHBOARD_DEPLOY_ENABLED:-}"
+"""
+    return _run_bash(
+        "-c",
+        command,
+        BASH_EXECUTABLE,
+        _bash_path(DEPLOY_DIR),
+        _bash_path(config_file),
+        check=False,
+        capture_output=True,
+    )
+
+
+def test_private_dashboard_deploy_is_explicit_opt_in_and_keeps_main_service_mode() -> None:
+    """Dashboard 是独立观察服务，默认关闭，不能替换 health/scheduler 主服务。"""
+
+    example_config = ROOT_DIR / "deploy.env.example"
+    example_content = example_config.read_text(encoding="utf-8")
+    assert "DASHBOARD_DEPLOY_ENABLED=0" in example_content
+
+    default_result = _load_dashboard_deploy_config(example_config)
+    assert default_result.returncode == 0, default_result.stderr
+    assert default_result.stdout.strip() == "0"
+
+    deploy_script = (DEPLOY_DIR / "deploy.sh").read_text(encoding="utf-8")
+    provision_script = (DEPLOY_DIR / "provision.sh").read_text(encoding="utf-8")
+    release_script = (DEPLOY_DIR / "install-release.sh").read_text(encoding="utf-8")
+    config_loader = (DEPLOY_DIR / "lib" / "config.sh").read_text(encoding="utf-8")
+    dashboard_template = (DEPLOY_DIR / "systemd" / "dashboard.service.in").read_text(
+        encoding="utf-8"
+    )
+
+    for source in (deploy_script, provision_script, release_script, config_loader):
+        assert "DASHBOARD_DEPLOY_ENABLED" in source
+    assert 'DASHBOARD_SERVICE_NAME="${SYSTEMD_SERVICE_NAME}-dashboard"' in release_script
+    assert 'DASHBOARD_UNIT_FILE="/etc/systemd/system/${DASHBOARD_SERVICE_NAME}.service"' in (
+        release_script
+    )
+    assert 'case "${SERVICE_MODE}" in\n  health|scheduler)' in release_script
+    assert 'case "${SERVICE_MODE}" in\n  health|scheduler)' in deploy_script
+
+    assert "Environment=NORTHSTAR_DASHBOARD_HOST=127.0.0.1" in dashboard_template
+    assert "0.0.0.0" not in dashboard_template
+    assert "ExecStart=@CURRENT_LINK@/.venv/bin/northstar dashboard run" in dashboard_template
+    assert "EnvironmentFile=@ENV_FILE@" in dashboard_template
+    assert (
+        "ReadWritePaths=@DASHBOARD_HOME_DIR@ @RUNTIME_CACHE_DIR@ "
+        "@RUNTIME_MATPLOTLIB_DIR@ @RUNTIME_LOG_DIR@"
+    ) in dashboard_template
+
+    activate_main_service = release_script.index("if ! activate_service; then")
+    configure_dashboard = release_script.index("if ! configure_dashboard_systemd_unit; then")
+    assert activate_main_service < configure_dashboard
+    assert "fail_closed_dashboard_systemd_unit()" in release_script
+    assert 'DASHBOARD_DEPLOY_STATUS="disabled_after_failure"' in release_script
+    assert (
+        "私网 Dashboard 配置或启动失败，已关闭该观察服务；"
+        "主 health/scheduler 服务保持本次发布版本。"
+    ) in release_script
+    assert 'printf "dashboard=%s\\n" "${DASHBOARD_DEPLOY_STATUS}"' in release_script
+    assert 'printf "dashboard_requested=%s\\n"' in deploy_script
+
+    disable_dashboard_start = release_script.index("disable_dashboard_systemd_unit() {")
+    disable_dashboard_end = release_script.index(
+        "\n}\n\nconfigure_dashboard_systemd_unit()", disable_dashboard_start
+    )
+    disable_dashboard = release_script[disable_dashboard_start:disable_dashboard_end]
+    # 即使 unit 文件被人工删除，也要尝试停止仍可能已加载的旧 Dashboard 进程。
+    assert (
+        'systemctl disable --now "${DASHBOARD_SERVICE_NAME}.service" '
+        '>/dev/null 2>&1 || true'
+    ) in disable_dashboard
+    assert 'systemctl is-active --quiet "${DASHBOARD_SERVICE_NAME}.service"' in (
+        disable_dashboard
+    )
 
 
 def test_private_ntfy_does_not_grant_docker_access_to_northstar_and_fails_closed() -> None:

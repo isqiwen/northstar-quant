@@ -1,23 +1,26 @@
 [Unit]
-Description=Northstar Quant 部署健康检查
+Description=Northstar Quant 私网 Dashboard
 After=network-online.target
 Wants=network-online.target
 
 [Service]
-Type=oneshot
-RemainAfterExit=true
+Type=simple
 User=@SERVICE_USER@
 Group=@SERVICE_USER@
 WorkingDirectory=@CURRENT_LINK@
 EnvironmentFile=@ENV_FILE@
-Environment=HOME=@SERVICE_HOME@
+Environment=HOME=@DASHBOARD_HOME_DIR@
 Environment=NORTHSTAR_PROJECT_ROOT=@CURRENT_LINK@
+Environment=NORTHSTAR_DASHBOARD_HOST=127.0.0.1
 Environment=UV_CACHE_DIR=@SHARED_DIR@/uv-cache
 Environment=UV_PYTHON_INSTALL_DIR=@SHARED_DIR@/python
 Environment=XDG_CACHE_HOME=@RUNTIME_CACHE_DIR@
 Environment=MPLCONFIGDIR=@RUNTIME_MATPLOTLIB_DIR@
-ExecStart=@CURRENT_LINK@/.venv/bin/northstar health --fail-on-blocked
-TimeoutStartSec=180
+ExecStart=@CURRENT_LINK@/.venv/bin/northstar dashboard run
+Restart=on-failure
+RestartSec=5
+KillSignal=SIGINT
+TimeoutStopSec=60
 UMask=0077
 NoNewPrivileges=true
 PrivateTmp=true
@@ -31,7 +34,7 @@ RestrictSUIDSGID=true
 LockPersonality=true
 RestrictRealtime=true
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
-ReadWritePaths=@SHARED_DIR@ @RUNTIME_STORAGE_DIR@ @RUNTIME_DOWNLOADS_DIR@ @RUNTIME_REPORTS_DIR@ @RUNTIME_LOG_DIR@ @RUNTIME_CACHE_DIR@ @RUNTIME_MATPLOTLIB_DIR@
+ReadWritePaths=@DASHBOARD_HOME_DIR@ @RUNTIME_CACHE_DIR@ @RUNTIME_MATPLOTLIB_DIR@ @RUNTIME_LOG_DIR@
 
 [Install]
 WantedBy=multi-user.target

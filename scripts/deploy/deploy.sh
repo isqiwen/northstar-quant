@@ -68,6 +68,7 @@ RUNTIME_REPORTS_DIR="${RUNTIME_REPORTS_DIR:-}"
 RUNTIME_LOG_DIR="${RUNTIME_LOG_DIR:-}"
 RUNTIME_CACHE_DIR="${RUNTIME_CACHE_DIR:-}"
 RUNTIME_MATPLOTLIB_DIR="${RUNTIME_MATPLOTLIB_DIR:-}"
+DASHBOARD_DEPLOY_ENABLED="${DASHBOARD_DEPLOY_ENABLED:-0}"
 
 ENV_FILE="${ENV_FILE:-${ROOT_DIR}/.env}"
 ENV_TEMPLATE="${ROOT_DIR}/.env.example"
@@ -102,6 +103,7 @@ for bool_name in \
   DRY_RUN \
   SSH_CONTROL \
   CLEAN_REMOTE_ON_EXIT \
+  DASHBOARD_DEPLOY_ENABLED \
   UPLOAD_NTFY_BOOTSTRAP; do
   deploy_assert_bool "${bool_name}" "${!bool_name}"
 done
@@ -344,6 +346,7 @@ REMOTE_COMMAND+=" RUNTIME_MATPLOTLIB_DIR=$(deploy_shell_quote "${RUNTIME_MATPLOT
 REMOTE_COMMAND+=" ARTIFACT_TARBALL=$(deploy_shell_quote "${REMOTE_ARTIFACT}")"
 REMOTE_COMMAND+=" ARTIFACT_SHA256=$(deploy_shell_quote "${ARTIFACT_SHA256}")"
 REMOTE_COMMAND+=" RELEASE_ID=$(deploy_shell_quote "${RELEASE_ID}")"
+REMOTE_COMMAND+=" DASHBOARD_DEPLOY_ENABLED=$(deploy_shell_quote "${DASHBOARD_DEPLOY_ENABLED}")"
 REMOTE_COMMAND+=" NTFY_DEPLOY_ENABLED=$(deploy_shell_quote "${NTFY_DEPLOY_ENABLED}")"
 REMOTE_COMMAND+=" NTFY_PUBLIC_HOST=$(deploy_shell_quote "${NTFY_PUBLIC_HOST}")"
 REMOTE_COMMAND+=" NTFY_ACME_EMAIL=$(deploy_shell_quote "${NTFY_ACME_EMAIL}")"
@@ -369,5 +372,6 @@ printf "host=%s\n" "${DEPLOY_HOST}"
 printf "release=%s\n" "${RELEASE_ID}"
 printf "service=%s.service\n" "${SYSTEMD_SERVICE_NAME}"
 printf "mode=%s\n" "${SERVICE_MODE}"
+printf "dashboard_requested=%s\n" "$([ "${DASHBOARD_DEPLOY_ENABLED}" = "1" ] && printf enabled || printf disabled)"
 printf "logs=ssh %s 'sudo journalctl -u %s -n 100 --no-pager'\n" \
   "${DEPLOY_HOST}" "${SYSTEMD_SERVICE_NAME}"

@@ -34,7 +34,11 @@ from northstar_quant.db.repositories import (
     list_recent_orders,
 )
 from northstar_quant.db.session import SessionLocal
+from northstar_quant.logging_.logger import get_logger
 from northstar_quant.monitoring.report_catalog import list_recent_report_artifacts
+
+
+logger = get_logger(__name__)
 
 
 def render_dashboard() -> None:
@@ -140,8 +144,9 @@ def _render_live_overview(settings: Any) -> None:
                 "\u6570\u636e\u5e93\u6b63\u5e38\uff0c\u63a2\u6d3b\u8fd4\u56de: "
                 f"{one}"
             )
-        except Exception as exc:  # pragma: no cover
-            st.error(f"\u6570\u636e\u5e93\u5f02\u5e38: {exc}")
+        except Exception:  # pragma: no cover - \u9762\u5411\u7528\u6237\u7684\u9875\u9762\u5fc5\u987b\u9690\u85cf\u8fde\u63a5\u4e0e\u7cfb\u7edf\u7ec6\u8282\u3002
+            logger.exception("Dashboard \u6570\u636e\u5e93\u8fde\u901a\u6027\u68c0\u67e5\u5931\u8d25")
+            st.error("\u6570\u636e\u5e93\u8fde\u901a\u6027\u68c0\u67e5\u5931\u8d25\uff0c\u8bf7\u67e5\u770b\u670d\u52a1\u65e5\u5fd7\u3002")
 
         report_dir = Path(settings.reports_dir)
         st.subheader("\u6700\u8fd1\u62a5\u544a\u6587\u4ef6")
@@ -206,8 +211,12 @@ def _render_data_overview(settings: Any) -> None:
             f"`northstar data download --profile {selected_profile_id}`\u3002"
         )
         return
-    except Exception as exc:  # pragma: no cover
-        st.error(f"\u8bfb\u53d6\u6570\u636e\u6982\u89c8\u5931\u8d25: {exc}")
+    except Exception:  # pragma: no cover - \u9519\u8bef\u7ec6\u8282\u4ec5\u5199\u5165\u53d7\u63a7\u65e5\u5fd7\u3002
+        logger.exception(
+            "Dashboard \u8bfb\u53d6\u6570\u636e\u6982\u89c8\u5931\u8d25",
+            extra={"context": {"profile": selected_profile_id}},
+        )
+        st.error("\u8bfb\u53d6\u6570\u636e\u6982\u89c8\u5931\u8d25\uff0c\u8bf7\u67e5\u770b\u670d\u52a1\u65e5\u5fd7\u3002")
         return
 
     if market_df.is_empty():

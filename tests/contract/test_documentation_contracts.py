@@ -109,7 +109,7 @@ def test_roadmap_is_linked_and_preserves_all_phase_gates() -> None:
     for phase in range(8):
         assert f"### P{phase}：" in roadmap
     assert "AI 实施协议" in roadmap
-    assert "P0-01 至 P0-06" in roadmap
+    assert "P0-01 至 P0-07" in roadmap
     for filename in (
         "01_架构总览.md",
         "03_执行与安全边界.md",
@@ -152,9 +152,14 @@ def test_configuration_documentation_matches_safe_runtime_defaults() -> None:
     assert "configs/app.local.yaml" in config_guide
     assert "不再被支持" in config_guide
     assert "northstar data cleanup" in config_guide
+    assert "northstar ops backup status" in config_guide
+    assert "database_backup_readiness.yaml" in config_guide
     assert "标准市场数据" in config_guide
     assert "PostgreSQL 服务的独立数据卷" in config_guide
     assert (PROJECT_ROOT / "configs" / "maintenance" / "output_retention.yaml").is_file()
+    assert (
+        PROJECT_ROOT / "configs" / "maintenance" / "database_backup_readiness.yaml"
+    ).is_file()
     assert Settings.model_fields["broker"].default == "paper"
     assert Settings.model_fields["live_trading_enabled"].default is False
     assert Settings.model_fields["kill_switch_enabled"].default is False

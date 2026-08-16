@@ -73,6 +73,18 @@ def test_database_rejects_sqlite_url():
         )
 
 
+def test_dashboard_host_only_allows_ipv4_loopback():
+    settings = Settings(_env_file=None, dashboard_host=" 127.0.0.1 ")
+
+    assert settings.dashboard_host == "127.0.0.1"
+
+
+@pytest.mark.parametrize("host", ["0.0.0.0", "::1", "localhost", "192.168.1.10"])
+def test_dashboard_host_rejects_non_ipv4_loopback_values(host):
+    with pytest.raises(ValidationError, match="NORTHSTAR_DASHBOARD_HOST"):
+        Settings(_env_file=None, dashboard_host=host)
+
+
 def test_empty_optional_ntfy_environment_values_are_ignored(monkeypatch):
     monkeypatch.setenv("NORTHSTAR_NTFY_BASE_URL", "")
     monkeypatch.setenv("NORTHSTAR_NTFY_TOPIC", "")
