@@ -3,6 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/lib/common.sh"
+source "${SCRIPT_DIR}/ntfy/lib.sh"
 
 APP_NAME="${APP_NAME:-northstar-quant}"
 SERVICE_USER="${SERVICE_USER:-northstar}"
@@ -20,8 +21,21 @@ ARTIFACT_SHA256="${ARTIFACT_SHA256:-}"
 RELEASE_ID="${RELEASE_ID:-}"
 ENV_FILE_PATH="${ENV_FILE_PATH:-}"
 SHARED_ENV_FILE="${APP_ROOT}/shared/.env"
+NTFY_DEPLOY_ENABLED="${NTFY_DEPLOY_ENABLED:-0}"
+NTFY_PUBLIC_HOST="${NTFY_PUBLIC_HOST:-}"
+NTFY_ACME_EMAIL="${NTFY_ACME_EMAIL:-}"
+NTFY_IMAGE="${NTFY_IMAGE:-binwiederhier/ntfy:v2.27.0}"
+NTFY_CADDY_IMAGE="${NTFY_CADDY_IMAGE:-caddy:2.10.2-alpine}"
+NTFY_CONFIG_DIR="${NTFY_CONFIG_DIR:-/etc/northstar-ntfy}"
+NTFY_DATA_DIR="${NTFY_DATA_DIR:-/var/lib/northstar-ntfy}"
+NTFY_CACHE_DURATION="${NTFY_CACHE_DURATION:-24h}"
+UPLOAD_NTFY_BOOTSTRAP="${UPLOAD_NTFY_BOOTSTRAP:-0}"
+NTFY_BOOTSTRAP_PATH="${NTFY_BOOTSTRAP_PATH:-}"
+NTFY_APP_ENV_FILE=""
+# NTFY_BOOTSTRAP_FILE 仅在本地 deploy.sh 中读取；远端只接收一次性 NTFY_BOOTSTRAP_PATH。
 
 deploy_assert_bool "SETUP_SERVER" "${SETUP_SERVER}"
+deploy_assert_bool "UPLOAD_NTFY_BOOTSTRAP" "${UPLOAD_NTFY_BOOTSTRAP}"
 
 if [ "$(uname -s)" != "Linux" ]; then
   deploy_fail "远程部署目标必须是 Linux。"
@@ -31,6 +45,14 @@ deploy_need_cmd realpath
 SERVICE_HOME="$(realpath -m -- "${SERVICE_HOME}")"
 APP_ROOT="$(realpath -m -- "${APP_ROOT}")"
 SHARED_ENV_FILE="${APP_ROOT}/shared/.env"
+ntfy_validate_deployment_config
+
+if [ "${UPLOAD_NTFY_BOOTSTRAP}" = "1" ] && [ "${NTFY_DEPLOY_ENABLED}" != "1" ]; then
+  deploy_fail "UPLOAD_NTFY_BOOTSTRAP=1 时必须同时设置 NTFY_DEPLOY_ENABLED=1。"
+fi
+if [ "${UPLOAD_NTFY_BOOTSTRAP}" = "1" ] && [ -z "${NTFY_BOOTSTRAP_PATH}" ]; then
+  deploy_fail "UPLOAD_NTFY_BOOTSTRAP=1 时必须提供远端一次性 NTFY_BOOTSTRAP_PATH。"
+fi
 
 case "${SERVICE_HOME}" in
   /srv/*)
@@ -78,6 +100,32 @@ if [ -n "${ENV_FILE_PATH}" ]; then
   if [ ! -f "${ENV_FILE_PATH}" ]; then
     deploy_fail "待安装的生产环境文件不存在：${ENV_FILE_PATH}"
   fi
+fi
+
+if [ "${NTFY_DEPLOY_ENABLED}" = "1" ]; then
+  # 先用候选 .env 验证/部署 ntfy，避免 TLS、Docker 或安全策略失败时覆盖正在运行应用的配置。
+  NTFY_APP_ENV_FILE="${ENV_FILE_PATH:-${SHARED_ENV_FILE}}"
+  if [ ! -f "${NTFY_APP_ENV_FILE}" ]; then
+    deploy_fail "私有 ntfy 缺少可验证的活动 .env；首次部署请同时设置 UPLOAD_ENV=1。"
+  fi
+  deploy_log "部署私有 ntfy 与 Caddy TLS 反向代理"
+  deploy_as_root env \
+    APP_ENV_FILE="${NTFY_APP_ENV_FILE}" \
+    SERVICE_USER="${SERVICE_USER}" \
+    NTFY_DEPLOY_ENABLED="${NTFY_DEPLOY_ENABLED}" \
+    NTFY_PUBLIC_HOST="${NTFY_PUBLIC_HOST}" \
+    NTFY_ACME_EMAIL="${NTFY_ACME_EMAIL}" \
+    NTFY_IMAGE="${NTFY_IMAGE}" \
+    NTFY_CADDY_IMAGE="${NTFY_CADDY_IMAGE}" \
+    NTFY_CONFIG_DIR="${NTFY_CONFIG_DIR}" \
+    NTFY_DATA_DIR="${NTFY_DATA_DIR}" \
+    NTFY_CACHE_DURATION="${NTFY_CACHE_DURATION}" \
+    UPLOAD_NTFY_BOOTSTRAP="${UPLOAD_NTFY_BOOTSTRAP}" \
+    NTFY_BOOTSTRAP_PATH="${NTFY_BOOTSTRAP_PATH}" \
+    bash "${SCRIPT_DIR}/ntfy/provision-ntfy.sh"
+fi
+
+if [ -n "${ENV_FILE_PATH}" ]; then
   deploy_log "安装生产环境文件"
   deploy_as_root install -d -o "${SERVICE_USER}" -g "${SERVICE_USER}" -m 0750 \
     "${APP_ROOT}/shared"

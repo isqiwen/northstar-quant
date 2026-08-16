@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import subprocess
 import tarfile
@@ -23,6 +24,17 @@ RUNTIME_PATH_KEYS = (
     "RUNTIME_CACHE_DIR",
     "RUNTIME_MATPLOTLIB_DIR",
 )
+NTFY_DEPLOY_KEYS = (
+    "NTFY_DEPLOY_ENABLED",
+    "NTFY_PUBLIC_HOST",
+    "NTFY_ACME_EMAIL",
+    "NTFY_IMAGE",
+    "NTFY_CADDY_IMAGE",
+    "NTFY_CONFIG_DIR",
+    "NTFY_DATA_DIR",
+    "NTFY_CACHE_DURATION",
+)
+NTFY_DIR = DEPLOY_DIR / "ntfy"
 
 
 def _resolve_bash_executable() -> str:
@@ -148,6 +160,7 @@ def test_build_artifact_contains_only_runtime_sources(tmp_path: Path) -> None:
     assert "configs/app.example.yaml" in names
     assert "configs/app.yaml" not in names
     assert ".env" not in names
+    assert not any("ntfy.bootstrap" in name for name in names)
     assert ".venv" not in names
     assert not any(Path(name).name.startswith("._") for name in names)
     assert not any(name.startswith("logs/") for name in names)
@@ -485,3 +498,442 @@ deploy_configure_runtime_paths /srv/northstar/northstar-quant
 
     assert release_path_result.returncode != 0
     assert "releases" in release_path_result.stderr
+
+
+def _load_ntfy_deploy_config(config_file: Path) -> subprocess.CompletedProcess[str]:
+    """加载部署配置并输出 ntfy 的非机密字段。"""
+
+    command = """
+set -euo pipefail
+source "$1/lib/common.sh"
+source "$1/lib/config.sh"
+for key in \
+  NTFY_DEPLOY_ENABLED \
+  NTFY_PUBLIC_HOST \
+  NTFY_ACME_EMAIL \
+  NTFY_IMAGE \
+  NTFY_CADDY_IMAGE \
+  NTFY_CONFIG_DIR \
+  NTFY_DATA_DIR \
+  NTFY_CACHE_DURATION; do
+  unset "${key}" || true
+done
+deploy_load_config "$2"
+printf '%s|%s|%s|%s|%s|%s|%s|%s\\n' \
+  "${NTFY_DEPLOY_ENABLED:-}" \
+  "${NTFY_PUBLIC_HOST:-}" \
+  "${NTFY_ACME_EMAIL:-}" \
+  "${NTFY_IMAGE:-}" \
+  "${NTFY_CADDY_IMAGE:-}" \
+  "${NTFY_CONFIG_DIR:-}" \
+  "${NTFY_DATA_DIR:-}" \
+  "${NTFY_CACHE_DURATION:-}"
+"""
+    return _run_bash(
+        "-c",
+        command,
+        BASH_EXECUTABLE,
+        _bash_path(DEPLOY_DIR),
+        _bash_path(config_file),
+        check=False,
+        capture_output=True,
+    )
+
+
+def test_private_ntfy_deploy_defaults_closed_and_uses_nonsecret_whitelist(
+    tmp_path: Path,
+) -> None:
+    """私有 ntfy 必须默认关闭，且 deploy.env 不能承载身份或令牌。"""
+
+    example_config = ROOT_DIR / "deploy.env.example"
+    example_content = example_config.read_text(encoding="utf-8")
+    assert "NTFY_DEPLOY_ENABLED=0" in example_content
+
+    default_result = _load_ntfy_deploy_config(example_config)
+    assert default_result.returncode == 0, default_result.stderr
+    default_values = default_result.stdout.strip().split("|")
+    assert default_values[0] == "0"
+    assert default_values[1:3] == ["", ""]
+    assert default_values[3] == "binwiederhier/ntfy:v2.27.0"
+    assert default_values[4] == "caddy:2.10.2-alpine"
+    assert default_values[5:] == [
+        "/etc/northstar-ntfy",
+        "/var/lib/northstar-ntfy",
+        "24h",
+    ]
+
+    enabled_config = tmp_path / "deploy.env"
+    enabled_config.write_text(
+        "\n".join(
+            [
+                "DEPLOY_HOST=ntfy.example.test",
+                "NTFY_DEPLOY_ENABLED=1",
+                "NTFY_PUBLIC_HOST=ntfy.example.test",
+                "NTFY_ACME_EMAIL=ops@example.test",
+                "NTFY_IMAGE=example.test/ntfy:v1",
+                "NTFY_CADDY_IMAGE=example.test/caddy:v1",
+                "NTFY_CONFIG_DIR=/etc/example-ntfy",
+                "NTFY_DATA_DIR=/var/lib/example-ntfy",
+                "NTFY_CACHE_DURATION=12h",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    enabled_result = _load_ntfy_deploy_config(enabled_config)
+    assert enabled_result.returncode == 0, enabled_result.stderr
+    assert enabled_result.stdout.strip().split("|") == [
+        "1",
+        "ntfy.example.test",
+        "ops@example.test",
+        "example.test/ntfy:v1",
+        "example.test/caddy:v1",
+        "/etc/example-ntfy",
+        "/var/lib/example-ntfy",
+        "12h",
+    ]
+
+    secret_in_deploy_config = tmp_path / "deploy-with-secret.env"
+    secret_in_deploy_config.write_text(
+        "\n".join(
+            [
+                "DEPLOY_HOST=ntfy.example.test",
+                "NTFY_DEPLOY_ENABLED=1",
+                "NTFY_ADMIN_PASSWORD=must-not-be-accepted-here",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    rejected_result = _load_ntfy_deploy_config(secret_in_deploy_config)
+    assert rejected_result.returncode != 0
+    assert "不支持的字段" in rejected_result.stderr
+
+    config_loader = (DEPLOY_DIR / "lib" / "config.sh").read_text(encoding="utf-8")
+    for key in NTFY_DEPLOY_KEYS:
+        assert key in config_loader
+    for secret_key in (
+        "NTFY_ADMIN_USERNAME",
+        "NTFY_ADMIN_PASSWORD",
+        "NTFY_READER_USERNAME",
+        "NTFY_READER_PASSWORD",
+    ):
+        assert secret_key not in config_loader
+
+
+def test_private_ntfy_parameters_propagate_without_sending_bootstrap_secrets() -> None:
+    """部署入口只转发非机密 ntfy 参数，身份文件另走显式的一次性上传。"""
+
+    deploy_script = (DEPLOY_DIR / "deploy.sh").read_text(encoding="utf-8")
+    provision_script = (DEPLOY_DIR / "provision.sh").read_text(encoding="utf-8")
+
+    remote_command = deploy_script.split('REMOTE_COMMAND="sudo env"', maxsplit=1)[1].split(
+        'deploy_log "执行远程部署"', maxsplit=1
+    )[0]
+    for key in NTFY_DEPLOY_KEYS:
+        assert key in deploy_script
+        assert key in remote_command
+        assert key in provision_script
+
+    assert "UPLOAD_NTFY_BOOTSTRAP" in deploy_script
+    assert "NTFY_BOOTSTRAP_FILE" in deploy_script
+    assert "NTFY_BOOTSTRAP_FILE" in provision_script
+    for secret_key in (
+        "NTFY_ADMIN_USERNAME",
+        "NTFY_ADMIN_PASSWORD",
+        "NTFY_READER_USERNAME",
+        "NTFY_READER_PASSWORD",
+    ):
+        assert secret_key not in deploy_script
+        assert secret_key not in provision_script
+
+
+def test_private_ntfy_templates_keep_ntfy_behind_caddy_with_strict_server_policy() -> None:
+    """ntfy 只可经 Caddy 的 80/443 端口访问，服务端默认拒绝访问。"""
+
+    compose_template = NTFY_DIR / "compose.yaml.in"
+    caddy_template = NTFY_DIR / "Caddyfile.in"
+    server_template = NTFY_DIR / "server.yml.in"
+    for template in (compose_template, caddy_template, server_template):
+        assert template.is_file(), f"缺少 ntfy 部署模板：{template.relative_to(ROOT_DIR)}"
+
+    compose = yaml.safe_load(compose_template.read_text(encoding="utf-8"))
+    assert isinstance(compose, dict)
+    services = compose.get("services")
+    assert isinstance(services, dict)
+    assert {"caddy", "ntfy"}.issubset(services)
+    caddy = services["caddy"]
+    ntfy = services["ntfy"]
+    assert isinstance(caddy, dict)
+    assert isinstance(ntfy, dict)
+    caddy_ports = caddy.get("ports")
+    assert isinstance(caddy_ports, list)
+    assert {str(port).split("/", maxsplit=1)[0] for port in caddy_ports} == {
+        "80:80",
+        "443:443",
+    }
+    assert "ports" not in ntfy
+    for service_name, service in services.items():
+        if service_name != "caddy":
+            assert not service.get("ports"), f"仅 Caddy 可映射主机端口：{service_name}"
+
+    caddy_content = caddy_template.read_text(encoding="utf-8")
+    assert "reverse_proxy" in caddy_content
+    assert re.search(r"reverse_proxy\s+ntfy(?::\d+)?", caddy_content)
+
+    server_config = yaml.safe_load(server_template.read_text(encoding="utf-8"))
+    assert isinstance(server_config, dict)
+    assert server_config.get("auth-default-access") == "deny-all"
+    assert server_config.get("behind-proxy") is True
+    assert server_config.get("enable-signup") is False
+    for key in ("auth-file", "cache-file"):
+        assert server_config.get(key), f"server.yml.in 必须设置持久化 {key}"
+    # 交易告警不允许携带附件：不能创建附件目录，也不能放开附件配额。
+    assert server_config.get("attachment-cache-dir", "") == ""
+    for limit_key in ("attachment-file-size-limit", "attachment-total-size-limit"):
+        configured_limit = server_config.get(limit_key)
+        if configured_limit is not None:
+            assert configured_limit in {0, "0", "0B"}, (
+                f"server.yml.in 不得放开 {limit_key}"
+            )
+
+
+def test_private_ntfy_persistent_state_is_root_owned_and_not_part_of_release() -> None:
+    """顶层持久目录由 root 管理，仅 ntfy 专用子目录可由服务账户写入。"""
+
+    ntfy_provision = (NTFY_DIR / "provision-ntfy.sh").read_text(encoding="utf-8")
+    all_ntfy_sources = "\n".join(
+        source.read_text(encoding="utf-8") for source in NTFY_DIR.iterdir() if source.is_file()
+    )
+
+    assert "NTFY_CONFIG_DIR" in ntfy_provision
+    assert "NTFY_DATA_DIR" in ntfy_provision
+    assert re.search(
+        r'install\s+-d\s+-o\s+root\s+-g\s+root\s+-m\s+0750\s+"\$\{NTFY_DATA_DIR\}"',
+        ntfy_provision,
+    ), "NTFY_DATA_DIR 顶层目录必须是 root:root 0750"
+    assert re.search(
+        r'install\s+-d\s+-o\s+"\$\{NTFY_SERVICE_ACCOUNT\}"\s+-g\s+"\$\{NTFY_SERVICE_ACCOUNT\}"'
+        r'\s+-m\s+0750\s+\\?\s*"\$\{NTFY_DATA_DIR\}/ntfy"',
+        ntfy_provision,
+    ), "仅 ntfy 数据子目录可授予专用服务账户写权限"
+    assert re.search(r"install\s+-d[^\n]*-o\s+root[^\n]*-g\s+root", ntfy_provision)
+    release_path_result = _run_bash(
+        "-c",
+        """
+set -euo pipefail
+source "$1/lib/common.sh"
+source "$1/ntfy/lib.sh"
+ntfy_normalize_path NTFY_DATA_DIR /srv/northstar/northstar-quant/releases/ntfy data
+""",
+        BASH_EXECUTABLE,
+        _bash_path(DEPLOY_DIR),
+        check=False,
+        capture_output=True,
+    )
+    assert release_path_result.returncode != 0
+    assert "releases" in release_path_result.stderr
+    assert "docker compose down -v" not in all_ntfy_sources
+    assert "docker-compose down -v" not in all_ntfy_sources
+    assert 'rm -rf "${NTFY_CONFIG_DIR}' not in all_ntfy_sources
+    assert 'rm -rf "${NTFY_DATA_DIR}' not in all_ntfy_sources
+
+
+def test_private_ntfy_normal_release_never_rewrites_existing_identity() -> None:
+    """未显式上传 bootstrap 时，普通发布只能验证既有身份，不能重建它。"""
+
+    ntfy_provision = (NTFY_DIR / "provision-ntfy.sh").read_text(encoding="utf-8")
+
+    assert re.search(
+        r'if \[ "\$\{UPLOAD_NTFY_BOOTSTRAP\}" = "0" \]; then\s+'
+        r'ntfy_assert_existing_server_config\s+fi',
+        ntfy_provision,
+    )
+    bootstrap_render = re.search(
+        r'if \[ "\$\{UPLOAD_NTFY_BOOTSTRAP\}" = "1" \]; then\s+'
+        r'SERVER_TMP=.*?\s+ntfy_render_server_config\s+fi',
+        ntfy_provision,
+    )
+    assert bootstrap_render, "仅显式 UPLOAD_NTFY_BOOTSTRAP=1 可生成 server.yml"
+    render_calls = re.findall(r"^\s+ntfy_render_server_config\s*$", ntfy_provision, re.MULTILINE)
+    assert len(render_calls) == 1
+    assert "docker compose down -v" not in ntfy_provision
+    assert "docker-compose down -v" not in ntfy_provision
+
+
+def _run_existing_ntfy_server_config_validator(
+    tmp_path: Path,
+    server_config: str,
+) -> subprocess.CompletedProcess[str]:
+    """在本地 Bash 中运行既有 server.yml 校验器，不依赖 root、Docker 或真实身份。"""
+
+    provision_source = (NTFY_DIR / "provision-ntfy.sh").read_text(encoding="utf-8")
+    function_match = re.search(
+        r"^ntfy_assert_existing_server_config\(\) \{.*?^\}\n\n(?=ntfy_read_bootstrap_file\(\))",
+        provision_source,
+        re.MULTILINE | re.DOTALL,
+    )
+    assert function_match, "无法从 ntfy 部署脚本提取既有 server.yml 校验器"
+
+    server_file = tmp_path / "server.yml"
+    # 生产服务器上的 YAML 使用 LF；Git Bash 对 Windows CRLF 的 read 保留 \r，
+    # 会掩盖校验器本身的策略行为。
+    server_file.write_bytes(server_config.encode("utf-8"))
+    validator_script = tmp_path / "run-validator.sh"
+    validator_script.write_text(
+        """#!/usr/bin/env bash
+set -euo pipefail
+deploy_fail() {
+  printf '%s\\n' 'server.yml 校验拒绝了不安全配置' >&2
+  return 1
+}
+stat() {
+  case "$2" in
+    '%U') printf '%s\\n' root ;;
+    '%G') printf '%s\\n' northstar-ntfy ;;
+    '%a') printf '%s\\n' 640 ;;
+    *) return 1 ;;
+  esac
+}
+"""
+        + function_match.group(0)
+        + """
+SERVER_FILE="$1"
+NTFY_PUBLIC_HOST=ntfy.example.test
+NTFY_CACHE_DURATION=24h
+NORTHSTAR_NTFY_TOPIC=northstar_alerts
+NORTHSTAR_NTFY_TOKEN=test-token
+NTFY_SERVICE_ACCOUNT=northstar-ntfy
+ntfy_assert_existing_server_config
+""",
+        encoding="utf-8",
+    )
+
+    return _run_bash(
+        _bash_path(validator_script),
+        _bash_path(server_file),
+        check=False,
+        capture_output=True,
+    )
+
+
+def test_private_ntfy_existing_server_config_validator_fails_closed_for_unmanaged_policy(
+    tmp_path: Path,
+) -> None:
+    """普通发布必须拒绝可能扩大权限、外发或附件能力的既有 server.yml。"""
+
+    baseline_config = """\
+base-url: "https://ntfy.example.test"
+listen-http: ":80"
+cache-file: "/var/lib/ntfy/cache.db"
+cache-duration: "24h"
+auth-file: "/var/lib/ntfy/auth.db"
+auth-default-access: "deny-all"
+behind-proxy: true
+enable-login: true
+enable-signup: false
+enable-metrics: false
+log-level: "info"
+log-format: "json"
+auth-users:
+  - "admin-user:$2b$12$adminhash:admin"
+  - "reader-user:$2b$12$readerhash:user"
+  - "northstar-publisher:$2b$12$publisherhash:user"
+auth-access:
+  - "reader-user:northstar_alerts:read-only"
+  - "northstar-publisher:northstar_alerts:write-only"
+auth-tokens:
+  - "northstar-publisher:test-token:Northstar Quant publisher"
+"""
+    baseline_result = _run_existing_ntfy_server_config_validator(tmp_path, baseline_config)
+    assert baseline_result.returncode == 0, baseline_result.stderr
+
+    extra_user_config = baseline_config.replace(
+        "auth-access:",
+        '  - "unexpected-admin:$2b$12$unexpectedhash:admin"\nauth-access:',
+    )
+    extra_user_result = _run_existing_ntfy_server_config_validator(tmp_path, extra_user_config)
+    assert extra_user_result.returncode != 0
+
+    for prohibited_key, value in (
+        ("upstream-base-url", '"https://relay.example.test"'),
+        ("attachment-cache-dir", '""'),
+        ("smtp-server-list", '"smtp.example.test"'),
+        ("firebase-key-file", '"/run/ntfy/firebase.json"'),
+    ):
+        unsafe_result = _run_existing_ntfy_server_config_validator(
+            tmp_path,
+            f"{baseline_config}{prohibited_key}: {value}\n",
+        )
+        assert unsafe_result.returncode != 0, prohibited_key
+
+
+def test_private_ntfy_bootstrap_stays_out_of_artifacts_and_logs() -> None:
+    """一次性身份文件不可入库、不可进入应用制品，也不可被部署日志回显。"""
+
+    gitignore = (ROOT_DIR / ".gitignore").read_text(encoding="utf-8")
+    assert "ntfy.bootstrap.env" in gitignore
+    assert "!ntfy.bootstrap.env.example" in gitignore
+    assert (ROOT_DIR / "ntfy.bootstrap.env.example").is_file()
+
+    builder = (DEPLOY_DIR / "build-artifact.sh").read_text(encoding="utf-8")
+    # 制品白名单只包含运行源码目录，根目录的一次性身份文件没有进入路径。
+    assert "ntfy.bootstrap" not in builder
+
+    deployment_sources = [
+        DEPLOY_DIR / "deploy.sh",
+        DEPLOY_DIR / "provision.sh",
+        NTFY_DIR / "provision-ntfy.sh",
+    ]
+    for source in deployment_sources:
+        content = source.read_text(encoding="utf-8")
+        assert "set -x" not in content
+        for line in content.splitlines():
+            is_output = "deploy_log" in line or re.search(r"\b(?:echo|printf)\b", line)
+            if is_output:
+                assert "PASSWORD" not in line
+                assert "TOKEN" not in line
+
+
+def test_private_ntfy_bootstrap_uses_private_remote_staging_directory() -> None:
+    """活动 .env 与 bootstrap 只能短暂存在于权限为 0700 的远端工作目录。"""
+
+    deploy_script = (DEPLOY_DIR / "deploy.sh").read_text(encoding="utf-8")
+
+    assert re.search(
+        r'REMOTE_ENV="\$\{REMOTE_WORK_DIR\}/[^"\n]+\.env"', deploy_script
+    ), "远端活动 .env 不得直接落在 /tmp 根目录"
+    assert re.search(
+        r'REMOTE_NTFY_BOOTSTRAP="\$\{REMOTE_WORK_DIR\}/[^"\n]+ntfy\.bootstrap\.env"',
+        deploy_script,
+    ), "远端 bootstrap 文件必须位于 REMOTE_WORK_DIR"
+    assert not re.search(r'REMOTE_(?:ENV|NTFY_BOOTSTRAP)="\$\{REMOTE_TMP\}/', deploy_script)
+    assert re.search(
+        r'(?:install\s+-d\s+-m\s+0700|mkdir\s+-m\s+0700)[^\n]*REMOTE_WORK_DIR',
+        deploy_script,
+    ), "远端临时工作目录必须以 0700 创建"
+    assert 'deploy_scp "${NTFY_BOOTSTRAP_FILE}" "${DEPLOY_HOST}:${REMOTE_NTFY_BOOTSTRAP}"' in deploy_script
+
+
+def test_private_ntfy_does_not_grant_docker_access_to_northstar_and_fails_closed() -> None:
+    """应用服务用户不得接触 Docker；ntfy 缺 Docker 时必须在调用前失败。"""
+
+    deploy_sources = "\n".join(
+        source.read_text(encoding="utf-8")
+        for source in DEPLOY_DIR.rglob("*")
+        if source.is_file() and source.suffix in {".sh", ".in", ".yaml", ".yml"}
+    )
+    ntfy_provision = (NTFY_DIR / "provision-ntfy.sh").read_text(encoding="utf-8")
+
+    assert "/var/run/docker.sock" not in deploy_sources
+    assert "docker.sock" not in deploy_sources
+    assert not re.search(r"(?:usermod|adduser)[^\n]*\bdocker\b[^\n]*(?:SERVICE_USER|northstar)", deploy_sources)
+    assert not re.search(r"(?:usermod|adduser)[^\n]*(?:SERVICE_USER|northstar)[^\n]*\bdocker\b", deploy_sources)
+
+    docker_preflight = re.search(
+        r"(?:deploy_need_cmd\s+docker|command\s+-v\s+docker)", ntfy_provision
+    )
+    assert docker_preflight, "私有 ntfy 部署必须显式检查 Docker"
+    first_docker_compose = re.search(r"\bdocker\s+compose\b", ntfy_provision)
+    assert first_docker_compose, "私有 ntfy 部署必须通过 Docker Compose 运行"
+    assert docker_preflight.start() < first_docker_compose.start(), (
+        "Docker 缺失时必须在首次 docker compose 调用前失败"
+    )

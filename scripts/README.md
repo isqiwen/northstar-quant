@@ -41,6 +41,18 @@ Linux 部署内部模块：
 | `deploy/lib/*.sh` | 公共函数、SSH 连接复用与非敏感部署配置读取。 |
 | `deploy/systemd/*.service.in` | health 和 scheduler 的 systemd 安全模板。 |
 
+可选的私有 ntfy 服务由 Linux 部署流程管理，但 Docker 与 Docker Compose 必须预先安装在远程服务器。
+在 `deploy.env` 中设置 `NTFY_DEPLOY_ENABLED=1` 并填写域名、ACME 邮箱及数据目录后，首次部署还必须创建
+受 Git 忽略的 `ntfy.bootstrap.env`，再显式执行：
+
+```bash
+UPLOAD_ENV=1 UPLOAD_NTFY_BOOTSTRAP=1 SETUP_SERVER=1 scripts/deploy.sh
+```
+
+此 bootstrap 只用于首次身份初始化；日常发布保持 `UPLOAD_NTFY_BOOTSTRAP` 未设置，以保留 ntfy 的认证
+数据。完整的 DNS、端口、Caddy TLS、权限与手机送达边界见
+[Linux 一键部署](../docs/07_Linux一键部署.md#私有-ntfy可选)。
+
 首次部署：
 
 ```bash

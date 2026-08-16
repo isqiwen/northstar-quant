@@ -59,7 +59,7 @@ def _assert_template_lists_each_setting_once() -> dict[str, list[str]]:
     declaration_counts = _declaration_key_counts(ENV_TEMPLATE_PATH)
     expected = _settings_environment_keys() | ENVIRONMENT_FILE_AUXILIARY_KEYS
 
-    assert len(expected) == 81
+    assert len(expected) == 80
     assert set(declaration_counts) == expected
     for key in expected:
         assert declaration_counts[key] == 1, f".env.example 重复声明 {key}"
@@ -98,14 +98,29 @@ def test_active_env_declaration_keys_match_the_example_without_reading_values() 
 def test_env_example_keeps_secrets_empty_or_as_explicit_placeholders() -> None:
     declarations = _template_values(ENV_TEMPLATE_PATH)
     for key in (
-        "NORTHSTAR_WECOM_WEBHOOK",
-        "NORTHSTAR_TELEGRAM_BOT_TOKEN",
-        "NORTHSTAR_TELEGRAM_CHAT_ID",
+        "NORTHSTAR_NTFY_BASE_URL",
+        "NORTHSTAR_NTFY_TOPIC",
+        "NORTHSTAR_NTFY_TOKEN",
         "NORTHSTAR_SMTP_PASSWORD",
     ):
         assert declarations[key] == [""]
 
     assert "CHANGE_ME" in declarations["NORTHSTAR_DATABASE_URL"][0]
+
+
+def test_env_example_only_offers_ntfy_for_external_realtime_alerts() -> None:
+    declarations = _template_values(ENV_TEMPLATE_PATH)
+
+    assert declarations["NORTHSTAR_ALERT_MODE"] == ["console"]
+    assert declarations["NORTHSTAR_NTFY_TIMEOUT_SECONDS"] == ["10"]
+    for retired_key in (
+        "NORTHSTAR_WECOM_WEBHOOK",
+        "NORTHSTAR_WECOM_MENTIONED_MOBILE_LIST",
+        "NORTHSTAR_TELEGRAM_BOT_TOKEN",
+        "NORTHSTAR_TELEGRAM_CHAT_ID",
+        "NORTHSTAR_TELEGRAM_MESSAGE_THREAD_ID",
+    ):
+        assert retired_key not in declarations
 
 
 def test_env_example_keeps_live_trading_disabled_by_default() -> None:

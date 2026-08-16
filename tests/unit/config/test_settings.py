@@ -73,12 +73,70 @@ def test_database_rejects_sqlite_url():
         )
 
 
-def test_empty_optional_integer_environment_value_is_ignored(monkeypatch):
-    monkeypatch.setenv("NORTHSTAR_TELEGRAM_MESSAGE_THREAD_ID", "")
+def test_empty_optional_ntfy_environment_values_are_ignored(monkeypatch):
+    monkeypatch.setenv("NORTHSTAR_NTFY_BASE_URL", "")
+    monkeypatch.setenv("NORTHSTAR_NTFY_TOPIC", "")
+    monkeypatch.setenv("NORTHSTAR_NTFY_TOKEN", "")
 
     settings = Settings(_env_file=None)
 
-    assert settings.telegram_message_thread_id is None
+    assert settings.ntfy_base_url is None
+    assert settings.ntfy_topic is None
+    assert settings.ntfy_token is None
+
+
+def test_ntfy_configuration_normalizes_private_service_values():
+    settings = Settings(
+        _env_file=None,
+        alert_mode="ntfy",
+        ntfy_base_url="https://ntfy.example.test/",
+        ntfy_topic="northstar_alerts",
+        ntfy_token=" tk_12345678901234567890123456789 ",
+    )
+
+    assert settings.alert_mode == "ntfy"
+    assert settings.ntfy_base_url == "https://ntfy.example.test"
+    assert settings.ntfy_topic == "northstar_alerts"
+    assert settings.ntfy_token == "tk_12345678901234567890123456789"
+    assert settings.ntfy_timeout_seconds == 10.0
+
+
+def test_ntfy_timeout_must_be_positive():
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, ntfy_timeout_seconds=0)
+
+
+def test_ntfy_rejects_non_ntfy_access_token():
+    with pytest.raises(ValidationError, match="32 位 tk_ 访问令牌"):
+        Settings(_env_file=None, ntfy_token="not-a-token")
+
+
+@pytest.mark.parametrize(
+    "base_url",
+    [
+        "http://ntfy.example.test",
+        "ftp://ntfy.example.test",
+        "https://user:password@ntfy.example.test",
+        "https://ntfy.example.test/?token=must-not-be-here",
+        "https://ntfy.sh",
+        "https://demo.ntfy.sh",
+    ],
+)
+def test_ntfy_rejects_insecure_public_or_credential_bearing_service_urls(base_url):
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, ntfy_base_url=base_url)
+
+
+def test_ntfy_allows_loopback_http_for_local_development():
+    settings = Settings(_env_file=None, ntfy_base_url="http://127.0.0.1:2586")
+
+    assert settings.ntfy_base_url == "http://127.0.0.1:2586"
+
+
+@pytest.mark.parametrize("topic", ["../orders", "order/topic", "contains space"])
+def test_ntfy_rejects_unsafe_topic(topic):
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, ntfy_topic=topic)
 
 
 def test_runtime_paths_derive_from_storage_unless_explicit(tmp_path):

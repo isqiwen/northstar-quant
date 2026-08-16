@@ -11,6 +11,7 @@ import os
 from pathlib import Path
 import re
 from typing import Any, Literal
+from urllib.parse import urlparse
 
 from pydantic import Field, field_validator
 from pydantic.fields import FieldInfo
@@ -24,6 +25,10 @@ from northstar_quant.config.environment_file import (
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 _LOCAL_ACCOUNT_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")
+_NTFY_TOPIC_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+_NTFY_TOKEN_PATTERN = re.compile(r"^tk_[A-Za-z0-9]{29}$")
+_NTFY_LOOPBACK_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
+_NTFY_PUBLIC_SERVICE_HOSTS = frozenset({"ntfy.sh"})
 
 # 这四个字段保留在模型中，便于测试显式构造 Settings；运行时真源始终是 YAML。
 ENV_DISABLED_FIELDS = frozenset({"storage_dir", "downloads_dir", "reports_dir", "log_dir"})
@@ -199,13 +204,12 @@ class Settings(BaseSettings):
     # 交易日历配置。期货夜盘须由期货数据/会话配置进一步约束，不能只依赖本默认值。
     exchange_calendar: str = Field(default="XSHG")
 
-    # 告警相关。你说不想用 Telegram，这里默认改成企业微信机器人。
-    alert_mode: Literal["console", "wecom", "telegram"] = Field(default="console")
-    wecom_webhook: str | None = Field(default=None)
-    wecom_mentioned_mobile_list: str | None = Field(default=None)
-    telegram_bot_token: str | None = Field(default=None)
-    telegram_chat_id: str | None = Field(default=None)
-    telegram_message_thread_id: int | None = Field(default=None)
+    # 即时告警只支持私有部署 ntfy；console 始终保留为本地审计回退。
+    alert_mode: Literal["console", "ntfy"] = Field(default="console")
+    ntfy_base_url: str | None = Field(default=None)
+    ntfy_topic: str | None = Field(default=None)
+    ntfy_token: str | None = Field(default=None)
+    ntfy_timeout_seconds: float = Field(default=10.0, gt=0, le=30)
 
     # 邮件报告配置。后续周报 / 月报可以直接复用。
     smtp_host: str | None = Field(default=None)
@@ -293,6 +297,73 @@ class Settings(BaseSettings):
         """限制本地账户标识，避免其参与状态路径时产生路径穿越。"""
 
         return normalize_local_state_account(value)
+
+    @field_validator("ntfy_base_url")
+    @classmethod
+    def _validate_ntfy_base_url(cls, value: str | None) -> str | None:
+        """仅允许私有 HTTPS ntfy 服务；本机开发可使用 loopback HTTP。"""
+
+        if value is None:
+            return None
+        normalized = value.strip().rstrip("/")
+        if not normalized:
+            return None
+
+        parsed = urlparse(normalized)
+        if not parsed.scheme or not parsed.netloc or parsed.query or parsed.fragment:
+            raise ValueError(
+                "NORTHSTAR_NTFY_BASE_URL 必须是无查询参数的完整服务地址。"
+            )
+        if parsed.username or parsed.password:
+            raise ValueError(
+                "NORTHSTAR_NTFY_BASE_URL 不得内嵌凭据；请使用 NORTHSTAR_NTFY_TOKEN。"
+            )
+        if parsed.scheme not in {"https", "http"}:
+            raise ValueError(
+                "NORTHSTAR_NTFY_BASE_URL 只允许 HTTPS 或本机 loopback HTTP。"
+            )
+        if parsed.scheme == "http" and parsed.hostname not in _NTFY_LOOPBACK_HOSTS:
+            raise ValueError(
+                "NORTHSTAR_NTFY_BASE_URL 仅允许 HTTPS；本机开发可使用 loopback HTTP。"
+            )
+        hostname = (parsed.hostname or "").lower()
+        if hostname in _NTFY_PUBLIC_SERVICE_HOSTS or hostname.endswith(".ntfy.sh"):
+            raise ValueError(
+                "NORTHSTAR_NTFY_BASE_URL 必须指向私有部署的 ntfy，不能使用公共 ntfy.sh。"
+            )
+        return normalized
+
+    @field_validator("ntfy_topic")
+    @classmethod
+    def _validate_ntfy_topic(cls, value: str | None) -> str | None:
+        """限制 topic 为 ntfy 支持的安全路径片段。"""
+
+        if value is None:
+            return None
+        normalized = value.strip()
+        if not normalized:
+            return None
+        if not _NTFY_TOPIC_PATTERN.fullmatch(normalized):
+            raise ValueError(
+                "NORTHSTAR_NTFY_TOPIC 只能使用 1-64 位字母、数字、下划线或连字符。"
+            )
+        return normalized
+
+    @field_validator("ntfy_token")
+    @classmethod
+    def _normalize_ntfy_token(cls, value: str | None) -> str | None:
+        """规范可选令牌，空白值保持为未配置。"""
+
+        if value is None:
+            return None
+        normalized = value.strip()
+        if not normalized:
+            return None
+        if not _NTFY_TOKEN_PATTERN.fullmatch(normalized):
+            raise ValueError(
+                "NORTHSTAR_NTFY_TOKEN 必须是 ntfy 生成的 32 位 tk_ 访问令牌。"
+            )
+        return normalized
 
     def model_post_init(self, __context: object) -> None:
         project_root = Path(self.project_root)

@@ -158,11 +158,11 @@ def run_healthcheck() -> dict:
 
     alert_ready = (
         settings.alert_mode == "console"
-        or (settings.alert_mode == "wecom" and bool(settings.wecom_webhook))
         or (
-            settings.alert_mode == "telegram"
-            and bool(settings.telegram_bot_token)
-            and bool(settings.telegram_chat_id)
+            settings.alert_mode == "ntfy"
+            and bool(settings.ntfy_base_url)
+            and bool(settings.ntfy_topic)
+            and bool(settings.ntfy_token)
         )
     )
     checks.append(

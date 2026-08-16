@@ -6,6 +6,7 @@ source "${ROOT_DIR}/scripts/deploy/lib/common.sh"
 source "${ROOT_DIR}/scripts/deploy/lib/config.sh"
 source "${ROOT_DIR}/scripts/deploy/lib/safety.sh"
 source "${ROOT_DIR}/scripts/deploy/lib/ssh.sh"
+source "${ROOT_DIR}/scripts/deploy/ntfy/lib.sh"
 
 usage() {
   cat <<'EOF'
@@ -81,6 +82,16 @@ DRY_RUN="${DRY_RUN:-0}"
 SSH_CONTROL="${SSH_CONTROL:-1}"
 CLEAN_REMOTE_ON_EXIT="${CLEAN_REMOTE_ON_EXIT:-1}"
 ARTIFACT_DIR="${ARTIFACT_DIR:-${ROOT_DIR}/dist}"
+NTFY_DEPLOY_ENABLED="${NTFY_DEPLOY_ENABLED:-0}"
+NTFY_PUBLIC_HOST="${NTFY_PUBLIC_HOST:-}"
+NTFY_ACME_EMAIL="${NTFY_ACME_EMAIL:-}"
+NTFY_IMAGE="${NTFY_IMAGE:-binwiederhier/ntfy:v2.27.0}"
+NTFY_CADDY_IMAGE="${NTFY_CADDY_IMAGE:-caddy:2.10.2-alpine}"
+NTFY_CONFIG_DIR="${NTFY_CONFIG_DIR:-/etc/northstar-ntfy}"
+NTFY_DATA_DIR="${NTFY_DATA_DIR:-/var/lib/northstar-ntfy}"
+NTFY_CACHE_DURATION="${NTFY_CACHE_DURATION:-24h}"
+UPLOAD_NTFY_BOOTSTRAP="${UPLOAD_NTFY_BOOTSTRAP:-0}"
+NTFY_BOOTSTRAP_FILE="${NTFY_BOOTSTRAP_FILE:-${ROOT_DIR}/ntfy.bootstrap.env}"
 
 for bool_name in \
   UPLOAD_ENV \
@@ -90,9 +101,31 @@ for bool_name in \
   SKIP_RUFF \
   DRY_RUN \
   SSH_CONTROL \
-  CLEAN_REMOTE_ON_EXIT; do
+  CLEAN_REMOTE_ON_EXIT \
+  UPLOAD_NTFY_BOOTSTRAP; do
   deploy_assert_bool "${bool_name}" "${!bool_name}"
 done
+
+if [ "${NTFY_DEPLOY_ENABLED}" = "1" ]; then
+  deploy_need_cmd realpath
+fi
+ntfy_validate_deployment_config
+if [ "${UPLOAD_NTFY_BOOTSTRAP}" = "1" ] && [ "${NTFY_DEPLOY_ENABLED}" != "1" ]; then
+  deploy_fail "UPLOAD_NTFY_BOOTSTRAP=1 时必须同时设置 NTFY_DEPLOY_ENABLED=1。"
+fi
+if [ "${UPLOAD_NTFY_BOOTSTRAP}" = "1" ]; then
+  if [ "${UPLOAD_ENV}" != "1" ]; then
+    deploy_fail "私有 ntfy bootstrap 必须同时设置 UPLOAD_ENV=1，以受控方式安装匹配的活动 .env。"
+  fi
+  if [[ "${NTFY_BOOTSTRAP_FILE}" != /* ]]; then
+    NTFY_BOOTSTRAP_FILE="${ROOT_DIR}/${NTFY_BOOTSTRAP_FILE}"
+  fi
+  if [ ! -f "${NTFY_BOOTSTRAP_FILE}" ]; then
+    deploy_fail "未找到私有 ntfy bootstrap 文件。请设置 NTFY_BOOTSTRAP_FILE 或在项目根目录创建未跟踪的 ntfy.bootstrap.env。"
+  fi
+  NTFY_BOOTSTRAP_FILE="$(realpath -- "${NTFY_BOOTSTRAP_FILE}")"
+  chmod 600 "${NTFY_BOOTSTRAP_FILE}"
+fi
 
 deploy_assert_safe_name "APP_NAME" "${APP_NAME}"
 deploy_assert_safe_name "SERVICE_USER" "${SERVICE_USER}"
@@ -227,23 +260,26 @@ deploy_need_cmd ssh
 deploy_need_cmd scp
 
 REMOTE_WORK_DIR="${REMOTE_TMP}/${APP_NAME}-deploy-${RELEASE_ID}"
-REMOTE_ARTIFACT="${REMOTE_TMP}/${ARTIFACT_NAME}"
-REMOTE_ENV="${REMOTE_TMP}/${APP_NAME}-${RELEASE_ID}.env"
+REMOTE_ARTIFACT="${REMOTE_WORK_DIR}/${ARTIFACT_NAME}"
+REMOTE_ENV="${REMOTE_WORK_DIR}/active.env"
+REMOTE_NTFY_BOOTSTRAP=""
+if [ "${UPLOAD_NTFY_BOOTSTRAP}" = "1" ]; then
+  REMOTE_NTFY_BOOTSTRAP="${REMOTE_WORK_DIR}/private-ntfy.bootstrap.env"
+fi
 SSH_CONTROL_PATH="${TMPDIR:-/tmp}/nq-ssh-${STAMP}-$$.sock"
 CLEANUP_ARMED=0
 
 cleanup_remote() {
   local cleanup_command
 
-  if [ "${CLEAN_REMOTE_ON_EXIT}" != "1" ] || [ "${CLEANUP_ARMED}" != "1" ]; then
+  if [ "${CLEANUP_ARMED}" != "1" ]; then
+    return 0
+  fi
+  if [ "${CLEAN_REMOTE_ON_EXIT}" != "1" ] && [ "${UPLOAD_NTFY_BOOTSTRAP}" != "1" ]; then
     return 0
   fi
 
   cleanup_command="rm -rf $(deploy_shell_quote "${REMOTE_WORK_DIR}")"
-  cleanup_command+="; rm -f $(deploy_shell_quote "${REMOTE_ARTIFACT}")"
-  if [ "${UPLOAD_ENV}" = "1" ]; then
-    cleanup_command+=" $(deploy_shell_quote "${REMOTE_ENV}")"
-  fi
   deploy_ssh "${DEPLOY_HOST}" "${cleanup_command}" >/dev/null 2>&1 || true
 }
 
@@ -264,7 +300,7 @@ fi
 
 deploy_log "创建远程临时目录"
 deploy_ssh "${DEPLOY_HOST}" \
-  "mkdir -p $(deploy_shell_quote "${REMOTE_WORK_DIR}")"
+  "umask 077; install -d -m 0700 -- $(deploy_shell_quote "${REMOTE_WORK_DIR}")"
 CLEANUP_ARMED=1
 
 deploy_log "上传部署模块"
@@ -278,6 +314,14 @@ deploy_scp "${ARTIFACT_PATH}" "${DEPLOY_HOST}:${REMOTE_ARTIFACT}"
 if [ "${UPLOAD_ENV}" = "1" ]; then
   deploy_log "上传活动 .env"
   deploy_scp "${ENV_FILE}" "${DEPLOY_HOST}:${REMOTE_ENV}"
+  deploy_ssh "${DEPLOY_HOST}" \
+    "chmod 600 -- $(deploy_shell_quote "${REMOTE_ENV}")"
+fi
+if [ "${UPLOAD_NTFY_BOOTSTRAP}" = "1" ]; then
+  deploy_log "上传仅供本次初始化使用的私有 ntfy bootstrap 文件"
+  deploy_scp "${NTFY_BOOTSTRAP_FILE}" "${DEPLOY_HOST}:${REMOTE_NTFY_BOOTSTRAP}"
+  deploy_ssh "${DEPLOY_HOST}" \
+    "chmod 600 -- $(deploy_shell_quote "${REMOTE_NTFY_BOOTSTRAP}")"
 fi
 
 REMOTE_COMMAND="sudo env"
@@ -300,8 +344,20 @@ REMOTE_COMMAND+=" RUNTIME_MATPLOTLIB_DIR=$(deploy_shell_quote "${RUNTIME_MATPLOT
 REMOTE_COMMAND+=" ARTIFACT_TARBALL=$(deploy_shell_quote "${REMOTE_ARTIFACT}")"
 REMOTE_COMMAND+=" ARTIFACT_SHA256=$(deploy_shell_quote "${ARTIFACT_SHA256}")"
 REMOTE_COMMAND+=" RELEASE_ID=$(deploy_shell_quote "${RELEASE_ID}")"
+REMOTE_COMMAND+=" NTFY_DEPLOY_ENABLED=$(deploy_shell_quote "${NTFY_DEPLOY_ENABLED}")"
+REMOTE_COMMAND+=" NTFY_PUBLIC_HOST=$(deploy_shell_quote "${NTFY_PUBLIC_HOST}")"
+REMOTE_COMMAND+=" NTFY_ACME_EMAIL=$(deploy_shell_quote "${NTFY_ACME_EMAIL}")"
+REMOTE_COMMAND+=" NTFY_IMAGE=$(deploy_shell_quote "${NTFY_IMAGE}")"
+REMOTE_COMMAND+=" NTFY_CADDY_IMAGE=$(deploy_shell_quote "${NTFY_CADDY_IMAGE}")"
+REMOTE_COMMAND+=" NTFY_CONFIG_DIR=$(deploy_shell_quote "${NTFY_CONFIG_DIR}")"
+REMOTE_COMMAND+=" NTFY_DATA_DIR=$(deploy_shell_quote "${NTFY_DATA_DIR}")"
+REMOTE_COMMAND+=" NTFY_CACHE_DURATION=$(deploy_shell_quote "${NTFY_CACHE_DURATION}")"
+REMOTE_COMMAND+=" UPLOAD_NTFY_BOOTSTRAP=$(deploy_shell_quote "${UPLOAD_NTFY_BOOTSTRAP}")"
 if [ "${UPLOAD_ENV}" = "1" ]; then
   REMOTE_COMMAND+=" ENV_FILE_PATH=$(deploy_shell_quote "${REMOTE_ENV}")"
+fi
+if [ "${UPLOAD_NTFY_BOOTSTRAP}" = "1" ]; then
+  REMOTE_COMMAND+=" NTFY_BOOTSTRAP_PATH=$(deploy_shell_quote "${REMOTE_NTFY_BOOTSTRAP}")"
 fi
 REMOTE_COMMAND+=" bash $(deploy_shell_quote "${REMOTE_WORK_DIR}/scripts/deploy/provision.sh")"
 

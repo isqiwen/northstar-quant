@@ -6,8 +6,13 @@
 服务器发布 Northstar Quant。它负责本地质量检查、构建源码制品、SSH 上传、运行时安装、
 依赖同步、数据库迁移、systemd 配置、健康检查和应用版本回退。
 
+当 `NTFY_DEPLOY_ENABLED=1` 时，它还会部署项目专用的私有 ntfy 与 Caddy TLS 反向代理，
+并在明确请求时执行一次身份初始化。ntfy 是可选的即时告警基础设施，不参与下单、撤单、
+风控判断或 kill switch；告警服务不可用不能改变交易或风控的既有结果。
+
 它不负责创建生产 PostgreSQL、配置云防火墙、购买服务器或申请券商权限。生产数据库应
-独立部署并具备自动备份，不能复用开发环境的 Docker 数据卷。
+独立部署并具备自动备份，不能复用开发环境的 Docker 数据卷。它也**不会安装 Docker**；
+启用私有 ntfy 前，远程服务器必须由运维人员预装 Docker Engine 与 Docker Compose。
 
 当前仓库没有 production 画像，也没有完整 CTP 报单适配器。因此当前唯一可用的部署模式是
 `SERVICE_MODE=health`，并且必须保持 `NORTHSTAR_BROKER=paper` 和
@@ -21,6 +26,9 @@
 - 服务器可以访问 Python 包源、Astral uv 下载地址和生产 PostgreSQL。
 - PostgreSQL 已创建 `northstar` 数据库和最小权限应用用户。
 - 系统启用 NTP 时间同步。
+- 如启用私有 ntfy：远程服务器已安装并可由 `sudo` 调用 Docker 与 Docker Compose；部署脚本不安装它们。
+- 如启用私有 ntfy：`NTFY_PUBLIC_HOST` 的 A/AAAA 记录已解析到该服务器，TCP `80`/`443` 对公网开放，
+  且没有被其他 Web 服务占用；Caddy 需要它们申请和续期 ACME TLS 证书。
 
 部署前检查：
 
@@ -96,6 +104,119 @@ chmod 600 .env
 `<runtime.storage_dir>/brokers/paper/<NORTHSTAR_PAPER_ACCOUNT>/state.json`。这保证部署
 切换到独立数据盘时，Paper 状态仍与数据目录一起迁移；只有明确的迁移或恢复场景才应在
 活动 `.env` 中取消注释 `NORTHSTAR_PAPER_STATE_PATH`。
+
+## 私有 ntfy（可选）
+
+私有 ntfy 是本项目唯一的外部即时告警服务。它与 Northstar 应用、报告邮件和本地日志职责不同：
+应用 `.env` 只保存向 ntfy 发布所需的地址、主题和发布令牌；`deploy.env` 只保存非敏感基础设施参数；
+一次性用户口令只保存在未跟踪的 bootstrap 文件。即时告警的内容、审计边界和应用侧变量见
+[报告、PDF 与通知](05_报告_PDF与通知.md)，本节仅说明 Linux 服务部署。
+
+在 `deploy.env` 中配置以下字段；默认 `0` 表示完全不部署也不修改 ntfy：
+
+| 字段 | 示例/默认值 | 含义 |
+| --- | --- | --- |
+| `NTFY_DEPLOY_ENABLED` | `0` | 设为 `1` 才启用私有 ntfy 部署。 |
+| `NTFY_PUBLIC_HOST` | `ntfy.example.com` | 启用时必填的公网 HTTPS 域名；只能填写主机名，不含协议、端口或路径。 |
+| `NTFY_ACME_EMAIL` | `ops@example.com` | 启用时必填，供 Caddy/ACME 证书通知使用。 |
+| `NTFY_IMAGE` | `binwiederhier/ntfy:v2.27.0` | ntfy 固定镜像标签；升级前先在测试环境验证，禁止改成 `latest`。 |
+| `NTFY_CADDY_IMAGE` | `caddy:2.10.2-alpine` | Caddy 固定镜像标签；负责 TLS 终止与反向代理。 |
+| `NTFY_CONFIG_DIR` | `/etc/northstar-ntfy` | 受控服务端配置目录。 |
+| `NTFY_DATA_DIR` | `/var/lib/northstar-ntfy` | 持久化认证、消息缓存与证书数据的目录；不属于 release。 |
+| `NTFY_CACHE_DURATION` | `24h` | 告警缓存保留期；应按最小必要原则设置。 |
+
+示例：
+
+```bash
+cp deploy.env.example deploy.env
+# 编辑 deploy.env：填写部署目标，并设置以下非敏感参数
+# NTFY_DEPLOY_ENABLED=1
+# NTFY_PUBLIC_HOST=ntfy.example.com
+# NTFY_ACME_EMAIL=ops@example.com
+```
+
+`NTFY_CONFIG_DIR` 和 `NTFY_DATA_DIR` 是服务器路径，必须避免指向发布版本目录。不要手工删除
+`NTFY_DATA_DIR`、容器卷或认证数据库；这会使现有 topic、用户和令牌失效。部署脚本以严格私有模式
+运行 ntfy：匿名访问默认拒绝，Caddy 提供 HTTPS，ntfy 仅在反向代理之后接受请求。
+
+### 首次身份初始化
+
+复制受版本控制的模板后填写真实值：
+
+```bash
+cp ntfy.bootstrap.env.example ntfy.bootstrap.env
+chmod 600 ntfy.bootstrap.env
+```
+
+`ntfy.bootstrap.env` 仅含以下四个字段，均必须使用单独的高强度值：
+
+```text
+NTFY_ADMIN_USERNAME=
+NTFY_ADMIN_PASSWORD=
+NTFY_READER_USERNAME=
+NTFY_READER_PASSWORD=
+```
+
+该文件被 Git 忽略，不能放入制品、工单、命令行历史、CI 日志或聊天记录。默认文件位置是项目根目录的
+`ntfy.bootstrap.env`；若使用受控密钥路径，使用 `NTFY_BOOTSTRAP_FILE=/安全路径/ntfy.bootstrap.env`
+覆盖。bootstrap 不保存发布 topic 或 token；它们必须先由操作者填写在唯一活动应用 `.env` 中：
+
+```dotenv
+NORTHSTAR_ALERT_MODE=ntfy
+NORTHSTAR_NTFY_BASE_URL=https://ntfy.example.com
+NORTHSTAR_NTFY_TOPIC=
+NORTHSTAR_NTFY_TOKEN=
+```
+
+主题应使用随机且不可猜测的安全名称；发布 token 必须是 `tk_` 加 29 位字母数字，且只属于
+`northstar-publisher` 非管理员身份。可在受控本机终端生成一次后，立即复制到 `.env`：
+
+```bash
+uv run python -c "import secrets; print('nq_' + secrets.token_hex(16))"
+uv run python -c "import secrets, string; print('tk_' + ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(29)))"
+```
+
+第二条命令的输出是秘密；不要把输出写入命令参数、Shell 历史、截图、CI 日志或聊天记录。
+`NORTHSTAR_NTFY_BASE_URL` 必须与 `NTFY_PUBLIC_HOST` 对应。部署过程会拒绝缺失或格式不安全的
+topic/token，不会生成、打印、回写或替换本地 `.env` 中的发布令牌。
+首次启动需要同时上传应用 `.env` 与 bootstrap 文件：
+
+```bash
+UPLOAD_ENV=1 UPLOAD_NTFY_BOOTSTRAP=1 SETUP_SERVER=1 scripts/deploy.sh
+```
+
+`SETUP_SERVER=1` 只安装 Northstar 的 Python/systemd 运行时，**不安装 Docker**。首次命令之前须确认
+Docker、Docker Compose、DNS 和 `80`/`443` 前置条件均已满足。`UPLOAD_NTFY_BOOTSTRAP=1` 只可用于
+首次身份初始化或经过审批的身份维护；普通版本发布不得设置它：
+
+```bash
+scripts/deploy.sh
+```
+
+普通发布不会重置 ntfy 认证数据、管理员/订阅者口令或发布令牌。需要轮换身份时，先备份
+`NTFY_DATA_DIR`，制定恢复方案，并显式使用受控的 bootstrap/维护流程；不要通过删除数据目录或修改
+release 文件“重置”。
+
+身份和权限必须至少分为三类：
+
+- 管理员：只用于人工维护 ntfy 用户、ACL 和令牌，绝不提供给 Northstar 或手机。
+- 订阅者：手机使用的独立只读身份，只能读取指定告警 topic，不能伪造告警。
+- 发布者：Northstar 专用的非管理员身份，只能向指定告警 topic 写入。应用只使用其发布令牌，令牌只保存在
+  生产 `.env` 的 `NORTHSTAR_NTFY_TOKEN` 中。
+
+ntfy token 的权限继承其所属用户账户；因此“发布令牌”不是管理员令牌的缩小版本。发布用户本身必须
+仅拥有指定 topic 的写权限，不能读取消息、管理其他用户或访问其他 topic。
+
+### 手机可达性与验收
+
+服务部署成功不等于手机一定及时收到告警。Android 自建 ntfy 的即时送达依赖客户端保持前台订阅服务；
+iOS 在不使用上游推送服务的严格私有配置下可能延迟数分钟甚至更久。默认部署不把消息转发到公共
+`ntfy.sh`，也不承诺移动网络、厂商省电策略或推送系统的送达时效。不得把 ntfy 消息视为交易控制、
+人工确认或唯一审计证据。
+
+首次验收至少确认：Caddy 的 HTTPS 证书有效、`https://<NTFY_PUBLIC_HOST>/v1/health` 返回健康状态、
+发布者可以发布、匿名访问被拒绝、订阅者不能发布，并在目标手机上完成实际订阅测试。健康接口只说明
+服务状态，不证明 topic ACL、令牌或手机送达正常。
 
 ## 部署命令
 
