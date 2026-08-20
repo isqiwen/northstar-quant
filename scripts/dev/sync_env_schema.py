@@ -29,6 +29,23 @@ class EnvSchemaError(ValueError):
     """环境文件无法安全同步。"""
 
 
+def _require_unlinked_active_path(active_path: Path) -> None:
+    """拒绝活动文件及其父目录中的符号链接。
+
+    活动 `.env` 是唯一允许被本工具改写的非跟踪配置。仅检查末段文件不足以
+    防止 ``linked-directory/.env`` 通过父目录链接写到工作区外，因此在每次
+    读取或写入活动文件前都检查完整路径链。模板是追踪文件，仍由 CLI 单独
+    resolve，以保留已有的模板链接解析语义。
+    """
+
+    for candidate in (active_path, *active_path.parents):
+        if candidate.is_symlink():
+            location = "活动环境文件" if candidate == active_path else "活动环境文件父目录"
+            raise EnvSchemaError(
+                f"{location}不能是符号链接，已拒绝写入仓库外目标。"
+            )
+
+
 def _read_declarations(path: Path) -> tuple[list[str], dict[str, str], Counter[str]]:
     """读取键名及原始右侧值；不将值打印到 stdout/stderr。"""
 
@@ -81,6 +98,7 @@ def _backup_path(active_path: Path) -> Path:
 def _create_backup(active_path: Path) -> Path:
     """以独占方式保存可恢复副本，绝不覆盖已有备份。"""
 
+    _require_unlinked_active_path(active_path)
     while True:
         backup_path = _backup_path(active_path)
         try:
@@ -93,6 +111,7 @@ def _create_backup(active_path: Path) -> Path:
 
 
 def _atomic_write(path: Path, content: str, mode: int) -> None:
+    _require_unlinked_active_path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     descriptor, temporary_name = tempfile.mkstemp(
         # 对 .env 生成 .env.tmp.<随机值>，既与活动文件同目录以保留原子替换，
@@ -116,6 +135,7 @@ def _atomic_write(path: Path, content: str, mode: int) -> None:
 def sync_environment_schema(template_path: Path, active_path: Path, *, apply: bool) -> bool:
     """检查或迁移活动文件；返回是否需要/已进行了改写。"""
 
+    _require_unlinked_active_path(active_path)
     template_lines, _, template_counts = _read_declarations(template_path)
     if not template_counts:
         raise EnvSchemaError(f"模板 {template_path.name} 未声明任何环境字段。")
@@ -184,9 +204,20 @@ def _read_updates_from_stdin() -> dict[str, str]:
     return updates
 
 
+def _absolute_path_without_resolving_symlinks(path: Path) -> Path:
+    """规范化 CLI 路径，但绝不解析符号链接。
+
+    ``Path.resolve()`` 会把活动 `.env` 本身的链接替换成其目标，导致后续
+    ``is_symlink`` 检查失效；``abspath`` 只规范化 ``.`` / ``..`` 路径段。
+    """
+
+    return Path(os.path.abspath(path))
+
+
 def update_environment_values(active_path: Path, updates: dict[str, str]) -> bool:
     """通过 stdin 提供的值原子更新已有字段，不输出任何值。"""
 
+    _require_unlinked_active_path(active_path)
     active_lines, _, active_counts = _read_declarations(active_path)
     missing = sorted(set(updates) - set(active_counts))
     if missing:
@@ -226,7 +257,8 @@ def _parse_args() -> argparse.Namespace:
 def main() -> int:
     args = _parse_args()
     try:
-        active_path = args.active.resolve()
+        active_path = _absolute_path_without_resolving_symlinks(args.active)
+        _require_unlinked_active_path(active_path)
         if args.set_stdin:
             if args.template is not None or args.apply:
                 raise EnvSchemaError("--set-stdin 不能与 --template 或 --apply 一起使用。")

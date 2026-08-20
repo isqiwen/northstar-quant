@@ -1,0 +1,212 @@
+#!/usr/bin/env python3
+"""以纯 Python 构建可由 Linux 目标安装的最小部署制品。"""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+from io import BytesIO
+import subprocess
+import tarfile
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from pathlib import Path
+from stat import S_IMODE
+from typing import Final, Iterable
+
+
+class PackageError(ValueError):
+    """部署制品无法安全构建。"""
+
+
+_BUNDLE_PATHS: Final = (
+    "pyproject.toml",
+    "uv.lock",
+    "alembic.ini",
+    "alembic",
+    "configs",
+    "src",
+    "templates",
+    "ontology",
+    "datasets",
+)
+_EXCLUDED_FILES: Final = frozenset(
+    {
+        Path("configs/app.yaml"),
+        Path("configs/app.local.yaml"),
+        Path("configs/app.local.example.yaml"),
+    }
+)
+_EXCLUDED_DIRECTORY_NAMES: Final = frozenset({"__pycache__", ".mypy_cache", ".pytest_cache"})
+_EXCLUDED_SUFFIXES: Final = frozenset({".pyc", ".pyo"})
+
+
+@dataclass(frozen=True)
+class Artifact:
+    """一个已落盘、经校验的部署制品。"""
+
+    path: Path
+    release_id: str
+    sha256: str
+
+
+def _git_revision(project_root: Path) -> str:
+    result = subprocess.run(
+        ["git", "-C", str(project_root), "rev-parse", "--short=12", "HEAD"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode == 0 and result.stdout.strip():
+        return result.stdout.strip()
+    return datetime.now(UTC).strftime("%Y%m%d%H%M%S")
+
+
+def _is_excluded(relative_path: Path) -> bool:
+    if relative_path in _EXCLUDED_FILES:
+        return True
+    if any(part in _EXCLUDED_DIRECTORY_NAMES for part in relative_path.parts):
+        return True
+    return relative_path.suffix in _EXCLUDED_SUFFIXES
+
+
+def _iter_bundle_paths(project_root: Path) -> Iterable[Path]:
+    for root_name in _BUNDLE_PATHS:
+        relative_root = Path(root_name)
+        source = project_root / relative_root
+        if not source.exists():
+            raise PackageError(f"构建制品缺少必需路径：{relative_root}")
+        if source.is_symlink():
+            raise PackageError(f"部署制品不允许包含符号链接：{relative_root}")
+        if source.is_file():
+            if not _is_excluded(relative_root):
+                yield source
+            continue
+        if not source.is_dir():
+            raise PackageError(f"部署制品路径类型不受支持：{relative_root}")
+
+        for candidate in sorted(source.rglob("*")):
+            relative_path = candidate.relative_to(project_root)
+            if _is_excluded(relative_path):
+                continue
+            if candidate.is_symlink():
+                raise PackageError(f"部署制品不允许包含符号链接：{relative_path}")
+            if candidate.is_dir() or candidate.is_file():
+                yield candidate
+            else:
+                raise PackageError(f"部署制品包含不受支持的文件类型：{relative_path}")
+
+
+def _add_path(archive: tarfile.TarFile, project_root: Path, path: Path) -> None:
+    relative_path = path.relative_to(project_root)
+    stat_result = path.stat()
+    info = tarfile.TarInfo(relative_path.as_posix())
+    info.uid = 0
+    info.gid = 0
+    info.uname = ""
+    info.gname = ""
+    info.mtime = int(stat_result.st_mtime)
+    info.mode = S_IMODE(stat_result.st_mode)
+    if path.is_dir():
+        info.type = tarfile.DIRTYPE
+        info.size = 0
+        archive.addfile(info)
+        return
+    info.size = stat_result.st_size
+    with path.open("rb") as source:
+        archive.addfile(info, source)
+
+
+def _artifact_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        for block in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def build_artifact(
+    *,
+    project_root: Path,
+    output_dir: Path,
+    revision: str | None = None,
+    built_at: datetime | None = None,
+) -> Artifact:
+    """构建制品，且绝不把活动配置、秘密或本地缓存带入归档。"""
+
+    project_root = project_root.resolve()
+    if not (project_root / "configs" / "app.example.yaml").is_file():
+        raise PackageError("构建制品缺少完整应用配置模板：configs/app.example.yaml")
+    if not (project_root / ".env.example").is_file():
+        raise PackageError("构建制品缺少 .env.example 安全模板。")
+
+    revision = revision or _git_revision(project_root)
+    if not revision.replace("-", "").replace("_", "").isalnum():
+        raise PackageError("制品 revision 只能包含字母、数字、下划线和连字符。")
+    built_at = built_at or datetime.now(UTC)
+    release_id = f"{revision}-{built_at.strftime('%Y%m%d%H%M%S')}"
+    output_dir = output_dir.resolve()
+    for root_name in _BUNDLE_PATHS:
+        source_root = (project_root / root_name).resolve()
+        if source_root == output_dir or source_root in output_dir.parents:
+            raise PackageError("制品输出目录不能位于将被归档的运行时源目录内。")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    artifact_path = output_dir / f"northstar-quant-{release_id}.tar.gz"
+    if artifact_path.exists():
+        raise PackageError(f"拒绝覆盖已有部署制品：{artifact_path}")
+
+    try:
+        with tarfile.open(artifact_path, mode="x:gz", format=tarfile.PAX_FORMAT) as archive:
+            for path in _iter_bundle_paths(project_root):
+                _add_path(archive, project_root, path)
+            metadata = (
+                f"revision={revision}\n"
+                f"built_at={built_at.astimezone(UTC).strftime('%Y-%m-%dT%H:%M:%SZ')}\n"
+            ).encode("utf-8")
+            metadata_info = tarfile.TarInfo("DEPLOY_ARTIFACT_META.txt")
+            metadata_info.uid = 0
+            metadata_info.gid = 0
+            metadata_info.uname = ""
+            metadata_info.gname = ""
+            metadata_info.mode = 0o600
+            metadata_info.mtime = int(built_at.timestamp())
+            metadata_info.size = len(metadata)
+            archive.addfile(metadata_info, fileobj=BytesIO(metadata))
+    except PackageError:
+        artifact_path.unlink(missing_ok=True)
+        raise
+    except (OSError, tarfile.TarError) as exc:
+        artifact_path.unlink(missing_ok=True)
+        raise PackageError(f"写入部署制品失败：{exc}") from exc
+    artifact_path.chmod(0o600)
+    return Artifact(path=artifact_path, release_id=release_id, sha256=_artifact_sha256(artifact_path))
+
+
+def _build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="构建 Northstar Quant 跨平台部署制品。")
+    parser.add_argument("--project-root", type=Path, default=Path.cwd(), help="项目根目录。")
+    parser.add_argument("--output-dir", type=Path, default=Path("dist"), help="制品输出目录。")
+    parser.add_argument("--revision", help="可选的安全 revision 标识。")
+    return parser
+
+
+def main() -> int:
+    args = _build_parser().parse_args()
+    try:
+        artifact = build_artifact(
+            project_root=args.project_root,
+            output_dir=args.output_dir,
+            revision=args.revision,
+        )
+    except PackageError as exc:
+        print(f"构建部署制品失败：{exc}")
+        return 1
+    print("部署制品构建完成")
+    print(f"artifact={artifact.path}")
+    print(f"release={artifact.release_id}")
+    print(f"sha256={artifact.sha256}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

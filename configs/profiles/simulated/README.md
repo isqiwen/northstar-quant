@@ -30,8 +30,11 @@ uv run northstar live preview-rebalance \
   --profile cn_futures_daily_trend_simulated
 ```
 
-`live execute` 会写入仿真订单；随后使用 `live poll` 或 `live sync` 取得异步成交并对账。
-首次演练建议先运行两次 `live sync`，建立账户快照和区间归因基线。
+当前内置画像没有经授权的 runtime Calendar Artifact，因此 `live execute` 会在最终订单提交前
+以 `TRADING_CALENDAR_ARTIFACT_REQUIRED` 失败关闭，不会写入仿真订单。不要用 `XSHG`、工作日或
+`tests/golden/` 合成 fixture 绕过该门禁。待日历来源制品、授权与配置发布链完成后，才可由账户
+持有人按交易所显式配置 `futures.calendar_artifact_snapshot_hashes` 并演练订单写入；随后再用
+`live poll` 或 `live sync` 取得异步成交并对账。
 
 这条流程只会修改本地 `ctp_sim` 状态和开发数据库，绝不连接期货公司。完整能力边界见
 [`docs/03_执行与安全边界.md`](../../../docs/03_执行与安全边界.md)。

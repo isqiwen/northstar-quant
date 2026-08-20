@@ -1,5 +1,4 @@
 {
-  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
   "python.envFile": "${workspaceFolder}/.env",
   "python.terminal.useEnvFile": true,
   "python.analysis.extraPaths": [
@@ -8,7 +7,12 @@
   "python.testing.pytestEnabled": true,
   "python.testing.unittestEnabled": false,
   "python.testing.pytestArgs": [
-    "tests"
+    "tests/data_platform/unit",
+    "tests/intelligence/unit",
+    "tests/research/unit",
+    "tests/portfolio_risk/unit",
+    "tests/trading_execution/unit",
+    "tests/platform/unit"
   ],
   "[python]": {
     "editor.defaultFormatter": "charliermarsh.ruff",
@@ -21,11 +25,29 @@
     "**/__pycache__": true,
     "**/.mypy_cache": true,
     "**/.pytest_cache": true,
-    "**/.ruff_cache": true
+    "**/.ruff_cache": true,
+    "**/.env.before-schema-migration-*": true,
+    "**/.env.tmp.*": true,
+    "**/logs": true,
+    "**/reports": true,
+    "**/storage": true
   },
   "files.watcherExclude": {
     "**/.venv/**": true,
     "**/reports/**": true,
     "**/storage/**": true
-  }
+  },
+    "cSpell.enabled": true,
+  "cSpell.language": "en",
+  "cSpell.allowCompoundWords": true,
+  "cSpell.useGitignore": true,
+  "cSpell.ignorePaths": [
+    "**/.git/**",
+    "**/build/**",
+    "**/out/**",
+    "third_party/intel/payload/**"
+  ],
+  "cSpell.words": [
+    "northstar"
+  ]
 }

@@ -10,13 +10,19 @@ source "${ROOT_DIR}/scripts/deploy/ntfy/lib.sh"
 
 usage() {
   cat <<'EOF'
-将 Northstar Quant 一键部署到 Linux 服务器。
+Northstar Quant 的 Linux 部署后端。
+
+请优先使用跨平台控制面：
+  uv run python scripts/deploy/deploy.py
+
+本后端默认只演练。实际远端操作只能由 deploy.py --apply 调用，或同时显式
+设置 DRY_RUN=0 与 DEPLOY_BACKEND_APPLY_CONFIRMED=YES。
 
 首次部署：
-  UPLOAD_ENV=1 SETUP_SERVER=1 scripts/deploy.sh
+  uv run python scripts/deploy/deploy.py --apply --setup-server --upload-env
 
 后续发布：
-  scripts/deploy.sh
+  uv run python scripts/deploy/deploy.py --apply
 
 常用环境变量：
   DEPLOY_CONFIG=deploy.env       非敏感部署配置
@@ -27,7 +33,9 @@ usage() {
   ALLOW_DIRTY=1                 允许从未提交工作区构建
   SKIP_TESTS=1                  跳过本地 Pytest，不建议用于正式发布
   SKIP_RUFF=1                   跳过本地 Ruff，不建议用于正式发布
-  DRY_RUN=1                     只检查并构建制品，不连接服务器
+  DRY_RUN=1                     只检查并构建制品，不连接服务器（默认）
+  DEPLOY_BACKEND_APPLY_CONFIRMED=YES
+                                与 DRY_RUN=0 同时设置后才允许本后端远端操作
   CONFIRM_LIVE_DEPLOY=YES       明确允许启动非 paper 调度器
 EOF
 }
@@ -79,7 +87,8 @@ ALLOW_DIRTY="${ALLOW_DIRTY:-0}"
 SKIP_TESTS="${SKIP_TESTS:-0}"
 SKIP_RUFF="${SKIP_RUFF:-0}"
 CONFIRM_LIVE_DEPLOY="${CONFIRM_LIVE_DEPLOY:-NO}"
-DRY_RUN="${DRY_RUN:-0}"
+DRY_RUN="${DRY_RUN:-1}"
+DEPLOY_BACKEND_APPLY_CONFIRMED="${DEPLOY_BACKEND_APPLY_CONFIRMED:-NO}"
 SSH_CONTROL="${SSH_CONTROL:-1}"
 CLEAN_REMOTE_ON_EXIT="${CLEAN_REMOTE_ON_EXIT:-1}"
 ARTIFACT_DIR="${ARTIFACT_DIR:-${ROOT_DIR}/dist}"
@@ -155,6 +164,16 @@ case "${CONFIRM_LIVE_DEPLOY}" in
     deploy_fail "CONFIRM_LIVE_DEPLOY 只能是 NO 或 YES。"
     ;;
 esac
+case "${DEPLOY_BACKEND_APPLY_CONFIRMED}" in
+  NO|YES)
+    ;;
+  *)
+    deploy_fail "DEPLOY_BACKEND_APPLY_CONFIRMED 只能是 NO 或 YES。"
+    ;;
+esac
+if [ "${DRY_RUN}" = "0" ] && [ "${DEPLOY_BACKEND_APPLY_CONFIRMED}" != "YES" ]; then
+  deploy_fail "实际远端操作必须通过 deploy.py --apply，或显式设置 DEPLOY_BACKEND_APPLY_CONFIRMED=YES。"
+fi
 case "${REMOTE_TMP}" in
   /tmp|/tmp/*|/var/tmp|/var/tmp/*)
     ;;
@@ -305,8 +324,8 @@ deploy_ssh "${DEPLOY_HOST}" \
   "umask 077; install -d -m 0700 -- $(deploy_shell_quote "${REMOTE_WORK_DIR}")"
 CLEANUP_ARMED=1
 
-deploy_log "上传部署模块"
-tar -C "${ROOT_DIR}" -czf - scripts/deploy |
+deploy_log "上传部署模块与 systemd 基础设施模板"
+tar -C "${ROOT_DIR}" -czf - scripts/deploy infra/systemd |
   deploy_ssh "${DEPLOY_HOST}" \
     "tar -xzf - -C $(deploy_shell_quote "${REMOTE_WORK_DIR}")"
 
@@ -324,6 +343,11 @@ if [ "${UPLOAD_NTFY_BOOTSTRAP}" = "1" ]; then
   deploy_scp "${NTFY_BOOTSTRAP_FILE}" "${DEPLOY_HOST}:${REMOTE_NTFY_BOOTSTRAP}"
   deploy_ssh "${DEPLOY_HOST}" \
     "chmod 600 -- $(deploy_shell_quote "${REMOTE_NTFY_BOOTSTRAP}")"
+fi
+
+REMOTE_TARGET_SCRIPT="${REMOTE_WORK_DIR}/scripts/deploy/remote/linux/upgrade.sh"
+if [ "${SETUP_SERVER}" = "1" ]; then
+  REMOTE_TARGET_SCRIPT="${REMOTE_WORK_DIR}/scripts/deploy/remote/linux/install.sh"
 fi
 
 REMOTE_COMMAND="sudo env"
@@ -362,7 +386,7 @@ fi
 if [ "${UPLOAD_NTFY_BOOTSTRAP}" = "1" ]; then
   REMOTE_COMMAND+=" NTFY_BOOTSTRAP_PATH=$(deploy_shell_quote "${REMOTE_NTFY_BOOTSTRAP}")"
 fi
-REMOTE_COMMAND+=" bash $(deploy_shell_quote "${REMOTE_WORK_DIR}/scripts/deploy/provision.sh")"
+REMOTE_COMMAND+=" bash $(deploy_shell_quote "${REMOTE_TARGET_SCRIPT}")"
 
 deploy_log "执行远程部署"
 deploy_ssh "${DEPLOY_HOST}" "${REMOTE_COMMAND}"

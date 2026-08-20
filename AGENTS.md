@@ -1,189 +1,1006 @@
 # Northstar Quant Agent Rules
 
-This repository is a personal quantitative research and trading tool. When an AI agent works in this repo, follow these rules before creating, moving, renaming, or editing code.
+本文件定义所有 AI Agent / Codex 在 `northstar-quant` 仓库中的最高优先级开发规则。
 
-## Project Intent
+除用户在当前会话中明确给出的指令外，Codex 必须遵守本文件。
 
-- Treat this as a real-money-adjacent system, even when the current broker mode is `paper`.
-- Prefer boring, auditable engineering over clever abstractions.
-- Keep research, backtesting, paper trading, and live trading behavior clearly separated.
-- Never make a change that can silently increase live trading risk.
+---
 
-## Language
+# 1. Project Intent
 
-- Write user-facing documentation, log messages, CLI help text, and comments primarily in Chinese.
-- Keep Python identifiers, module names, class names, and config keys in English.
-- Use concise, practical explanations. Avoid marketing-style text.
+Northstar Quant 是一个面向中国商品期货的量化研究、情报、组合、风险和交易平台。
 
-## Repository Layout
+长期架构包含六个领域：
 
-Current main layout:
+1. Data Platform
+2. Intelligence
+3. Research & Strategy
+4. Portfolio & Risk
+5. Trading & Execution
+6. Platform Foundation
+
+本项目属于 real-money-adjacent system。
+
+即使当前运行在：
+
+- offline
+- paper
+- ctp_sim
+
+模式下，也必须按照未来真实资金系统的工程标准处理：
+
+- 数据完整性
+- 研究可复现性
+- 风险控制
+- 交易状态
+- 审计
+- 故障恢复
+
+优先级始终为：
+
+1. Safety
+2. Correctness
+3. Data Integrity
+4. Reproducibility
+5. Architecture
+6. Research Capability
+7. Production Reliability
+8. Performance
+9. UI
+
+禁止为了开发速度牺牲前面的原则。
+
+---
+
+# 2. Master Implementation Plan
+
+项目实施进度的唯一事实来源是：
+
+`docs/planning/MASTER_IMPLEMENTATION_PLAN.md`
+
+对于任何非 trivial 的开发任务，Codex 在修改代码前必须：
+
+1. 读取本 `AGENTS.md`
+2. 读取 `docs/planning/MASTER_IMPLEMENTATION_PLAN.md`
+3. 查看其中：
+   - active_phase
+   - active_work_package
+   - next_task
+   - blocked_work_packages
+   - 对应 Work Package 的验收标准
+4. 执行 `git status`
+5. 检查当前工作树是否存在用户未提交修改
+
+如果用户只说：
+
+- “继续”
+- “继续开发”
+- “继续按计划”
+- “继续 Northstar”
+
+默认解释为：
+
+> 从 `MASTER_IMPLEMENTATION_PLAN.md` 中的 `next_task` 继续执行。
+
+不得依赖聊天历史猜测当前进度。
+
+`docs/planning/MASTER_IMPLEMENTATION_PLAN.md` is the single source of truth for implementation progress.
+
+Do not infer implementation progress from chat history.
+
+---
+
+# 3. Work Package Execution Protocol
+
+Codex 每次只处理一个 Work Package。
+
+标准流程：
 
 ```text
-alembic/                  Database migration scripts
-configs/                  App, profile, data, strategy, and execution configs
-docs/                     Architecture and operating notes
-scripts/                  Development and demo scripts
-scripts/deploy/           Linux artifact deployment and systemd release scripts
-scripts/deploy.sh         Public Linux deployment entrypoint
-src/northstar_quant/      Application package
-templates/                Report templates
-tests/                    Test suite
+读取 WP
+→ 检查 dependencies
+→ 标记 IN_PROGRESS
+→ 实现
+→ 局部测试
+→ 完整验收
+→ 更新文档
+→ 标记 DONE
+→ 更新 next_task
+→ 再处理下一个 READY WP
 ```
 
-Core package boundaries:
+一个 WP 必须作为完整变更处理。
 
-- `config`: runtime settings and trading profile loading.
-- `data`: market data download, validation, storage, and manifests.
-- `strategies`: strategy implementations and canonical strategy pipeline.
-- `portfolio`: portfolio construction and target combination.
-- `risk`: global, strategy, and pre-trade risk checks.
-- `backtest`: research-grade and event-style backtesting.
-- `execution`: execution planning, order routing, broker adapters, reconciliation.
-- `live`: live orchestration, scheduler, preflight, order polling, run health.
-- `db`: SQLAlchemy models, sessions, repositories.
-- `monitoring`: dashboard, health checks, alerts.
-- `reporting`: report generation, PDF rendering, and email sending.
+如果该 WP 影响：
 
-Keep new code in the narrowest existing module that owns the behavior. Do not create a new subsystem when an existing boundary fits.
+- code
+- tests
+- config
+- database schema
+- migration
+- CLI
+- scripts
+- docs
 
-## Safety Rules
+必须在同一个 WP 中一起更新。
 
-- Never write passwords, API tokens, CTP credentials, webhook secrets, SMTP passwords, private keys, or recovery codes into tracked files.
-- Do not commit `.env`, local databases, downloaded market data, generated reports, cache directories, or broker state files.
-- Keep `.env.example` safe by default. Example configs must not enable real-money trading.
-- `NORTHSTAR_BROKER=paper` is the default safe mode.
-- `NORTHSTAR_LIVE_TRADING_ENABLED` must default to `false`.
-- `NORTHSTAR_KILL_SWITCH_ENABLED` must default to `false`, but code must honor it immediately when it is set to `true`.
-- Do not run commands that can place real broker orders unless the user explicitly asks for live execution and confirms the target profile, broker, and account.
-- Do not weaken preflight, kill-switch, order-routing, or pre-trade checks to make tests pass. Fix the model or tests instead.
-- When adding a new live-trading pathway, ensure it passes through the same safety gates as `run_live_once`.
+不得只改代码而留下：
 
-## Configuration Rules
+- 旧测试
+- 旧配置
+- 旧 schema
+- 旧文档
+- 旧 CLI contract
 
-- Runtime settings live in `src/northstar_quant/config/settings.py`.
-- Environment variables use the `NORTHSTAR_` prefix.
-- Trading profiles live in `configs/profiles/*.yaml`.
-- Strategy configuration belongs in profile `strategies` blocks or `configs/strategy`, not hardcoded in execution code.
-- Market-specific assumptions such as lot size, minimum trade value, calendar, trading currency, or data frequency should be explicit in profile/config/risk policy.
-- If a config option affects live trading, document the safe default in `.env.example`.
+---
 
-## Trading Logic Rules
+# 4. Definition of Done
 
-- Execution plans are not broker orders. Keep this distinction clear in naming and code.
-- Pre-trade checks must be the last defense before broker submission.
-- When adding order logic, account for:
-  - minimum trade notional;
-  - maximum order notional;
-  - quantity limits and lot-size rules;
-  - invalid or missing reference prices;
-  - open orders and partial fills;
-  - available cash or buying power when available;
-  - profile lifecycle role and production eligibility.
-- For China-market logic, be careful with board, lot, price-limit, suspension, and T+1 assumptions. Do not silently apply US-market behavior to CN profiles.
-- Prefer fail-closed behavior for live trading. If required data is missing, block trading and emit an explicit reason.
+Work Package 只有在以下条件全部满足时才能标记为 DONE：
 
-## Database and Migrations
+- 功能实现完成
+- 架构边界正确
+- 正常路径测试存在
+- 必要失败路径测试存在
+- 必要 integration / contract / golden / e2e 测试存在
+- schema 变化有 Alembic migration
+- config 已同步
+- CLI / scripts 已同步
+- docs 已同步
+- pytest 规定范围通过
+- Ruff 通过
+- mypy baseline 没有新增诊断
+- 没有削弱任何交易安全门禁
+- `MASTER_IMPLEMENTATION_PLAN.md` 已更新
+- `next_task` 已更新
 
-- Schema changes require an Alembic migration under `alembic/versions`.
-- Keep ORM model changes, repository changes, migration scripts, and tests aligned.
-- Repository helpers should not hide large behavioral changes. If a function commits internally, be aware that it affects transaction composition.
-- Add repository tests for new persistence behavior.
+禁止：
 
-## Testing and Quality Gates
+> “代码差不多完成”
 
-Use `uv` for project commands.
+就把 WP 标为 DONE。
 
-The repository is PostgreSQL-only. Database tests require the isolated
-`northstar_test` database configured by `NORTHSTAR_TEST_DATABASE_URL`; do not
-substitute SQLite to make tests easier to run.
+---
 
-Before finishing ordinary code changes, run:
+# 5. Progress Tracking
+
+完成一个 WP 后，Codex 必须更新：
+
+`docs/planning/MASTER_IMPLEMENTATION_PLAN.md`
+
+至少包括：
+
+```yaml
+status: DONE
+
+completion:
+  completed_at: YYYY-MM-DD
+  commit: <sha or null>
+  notes: ...
+```
+
+同时更新：
+
+```yaml
+active_work_package:
+next_task:
+blocked_work_packages:
+```
+
+以及对应：
+
+- checkbox
+- phase progress
+- feature completion matrix
+
+Master Plan 必须反映仓库真实状态。
+
+不得出现：
+
+```text
+代码已完成但文档仍 TODO
+```
+
+或：
+
+```text
+文档 DONE 但代码并未通过验收
+```
+
+---
+
+# 6. Repository Architecture
+
+长期目标领域：
+
+```text
+src/northstar_quant/
+├── application/        # 根级 composition root，不属于六个领域
+├── data_platform/
+├── intelligence/
+├── research/
+├── portfolio_risk/
+├── trading_execution/
+└── platform/
+```
+
+依赖原则：
+
+```text
+platform
+  ↑
+data_platform
+  ↑
+intelligence
+  ↑
+research
+  ↑
+portfolio_risk
+  ↑
+trading_execution
+```
+
+这表示允许使用更低层稳定 contract，
+但不允许形成反向业务依赖或循环依赖。
+
+`application/` 是唯一跨领域 composition root，可调用六个领域与 `platform`；它不承载
+领域模型，且六个领域和 `platform` 都不得反向导入它。
+
+强制规则：
+
+- `platform` 不依赖业务域
+- `data_platform` 不依赖 research / trading
+- `intelligence` 不依赖 trading_execution
+- `research` 不直接访问 broker
+- `portfolio_risk` 不直接提交订单
+- `trading_execution` 不实现策略研究逻辑
+
+跨领域协调应发生在明确的 composition root。
+
+---
+
+# 7. Domain Semantics
+
+以下概念必须保持严格区分：
+
+```text
+Document != Event
+Event != Feature
+Feature != Strategy
+StrategyTarget != PortfolioTarget
+PortfolioTarget != ExecutionPlan
+ExecutionPlan != BrokerOrder
+Fill != ClosedTrade
+Commodity != Instrument
+Instrument != Contract
+```
+
+不得为了方便把这些概念合并。
+
+---
+
+# 8. Point-in-Time Correctness
+
+所有研究相关数据必须正确处理时间语义。
+
+需要时使用：
+
+```text
+event_time
+source_time
+published_time
+ingested_time
+processed_time
+available_time
+```
+
+回测只能看到：
+
+```text
+available_time <= simulation_time
+```
+
+禁止：
+
+- look-ahead
+- future contract information
+- future fee/margin rule
+- revised data overwrite historical state
+- future event leakage
+
+任何不确定时间语义必须：
+
+- 明确 UNKNOWN
+- 或 fail closed
+
+不得猜测。
+
+---
+
+# 9. Intelligence Rules
+
+Intelligence 的标准链：
+
+```text
+Source
+→ Document
+→ Entity
+→ Event
+→ Mechanism
+→ Impact
+→ Market Context
+→ Feature
+```
+
+必须遵守：
+
+- Document 与 Event 分离
+- 同一事件多来源需要 merge
+- Event 保存 evidence
+- Ontology versioned
+- LLM output 不是 ground truth
+- LLM confidence 不能作为最终 confidence
+- Event 不直接生成 BUY/SELL
+- Event 必须先进入 Feature / Research pipeline
+
+禁止：
+
+```text
+News
+→ LLM
+→ BUY
+```
+
+---
+
+# 10. Research Rules
+
+任何策略候选必须经过：
+
+```text
+Feature
+→ Experiment
+→ Backtest
+→ Validation
+→ OOS
+→ Stress
+→ Research Decision
+```
+
+不得仅因为：
+
+- 单次 Sharpe 高
+- 某个参数很好
+- 短样本盈利
+- 连续合约结果漂亮
+
+就升级为生产候选。
+
+研究必须记录：
+
+- DatasetVersion
+- FeatureVersion
+- StrategyVersion
+- Config
+- Code revision
+- Cost model
+- Slippage model
+- OOS period
+
+同样输入必须可复现同样结果。
+
+---
+
+# 11. Trading Safety Rules
+
+默认：
+
+```text
+NORTHSTAR_BROKER=paper
+NORTHSTAR_LIVE_TRADING_ENABLED=false
+```
+
+Codex 不得：
+
+- 自动开启 live trading
+- 自动填入真实 CTP credential
+- 自动创建 production profile
+- 自动向真实账户报单
+- 自动取消真实订单
+- 自动恢复 HALT 状态
+- 为测试通过绕过 preflight
+- 为测试通过关闭 kill switch
+- 在未知账户/持仓状态下增加风险
+
+任何真实资金相关操作都必须获得用户明确确认：
+
+- profile
+- broker
+- account
+- target environment
+- requested action
+
+---
+
+# 12. Fail-Closed Policy
+
+以下任何状态未知时：
+
+```text
+Market Data
+Contract Mapping
+Trading Calendar
+Account
+Position
+Open Orders
+Risk State
+Broker State
+Price Freshness
+Margin
+Data Authorization
+```
+
+默认行为：
+
+```text
+NO NEW RISK
+```
+
+而不是估算、使用旧值或继续提交订单。
+
+---
+
+# 13. Order / Execution Rules
+
+严格保持：
+
+```text
+ApprovedPortfolioTarget
+→ ExecutionPlan
+→ PreTradeCheck
+→ BrokerOrder
+```
+
+ExecutionPlan 不是订单。
+
+Pre-trade check 是 broker submit 前最后一道强制防线。
+
+订单状态必须处理：
+
+- accepted
+- rejected
+- partial fill
+- fill
+- cancel pending
+- cancelled
+- unknown
+
+所有 broker callback 必须考虑：
+
+- duplicate
+- out-of-order
+- reconnect
+- retry
+- idempotency
+
+---
+
+# 14. Database Rules
+
+Northstar 是：
+
+```text
+PostgreSQL-only
+```
+
+不得为了方便测试改用 SQLite。
+
+数据库 schema 修改必须同步：
+
+- SQLAlchemy model
+- repository
+- Alembic migration
+- tests
+- docs
+
+不得只改 ORM 而不迁移数据库。
+
+数据库保全是强制安全边界：仓库自动化绝不删除或清空数据库、表、schema 或 Docker 数据卷。
+数据库删除或清空只能由用户在仓库自动化之外手动执行。`init-db` 只能执行
+`alembic upgrade head`；未来迁移的 `upgrade()` 不得包含破坏性 DDL/DML。
+
+测试数据库必须使用隔离：
+
+```text
+northstar_test
+```
+
+或项目当前配置指定的测试 PostgreSQL。
+
+---
+
+# 15. Configuration Rules
+
+Environment variable 前缀：
+
+```text
+NORTHSTAR_
+```
+
+配置原则：
+
+- explicit
+- typed
+- validated
+- safe by default
+
+禁止：
+
+- hidden fallback
+- magic values
+- live risk parameter hardcoding
+- production secret 写入 tracked file
+
+影响交易安全的配置必须在：
+
+`.env.example`
+
+中展示安全默认值。
+
+---
+
+# 16. Testing Rules
+
+当前主要质量门禁：
 
 ```bash
 uv run pytest
 uv run ruff check .
+uv run python scripts/ci/check_mypy_baseline.py check
 ```
 
-For focused changes, run the relevant test files first, then the full suite before finalizing if the change touches shared execution, live trading, database, or config behavior.
-
-`mypy` is useful but is not currently a clean mandatory gate for this repository. If working on type-heavy code, run:
+Codex 应先运行 focused tests：
 
 ```bash
-uv run mypy src/northstar_quant
+uv run pytest <affected tests>
 ```
 
-Report whether it passes or fails. Do not claim the codebase is type-clean unless this command passes.
+如果修改涉及：
 
-## Development Discipline
+- common
+- config
+- db
+- execution
+- live
+- portfolio/risk
+- shared models
 
-- Inspect current git status before editing. The worktree may already contain user changes.
-- Do not revert unrelated user changes.
-- Keep changes focused and small.
-- Add or update tests for changed behavior.
-- This is a greenfield, pre-release project. Backward compatibility is not required
-  until the user explicitly declares a production baseline or retained business data.
-- Prefer direct breaking changes and update every caller, test, config, script, and
-  document in the same change. Do not add deprecated aliases, compatibility wrappers,
-  fallback paths, dual schemas, or migrations whose only purpose is preserving
-  unshipped behavior.
-- Prefer structured data models and explicit config over ad hoc dictionaries when the behavior is durable.
-- Avoid broad `except Exception` in live, execution, broker, and persistence paths unless the exception is logged and the resulting behavior is intentionally safe.
-
-## Command Discipline
-
-Safe commands:
+则完成前必须运行完整：
 
 ```bash
 uv run pytest
-uv run ruff check .
-uv run northstar health
-uv run northstar data profiles
-uv run northstar data download --profile cn_futures_daily_trend_offline
-uv run northstar research futures-trend --profile cn_futures_daily_trend_offline
 ```
 
-Commands requiring explicit user confirmation when `NORTHSTAR_BROKER` is not `paper`:
+测试分类：
+
+```text
+unit
+integration
+contract
+e2e
+```
+
+并按领域扩展：
+
+- golden
+- regression
+- statistical
+- scenario
+- simulation
+- failure
+
+---
+
+# 17. Architecture Tests
+
+必须保留自动架构约束。
+
+例如：
+
+```text
+tests/architecture/
+```
+
+应检查：
+
+- dependency cycles
+- forbidden imports
+- platform business dependency
+- research → broker dependency
+- data → trading dependency
+- public API boundaries
+
+如果架构测试失败：
+
+不得通过删除 architecture test 解决。
+
+---
+
+# 18. Golden / Regression Tests
+
+Intelligence：
+
+```text
+Document
+→ expected Entity
+→ expected Event
+→ expected Impact
+```
+
+必须使用 golden fixtures 防止：
+
+- LLM upgrade
+- prompt change
+- ontology change
+- merge algorithm change
+
+产生静默语义漂移。
+
+Research 应有 regression fixture：
+
+```text
+same data
++ same config
++ same code
+=
+same result
+```
+
+---
+
+# 19. Scripts and Infrastructure
+
+仓库级工程资产：
+
+```text
+scripts/
+├── dev/
+├── build/
+├── data/
+├── db/
+├── ci/
+├── deploy/
+├── ops/
+├── release/
+├── maintenance/
+└── tools/
+```
+
+基础设施：
+
+```text
+infra/
+├── compose/
+├── systemd/
+├── ansible/
+├── monitoring/
+├── backup/
+└── nginx/
+```
+
+区别：
+
+```text
+scripts/
+= 如何执行操作
+
+infra/
+= 系统如何被声明和部署
+```
+
+---
+
+# 20. Platform Support
+
+开发：
+
+```text
+Windows x86_64
+Linux x86_64
+```
+
+均为 Tier 1。
+
+Production：
+
+```text
+Linux x86_64 only
+```
+
+部署控制端：
+
+```text
+Windows
+Linux
+```
+
+都支持。
+
+目标架构：
+
+```text
+Windows/Linux workstation
+        ↓
+Python deployment orchestrator / just
+        ↓
+SSH
+        ↓
+Linux production
+```
+
+不得为 Windows Production 增加无需求的维护成本。
+
+---
+
+# 21. justfile Rules
+
+`just` 是统一的人类操作入口。
+
+优先提供：
+
+```text
+just setup
+just check
+just test
+just lint
+just typecheck
+just db-up
+just db-migrate
+just backtest-smoke
+just sim-smoke
+just deploy-prod
+just prod-health
+```
+
+`justfile` 负责组合命令。
+
+复杂逻辑应进入：
+
+```text
+scripts/
+```
+
+而不是写成巨大 just recipe。
+
+---
+
+# 22. Deployment Rules
+
+Production target 仅 Linux。
+
+部署控制程序应跨平台。
+
+标准流程：
+
+```text
+preflight
+→ package
+→ upload
+→ install/upgrade
+→ migrate
+→ restart
+→ health
+→ promote
+```
+
+失败时：
+
+```text
+rollback
+```
+
+Production deploy 不得自动启动真实非-paper交易，除非用户明确确认。
+
+---
+
+# 23. Generated Files
+
+默认不跟踪：
+
+```text
+.env
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+logs/
+storage/
+reports/
+dist/
+broker snapshots
+market data
+database backups
+production credentials
+```
+
+添加任何生成文件前必须说明为什么需要版本控制。
+
+---
+
+# 24. External Dependency Blocking
+
+以下缺失可以标记 BLOCKED：
+
+- 商业数据合同
+- 数据 license
+- CTP 真实账号
+- 期货公司模拟前置
+- production secret
+- 真实资金批准
+- 付费供应商
+
+Codex 遇到 BLOCKED 时必须优先完成：
+
+- interface
+- fake adapter
+- simulator
+- validation
+- docs
+- tests
+
+然后继续其他 READY Work Package。
+
+不得因为一个外部项停掉整个项目。
+
+---
+
+# 25. AI Permission Boundary
+
+AI 可以直接完成：
+
+- code
+- tests
+- migrations
+- docs
+- config schemas
+- simulation
+- local research
+- backtests
+- reports
+- architecture refactor
+
+需要人工确认：
+
+- 购买数据
+- 接入真实账户
+- production credentials
+- live enable
+- 真实订单
+- 真实资金操作
+
+禁止 AI 自行：
+
+- 把研究策略升级到 production
+- 从 HALT 恢复交易
+- 绕过人工审批
+
+---
+
+# 26. Development Discipline
+
+Codex 修改代码前必须：
 
 ```bash
-uv run northstar live run
-uv run northstar live scheduler
-uv run northstar live cancel-stale
-uv run northstar live poll
-uv run northstar live sync
+git status
 ```
 
-Do not start long-running schedulers or dashboards unless the user asks for them.
-Linux deployment must default to `SERVICE_MODE=health`. Starting a non-paper
-scheduler requires explicit confirmation and must preserve all application
-preflight and kill-switch checks.
+规则：
 
-## Generated Files
+- 不覆盖用户修改
+- 不 revert 无关文件
+- 不扩大 scope
+- 不做无关重构
+- 不创建重复 abstraction
+- 新稳定概念优先 structured model
+- 避免 ad-hoc dict
+- 失败路径显式
+- 高风险代码避免 broad `except Exception`
 
-Generated or local-runtime files should generally remain untracked:
+项目尚未正式发布，因此：
 
-- `.env`
-- `.env.before-schema-migration-*`
-- `deploy.env`
-- `.venv/`
-- `.pytest_cache/`
-- `.ruff_cache/`
-- `.mypy_cache/`
-- `logs/`
-- `storage/`
-- `reports/`
-- PostgreSQL 本地数据目录和数据库备份
-- downloaded market data
-- broker state snapshots
-- deployment artifacts under `dist/`
+> 不需要为未发布的旧实现维护兼容层。
 
-If a generated artifact needs to be tracked, explain why before adding it.
+如需 breaking change，应：
 
-## Final Response Expectations
+```text
+修改实现
++
+修改调用者
++
+修改测试
++
+修改配置
++
+修改文档
+```
 
-When reporting work:
+一次完成。
 
-- Summarize what changed and why.
-- List verification commands and results.
-- Mention any tests or checks that were not run.
-- Call out remaining live-trading risk plainly.
+---
+
+# 27. Codex 每轮输出要求
+
+开始工作时输出：
+
+```text
+ACTIVE WP:
+WHY READY:
+
+PLAN:
+1.
+2.
+3.
+
+SAFETY:
+```
+
+完成时：
+
+```text
+WP RESULT:
+
+CHANGED:
+- ...
+
+TESTS:
+- command → PASS/FAIL
+
+MIGRATION:
+- ...
+
+RISKS:
+- ...
+
+MASTER PLAN:
+- status updated
+- next_task updated
+```
+
+---
+
+# 28. Stop Conditions
+
+Codex 只有在以下情况下应该停止并询问用户：
+
+1. 需要真实资金批准
+2. 需要 production credential
+3. 需要购买外部服务
+4. 需要选择无法通过现有架构原则推导的重大业务决策
+5. 多个互斥方案具有明显不同长期后果，文档中没有既定选择
+6. 外部事实缺失且无法安全模拟
+
+一般代码设计问题：
+
+> 不要停止询问，使用现有架构原则作最佳工程决策并继续。
+
+---
+
+# 29. Default Continuation Behavior
+
+如果用户只说：
+
+```text
+继续
+```
+
+Codex 应：
+
+1. 读取 `MASTER_IMPLEMENTATION_PLAN.md`
+2. 找到 `next_task`
+3. 验证 dependency
+4. 开始该 WP
+5. 验收
+6. 更新 Master Plan
+7. 如果无外部阻塞，继续下一 READY WP
+
+不需要用户重复粘贴开发指令。

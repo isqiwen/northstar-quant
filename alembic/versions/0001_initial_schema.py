@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from alembic import op
-import northstar_quant.db.types
+import northstar_quant.platform.db.types
 import sqlalchemy as sa
 
 revision = "0001_initial_schema"
@@ -25,8 +25,8 @@ def upgrade() -> None:
         sa.Column("account", sa.String(length=64), nullable=True),
         sa.Column("start_position_snapshot_batch_id", sa.String(length=64), nullable=True),
         sa.Column("end_position_snapshot_batch_id", sa.String(length=64), nullable=True),
-        sa.Column("start_asof", northstar_quant.db.types.UTCDateTime(), nullable=False),
-        sa.Column("end_asof", northstar_quant.db.types.UTCDateTime(), nullable=False),
+        sa.Column("start_asof", northstar_quant.platform.db.types.UTCDateTime(), nullable=False),
+        sa.Column("end_asof", northstar_quant.platform.db.types.UTCDateTime(), nullable=False),
         sa.Column("starting_equity", sa.Float(), nullable=True),
         sa.Column("ending_equity", sa.Float(), nullable=True),
         sa.Column("equity_change", sa.Float(), nullable=True),
@@ -45,7 +45,7 @@ def upgrade() -> None:
         sa.Column("traded_notional", sa.Float(), nullable=True),
         sa.Column("fill_count", sa.Integer(), nullable=False),
         sa.Column("residual_pnl", sa.Float(), nullable=True),
-        sa.Column("created_at", northstar_quant.db.types.UTCDateTime(), nullable=False),
+        sa.Column("created_at", northstar_quant.platform.db.types.UTCDateTime(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(
@@ -127,7 +127,7 @@ def upgrade() -> None:
         sa.Column("realized_pnl", sa.Float(), nullable=True),
         sa.Column("unrealized_pnl", sa.Float(), nullable=True),
         sa.Column("account_values_json", sa.Text(), nullable=True),
-        sa.Column("asof", northstar_quant.db.types.UTCDateTime(), nullable=False),
+        sa.Column("asof", northstar_quant.platform.db.types.UTCDateTime(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(
@@ -177,8 +177,8 @@ def upgrade() -> None:
         sa.Column("summary", sa.Text(), nullable=False),
         sa.Column("details_json", sa.Text(), nullable=True),
         sa.Column("report_path", sa.Text(), nullable=True),
-        sa.Column("detected_at", northstar_quant.db.types.UTCDateTime(), nullable=False),
-        sa.Column("created_at", northstar_quant.db.types.UTCDateTime(), nullable=False),
+        sa.Column("detected_at", northstar_quant.platform.db.types.UTCDateTime(), nullable=False),
+        sa.Column("created_at", northstar_quant.platform.db.types.UTCDateTime(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(
@@ -236,7 +236,7 @@ def upgrade() -> None:
         sa.Column("sync_type", sa.String(length=32), nullable=False),
         sa.Column("status", sa.String(length=32), nullable=False),
         sa.Column("detail", sa.Text(), nullable=True),
-        sa.Column("created_at", northstar_quant.db.types.UTCDateTime(), nullable=False),
+        sa.Column("created_at", northstar_quant.platform.db.types.UTCDateTime(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(
@@ -260,7 +260,7 @@ def upgrade() -> None:
         sa.Column("account", sa.String(length=64), nullable=True),
         sa.Column("reason", sa.Text(), nullable=True),
         sa.Column("status", sa.String(length=32), nullable=False),
-        sa.Column("requested_at", northstar_quant.db.types.UTCDateTime(), nullable=False),
+        sa.Column("requested_at", northstar_quant.platform.db.types.UTCDateTime(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(op.f("ix_cancel_records_account"), "cancel_records", ["account"], unique=False)
@@ -293,9 +293,9 @@ def upgrade() -> None:
         sa.Column("resource_key", sa.String(length=255), nullable=False),
         sa.Column("owner_token", sa.String(length=64), nullable=False),
         sa.Column("fencing_token", sa.Integer(), nullable=False),
-        sa.Column("acquired_at", northstar_quant.db.types.UTCDateTime(), nullable=False),
-        sa.Column("heartbeat_at", northstar_quant.db.types.UTCDateTime(), nullable=False),
-        sa.Column("expires_at", northstar_quant.db.types.UTCDateTime(), nullable=False),
+        sa.Column("acquired_at", northstar_quant.platform.db.types.UTCDateTime(), nullable=False),
+        sa.Column("heartbeat_at", northstar_quant.platform.db.types.UTCDateTime(), nullable=False),
+        sa.Column("expires_at", northstar_quant.platform.db.types.UTCDateTime(), nullable=False),
         sa.PrimaryKeyConstraint("resource_key"),
     )
     op.create_index(
@@ -332,7 +332,7 @@ def upgrade() -> None:
         sa.Column("reason", sa.Text(), nullable=True),
         sa.Column("order_type", sa.String(length=16), nullable=True),
         sa.Column("limit_price", sa.Float(), nullable=True),
-        sa.Column("created_at", northstar_quant.db.types.UTCDateTime(), nullable=False),
+        sa.Column("created_at", northstar_quant.platform.db.types.UTCDateTime(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(
@@ -387,7 +387,7 @@ def upgrade() -> None:
         sa.Column("side", sa.String(length=8), nullable=True),
         sa.Column("qty", sa.Float(), nullable=False),
         sa.Column("price", sa.Float(), nullable=False),
-        sa.Column("filled_at", northstar_quant.db.types.UTCDateTime(), nullable=False),
+        sa.Column("filled_at", northstar_quant.platform.db.types.UTCDateTime(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint(
             "broker", "account", "exec_id", name="uq_fill_records_broker_account_exec_id"
@@ -445,11 +445,11 @@ def upgrade() -> None:
         sa.Column("submission_owner", sa.String(length=64), nullable=True),
         sa.Column("lease_fencing_token", sa.Integer(), nullable=True),
         sa.Column("last_submission_error", sa.Text(), nullable=True),
-        sa.Column("prepared_at", northstar_quant.db.types.UTCDateTime(), nullable=False),
-        sa.Column("submission_started_at", northstar_quant.db.types.UTCDateTime(), nullable=True),
-        sa.Column("submitted_at", northstar_quant.db.types.UTCDateTime(), nullable=True),
-        sa.Column("broker_acknowledged_at", northstar_quant.db.types.UTCDateTime(), nullable=True),
-        sa.Column("updated_at", northstar_quant.db.types.UTCDateTime(), nullable=False),
+        sa.Column("prepared_at", northstar_quant.platform.db.types.UTCDateTime(), nullable=False),
+        sa.Column("submission_started_at", northstar_quant.platform.db.types.UTCDateTime(), nullable=True),
+        sa.Column("submitted_at", northstar_quant.platform.db.types.UTCDateTime(), nullable=True),
+        sa.Column("broker_acknowledged_at", northstar_quant.platform.db.types.UTCDateTime(), nullable=True),
+        sa.Column("updated_at", northstar_quant.platform.db.types.UTCDateTime(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint(
             "broker",
@@ -514,8 +514,8 @@ def upgrade() -> None:
         sa.Column("broker", sa.String(length=32), nullable=True),
         sa.Column("account", sa.String(length=64), nullable=True),
         sa.Column("position_count", sa.Integer(), nullable=False),
-        sa.Column("asof", northstar_quant.db.types.UTCDateTime(), nullable=False),
-        sa.Column("created_at", northstar_quant.db.types.UTCDateTime(), nullable=False),
+        sa.Column("asof", northstar_quant.platform.db.types.UTCDateTime(), nullable=False),
+        sa.Column("created_at", northstar_quant.platform.db.types.UTCDateTime(), nullable=False),
         sa.PrimaryKeyConstraint("snapshot_batch_id"),
     )
     op.create_index(
@@ -557,7 +557,7 @@ def upgrade() -> None:
         sa.Column("avg_cost", sa.Float(), nullable=True),
         sa.Column("market_price", sa.Float(), nullable=True),
         sa.Column("market_value", sa.Float(), nullable=True),
-        sa.Column("asof", northstar_quant.db.types.UTCDateTime(), nullable=False),
+        sa.Column("asof", northstar_quant.platform.db.types.UTCDateTime(), nullable=False),
         sa.Column("snapshot_batch_id", sa.String(length=64), nullable=False),
         sa.PrimaryKeyConstraint("id"),
     )
@@ -611,7 +611,7 @@ def upgrade() -> None:
         sa.Column("anomaly_count_prev_7d", sa.Integer(), nullable=False),
         sa.Column("anomaly_trend", sa.String(length=16), nullable=True),
         sa.Column("details_json", sa.Text(), nullable=True),
-        sa.Column("created_at", northstar_quant.db.types.UTCDateTime(), nullable=False),
+        sa.Column("created_at", northstar_quant.platform.db.types.UTCDateTime(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(
@@ -644,7 +644,7 @@ def upgrade() -> None:
         sa.Column("task_name", sa.String(length=128), nullable=False),
         sa.Column("status", sa.String(length=32), nullable=False),
         sa.Column("detail", sa.Text(), nullable=True),
-        sa.Column("created_at", northstar_quant.db.types.UTCDateTime(), nullable=False),
+        sa.Column("created_at", northstar_quant.platform.db.types.UTCDateTime(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(op.f("ix_run_logs_status"), "run_logs", ["status"], unique=False)
@@ -656,7 +656,7 @@ def upgrade() -> None:
         sa.Column("symbol", sa.String(length=32), nullable=False),
         sa.Column("signal_value", sa.Float(), nullable=False),
         sa.Column("target_weight", sa.Float(), nullable=False),
-        sa.Column("asof", northstar_quant.db.types.UTCDateTime(), nullable=False),
+        sa.Column("asof", northstar_quant.platform.db.types.UTCDateTime(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(op.f("ix_signal_records_asof"), "signal_records", ["asof"], unique=False)
@@ -674,11 +674,11 @@ def upgrade() -> None:
         sa.Column("selected_strategy_ids_json", sa.Text(), nullable=True),
         sa.Column("strategy_params_json", sa.Text(), nullable=True),
         sa.Column("risk_limits_json", sa.Text(), nullable=True),
-        sa.Column("market_data_asof", northstar_quant.db.types.UTCDateTime(), nullable=True),
-        sa.Column("signal_data_asof", northstar_quant.db.types.UTCDateTime(), nullable=True),
-        sa.Column("output_asof", northstar_quant.db.types.UTCDateTime(), nullable=True),
+        sa.Column("market_data_asof", northstar_quant.platform.db.types.UTCDateTime(), nullable=True),
+        sa.Column("signal_data_asof", northstar_quant.platform.db.types.UTCDateTime(), nullable=True),
+        sa.Column("output_asof", northstar_quant.platform.db.types.UTCDateTime(), nullable=True),
         sa.Column("snapshot_count", sa.Integer(), nullable=False),
-        sa.Column("created_at", northstar_quant.db.types.UTCDateTime(), nullable=False),
+        sa.Column("created_at", northstar_quant.platform.db.types.UTCDateTime(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(
@@ -725,7 +725,7 @@ def upgrade() -> None:
         sa.Column("order_type", sa.String(length=16), nullable=True),
         sa.Column("limit_price", sa.Float(), nullable=True),
         sa.Column("reason", sa.Text(), nullable=True),
-        sa.Column("asof", northstar_quant.db.types.UTCDateTime(), nullable=False),
+        sa.Column("asof", northstar_quant.platform.db.types.UTCDateTime(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(
@@ -795,7 +795,7 @@ def upgrade() -> None:
         sa.Column("implementation_shortfall_bps", sa.Float(), nullable=True),
         sa.Column("order_semantic", sa.String(length=16), nullable=True),
         sa.Column("reason", sa.Text(), nullable=True),
-        sa.Column("attributed_at", northstar_quant.db.types.UTCDateTime(), nullable=False),
+        sa.Column("attributed_at", northstar_quant.platform.db.types.UTCDateTime(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(
@@ -888,8 +888,8 @@ def upgrade() -> None:
         sa.Column("status", sa.String(length=32), nullable=False),
         sa.Column("order_type", sa.String(length=16), nullable=True),
         sa.Column("limit_price", sa.Float(), nullable=True),
-        sa.Column("submitted_at", northstar_quant.db.types.UTCDateTime(), nullable=True),
-        sa.Column("observed_at", northstar_quant.db.types.UTCDateTime(), nullable=False),
+        sa.Column("submitted_at", northstar_quant.platform.db.types.UTCDateTime(), nullable=True),
+        sa.Column("observed_at", northstar_quant.platform.db.types.UTCDateTime(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(
@@ -950,277 +950,11 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """删除初始迁移创建的全部业务表。"""
-    op.drop_index(
-        op.f("ix_working_order_snapshot_records_symbol"),
-        table_name="working_order_snapshot_records",
+    """禁止回滚：仓库迁移只允许前向升级。"""
+    raise RuntimeError(
+        "数据库迁移只允许前向升级（forward-only）；不支持回滚或破坏性 schema 删除。"
+        "如需删除或清空数据库，请由用户在仓库自动化之外手动执行。 "
+        "Database migrations are forward-only; rollback and destructive schema removal "
+        "are unsupported. Database deletion or clearing must be performed manually by "
+        "the user outside repository automation."
     )
-    op.drop_index(
-        op.f("ix_working_order_snapshot_records_status"),
-        table_name="working_order_snapshot_records",
-    )
-    op.drop_index(
-        op.f("ix_working_order_snapshot_records_run_id"),
-        table_name="working_order_snapshot_records",
-    )
-    op.drop_index(
-        op.f("ix_working_order_snapshot_records_profile_id"),
-        table_name="working_order_snapshot_records",
-    )
-    op.drop_index(
-        op.f("ix_working_order_snapshot_records_open_order_snapshot_batch_id"),
-        table_name="working_order_snapshot_records",
-    )
-    op.drop_index(
-        op.f("ix_working_order_snapshot_records_observed_at"),
-        table_name="working_order_snapshot_records",
-    )
-    op.drop_index(
-        op.f("ix_working_order_snapshot_records_broker_order_id"),
-        table_name="working_order_snapshot_records",
-    )
-    op.drop_index(
-        op.f("ix_working_order_snapshot_records_broker"),
-        table_name="working_order_snapshot_records",
-    )
-    op.drop_index(
-        op.f("ix_working_order_snapshot_records_account"),
-        table_name="working_order_snapshot_records",
-    )
-    op.drop_table("working_order_snapshot_records")
-    op.drop_index(
-        op.f("ix_trade_attribution_records_symbol"), table_name="trade_attribution_records"
-    )
-    op.drop_index(
-        op.f("ix_trade_attribution_records_strategy_id"), table_name="trade_attribution_records"
-    )
-    op.drop_index(
-        op.f("ix_trade_attribution_records_run_id"), table_name="trade_attribution_records"
-    )
-    op.drop_index(
-        op.f("ix_trade_attribution_records_profile_id"), table_name="trade_attribution_records"
-    )
-    op.drop_index(
-        op.f("ix_trade_attribution_records_plan_id"), table_name="trade_attribution_records"
-    )
-    op.drop_index(
-        op.f("ix_trade_attribution_records_order_id"), table_name="trade_attribution_records"
-    )
-    op.drop_index(
-        op.f("ix_trade_attribution_records_fill_id"), table_name="trade_attribution_records"
-    )
-    op.drop_index(
-        op.f("ix_trade_attribution_records_execution_planner_id"),
-        table_name="trade_attribution_records",
-    )
-    op.drop_index(
-        op.f("ix_trade_attribution_records_broker_order_id"), table_name="trade_attribution_records"
-    )
-    op.drop_index(
-        op.f("ix_trade_attribution_records_batch_id"), table_name="trade_attribution_records"
-    )
-    op.drop_index(
-        op.f("ix_trade_attribution_records_attributed_at"), table_name="trade_attribution_records"
-    )
-    op.drop_index(
-        op.f("ix_trade_attribution_records_account"), table_name="trade_attribution_records"
-    )
-    op.drop_table("trade_attribution_records")
-    op.drop_index(
-        op.f("ix_strategy_snapshot_records_symbol"), table_name="strategy_snapshot_records"
-    )
-    op.drop_index(
-        op.f("ix_strategy_snapshot_records_source_strategy_id"),
-        table_name="strategy_snapshot_records",
-    )
-    op.drop_index(
-        op.f("ix_strategy_snapshot_records_run_id"), table_name="strategy_snapshot_records"
-    )
-    op.drop_index(
-        op.f("ix_strategy_snapshot_records_profile_id"), table_name="strategy_snapshot_records"
-    )
-    op.drop_index(
-        op.f("ix_strategy_snapshot_records_pipeline_strategy_id"),
-        table_name="strategy_snapshot_records",
-    )
-    op.drop_index(
-        op.f("ix_strategy_snapshot_records_output_type"), table_name="strategy_snapshot_records"
-    )
-    op.drop_index(op.f("ix_strategy_snapshot_records_asof"), table_name="strategy_snapshot_records")
-    op.drop_table("strategy_snapshot_records")
-    op.drop_index(op.f("ix_strategy_run_records_run_id"), table_name="strategy_run_records")
-    op.drop_index(op.f("ix_strategy_run_records_profile_id"), table_name="strategy_run_records")
-    op.drop_index(
-        op.f("ix_strategy_run_records_pipeline_strategy_id"), table_name="strategy_run_records"
-    )
-    op.drop_index(op.f("ix_strategy_run_records_output_type"), table_name="strategy_run_records")
-    op.drop_index(op.f("ix_strategy_run_records_output_asof"), table_name="strategy_run_records")
-    op.drop_table("strategy_run_records")
-    op.drop_index(op.f("ix_signal_records_symbol"), table_name="signal_records")
-    op.drop_index(op.f("ix_signal_records_strategy_id"), table_name="signal_records")
-    op.drop_index(op.f("ix_signal_records_asof"), table_name="signal_records")
-    op.drop_table("signal_records")
-    op.drop_index(op.f("ix_run_logs_task_name"), table_name="run_logs")
-    op.drop_index(op.f("ix_run_logs_status"), table_name="run_logs")
-    op.drop_table("run_logs")
-    op.drop_index(op.f("ix_run_health_records_run_id"), table_name="run_health_records")
-    op.drop_index(op.f("ix_run_health_records_profile_id"), table_name="run_health_records")
-    op.drop_index(op.f("ix_run_health_records_mode"), table_name="run_health_records")
-    op.drop_index(op.f("ix_run_health_records_created_at"), table_name="run_health_records")
-    op.drop_index(op.f("ix_run_health_records_broker"), table_name="run_health_records")
-    op.drop_index(op.f("ix_run_health_records_anomaly_trend"), table_name="run_health_records")
-    op.drop_index(op.f("ix_run_health_records_account"), table_name="run_health_records")
-    op.drop_table("run_health_records")
-    op.drop_index(
-        op.f("ix_position_snapshot_records_symbol"), table_name="position_snapshot_records"
-    )
-    op.drop_index(
-        op.f("ix_position_snapshot_records_snapshot_batch_id"),
-        table_name="position_snapshot_records",
-    )
-    op.drop_index(op.f("ix_position_snapshot_records_asof"), table_name="position_snapshot_records")
-    op.drop_index(
-        op.f("ix_position_snapshot_records_account"), table_name="position_snapshot_records"
-    )
-    op.drop_table("position_snapshot_records")
-    op.drop_index(
-        op.f("ix_position_snapshot_batch_records_run_id"),
-        table_name="position_snapshot_batch_records",
-    )
-    op.drop_index(
-        op.f("ix_position_snapshot_batch_records_profile_id"),
-        table_name="position_snapshot_batch_records",
-    )
-    op.drop_index(
-        op.f("ix_position_snapshot_batch_records_broker"),
-        table_name="position_snapshot_batch_records",
-    )
-    op.drop_index(
-        op.f("ix_position_snapshot_batch_records_asof"),
-        table_name="position_snapshot_batch_records",
-    )
-    op.drop_index(
-        op.f("ix_position_snapshot_batch_records_account"),
-        table_name="position_snapshot_batch_records",
-    )
-    op.drop_table("position_snapshot_batch_records")
-    op.drop_index(op.f("ix_order_records_symbol"), table_name="order_records")
-    op.drop_index(op.f("ix_order_records_submission_owner"), table_name="order_records")
-    op.drop_index(op.f("ix_order_records_strategy_id"), table_name="order_records")
-    op.drop_index(op.f("ix_order_records_status"), table_name="order_records")
-    op.drop_index(op.f("ix_order_records_run_id"), table_name="order_records")
-    op.drop_index(op.f("ix_order_records_profile_id"), table_name="order_records")
-    op.drop_index(op.f("ix_order_records_plan_id"), table_name="order_records")
-    op.drop_index(op.f("ix_order_records_perm_id"), table_name="order_records")
-    op.drop_index(op.f("ix_order_records_order_ref"), table_name="order_records")
-    op.drop_index(op.f("ix_order_records_instrument_id"), table_name="order_records")
-    op.drop_index(op.f("ix_order_records_idempotency_key"), table_name="order_records")
-    op.drop_index(op.f("ix_order_records_execution_policy_fingerprint"), table_name="order_records")
-    op.drop_index(op.f("ix_order_records_broker"), table_name="order_records")
-    op.drop_index(op.f("ix_order_records_batch_id"), table_name="order_records")
-    op.drop_index(op.f("ix_order_records_account"), table_name="order_records")
-    op.drop_table("order_records")
-    op.drop_index(op.f("ix_fill_records_symbol"), table_name="fill_records")
-    op.drop_index(op.f("ix_fill_records_perm_id"), table_name="fill_records")
-    op.drop_index(op.f("ix_fill_records_order_id"), table_name="fill_records")
-    op.drop_index(op.f("ix_fill_records_instrument_id"), table_name="fill_records")
-    op.drop_index(op.f("ix_fill_records_exec_id"), table_name="fill_records")
-    op.drop_index(op.f("ix_fill_records_broker_order_id"), table_name="fill_records")
-    op.drop_index(op.f("ix_fill_records_broker"), table_name="fill_records")
-    op.drop_index(op.f("ix_fill_records_account"), table_name="fill_records")
-    op.drop_table("fill_records")
-    op.drop_index(op.f("ix_execution_plan_records_symbol"), table_name="execution_plan_records")
-    op.drop_index(
-        op.f("ix_execution_plan_records_strategy_id"), table_name="execution_plan_records"
-    )
-    op.drop_index(op.f("ix_execution_plan_records_run_id"), table_name="execution_plan_records")
-    op.drop_index(op.f("ix_execution_plan_records_profile_id"), table_name="execution_plan_records")
-    op.drop_index(op.f("ix_execution_plan_records_plan_id"), table_name="execution_plan_records")
-    op.drop_index(
-        op.f("ix_execution_plan_records_execution_planner_id"), table_name="execution_plan_records"
-    )
-    op.drop_index(op.f("ix_execution_plan_records_batch_id"), table_name="execution_plan_records")
-    op.drop_table("execution_plan_records")
-    op.drop_index(
-        op.f("ix_execution_lease_records_owner_token"), table_name="execution_lease_records"
-    )
-    op.drop_index(
-        op.f("ix_execution_lease_records_expires_at"), table_name="execution_lease_records"
-    )
-    op.drop_table("execution_lease_records")
-    op.drop_index(op.f("ix_cancel_records_status"), table_name="cancel_records")
-    op.drop_index(op.f("ix_cancel_records_run_id"), table_name="cancel_records")
-    op.drop_index(op.f("ix_cancel_records_requested_at"), table_name="cancel_records")
-    op.drop_index(op.f("ix_cancel_records_profile_id"), table_name="cancel_records")
-    op.drop_index(op.f("ix_cancel_records_order_id"), table_name="cancel_records")
-    op.drop_index(op.f("ix_cancel_records_cancel_batch_id"), table_name="cancel_records")
-    op.drop_index(op.f("ix_cancel_records_broker_order_id"), table_name="cancel_records")
-    op.drop_index(op.f("ix_cancel_records_broker"), table_name="cancel_records")
-    op.drop_index(op.f("ix_cancel_records_account"), table_name="cancel_records")
-    op.drop_table("cancel_records")
-    op.drop_index(op.f("ix_broker_sync_logs_sync_type"), table_name="broker_sync_logs")
-    op.drop_index(op.f("ix_broker_sync_logs_status"), table_name="broker_sync_logs")
-    op.drop_index(op.f("ix_broker_sync_logs_broker"), table_name="broker_sync_logs")
-    op.drop_table("broker_sync_logs")
-    op.drop_index(op.f("ix_anomaly_event_records_severity"), table_name="anomaly_event_records")
-    op.drop_index(op.f("ix_anomaly_event_records_run_id"), table_name="anomaly_event_records")
-    op.drop_index(op.f("ix_anomaly_event_records_report_type"), table_name="anomaly_event_records")
-    op.drop_index(op.f("ix_anomaly_event_records_profile_id"), table_name="anomaly_event_records")
-    op.drop_index(op.f("ix_anomaly_event_records_detected_at"), table_name="anomaly_event_records")
-    op.drop_index(op.f("ix_anomaly_event_records_alert_tag"), table_name="anomaly_event_records")
-    op.drop_index(op.f("ix_anomaly_event_records_alert_code"), table_name="anomaly_event_records")
-    op.drop_index(
-        op.f("ix_anomaly_event_records_account_attribution_id"), table_name="anomaly_event_records"
-    )
-    op.drop_index(op.f("ix_anomaly_event_records_account"), table_name="anomaly_event_records")
-    op.drop_table("anomaly_event_records")
-    op.drop_index(op.f("ix_account_snapshot_records_run_id"), table_name="account_snapshot_records")
-    op.drop_index(
-        op.f("ix_account_snapshot_records_profile_id"), table_name="account_snapshot_records"
-    )
-    op.drop_index(
-        op.f("ix_account_snapshot_records_position_snapshot_batch_id"),
-        table_name="account_snapshot_records",
-    )
-    op.drop_index(op.f("ix_account_snapshot_records_broker"), table_name="account_snapshot_records")
-    op.drop_index(op.f("ix_account_snapshot_records_asof"), table_name="account_snapshot_records")
-    op.drop_index(
-        op.f("ix_account_snapshot_records_account"), table_name="account_snapshot_records"
-    )
-    op.drop_table("account_snapshot_records")
-    op.drop_index(
-        op.f("ix_account_attribution_records_start_position_snapshot_batch_id"),
-        table_name="account_attribution_records",
-    )
-    op.drop_index(
-        op.f("ix_account_attribution_records_start_asof"), table_name="account_attribution_records"
-    )
-    op.drop_index(
-        op.f("ix_account_attribution_records_start_account_snapshot_id"),
-        table_name="account_attribution_records",
-    )
-    op.drop_index(
-        op.f("ix_account_attribution_records_run_id"), table_name="account_attribution_records"
-    )
-    op.drop_index(
-        op.f("ix_account_attribution_records_profile_id"), table_name="account_attribution_records"
-    )
-    op.drop_index(
-        op.f("ix_account_attribution_records_end_position_snapshot_batch_id"),
-        table_name="account_attribution_records",
-    )
-    op.drop_index(
-        op.f("ix_account_attribution_records_end_asof"), table_name="account_attribution_records"
-    )
-    op.drop_index(
-        op.f("ix_account_attribution_records_end_account_snapshot_id"),
-        table_name="account_attribution_records",
-    )
-    op.drop_index(
-        op.f("ix_account_attribution_records_broker"), table_name="account_attribution_records"
-    )
-    op.drop_index(
-        op.f("ix_account_attribution_records_account"), table_name="account_attribution_records"
-    )
-    op.drop_table("account_attribution_records")
-    # ### end Alembic commands ###

@@ -13,10 +13,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test:
-    name: PostgreSQL 测试与静态检查
+  linux-platform:
+    name: Linux 主平台：完整测试、数据库与部署契约
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     services:
       postgres:
         image: postgres:17
@@ -60,8 +60,16 @@ jobs:
         with:
           enable-cache: true
 
+      - name: 配置 just
+        uses: extractions/setup-just@v3
+
       - name: 安装锁定依赖
         run: uv sync --extra dev --locked
+
+      - name: 验证统一 just 命令面
+        run: |
+          just --list
+          just dev-check
 
       - name: 创建隔离测试数据库
         env:
@@ -70,20 +78,76 @@ jobs:
           psql -h 127.0.0.1 -p 5432 -U northstar -d postgres
           -v ON_ERROR_STOP=1 -c "CREATE DATABASE northstar_test;"
 
-      - name: 验证迁移
+      - name: 验证 Alembic 迁移
         run: uv run alembic upgrade head
 
-      - name: 运行测试
+      - name: 验证 Linux 部署契约
+        run: uv run pytest tests/platform/contract/test_deploy_scripts.py -q
+
+      - name: 运行完整 pytest（含 integration）
         run: uv run pytest
 
-      - name: 运行 Ruff
-        run: uv run ruff check .
-
-      - name: 验证 mypy 类型基线
-        run: uv run python scripts/check_mypy_baseline.py check
+      - name: 运行跨平台静态检查
+        run: just check
 
       - name: 验证 Pull Request 未新增类型错误
         if: github.event_name == 'pull_request'
         run: >-
-          uv run python scripts/check_mypy_baseline.py ratchet
+          uv run python scripts/ci/check_mypy_baseline.py ratchet
           --base-revision "${{ github.event.pull_request.base.sha }}"
+
+  windows-workstation:
+    name: Windows 工作站：单元、回测、CLI 与开发脚本
+    runs-on: windows-latest
+    timeout-minutes: 20
+    env:
+      NORTHSTAR_ENV: test
+      NORTHSTAR_BROKER: paper
+      NORTHSTAR_LIVE_TRADING_ENABLED: "false"
+      NORTHSTAR_KILL_SWITCH_ENABLED: "false"
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 创建活动配置（不启动 Docker 或服务）
+        shell: pwsh
+        run: |
+          Copy-Item .env.example .env
+          Copy-Item configs/app.example.yaml configs/app.yaml
+
+      - name: 配置 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 配置 uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: 配置 just
+        uses: extractions/setup-just@v3
+
+      - name: 安装锁定依赖
+        run: uv sync --extra dev --locked
+
+      - name: 验证统一 just 命令面
+        run: |
+          just --list
+          just dev-check
+
+      - name: 运行 Windows 单元测试
+        run: just test-unit
+
+      - name: 运行 Windows 回测测试
+        run: just test-backtest
+
+      - name: 运行 CLI 与开发脚本契约
+        shell: pwsh
+        run: |
+          just test-cli
+          uv run pytest tests/platform/contract/test_cross_platform_scripts.py tests/architecture -q
+
+      - name: 运行跨平台静态检查
+        run: just check

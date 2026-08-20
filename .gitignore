@@ -23,7 +23,7 @@ coverage.xml
 htmlcov/
 
 # Packaging
-build/
+/build/
 dist/
 site/
 .eggs/
@@ -41,6 +41,7 @@ ntfy.bootstrap.env
 ntfy.bootstrap.env.*
 !ntfy.bootstrap.env.example
 configs/app.yaml
+configs/.app.yaml.tmp.*
 # 已废弃但仍可能遗留在旧开发机上的局部覆盖文件；应用会明确拒绝它，
 # 仍忽略以防误加入版本库。
 configs/app.local.yaml
@@ -61,3 +62,13 @@ storage/
 reports/
 .streamlit/
 *.log
+
+# 根目录 datasets 只允许版本化 schema、manifest、样例和 fixture；真实市场或账户数据不入库。
+datasets/raw/
+datasets/downloads/
+datasets/market/
+datasets/accounts/
+
+# 备份策略与恢复演练模板可以版本化，真实数据库备份必须位于仓库外。
+infra/backup/northstar-quant/*
+!infra/backup/northstar-quant/README.md

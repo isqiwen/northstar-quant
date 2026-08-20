@@ -8,9 +8,8 @@ rebalance_frequency: 1d
 strategy_family: trend_following
 currency: CNY
 timezone: Asia/Shanghai
-# exchange_calendars 暂无统一商品期货日历，先用 XSHG 做交易日级节假日门禁；
-# 夜盘时段仍由后续期货会话模块单独校验。
-calendar: XSHG
+# 仅作逻辑日历标识。真实/仿真主执行都不再用 XSHG 或工作日推断期货会话。
+calendar: CN_FUTURES
 universe_id: cn_commodity_actual_contracts_core
 benchmark_symbol: RB_CONT
 lifecycle:
@@ -19,6 +18,9 @@ lifecycle:
 futures:
   contract_spec_path: configs/instruments/products
   ctp_contract_mapping_path: configs/instruments/ctp_sim.yaml
+  # 当前没有经授权的 runtime Calendar Snapshot，故 live execute 必须失败关闭。
+  # 按交易所填写不可变 ArtifactSnapshot hash；本仓库当前没有已授权的运行时日历制品，故保持空映射并阻断提交。
+  calendar_artifact_snapshot_hashes: {}
   symbols_are_continuous: false
   execution_allowed: true
 execution:

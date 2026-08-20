@@ -49,7 +49,7 @@ dev = [
 ]
 
 [project.scripts]
-northstar = "northstar_quant.cli:app"
+northstar = "northstar_quant.application.cli:app"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
@@ -69,6 +69,12 @@ markers = [
   "integration: 使用 PostgreSQL 或验证多个模块协作的集成测试",
   "contract: 验证架构、迁移、CLI 和运维脚本契约",
   "e2e: 验证完整业务闭环的端到端测试",
+  "golden: 验证固定输入的语义输出，防止静默漂移",
+  "regression: 验证相同数据、配置与代码下的研究结果稳定性",
+  "statistical: 验证统计假设、点时正确性与研究有效性",
+  "scenario: 验证组合与风险的压力情景",
+  "simulation: 验证执行和 broker 的模拟行为",
+  "failure: 验证失败关闭与故障恢复行为",
 ]
 
 [tool.mypy]

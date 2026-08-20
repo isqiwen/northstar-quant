@@ -2,9 +2,13 @@
 
 ## 适用范围
 
-`scripts/deploy.sh` 用于从 macOS 或 Linux 开发机向 Ubuntu/Debian
-服务器发布 Northstar Quant。它负责本地质量检查、构建源码制品、SSH 上传、运行时安装、
-依赖同步、数据库迁移、systemd 配置、健康检查和应用版本回退。
+`just deploy-prod`（或 `scripts/deploy/deploy.py`）可从 Windows 或 Linux 开发机向 Ubuntu/Debian
+服务器发布 Northstar Quant。Just 只路由命令，Python 控制面负责本地预检、构建源码制品与 SSH 编排；
+Linux 目标端才负责运行时安装、依赖同步、数据库迁移、systemd 配置、健康检查和应用版本回退。Windows
+不需要也不应运行 systemd、服务、scheduler 或未来 live trading。
+
+systemd 模板位于仓库级的 `infra/systemd/`；发布流程会将它们与 `scripts/deploy/` 部署模块一并临时上传，
+运行时状态、真实数据和备份不会进入部署制品。
 
 当 `NTFY_DEPLOY_ENABLED=1` 时，它还会部署项目专用的私有 ntfy 与 Caddy TLS 反向代理，
 并在明确请求时执行一次身份初始化。ntfy 是可选的即时告警基础设施，不参与下单、撤单、
@@ -95,9 +99,9 @@ chmod 600 .env
 在每个新版本生成完整的 `configs/app.yaml`。`configs/app.yaml`、`.env` 与 `deploy.env` 均被 Git
 忽略；不要把密码、令牌或数据库 URL 写入 `deploy.env`。
 
-首次发布使用 `UPLOAD_ENV=1` 将部署工作树中的 `.env` 安装为服务器
+首次发布使用 Python 控制面的 `--upload-env` 将部署工作树中的 `.env` 安装为服务器
 `/srv/northstar/northstar-quant/shared/.env`；每个 release 只读这个同名活动文件。后续如需更新
-环境变量，仍显式设置 `UPLOAD_ENV=1`。自动化场景可用 `ENV_FILE=/安全路径/.env` 指定上传来源，
+环境变量，仍显式使用 `--upload-env`。自动化场景可用 `--env-file /安全路径/.env` 指定上传来源，
 但文件名与字段结构仍应与 `.env.example` 一致，且必须通过 `NORTHSTAR_ENV=production` 门禁。
 
 无需为 Paper broker 设置固定状态文件路径：默认状态按账户写入
@@ -179,19 +183,19 @@ uv run python -c "import secrets, string; print('tk_' + ''.join(secrets.choice(s
 第二条命令的输出是秘密；不要把输出写入命令参数、Shell 历史、截图、CI 日志或聊天记录。
 `NORTHSTAR_NTFY_BASE_URL` 必须与 `NTFY_PUBLIC_HOST` 对应。部署过程会拒绝缺失或格式不安全的
 topic/token，不会生成、打印、回写或替换本地 `.env` 中的发布令牌。
-首次启动需要同时上传应用 `.env` 与 bootstrap 文件：
+首次启动需要同时上传应用 `.env` 与 bootstrap 文件。跨平台 Python 控制面要求三个显式开关：
+`--upload-env`、`--upload-ntfy-bootstrap` 与 `--confirm-ntfy-bootstrap YES`；不要在 Windows PowerShell
+或 CI 日志中保留 bootstrap 凭据。
 
 ```bash
-UPLOAD_ENV=1 UPLOAD_NTFY_BOOTSTRAP=1 SETUP_SERVER=1 scripts/deploy.sh
+uv run python scripts/deploy/deploy.py \
+  --inventory deploy.env --apply --setup-server --upload-env \
+  --upload-ntfy-bootstrap --confirm-ntfy-bootstrap YES
 ```
 
-`SETUP_SERVER=1` 只安装 Northstar 的 Python/systemd 运行时，**不安装 Docker**。首次命令之前须确认
-Docker、Docker Compose、DNS 和 `80`/`443` 前置条件均已满足。`UPLOAD_NTFY_BOOTSTRAP=1` 只可用于
-首次身份初始化或经过审批的身份维护；普通版本发布不得设置它：
-
-```bash
-scripts/deploy.sh
-```
+`--setup-server` 只安装 Northstar 的 Python/systemd 运行时，**不安装 Docker**。首次命令之前须确认
+Docker、Docker Compose、DNS 和 `80`/`443` 前置条件均已满足。bootstrap 只可用于首次身份初始化或
+经过审批的身份维护；普通版本发布不得设置它。
 
 普通发布不会重置 ntfy 认证数据、管理员/订阅者口令或发布令牌。需要轮换身份时，先备份
 `NTFY_DATA_DIR`，制定恢复方案，并显式使用受控的 bootstrap/维护流程；不要通过删除数据目录或修改
@@ -220,28 +224,29 @@ iOS 在不使用上游推送服务的严格私有配置下可能延迟数分钟�
 
 ## 部署命令
 
-先做不连接服务器的完整构建演练：
+先做不连接服务器的完整构建演练（这是默认行为）：
 
 ```bash
-DRY_RUN=1 scripts/deploy.sh
+uv run python scripts/deploy/deploy.py --inventory deploy.env
 ```
 
 首次部署需要安装服务器运行时并上传活动 `.env`：
 
 ```bash
-UPLOAD_ENV=1 SETUP_SERVER=1 scripts/deploy.sh
+uv run python scripts/deploy/deploy.py \
+  --inventory deploy.env --apply --setup-server --upload-env
 ```
 
 后续普通发布只需要：
 
 ```bash
-scripts/deploy.sh
+just deploy-prod
 ```
 
 更新服务器环境变量：
 
 ```bash
-UPLOAD_ENV=1 scripts/deploy.sh
+just deploy-prod-with-env
 ```
 
 正常发布会拒绝未提交工作区，并在上传前执行：
@@ -251,8 +256,9 @@ uv run ruff check .
 uv run pytest
 ```
 
-`ALLOW_DIRTY=1`、`SKIP_RUFF=1` 和 `SKIP_TESTS=1` 仅用于明确的诊断场景，
-不应作为日常发布配置。
+`--allow-dirty`、`--skip-ruff` 和 `--skip-tests` 仅用于明确的诊断场景，
+不应作为日常发布配置。`--apply` 之前的 Python 控制面不会建立 SSH 连接；目标 Linux 后端在每次
+真正发布时会再次校验同等安全门禁。
 
 ## 服务器目录
 
@@ -319,7 +325,7 @@ loopback、Dashboard systemd 服务正常，以及公网防火墙没有放行该
 
 ### scheduler
 
-这是**未来** production 阶段的 systemd 模板，不是当前可启动服务。当前没有 production
+这是**未来** production 阶段的 `infra/systemd/scheduler.service.in` 模板，不是当前可启动服务。当前没有 production
 画像，执行下列命令会在画像/preflight 阶段失败关闭：
 
 ```bash
@@ -337,7 +343,7 @@ NORTHSTAR_LIVE_TRADING_ENABLED=false
 非 paper 调度器除了生产画像、券商适配器和应用 preflight，还要求每次发布显式执行：
 
 ```bash
-CONFIRM_LIVE_DEPLOY=YES scripts/deploy.sh
+just deploy-prod-live
 ```
 
 这个确认只表示允许部署脚本启动非 paper 调度器，不替代交易系统自身的 preflight、
@@ -348,10 +354,12 @@ kill switch、账户核验和风控。
 新版本会先在临时版本目录中安装依赖、执行 Alembic 迁移和健康检查，然后原子切换
 `current`。systemd 启动失败时，脚本会恢复上一版本并重新启动服务。
 
-数据库迁移不会自动降级。当前项目尚未建立生产基线，也没有需要保留的生产业务数据，
-因此开发阶段不承诺旧 schema 兼容；模型、迁移、测试和本地数据库应作为同一变更整体更新。
-首次正式发布后，才切换为先扩展、后清理的兼容迁移策略。正式发布前必须备份生产数据库，
-并定期演练恢复。
+数据库迁移只允许前向、加法式升级；`downgrade()` 会失败关闭，部署绝不自动回退数据库 schema、
+删除或清空数据。即使仍处于开发阶段，模型、迁移、测试与文档也必须作为同一变更整体更新，不能以
+重建、清空或重新初始化本地数据库替代兼容性设计。正式发布前必须备份生产数据库，并定期演练恢复。
+仓库自动化绝不删除或清空数据库、表、schema 或 Docker 数据卷；生产数据库的删除或清空只能由用户
+在仓库自动化之外手动执行。仓库内的 `infra/backup/northstar-quant/` 只保存策略和演练说明，绝不保存
+真实备份。
 
 默认保留最近五个版本，且至少保留两个版本。
 
@@ -393,29 +401,26 @@ RPO/RTO、备份新鲜度告警和至少定期的隔离恢复演练。不能仅�
 
 ## 运维命令
 
-查看状态：
+从 Windows 或 Linux 工作站读取状态：
 
 ```bash
-ssh deploy@example.com 'sudo systemctl status northstar-quant --no-pager'
+just ops-health
 ```
 
-查看日志：
+读取日志（默认最后 200 行）：
 
 ```bash
-ssh deploy@example.com \
-  'sudo journalctl -u northstar-quant -n 100 --no-pager'
+just ops-logs
 ```
 
-停止或启动：
+收集只读诊断或备份/恢复演练证据：
 
 ```bash
-ssh deploy@example.com 'sudo systemctl stop northstar-quant'
-ssh deploy@example.com 'sudo systemctl start northstar-quant'
+just ops-diagnose
+just ops-backup
 ```
 
-查看当前版本：
-
-```bash
-ssh deploy@example.com \
-  'readlink -f /srv/northstar/northstar-quant/current'
-```
+这些命令通过受限 SSH 调用 Linux 目标脚本；它们不上传 `.env`、不启动服务，也不创建数据库备份。
+`backup` 只读取独立备份系统留下的无秘密就绪证据。服务重启需要目标端
+`CONFIRM_SERVICE_RESTART=YES`，手动回退和卸载目前明确失败关闭；生产恢复必须走独立、已审批的
+PostgreSQL runbook。

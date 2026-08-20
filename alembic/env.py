@@ -7,9 +7,9 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
-from northstar_quant.config.settings import get_settings
-from northstar_quant.db.base import Base
-from northstar_quant.db import models  # noqa: F401
+from northstar_quant.platform.config.settings import get_settings
+from northstar_quant.platform.db.base import Base
+from northstar_quant.platform.db import models  # noqa: F401
 
 config = context.config
 settings = get_settings()

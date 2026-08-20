@@ -58,31 +58,11 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """删除 CTP 仿真执行语义字段。"""
-
-    for name in (
-        "short_yesterday_qty",
-        "short_today_qty",
-        "long_yesterday_qty",
-        "long_today_qty",
-        "exchange_id",
-        "instrument_id",
-    ):
-        op.drop_column("position_snapshot_records", name)
-    op.drop_column("fill_records", "ctp_offset")
-    for name in (
-        "required_margin",
-        "margin_rate",
-        "volume_multiple",
-        "ctp_offset",
-    ):
-        op.drop_column("order_records", name)
-    for name in (
-        "required_margin",
-        "margin_rate",
-        "volume_multiple",
-        "ctp_offset",
-        "exchange_id",
-        "instrument_id",
-    ):
-        op.drop_column("execution_plan_records", name)
+    """禁止回滚：仓库迁移只允许前向升级。"""
+    raise RuntimeError(
+        "数据库迁移只允许前向升级（forward-only）；不支持回滚或破坏性 schema 删除。"
+        "如需删除或清空数据库，请由用户在仓库自动化之外手动执行。 "
+        "Database migrations are forward-only; rollback and destructive schema removal "
+        "are unsupported. Database deletion or clearing must be performed manually by "
+        "the user outside repository automation."
+    )

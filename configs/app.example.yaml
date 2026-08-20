@@ -3,15 +3,25 @@
 # 开发与生产环境都只读取完整的 app.yaml，二者字段结构必须完全一致。
 # 数据库密码、令牌等秘密仍只放在 .env 或操作系统环境变量中。
 
-# 运行输出目录的唯一真源。相对路径相对于项目根目录。
+# 运行输出目录的唯一真源。
+# 路径解析规则：storage_dir、downloads_dir、reports_dir 和 log_dir 的所有显式相对路径都相对
+# 项目根目录，绝不相对 storage_dir；显式绝对路径直接使用，可指向独立数据盘。
+# 唯一派生例外是 downloads_dir: null，它始终表示最终 storage_dir/downloads。
 runtime:
-  # 标准行情、下载缓存、模拟账户状态等本地持久化文件根目录。
+  # 标准行情、不可变制品、模拟账户状态等本地持久化文件根目录。
+  # "storage" 解析为 <项目根>/storage；也可明确设为如 /srv/northstar/storage 的绝对路径。
   storage_dir: storage
-  # null 表示自动使用 storage_dir/downloads；只有需要独立磁盘时才填写路径。
+  # null 表示自动使用最终 storage_dir/downloads。
+  # 若显式填写：相对路径仍相对项目根，绝对路径直接使用且不再跟随 storage_dir；例如 /mnt/fast/downloads。
+  # 下载缓存不得与 storage_dir/artifacts、storage_dir/market、reports_dir 或 log_dir 重叠。
   downloads_dir: null
-  # 回测、日报和 PDF 等正式报告制品根目录。
+  # 回测、日报和 PDF 等正式报告制品根目录；不会自动位于 storage_dir 内。
+  # "reports" 解析为 <项目根>/reports；如希望置于 storage 下，应显式写 storage/reports。
+  # 也可使用独立绝对路径，但不得与 downloads_dir 或不可变制品目录重叠。
   reports_dir: reports
-  # JSON Lines 审计日志根目录。
+  # JSON Lines 审计日志根目录；不会自动位于 storage_dir 内。
+  # "logs" 解析为 <项目根>/logs；绝对路径适合受系统日志策略管理的独立磁盘。
+  # 运行账户必须可写，且不得与 downloads_dir、reports_dir 或不可变制品目录重叠。
   log_dir: logs
 
 # 统一日志设置。日志是运行审计的一部分，不应关闭文件日志来规避问题追踪。

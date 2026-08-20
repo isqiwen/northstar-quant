@@ -14,4 +14,8 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    ${downgrades if downgrades else "pass"}
+    """禁止回滚：仓库迁移只允许前向升级。"""
+    raise RuntimeError(
+        "数据库迁移只允许前向升级（forward-only）；不支持回滚或破坏性 schema 删除。"
+        "如需删除或清空数据库，请由用户在仓库自动化之外手动执行。"
+    )

@@ -9,14 +9,36 @@ from dotenv import dotenv_values
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from tests.support.database import (
+from tests.helpers.database import (
     create_postgresql_session_factory,
     create_postgresql_test_engine,
 )
-from tests.support.paths import PROJECT_ROOT
-from tests.support.postgresql import cleanup_postgresql_test_schemas
+from tests.helpers.paths import PROJECT_ROOT
 
-_TEST_LAYERS = ("unit", "integration", "contract", "e2e")
+_DOMAIN_TEST_ROOTS = frozenset(
+    {
+        "data_platform",
+        "intelligence",
+        "research",
+        "portfolio_risk",
+        "trading_execution",
+        "platform",
+    }
+)
+_TEST_CATEGORY_MARKERS = frozenset(
+    {
+        "unit",
+        "integration",
+        "contract",
+        "e2e",
+        "golden",
+        "regression",
+        "statistical",
+        "scenario",
+        "simulation",
+        "failure",
+    }
+)
 _DEFAULT_RUNTIME_DATABASE_URL = (
     "postgresql+psycopg://northstar@127.0.0.1:5432/northstar"
 )
@@ -45,15 +67,25 @@ _configure_safe_test_runtime_settings()
 
 
 def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
-    """根据测试目录自动添加层级 marker。"""
+    """根据领域优先的测试目录自动添加分类 marker。"""
 
     for item in items:
         relative_path = item.path.relative_to(item.config.rootpath)
         if len(relative_path.parts) < 2 or relative_path.parts[0] != "tests":
             continue
-        layer = relative_path.parts[1]
-        if layer in _TEST_LAYERS:
-            item.add_marker(getattr(pytest.mark, layer))
+        root = relative_path.parts[1]
+        category: str | None = None
+        if root == "architecture":
+            category = "contract"
+        elif root in _TEST_CATEGORY_MARKERS:
+            category = root
+        elif root in _DOMAIN_TEST_ROOTS and len(relative_path.parts) >= 3:
+            candidate = relative_path.parts[2]
+            if candidate in _TEST_CATEGORY_MARKERS:
+                category = candidate
+
+        if category is not None:
+            item.add_marker(getattr(pytest.mark, category))
 
 
 @pytest.fixture
@@ -72,9 +104,3 @@ def postgresql_session_factory(
     """为单个测试提供统一配置的 SQLAlchemy session factory。"""
 
     return create_postgresql_session_factory(postgresql_engine)
-
-
-@pytest.fixture(scope="session", autouse=True)
-def _cleanup_isolated_postgresql_schemas():
-    yield
-    cleanup_postgresql_test_schemas()

@@ -97,15 +97,29 @@
 {% if backtest_run %}
 
 - 回测运行 ID：`{{ backtest_run.run_id }}`
-- 输入指纹：`{{ backtest_run.run_fingerprint }}`
-- 回测器：{{ backtest_run.engine.backtester_id }}（{{ backtest_run.engine.return_frequency }}，年化 {{ backtest_run.engine.periods_per_year }} 期）
+- 运行指纹：`{{ backtest_run.run_fingerprint }}`
+- 请求 SHA-256：`{{ backtest_run.request_hash }}`
+- 结果 SHA-256：`{{ backtest_run.result_hash }}`
+- 回测引擎：{{ backtest_run.engine.engine }}
+- 成交真实性层级：{{ backtest_run.engine.fidelity }}
+- 行情/合约语义：{{ backtest_run.engine.data_semantics }}
+- 执行审计明细：{{ backtest_run.engine.execution_audit_level }}
+- 频率链：source={{ backtest_run.request.frequencies.source_frequency }} → signal={{ backtest_run.request.frequencies.signal_frequency }} → execution={{ backtest_run.request.frequencies.execution_frequency }} → settlement={{ backtest_run.request.frequencies.settlement_frequency }} → result={{ backtest_run.request.frequencies.result_frequency }}
 - 数据内容 SHA-256：`{{ backtest_run.data.content_sha256 }}`
 - 画像配置 SHA-256：`{{ backtest_run.profile.profile_config_sha256 }}`
-- 目标权重 SHA-256：`{{ backtest_run.strategy.target_frame_sha256 }}`（{{ backtest_run.strategy.target_row_count }} 行）
+- 目标权重 SHA-256：`{{ backtest_run.strategy.target_frame_sha256 }}`（{{ backtest_run.strategy.row_count }} 行）
+- PIT 模式：{{ backtest_run.data.point_in_time.selection_mode or "LEGACY_NOT_PIT" }}；逐决策安全：{{ backtest_run.data.point_in_time.decision_time_safe }}
 - 代码版本：{{ backtest_run.code.package_version }}；Git：{{ backtest_run.code.git_commit or "N/A" }}；工作树变更：{{ backtest_run.code.git_dirty }}
 - 复现说明：{{ backtest_run.reproducibility_note }}
 
-同目录 `manifest.json` 保存本次运行的有效策略、风控、成交假设、数据摘要和输出校验和；`report.json` 与该清单使用同一运行 ID。
+{% if backtest_run.result.limitations %}
+引擎限制：
+{% for limitation in backtest_run.result.limitations %}
+- {{ limitation }}
+{% endfor %}
+{% endif %}
+
+同目录 `manifest.json` 保存本次运行的请求、引擎能力、数据/PIT 证据、成本假设和输出校验和；`report.json` 与该清单使用同一运行 ID。
 {% else %}
 
 本报告未附回测运行清单，不能作为完整可复现实验制品。
@@ -115,6 +129,8 @@
 
 - 本报告展示研究回测结果，不代表真实账户收益或可执行订单。
 - 成本、滑点、保证金、换月、涨跌停和成交约束以画像中的回测配置与引擎能力为准。
+- `weight_return`、`futures_daily` 和 `futures_intraday_replay` 的成交语义不可互相替代，不能跨引擎把事件数、模拟成交或成本当作同层级证据比较。
 - 连续合约研究信号不能直接用于真实合约下单。
+- 当前 legacy 数据与单一 static as-of PIT snapshot 都不是逐决策无前视回放；即使报告生成成功，也不能进入候选策略准入。
 - 若基准指标显示 N/A，表示当前已冻结的数据与净值日期无法构成同口径比较，不应将策略结果解释为相对收益。
 - 当前数据校验尚未接入权威中国期货交易日历与会话表；缺失交易日风险不能由本报告消除。

@@ -2,6 +2,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DEPLOYMENT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+SYSTEMD_TEMPLATE_DIR="${DEPLOYMENT_ROOT}/infra/systemd"
 source "${SCRIPT_DIR}/lib/common.sh"
 source "${SCRIPT_DIR}/lib/safety.sh"
 source "${SCRIPT_DIR}/lib/runtime_paths.sh"
@@ -176,7 +178,7 @@ run_release_command() {
 }
 
 render_systemd_unit() {
-  local template_file="${SCRIPT_DIR}/systemd/${SERVICE_MODE}.service.in"
+  local template_file="${SYSTEMD_TEMPLATE_DIR}/${SERVICE_MODE}.service.in"
 
   if [ ! -f "${template_file}" ]; then
     printf "systemd 模板不存在：%s\n" "${template_file}" >&2
@@ -203,7 +205,7 @@ render_systemd_unit() {
 }
 
 render_dashboard_systemd_unit() {
-  local template_file="${SCRIPT_DIR}/systemd/dashboard.service.in"
+  local template_file="${SYSTEMD_TEMPLATE_DIR}/dashboard.service.in"
 
   if [ ! -f "${template_file}" ]; then
     printf "Dashboard systemd 模板不存在：%s\n" "${template_file}" >&2

@@ -6,12 +6,12 @@
 
 from pathlib import Path
 
-import northstar_quant.execution.paper_broker as paper_broker
-from northstar_quant.config.settings import Settings, get_settings
-from northstar_quant.execution.models import OrderRequest
-from northstar_quant.execution.paper_broker import PaperBrokerAdapter
-from northstar_quant.live.reconciliation import reconcile_broker_state
-from northstar_quant.reporting import report_builder
+import northstar_quant.trading_execution.broker.paper_broker as paper_broker
+from northstar_quant.platform.config.settings import Settings, get_settings
+from northstar_quant.trading_execution.execution.models import OrderRequest
+from northstar_quant.trading_execution.broker.paper_broker import PaperBrokerAdapter
+from northstar_quant.trading_execution.reconciliation.reconciliation import reconcile_broker_state
+from northstar_quant.application import reporting as report_builder
 
 
 def test_paper_order_reconcile_attribution_and_report_infrastructure(

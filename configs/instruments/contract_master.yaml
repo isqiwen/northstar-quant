@@ -1,0 +1,51 @@
+# 国内期货 Contract Master 的静态身份层。
+#
+# 这里仅保存商品、交易所、品种和连续研究序列等稳定事实。实际月份合约以及保证金、
+# 手续费、涨跌停、会话和交割限制必须由后续带 source_artifact_hash / available_at 的
+# 不可变制品发布链进入系统；静态 YAML 不得声明 rule_snapshots，更不得把本文件或研究
+# 行情当成真实下单规则。
+version: 1
+master_id: cn_futures
+
+commodities:
+  - {commodity_id: REBAR, name: 螺纹钢}
+  - {commodity_id: COPPER, name: 铜}
+  - {commodity_id: IRON_ORE, name: 铁矿石}
+  - {commodity_id: SOYBEAN_MEAL, name: 豆粕}
+  - {commodity_id: PTA, name: 精对苯二甲酸}
+  - {commodity_id: SODA_ASH, name: 纯碱}
+  - {commodity_id: INDUSTRIAL_SILICON, name: 工业硅}
+  - {commodity_id: CRUDE_OIL, name: 原油}
+
+exchanges:
+  - {exchange_id: SHFE, name: 上海期货交易所, market: CN, timezone_name: Asia/Shanghai}
+  - {exchange_id: DCE, name: 大连商品交易所, market: CN, timezone_name: Asia/Shanghai}
+  - {exchange_id: CZCE, name: 郑州商品交易所, market: CN, timezone_name: Asia/Shanghai}
+  - {exchange_id: GFEX, name: 广州期货交易所, market: CN, timezone_name: Asia/Shanghai}
+  - {exchange_id: INE, name: 上海国际能源交易中心, market: CN, timezone_name: Asia/Shanghai}
+  - {exchange_id: CFFEX, name: 中国金融期货交易所, market: CN, timezone_name: Asia/Shanghai}
+
+instruments:
+  - {instrument_id: SHFE.RB, commodity_id: REBAR, exchange_id: SHFE, product_code: RB}
+  - {instrument_id: SHFE.CU, commodity_id: COPPER, exchange_id: SHFE, product_code: CU}
+  - {instrument_id: DCE.I, commodity_id: IRON_ORE, exchange_id: DCE, product_code: I}
+  - {instrument_id: DCE.M, commodity_id: SOYBEAN_MEAL, exchange_id: DCE, product_code: M}
+  - {instrument_id: CZCE.TA, commodity_id: PTA, exchange_id: CZCE, product_code: TA}
+  - {instrument_id: CZCE.SA, commodity_id: SODA_ASH, exchange_id: CZCE, product_code: SA}
+  - {instrument_id: GFEX.SI, commodity_id: INDUSTRIAL_SILICON, exchange_id: GFEX, product_code: SI}
+  - {instrument_id: INE.SC, commodity_id: CRUDE_OIL, exchange_id: INE, product_code: SC}
+
+# 连续序列仅属于研究、特征和回测。解析器不得由它自动推导任何实际月份合约。
+continuous_series:
+  - {series_id: SHFE.RB.CONT, instrument_id: SHFE.RB, symbol: RB_CONT}
+  - {series_id: SHFE.CU.CONT, instrument_id: SHFE.CU, symbol: CU_CONT}
+  - {series_id: DCE.I.CONT, instrument_id: DCE.I, symbol: I_CONT}
+  - {series_id: DCE.M.CONT, instrument_id: DCE.M, symbol: M_CONT}
+  - {series_id: CZCE.TA.CONT, instrument_id: CZCE.TA, symbol: TA_CONT}
+  - {series_id: CZCE.SA.CONT, instrument_id: CZCE.SA, symbol: SA_CONT}
+  - {series_id: GFEX.SI.CONT, instrument_id: GFEX.SI, symbol: SI_CONT}
+  - {series_id: INE.SC.CONT, instrument_id: INE.SC, symbol: SC_CONT}
+
+# 实际月份合约只能由带可审计来源的 ContractRuleSnapshot 发布；默认空表是安全状态。
+contracts: []
+rule_snapshots: []
