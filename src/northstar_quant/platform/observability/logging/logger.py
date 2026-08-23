@@ -8,12 +8,13 @@ from collections.abc import Mapping, MutableMapping
 from datetime import datetime, timezone
 from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import structlog
 
 from northstar_quant.platform.config.app_runtime import load_app_config
 from northstar_quant.platform.config.settings import get_settings
+from northstar_quant.platform.security import redact, redact_text
 
 _STANDARD_LOG_RECORD_FIELDS = set(logging.makeLogRecord({}).__dict__.keys()) | {"message", "asctime"}
 
@@ -32,16 +33,16 @@ def _format_timestamp(record: logging.LogRecord) -> str:
 
 def _render_console_value(value: Any) -> str:
     if isinstance(value, str):
-        return value
-    return json.dumps(value, ensure_ascii=False, sort_keys=True, default=str)
+        return redact_text(value)
+    return json.dumps(redact(value), ensure_ascii=False, sort_keys=True, default=str)
 
 
 class ConsoleFormatter(logging.Formatter):
     """控制台输出使用人类可读的管道分隔格式。"""
 
     def format(self, record: logging.LogRecord) -> str:
-        rendered = super().format(record)
-        context = _extract_context(record)
+        rendered = redact_text(super().format(record))
+        context = cast(dict[str, Any], redact(_extract_context(record)))
         if not context:
             return rendered
         extras = " | ".join(
@@ -59,14 +60,14 @@ class JsonLinesFormatter(logging.Formatter):
             "level": record.levelname,
             "file": record.filename,
             "line": record.lineno,
-            "msg": record.getMessage(),
+            "msg": redact_text(record.getMessage()),
         }
-        payload.update(_extract_context(record))
+        payload.update(cast(dict[str, Any], redact(_extract_context(record))))
 
         if record.exc_info:
-            payload["exception"] = self.formatException(record.exc_info)
+            payload["exception"] = redact_text(self.formatException(record.exc_info))
         if record.stack_info:
-            payload["stack"] = self.formatStack(record.stack_info)
+            payload["stack"] = redact_text(self.formatStack(record.stack_info))
 
         return json.dumps(payload, ensure_ascii=False, default=str)
 
@@ -86,14 +87,19 @@ class ContextLoggerAdapter(logging.LoggerAdapter):
         if isinstance(bound_context, Mapping):
             context.update(bound_context)
 
-        filtered_context = {
-            key: value
-            for key, value in context.items()
-            if key not in _STANDARD_LOG_RECORD_FIELDS and not key.startswith("_")
-        }
-        extra.update(filtered_context)
-        kwargs["extra"] = extra
-        return msg, kwargs
+        safe_extra = redact(extra)
+        filtered_context = redact(
+            {
+                key: value
+                for key, value in context.items()
+                if key not in _STANDARD_LOG_RECORD_FIELDS and not key.startswith("_")
+            }
+        )
+        if not isinstance(safe_extra, dict) or not isinstance(filtered_context, dict):
+            raise TypeError("logging context must be a mapping")
+        safe_extra.update(filtered_context)
+        kwargs["extra"] = safe_extra
+        return redact_text(msg) if isinstance(msg, str) else msg, kwargs
 
     def bind(self, **context: Any) -> "ContextLoggerAdapter":
         merged = dict(self.extra) if self.extra is not None else {}

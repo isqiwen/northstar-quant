@@ -646,7 +646,6 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--migrate", action="store_true", help="在本地 PostgreSQL 就绪后运行迁移。")
     parser.add_argument("--run-tests", action="store_true", help="运行跨平台单元测试与 Ruff。")
-    parser.add_argument("--skip-sync", action="store_true", help="跳过 uv 锁定依赖同步。")
     parser.add_argument("--check-only", action="store_true", help="仅检查，不写入或启动任何本地服务。")
     return parser.parse_args()
 
@@ -668,7 +667,6 @@ def _bootstrap_args_are_valid(args: argparse.Namespace) -> str | None:
             args.with_postgres,
             args.migrate,
             args.run_tests,
-            args.skip_sync,
             args.check_only,
             args.confirm_reset_local_dev_config,
         )
@@ -740,18 +738,18 @@ def main() -> int:
         password = existing_password or secrets.token_hex(18)
     safe_environment = _safe_development_environment(password, port)
 
-    if not args.skip_sync:
-        _run(["uv", "sync", "--extra", "dev", "--locked"], env=safe_environment)
     if args.with_postgres:
         _start_postgres(environment=safe_environment)
     if args.migrate:
-        _run(["uv", "run", "northstar", "init-db"], env=safe_environment)
+        _run(["uv", "run", "--offline", "--no-sync", "northstar", "init-db"], env=safe_environment)
     if args.run_tests:
         print("执行：领域 unit 测试")
         subprocess.run(
             [
                 "uv",
                 "run",
+                "--offline",
+                "--no-sync",
                 "pytest",
                 "tests/data_platform/unit",
                 "tests/intelligence/unit",
@@ -765,7 +763,7 @@ def main() -> int:
             env=safe_environment,
             check=True,
         )
-        _run(["uv", "run", "ruff", "check", "."], env=safe_environment)
+        _run(["uv", "run", "--offline", "--no-sync", "ruff", "check", "."], env=safe_environment)
     print("跨平台开发工作站初始化完成；未执行数据下载、调度或交易操作。")
     return 0
 

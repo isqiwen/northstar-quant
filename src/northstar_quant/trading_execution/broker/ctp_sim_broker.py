@@ -8,11 +8,12 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from dataclasses import replace
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from functools import wraps
 import json
 import math
 from pathlib import Path
+from collections.abc import Callable
 from typing import Any, TextIO, cast
 
 from northstar_quant.platform.common.enums import CtpOffset
@@ -25,6 +26,7 @@ from northstar_quant.trading_execution.broker.ctp_contract_mapping import (
 )
 from northstar_quant.platform.config.settings import get_settings, normalize_local_state_account
 from northstar_quant.trading_execution.broker.broker_base import BrokerAdapter
+from northstar_quant.trading_execution.broker.contracts import BrokerCapabilities, BrokerConnectionState, BrokerIdentity, BrokerMode, BrokerStatus
 from northstar_quant.trading_execution.execution.models import (
     BrokerStateSnapshot,
     FillSnapshot,
@@ -32,6 +34,9 @@ from northstar_quant.trading_execution.execution.models import (
     OrderRequest,
     OrderResult,
     PositionSnapshot,
+)
+from northstar_quant.trading_execution.orders.ctp_sim_submission_guard import (
+    CtpSimSubmissionAuthority,
 )
 from northstar_quant.trading_execution.execution.pricing import normalize_symbols
 
@@ -46,6 +51,25 @@ except ModuleNotFoundError:  # Windows does not provide fcntl.
     msvcrt = _msvcrt
 else:
     fcntl = _fcntl
+
+
+class CtpSimPreSyncGuardRefusal(RuntimeError):
+    """Typed refusal a locked pre-sync callback may return to the adapter."""
+
+
+class CtpSimPreSyncCheckRejected(RuntimeError):
+    """A caller rejected the pre-processing snapshot while the state lock held.
+
+    The adapter deliberately carries the immutable observed snapshot out to
+    its caller.  Candidate composition can then persist a fenced HALT without
+    ever running the simulator lifecycle processor over an externally changed
+    state file.
+    """
+
+    def __init__(self, *, snapshot: BrokerStateSnapshot, reason: str) -> None:
+        super().__init__(reason)
+        self.snapshot = snapshot
+        self.reason = reason
 
 
 def _locked_state(method):
@@ -100,6 +124,8 @@ class CtpSimBrokerAdapter(BrokerAdapter):
         state_path: str | Path | None = None,
         mapping_path: str | Path | None = None,
         account: str | None = None,
+        default_cash: float | None = None,
+        submission_authority: CtpSimSubmissionAuthority | None = None,
     ) -> None:
         settings = get_settings()
         self.account = normalize_local_state_account(
@@ -118,16 +144,36 @@ class CtpSimBrokerAdapter(BrokerAdapter):
         else:
             resolved_state_path = Path(state_path)
         self.state_path = Path(resolved_state_path).resolve()
+        self.mapping_path = Path(
+            mapping_path or settings.ctp_sim_contract_mapping_path
+        ).resolve()
         self.registry = load_ctp_contract_registry(
-            mapping_path or settings.ctp_sim_contract_mapping_path,
+            self.mapping_path,
             expected_broker="ctp_sim",
         )
-        self.default_cash = float(settings.default_cash)
+        resolved_default_cash = float(
+            settings.default_cash if default_cash is None else default_cash
+        )
+        if not math.isfinite(resolved_default_cash) or resolved_default_cash <= 0:
+            raise ValueError("CTP_SIM_DEFAULT_CASH_INVALID")
+        self.default_cash = resolved_default_cash
+        if submission_authority is not None and not isinstance(
+            submission_authority,
+            CtpSimSubmissionAuthority,
+        ):
+            raise PermissionError("CTP_SIM_SUBMISSION_AUTHORITY_INVALID")
+        self._submission_authority = submission_authority
         self._connected = False
         self.state_path.parent.mkdir(parents=True, exist_ok=True)
         self.lock_path = self.state_path.with_suffix(self.state_path.suffix + ".lock")
         with self._state_lock():
             self._state = self._load_state()
+
+    @property
+    def submission_authority(self) -> CtpSimSubmissionAuthority | None:
+        """Opaque final candidate authority bound to this simulator instance."""
+
+        return self._submission_authority
 
     @contextmanager
     def _state_lock(self):
@@ -192,6 +238,14 @@ class CtpSimBrokerAdapter(BrokerAdapter):
 
     def get_client_id(self) -> int:
         return self.client_id
+
+    def broker_status(self) -> BrokerStatus:
+        return BrokerStatus(
+            BrokerIdentity(self.get_name(), BrokerMode.CTP_SIM, self.account, self.client_id),
+            BrokerConnectionState.CONNECTED if self._connected else BrokerConnectionState.DISCONNECTED,
+            BrokerCapabilities(True, True, True, True, True),
+            datetime.now(UTC),
+        )
 
     def _mapping_for_order(self, order: OrderRequest) -> CtpContractMapping:
         normalized_symbol = str(order.symbol or "").strip().upper()
@@ -280,7 +334,30 @@ class CtpSimBrokerAdapter(BrokerAdapter):
             required_margin = qty * price * mapping.volume_multiple * margin_rate
             if required_margin > self._account_metrics()["available"] + 1e-8:
                 raise ValueError("CTP_SIM_MARGIN_INSUFFICIENT: 开仓保证金超过可用资金。")
+        else:
+            prefix = "long" if str(order.side).upper() == "SELL" else "short"
+            position = self._state["positions"].get(mapping.data_symbol)
+            if position is None or qty > self._closable_quantity(
+                symbol=mapping.data_symbol,
+                prefix=prefix,
+                position=position or {},
+            ) + 1e-8:
+                raise ValueError("CTP_SIM_CLOSE_POSITION_EXCEEDED: 平仓数量超过未冻结可平仓位。")
         return offset, price
+
+    def _closable_quantity(self, *, symbol: str, prefix: str, position: dict) -> float:
+        frozen = sum(
+            float(pending["remaining_qty"])
+            for pending in self._state["orders"].values()
+            if not is_final_order_status(pending["status"])
+            and pending.get("symbol") == symbol
+            and CtpOffset.parse(str(pending["ctp_offset"])) != CtpOffset.OPEN
+            and ("long" if pending.get("side") == "SELL" else "short") == prefix
+        )
+        total = float(position.get(f"{prefix}_today_qty", 0.0)) + float(
+            position.get(f"{prefix}_yesterday_qty", 0.0)
+        )
+        return max(total - frozen, 0.0)
 
     @_locked_state
     def submit_order(self, order: OrderRequest) -> OrderResult:
@@ -289,6 +366,17 @@ class CtpSimBrokerAdapter(BrokerAdapter):
         order = self.prepare_order(order)
         mapping = self._mapping_for_order(order)
         offset, price = self._validate_order(order, mapping)
+        authority = self._submission_authority
+        if authority is None:
+            raise PermissionError(
+                "CTP_SIM_FINAL_SUBMISSION_AUTHORITY_REQUIRED: "
+                "raw CTP-sim submission is denied without the P8 candidate authority"
+            )
+        authority.assert_reserved(
+            order,
+            snapshot=self._current_state_snapshot(asof=utc_now()),
+            quotes=self._current_market_quotes(sorted(self._state["quotes"])),
+        )
         order_ref = str(order.order_ref or "").strip()
         if not order_ref:
             raise ValueError("CTP_SIM_ORDER_REF_REQUIRED: 仿真提交必须提供稳定 order_ref。")
@@ -310,7 +398,7 @@ class CtpSimBrokerAdapter(BrokerAdapter):
             )
             if expected != actual:
                 raise RuntimeError("CTP_SIM_IDEMPOTENCY_CONFLICT: order_ref 对应不同订单。")
-            return OrderResult(
+            result = OrderResult(
                 accepted=True,
                 broker_order_id=str(existing["broker_order_id"]),
                 status=str(existing["status"]),
@@ -320,6 +408,11 @@ class CtpSimBrokerAdapter(BrokerAdapter):
                 client_id=self.client_id,
                 perm_id=int(existing["perm_id"]),
             )
+            authority.mark_submitted(
+                order,
+                snapshot=self._current_state_snapshot(asof=utc_now()),
+            )
+            return result
 
         sequence = int(self._state["next_order_seq"])
         self._state["next_order_seq"] = sequence + 1
@@ -351,7 +444,7 @@ class CtpSimBrokerAdapter(BrokerAdapter):
             "updated_at": submitted_at.isoformat(),
         }
         self._save_state()
-        return OrderResult(
+        result = OrderResult(
             accepted=True,
             broker_order_id=broker_order_id,
             status="Submitted",
@@ -360,6 +453,16 @@ class CtpSimBrokerAdapter(BrokerAdapter):
             client_id=self.client_id,
             perm_id=sequence,
         )
+        # We already hold the simulator's cross-process state lock here.  Pass
+        # its post-mutation snapshot directly to the candidate gate rather
+        # than making the durable layer re-acquire this file lock while its
+        # reconciliation fence is still held (which would form an ABBA cycle
+        # with another submit waiting on that fence).
+        authority.mark_submitted(
+            order,
+            snapshot=self._current_state_snapshot(asof=utc_now()),
+        )
+        return result
 
     @_locked_state
     def seed_market_quotes(
@@ -440,6 +543,7 @@ class CtpSimBrokerAdapter(BrokerAdapter):
             "short_yesterday_qty": 0.0,
             "long_avg_cost": 0.0,
             "short_avg_cost": 0.0,
+            "realized_pnl": 0.0,
         }
 
     @staticmethod
@@ -488,6 +592,9 @@ class CtpSimBrokerAdapter(BrokerAdapter):
             self._state["balance"] = float(self._state["balance"]) + (
                 pnl_per_unit * qty * multiplier
             )
+            position["realized_pnl"] = float(position.get("realized_pnl", 0.0)) + (
+                pnl_per_unit * qty * multiplier
+            )
             remaining = float(position[f"{prefix}_today_qty"]) + float(
                 position[f"{prefix}_yesterday_qty"]
             )
@@ -509,6 +616,10 @@ class CtpSimBrokerAdapter(BrokerAdapter):
         now = utc_now()
         for order in self._state["orders"].values():
             if is_final_order_status(order["status"]):
+                continue
+            if order["status"] == "PendingCancel":
+                order["status"] = "Cancelled"
+                order["updated_at"] = now.isoformat()
                 continue
             price = self._quote_price(order)
             if not self._is_fillable(order, price):
@@ -600,13 +711,8 @@ class CtpSimBrokerAdapter(BrokerAdapter):
     def _order_snapshot(order: dict) -> dict:
         return dict(order)
 
-    @_locked_state
-    def sync_state(self) -> BrokerStateSnapshot:
-        self._require_connected()
-        self._state = self._load_state()
-        self._process_orders()
-        self._save_state()
-        asof = utc_now()
+    def _current_state_snapshot(self, *, asof: datetime) -> BrokerStateSnapshot:
+        """Build a snapshot from already-locked in-memory simulator state."""
         positions: list[PositionSnapshot] = []
         for symbol, position in sorted(self._state["positions"].items()):
             long_qty = float(position["long_today_qty"]) + float(
@@ -615,8 +721,24 @@ class CtpSimBrokerAdapter(BrokerAdapter):
             short_qty = float(position["short_today_qty"]) + float(
                 position["short_yesterday_qty"]
             )
+            long_closable = self._closable_quantity(
+                symbol=symbol,
+                prefix="long",
+                position=position,
+            )
+            short_closable = self._closable_quantity(
+                symbol=symbol,
+                prefix="short",
+                position=position,
+            )
             qty = long_qty - short_qty
             price = self._mark_price(symbol, position)
+            multiplier = int(position["volume_multiple"])
+            margin_rate = float(position["margin_rate"])
+            unrealized_pnl = (
+                (price - float(position["long_avg_cost"])) * long_qty * multiplier
+                + (float(position["short_avg_cost"]) - price) * short_qty * multiplier
+            )
             avg_cost = (
                 float(position["long_avg_cost"])
                 if qty > 0
@@ -628,7 +750,7 @@ class CtpSimBrokerAdapter(BrokerAdapter):
                     qty=qty,
                     avg_cost=avg_cost,
                     market_price=price,
-                    market_value=qty * price * int(position["volume_multiple"]),
+                    market_value=qty * price * multiplier,
                     sellable_qty=abs(qty),
                     account=self.account,
                     instrument_id=position["instrument_id"],
@@ -637,6 +759,13 @@ class CtpSimBrokerAdapter(BrokerAdapter):
                     long_yesterday_qty=float(position["long_yesterday_qty"]),
                     short_today_qty=float(position["short_today_qty"]),
                     short_yesterday_qty=float(position["short_yesterday_qty"]),
+                    long_frozen_qty=long_qty - long_closable,
+                    short_frozen_qty=short_qty - short_closable,
+                    long_closable_qty=long_closable,
+                    short_closable_qty=short_closable,
+                    margin=(long_qty + short_qty) * price * multiplier * margin_rate,
+                    realized_pnl=float(position.get("realized_pnl", 0.0)),
+                    unrealized_pnl=unrealized_pnl,
                     asof=asof,
                 )
             )
@@ -693,9 +822,67 @@ class CtpSimBrokerAdapter(BrokerAdapter):
         )
 
     @_locked_state
-    def get_market_quotes(self, symbols: list[str]) -> list[MarketQuoteSnapshot]:
+    def read_state_snapshot(self) -> BrokerStateSnapshot:
+        """Read the current simulator state without advancing or persisting it.
+
+        Candidate authority evaluation must be able to refuse a forged or
+        expired P3 claim without triggering simulator order processing.  This
+        path deliberately reloads under the ordinary cross-process lock but
+        never calls ``_process_orders`` or ``_save_state``.
+        """
+
         self._require_connected()
         self._state = self._load_state()
+        return self._current_state_snapshot(asof=utc_now())
+
+    @_locked_state
+    def sync_state(self) -> BrokerStateSnapshot:
+        self._require_connected()
+        self._state = self._load_state()
+        self._process_orders()
+        self._save_state()
+        return self._current_state_snapshot(asof=utc_now())
+
+    @_locked_state
+    def sync_state_checked(
+        self,
+        before_process: Callable[[BrokerStateSnapshot], None],
+    ) -> BrokerStateSnapshot:
+        """Process simulator lifecycle only after a locked state-continuity check.
+
+        Candidate execution uses this narrow CTP-sim operation to compare the
+        current state with its post-own-submission baseline while the state
+        file remains locked.  Doing a separate read followed by ``sync_state``
+        would leave a file-lock gap in which an external mutation could be
+        mistaken for the simulator's own fill progression.
+        """
+
+        self._require_connected()
+        if not callable(before_process):
+            raise TypeError("CTP_SIM_PRE_SYNC_GUARD_REQUIRED")
+        self._state = self._load_state()
+        before_snapshot = self._current_state_snapshot(asof=utc_now())
+        try:
+            before_process(before_snapshot)
+        except CtpSimPreSyncGuardRefusal as exc:
+            # The callback is a narrow in-process candidate guard.  Convert
+            # its refusal into a snapshot-carrying adapter error only after
+            # releasing the file lock, so the candidate can persist its
+            # database HALT without taking locks in the reverse order.
+            raise CtpSimPreSyncCheckRejected(
+                snapshot=before_snapshot,
+                reason=str(exc),
+            ) from exc
+        self._process_orders()
+        self._save_state()
+        return self._current_state_snapshot(asof=utc_now())
+
+    def _current_market_quotes(
+        self,
+        symbols: list[str],
+    ) -> tuple[MarketQuoteSnapshot, ...]:
+        """Build quote snapshots from already-locked in-memory state."""
+
         quotes: list[MarketQuoteSnapshot] = []
         for symbol in normalize_symbols(symbols):
             row = self._state["quotes"].get(symbol)
@@ -712,7 +899,13 @@ class CtpSimBrokerAdapter(BrokerAdapter):
                     source="ctp_sim_market_data",
                 )
             )
-        return quotes
+        return tuple(quotes)
+
+    @_locked_state
+    def get_market_quotes(self, symbols: list[str]) -> list[MarketQuoteSnapshot]:
+        self._require_connected()
+        self._state = self._load_state()
+        return list(self._current_market_quotes(symbols))
 
     @_locked_state
     def cancel_order(self, broker_order_id: str) -> bool:
@@ -721,7 +914,33 @@ class CtpSimBrokerAdapter(BrokerAdapter):
         order = self._state["orders"].get(str(broker_order_id))
         if order is None or is_final_order_status(order["status"]):
             return False
-        order["status"] = "Cancelled"
+        if order["status"] == "PendingCancel":
+            return True
+        order["status"] = "PendingCancel"
+        order["updated_at"] = utc_now().isoformat()
+        self._save_state()
+        return True
+
+    @_locked_state
+    def reject_order(self, broker_order_id: str, *, reason: str) -> bool:
+        """Inject an asynchronous CTP-front rejection for local failure-path tests.
+
+        The simulator only accepts this transition for a non-terminal submitted
+        order.  It deliberately never fabricates a fill or allows a terminal
+        status to be rewritten, so reconnect/recovery paths see the same final
+        broker state as a rejected callback would provide.
+        """
+
+        self._require_connected()
+        self._state = self._load_state()
+        rejection_reason = str(reason or "").strip()
+        if not rejection_reason:
+            raise ValueError("CTP_SIM_REJECTION_REASON_REQUIRED: rejection reason is required.")
+        order = self._state["orders"].get(str(broker_order_id))
+        if order is None or order["status"] != "Submitted":
+            return False
+        order["status"] = "Rejected"
+        order["rejection_reason"] = rejection_reason
         order["updated_at"] = utc_now().isoformat()
         self._save_state()
         return True

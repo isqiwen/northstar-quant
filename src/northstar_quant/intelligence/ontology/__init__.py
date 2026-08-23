@@ -1,1 +1,5 @@
-"""本体加载、校验和推理代码；本体资源位于仓库根 ``ontology/``。"""
+"""Versioned ontology resources and validation."""
+
+from northstar_quant.intelligence.ontology.loader import Ontology, OntologyError, load_ontology
+
+__all__ = ["Ontology", "OntologyError", "load_ontology"]

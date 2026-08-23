@@ -1,4 +1,7 @@
-#!/usr/bin/env bash
+#!/bin/bash -p
+unset BASH_ENV ENV CDPATH
+PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+export PATH
 set -euo pipefail
 
 # 这里故意不是 pg_dump：备份创建和恢复必须留给独立、最小权限的运维系统。
@@ -8,14 +11,13 @@ if [ "$#" -ne 2 ]; then
   exit 64
 fi
 
+readonly CANONICAL_SERVICE_USER="northstar"
+readonly CANONICAL_APP_ROOT="/opt/northstar"
 service_user="$1"
 app_root="$2"
-if [[ ! "${service_user}" =~ ^[A-Za-z0-9._-]+$ ]]; then
-  printf '%s\n' '拒绝不安全的服务用户。' >&2
-  exit 64
-fi
-if [[ ! "${app_root}" =~ ^/srv/[A-Za-z0-9._/-]+$ ]] || [[ "${app_root}" == *".."* ]]; then
-  printf '%s\n' '拒绝不安全的应用根目录。' >&2
+if [ "${service_user}" != "${CANONICAL_SERVICE_USER}" ] || \
+  [ "${app_root}" != "${CANONICAL_APP_ROOT}" ]; then
+  printf '%s\n' '备份就绪证据只允许从受管 Northstar 服务及固定应用根目录读取。' >&2
   exit 64
 fi
 

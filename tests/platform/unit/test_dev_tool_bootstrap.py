@@ -485,7 +485,7 @@ def test_repeated_safe_environment_initialization_does_not_rewrite_env(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    password = "repeatable-password"
+    password = "repeatable-password"  # secret-scan: allow; reason: disposable test fixture
     runtime_url, test_url = setup._local_database_urls(password, 5432)
     env_file = tmp_path / ".env"
     env_file.write_text(

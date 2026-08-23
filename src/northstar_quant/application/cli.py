@@ -62,6 +62,7 @@ from northstar_quant.application.live_service import (
 from northstar_quant.application.target_service import generate_daily_targets_once
 from northstar_quant.platform.observability.logging.logger import get_logger, setup_logging
 from northstar_quant.application.health import run_healthcheck
+from northstar_quant.platform.security import redact, redact_text
 from northstar_quant.platform.observability.monitoring.database_backup_readiness import (
     evaluate_database_backup_readiness,
 )
@@ -141,11 +142,14 @@ app.add_typer(ops_app, name="ops")
 
 
 def _log_message(message: str, level: int = logging.INFO, **context: object) -> None:
-    logger.bind(**context).log(level, message)
+    logger.bind(**cast(dict[str, Any], redact(context))).log(level, redact_text(message))
 
 
 def _log_json(payload: object, level: int = logging.INFO, **context: object) -> None:
-    logger.bind(**context).log(level, json.dumps(payload, ensure_ascii=False, indent=2, default=str))
+    logger.bind(**cast(dict[str, Any], redact(context))).log(
+        level,
+        json.dumps(redact(payload), ensure_ascii=False, indent=2, default=str),
+    )
 
 
 @app.callback(invoke_without_command=True, **_CALLBACK_KWARGS)

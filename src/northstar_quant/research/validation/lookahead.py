@@ -24,7 +24,10 @@ from northstar_quant.data_platform.artifacts.fingerprints import (
     canonical_json_sha256,
     require_sha256,
 )
-from northstar_quant.data_platform.artifacts.immutable_store import ArtifactStore
+from northstar_quant.data_platform.artifacts.immutable_store import (
+    ArtifactStore,
+    ArtifactStoreError,
+)
 from northstar_quant.data_platform.contracts.contract_master import (
     Contract,
     ContractRuleSnapshot,
@@ -32,12 +35,20 @@ from northstar_quant.data_platform.contracts.contract_master import (
     ListingState,
     RuleQualityStatus,
 )
+from northstar_quant.data_platform.contracts.artifact_rulebook import (
+    ArtifactBackedContractRuleReplay,
+    ArtifactRuleBookError,
+    ContractRuleBookPITSelector,
+)
 from northstar_quant.data_platform.market.pit import (
+    MarketDataKind,
+    MarketDataPITError,
     MarketDataPITSelector,
     MarketDataPITSpec,
     MarketDataSnapshot,
 )
 from northstar_quant.research.features.models import (
+    DecisionReplayFeatureMaterialization,
     FeatureBackfill,
     FeatureLineage,
     FeatureValue,
@@ -45,6 +56,16 @@ from northstar_quant.research.features.models import (
 
 
 _PER_DECISION_SELECTION_MODE = "PER_DECISION_POINT_IN_TIME_REPLAY"
+_EVENT_REPLAY_DATASET_ID = "research_event_fact"
+_EVENT_REPLAY_SCHEMA_VERSION = "research_event_fact_v1"
+_EVENT_REPLAY_SPEC = MarketDataPITSpec(
+    kind=MarketDataKind.SNAPSHOT,
+    key_columns=("event_id", "event_at"),
+    event_time_column="event_at",
+    available_at_column="available_at",
+    value_columns=("source_evidence_hash",),
+    schema_version=_EVENT_REPLAY_SCHEMA_VERSION,
+)
 _TEXT_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]*$")
 _CERTIFICATE_ISSUER = object()
 
@@ -62,6 +83,22 @@ class LookaheadViolationKind(str, Enum):
     FUTURE_FEE_MARGIN_RULE = "future_fee_margin_rule"
     FUTURE_EVENT = "future_event"
     FUTURE_TARGET = "future_target"
+
+
+class LookaheadInputKind(str, Enum):
+    """Non-market inputs whose absence must be explicit in a signed receipt."""
+
+    FEATURE = "feature"
+    EVENT = "event"
+    CONTRACT = "contract"
+    FEE_MARGIN_RULE = "fee_margin_rule"
+
+
+class LookaheadInputUsage(str, Enum):
+    """Whether the controlled producer consumed one input category at a checkpoint."""
+
+    PROVIDED = "provided"
+    NOT_USED = "not_used"
 
 
 def _text(value: object, field_name: str) -> str:
@@ -287,6 +324,7 @@ class FeatureAvailabilityEvidence:
     decision_at: datetime
     available_at: datetime
     values: tuple[FeatureValue, ...]
+    replay_materialization: DecisionReplayFeatureMaterialization | None = None
     evidence_hash: str = field(init=False)
 
     def __post_init__(self) -> None:
@@ -305,6 +343,24 @@ class FeatureAvailabilityEvidence:
             raise LookaheadGuardError("feature values 必须来自同一严格 lineage")
         if any(item.available_at > available_at for item in self.values):
             raise LookaheadGuardError("feature.available_at 不能早于其中 FeatureValue")
+        if self.replay_materialization is not None:
+            materialization = self.replay_materialization
+            if not isinstance(materialization, DecisionReplayFeatureMaterialization):
+                raise LookaheadGuardError(
+                    "feature.replay_materialization 必须是 DecisionReplayFeatureMaterialization"
+                )
+            if materialization.lineage.feature_version_hash != feature_version_hash:
+                raise LookaheadGuardError("feature replay materialization FeatureVersion 不一致")
+            if materialization.lineage.lineage_hash != lineage_hash:
+                raise LookaheadGuardError("feature replay materialization lineage 不一致")
+            if materialization.input_snapshot_hash != input_snapshot_hash:
+                raise LookaheadGuardError("feature replay materialization input snapshot 不一致")
+            if materialization.lineage.decision_at != decision_at:
+                raise LookaheadGuardError("feature replay materialization decision_at 不一致")
+            if materialization.lineage.available_at != available_at:
+                raise LookaheadGuardError("feature replay materialization available_at 不一致")
+            if materialization.values != tuple(sorted(self.values, key=lambda item: item.value_id)):
+                raise LookaheadGuardError("feature replay materialization values 不一致")
         evidence_hash = canonical_json_sha256(
             {
                 "available_at": available_at.isoformat(),
@@ -313,6 +369,11 @@ class FeatureAvailabilityEvidence:
                 "format": "northstar.feature-availability-evidence.v1",
                 "input_snapshot_hash": input_snapshot_hash,
                 "lineage_hash": lineage_hash,
+                "replay_materialization_hash": (
+                    self.replay_materialization.materialization_hash
+                    if self.replay_materialization is not None
+                    else None
+                ),
                 "value_ids": sorted(item.value_id for item in self.values),
             }
         )
@@ -323,6 +384,28 @@ class FeatureAvailabilityEvidence:
         object.__setattr__(self, "available_at", available_at)
         object.__setattr__(self, "values", tuple(sorted(self.values, key=lambda item: item.value_id)))
         object.__setattr__(self, "evidence_hash", evidence_hash)
+
+    @classmethod
+    def from_replay_materialization(
+        cls,
+        materialization: DecisionReplayFeatureMaterialization,
+    ) -> "FeatureAvailabilityEvidence":
+        """将 Registry 签发的逐决策结果转换为 Guard 证据，拒绝裸 FeatureValue。"""
+
+        if not isinstance(materialization, DecisionReplayFeatureMaterialization):
+            raise LookaheadGuardError(
+                "materialization 必须是 DecisionReplayFeatureMaterialization"
+            )
+        lineage = materialization.lineage
+        return cls(
+            feature_version_hash=lineage.feature_version_hash,
+            lineage_hash=lineage.lineage_hash,
+            input_snapshot_hash=materialization.input_snapshot_hash,
+            decision_at=lineage.decision_at,
+            available_at=lineage.available_at,
+            values=materialization.values,
+            replay_materialization=materialization,
+        )
 
     def as_mapping(self) -> dict[str, object]:
         return {
@@ -370,6 +453,103 @@ class EventAvailabilityEvidence:
         object.__setattr__(self, "available_at", available_at)
         object.__setattr__(self, "source_artifact_snapshot_hash", source_hash)
         object.__setattr__(self, "evidence_hash", evidence_hash)
+
+
+@dataclass(frozen=True, slots=True)
+class ArtifactEventReplayEvidence:
+    """由 immutable DatasetVersion 在一个 checkpoint 重放的事件事实。"""
+
+    dataset_version_hash: str
+    decision_at: datetime
+    snapshot: MarketDataSnapshot
+    events: tuple[EventAvailabilityEvidence, ...]
+    replay_hash: str = field(init=False)
+
+    def __post_init__(self) -> None:
+        dataset_version_hash = _hash(self.dataset_version_hash, "event.dataset_version_hash")
+        decision_at = _utc_datetime(self.decision_at, "event.decision_at")
+        if not isinstance(self.snapshot, MarketDataSnapshot):
+            raise LookaheadGuardError("event.snapshot 必须是 MarketDataSnapshot")
+        if self.snapshot.dataset_id != _EVENT_REPLAY_DATASET_ID:
+            raise LookaheadGuardError("event replay 必须使用固定 DatasetVersion 身份")
+        if self.snapshot.dataset_version_hash != dataset_version_hash:
+            raise LookaheadGuardError("event DatasetVersion 与 snapshot 不一致")
+        if self.snapshot.spec != _EVENT_REPLAY_SPEC or self.snapshot.as_of != decision_at:
+            raise LookaheadGuardError("event replay PIT spec 或 decision_at 不一致")
+        if not isinstance(self.events, tuple) or not self.events or not all(
+            isinstance(item, EventAvailabilityEvidence) for item in self.events
+        ):
+            raise LookaheadGuardError("event replay events 必须是非空 EventAvailabilityEvidence 元组")
+        canonical_events = tuple(sorted(self.events, key=lambda item: item.event_id))
+        if len({item.event_id for item in canonical_events}) != len(canonical_events):
+            raise LookaheadGuardError("event replay 不能包含重复 event_id")
+        if any(item.available_at > decision_at for item in canonical_events):
+            raise LookaheadGuardError("event replay 不能包含 decision_at 后可用的事件")
+        replay_hash = canonical_json_sha256(
+            {
+                "dataset_version_hash": dataset_version_hash,
+                "decision_at": decision_at.isoformat(),
+                "event_evidence_hashes": [item.evidence_hash for item in canonical_events],
+                "format": "northstar.artifact-event-replay.v1",
+                "snapshot_id": self.snapshot.snapshot_id,
+            }
+        )
+        object.__setattr__(self, "dataset_version_hash", dataset_version_hash)
+        object.__setattr__(self, "decision_at", decision_at)
+        object.__setattr__(self, "events", canonical_events)
+        object.__setattr__(self, "replay_hash", replay_hash)
+
+
+def replay_artifact_event_evidence(
+    *,
+    artifact_store: ArtifactStore,
+    dataset_version_hash: str,
+    decision_at: datetime,
+) -> ArtifactEventReplayEvidence:
+    """从固定 Event fact DatasetVersion 重放可见事件，不接受手工 Event 对象。"""
+
+    if type(artifact_store) is not ArtifactStore:
+        raise LookaheadGuardError("artifact_store 必须是精确的 ArtifactStore，不能使用子类")
+    normalized_decision_at = _utc_datetime(decision_at, "decision_at")
+    selector = MarketDataPITSelector(artifact_store)
+    try:
+        snapshot = MarketDataPITSelector.select(
+            selector,
+            dataset_version_hash=dataset_version_hash,
+            spec=_EVENT_REPLAY_SPEC,
+            as_of=normalized_decision_at,
+        )
+    except MarketDataPITError as exc:
+        raise LookaheadGuardError("immutable Event DatasetVersion 无法重放") from exc
+    if snapshot.dataset_id != _EVENT_REPLAY_DATASET_ID:
+        raise LookaheadGuardError("Event replay DatasetVersion 必须使用固定 dataset_id")
+    frame = snapshot.selected_frame()
+    events: list[EventAvailabilityEvidence] = []
+    for row in frame.iter_rows(named=True):
+        event_id = _text(row["event_id"], "event.event_id")
+        event_at = _utc_datetime(row["event_at"], "event.event_at")
+        available_at = _utc_datetime(row["available_at"], "event.available_at")
+        source_hash = _hash(row["source_evidence_hash"], "event.source_evidence_hash")
+        try:
+            source = artifact_store.load_artifact(source_hash)
+        except ArtifactStoreError as exc:
+            raise LookaheadGuardError("event source evidence artifact 无法重放") from exc
+        if source.snapshot.available_at > available_at:
+            raise LookaheadGuardError("event source evidence artifact 晚于事件可用时间")
+        events.append(
+            EventAvailabilityEvidence(
+                event_id=event_id,
+                event_at=event_at,
+                available_at=available_at,
+                source_artifact_snapshot_hash=source_hash,
+            )
+        )
+    return ArtifactEventReplayEvidence(
+        dataset_version_hash=dataset_version_hash,
+        decision_at=normalized_decision_at,
+        snapshot=snapshot,
+        events=tuple(events),
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -479,6 +659,160 @@ class FeeMarginRuleEvidence:
 
 
 @dataclass(frozen=True, slots=True)
+class ArtifactRuleBookEvidence:
+    """由 immutable Contract RuleBook 逐决策重放出的合约与规则证据。
+
+    这是研究历史事实，不是执行资格：底层 RuleBook selector 固定重建
+    ``execution_eligible=False``。调用方不能传入静态 YAML、手工 ``ContractMaster`` 或
+    ``ContractRuleSnapshot`` 来伪装历史知识；必须从给定 DatasetVersion 在给定
+    ``decision_at`` 重新选择。
+    """
+
+    replay: ArtifactBackedContractRuleReplay
+    contracts: tuple[ContractKnowledgeEvidence, ...]
+    fee_margin_rules: tuple[FeeMarginRuleEvidence, ...]
+    evidence_hash: str = field(init=False)
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.replay, ArtifactBackedContractRuleReplay):
+            raise LookaheadGuardError("rulebook replay 必须是 ArtifactBackedContractRuleReplay")
+        if not isinstance(self.contracts, tuple) or not all(
+            isinstance(item, ContractKnowledgeEvidence) for item in self.contracts
+        ):
+            raise LookaheadGuardError("rulebook contracts 必须是 ContractKnowledgeEvidence 元组")
+        if not isinstance(self.fee_margin_rules, tuple) or not all(
+            isinstance(item, FeeMarginRuleEvidence) for item in self.fee_margin_rules
+        ):
+            raise LookaheadGuardError("rulebook fee_margin_rules 必须是 FeeMarginRuleEvidence 元组")
+        master = self.replay.master
+        contracts_by_id = {item.contract.contract_id: item for item in self.contracts}
+        rules_by_id = {item.rule_snapshot.contract_id: item for item in self.fee_margin_rules}
+        expected_ids = set(self.replay.selected_contract_ids)
+        if set(contracts_by_id) != expected_ids or set(rules_by_id) != expected_ids:
+            raise LookaheadGuardError("rulebook evidence 必须精确覆盖 replay 的 selected contracts")
+        if len(contracts_by_id) != len(self.contracts) or len(rules_by_id) != len(self.fee_margin_rules):
+            raise LookaheadGuardError("rulebook evidence 不能包含重复合约")
+        if any(item.master_fingerprint != master.fingerprint for item in self.contracts):
+            raise LookaheadGuardError("rulebook contract evidence master fingerprint 不一致")
+        if any(item.master_fingerprint != master.fingerprint for item in self.fee_margin_rules):
+            raise LookaheadGuardError("rulebook rule evidence master fingerprint 不一致")
+        rules = {item.contract_id: item for item in master.rule_snapshots}
+        if any(rules[contract_id].snapshot_hash != rules_by_id[contract_id].rule_snapshot.snapshot_hash for contract_id in expected_ids):
+            raise LookaheadGuardError("rulebook evidence 与 replay 的 rule snapshot 不一致")
+        evidence_hash = canonical_json_sha256(
+            {
+                "contracts": sorted(item.evidence_hash for item in self.contracts),
+                "format": "northstar.artifact-rulebook-lookahead-evidence.v1",
+                "replay_hash": self.replay.replay_hash,
+                "rules": sorted(item.evidence_hash for item in self.fee_margin_rules),
+            }
+        )
+        object.__setattr__(
+            self,
+            "contracts",
+            tuple(sorted(self.contracts, key=lambda item: item.contract.contract_id)),
+        )
+        object.__setattr__(
+            self,
+            "fee_margin_rules",
+            tuple(sorted(self.fee_margin_rules, key=lambda item: item.rule_snapshot.contract_id)),
+        )
+        object.__setattr__(self, "evidence_hash", evidence_hash)
+
+
+def replay_artifact_rulebook_evidence(
+    *,
+    artifact_store: ArtifactStore,
+    dataset_version_hash: str,
+    decision_at: datetime,
+    contract_refs: tuple[str, ...],
+) -> ArtifactRuleBookEvidence:
+    """重放唯一的 immutable RuleBook，并转换为 Guard 可验证的严格证据。
+
+    合约可用时间取关联规则的 ``available_at``，这是保守上界；若合约实际更早已知也不会
+    被提前使用。研究 RuleBook 不具执行资格，因此调用方必须保持
+    ``DecisionReplayEvidence.require_execution_rules=False``。
+    """
+
+    if type(artifact_store) is not ArtifactStore:
+        raise LookaheadGuardError("artifact_store 必须是精确的 ArtifactStore，不能使用子类")
+    normalized_decision_at = _utc_datetime(decision_at, "decision_at")
+    if not isinstance(contract_refs, tuple):
+        raise LookaheadGuardError("contract_refs 必须是非空字符串元组")
+    try:
+        replay = ContractRuleBookPITSelector(artifact_store).select(
+            dataset_version_hash=dataset_version_hash,
+            decision_at=normalized_decision_at,
+            contract_refs=contract_refs,
+        )
+    except ArtifactRuleBookError as exc:
+        raise LookaheadGuardError("immutable Contract RuleBook 无法重放") from exc
+    rules_by_contract = {item.contract_id: item for item in replay.master.rule_snapshots}
+    contracts_by_id = {item.contract_id: item for item in replay.master.contracts}
+    try:
+        contracts = tuple(
+            ContractKnowledgeEvidence(
+                contract=contracts_by_id[contract_id],
+                master_fingerprint=replay.master.fingerprint,
+                available_at=rules_by_contract[contract_id].available_at,
+                source_artifact_snapshot_hash=replay.normalized_snapshot_hash,
+            )
+            for contract_id in replay.selected_contract_ids
+        )
+        rules = tuple(
+            FeeMarginRuleEvidence(
+                master_fingerprint=replay.master.fingerprint,
+                rule_snapshot=rules_by_contract[contract_id],
+            )
+            for contract_id in replay.selected_contract_ids
+        )
+        return ArtifactRuleBookEvidence(
+            replay=replay,
+            contracts=contracts,
+            fee_margin_rules=rules,
+        )
+    except (KeyError, LookaheadGuardError) as exc:  # pragma: no cover - selector returns closed data.
+        raise LookaheadGuardError("immutable Contract RuleBook 重放结果不完整") from exc
+
+
+@dataclass(frozen=True, slots=True)
+class LookaheadInputUsageDeclaration:
+    """Hash-only declaration that a controlled producer used or did not use an input."""
+
+    input_kind: LookaheadInputKind
+    usage: LookaheadInputUsage
+    producer_identity_hash: str
+    declaration_hash: str = field(init=False)
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.input_kind, LookaheadInputKind):
+            raise LookaheadGuardError("input_usage.input_kind must be LookaheadInputKind")
+        if not isinstance(self.usage, LookaheadInputUsage):
+            raise LookaheadGuardError("input_usage.usage must be LookaheadInputUsage")
+        producer_identity_hash = _hash(
+            self.producer_identity_hash,
+            "input_usage.producer_identity_hash",
+        )
+        declaration_hash = canonical_json_sha256(
+            {
+                "format": "northstar.lookahead-input-usage.v1",
+                "input_kind": self.input_kind.value,
+                "producer_identity_hash": producer_identity_hash,
+                "usage": self.usage.value,
+            }
+        )
+        object.__setattr__(self, "producer_identity_hash", producer_identity_hash)
+        object.__setattr__(self, "declaration_hash", declaration_hash)
+
+    def as_mapping(self) -> dict[str, str]:
+        return {
+            "declaration_hash": self.declaration_hash,
+            "input_kind": self.input_kind.value,
+            "usage": self.usage.value,
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class DecisionReplayEvidence:
     """一个决策时点的所有输入证据；不包含行情、特征值或订单明细。"""
 
@@ -486,8 +820,11 @@ class DecisionReplayEvidence:
     target: TargetDecisionEvidence
     features: tuple[FeatureAvailabilityEvidence, ...] = ()
     events: tuple[EventAvailabilityEvidence, ...] = ()
+    artifact_events: ArtifactEventReplayEvidence | None = None
     contracts: tuple[ContractKnowledgeEvidence, ...] = ()
     fee_margin_rules: tuple[FeeMarginRuleEvidence, ...] = ()
+    artifact_rulebook: ArtifactRuleBookEvidence | None = None
+    input_usage: tuple[LookaheadInputUsageDeclaration, ...] = ()
     require_execution_rules: bool = False
     evidence_hash: str = field(init=False)
 
@@ -505,6 +842,31 @@ class DecisionReplayEvidence:
         for field_name, values, expected_type in groups:
             if not isinstance(values, tuple) or not all(isinstance(item, expected_type) for item in values):
                 raise LookaheadGuardError(f"{field_name} 必须是 {expected_type.__name__} 元组")
+        if self.artifact_rulebook is not None and not isinstance(
+            self.artifact_rulebook,
+            ArtifactRuleBookEvidence,
+        ):
+            raise LookaheadGuardError("artifact_rulebook 必须是 ArtifactRuleBookEvidence 或 None")
+        if self.artifact_rulebook is not None and (
+            self.contracts != self.artifact_rulebook.contracts
+            or self.fee_margin_rules != self.artifact_rulebook.fee_margin_rules
+        ):
+            raise LookaheadGuardError(
+                "artifact_rulebook 必须精确绑定 contracts 与 fee_margin_rules"
+            )
+        if self.artifact_events is not None and not isinstance(
+            self.artifact_events,
+            ArtifactEventReplayEvidence,
+        ):
+            raise LookaheadGuardError("artifact_events 必须是 ArtifactEventReplayEvidence 或 None")
+        if self.artifact_events is not None and self.events != self.artifact_events.events:
+            raise LookaheadGuardError("artifact_events 必须精确绑定 events")
+        if not isinstance(self.input_usage, tuple) or not all(
+            isinstance(item, LookaheadInputUsageDeclaration) for item in self.input_usage
+        ):
+            raise LookaheadGuardError(
+                "input_usage must be a LookaheadInputUsageDeclaration tuple"
+            )
         if type(self.require_execution_rules) is not bool:
             raise LookaheadGuardError("require_execution_rules 必须是 bool")
         if self.target.decision_at != self.market_data.decision_at:
@@ -517,6 +879,9 @@ class DecisionReplayEvidence:
         canonical_events = tuple(sorted(self.events, key=lambda item: item.evidence_hash))
         canonical_contracts = tuple(sorted(self.contracts, key=lambda item: item.evidence_hash))
         canonical_rules = tuple(sorted(self.fee_margin_rules, key=lambda item: item.evidence_hash))
+        canonical_input_usage = tuple(
+            sorted(self.input_usage, key=lambda item: item.input_kind.value)
+        )
         if len({item.evidence_hash for item in canonical_features}) != len(canonical_features):
             raise LookaheadGuardError("features 不能包含重复证据")
         if len({item.evidence_hash for item in canonical_events}) != len(canonical_events):
@@ -525,14 +890,45 @@ class DecisionReplayEvidence:
             raise LookaheadGuardError("contracts 不能包含重复证据")
         if len({item.evidence_hash for item in canonical_rules}) != len(canonical_rules):
             raise LookaheadGuardError("fee_margin_rules 不能包含重复证据")
+        if len({item.input_kind for item in canonical_input_usage}) != len(
+            canonical_input_usage
+        ):
+            raise LookaheadGuardError("input_usage cannot declare an input kind twice")
+        evidence_by_kind: dict[LookaheadInputKind, tuple[object, ...]] = {
+            LookaheadInputKind.FEATURE: canonical_features,
+            LookaheadInputKind.EVENT: canonical_events,
+            LookaheadInputKind.CONTRACT: canonical_contracts,
+            LookaheadInputKind.FEE_MARGIN_RULE: canonical_rules,
+        }
+        for declaration in canonical_input_usage:
+            evidence_items = evidence_by_kind[declaration.input_kind]
+            if declaration.usage is LookaheadInputUsage.PROVIDED and not evidence_items:
+                raise LookaheadGuardError(
+                    "a provided input usage declaration requires matching evidence"
+                )
+            if declaration.usage is LookaheadInputUsage.NOT_USED and evidence_items:
+                raise LookaheadGuardError(
+                    "a not_used input usage declaration cannot carry matching evidence"
+                )
         evidence_hash = canonical_json_sha256(
             {
                 "contracts": [item.evidence_hash for item in canonical_contracts],
+                "artifact_rulebook": (
+                    self.artifact_rulebook.evidence_hash
+                    if self.artifact_rulebook is not None
+                    else None
+                ),
+                "artifact_events": (
+                    self.artifact_events.replay_hash
+                    if self.artifact_events is not None
+                    else None
+                ),
                 "events": [item.evidence_hash for item in canonical_events],
                 "features": [item.evidence_hash for item in canonical_features],
                 "fee_margin_rules": [item.evidence_hash for item in canonical_rules],
                 "format": "northstar.decision-replay-evidence.v1",
                 "market_data": self.market_data.evidence_hash,
+                "input_usage": [item.declaration_hash for item in canonical_input_usage],
                 "require_execution_rules": self.require_execution_rules,
                 "target": self.target.evidence_hash,
             }
@@ -541,6 +937,7 @@ class DecisionReplayEvidence:
         object.__setattr__(self, "events", canonical_events)
         object.__setattr__(self, "contracts", canonical_contracts)
         object.__setattr__(self, "fee_margin_rules", canonical_rules)
+        object.__setattr__(self, "input_usage", canonical_input_usage)
         object.__setattr__(self, "evidence_hash", evidence_hash)
 
     @property
@@ -550,12 +947,23 @@ class DecisionReplayEvidence:
     def as_mapping(self) -> dict[str, object]:
         return {
             "contracts": [item.evidence_hash for item in self.contracts],
+            "artifact_rulebook": (
+                self.artifact_rulebook.evidence_hash
+                if self.artifact_rulebook is not None
+                else None
+            ),
+            "artifact_events": (
+                self.artifact_events.replay_hash
+                if self.artifact_events is not None
+                else None
+            ),
             "decision_at": self.decision_at.isoformat(),
             "events": [item.evidence_hash for item in self.events],
             "evidence_hash": self.evidence_hash,
             "features": [item.evidence_hash for item in self.features],
             "fee_margin_rules": [item.evidence_hash for item in self.fee_margin_rules],
             "market_data": self.market_data.as_mapping(),
+            "input_usage": [item.as_mapping() for item in self.input_usage],
             "require_execution_rules": self.require_execution_rules,
             "target": self.target.evidence_hash,
         }
@@ -821,14 +1229,28 @@ class LookaheadGuard:
             # P2-WP01 的 FeatureRegistry 只能签发 static as-of lineage/backfill。
             # 在真正的逐 checkpoint Feature replay producer 落地前，任何裸
             # FeatureValue/lineage 哈希都不能成为 strict certificate 的依据。
-            violations.append(
-                self._violation(
-                    LookaheadViolationKind.FUTURE_FEATURE,
-                    decision_at,
-                    feature.evidence_hash,
-                    "STRICT_FEATURE_REPLAY_PRODUCER_UNAVAILABLE",
+            materialization = feature.replay_materialization
+            if materialization is None:
+                violations.append(
+                    self._violation(
+                        LookaheadViolationKind.FUTURE_FEATURE,
+                        decision_at,
+                        feature.evidence_hash,
+                        "STRICT_FEATURE_REPLAY_PRODUCER_UNAVAILABLE",
+                    )
                 )
-            )
+            elif (
+                materialization.replay_checkpoint_hash
+                != evidence.market_data.checkpoint.checkpoint_hash
+            ):
+                violations.append(
+                    self._violation(
+                        LookaheadViolationKind.FUTURE_FEATURE,
+                        decision_at,
+                        feature.evidence_hash,
+                        "FEATURE_REPLAY_CHECKPOINT_MISMATCH",
+                    )
+                )
             if feature.input_snapshot_hash != market.snapshot_id:
                 violations.append(
                     self._violation(
@@ -1098,6 +1520,51 @@ class LookaheadGuard:
                 raise LookaheadGuardError(
                     "MARKET_SNAPSHOT_REPLAY_MISMATCH：必须使用 selector 在原 decision_at 重放的快照"
                 )
+        for checkpoint in plan.checkpoints:
+            declared_kinds = {
+                item.input_kind
+                for item in by_checkpoint[checkpoint.checkpoint_hash].input_usage
+            }
+            if declared_kinds != set(LookaheadInputKind):
+                missing = sorted(
+                    item.value for item in set(LookaheadInputKind) - declared_kinds
+                )
+                raise LookaheadGuardError(
+                    "INPUT_USAGE_DECLARATIONS_INCOMPLETE: " + ", ".join(missing)
+                )
+        for item in evidence_items:
+            event_replay = item.artifact_events
+            if event_replay is None:
+                if item.events:
+                    raise LookaheadGuardError("ARTIFACT_EVENT_EVIDENCE_REQUIRED_FOR_EVENTS")
+            else:
+                if event_replay.decision_at != item.decision_at:
+                    raise LookaheadGuardError("ARTIFACT_EVENT_DECISION_TIME_MISMATCH")
+                recomputed_events = replay_artifact_event_evidence(
+                    artifact_store=artifact_store,
+                    dataset_version_hash=event_replay.dataset_version_hash,
+                    decision_at=item.decision_at,
+                )
+                if recomputed_events.replay_hash != event_replay.replay_hash:
+                    raise LookaheadGuardError("ARTIFACT_EVENT_REPLAY_MISMATCH")
+        for item in evidence_items:
+            rulebook = item.artifact_rulebook
+            if rulebook is None:
+                if item.contracts or item.fee_margin_rules:
+                    raise LookaheadGuardError(
+                        "ARTIFACT_RULEBOOK_EVIDENCE_REQUIRED_FOR_CONTRACT_RULES"
+                    )
+                continue
+            if rulebook.replay.decision_at != item.decision_at:
+                raise LookaheadGuardError("ARTIFACT_RULEBOOK_DECISION_TIME_MISMATCH")
+            recomputed_rulebook = replay_artifact_rulebook_evidence(
+                artifact_store=artifact_store,
+                dataset_version_hash=rulebook.replay.dataset_version_hash,
+                decision_at=item.decision_at,
+                contract_refs=rulebook.replay.selected_contract_ids,
+            )
+            if recomputed_rulebook.evidence_hash != rulebook.evidence_hash:
+                raise LookaheadGuardError("ARTIFACT_RULEBOOK_REPLAY_MISMATCH")
         reports = tuple(self.evaluate(by_checkpoint[item]) for item in expected)
         violations = tuple(
             violation
@@ -1183,6 +1650,8 @@ class LookaheadGuard:
 
 
 __all__ = [
+    "ArtifactEventReplayEvidence",
+    "ArtifactRuleBookEvidence",
     "ContractKnowledgeEvidence",
     "DecisionMarketDataEvidence",
     "DecisionReplayCheckpoint",
@@ -1194,8 +1663,13 @@ __all__ = [
     "LookaheadCertificate",
     "LookaheadGuard",
     "LookaheadGuardError",
+    "LookaheadInputKind",
+    "LookaheadInputUsage",
+    "LookaheadInputUsageDeclaration",
     "LookaheadReport",
     "LookaheadViolation",
     "LookaheadViolationKind",
     "TargetDecisionEvidence",
+    "replay_artifact_rulebook_evidence",
+    "replay_artifact_event_evidence",
 ]

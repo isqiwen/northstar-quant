@@ -204,6 +204,17 @@ class DataSourcePublisher:
         self._source_config_loader = source_config_loader
         self._quality_engine = quality_engine or DataQualityEngine()
 
+    @property
+    def artifact_store(self) -> ArtifactStore:
+        """Return the immutable store used for every publication in this boundary.
+
+        Composition roots that validate pre-existing immutable evidence must use
+        this exact store rather than accepting a second, potentially unrelated
+        artifact store.
+        """
+
+        return self._store
+
     def capture_and_assess(
         self,
         *,

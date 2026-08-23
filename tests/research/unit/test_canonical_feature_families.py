@@ -612,6 +612,15 @@ def test_catalog_is_unique_and_registers_only_explicit_versions():
         "basis.relative_basis",
         "inventory.level_change",
         "positioning.net_position_ratio",
+        "intelligence.supply_risk_1h",
+        "intelligence.supply_risk_6h",
+        "intelligence.supply_risk_24h",
+        "intelligence.demand_shock",
+        "intelligence.geopolitical_risk",
+        "intelligence.inventory_stress",
+        "intelligence.event_novelty",
+        "intelligence.event_confidence",
+        "intelligence.contextual_impact",
     }
     assert len({item.definition.implementation_hash for item in registrations}) == len(
         registrations

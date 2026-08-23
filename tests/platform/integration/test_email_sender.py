@@ -185,6 +185,19 @@ def test_send_report_email_uses_tagged_subject_when_provided(tmp_path, monkeypat
     assert result["subject"] == "Northstar Quant - 日报 [执行异常] - portfolio_daily_report"
 
 
+def test_send_report_email_fails_closed_when_existing_export_contains_secret(tmp_path, monkeypatch):
+    raw_secret = "not-for-email-export"  # secret-scan: allow; reason: disposable test fixture
+    report_path = _write_report_artifact(tmp_path, f"# report\napi_token={raw_secret}\n")
+    settings = get_settings().model_copy()
+    object.__setattr__(settings, "report_recipients", "ops@example.com")
+    object.__setattr__(settings, "smtp_host", "smtp.example.com")
+    object.__setattr__(settings, "smtp_sender", "northstar@example.com")
+    monkeypatch.setattr(email_sender, "get_settings", lambda: settings)
+
+    with pytest.raises(ValueError, match="REPORT_EXPORT_REDACTION_REQUIRED"):
+        email_sender.send_report_via_email(report_path, attach_pdf=False)
+
+
 def test_send_report_email_fails_closed_when_starttls_fails(tmp_path, monkeypatch):
     report_path = _write_report_artifact(tmp_path, "# Northstar Quant 日报\n")
 

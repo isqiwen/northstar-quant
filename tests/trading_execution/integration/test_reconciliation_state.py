@@ -10,6 +10,7 @@ from northstar_quant.platform.db.models import (
     BrokerSyncLog,
     OrderRecord,
     PositionSnapshotBatchRecord,
+    ReconciliationSafetyStateRecord,
 )
 from northstar_quant.trading_execution.execution.models import (
     BrokerStateSnapshot,
@@ -17,6 +18,8 @@ from northstar_quant.trading_execution.execution.models import (
 )
 from northstar_quant.trading_execution.reconciliation.reconciliation import (
     analyze_position_drift,
+    begin_reconciliation_manual_recovery,
+    complete_reconciliation_manual_recovery,
     reconcile_broker_state,
 )
 
@@ -193,3 +196,88 @@ def test_reconcile_rolls_back_all_state_rows_when_later_identity_check_fails(
 
     assert sync_log is not None
     assert sync_log.status == "failed"
+
+
+def test_unexplained_broker_order_halts_until_named_manual_recovery(postgresql_engine):
+    engine = postgresql_engine
+    asof = datetime(2026, 7, 23, 2, 30, tzinfo=UTC)
+    unknown_order_snapshot = BrokerStateSnapshot(
+        completed_orders=[
+            {
+                "broker_order_id": "external-1",
+                "account": "DU123456",
+                "symbol": "RB2405",
+                "side": "BUY",
+                "qty": 1.0,
+                "status": "Cancelled",
+            }
+        ],
+        account="DU123456",
+        asof=asof,
+    )
+    clean_snapshot = BrokerStateSnapshot(
+        account="DU123456",
+        asof=asof,
+    )
+
+    with Session(engine, future=True) as session:
+        with pytest.raises(RuntimeError, match="BROKER_ORDER_UNEXPLAINED"):
+            reconcile_broker_state(
+                session,
+                _FakeBroker(unknown_order_snapshot),
+                profile_id="trend-live",
+            )
+        audit_rows = list(
+            session.scalars(
+                select(ReconciliationSafetyStateRecord).order_by(
+                    ReconciliationSafetyStateRecord.id.asc()
+                )
+            )
+        )
+        assert [row.state for row in audit_rows] == ["HALT"]
+        assert audit_rows[-1].predecessor_hash is None
+        # Reconciliation owns a fresh fenced transaction; this inspection is
+        # caller-owned and must end before the next reconciliation attempt.
+        session.rollback()
+
+        reconcile_broker_state(
+            session,
+            _FakeBroker(clean_snapshot),
+            profile_id="trend-live",
+        )
+        still_halted = session.scalar(
+            select(ReconciliationSafetyStateRecord)
+            .order_by(ReconciliationSafetyStateRecord.id.desc())
+            .limit(1)
+        )
+        assert still_halted is not None
+        assert still_halted.state == "HALT"
+
+        recovery = begin_reconciliation_manual_recovery(
+            session,
+            profile_id="trend-live",
+            broker="ctp",
+            account="DU123456",
+            approver_id="risk-owner",
+            reason="external order investigated",
+        )
+        assert recovery.state.value == "MANUAL_RECOVERY"
+        with pytest.raises(PermissionError, match="APPROVER_MISMATCH"):
+            complete_reconciliation_manual_recovery(
+                session,
+                profile_id="trend-live",
+                broker="ctp",
+                account="DU123456",
+                approver_id="someone-else",
+                reason="not authorized",
+            )
+        normal = complete_reconciliation_manual_recovery(
+            session,
+            profile_id="trend-live",
+            broker="ctp",
+            account="DU123456",
+            approver_id="risk-owner",
+            reason="manual review complete",
+        )
+
+    assert normal.state.value == "NORMAL"

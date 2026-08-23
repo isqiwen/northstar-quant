@@ -109,7 +109,7 @@ def test_stale_fencing_token_cannot_claim_prepared_order(postgresql_engine):
         first_token = try_acquire_execution_lease(
             session,
             resource_key="live-submit:ctp:DU123456",
-            owner_token="owner-1",
+            owner_token="owner-1",  # secret-scan: allow; reason: disposable test fixture
             ttl_seconds=30,
             now=lease_now,
         )
@@ -123,7 +123,7 @@ def test_stale_fencing_token_cannot_claim_prepared_order(postgresql_engine):
         second_token = try_acquire_execution_lease(
             session,
             resource_key="live-submit:ctp:DU123456",
-            owner_token="owner-2",
+            owner_token="owner-2",  # secret-scan: allow; reason: disposable test fixture
             ttl_seconds=30,
             now=lease_now + timedelta(seconds=31),
         )
@@ -134,7 +134,7 @@ def test_stale_fencing_token_cannot_claim_prepared_order(postgresql_engine):
             session,
             lease=SubmissionLease(
                 resource_key="live-submit:ctp:DU123456",
-                owner_token="owner-1",
+                owner_token="owner-1",  # secret-scan: allow; reason: disposable test fixture
                 fencing_token=first_token,
                 ttl_seconds=30,
             ),
@@ -229,6 +229,30 @@ def test_cancel_exception_is_not_reissued_before_completed_order_recovery(
 
     assert cancel_broker.cancel_count == 1
     assert updated == 1
+
+
+def test_cancel_reject_is_durable_and_does_not_claim_cancellation(postgresql_engine):
+    engine = postgresql_engine
+
+    class _RejectingCancelBroker(RecordingBroker):
+        def cancel_order(self, broker_order_id: str) -> bool:
+            self.cancel_count += 1
+            return False
+
+    with Session(engine, future=True) as session:
+        broker = _RejectingCancelBroker()
+        durable = DurableBrokerAdapter(broker, session)
+        durable.submit_order(order_request())
+
+        assert durable.cancel_order("broker-42") is False
+        cancel = session.scalar(select(CancelRecord))
+        order = session.scalar(select(OrderRecord))
+
+    assert broker.cancel_count == 1
+    assert cancel is not None
+    assert cancel.status == "CancelRequestFailed"
+    assert order is not None
+    assert order.status == "ACCEPTED"
 
 
 def test_cancel_terminal_recovery_rejects_mismatched_instrument(postgresql_engine):

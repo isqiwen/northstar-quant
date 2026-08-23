@@ -5,6 +5,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 
+from northstar_quant.trading_execution.orders.state_machine import (
+    BrokerOrderStatus,
+    canonicalize_broker_order_status,
+)
+
 
 @dataclass(slots=True)
 class OrderRequest:
@@ -62,6 +67,12 @@ class OrderResult:
     client_id: int | None = None
     perm_id: int | None = None
 
+    @property
+    def canonical_status(self) -> BrokerOrderStatus:
+        """Unknown broker wording is never upgraded to an accepted state."""
+
+        return canonicalize_broker_order_status(self.status)
+
 
 @dataclass(slots=True)
 class PositionSnapshot:
@@ -84,6 +95,13 @@ class PositionSnapshot:
     long_yesterday_qty: float | None = None
     short_today_qty: float | None = None
     short_yesterday_qty: float | None = None
+    long_frozen_qty: float | None = None
+    short_frozen_qty: float | None = None
+    long_closable_qty: float | None = None
+    short_closable_qty: float | None = None
+    margin: float | None = None
+    realized_pnl: float | None = None
+    unrealized_pnl: float | None = None
     asof: datetime | None = None
     snapshot_batch_id: str | None = None
 

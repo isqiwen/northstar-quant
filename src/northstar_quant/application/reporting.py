@@ -29,6 +29,7 @@ from northstar_quant.platform.reporting.artifacts import (
     REPORT_SCHEMA_VERSION,
     report_artifact_label,
 )
+from northstar_quant.platform.security import redact
 from northstar_quant.portfolio_risk.portfolio.strategy_pipeline import (
     parse_strategy_selection,
 )
@@ -931,13 +932,16 @@ def _build_markdown_report(
         raise ValueError("生成报告必须提供 profile_id")
     if report_type == "backtest" and backtest_run is None:
         raise ValueError("正式回测报告必须附带冻结运行清单")
+    safe_backtest_run = (
+        cast(dict[str, object], redact(backtest_run)) if backtest_run is not None else None
+    )
     resolved_period_label = period_label or report_type
     resolved_artifact_period = artifact_period or _safe_report_filename_part(
         resolved_period_label
     )
     run_id: str | None = None
-    if backtest_run is not None:
-        candidate = str(backtest_run.get("run_id") or "").strip()
+    if safe_backtest_run is not None:
+        candidate = str(safe_backtest_run.get("run_id") or "").strip()
         if not candidate:
             raise ValueError("回测运行清单缺少 run_id")
         run_id = candidate
@@ -950,9 +954,7 @@ def _build_markdown_report(
     )
     artifact_id = artifact_path.as_posix()
     report_dir = settings.reports_dir / artifact_path
-    manifest_json = (
-        _serialize_report_json(backtest_run) if backtest_run is not None else None
-    )
+    manifest_json = _serialize_report_json(safe_backtest_run) if safe_backtest_run is not None else None
     is_immutable_backtest = report_type == "backtest" and manifest_json is not None
     generated_at = (
         _IMMUTABLE_BACKTEST_GENERATED_AT
@@ -960,10 +962,13 @@ def _build_markdown_report(
         else datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     )
     resolved_benchmark_symbol = benchmark_symbol or settings.report_benchmark_symbol
-    holdings_payload = [] if holdings is None else holdings.to_dicts()
-    analytics_payload = analytics or {}
+    safe_metrics = cast(dict[str, object], redact(metrics))
+    holdings_payload = cast(list[dict[str, object]], redact([] if holdings is None else holdings.to_dicts()))
+    analytics_payload = cast(dict[str, object], redact(analytics or {}))
+    safe_live_account_attribution = redact(live_account_attribution)
+    safe_run_health_summaries = redact(run_health_summaries or [])
     display_metrics = {
-        key: _display_report_metric(key, value) for key, value in metrics.items()
+        key: _display_report_metric(key, value) for key, value in safe_metrics.items()
     }
     payload = {
         "generated_at": generated_at,
@@ -974,10 +979,10 @@ def _build_markdown_report(
         "benchmark_symbol": resolved_benchmark_symbol,
         "holdings": holdings_payload,
         "analytics": analytics_payload,
-        "live_account_attribution": live_account_attribution,
-        "run_health_summaries": run_health_summaries or [],
+        "live_account_attribution": safe_live_account_attribution,
+        "run_health_summaries": safe_run_health_summaries,
         "run_health_days": run_health_days,
-        "backtest_run": backtest_run,
+        "backtest_run": safe_backtest_run,
     }
 
     report_data = {
@@ -990,13 +995,13 @@ def _build_markdown_report(
         "profile_id": profile_id,
         "strategy_id": strategy_id,
         "benchmark_symbol": resolved_benchmark_symbol,
-        "metrics": metrics,
+        "metrics": safe_metrics,
         "holdings": holdings_payload,
         "analytics": analytics_payload,
-        "live_account_attribution": live_account_attribution,
-        "run_health_summaries": run_health_summaries or [],
+        "live_account_attribution": safe_live_account_attribution,
+        "run_health_summaries": safe_run_health_summaries,
         "run_health_days": run_health_days,
-        "backtest_run": backtest_run,
+        "backtest_run": safe_backtest_run,
     }
     output = template.render(**payload)
     report_data["markdown_sha256"] = hashlib.sha256(output.encode("utf-8")).hexdigest()
@@ -1016,7 +1021,7 @@ def _build_markdown_report(
     markdown_path = report_dir / "report.md"
     markdown_path.write_text(output, encoding="utf-8")
     (report_dir / "report.json").write_text(report_json, encoding="utf-8")
-    if backtest_run is not None:
+    if safe_backtest_run is not None:
         assert manifest_json is not None
         (report_dir / "manifest.json").write_text(manifest_json, encoding="utf-8")
     stale_pdf_path = report_dir / "report.pdf"

@@ -29,6 +29,7 @@ CANONICAL_DOCUMENTS = (
     "07_Linux一键部署.md",
     "08_项目主规划与实施状态.md",
     "09_研究准入政策与数据治理.md",
+    "10_AI研究工具边界.md",
 )
 
 RETIRED_DUPLICATE_DOCUMENTS = (
@@ -101,6 +102,30 @@ def test_local_markdown_links_resolve() -> None:
     assert not broken_links, "失效的仓库内 Markdown 链接：\n" + "\n".join(broken_links)
 
 
+def test_user_facing_uv_run_commands_cannot_implicitly_materialize_dependencies() -> None:
+    documentation_paths = (
+        README_PATH,
+        PROJECT_ROOT / "AGENTS.md",
+        *(path for path in (PROJECT_ROOT / "docs").glob("*.md")),
+        *(path for path in (PROJECT_ROOT / "scripts").rglob("README.md")),
+        *(path for path in (PROJECT_ROOT / "configs" / "profiles").rglob("README.md")),
+        PROJECT_ROOT / "tests" / "README.md",
+        PROJECT_ROOT / "infra" / "docker" / "README.md",
+    )
+    violations: list[str] = []
+    for path in documentation_paths:
+        for line_number, raw_line in enumerate(_read(path).splitlines(), start=1):
+            command = raw_line.strip()
+            if command.startswith("uv run ") and not command.startswith(
+                "uv run --offline --no-sync "
+            ):
+                violations.append(f"{path.relative_to(PROJECT_ROOT)}:{line_number}: {command}")
+
+    assert not violations, "用户文档包含会隐式 materialize 依赖的 uv run 命令：\n" + "\n".join(
+        violations
+    )
+
+
 def test_roadmap_is_linked_and_preserves_all_phase_gates() -> None:
     readme = _read(README_PATH)
     roadmap = _read(ROADMAP_PATH)
@@ -154,6 +179,8 @@ def test_configuration_documentation_matches_safe_runtime_defaults() -> None:
     assert "northstar data cleanup" in config_guide
     assert "northstar ops backup status" in config_guide
     assert "database_backup_readiness.yaml" in config_guide
+    assert "backup_bundle.py" in config_guide
+    assert "restore_drill.py" in config_guide
     assert "标准市场数据" in config_guide
     assert "futures.calendar_artifact_snapshot_hashes" in config_guide
     assert "ArtifactSnapshot" in config_guide
@@ -187,6 +214,34 @@ def test_calendar_documentation_keeps_runtime_sources_fail_closed() -> None:
     assert "没有可运行的日历制品" in _read(calendar_readme)
 
 
+def test_p8_activation_and_provenance_docs_preserve_non_trading_submission_boundary() -> None:
+    readme = _read(README_PATH)
+    architecture = _read(PROJECT_ROOT / "docs" / "01_架构总览.md")
+    execution = _read(PROJECT_ROOT / "docs" / "03_执行与安全边界.md")
+    ai_boundary = _read(PROJECT_ROOT / "docs" / "10_AI研究工具边界.md")
+    scripts = _read(PROJECT_ROOT / "scripts" / "README.md")
+
+    assert "HumanStrategyTargetActivationApproval" in readme
+    assert "ResearchStrategyTargetActivator" in architecture
+    assert "StrategyTargetActivationRef" in architecture
+    assert "P8-WP04" in architecture
+    assert "synthetic target" in execution
+    assert "RESEARCH_TO_PORTFOLIO_RISK" in ai_boundary
+    assert "decision_time_safe=false" in ai_boundary
+    assert "eligible_for_trading=False" in ai_boundary
+    assert "ExecutionProvenancePreflight" in execution
+    assert "eligible_for_ctp_sim=false" in ai_boundary
+    assert "CtpSimCandidateExecutor" in execution
+    assert "CtpSimSubmissionAuthority" in execution
+    assert "调用方 snapshot" in execution
+    assert "一次性" in readme
+    assert "PORTFOLIO_RISK_TO_EXECUTION_SIMULATION" in ai_boundary
+    assert "opaque-authority `Portfolio/Risk→ctp_sim`" in scripts
+    assert "P8_RESEARCH_TO_PORTFOLIO_RISK" in scripts
+    assert "P8_EXECUTION_PROVENANCE_PREFLIGHT" in scripts
+    assert "P8_CTP_SIM_CANDIDATE_E2E" in scripts
+
+
 def test_tutorial_python_examples_remain_parseable_and_describe_explicit_flat_targets() -> None:
     tutorial = _read(TUTORIAL_PATH)
     python_blocks = _fenced_python_blocks(tutorial)
@@ -195,4 +250,4 @@ def test_tutorial_python_examples_remain_parseable_and_describe_explicit_flat_ta
     for index, source in enumerate(python_blocks, start=1):
         ast.parse(source, filename=f"{TUTORIAL_PATH.name}:python-block-{index}")
     assert "target_weight: 0.0" in tutorial
-    assert "uv run northstar backtest run first_breakout" in tutorial
+    assert "uv run --offline --no-sync northstar backtest run first_breakout" in tutorial

@@ -2,9 +2,18 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 
-from sqlalchemy import Boolean, Float, Integer, String, Text, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    Date,
+    Float,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from northstar_quant.platform.common.time import utc_now
@@ -118,6 +127,307 @@ class ExecutionPlanRecord(Base):
     margin_rate: Mapped[float | None] = mapped_column(Float, default=None)
     required_margin: Mapped[float | None] = mapped_column(Float, default=None)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utc_now)
+
+
+class ExecutionProvenanceConsumptionRecord(Base):
+    """Append-only consumption of one P8 CTP-sim provenance commitment.
+
+    This deliberately records only hash-bound provenance, never a broker capability.
+    The unique key prevents a final CTP-sim gate from consuming the same plan/order
+    commitment twice for the same broker account.
+    """
+
+    __tablename__ = "execution_provenance_consumption_records"
+    __table_args__ = (
+        UniqueConstraint(
+            "broker",
+            "account",
+            "plan_hash",
+            "order_hash",
+            name="uq_execution_provenance_consumption_plan_order",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    preflight_id: Mapped[str] = mapped_column(String(128), index=True)
+    receipt_hash: Mapped[str] = mapped_column(String(64), index=True)
+    plan_hash: Mapped[str] = mapped_column(String(64), index=True)
+    order_hash: Mapped[str] = mapped_column(String(64), index=True)
+    profile_id: Mapped[str] = mapped_column(String(64), index=True)
+    broker: Mapped[str] = mapped_column(String(32), index=True)
+    account: Mapped[str] = mapped_column(String(64), index=True)
+    order_ref: Mapped[str] = mapped_column(String(64), index=True)
+    checked_at: Mapped[datetime] = mapped_column(UTCDateTime(), index=True)
+    valid_until: Mapped[datetime] = mapped_column(UTCDateTime(), index=True)
+    consumed_at: Mapped[datetime] = mapped_column(UTCDateTime(), index=True)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utc_now)
+
+
+class PortfolioRiskApprovalRecord(Base):
+    """Append-only, verifier-backed manual approval for one P3 portfolio review.
+
+    This is a durable audit fact, never an execution capability.  The
+    application boundary replays the P3 review and exact binding before it can
+    write or consume this record.
+    """
+
+    __tablename__ = "portfolio_risk_approval_records"
+    __table_args__ = (
+        UniqueConstraint(
+            "approval_id",
+            name="uq_portfolio_risk_approval_records_approval_id",
+        ),
+        UniqueConstraint(
+            "profile_id",
+            "broker",
+            "account",
+            "binding_hash",
+            name="uq_portfolio_risk_approval_records_scope_binding",
+        ),
+        UniqueConstraint(
+            "record_hash",
+            name="uq_portfolio_risk_approval_records_record_hash",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    approval_id: Mapped[str] = mapped_column(String(128), index=True)
+    profile_id: Mapped[str] = mapped_column(String(64), index=True)
+    broker: Mapped[str] = mapped_column(String(32), index=True)
+    account: Mapped[str] = mapped_column(String(64), index=True)
+    review_hash: Mapped[str] = mapped_column(String(64), index=True)
+    evidence_hash: Mapped[str] = mapped_column(String(64), index=True)
+    portfolio_target_hash: Mapped[str] = mapped_column(String(64), index=True)
+    approved_target_hash: Mapped[str] = mapped_column(String(64), index=True)
+    composition_hash: Mapped[str] = mapped_column(String(64), index=True)
+    composition_evidence_hash: Mapped[str] = mapped_column(String(64), index=True)
+    authority_hash: Mapped[str] = mapped_column(String(64), index=True)
+    policy_hash: Mapped[str] = mapped_column(String(64), index=True)
+    reconciliation_state_hash: Mapped[str] = mapped_column(String(64), index=True)
+    binding_hash: Mapped[str] = mapped_column(String(64), index=True)
+    attestation_hash: Mapped[str] = mapped_column(String(64), index=True)
+    approver_id: Mapped[str] = mapped_column(String(128), index=True)
+    verifier_id: Mapped[str] = mapped_column(String(128), index=True)
+    verifier_receipt_hash: Mapped[str] = mapped_column(String(64), index=True)
+    rationale: Mapped[str] = mapped_column(Text)
+    review_evaluated_at: Mapped[datetime] = mapped_column(UTCDateTime(), index=True)
+    approved_at: Mapped[datetime] = mapped_column(UTCDateTime(), index=True)
+    verified_at: Mapped[datetime] = mapped_column(UTCDateTime(), index=True)
+    valid_until: Mapped[datetime] = mapped_column(UTCDateTime(), index=True)
+    issued_at: Mapped[datetime] = mapped_column(UTCDateTime(), index=True)
+    record_hash: Mapped[str] = mapped_column(String(64), index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        UTCDateTime(), index=True, default=utc_now
+    )
+
+
+_RESEARCH_AGENT_AUDIT_SHA256_PATTERN = r"^[0-9a-f]{64}$"
+_RESEARCH_AGENT_TRACE_TOOL_NAMES: tuple[str, ...] = (
+    "search_events",
+    "search_datasets",
+    "get_feature",
+    "create_experiment",
+    "run_backtest",
+    "run_validation",
+    "generate_research_card",
+)
+_RESEARCH_AGENT_FAILURE_CODES: tuple[str, ...] = (
+    "RESEARCH_AGENT_RESULT_INVALID",
+)
+_RESEARCH_AGENT_TRACE_TOOL_NAME_SQL_VALUES = ", ".join(
+    f"'{tool_name}'" for tool_name in _RESEARCH_AGENT_TRACE_TOOL_NAMES
+)
+_RESEARCH_AGENT_FAILURE_CODE_SQL_VALUES = ", ".join(
+    f"'{failure_code}'" for failure_code in _RESEARCH_AGENT_FAILURE_CODES
+)
+
+
+class ResearchAgentRunAuditEventRecord(Base):
+    """Immutable, hash-only lifecycle fact for one ResearchAgent run.
+
+    A row is an admission reservation or exactly one terminal outcome.  It is
+    audit evidence only: all records are permanently ``RESEARCH_ONLY`` and
+    never carry a capability, prompt, payload, rationale, or error text.
+    """
+
+    __tablename__ = "research_agent_run_audit_events"
+    __table_args__ = (
+        UniqueConstraint(
+            "run_id",
+            "event_kind",
+            name="uq_research_agent_audit_run_kind",
+        ),
+        UniqueConstraint(
+            "run_id",
+            "is_terminal",
+            name="uq_research_agent_audit_run_terminal",
+        ),
+        UniqueConstraint(
+            "record_hash",
+            name="uq_research_agent_audit_record_hash",
+        ),
+        CheckConstraint(
+            "event_kind IN ('ADMITTED', 'COMPLETED', 'FAILED')",
+            name="ck_research_agent_audit_event_kind",
+        ),
+        CheckConstraint(
+            "lifecycle = 'RESEARCH_ONLY'",
+            name="ck_research_agent_audit_research_only",
+        ),
+        CheckConstraint(
+            "eligible_for_trading = false",
+            name="ck_research_agent_audit_non_tradable",
+        ),
+        CheckConstraint(
+            "trace_count >= 0",
+            name="ck_research_agent_audit_trace_count",
+        ),
+        CheckConstraint(
+            f"request_hash ~ '{_RESEARCH_AGENT_AUDIT_SHA256_PATTERN}'",
+            name="ck_research_agent_audit_request_hash",
+        ),
+        CheckConstraint(
+            "result_hash IS NULL OR "
+            f"result_hash ~ '{_RESEARCH_AGENT_AUDIT_SHA256_PATTERN}'",
+            name="ck_research_agent_audit_result_hash",
+        ),
+        CheckConstraint(
+            "trace_root_hash IS NULL OR "
+            f"trace_root_hash ~ '{_RESEARCH_AGENT_AUDIT_SHA256_PATTERN}'",
+            name="ck_research_agent_audit_trace_root_hash",
+        ),
+        CheckConstraint(
+            "trace_tail_hash IS NULL OR "
+            f"trace_tail_hash ~ '{_RESEARCH_AGENT_AUDIT_SHA256_PATTERN}'",
+            name="ck_research_agent_audit_trace_tail_hash",
+        ),
+        CheckConstraint(
+            "predecessor_record_hash IS NULL OR "
+            f"predecessor_record_hash ~ '{_RESEARCH_AGENT_AUDIT_SHA256_PATTERN}'",
+            name="ck_research_agent_audit_predecessor_record_hash",
+        ),
+        CheckConstraint(
+            f"record_hash ~ '{_RESEARCH_AGENT_AUDIT_SHA256_PATTERN}'",
+            name="ck_research_agent_audit_record_hash_shape",
+        ),
+        CheckConstraint(
+            "failure_code IS NULL OR "
+            f"failure_code IN ({_RESEARCH_AGENT_FAILURE_CODE_SQL_VALUES})",
+            name="ck_research_agent_audit_failure_code",
+        ),
+        CheckConstraint(
+            "(event_kind = 'ADMITTED' AND is_terminal = false "
+            "AND result_hash IS NULL AND failure_code IS NULL "
+            "AND trace_count = 0 AND trace_root_hash IS NULL "
+            "AND trace_tail_hash IS NULL AND predecessor_record_hash IS NULL) "
+            "OR (event_kind = 'COMPLETED' AND is_terminal = true "
+            "AND result_hash IS NOT NULL AND failure_code IS NULL "
+            "AND trace_count > 0 AND trace_root_hash IS NOT NULL "
+            "AND trace_tail_hash IS NOT NULL AND predecessor_record_hash IS NOT NULL) "
+            "OR (event_kind = 'FAILED' AND is_terminal = true "
+            "AND result_hash IS NULL AND failure_code IS NOT NULL "
+            "AND trace_count = 0 AND trace_root_hash IS NULL "
+            "AND trace_tail_hash IS NULL AND predecessor_record_hash IS NOT NULL)",
+            name="ck_research_agent_audit_event_shape",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    run_id: Mapped[str] = mapped_column(String(128), index=True)
+    event_kind: Mapped[str] = mapped_column(String(16), index=True)
+    is_terminal: Mapped[bool] = mapped_column(Boolean, index=True)
+    request_hash: Mapped[str] = mapped_column(String(64), index=True)
+    result_hash: Mapped[str | None] = mapped_column(String(64), index=True, default=None)
+    failure_code: Mapped[str | None] = mapped_column(String(128), index=True, default=None)
+    trace_count: Mapped[int] = mapped_column(Integer)
+    trace_root_hash: Mapped[str | None] = mapped_column(
+        String(64), index=True, default=None
+    )
+    trace_tail_hash: Mapped[str | None] = mapped_column(
+        String(64), index=True, default=None
+    )
+    as_of: Mapped[datetime] = mapped_column(UTCDateTime(), index=True)
+    occurred_at: Mapped[datetime] = mapped_column(UTCDateTime(), index=True)
+    predecessor_record_hash: Mapped[str | None] = mapped_column(
+        String(64), index=True, default=None
+    )
+    lifecycle: Mapped[str] = mapped_column(String(32), index=True)
+    eligible_for_trading: Mapped[bool] = mapped_column(Boolean, index=True)
+    record_hash: Mapped[str] = mapped_column(String(64), index=True)
+
+
+class ResearchAgentRunTraceEntryRecord(Base):
+    """One immutable, hash-only ordered entry in a durable ResearchAgent trace."""
+
+    __tablename__ = "research_agent_run_trace_entries"
+    __table_args__ = (
+        UniqueConstraint(
+            "run_id",
+            "sequence",
+            name="uq_research_agent_trace_run_sequence",
+        ),
+        UniqueConstraint(
+            "run_id",
+            "trace_hash",
+            name="uq_research_agent_trace_run_hash",
+        ),
+        UniqueConstraint(
+            "record_hash",
+            name="uq_research_agent_trace_record_hash",
+        ),
+        CheckConstraint(
+            "sequence > 0",
+            name="ck_research_agent_trace_positive_sequence",
+        ),
+        CheckConstraint(
+            "lifecycle = 'RESEARCH_ONLY'",
+            name="ck_research_agent_trace_research_only",
+        ),
+        CheckConstraint(
+            "eligible_for_trading = false",
+            name="ck_research_agent_trace_non_tradable",
+        ),
+        CheckConstraint(
+            f"tool_name IN ({_RESEARCH_AGENT_TRACE_TOOL_NAME_SQL_VALUES})",
+            name="ck_research_agent_trace_tool_name",
+        ),
+        CheckConstraint(
+            f"request_hash ~ '{_RESEARCH_AGENT_AUDIT_SHA256_PATTERN}'",
+            name="ck_research_agent_trace_request_hash",
+        ),
+        CheckConstraint(
+            f"response_hash ~ '{_RESEARCH_AGENT_AUDIT_SHA256_PATTERN}'",
+            name="ck_research_agent_trace_response_hash",
+        ),
+        CheckConstraint(
+            "predecessor_trace_hash IS NULL OR "
+            f"predecessor_trace_hash ~ '{_RESEARCH_AGENT_AUDIT_SHA256_PATTERN}'",
+            name="ck_research_agent_trace_predecessor_hash",
+        ),
+        CheckConstraint(
+            f"trace_hash ~ '{_RESEARCH_AGENT_AUDIT_SHA256_PATTERN}'",
+            name="ck_research_agent_trace_hash_shape",
+        ),
+        CheckConstraint(
+            f"record_hash ~ '{_RESEARCH_AGENT_AUDIT_SHA256_PATTERN}'",
+            name="ck_research_agent_trace_record_hash_shape",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    run_id: Mapped[str] = mapped_column(String(128), index=True)
+    sequence: Mapped[int] = mapped_column(Integer)
+    tool_name: Mapped[str] = mapped_column(String(64), index=True)
+    request_hash: Mapped[str] = mapped_column(String(64), index=True)
+    response_hash: Mapped[str] = mapped_column(String(64), index=True)
+    predecessor_trace_hash: Mapped[str | None] = mapped_column(
+        String(64), index=True, default=None
+    )
+    trace_hash: Mapped[str] = mapped_column(String(64), index=True)
+    recorded_at: Mapped[datetime] = mapped_column(UTCDateTime(), index=True)
+    lifecycle: Mapped[str] = mapped_column(String(32), index=True)
+    eligible_for_trading: Mapped[bool] = mapped_column(Boolean, index=True)
+    record_hash: Mapped[str] = mapped_column(String(64), index=True)
 
 
 class OrderRecord(Base):
@@ -381,6 +691,13 @@ class PositionSnapshotRecord(Base):
     long_yesterday_qty: Mapped[float | None] = mapped_column(Float, default=None)
     short_today_qty: Mapped[float | None] = mapped_column(Float, default=None)
     short_yesterday_qty: Mapped[float | None] = mapped_column(Float, default=None)
+    long_frozen_qty: Mapped[float | None] = mapped_column(Float, default=None)
+    short_frozen_qty: Mapped[float | None] = mapped_column(Float, default=None)
+    long_closable_qty: Mapped[float | None] = mapped_column(Float, default=None)
+    short_closable_qty: Mapped[float | None] = mapped_column(Float, default=None)
+    margin: Mapped[float | None] = mapped_column(Float, default=None)
+    realized_pnl: Mapped[float | None] = mapped_column(Float, default=None)
+    unrealized_pnl: Mapped[float | None] = mapped_column(Float, default=None)
     asof: Mapped[datetime] = mapped_column(UTCDateTime(), index=True, default=utc_now)
     snapshot_batch_id: Mapped[str] = mapped_column(String(64), index=True)
 
@@ -479,6 +796,62 @@ class AccountAttributionRecord(Base):
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utc_now)
 
 
+class SettlementRecord(Base):
+    """券商结算的追加式事实记录，不覆盖账户或持仓快照。"""
+
+    __tablename__ = "settlement_records"
+    __table_args__ = (
+        UniqueConstraint(
+            "broker",
+            "account",
+            "settlement_id",
+            name="uq_settlement_records_broker_account_settlement_id",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    settlement_id: Mapped[str] = mapped_column(String(128), index=True)
+    settlement_date: Mapped[date] = mapped_column(Date, index=True)
+    broker: Mapped[str] = mapped_column(String(32), index=True)
+    account: Mapped[str] = mapped_column(String(64), index=True)
+    profile_id: Mapped[str | None] = mapped_column(String(64), index=True, default=None)
+    account_snapshot_id: Mapped[int | None] = mapped_column(Integer, index=True, default=None)
+    cash_balance: Mapped[float | None] = mapped_column(Float, default=None)
+    margin: Mapped[float | None] = mapped_column(Float, default=None)
+    realized_pnl: Mapped[float | None] = mapped_column(Float, default=None)
+    unrealized_pnl: Mapped[float | None] = mapped_column(Float, default=None)
+    fee: Mapped[float | None] = mapped_column(Float, default=None)
+    currency: Mapped[str] = mapped_column(String(8))
+    evidence_json: Mapped[str] = mapped_column(Text)
+    settled_at: Mapped[datetime] = mapped_column(UTCDateTime(), index=True)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utc_now)
+
+
+class LedgerAdjustmentRecord(Base):
+    """仅可追加、必须具名审批的账本调整记录。"""
+
+    __tablename__ = "ledger_adjustment_records"
+    __table_args__ = (
+        UniqueConstraint(
+            "adjustment_id",
+            name="uq_ledger_adjustment_records_adjustment_id",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    adjustment_id: Mapped[str] = mapped_column(String(64), index=True)
+    broker: Mapped[str] = mapped_column(String(32), index=True)
+    account: Mapped[str] = mapped_column(String(64), index=True)
+    profile_id: Mapped[str | None] = mapped_column(String(64), index=True, default=None)
+    amount: Mapped[float] = mapped_column(Float)
+    currency: Mapped[str] = mapped_column(String(8))
+    reason: Mapped[str] = mapped_column(Text)
+    approver_id: Mapped[str] = mapped_column(String(128), index=True)
+    evidence_json: Mapped[str] = mapped_column(Text)
+    occurred_at: Mapped[datetime] = mapped_column(UTCDateTime(), index=True)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utc_now)
+
+
 class AnomalyEventRecord(Base):
     """日报/归因链路产出的异常事件表。"""
 
@@ -518,6 +891,35 @@ class RuntimeRiskRecord(Base):
         UTCDateTime(),
         index=True,
         default=utc_now,
+    )
+
+
+class ReconciliationSafetyStateRecord(Base):
+    """不可自动解除的对账交易安全状态审计链。"""
+
+    __tablename__ = "reconciliation_safety_state_records"
+    __table_args__ = (
+        UniqueConstraint(
+            "state_hash",
+            name="uq_reconciliation_safety_state_records_state_hash",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    profile_id: Mapped[str] = mapped_column(String(64), index=True)
+    broker: Mapped[str] = mapped_column(String(32), index=True)
+    account: Mapped[str | None] = mapped_column(String(64), index=True, default=None)
+    state: Mapped[str] = mapped_column(String(32), index=True)
+    reason: Mapped[str] = mapped_column(Text)
+    evidence_json: Mapped[str] = mapped_column(Text, default="{}")
+    predecessor_hash: Mapped[str | None] = mapped_column(String(64), default=None)
+    state_hash: Mapped[str] = mapped_column(String(64))
+    recovery_approver_id: Mapped[str | None] = mapped_column(
+        String(128), default=None
+    )
+    occurred_at: Mapped[datetime] = mapped_column(UTCDateTime(), index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        UTCDateTime(), index=True, default=utc_now
     )
 
 

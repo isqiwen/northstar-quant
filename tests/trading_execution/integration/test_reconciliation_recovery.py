@@ -1,5 +1,6 @@
 from datetime import UTC, datetime
 
+import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -288,6 +289,9 @@ def test_reconcile_recovers_idless_completed_order_fill_and_failed_cancel(
             broker="ctp",
             account="DU123456",
         )
+        # The read above begins this caller's transaction.  Reconciliation
+        # rejects inherited transactions rather than committing caller work.
+        session.rollback()
         result = reconcile_broker_state(session, _FakeBroker(snapshot))
         refreshed_order = session.get(OrderRecord, order.id)
         refreshed_cancel = session.get(CancelRecord, cancel.id)
@@ -383,9 +387,9 @@ def test_idless_completed_order_cannot_finalize_legacy_cancel_by_similarity(
         session.add(legacy_cancel)
         session.commit()
 
-        result = reconcile_broker_state(session, _FakeBroker(snapshot))
+        with pytest.raises(RuntimeError, match="BROKER_ORDER_UNEXPLAINED"):
+            reconcile_broker_state(session, _FakeBroker(snapshot))
         refreshed_cancel = session.get(CancelRecord, legacy_cancel.id)
 
-        assert result["updated_cancel_statuses"] == 0
         assert refreshed_cancel is not None
         assert refreshed_cancel.status == "PendingCancel"

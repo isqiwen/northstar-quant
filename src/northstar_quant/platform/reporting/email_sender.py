@@ -21,6 +21,7 @@ from northstar_quant.platform.config.settings import get_settings
 from northstar_quant.platform.observability.logging.logger import get_logger
 from northstar_quant.platform.reporting.artifacts import report_artifact_label
 from northstar_quant.platform.reporting.pdf_renderer import markdown_to_pdf
+from northstar_quant.platform.security import redact_text
 
 logger = get_logger(__name__)
 
@@ -75,6 +76,7 @@ def send_report_via_email(
     recipients = _parse_recipients()
     path = Path(report_path)
     email_logger = logger.bind(command="report.email", report_path=str(path))
+    smtp_host = settings.smtp_host
 
     if attach_pdf is None:
         attach_pdf = settings.report_email_attach_pdf
@@ -87,7 +89,7 @@ def send_report_via_email(
             'report_path': str(path),
         }
 
-    required = [settings.smtp_host, settings.smtp_sender]
+    required = [smtp_host, settings.smtp_sender]
     if not all(required):
         email_logger.warning("SMTP 参数不完整，跳过邮件发送")
         return {
@@ -96,8 +98,13 @@ def send_report_via_email(
             'report_path': str(path),
             'recipients': recipients,
         }
+    assert smtp_host is not None
 
     markdown_text = path.read_text(encoding='utf-8')
+    if redact_text(markdown_text) != markdown_text:
+        raise ValueError(
+            "REPORT_EXPORT_REDACTION_REQUIRED: report contains a redactable secret and cannot be exported."
+        )
     html_body = markdown.markdown(markdown_text, extensions=['tables', 'fenced_code'])
 
     pdf_path = None
@@ -109,7 +116,7 @@ def send_report_via_email(
     msg['From'] = settings.smtp_sender
     msg['To'] = ', '.join(recipients)
     artifact_label = report_artifact_label(path)
-    msg['Subject'] = subject or f"{settings.report_email_subject_prefix} - {artifact_label}"
+    msg['Subject'] = redact_text(subject or f"{settings.report_email_subject_prefix} - {artifact_label}")
     msg.set_content(markdown_text)
     msg.add_alternative(html_body, subtype='html')
 
@@ -119,12 +126,12 @@ def send_report_via_email(
         _attach_file(msg, pdf_path)
 
     if settings.smtp_use_ssl:
-        with smtplib.SMTP_SSL(settings.smtp_host, settings.smtp_port) as server:
+        with smtplib.SMTP_SSL(smtp_host, settings.smtp_port) as server:
             if settings.smtp_username:
                 server.login(settings.smtp_username, settings.smtp_password or '')
             server.send_message(msg)
     else:
-        with smtplib.SMTP(settings.smtp_host, settings.smtp_port) as server:
+        with smtplib.SMTP(smtp_host, settings.smtp_port) as server:
             server.ehlo()
             try:
                 server.starttls()

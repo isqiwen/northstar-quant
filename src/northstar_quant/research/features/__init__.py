@@ -34,6 +34,7 @@ from northstar_quant.research.features.technical.volume import (
     volume_weighted_average_price,
 )
 from northstar_quant.research.features.models import (
+    DecisionReplayFeatureMaterialization,
     FeatureBackfill,
     FeatureDependency,
     FeatureDependencyKind,
@@ -58,6 +59,7 @@ __all__ = [
     "Indicator",
     "IndicatorSpec",
     "FeatureBackfill",
+    "DecisionReplayFeatureMaterialization",
     "FeatureComputer",
     "FeatureDependency",
     "FeatureDependencyKind",

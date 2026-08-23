@@ -45,6 +45,95 @@ versions:
   strategy_params: futures-trend-60d-v1
   execution_policy: ctp-sim-explicit-offset-v1
   risk_policy: futures-margin-allocation-v1
+portfolio_risk_approval:
+  policy_id: ctp-sim-portfolio-risk-v1
+  policy_version: futures-margin-allocation-v1
+  max_input_age_seconds: 300
+  manual_approval_verifier_id: ctp-sim-manual-risk-verifier-v1
+  authorized_approver_ids: [risk-owner]
+  limits:
+    per_contract: 1.0
+    per_commodity: 1.0
+    per_sector: 1.0
+    per_exchange: 1.0
+    per_strategy: 1.0
+    per_account: 1.0
+    gross_leverage: 2.0
+    net_leverage: 1.0
+    margin_utilization: 0.8
+  scenarios:
+    - kind: gap
+      scenario_id: ctp-sim-gap-v1
+      shock_fraction: 0.1
+      max_loss_fraction: 0.5
+      max_margin_utilization: 0.8
+    - kind: limit_move
+      scenario_id: ctp-sim-limit-move-v1
+      shock_fraction: 0.1
+      max_loss_fraction: 0.5
+      max_margin_utilization: 0.8
+    - kind: volatility_shock
+      scenario_id: ctp-sim-volatility-shock-v1
+      shock_fraction: 0.1
+      max_loss_fraction: 0.5
+      max_margin_utilization: 0.8
+    - kind: liquidity_collapse
+      scenario_id: ctp-sim-liquidity-collapse-v1
+      shock_fraction: 0.1
+      max_loss_fraction: 0.5
+      max_margin_utilization: 0.8
+    - kind: correlated_commodity_shock
+      scenario_id: ctp-sim-correlated-commodity-shock-v1
+      shock_fraction: 0.1
+      max_loss_fraction: 0.5
+      max_margin_utilization: 0.8
+    - kind: margin_increase
+      scenario_id: ctp-sim-margin-increase-v1
+      shock_fraction: 0.1
+      max_loss_fraction: 0.5
+      max_margin_utilization: 0.8
+    - kind: fx_shock
+      scenario_id: ctp-sim-fx-shock-v1
+      shock_fraction: 0.1
+      max_loss_fraction: 0.5
+      max_margin_utilization: 0.8
+  taxonomy:
+    rb:
+      commodity_id: rb
+      sector_id: ferrous
+      correlation_cluster_id: ferrous-steel
+    cu:
+      commodity_id: cu
+      sector_id: nonferrous
+      correlation_cluster_id: china-metals
+    ta:
+      commodity_id: ta
+      sector_id: chemicals
+      correlation_cluster_id: china-chemicals
+    sa:
+      commodity_id: sa
+      sector_id: chemicals
+      correlation_cluster_id: china-chemicals
+    sc:
+      commodity_id: sc
+      sector_id: energy
+      correlation_cluster_id: china-energy
+  ctp_sim_execution_rules:
+    rb:
+      margin_rate: 0.1
+      max_position_lots: 100
+    cu:
+      margin_rate: 0.1
+      max_position_lots: 100
+    ta:
+      margin_rate: 0.1
+      max_position_lots: 100
+    sa:
+      margin_rate: 0.1
+      max_position_lots: 100
+    sc:
+      margin_rate: 0.1
+      max_position_lots: 100
 data:
   provider: akshare_actual_daily
   source_id: akshare_actual_daily_public_v1

@@ -1,1 +1,5 @@
-"""事件研究方法与结果制品的预留边界。"""
+"""PIT-correct event-study contracts for intelligence research."""
+
+from northstar_quant.intelligence.event_study.models import EventStudyError, EventStudyResult, EventWindow, event_study_as_of
+
+__all__ = ["EventStudyError", "EventStudyResult", "EventWindow", "event_study_as_of"]

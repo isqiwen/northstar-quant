@@ -4,8 +4,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from functools import lru_cache
+from hashlib import sha256
+import json
 import math
 from pathlib import Path
+import re
 from typing import Any, TypeVar, cast
 
 from northstar_quant.platform.common.enums import (
@@ -44,12 +47,38 @@ _PROFILE_TOP_LEVEL_FIELDS = frozenset(
         "execution",
         "backtest",
         "versions",
+        "portfolio_risk_approval",
         "risk",
         "schedule",
         "research_admission",
         "metadata",
     }
 )
+
+
+_PORTFOLIO_RISK_LIMIT_FIELDS = (
+    "per_contract",
+    "per_commodity",
+    "per_sector",
+    "per_exchange",
+    "per_strategy",
+    "per_account",
+    "gross_leverage",
+    "net_leverage",
+    "margin_utilization",
+)
+_PORTFOLIO_RISK_SCENARIO_KINDS = frozenset(
+    {
+        "gap",
+        "limit_move",
+        "volatility_shock",
+        "liquidity_collapse",
+        "correlated_commodity_shock",
+        "margin_increase",
+        "fx_shock",
+    }
+)
+_PORTFOLIO_RISK_IDENTIFIER_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]*$")
 
 
 def _parse_enum(enum_cls: type[EnumValue], value: str | EnumValue) -> EnumValue:
@@ -97,6 +126,58 @@ def _parse_string_mapping(
             raise ValueError(f"配置字段 {field_name} 包含重复键：{key}")
         parsed[key] = raw_value.strip()
     return parsed
+
+
+def _required_config_text(value: object, *, field_name: str) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{field_name} must be a non-empty string")
+    return value.strip()
+
+
+def _normalized_product_id(value: object, *, field_name: str) -> str:
+    return _required_config_text(value, field_name=field_name).lower()
+
+
+def _portfolio_risk_identifier(value: object, *, field_name: str) -> str:
+    normalized = _required_config_text(value, field_name=field_name)
+    if _PORTFOLIO_RISK_IDENTIFIER_RE.fullmatch(normalized) is None:
+        raise ValueError(
+            f"{field_name} must match [A-Za-z0-9][A-Za-z0-9._:-]*"
+        )
+    return normalized
+
+
+def _non_negative_finite_number(value: object, *, field_name: str) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"{field_name} must be a non-negative finite number")
+    normalized = float(value)
+    if not math.isfinite(normalized) or normalized < 0:
+        raise ValueError(f"{field_name} must be a non-negative finite number")
+    return normalized
+
+
+def _positive_finite_number(value: object, *, field_name: str) -> float:
+    normalized = _non_negative_finite_number(value, field_name=field_name)
+    if normalized <= 0:
+        raise ValueError(f"{field_name} must be a positive finite number")
+    return normalized
+
+
+def _positive_fraction(value: object, *, field_name: str) -> float:
+    normalized = _non_negative_finite_number(value, field_name=field_name)
+    if normalized <= 0 or normalized > 1:
+        raise ValueError(f"{field_name} must be a finite number in (0, 1]")
+    return normalized
+
+
+def _canonical_config_hash(payload: dict[str, object]) -> str:
+    encoded = json.dumps(
+        payload,
+        ensure_ascii=True,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return sha256(encoded).hexdigest()
 
 
 def _validate_profile_top_level_fields(raw: dict[str, Any]) -> None:
@@ -268,6 +349,368 @@ class ProfileVersionConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class PortfolioRiskLimitConfig:
+    """The exact nine P3 portfolio-risk limits selected by one profile policy."""
+
+    per_contract: float
+    per_commodity: float
+    per_sector: float
+    per_exchange: float
+    per_strategy: float
+    per_account: float
+    gross_leverage: float
+    net_leverage: float
+    margin_utilization: float
+
+    def __post_init__(self) -> None:
+        for field_name in _PORTFOLIO_RISK_LIMIT_FIELDS:
+            object.__setattr__(
+                self,
+                field_name,
+                _non_negative_finite_number(
+                    getattr(self, field_name),
+                    field_name=f"portfolio_risk_approval.limits.{field_name}",
+                ),
+            )
+
+    def as_mapping(self) -> dict[str, object]:
+        return {
+            field_name: getattr(self, field_name)
+            for field_name in _PORTFOLIO_RISK_LIMIT_FIELDS
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class PortfolioRiskScenarioConfig:
+    """One profile-owned P3 stress scenario and its approval thresholds."""
+
+    kind: str
+    scenario_id: str
+    shock_fraction: float
+    max_loss_fraction: float
+    max_margin_utilization: float
+
+    def __post_init__(self) -> None:
+        kind = _required_config_text(
+            self.kind,
+            field_name="portfolio_risk_approval.scenarios.kind",
+        ).lower()
+        if kind not in _PORTFOLIO_RISK_SCENARIO_KINDS:
+            raise ValueError(
+                "portfolio_risk_approval.scenarios.kind must be one of: "
+                + ", ".join(sorted(_PORTFOLIO_RISK_SCENARIO_KINDS))
+            )
+        object.__setattr__(self, "kind", kind)
+        object.__setattr__(
+            self,
+            "scenario_id",
+            _required_config_text(
+                self.scenario_id,
+                field_name="portfolio_risk_approval.scenarios.scenario_id",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "shock_fraction",
+            _positive_finite_number(
+                self.shock_fraction,
+                field_name="portfolio_risk_approval.scenarios.shock_fraction",
+            ),
+        )
+        for field_name in ("max_loss_fraction", "max_margin_utilization"):
+            object.__setattr__(
+                self,
+                field_name,
+                _non_negative_finite_number(
+                    getattr(self, field_name),
+                    field_name=f"portfolio_risk_approval.scenarios.{field_name}",
+                ),
+            )
+
+    def as_mapping(self) -> dict[str, object]:
+        return {
+            "kind": self.kind,
+            "scenario_id": self.scenario_id,
+            "shock_fraction": self.shock_fraction,
+            "max_loss_fraction": self.max_loss_fraction,
+            "max_margin_utilization": self.max_margin_utilization,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class PortfolioRiskTaxonomyEntry:
+    """Profile-owned classification for one executable product family."""
+
+    product_id: str
+    commodity_id: str
+    sector_id: str
+    correlation_cluster_id: str
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "product_id",
+            _normalized_product_id(
+                self.product_id,
+                field_name="portfolio_risk_approval.taxonomy product_id",
+            ),
+        )
+        for field_name in (
+            "commodity_id",
+            "sector_id",
+            "correlation_cluster_id",
+        ):
+            object.__setattr__(
+                self,
+                field_name,
+                _required_config_text(
+                    getattr(self, field_name),
+                    field_name=f"portfolio_risk_approval.taxonomy.{field_name}",
+                ),
+            )
+
+    def as_mapping(self) -> dict[str, object]:
+        return {
+            "product_id": self.product_id,
+            "commodity_id": self.commodity_id,
+            "sector_id": self.sector_id,
+            "correlation_cluster_id": self.correlation_cluster_id,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class CtpSimPortfolioRiskExecutionRule:
+    """Simulator-only execution limits owned by the selected risk policy."""
+
+    product_id: str
+    margin_rate: float
+    max_position_lots: int
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "product_id",
+            _normalized_product_id(
+                self.product_id,
+                field_name="portfolio_risk_approval.ctp_sim_execution_rules product_id",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "margin_rate",
+            _positive_fraction(
+                self.margin_rate,
+                field_name="portfolio_risk_approval.ctp_sim_execution_rules.margin_rate",
+            ),
+        )
+        if (
+            isinstance(self.max_position_lots, bool)
+            or not isinstance(self.max_position_lots, int)
+            or self.max_position_lots < 1
+        ):
+            raise ValueError(
+                "portfolio_risk_approval.ctp_sim_execution_rules.max_position_lots "
+                "must be a positive integer"
+            )
+
+    def as_mapping(self) -> dict[str, object]:
+        return {
+            "product_id": self.product_id,
+            "margin_rate": self.margin_rate,
+            "max_position_lots": self.max_position_lots,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class ProfilePortfolioRiskApprovalConfig:
+    """Complete typed policy authority for one P3 approval boundary.
+
+    This record intentionally has no runtime defaults.  A profile either names
+    the complete policy it wants to use, or a CTP-sim caller must fail closed.
+    """
+
+    policy_id: str
+    policy_version: str
+    max_input_age_seconds: int
+    manual_approval_verifier_id: str
+    authorized_approver_ids: tuple[str, ...]
+    limits: PortfolioRiskLimitConfig
+    scenarios: tuple[PortfolioRiskScenarioConfig, ...]
+    taxonomy: tuple[PortfolioRiskTaxonomyEntry, ...]
+    ctp_sim_execution_rules: tuple[CtpSimPortfolioRiskExecutionRule, ...]
+    config_hash: str = field(init=False)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "policy_id",
+            _portfolio_risk_identifier(
+                self.policy_id,
+                field_name="portfolio_risk_approval.policy_id",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "policy_version",
+            _portfolio_risk_identifier(
+                self.policy_version,
+                field_name="portfolio_risk_approval.policy_version",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "max_input_age_seconds",
+            _parse_positive_int(
+                self.max_input_age_seconds,
+                field_name="portfolio_risk_approval.max_input_age_seconds",
+                minimum=1,
+            ),
+        )
+        object.__setattr__(
+            self,
+            "manual_approval_verifier_id",
+            _portfolio_risk_identifier(
+                self.manual_approval_verifier_id,
+                field_name="portfolio_risk_approval.manual_approval_verifier_id",
+            ),
+        )
+        if (
+            not isinstance(self.authorized_approver_ids, tuple)
+            or not self.authorized_approver_ids
+        ):
+            raise ValueError(
+                "portfolio_risk_approval.authorized_approver_ids must be a non-empty tuple"
+            )
+        authorized_approver_ids = tuple(
+            sorted(
+                _portfolio_risk_identifier(
+                    item,
+                    field_name="portfolio_risk_approval.authorized_approver_ids",
+                )
+                for item in self.authorized_approver_ids
+            )
+        )
+        if len(set(authorized_approver_ids)) != len(authorized_approver_ids):
+            raise ValueError(
+                "portfolio_risk_approval.authorized_approver_ids cannot contain duplicates"
+            )
+        if type(self.limits) is not PortfolioRiskLimitConfig:
+            raise ValueError(
+                "portfolio_risk_approval.limits must be a PortfolioRiskLimitConfig"
+            )
+        if (
+            not isinstance(self.scenarios, tuple)
+            or len(self.scenarios) != len(_PORTFOLIO_RISK_SCENARIO_KINDS)
+            or not all(type(item) is PortfolioRiskScenarioConfig for item in self.scenarios)
+        ):
+            raise ValueError(
+                "portfolio_risk_approval.scenarios must contain exactly one typed entry "
+                "for every P3 scenario kind"
+            )
+        scenarios = tuple(sorted(self.scenarios, key=lambda item: item.kind))
+        if {item.kind for item in scenarios} != _PORTFOLIO_RISK_SCENARIO_KINDS:
+            raise ValueError(
+                "portfolio_risk_approval.scenarios must cover every P3 scenario kind exactly once"
+            )
+        if len({item.scenario_id for item in scenarios}) != len(scenarios):
+            raise ValueError("portfolio_risk_approval.scenarios cannot duplicate scenario_id")
+
+        if (
+            not isinstance(self.taxonomy, tuple)
+            or not self.taxonomy
+            or not all(type(item) is PortfolioRiskTaxonomyEntry for item in self.taxonomy)
+        ):
+            raise ValueError(
+                "portfolio_risk_approval.taxonomy must be a non-empty typed product mapping"
+            )
+        taxonomy = tuple(sorted(self.taxonomy, key=lambda item: item.product_id))
+        if len({item.product_id for item in taxonomy}) != len(taxonomy):
+            raise ValueError("portfolio_risk_approval.taxonomy cannot duplicate product_id")
+
+        if (
+            not isinstance(self.ctp_sim_execution_rules, tuple)
+            or not self.ctp_sim_execution_rules
+            or not all(
+                type(item) is CtpSimPortfolioRiskExecutionRule
+                for item in self.ctp_sim_execution_rules
+            )
+        ):
+            raise ValueError(
+                "portfolio_risk_approval.ctp_sim_execution_rules must be a non-empty "
+                "typed product mapping"
+            )
+        rules = tuple(sorted(self.ctp_sim_execution_rules, key=lambda item: item.product_id))
+        if len({item.product_id for item in rules}) != len(rules):
+            raise ValueError(
+                "portfolio_risk_approval.ctp_sim_execution_rules cannot duplicate product_id"
+            )
+        if {item.product_id for item in taxonomy} != {item.product_id for item in rules}:
+            raise ValueError(
+                "portfolio_risk_approval.taxonomy and ctp_sim_execution_rules must cover "
+                "the exact same product_id set"
+            )
+
+        object.__setattr__(self, "scenarios", scenarios)
+        object.__setattr__(self, "taxonomy", taxonomy)
+        object.__setattr__(self, "ctp_sim_execution_rules", rules)
+        object.__setattr__(self, "authorized_approver_ids", authorized_approver_ids)
+        object.__setattr__(
+            self,
+            "config_hash",
+            _canonical_config_hash(self.as_mapping(False)),
+        )
+
+    def as_mapping(self, include_hash: bool = True) -> dict[str, object]:
+        result: dict[str, object] = {
+            "format": "northstar.profile-portfolio-risk-approval.v1",
+            "policy_id": self.policy_id,
+            "policy_version": self.policy_version,
+            "max_input_age_seconds": self.max_input_age_seconds,
+            "manual_approval_verifier_id": self.manual_approval_verifier_id,
+            "authorized_approver_ids": list(self.authorized_approver_ids),
+            "limits": self.limits.as_mapping(),
+            "scenarios": [item.as_mapping() for item in self.scenarios],
+            "taxonomy": [item.as_mapping() for item in self.taxonomy],
+            "ctp_sim_execution_rules": [
+                item.as_mapping() for item in self.ctp_sim_execution_rules
+            ],
+        }
+        if include_hash:
+            result["config_hash"] = self.config_hash
+        return result
+
+    def taxonomy_for(self, product_id: str) -> PortfolioRiskTaxonomyEntry:
+        normalized = _normalized_product_id(
+            product_id,
+            field_name="portfolio_risk_approval taxonomy lookup product_id",
+        )
+        for item in self.taxonomy:
+            if item.product_id == normalized:
+                return item
+        raise KeyError(
+            "portfolio_risk_approval.taxonomy does not configure product_id: "
+            + normalized
+        )
+
+    def ctp_sim_execution_rule_for(
+        self,
+        product_id: str,
+    ) -> CtpSimPortfolioRiskExecutionRule:
+        normalized = _normalized_product_id(
+            product_id,
+            field_name="portfolio_risk_approval ctp_sim rule lookup product_id",
+        )
+        for item in self.ctp_sim_execution_rules:
+            if item.product_id == normalized:
+                return item
+        raise KeyError(
+            "portfolio_risk_approval.ctp_sim_execution_rules does not configure "
+            "product_id: "
+            + normalized
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class ProfileResearchAdmissionConfig:
     """画像绑定的候选策略研究准入政策。
 
@@ -310,6 +753,7 @@ class TradingProfile:
     execution: ProfileExecutionConfig = field(default_factory=ProfileExecutionConfig)  # 再平衡/手数执行约束。
     backtest: ProfileBacktestConfig = field(default_factory=ProfileBacktestConfig)  # 回测撮合假设。
     versions: ProfileVersionConfig = field(default_factory=ProfileVersionConfig)  # 可追溯性版本锚点。
+    portfolio_risk_approval: ProfilePortfolioRiskApprovalConfig | None = None
     research_admission: ProfileResearchAdmissionConfig = field(
         default_factory=ProfileResearchAdmissionConfig
     )  # 候选研究准入政策绑定。
@@ -318,6 +762,13 @@ class TradingProfile:
     metadata: dict[str, Any] = field(default_factory=dict)  # 显式非运行时元数据；不应假定影响交易行为。
 
     def __post_init__(self) -> None:
+        if (
+            self.portfolio_risk_approval is not None
+            and type(self.portfolio_risk_approval) is not ProfilePortfolioRiskApprovalConfig
+        ):
+            raise ValueError(
+                "portfolio_risk_approval must be a ProfilePortfolioRiskApprovalConfig or None"
+            )
         strategy_ids = [strategy.strategy_id for strategy in self.strategies]
         duplicate_ids = sorted(
             strategy_id
@@ -868,6 +1319,14 @@ def _load_trading_profile(
         execution_policy=str(versions_raw.get("execution_policy", "v1")),
         risk_policy=str(versions_raw.get("risk_policy", "v1")),
     )
+    portfolio_risk_approval_config = (
+        _parse_portfolio_risk_approval_config(
+            raw["portfolio_risk_approval"],
+            risk_policy_version=version_config.risk_policy,
+        )
+        if "portfolio_risk_approval" in raw
+        else None
+    )
     research_admission_config = ProfileResearchAdmissionConfig(
         enabled=_parse_bool(
             research_admission_raw.get("enabled", False),
@@ -941,6 +1400,7 @@ def _load_trading_profile(
         execution=execution_config,
         backtest=backtest_config,
         versions=version_config,
+        portfolio_risk_approval=portfolio_risk_approval_config,
         research_admission=research_admission_config,
         risk=dict(raw.get("risk", {}) or {}),
         schedule=dict(raw.get("schedule", {}) or {}),
@@ -955,3 +1415,175 @@ def _parse_positive_int(value: object, *, field_name: str, minimum: int) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or value < minimum:
         raise ValueError(f"配置字段 {field_name} 必须是大于等于 {minimum} 的整数")
     return value
+
+
+def _require_exact_config_fields(
+    value: dict[str, Any],
+    *,
+    field_name: str,
+    required: frozenset[str],
+) -> None:
+    missing = sorted(required.difference(value))
+    unknown = sorted(set(value).difference(required))
+    if missing or unknown:
+        details: list[str] = []
+        if missing:
+            details.append("missing=" + ", ".join(missing))
+        if unknown:
+            details.append("unknown=" + ", ".join(unknown))
+        raise ValueError(f"{field_name} has an invalid field set: " + "; ".join(details))
+
+
+def _parse_portfolio_risk_approval_config(
+    value: object,
+    *,
+    risk_policy_version: str,
+) -> ProfilePortfolioRiskApprovalConfig:
+    """Parse a complete policy authority without accepting any fallback values."""
+
+    if not isinstance(value, dict):
+        raise ValueError("portfolio_risk_approval must be an object")
+    _require_exact_config_fields(
+        value,
+        field_name="portfolio_risk_approval",
+        required=frozenset(
+            {
+                "policy_id",
+                "policy_version",
+                "max_input_age_seconds",
+                "manual_approval_verifier_id",
+                "authorized_approver_ids",
+                "limits",
+                "scenarios",
+                "taxonomy",
+                "ctp_sim_execution_rules",
+            }
+        ),
+    )
+
+    limits_raw = value["limits"]
+    if not isinstance(limits_raw, dict):
+        raise ValueError("portfolio_risk_approval.limits must be an object")
+    _require_exact_config_fields(
+        limits_raw,
+        field_name="portfolio_risk_approval.limits",
+        required=frozenset(_PORTFOLIO_RISK_LIMIT_FIELDS),
+    )
+    limits = PortfolioRiskLimitConfig(
+        **{
+            field_name: limits_raw[field_name]
+            for field_name in _PORTFOLIO_RISK_LIMIT_FIELDS
+        }
+    )
+
+    scenarios_raw = value["scenarios"]
+    if not isinstance(scenarios_raw, list):
+        raise ValueError("portfolio_risk_approval.scenarios must be a list")
+    scenarios: list[PortfolioRiskScenarioConfig] = []
+    for index, item in enumerate(scenarios_raw):
+        field_name = f"portfolio_risk_approval.scenarios[{index}]"
+        if not isinstance(item, dict):
+            raise ValueError(f"{field_name} must be an object")
+        _require_exact_config_fields(
+            item,
+            field_name=field_name,
+            required=frozenset(
+                {
+                    "kind",
+                    "scenario_id",
+                    "shock_fraction",
+                    "max_loss_fraction",
+                    "max_margin_utilization",
+                }
+            ),
+        )
+        scenarios.append(
+            PortfolioRiskScenarioConfig(
+                kind=item["kind"],
+                scenario_id=item["scenario_id"],
+                shock_fraction=item["shock_fraction"],
+                max_loss_fraction=item["max_loss_fraction"],
+                max_margin_utilization=item["max_margin_utilization"],
+            )
+        )
+
+    authorized_approver_ids_raw = value["authorized_approver_ids"]
+    if (
+        not isinstance(authorized_approver_ids_raw, list)
+        or not authorized_approver_ids_raw
+    ):
+        raise ValueError(
+            "portfolio_risk_approval.authorized_approver_ids must be a non-empty list"
+        )
+
+    taxonomy_raw = value["taxonomy"]
+    if not isinstance(taxonomy_raw, dict) or not taxonomy_raw:
+        raise ValueError("portfolio_risk_approval.taxonomy must be a non-empty object")
+    taxonomy: list[PortfolioRiskTaxonomyEntry] = []
+    for raw_product_id, item in taxonomy_raw.items():
+        product_id = _normalized_product_id(
+            raw_product_id,
+            field_name="portfolio_risk_approval.taxonomy product_id",
+        )
+        field_name = f"portfolio_risk_approval.taxonomy.{product_id}"
+        if not isinstance(item, dict):
+            raise ValueError(f"{field_name} must be an object")
+        _require_exact_config_fields(
+            item,
+            field_name=field_name,
+            required=frozenset(
+                {"commodity_id", "sector_id", "correlation_cluster_id"}
+            ),
+        )
+        taxonomy.append(
+            PortfolioRiskTaxonomyEntry(
+                product_id=product_id,
+                commodity_id=item["commodity_id"],
+                sector_id=item["sector_id"],
+                correlation_cluster_id=item["correlation_cluster_id"],
+            )
+        )
+
+    rules_raw = value["ctp_sim_execution_rules"]
+    if not isinstance(rules_raw, dict) or not rules_raw:
+        raise ValueError(
+            "portfolio_risk_approval.ctp_sim_execution_rules must be a non-empty object"
+        )
+    rules: list[CtpSimPortfolioRiskExecutionRule] = []
+    for raw_product_id, item in rules_raw.items():
+        product_id = _normalized_product_id(
+            raw_product_id,
+            field_name="portfolio_risk_approval.ctp_sim_execution_rules product_id",
+        )
+        field_name = f"portfolio_risk_approval.ctp_sim_execution_rules.{product_id}"
+        if not isinstance(item, dict):
+            raise ValueError(f"{field_name} must be an object")
+        _require_exact_config_fields(
+            item,
+            field_name=field_name,
+            required=frozenset({"margin_rate", "max_position_lots"}),
+        )
+        rules.append(
+            CtpSimPortfolioRiskExecutionRule(
+                product_id=product_id,
+                margin_rate=item["margin_rate"],
+                max_position_lots=item["max_position_lots"],
+            )
+        )
+
+    config = ProfilePortfolioRiskApprovalConfig(
+        policy_id=value["policy_id"],
+        policy_version=value["policy_version"],
+        max_input_age_seconds=value["max_input_age_seconds"],
+        manual_approval_verifier_id=value["manual_approval_verifier_id"],
+        authorized_approver_ids=tuple(authorized_approver_ids_raw),
+        limits=limits,
+        scenarios=tuple(scenarios),
+        taxonomy=tuple(taxonomy),
+        ctp_sim_execution_rules=tuple(rules),
+    )
+    if config.policy_version != risk_policy_version:
+        raise ValueError(
+            "portfolio_risk_approval.policy_version must equal versions.risk_policy"
+        )
+    return config

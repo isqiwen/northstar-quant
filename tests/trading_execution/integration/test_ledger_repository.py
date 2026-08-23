@@ -2,6 +2,7 @@ import json
 from datetime import UTC, date, datetime
 
 import polars as pl
+import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -9,6 +10,8 @@ from northstar_quant.platform.common.enums import StrategyOutputType
 from northstar_quant.platform.db.models import (
     AccountSnapshotRecord,
     ExecutionPlanRecord,
+    LedgerAdjustmentRecord,
+    SettlementRecord,
     StrategyRunRecord,
     StrategySnapshotRecord,
     WorkingOrderSnapshotRecord,
@@ -16,6 +19,8 @@ from northstar_quant.platform.db.models import (
 from northstar_quant.platform.db.repositories import (
     save_account_snapshot,
     save_execution_plan_records,
+    record_controlled_ledger_adjustment,
+    save_settlement_record,
     save_strategy_run_snapshot,
     save_working_order_snapshots,
 )
@@ -251,3 +256,97 @@ def test_save_working_order_snapshots_persists_open_order_batch(postgresql_engin
     assert row.remaining_qty == 80.0
     assert row.status == "PartiallyFilled"
     assert row.observed_at == observed_at
+
+
+def test_settlement_and_controlled_adjustment_are_append_only_and_idempotent(
+    postgresql_engine,
+):
+    engine = postgresql_engine
+    settled_at = datetime(2026, 8, 22, 7, tzinfo=UTC)
+
+    with Session(engine, future=True) as session:
+        settlement = save_settlement_record(
+            session,
+            settlement_id="ctp-settlement-20260821",
+            settlement_date=date(2026, 8, 21),
+            broker="ctp_sim",
+            account="sim-ledger",
+            profile_id="cn_futures_daily_trend_simulated",
+            account_snapshot_id=None,
+            cash_balance=98_500.0,
+            margin=12_000.0,
+            realized_pnl=400.0,
+            unrealized_pnl=100.0,
+            fee=-15.0,
+            currency="CNY",
+            evidence={"source": "ctp_sim", "settlement_ref": "20260821"},
+            settled_at=settled_at,
+        )
+        replay = save_settlement_record(
+            session,
+            settlement_id="ctp-settlement-20260821",
+            settlement_date=date(2026, 8, 21),
+            broker="ctp_sim",
+            account="sim-ledger",
+            profile_id="cn_futures_daily_trend_simulated",
+            account_snapshot_id=None,
+            cash_balance=98_500.0,
+            margin=12_000.0,
+            realized_pnl=400.0,
+            unrealized_pnl=100.0,
+            fee=-15.0,
+            currency="CNY",
+            evidence={"source": "ctp_sim", "settlement_ref": "20260821"},
+            settled_at=settled_at,
+        )
+        adjustment = record_controlled_ledger_adjustment(
+            session,
+            adjustment_id="adj-20260822-001",
+            broker="ctp_sim",
+            account="sim-ledger",
+            profile_id="cn_futures_daily_trend_simulated",
+            amount=-3.5,
+            currency="CNY",
+            reason="broker fee correction",
+            approver_id="risk-owner",
+            evidence={"ticket": "OPS-42", "broker_notice": "fee correction"},
+            occurred_at=settled_at,
+        )
+        assert replay.id == settlement.id
+        assert session.scalar(select(SettlementRecord)) is not None
+        assert session.scalar(select(LedgerAdjustmentRecord)) is not None
+
+        with pytest.raises(RuntimeError, match="SETTLEMENT_IDENTITY_MISMATCH"):
+            save_settlement_record(
+                session,
+                settlement_id="ctp-settlement-20260821",
+                settlement_date=date(2026, 8, 21),
+                broker="ctp_sim",
+                account="sim-ledger",
+                profile_id="cn_futures_daily_trend_simulated",
+                account_snapshot_id=None,
+                cash_balance=98_501.0,
+                margin=12_000.0,
+                realized_pnl=400.0,
+                unrealized_pnl=100.0,
+                fee=-15.0,
+                currency="CNY",
+                evidence={"source": "ctp_sim", "settlement_ref": "20260821"},
+                settled_at=settled_at,
+            )
+        with pytest.raises(ValueError, match="approver_id"):
+            record_controlled_ledger_adjustment(
+                session,
+                adjustment_id="adj-20260822-002",
+                broker="ctp_sim",
+                account="sim-ledger",
+                profile_id="cn_futures_daily_trend_simulated",
+                amount=1.0,
+                currency="CNY",
+                reason="unapproved",
+                approver_id="",
+                evidence={"ticket": "OPS-43"},
+                occurred_at=settled_at,
+            )
+
+    assert adjustment.amount == -3.5

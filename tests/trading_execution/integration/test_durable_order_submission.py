@@ -4,9 +4,11 @@ from threading import Barrier
 
 import pytest
 from sqlalchemy import select
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 from tests.helpers.durable_submission import RecordingBroker, order_request
 
+import northstar_quant.trading_execution.orders.durable_submission as durable_submission_module
 from northstar_quant.platform.db.models import OrderRecord
 from northstar_quant.platform.db.repositories import (
     prepare_order_submission,
@@ -42,7 +44,7 @@ def test_order_intent_is_committed_before_broker_call_and_replay_is_idempotent(
     assert replay.replayed is True
     assert replay.broker_order_id == "broker-42"
     assert row is not None
-    assert row.status == "Submitted"
+    assert row.status == "ACCEPTED"
     assert row.broker_acknowledged_at is not None
 
 
@@ -95,19 +97,30 @@ def test_final_instrument_payload_is_persisted_before_broker_call(postgresql_eng
         )
 
 
-def test_submission_exception_stays_unknown_and_cannot_be_retried(postgresql_engine):
+@pytest.mark.parametrize(
+    ("failure", "failure_name"),
+    [
+        (TimeoutError("transport acknowledgement unavailable"), "TimeoutError"),
+        (ConnectionError("transport acknowledgement unavailable"), "ConnectionError"),
+    ],
+)
+def test_timeout_or_network_partition_stays_unknown_and_cannot_be_retried(
+    postgresql_engine,
+    failure: Exception,
+    failure_name: str,
+):
     engine = postgresql_engine
-    broker = RecordingBroker(error=TimeoutError("connection lost"))
+    broker = RecordingBroker(error=failure)
 
     with Session(engine, future=True) as session:
         durable = DurableBrokerAdapter(broker, session)
-        with pytest.raises(TimeoutError, match="connection lost"):
+        with pytest.raises(type(failure), match="transport acknowledgement unavailable"):
             durable.submit_order(order_request())
 
         row = session.scalar(select(OrderRecord))
         assert row is not None
         assert row.status == "SubmissionUnknown"
-        assert "TimeoutError" in str(row.last_submission_error)
+        assert failure_name in str(row.last_submission_error)
 
         with pytest.raises(
             SubmissionRecoveryRequired,
@@ -116,6 +129,28 @@ def test_submission_exception_stays_unknown_and_cannot_be_retried(postgresql_eng
             durable.submit_order(order_request())
 
     assert broker.submit_count == 1
+
+
+def test_database_unavailable_prevents_any_broker_submission(monkeypatch):
+    broker = RecordingBroker()
+
+    def raise_database_unavailable(*_args, **_kwargs):
+        raise OperationalError(
+            "INSERT order_records",
+            {},
+            ConnectionError("database unavailable"),
+        )
+
+    monkeypatch.setattr(
+        durable_submission_module,
+        "prepare_order_submission",
+        raise_database_unavailable,
+    )
+
+    with pytest.raises(OperationalError, match="database unavailable"):
+        DurableBrokerAdapter(broker, Session()).submit_order(order_request())
+
+    assert broker.submit_count == 0
 
 
 def test_same_idempotency_key_with_different_payload_fails_closed(postgresql_engine):

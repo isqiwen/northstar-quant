@@ -35,6 +35,17 @@ COMPOSITION_MODULES = {
     "target_service.py",
     "scheduler.py",
     "decision_replay_backtest.py",
+    "agent_tools.py",
+    "ops_tools.py",
+    "research_agent.py",
+    "intelligence_agent.py",
+    "data_quality_agent.py",
+    "ops_agent.py",
+    "candidate_acceptance.py",
+    "intelligence_feature_projection.py",
+    "research_strategy_activation.py",
+    "execution_provenance_preflight.py",
+    "ctp_sim_candidate_execution.py",
 }
 
 EXPECTED_SUBPACKAGES = {
@@ -58,6 +69,7 @@ EXPECTED_SUBPACKAGES = {
         "context",
         "analogue",
         "event_study",
+        "feature_projection",
     },
     "research": {"features", "experiments", "validation", "statistics", "factors", "strategies", "backtest"},
     "portfolio_risk": {"portfolio", "allocation", "exposure", "limits", "risk"},
@@ -80,6 +92,7 @@ EXPECTED_SUBPACKAGES = {
         "reporting",
         "security",
         "cli",
+        "backup",
     },
 }
 
@@ -97,7 +110,9 @@ def test_only_six_domains_and_application_are_top_level_packages() -> None:
         f"{', '.join(sorted(top_level_packages))}"
     )
     lingering_legacy = sorted(
-        package for package in LEGACY_TOP_LEVEL_PACKAGES if (PACKAGE_ROOT / package).exists()
+        package
+        for package in LEGACY_TOP_LEVEL_PACKAGES
+        if (PACKAGE_ROOT / package / "__init__.py").is_file()
     )
     assert not lingering_legacy, f"仍保留旧顶层兼容包：{', '.join(lingering_legacy)}"
 

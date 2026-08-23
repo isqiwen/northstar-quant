@@ -7,6 +7,10 @@ deploy_validate_production_env() {
   local environment
   local live_enabled
 
+  if ! deploy_validate_environment_file "${env_file}"; then
+    deploy_fail "生产环境文件格式无效、包含重复键或不受支持的赋值。"
+  fi
+
   environment="$(deploy_read_env_value "${env_file}" "NORTHSTAR_ENV")"
   if [ "${environment}" != "production" ]; then
     deploy_fail "服务器环境必须设置 NORTHSTAR_ENV=production。"

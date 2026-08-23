@@ -451,6 +451,7 @@ def test_tampered_parent_cycle_is_rejected_during_replay(tmp_path: Path) -> None
     normalized_ref.record_path.write_text(
         json.dumps(record, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n",
         encoding="utf-8",
+        newline="\n",
     )
 
     with pytest.raises(ArtifactIntegrityConflict, match="循环"):
@@ -475,6 +476,7 @@ def test_tampered_dataset_manifest_record_hash_is_rejected(tmp_path: Path) -> No
     stored.manifest_path.write_text(
         json.dumps(manifest, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n",
         encoding="utf-8",
+        newline="\n",
     )
 
     with pytest.raises(ArtifactIntegrityConflict, match="record 哈希"):

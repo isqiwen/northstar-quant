@@ -1,0 +1,54 @@
+{
+  "format": "northstar.canonical-portfolio-composition-golden.v1",
+  "fixture_id": "p10-canonical-two-strategy-portfolio",
+  "allocation_result": {
+    "format": "northstar.allocation-result.v1",
+    "allocations": [
+      {
+        "strategy_target_hash": "7bde18a6ab5ee9d4838349b88e1e798ad81f9561fa2eb0f46de69f75c802b69f",
+        "allocation": 0.3,
+        "volatility_scale": 1.0
+      },
+      {
+        "strategy_target_hash": "f8a34a5e8d92688c4331a3e7d85386eb4ae804d18cad6a211fd752ef46582ab6",
+        "allocation": 0.4,
+        "volatility_scale": 1.0
+      }
+    ],
+    "unallocated_cash": 0.30000000000000004,
+    "allocation_hash": "60c3276bc8ae2eb991bfddf21df50f6215d67d5dc999231523a6636e9c80490f"
+  },
+  "portfolio_target": {
+    "format": "northstar.portfolio-target.v2",
+    "target_id": "p10-canonical-two-strategy-portfolio",
+    "generated_at": "2026-08-23T09:02:00+00:00",
+    "effective_at": "2026-08-23T09:03:00+00:00",
+    "expires_at": "2026-08-23T10:02:00+00:00",
+    "source_strategy_target_hashes": [
+      "7bde18a6ab5ee9d4838349b88e1e798ad81f9561fa2eb0f46de69f75c802b69f",
+      "f8a34a5e8d92688c4331a3e7d85386eb4ae804d18cad6a211fd752ef46582ab6"
+    ],
+    "positions": [
+      {
+        "instrument_id": "SHFE.AU2610",
+        "target_weight": 0.12
+      },
+      {
+        "instrument_id": "SHFE.CU2610",
+        "target_weight": 0.1
+      },
+      {
+        "instrument_id": "SHFE.RB2610",
+        "target_weight": 0.14
+      }
+    ],
+    "composition_hash": "127591b3a40d774e0a64a0b7908a6f2a7588c72509ad741a7b21ee91bdf3af67",
+    "target_hash": "ec38ae68db2089c33e19040abbc73ed752d7265e0c4f31c84ae451e0227c5931"
+  },
+  "contribution_hashes": [
+    "63ce8f826e6caab4d0f89d361824cf342ad0ce24fbce4acbfc766281e0081da3",
+    "6ff53a473e2def1d45a776e8c09855bed0050bddb9b8eadd40bc9960b6593d7a"
+  ],
+  "composition_hash": "127591b3a40d774e0a64a0b7908a6f2a7588c72509ad741a7b21ee91bdf3af67",
+  "evidence_hash": "d98466c1c0096cd7833dad67c01a9de28464753b825ac54de8e48ab595ed6b6b"
+}

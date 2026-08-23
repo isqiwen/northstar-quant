@@ -778,6 +778,11 @@ def test_final_submission_guard_reloads_profile_without_process_cache(
     monkeypatch.setattr(live_service, "SessionLocal", _Session)
     monkeypatch.setattr(
         live_service,
+        "latest_reconciliation_safety_state",
+        lambda *_args, **_kwargs: None,
+    )
+    monkeypatch.setattr(
+        live_service,
         "latest_runtime_risk_record",
         lambda *_args, **_kwargs: SimpleNamespace(
             can_submit=True,

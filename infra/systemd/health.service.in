@@ -1,5 +1,6 @@
 [Unit]
 Description=Northstar Quant 部署健康检查
+# Rendered release: @RELEASE_ID@ artifact-sha256: @ARTIFACT_SHA256@
 After=network-online.target
 Wants=network-online.target
 
@@ -9,29 +10,40 @@ RemainAfterExit=true
 User=@SERVICE_USER@
 Group=@SERVICE_USER@
 WorkingDirectory=@CURRENT_LINK@
-EnvironmentFile=@ENV_FILE@
+EnvironmentFile=@CURRENT_LINK@/.env
 Environment=HOME=@SERVICE_HOME@
 Environment=NORTHSTAR_PROJECT_ROOT=@CURRENT_LINK@
-Environment=UV_CACHE_DIR=@SHARED_DIR@/uv-cache
-Environment=UV_PYTHON_INSTALL_DIR=@SHARED_DIR@/python
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=UV_CACHE_DIR=@UV_CACHE_DIR@
+Environment=UV_PYTHON_INSTALL_DIR=@UV_PYTHON_INSTALL_DIR@
 Environment=XDG_CACHE_HOME=@RUNTIME_CACHE_DIR@
 Environment=MPLCONFIGDIR=@RUNTIME_MATPLOTLIB_DIR@
 ExecStart=@CURRENT_LINK@/.venv/bin/northstar health --fail-on-blocked
 TimeoutStartSec=180
 UMask=0077
 NoNewPrivileges=true
+CapabilityBoundingSet=
+AmbientCapabilities=
 PrivateTmp=true
 PrivateDevices=true
 ProtectSystem=strict
 ProtectHome=true
+ProtectClock=true
+ProtectHostname=true
+ProtectKernelLogs=true
 ProtectKernelTunables=true
 ProtectKernelModules=true
 ProtectControlGroups=true
 RestrictSUIDSGID=true
+RestrictNamespaces=true
 LockPersonality=true
 RestrictRealtime=true
+ProtectProc=invisible
+ProcSubset=pid
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
-ReadWritePaths=@SHARED_DIR@ @RUNTIME_STORAGE_DIR@ @RUNTIME_DOWNLOADS_DIR@ @RUNTIME_REPORTS_DIR@ @RUNTIME_LOG_DIR@ @RUNTIME_CACHE_DIR@ @RUNTIME_MATPLOTLIB_DIR@
+ReadWritePaths=@RUNTIME_STORAGE_DIR@ @RUNTIME_DOWNLOADS_DIR@ @RUNTIME_REPORTS_DIR@ @RUNTIME_LOG_DIR@ @RUNTIME_CACHE_DIR@ @RUNTIME_MATPLOTLIB_DIR@ @UV_CACHE_DIR@
 
 [Install]
 WantedBy=multi-user.target

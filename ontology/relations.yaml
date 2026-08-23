@@ -1,0 +1,7 @@
+ontology_version: v1
+relations:
+  - affects
+  - caused_by
+  - located_in
+  - produces
+  - consumes

@@ -12,7 +12,7 @@ import polars as pl
 
 from northstar_quant.platform.common.enums import DataFrequency
 from northstar_quant.platform.common.time import ensure_utc, utc_now
-from northstar_quant.platform.config.settings import get_settings
+from northstar_quant.platform.config.settings import Settings
 from northstar_quant.platform.config.trading_profile import TradingProfile
 from northstar_quant.trading_execution.execution.models import BrokerStateSnapshot
 
@@ -156,8 +156,7 @@ def _aligned_to_frequency(
     return left_utc == right_utc
 
 
-def _max_data_age(profile: TradingProfile) -> timedelta:
-    settings = get_settings()
+def _max_data_age(profile: TradingProfile, settings: Settings) -> timedelta:
     if profile.data_frequency == DataFrequency.W1:
         return timedelta(days=settings.live_preflight_weekly_data_max_age_days)
     if profile.data_frequency == DataFrequency.D1:
@@ -188,6 +187,7 @@ def _append_check(
 def build_preflight_result(
     *,
     profile: TradingProfile,
+    settings: Settings,
     raw_market_df: pl.DataFrame,
     signal_market_df: pl.DataFrame,
     output_frame: pl.DataFrame,
@@ -212,9 +212,11 @@ def build_preflight_result(
     这使 production 路径保持失败关闭。
     """
 
+    if not isinstance(settings, Settings):
+        raise TypeError("settings must be a Settings instance")
     checked_at = ensure_utc(checked_at or utc_now())
     result = PreflightResult(profile_id=profile.profile_id, checked_at=checked_at)
-    max_data_age = _max_data_age(profile)
+    max_data_age = _max_data_age(profile, settings)
 
     normalized_broker = str(broker_name or "").strip().lower()
     if runtime_risk_assessment is None:
@@ -307,7 +309,7 @@ def build_preflight_result(
         provenance_issues: list[str] = []
         approved_live_providers = {
             item.strip().lower()
-            for item in get_settings().approved_live_data_providers.split(",")
+            for item in settings.approved_live_data_providers.split(",")
             if item.strip()
         }
         manifest_source = (
@@ -471,7 +473,7 @@ def build_preflight_result(
     state_age_seconds: int | None = None
     if state_asof is not None:
         state_age_seconds = int((checked_at - ensure_utc(state_asof)).total_seconds())
-    max_state_age_seconds = int(get_settings().live_preflight_max_state_age_seconds)
+    max_state_age_seconds = int(settings.live_preflight_max_state_age_seconds)
     equity_ok = (
         equity is not None
         and math.isfinite(float(equity))
@@ -565,7 +567,7 @@ def build_preflight_result(
             open_order_count=0,
         )
 
-    allow_fallback = bool(get_settings().live_preflight_allow_valuation_price_fallback)
+    allow_fallback = bool(settings.live_preflight_allow_valuation_price_fallback)
     missing_symbols = [
         symbol
         for symbol in execution_symbols

@@ -8,9 +8,12 @@ REJECTED_ORDER_STATUSES = frozenset({"inactive", "rejected"})
 WORKING_ORDER_STATUSES = frozenset(
     {
         "pending",
+        "created",
         "pendingsubmit",
         "presubmitted",
+        "submitting",
         "submitted",
+        "accepted",
         "apipending",
         "pendingcancel",
         "partiallyfilled",

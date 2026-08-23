@@ -321,7 +321,6 @@ def test_run_scheduler_registers_shadow_run_job(monkeypatch):
     assert guard_contexts == [
         "daily_signal",
         "daily_shadow_run",
-        "daily_execution",
     ]
 
 

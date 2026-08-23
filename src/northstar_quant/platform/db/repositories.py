@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 import json
 import math
 import re
-from collections.abc import Sequence
+from hashlib import sha256
+from collections.abc import Callable, Sequence
 from datetime import UTC, date, datetime, time, timedelta
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, SupportsFloat, SupportsIndex
 from uuid import uuid4
 
 import polars as pl
@@ -27,6 +29,8 @@ from northstar_quant.platform.common.order_status import (
 )
 from northstar_quant.platform.common.time import ensure_utc, utc_now
 from northstar_quant.platform.db.models import (
+    _RESEARCH_AGENT_FAILURE_CODES,
+    _RESEARCH_AGENT_TRACE_TOOL_NAMES,
     AccountAttributionRecord,
     AccountSnapshotRecord,
     AnomalyEventRecord,
@@ -34,12 +38,19 @@ from northstar_quant.platform.db.models import (
     CancelRecord,
     ExecutionLeaseRecord,
     ExecutionPlanRecord,
+    ExecutionProvenanceConsumptionRecord,
     FillRecord,
+    LedgerAdjustmentRecord,
     OrderRecord,
+    PortfolioRiskApprovalRecord,
     PositionSnapshotBatchRecord,
     PositionSnapshotRecord,
+    ResearchAgentRunAuditEventRecord,
+    ResearchAgentRunTraceEntryRecord,
+    ReconciliationSafetyStateRecord,
     RuntimeRiskRecord,
     RunHealthRecord,
+    SettlementRecord,
     StrategyRunRecord,
     StrategySnapshotRecord,
     TradeAttributionRecord,
@@ -55,6 +66,9 @@ if TYPE_CHECKING:
         PositionSnapshot,
         RebalanceOrderPlan,
     )
+
+
+_UNSCOPED_RECONCILIATION_PROFILE = "__unscoped__"
 
 
 def save_position_snapshot_batch(
@@ -140,6 +154,13 @@ def save_position_snapshot_batch(
                 long_yesterday_qty=item.long_yesterday_qty,
                 short_today_qty=item.short_today_qty,
                 short_yesterday_qty=item.short_yesterday_qty,
+                long_frozen_qty=item.long_frozen_qty,
+                short_frozen_qty=item.short_frozen_qty,
+                long_closable_qty=item.long_closable_qty,
+                short_closable_qty=item.short_closable_qty,
+                margin=item.margin,
+                realized_pnl=item.realized_pnl,
+                unrealized_pnl=item.unrealized_pnl,
                 asof=batch_asof,
                 snapshot_batch_id=batch_id,
             )
@@ -219,6 +240,8 @@ def _latest_frame_asof(
 def _optional_float(value: object | None) -> float | None:
     if value is None:
         return None
+    if not isinstance(value, (str, bytes, bytearray, SupportsFloat, SupportsIndex)):
+        return None
     try:
         return float(value)
     except (TypeError, ValueError):
@@ -230,6 +253,20 @@ def _optional_text(value: object | None) -> str | None:
         return None
     text = str(value).strip()
     return text or None
+
+
+def _required_execution_provenance_text(
+    value: object,
+    *,
+    field_name: str,
+    sha256: bool = False,
+) -> str:
+    text = _optional_text(value)
+    if text is None:
+        raise ValueError(f"{field_name} is required")
+    if sha256 and re.fullmatch(r"[0-9a-f]{64}", text) is None:
+        raise ValueError(f"{field_name} must be a lowercase SHA-256")
+    return text
 
 
 def _first_float(*values: object | None) -> float | None:
@@ -445,6 +482,7 @@ def save_execution_plan_records(
     batch_id: str | None,
     profile_id: str | None,
     execution_planner_id: str | None,
+    commit: bool = True,
 ) -> int:
     """保存执行计划账本。"""
 
@@ -486,7 +524,10 @@ def save_execution_plan_records(
         )
         count += 1
 
-    session.commit()
+    if commit:
+        session.commit()
+    else:
+        session.flush()
     return count
 
 
@@ -974,16 +1015,12 @@ def save_account_snapshot(
         account_values.get("TotalCashValue"),
     )
     available_funds = _optional_float(account_values.get("AvailableFunds"))
-    gross_exposure = (
-        gross_position_value / net_liquidation
-        if net_liquidation not in (None, 0.0)
-        else None
-    )
-    net_exposure = (
-        net_position_value / net_liquidation
-        if net_liquidation not in (None, 0.0)
-        else None
-    )
+    if net_liquidation is None or net_liquidation == 0.0:
+        gross_exposure = None
+        net_exposure = None
+    else:
+        gross_exposure = gross_position_value / net_liquidation
+        net_exposure = net_position_value / net_liquidation
 
     row = AccountSnapshotRecord(
         run_id=run_id,
@@ -1007,7 +1044,6 @@ def save_account_snapshot(
     session.add(row)
     if commit:
         session.commit()
-        session.refresh(row)
     else:
         session.flush()
     return row
@@ -1135,11 +1171,11 @@ def save_account_attribution_for_snapshot(
         )
     )
 
-    end_price_by_symbol = {
-        symbol: _position_price(row)
-        for symbol, row in end_positions.items()
-        if _position_price(row) is not None
-    }
+    end_price_by_symbol: dict[str, float] = {}
+    for symbol, position in end_positions.items():
+        closing_price = _position_price(position)
+        if closing_price is not None:
+            end_price_by_symbol[symbol] = closing_price
     for trade in interval_trades:
         end_price_by_symbol.setdefault(trade.symbol, float(trade.fill_price))
 
@@ -1183,7 +1219,7 @@ def save_account_attribution_for_snapshot(
     if equity_change is not None:
         residual_pnl = equity_change - price_pnl - rebalance_pnl - total_non_trade_cash_flow
 
-    row = AccountAttributionRecord(
+    attribution_row = AccountAttributionRecord(
         start_account_snapshot_id=previous_snapshot.id,
         end_account_snapshot_id=ending_snapshot.id,
         run_id=ending_snapshot.run_id,
@@ -1213,12 +1249,189 @@ def save_account_attribution_for_snapshot(
         fill_count=len(interval_trades),
         residual_pnl=residual_pnl,
     )
-    session.add(row)
+    session.add(attribution_row)
     if commit:
         session.commit()
-        session.refresh(row)
+        session.refresh(attribution_row)
     else:
         session.flush()
+    return attribution_row
+
+
+def _required_ledger_text(value: object, *, field_name: str) -> str:
+    normalized = str(value or "").strip()
+    if not normalized:
+        raise ValueError(f"账本记录缺少 {field_name}")
+    return normalized
+
+
+def _finite_ledger_amount(value: float | None, *, field_name: str) -> float | None:
+    if value is None:
+        return None
+    amount = float(value)
+    if not math.isfinite(amount):
+        raise ValueError(f"账本记录 {field_name} 必须是有限数值")
+    return amount
+
+
+def save_settlement_record(
+    session: Session,
+    *,
+    settlement_id: str,
+    settlement_date: date,
+    broker: str,
+    account: str,
+    profile_id: str | None,
+    account_snapshot_id: int | None,
+    cash_balance: float | None,
+    margin: float | None,
+    realized_pnl: float | None,
+    unrealized_pnl: float | None,
+    fee: float | None,
+    currency: str,
+    evidence: dict[str, object],
+    settled_at: datetime,
+) -> SettlementRecord:
+    """追加结算事实；同一券商/账户/结算身份只能幂等重放。"""
+
+    normalized_broker = _required_ledger_text(broker, field_name="broker").lower()
+    normalized_account = _required_ledger_text(account, field_name="account")
+    normalized_id = _required_ledger_text(settlement_id, field_name="settlement_id")
+    normalized_currency = _required_ledger_text(currency, field_name="currency").upper()
+    if not isinstance(settlement_date, date) or isinstance(settlement_date, datetime):
+        raise ValueError("账本结算日期必须明确")
+    if settled_at.tzinfo is None:
+        raise ValueError("账本结算时间必须带时区")
+    if not evidence:
+        raise ValueError("账本结算必须包含券商证据")
+    values = {
+        "cash_balance": _finite_ledger_amount(cash_balance, field_name="cash_balance"),
+        "margin": _finite_ledger_amount(margin, field_name="margin"),
+        "realized_pnl": _finite_ledger_amount(realized_pnl, field_name="realized_pnl"),
+        "unrealized_pnl": _finite_ledger_amount(unrealized_pnl, field_name="unrealized_pnl"),
+        "fee": _finite_ledger_amount(fee, field_name="fee"),
+    }
+    serialized_evidence = _serialize_json(evidence) or "{}"
+    normalized_profile = _optional_text(profile_id)
+    existing = session.scalar(
+        select(SettlementRecord).where(
+            SettlementRecord.broker == normalized_broker,
+            SettlementRecord.account == normalized_account,
+            SettlementRecord.settlement_id == normalized_id,
+        )
+    )
+    if existing is not None:
+        persisted = (
+            existing.settlement_date,
+            existing.profile_id,
+            existing.account_snapshot_id,
+            existing.cash_balance,
+            existing.margin,
+            existing.realized_pnl,
+            existing.unrealized_pnl,
+            existing.fee,
+            existing.currency,
+            existing.evidence_json,
+            existing.settled_at,
+        )
+        incoming = (
+            settlement_date,
+            normalized_profile,
+            account_snapshot_id,
+            values["cash_balance"],
+            values["margin"],
+            values["realized_pnl"],
+            values["unrealized_pnl"],
+            values["fee"],
+            normalized_currency,
+            serialized_evidence,
+            ensure_utc(settled_at),
+        )
+        if persisted != incoming:
+            raise RuntimeError("SETTLEMENT_IDENTITY_MISMATCH: 同一结算身份内容不一致。")
+        return existing
+    row = SettlementRecord(
+        settlement_id=normalized_id,
+        settlement_date=settlement_date,
+        broker=normalized_broker,
+        account=normalized_account,
+        profile_id=normalized_profile,
+        account_snapshot_id=account_snapshot_id,
+        currency=normalized_currency,
+        evidence_json=serialized_evidence,
+        settled_at=ensure_utc(settled_at),
+        **values,
+    )
+    session.add(row)
+    session.commit()
+    session.refresh(row)
+    return row
+
+
+def record_controlled_ledger_adjustment(
+    session: Session,
+    *,
+    adjustment_id: str,
+    broker: str,
+    account: str,
+    profile_id: str | None,
+    amount: float,
+    currency: str,
+    reason: str,
+    approver_id: str,
+    evidence: dict[str, object],
+    occurred_at: datetime,
+) -> LedgerAdjustmentRecord:
+    """追加具名审批的调整；绝不修改既有订单、成交、结算或快照。"""
+
+    normalized_id = _required_ledger_text(adjustment_id, field_name="adjustment_id")
+    normalized_broker = _required_ledger_text(broker, field_name="broker").lower()
+    normalized_account = _required_ledger_text(account, field_name="account")
+    normalized_currency = _required_ledger_text(currency, field_name="currency").upper()
+    normalized_reason = _required_ledger_text(reason, field_name="reason")
+    normalized_approver = _required_ledger_text(approver_id, field_name="approver_id")
+    if not evidence:
+        raise ValueError("账本调整必须包含审批证据")
+    normalized_amount = _finite_ledger_amount(amount, field_name="amount")
+    assert normalized_amount is not None
+    serialized_evidence = _serialize_json(evidence) or "{}"
+    if occurred_at.tzinfo is None:
+        raise ValueError("账本调整时间必须带时区")
+    normalized_profile = _optional_text(profile_id)
+    existing = session.scalar(
+        select(LedgerAdjustmentRecord).where(
+            LedgerAdjustmentRecord.adjustment_id == normalized_id
+        )
+    )
+    if existing is not None:
+        persisted = (
+            existing.broker, existing.account, existing.profile_id, existing.amount,
+            existing.currency, existing.reason, existing.approver_id,
+            existing.evidence_json, existing.occurred_at,
+        )
+        incoming = (
+            normalized_broker, normalized_account, normalized_profile, normalized_amount,
+            normalized_currency, normalized_reason, normalized_approver,
+            serialized_evidence, ensure_utc(occurred_at),
+        )
+        if persisted != incoming:
+            raise RuntimeError("LEDGER_ADJUSTMENT_IDENTITY_MISMATCH: 调整身份内容不一致。")
+        return existing
+    row = LedgerAdjustmentRecord(
+        adjustment_id=normalized_id,
+        broker=normalized_broker,
+        account=normalized_account,
+        profile_id=normalized_profile,
+        amount=normalized_amount,
+        currency=normalized_currency,
+        reason=normalized_reason,
+        approver_id=normalized_approver,
+        evidence_json=serialized_evidence,
+        occurred_at=ensure_utc(occurred_at),
+    )
+    session.add(row)
+    session.commit()
+    session.refresh(row)
     return row
 
 
@@ -1455,12 +1668,1505 @@ def save_order_result(
     return row
 
 
+def record_execution_provenance_consumption(
+    session: Session,
+    *,
+    preflight_id: str,
+    receipt_hash: str,
+    plan_hash: str,
+    order_hash: str,
+    profile_id: str,
+    broker: str,
+    account: str,
+    order_ref: str,
+    checked_at: datetime,
+    valid_until: datetime,
+    consumed_at: datetime,
+) -> ExecutionProvenanceConsumptionRecord:
+    """Stage one exact CTP-sim commitment consumption in the current transaction.
+
+    The caller must invoke this only after replaying the evidence at the final
+    submit boundary.  It intentionally does not commit: ``prepare_order_submission``
+    commits this fact atomically with the durable broker intent.
+    """
+
+    normalized_preflight_id = _required_execution_provenance_text(
+        preflight_id,
+        field_name="preflight_id",
+    )
+    normalized_receipt_hash = _required_execution_provenance_text(
+        receipt_hash,
+        field_name="receipt_hash",
+        sha256=True,
+    )
+    normalized_plan_hash = _required_execution_provenance_text(
+        plan_hash,
+        field_name="plan_hash",
+        sha256=True,
+    )
+    normalized_order_hash = _required_execution_provenance_text(
+        order_hash,
+        field_name="order_hash",
+        sha256=True,
+    )
+    normalized_profile_id = _required_execution_provenance_text(
+        profile_id,
+        field_name="profile_id",
+    )
+    normalized_broker = _required_execution_provenance_text(
+        broker,
+        field_name="broker",
+    ).lower()
+    normalized_account = _required_execution_provenance_text(
+        account,
+        field_name="account",
+    )
+    normalized_order_ref = _required_execution_provenance_text(
+        order_ref,
+        field_name="order_ref",
+    )
+    normalized_checked_at = ensure_utc(checked_at)
+    normalized_valid_until = ensure_utc(valid_until)
+    normalized_consumed_at = ensure_utc(consumed_at)
+    if normalized_valid_until <= normalized_checked_at:
+        raise ValueError("execution provenance receipt validity window is invalid")
+    if not normalized_checked_at <= normalized_consumed_at < normalized_valid_until:
+        raise PermissionError("EXECUTION_PROVENANCE_RECEIPT_EXPIRED")
+
+    existing = session.scalar(
+        select(ExecutionProvenanceConsumptionRecord).where(
+            ExecutionProvenanceConsumptionRecord.broker == normalized_broker,
+            ExecutionProvenanceConsumptionRecord.account == normalized_account,
+            ExecutionProvenanceConsumptionRecord.plan_hash == normalized_plan_hash,
+            ExecutionProvenanceConsumptionRecord.order_hash == normalized_order_hash,
+        )
+    )
+    if existing is not None:
+        raise PermissionError(
+            "EXECUTION_PROVENANCE_ORDER_ALREADY_CONSUMED: "
+            "the exact CTP-sim plan/order commitment was already reserved"
+        )
+
+    row = ExecutionProvenanceConsumptionRecord(
+        preflight_id=normalized_preflight_id,
+        receipt_hash=normalized_receipt_hash,
+        plan_hash=normalized_plan_hash,
+        order_hash=normalized_order_hash,
+        profile_id=normalized_profile_id,
+        broker=normalized_broker,
+        account=normalized_account,
+        order_ref=normalized_order_ref,
+        checked_at=normalized_checked_at,
+        valid_until=normalized_valid_until,
+        consumed_at=normalized_consumed_at,
+    )
+    session.add(row)
+    return row
+
+
+def find_execution_provenance_consumption(
+    session: Session,
+    *,
+    broker: str,
+    account: str,
+    plan_hash: str | None = None,
+    order_hash: str | None = None,
+    order_ref: str | None = None,
+) -> ExecutionProvenanceConsumptionRecord | None:
+    """Find one append-only P8 CTP-sim commitment consumption.
+
+    This lookup deliberately never creates a fact or falls back to an order row.
+    Reconciliation may use ``order_ref`` to prove that an observed broker order was
+    submitted through the candidate gate; the final gate uses the hash pair as the
+    stronger exact binding.
+    """
+
+    normalized_broker = _required_execution_provenance_text(
+        broker,
+        field_name="broker",
+    ).lower()
+    normalized_account = _required_execution_provenance_text(
+        account,
+        field_name="account",
+    )
+    conditions = [
+        ExecutionProvenanceConsumptionRecord.broker == normalized_broker,
+        ExecutionProvenanceConsumptionRecord.account == normalized_account,
+    ]
+    if plan_hash is not None:
+        conditions.append(
+            ExecutionProvenanceConsumptionRecord.plan_hash
+            == _required_execution_provenance_text(
+                plan_hash,
+                field_name="plan_hash",
+                sha256=True,
+            )
+        )
+    if order_hash is not None:
+        conditions.append(
+            ExecutionProvenanceConsumptionRecord.order_hash
+            == _required_execution_provenance_text(
+                order_hash,
+                field_name="order_hash",
+                sha256=True,
+            )
+        )
+    if order_ref is not None:
+        conditions.append(
+            ExecutionProvenanceConsumptionRecord.order_ref
+            == _required_execution_provenance_text(
+                order_ref,
+                field_name="order_ref",
+            )
+        )
+    rows = list(
+        session.scalars(
+            select(ExecutionProvenanceConsumptionRecord)
+            .where(*conditions)
+            .order_by(ExecutionProvenanceConsumptionRecord.id.asc())
+            .limit(2)
+        )
+    )
+    if len(rows) > 1:
+        raise RuntimeError(
+            "EXECUTION_PROVENANCE_CONSUMPTION_AMBIGUOUS: "
+            "multiple candidate-gate consumptions matched one observed identity"
+        )
+    return rows[0] if rows else None
+
+
+_PORTFOLIO_RISK_APPROVAL_IDENTIFIER_RE = re.compile(
+    r"^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+)
+_PORTFOLIO_RISK_APPROVAL_HASH_RE = re.compile(r"^[0-9a-f]{64}$")
+_PORTFOLIO_RISK_APPROVAL_MAX_TEXT_LENGTH = 2048
+
+
+def _required_portfolio_risk_approval_text(
+    value: object,
+    *,
+    field_name: str,
+    sha256: bool = False,
+    identifier: bool = False,
+) -> str:
+    if (
+        not isinstance(value, str)
+        or not value.strip()
+        or "\x00" in value
+        or "\r" in value
+        or "\n" in value
+        or len(value) > _PORTFOLIO_RISK_APPROVAL_MAX_TEXT_LENGTH
+    ):
+        raise ValueError(f"{field_name} must be non-empty single-line text")
+    normalized = value.strip()
+    if sha256 and _PORTFOLIO_RISK_APPROVAL_HASH_RE.fullmatch(normalized) is None:
+        raise ValueError(f"{field_name} must be a lowercase SHA-256")
+    if identifier and _PORTFOLIO_RISK_APPROVAL_IDENTIFIER_RE.fullmatch(normalized) is None:
+        raise ValueError(f"{field_name} must be a stable identifier")
+    return normalized
+
+
+def _required_portfolio_risk_approval_time(
+    value: object,
+    *,
+    field_name: str,
+) -> datetime:
+    if not isinstance(value, datetime) or value.tzinfo is None or value.utcoffset() is None:
+        raise ValueError(f"{field_name} must be a timezone-aware datetime")
+    return value.astimezone(UTC)
+
+
+@dataclass(frozen=True, slots=True)
+class _PortfolioRiskApprovalRecordValues:
+    """Normalized append-only content used for record hashing and equality."""
+
+    approval_id: str
+    profile_id: str
+    broker: str
+    account: str
+    review_hash: str
+    evidence_hash: str
+    portfolio_target_hash: str
+    approved_target_hash: str
+    composition_hash: str
+    composition_evidence_hash: str
+    authority_hash: str
+    policy_hash: str
+    reconciliation_state_hash: str
+    binding_hash: str
+    attestation_hash: str
+    approver_id: str
+    verifier_id: str
+    verifier_receipt_hash: str
+    rationale: str
+    review_evaluated_at: datetime
+    approved_at: datetime
+    verified_at: datetime
+    valid_until: datetime
+    issued_at: datetime
+
+    def as_hash_payload(self) -> dict[str, object]:
+        return {
+            "format": "northstar.portfolio-risk-manual-approval-record.v1",
+            "approval_id": self.approval_id,
+            "profile_id": self.profile_id,
+            "broker": self.broker,
+            "account": self.account,
+            "review_hash": self.review_hash,
+            "evidence_hash": self.evidence_hash,
+            "portfolio_target_hash": self.portfolio_target_hash,
+            "approved_target_hash": self.approved_target_hash,
+            "composition_hash": self.composition_hash,
+            "composition_evidence_hash": self.composition_evidence_hash,
+            "authority_hash": self.authority_hash,
+            "policy_hash": self.policy_hash,
+            "reconciliation_state_hash": self.reconciliation_state_hash,
+            "binding_hash": self.binding_hash,
+            "attestation_hash": self.attestation_hash,
+            "approver_id": self.approver_id,
+            "verifier_id": self.verifier_id,
+            "verifier_receipt_hash": self.verifier_receipt_hash,
+            "rationale": self.rationale,
+            "review_evaluated_at": self.review_evaluated_at.isoformat(),
+            "approved_at": self.approved_at.isoformat(),
+            "verified_at": self.verified_at.isoformat(),
+            "valid_until": self.valid_until.isoformat(),
+            "issued_at": self.issued_at.isoformat(),
+        }
+
+    @property
+    def record_hash(self) -> str:
+        encoded = json.dumps(
+            self.as_hash_payload(),
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        ).encode("utf-8")
+        return sha256(encoded).hexdigest()
+
+
+def _portfolio_risk_approval_record_values(
+    *,
+    approval_id: object,
+    profile_id: object,
+    broker: object,
+    account: object,
+    review_hash: object,
+    evidence_hash: object,
+    portfolio_target_hash: object,
+    approved_target_hash: object,
+    composition_hash: object,
+    composition_evidence_hash: object,
+    authority_hash: object,
+    policy_hash: object,
+    reconciliation_state_hash: object,
+    binding_hash: object,
+    attestation_hash: object,
+    approver_id: object,
+    verifier_id: object,
+    verifier_receipt_hash: object,
+    rationale: object,
+    review_evaluated_at: object,
+    approved_at: object,
+    verified_at: object,
+    valid_until: object,
+    issued_at: object,
+) -> _PortfolioRiskApprovalRecordValues:
+    normalized_broker = _required_portfolio_risk_approval_text(
+        broker,
+        field_name="broker",
+        identifier=True,
+    ).lower()
+    if normalized_broker != "ctp_sim":
+        raise PermissionError("PORTFOLIO_RISK_APPROVAL_BROKER_REFUSED")
+    values = _PortfolioRiskApprovalRecordValues(
+        approval_id=_required_portfolio_risk_approval_text(
+            approval_id,
+            field_name="approval_id",
+            identifier=True,
+        ),
+        profile_id=_required_portfolio_risk_approval_text(
+            profile_id,
+            field_name="profile_id",
+            identifier=True,
+        ),
+        broker=normalized_broker,
+        account=_required_portfolio_risk_approval_text(
+            account,
+            field_name="account",
+            identifier=True,
+        ),
+        review_hash=_required_portfolio_risk_approval_text(
+            review_hash,
+            field_name="review_hash",
+            sha256=True,
+        ),
+        evidence_hash=_required_portfolio_risk_approval_text(
+            evidence_hash,
+            field_name="evidence_hash",
+            sha256=True,
+        ),
+        portfolio_target_hash=_required_portfolio_risk_approval_text(
+            portfolio_target_hash,
+            field_name="portfolio_target_hash",
+            sha256=True,
+        ),
+        approved_target_hash=_required_portfolio_risk_approval_text(
+            approved_target_hash,
+            field_name="approved_target_hash",
+            sha256=True,
+        ),
+        composition_hash=_required_portfolio_risk_approval_text(
+            composition_hash,
+            field_name="composition_hash",
+            sha256=True,
+        ),
+        composition_evidence_hash=_required_portfolio_risk_approval_text(
+            composition_evidence_hash,
+            field_name="composition_evidence_hash",
+            sha256=True,
+        ),
+        authority_hash=_required_portfolio_risk_approval_text(
+            authority_hash,
+            field_name="authority_hash",
+            sha256=True,
+        ),
+        policy_hash=_required_portfolio_risk_approval_text(
+            policy_hash,
+            field_name="policy_hash",
+            sha256=True,
+        ),
+        reconciliation_state_hash=_required_portfolio_risk_approval_text(
+            reconciliation_state_hash,
+            field_name="reconciliation_state_hash",
+            sha256=True,
+        ),
+        binding_hash=_required_portfolio_risk_approval_text(
+            binding_hash,
+            field_name="binding_hash",
+            sha256=True,
+        ),
+        attestation_hash=_required_portfolio_risk_approval_text(
+            attestation_hash,
+            field_name="attestation_hash",
+            sha256=True,
+        ),
+        approver_id=_required_portfolio_risk_approval_text(
+            approver_id,
+            field_name="approver_id",
+            identifier=True,
+        ),
+        verifier_id=_required_portfolio_risk_approval_text(
+            verifier_id,
+            field_name="verifier_id",
+            identifier=True,
+        ),
+        verifier_receipt_hash=_required_portfolio_risk_approval_text(
+            verifier_receipt_hash,
+            field_name="verifier_receipt_hash",
+            sha256=True,
+        ),
+        rationale=_required_portfolio_risk_approval_text(
+            rationale,
+            field_name="rationale",
+        ),
+        review_evaluated_at=_required_portfolio_risk_approval_time(
+            review_evaluated_at,
+            field_name="review_evaluated_at",
+        ),
+        approved_at=_required_portfolio_risk_approval_time(
+            approved_at,
+            field_name="approved_at",
+        ),
+        verified_at=_required_portfolio_risk_approval_time(
+            verified_at,
+            field_name="verified_at",
+        ),
+        valid_until=_required_portfolio_risk_approval_time(
+            valid_until,
+            field_name="valid_until",
+        ),
+        issued_at=_required_portfolio_risk_approval_time(
+            issued_at,
+            field_name="issued_at",
+        ),
+    )
+    if not (
+        values.review_evaluated_at
+        <= values.approved_at
+        <= values.verified_at
+        <= values.issued_at
+        < values.valid_until
+    ):
+        raise ValueError("portfolio risk approval time ordering is invalid")
+    return values
+
+
+def _record_values_from_portfolio_risk_approval_record(
+    record: PortfolioRiskApprovalRecord,
+) -> _PortfolioRiskApprovalRecordValues:
+    values = _portfolio_risk_approval_record_values(
+        approval_id=record.approval_id,
+        profile_id=record.profile_id,
+        broker=record.broker,
+        account=record.account,
+        review_hash=record.review_hash,
+        evidence_hash=record.evidence_hash,
+        portfolio_target_hash=record.portfolio_target_hash,
+        approved_target_hash=record.approved_target_hash,
+        composition_hash=record.composition_hash,
+        composition_evidence_hash=record.composition_evidence_hash,
+        authority_hash=record.authority_hash,
+        policy_hash=record.policy_hash,
+        reconciliation_state_hash=record.reconciliation_state_hash,
+        binding_hash=record.binding_hash,
+        attestation_hash=record.attestation_hash,
+        approver_id=record.approver_id,
+        verifier_id=record.verifier_id,
+        verifier_receipt_hash=record.verifier_receipt_hash,
+        rationale=record.rationale,
+        review_evaluated_at=record.review_evaluated_at,
+        approved_at=record.approved_at,
+        verified_at=record.verified_at,
+        valid_until=record.valid_until,
+        issued_at=record.issued_at,
+    )
+    if record.record_hash != values.record_hash:
+        raise RuntimeError("PORTFOLIO_RISK_APPROVAL_RECORD_TAMPERED")
+    return values
+
+
+def _assert_portfolio_risk_approval_record_matches(
+    record: PortfolioRiskApprovalRecord,
+    expected: _PortfolioRiskApprovalRecordValues,
+) -> None:
+    actual = _record_values_from_portfolio_risk_approval_record(record)
+    if actual != expected:
+        raise RuntimeError("PORTFOLIO_RISK_APPROVAL_IDEMPOTENCY_CONFLICT")
+
+
+def record_portfolio_risk_approval(
+    session: Session,
+    *,
+    approval_id: str,
+    profile_id: str,
+    broker: str,
+    account: str,
+    review_hash: str,
+    evidence_hash: str,
+    portfolio_target_hash: str,
+    approved_target_hash: str,
+    composition_hash: str,
+    composition_evidence_hash: str,
+    authority_hash: str,
+    policy_hash: str,
+    reconciliation_state_hash: str,
+    binding_hash: str,
+    attestation_hash: str,
+    approver_id: str,
+    verifier_id: str,
+    verifier_receipt_hash: str,
+    rationale: str,
+    review_evaluated_at: datetime,
+    approved_at: datetime,
+    verified_at: datetime,
+    valid_until: datetime,
+    issued_at: datetime,
+    commit: bool = True,
+) -> PortfolioRiskApprovalRecord:
+    """Persist one immutable verifier-backed approval with strict idempotency.
+
+    Only exact repeats of all immutable fields may reuse an approval ID.  The
+    content hash and time ordering are checked both before writes and when the
+    record is later read, so a tampered ORM object or database row fails closed.
+    """
+
+    values = _portfolio_risk_approval_record_values(
+        approval_id=approval_id,
+        profile_id=profile_id,
+        broker=broker,
+        account=account,
+        review_hash=review_hash,
+        evidence_hash=evidence_hash,
+        portfolio_target_hash=portfolio_target_hash,
+        approved_target_hash=approved_target_hash,
+        composition_hash=composition_hash,
+        composition_evidence_hash=composition_evidence_hash,
+        authority_hash=authority_hash,
+        policy_hash=policy_hash,
+        reconciliation_state_hash=reconciliation_state_hash,
+        binding_hash=binding_hash,
+        attestation_hash=attestation_hash,
+        approver_id=approver_id,
+        verifier_id=verifier_id,
+        verifier_receipt_hash=verifier_receipt_hash,
+        rationale=rationale,
+        review_evaluated_at=review_evaluated_at,
+        approved_at=approved_at,
+        verified_at=verified_at,
+        valid_until=valid_until,
+        issued_at=issued_at,
+    )
+    by_approval_id = session.scalar(
+        select(PortfolioRiskApprovalRecord).where(
+            PortfolioRiskApprovalRecord.approval_id == values.approval_id
+        )
+    )
+    if by_approval_id is not None:
+        _assert_portfolio_risk_approval_record_matches(by_approval_id, values)
+        return by_approval_id
+    by_scope_binding = session.scalar(
+        select(PortfolioRiskApprovalRecord).where(
+            PortfolioRiskApprovalRecord.profile_id == values.profile_id,
+            PortfolioRiskApprovalRecord.broker == values.broker,
+            PortfolioRiskApprovalRecord.account == values.account,
+            PortfolioRiskApprovalRecord.binding_hash == values.binding_hash,
+        )
+    )
+    if by_scope_binding is not None:
+        _assert_portfolio_risk_approval_record_matches(by_scope_binding, values)
+        return by_scope_binding
+
+    row = PortfolioRiskApprovalRecord(
+        approval_id=values.approval_id,
+        profile_id=values.profile_id,
+        broker=values.broker,
+        account=values.account,
+        review_hash=values.review_hash,
+        evidence_hash=values.evidence_hash,
+        portfolio_target_hash=values.portfolio_target_hash,
+        approved_target_hash=values.approved_target_hash,
+        composition_hash=values.composition_hash,
+        composition_evidence_hash=values.composition_evidence_hash,
+        authority_hash=values.authority_hash,
+        policy_hash=values.policy_hash,
+        reconciliation_state_hash=values.reconciliation_state_hash,
+        binding_hash=values.binding_hash,
+        attestation_hash=values.attestation_hash,
+        approver_id=values.approver_id,
+        verifier_id=values.verifier_id,
+        verifier_receipt_hash=values.verifier_receipt_hash,
+        rationale=values.rationale,
+        review_evaluated_at=values.review_evaluated_at,
+        approved_at=values.approved_at,
+        verified_at=values.verified_at,
+        valid_until=values.valid_until,
+        issued_at=values.issued_at,
+        record_hash=values.record_hash,
+    )
+    session.add(row)
+    try:
+        if commit:
+            session.commit()
+            session.refresh(row)
+        else:
+            session.flush()
+    except IntegrityError as exc:
+        session.rollback()
+        existing = session.scalar(
+            select(PortfolioRiskApprovalRecord).where(
+                PortfolioRiskApprovalRecord.approval_id == values.approval_id
+            )
+        )
+        if existing is None:
+            raise RuntimeError("PORTFOLIO_RISK_APPROVAL_WRITE_CONFLICT") from exc
+        _assert_portfolio_risk_approval_record_matches(existing, values)
+        return existing
+    return row
+
+
+def find_portfolio_risk_approval(
+    session: Session,
+    *,
+    approval_id: str,
+    profile_id: str,
+    broker: str,
+    account: str,
+) -> PortfolioRiskApprovalRecord | None:
+    """Find one scoped immutable approval and fail closed on any corruption."""
+
+    normalized_approval_id = _required_portfolio_risk_approval_text(
+        approval_id,
+        field_name="approval_id",
+        identifier=True,
+    )
+    normalized_profile_id = _required_portfolio_risk_approval_text(
+        profile_id,
+        field_name="profile_id",
+        identifier=True,
+    )
+    normalized_broker = _required_portfolio_risk_approval_text(
+        broker,
+        field_name="broker",
+        identifier=True,
+    ).lower()
+    if normalized_broker != "ctp_sim":
+        raise PermissionError("PORTFOLIO_RISK_APPROVAL_BROKER_REFUSED")
+    normalized_account = _required_portfolio_risk_approval_text(
+        account,
+        field_name="account",
+        identifier=True,
+    )
+    rows = list(
+        session.scalars(
+            select(PortfolioRiskApprovalRecord)
+            .where(
+                PortfolioRiskApprovalRecord.approval_id == normalized_approval_id,
+                PortfolioRiskApprovalRecord.profile_id == normalized_profile_id,
+                PortfolioRiskApprovalRecord.broker == normalized_broker,
+                PortfolioRiskApprovalRecord.account == normalized_account,
+            )
+            .order_by(PortfolioRiskApprovalRecord.id.asc())
+            .limit(2)
+        )
+    )
+    if len(rows) > 1:
+        raise RuntimeError("PORTFOLIO_RISK_APPROVAL_RECORD_AMBIGUOUS")
+    if not rows:
+        return None
+    _record_values_from_portfolio_risk_approval_record(rows[0])
+    return rows[0]
+
+
+_RESEARCH_AGENT_AUDIT_IDENTIFIER_RE = re.compile(
+    r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+)
+_RESEARCH_AGENT_AUDIT_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+_RESEARCH_AGENT_LIFECYCLE = "RESEARCH_ONLY"
+_RESEARCH_AGENT_AUDIT_EVENT_KINDS = frozenset({"ADMITTED", "COMPLETED", "FAILED"})
+
+
+class ResearchAgentRunAuditError(RuntimeError):
+    """Raised when hash-only durable ResearchAgent audit evidence is unsafe."""
+
+
+def _research_agent_audit_identifier(value: object, *, field_name: str) -> str:
+    if (
+        not isinstance(value, str)
+        or value.strip() != value
+        or _RESEARCH_AGENT_AUDIT_IDENTIFIER_RE.fullmatch(value) is None
+    ):
+        raise ResearchAgentRunAuditError(
+            f"RESEARCH_AGENT_RUN_AUDIT_INVALID_{field_name.upper()}"
+        )
+    return value
+
+
+def _research_agent_audit_hash(value: object, *, field_name: str) -> str:
+    if not isinstance(value, str) or _RESEARCH_AGENT_AUDIT_SHA256_RE.fullmatch(value) is None:
+        raise ResearchAgentRunAuditError(
+            f"RESEARCH_AGENT_RUN_AUDIT_INVALID_{field_name.upper()}"
+        )
+    return value
+
+
+def _research_agent_audit_optional_hash(
+    value: object | None,
+    *,
+    field_name: str,
+) -> str | None:
+    if value is None:
+        return None
+    return _research_agent_audit_hash(value, field_name=field_name)
+
+
+def _research_agent_audit_time(value: object, *, field_name: str) -> datetime:
+    if not isinstance(value, datetime) or value.tzinfo is None or value.utcoffset() is None:
+        raise ResearchAgentRunAuditError(
+            f"RESEARCH_AGENT_RUN_AUDIT_INVALID_{field_name.upper()}"
+        )
+    return value.astimezone(UTC)
+
+
+def _research_agent_audit_count(value: object, *, field_name: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise ResearchAgentRunAuditError(
+            f"RESEARCH_AGENT_RUN_AUDIT_INVALID_{field_name.upper()}"
+        )
+    return value
+
+
+def _research_agent_failure_code(value: object) -> str:
+    if not isinstance(value, str) or value not in _RESEARCH_AGENT_FAILURE_CODES:
+        raise ResearchAgentRunAuditError("RESEARCH_AGENT_RUN_AUDIT_INVALID_FAILURE_CODE")
+    return value
+
+
+def _research_agent_trace_tool_name(value: object) -> str:
+    if not isinstance(value, str) or value not in _RESEARCH_AGENT_TRACE_TOOL_NAMES:
+        raise ResearchAgentRunAuditError("RESEARCH_AGENT_RUN_AUDIT_INVALID_TOOL_NAME")
+    return value
+
+
+def _research_agent_audit_hash_payload(payload: dict[str, object]) -> str:
+    encoded = json.dumps(
+        payload,
+        ensure_ascii=True,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+    return sha256(encoded).hexdigest()
+
+
+@dataclass(frozen=True, slots=True)
+class ResearchAgentRunTraceInput:
+    """One safe, pre-hashed trace entry supplied only to terminal completion.
+
+    The existing in-memory ResearchAgent trace hash is recomputed here rather
+    than trusted.  This data contract contains no prompt, query, payload,
+    rationale, document, credential, or chain-of-thought field.
+    """
+
+    sequence: int
+    tool_name: str
+    request_hash: str
+    response_hash: str
+    predecessor_trace_hash: str | None
+    trace_hash: str
+
+    def __post_init__(self) -> None:
+        if isinstance(self.sequence, bool) or not isinstance(self.sequence, int) or self.sequence < 1:
+            raise ResearchAgentRunAuditError("RESEARCH_AGENT_RUN_AUDIT_INVALID_TRACE_SEQUENCE")
+        tool_name = _research_agent_trace_tool_name(self.tool_name)
+        request_hash = _research_agent_audit_hash(
+            self.request_hash,
+            field_name="trace_request_hash",
+        )
+        response_hash = _research_agent_audit_hash(
+            self.response_hash,
+            field_name="trace_response_hash",
+        )
+        predecessor_trace_hash = _research_agent_audit_optional_hash(
+            self.predecessor_trace_hash,
+            field_name="predecessor_trace_hash",
+        )
+        trace_hash = _research_agent_audit_hash(
+            self.trace_hash,
+            field_name="trace_hash",
+        )
+        expected_trace_hash = _research_agent_audit_hash_payload(
+            {
+                "format": "northstar.research-agent-trace.v1",
+                "predecessor_trace_hash": predecessor_trace_hash,
+                "request_hash": request_hash,
+                "response_hash": response_hash,
+                "sequence": self.sequence,
+                "tool_name": tool_name,
+            }
+        )
+        if trace_hash != expected_trace_hash:
+            raise ResearchAgentRunAuditError("RESEARCH_AGENT_RUN_AUDIT_TRACE_HASH_MISMATCH")
+        object.__setattr__(self, "tool_name", tool_name)
+        object.__setattr__(self, "request_hash", request_hash)
+        object.__setattr__(self, "response_hash", response_hash)
+        object.__setattr__(self, "predecessor_trace_hash", predecessor_trace_hash)
+        object.__setattr__(self, "trace_hash", trace_hash)
+
+
+@dataclass(frozen=True, slots=True)
+class _ResearchAgentRunAuditEventValues:
+    run_id: str
+    event_kind: str
+    is_terminal: bool
+    request_hash: str
+    result_hash: str | None
+    failure_code: str | None
+    trace_count: int
+    trace_root_hash: str | None
+    trace_tail_hash: str | None
+    as_of: datetime
+    occurred_at: datetime
+    predecessor_record_hash: str | None
+    lifecycle: str
+    eligible_for_trading: bool
+
+    def as_hash_payload(self) -> dict[str, object]:
+        return {
+            "as_of": self.as_of.isoformat(),
+            "eligible_for_trading": self.eligible_for_trading,
+            "event_kind": self.event_kind,
+            "failure_code": self.failure_code,
+            "format": "northstar.research-agent-run-audit-event.v1",
+            "is_terminal": self.is_terminal,
+            "lifecycle": self.lifecycle,
+            "occurred_at": self.occurred_at.isoformat(),
+            "predecessor_record_hash": self.predecessor_record_hash,
+            "request_hash": self.request_hash,
+            "result_hash": self.result_hash,
+            "run_id": self.run_id,
+            "trace_count": self.trace_count,
+            "trace_root_hash": self.trace_root_hash,
+            "trace_tail_hash": self.trace_tail_hash,
+        }
+
+    @property
+    def record_hash(self) -> str:
+        return _research_agent_audit_hash_payload(self.as_hash_payload())
+
+
+@dataclass(frozen=True, slots=True)
+class _ResearchAgentRunTraceValues:
+    run_id: str
+    sequence: int
+    tool_name: str
+    request_hash: str
+    response_hash: str
+    predecessor_trace_hash: str | None
+    trace_hash: str
+    recorded_at: datetime
+    lifecycle: str
+    eligible_for_trading: bool
+
+    def as_hash_payload(self) -> dict[str, object]:
+        return {
+            "eligible_for_trading": self.eligible_for_trading,
+            "format": "northstar.research-agent-run-trace-entry.v1",
+            "lifecycle": self.lifecycle,
+            "predecessor_trace_hash": self.predecessor_trace_hash,
+            "recorded_at": self.recorded_at.isoformat(),
+            "request_hash": self.request_hash,
+            "response_hash": self.response_hash,
+            "run_id": self.run_id,
+            "sequence": self.sequence,
+            "tool_name": self.tool_name,
+            "trace_hash": self.trace_hash,
+        }
+
+    @property
+    def record_hash(self) -> str:
+        return _research_agent_audit_hash_payload(self.as_hash_payload())
+
+
+def _research_agent_run_audit_event_values(
+    *,
+    run_id: object,
+    event_kind: object,
+    is_terminal: object,
+    request_hash: object,
+    result_hash: object | None,
+    failure_code: object | None,
+    trace_count: object,
+    trace_root_hash: object | None,
+    trace_tail_hash: object | None,
+    as_of: object,
+    occurred_at: object,
+    predecessor_record_hash: object | None,
+    lifecycle: object,
+    eligible_for_trading: object,
+) -> _ResearchAgentRunAuditEventValues:
+    normalized_event_kind = str(event_kind) if isinstance(event_kind, str) else ""
+    if normalized_event_kind not in _RESEARCH_AGENT_AUDIT_EVENT_KINDS:
+        raise ResearchAgentRunAuditError("RESEARCH_AGENT_RUN_AUDIT_INVALID_EVENT_KIND")
+    if type(is_terminal) is not bool or type(eligible_for_trading) is not bool:
+        raise ResearchAgentRunAuditError("RESEARCH_AGENT_RUN_AUDIT_INVALID_BOOLEAN")
+    if lifecycle != _RESEARCH_AGENT_LIFECYCLE or eligible_for_trading:
+        raise ResearchAgentRunAuditError("RESEARCH_AGENT_RUN_AUDIT_NOT_RESEARCH_ONLY")
+    values = _ResearchAgentRunAuditEventValues(
+        run_id=_research_agent_audit_identifier(run_id, field_name="run_id"),
+        event_kind=normalized_event_kind,
+        is_terminal=is_terminal,
+        request_hash=_research_agent_audit_hash(request_hash, field_name="request_hash"),
+        result_hash=_research_agent_audit_optional_hash(
+            result_hash,
+            field_name="result_hash",
+        ),
+        failure_code=(
+            _research_agent_failure_code(failure_code)
+            if failure_code is not None
+            else None
+        ),
+        trace_count=_research_agent_audit_count(trace_count, field_name="trace_count"),
+        trace_root_hash=_research_agent_audit_optional_hash(
+            trace_root_hash,
+            field_name="trace_root_hash",
+        ),
+        trace_tail_hash=_research_agent_audit_optional_hash(
+            trace_tail_hash,
+            field_name="trace_tail_hash",
+        ),
+        as_of=_research_agent_audit_time(as_of, field_name="as_of"),
+        occurred_at=_research_agent_audit_time(occurred_at, field_name="occurred_at"),
+        predecessor_record_hash=_research_agent_audit_optional_hash(
+            predecessor_record_hash,
+            field_name="predecessor_record_hash",
+        ),
+        lifecycle=_RESEARCH_AGENT_LIFECYCLE,
+        eligible_for_trading=False,
+    )
+    if normalized_event_kind == "ADMITTED":
+        valid_shape = (
+            values.is_terminal is False
+            and values.result_hash is None
+            and values.failure_code is None
+            and values.trace_count == 0
+            and values.trace_root_hash is None
+            and values.trace_tail_hash is None
+            and values.predecessor_record_hash is None
+        )
+    elif normalized_event_kind == "COMPLETED":
+        valid_shape = (
+            values.is_terminal is True
+            and values.result_hash is not None
+            and values.failure_code is None
+            and values.trace_count > 0
+            and values.trace_root_hash is not None
+            and values.trace_tail_hash is not None
+            and values.predecessor_record_hash is not None
+        )
+    else:
+        valid_shape = (
+            values.is_terminal is True
+            and values.result_hash is None
+            and values.failure_code is not None
+            and values.trace_count == 0
+            and values.trace_root_hash is None
+            and values.trace_tail_hash is None
+            and values.predecessor_record_hash is not None
+        )
+    if not valid_shape:
+        raise ResearchAgentRunAuditError("RESEARCH_AGENT_RUN_AUDIT_INVALID_EVENT_SHAPE")
+    return values
+
+
+def _research_agent_run_trace_values(
+    *,
+    run_id: object,
+    sequence: object,
+    tool_name: object,
+    request_hash: object,
+    response_hash: object,
+    predecessor_trace_hash: object | None,
+    trace_hash: object,
+    recorded_at: object,
+    lifecycle: object,
+    eligible_for_trading: object,
+) -> _ResearchAgentRunTraceValues:
+    if isinstance(sequence, bool) or not isinstance(sequence, int) or sequence < 1:
+        raise ResearchAgentRunAuditError("RESEARCH_AGENT_RUN_AUDIT_INVALID_TRACE_SEQUENCE")
+    if type(eligible_for_trading) is not bool:
+        raise ResearchAgentRunAuditError("RESEARCH_AGENT_RUN_AUDIT_INVALID_BOOLEAN")
+    if lifecycle != _RESEARCH_AGENT_LIFECYCLE or eligible_for_trading:
+        raise ResearchAgentRunAuditError("RESEARCH_AGENT_RUN_AUDIT_NOT_RESEARCH_ONLY")
+    normalized_tool_name = _research_agent_trace_tool_name(tool_name)
+    normalized_request_hash = _research_agent_audit_hash(
+        request_hash,
+        field_name="trace_request_hash",
+    )
+    normalized_response_hash = _research_agent_audit_hash(
+        response_hash,
+        field_name="trace_response_hash",
+    )
+    normalized_predecessor = _research_agent_audit_optional_hash(
+        predecessor_trace_hash,
+        field_name="predecessor_trace_hash",
+    )
+    normalized_trace_hash = _research_agent_audit_hash(trace_hash, field_name="trace_hash")
+    expected_trace_hash = _research_agent_audit_hash_payload(
+        {
+            "format": "northstar.research-agent-trace.v1",
+            "predecessor_trace_hash": normalized_predecessor,
+            "request_hash": normalized_request_hash,
+            "response_hash": normalized_response_hash,
+            "sequence": sequence,
+            "tool_name": normalized_tool_name,
+        }
+    )
+    if normalized_trace_hash != expected_trace_hash:
+        raise ResearchAgentRunAuditError("RESEARCH_AGENT_RUN_AUDIT_TRACE_HASH_MISMATCH")
+    return _ResearchAgentRunTraceValues(
+        run_id=_research_agent_audit_identifier(run_id, field_name="run_id"),
+        sequence=sequence,
+        tool_name=normalized_tool_name,
+        request_hash=normalized_request_hash,
+        response_hash=normalized_response_hash,
+        predecessor_trace_hash=normalized_predecessor,
+        trace_hash=normalized_trace_hash,
+        recorded_at=_research_agent_audit_time(recorded_at, field_name="recorded_at"),
+        lifecycle=_RESEARCH_AGENT_LIFECYCLE,
+        eligible_for_trading=False,
+    )
+
+
+def _research_agent_audit_event_values_from_record(
+    record: ResearchAgentRunAuditEventRecord,
+) -> _ResearchAgentRunAuditEventValues:
+    values = _research_agent_run_audit_event_values(
+        run_id=record.run_id,
+        event_kind=record.event_kind,
+        is_terminal=record.is_terminal,
+        request_hash=record.request_hash,
+        result_hash=record.result_hash,
+        failure_code=record.failure_code,
+        trace_count=record.trace_count,
+        trace_root_hash=record.trace_root_hash,
+        trace_tail_hash=record.trace_tail_hash,
+        as_of=record.as_of,
+        occurred_at=record.occurred_at,
+        predecessor_record_hash=record.predecessor_record_hash,
+        lifecycle=record.lifecycle,
+        eligible_for_trading=record.eligible_for_trading,
+    )
+    if record.record_hash != values.record_hash:
+        raise ResearchAgentRunAuditError("RESEARCH_AGENT_RUN_AUDIT_RECORD_TAMPERED")
+    return values
+
+
+def _research_agent_trace_values_from_record(
+    record: ResearchAgentRunTraceEntryRecord,
+) -> _ResearchAgentRunTraceValues:
+    values = _research_agent_run_trace_values(
+        run_id=record.run_id,
+        sequence=record.sequence,
+        tool_name=record.tool_name,
+        request_hash=record.request_hash,
+        response_hash=record.response_hash,
+        predecessor_trace_hash=record.predecessor_trace_hash,
+        trace_hash=record.trace_hash,
+        recorded_at=record.recorded_at,
+        lifecycle=record.lifecycle,
+        eligible_for_trading=record.eligible_for_trading,
+    )
+    if record.record_hash != values.record_hash:
+        raise ResearchAgentRunAuditError("RESEARCH_AGENT_RUN_AUDIT_TRACE_RECORD_TAMPERED")
+    return values
+
+
+def _validate_research_agent_trace_values(
+    values: Sequence[_ResearchAgentRunTraceValues],
+) -> None:
+    for expected_sequence, current in enumerate(values, start=1):
+        if current.sequence != expected_sequence:
+            raise ResearchAgentRunAuditError("RESEARCH_AGENT_RUN_AUDIT_TRACE_ORDER_INVALID")
+        expected_predecessor = (
+            None if expected_sequence == 1 else values[expected_sequence - 2].trace_hash
+        )
+        if current.predecessor_trace_hash != expected_predecessor:
+            raise ResearchAgentRunAuditError("RESEARCH_AGENT_RUN_AUDIT_TRACE_PREDECESSOR_INVALID")
+
+
+def _validate_research_agent_run_audit_rows(
+    *,
+    run_id: str,
+    event_records: Sequence[ResearchAgentRunAuditEventRecord],
+    trace_records: Sequence[ResearchAgentRunTraceEntryRecord],
+) -> None:
+    event_values = tuple(
+        _research_agent_audit_event_values_from_record(record) for record in event_records
+    )
+    trace_values = tuple(
+        _research_agent_trace_values_from_record(record) for record in trace_records
+    )
+    if any(values.run_id != run_id for values in event_values) or any(
+        values.run_id != run_id for values in trace_values
+    ):
+        raise ResearchAgentRunAuditError("RESEARCH_AGENT_RUN_AUDIT_SCOPE_TAMPERED")
+    if not event_values:
+        if trace_values:
+            raise ResearchAgentRunAuditError("RESEARCH_AGENT_RUN_AUDIT_ORPHANED_TRACE")
+        return
+    admitted = tuple(values for values in event_values if values.event_kind == "ADMITTED")
+    terminal = tuple(values for values in event_values if values.is_terminal)
+    if len(admitted) != 1 or len(terminal) > 1 or len(event_values) != 1 + len(terminal):
+        raise ResearchAgentRunAuditError("RESEARCH_AGENT_RUN_AUDIT_EVENT_CHAIN_INVALID")
+    admission = admitted[0]
+    if terminal:
+        terminal_event = terminal[0]
+        if (
+            terminal_event.predecessor_record_hash != admission.record_hash
+            or terminal_event.request_hash != admission.request_hash
+            or terminal_event.as_of != admission.as_of
+            or terminal_event.lifecycle != admission.lifecycle
+            or terminal_event.eligible_for_trading != admission.eligible_for_trading
+            or terminal_event.occurred_at < admission.occurred_at
+        ):
+            raise ResearchAgentRunAuditError("RESEARCH_AGENT_RUN_AUDIT_TERMINAL_CHAIN_INVALID")
+        if terminal_event.event_kind == "COMPLETED":
+            _validate_research_agent_trace_values(trace_values)
+            if (
+                len(trace_values) != terminal_event.trace_count
+                or not trace_values
+                or trace_values[0].trace_hash != terminal_event.trace_root_hash
+                or trace_values[-1].trace_hash != terminal_event.trace_tail_hash
+                or any(values.recorded_at != terminal_event.occurred_at for values in trace_values)
+            ):
+                raise ResearchAgentRunAuditError("RESEARCH_AGENT_RUN_AUDIT_COMPLETION_TRACE_INVALID")
+        elif trace_values:
+            raise ResearchAgentRunAuditError("RESEARCH_AGENT_RUN_AUDIT_FAILURE_TRACE_INVALID")
+    elif trace_values:
+        raise ResearchAgentRunAuditError("RESEARCH_AGENT_RUN_AUDIT_ORPHANED_TRACE")
+
+
+def _require_clean_research_agent_audit_write_session(session: Session) -> None:
+    if session.in_transaction() or session.new or session.dirty or session.deleted:
+        raise ResearchAgentRunAuditError("RESEARCH_AGENT_RUN_AUDIT_SESSION_MUST_BE_CLEAN")
+
+
+def _load_research_agent_run_audit_rows(
+    session: Session,
+    *,
+    run_id: str,
+    lock_events: bool,
+) -> tuple[
+    tuple[ResearchAgentRunAuditEventRecord, ...],
+    tuple[ResearchAgentRunTraceEntryRecord, ...],
+]:
+    event_statement = (
+        select(ResearchAgentRunAuditEventRecord)
+        .where(ResearchAgentRunAuditEventRecord.run_id == run_id)
+        .order_by(ResearchAgentRunAuditEventRecord.id.asc())
+    )
+    if lock_events:
+        event_statement = event_statement.with_for_update()
+    event_records = tuple(session.scalars(event_statement))
+    trace_records = tuple(
+        session.scalars(
+            select(ResearchAgentRunTraceEntryRecord)
+            .where(ResearchAgentRunTraceEntryRecord.run_id == run_id)
+            .order_by(ResearchAgentRunTraceEntryRecord.sequence.asc())
+        )
+    )
+    return event_records, trace_records
+
+
+def _admitted_research_agent_run_values(
+    event_records: Sequence[ResearchAgentRunAuditEventRecord],
+) -> _ResearchAgentRunAuditEventValues:
+    admitted_records = tuple(
+        record for record in event_records if record.event_kind == "ADMITTED"
+    )
+    if len(admitted_records) != 1:
+        raise ResearchAgentRunAuditError("RESEARCH_AGENT_RUN_ADMISSION_MISSING")
+    return _research_agent_audit_event_values_from_record(admitted_records[0])
+
+
+def admit_research_agent_run(
+    session: Session,
+    *,
+    run_id: str,
+    request_hash: str,
+    as_of: datetime,
+    admitted_at: datetime,
+) -> ResearchAgentRunAuditEventRecord:
+    """Atomically reserve one ResearchAgent run before its first tool call.
+
+    This function always commits its isolated reservation.  A repeated
+    ``run_id`` is never idempotent: it is an unsafe retry/unknown-side-effect
+    condition and therefore always raises rather than returning an old row.
+    """
+
+    values = _research_agent_run_audit_event_values(
+        run_id=run_id,
+        event_kind="ADMITTED",
+        is_terminal=False,
+        request_hash=request_hash,
+        result_hash=None,
+        failure_code=None,
+        trace_count=0,
+        trace_root_hash=None,
+        trace_tail_hash=None,
+        as_of=as_of,
+        occurred_at=admitted_at,
+        predecessor_record_hash=None,
+        lifecycle=_RESEARCH_AGENT_LIFECYCLE,
+        eligible_for_trading=False,
+    )
+    _require_clean_research_agent_audit_write_session(session)
+    row = ResearchAgentRunAuditEventRecord(
+        run_id=values.run_id,
+        event_kind=values.event_kind,
+        is_terminal=values.is_terminal,
+        request_hash=values.request_hash,
+        result_hash=values.result_hash,
+        failure_code=values.failure_code,
+        trace_count=values.trace_count,
+        trace_root_hash=values.trace_root_hash,
+        trace_tail_hash=values.trace_tail_hash,
+        as_of=values.as_of,
+        occurred_at=values.occurred_at,
+        predecessor_record_hash=values.predecessor_record_hash,
+        lifecycle=values.lifecycle,
+        eligible_for_trading=values.eligible_for_trading,
+        record_hash=values.record_hash,
+    )
+    try:
+        with session.begin():
+            event_records, trace_records = _load_research_agent_run_audit_rows(
+                session,
+                run_id=values.run_id,
+                lock_events=True,
+            )
+            _validate_research_agent_run_audit_rows(
+                run_id=values.run_id,
+                event_records=event_records,
+                trace_records=trace_records,
+            )
+            if event_records:
+                raise ResearchAgentRunAuditError("RESEARCH_AGENT_RUN_ALREADY_RESERVED")
+            session.add(row)
+            session.flush()
+    except ResearchAgentRunAuditError:
+        if session.in_transaction():
+            session.rollback()
+        raise
+    except IntegrityError as exc:
+        if session.in_transaction():
+            session.rollback()
+        raise ResearchAgentRunAuditError("RESEARCH_AGENT_RUN_ALREADY_RESERVED") from exc
+    return row
+
+
+def _terminal_research_agent_run_preconditions(
+    *,
+    session: Session,
+    run_id: str,
+    request_hash: str,
+    occurred_at: datetime,
+) -> _ResearchAgentRunAuditEventValues:
+    event_records, trace_records = _load_research_agent_run_audit_rows(
+        session,
+        run_id=run_id,
+        lock_events=True,
+    )
+    _validate_research_agent_run_audit_rows(
+        run_id=run_id,
+        event_records=event_records,
+        trace_records=trace_records,
+    )
+    admission = _admitted_research_agent_run_values(event_records)
+    if any(record.is_terminal for record in event_records):
+        raise ResearchAgentRunAuditError("RESEARCH_AGENT_RUN_TERMINAL_ALREADY_RECORDED")
+    if admission.request_hash != request_hash:
+        raise ResearchAgentRunAuditError("RESEARCH_AGENT_RUN_REQUEST_HASH_MISMATCH")
+    if occurred_at < admission.occurred_at:
+        raise ResearchAgentRunAuditError("RESEARCH_AGENT_RUN_TERMINAL_TIME_INVALID")
+    return admission
+
+
+def complete_research_agent_run(
+    session: Session,
+    *,
+    run_id: str,
+    request_hash: str,
+    result_hash: str,
+    trace_entries: Sequence[ResearchAgentRunTraceInput],
+    completed_at: datetime,
+) -> ResearchAgentRunAuditEventRecord:
+    """Atomically append a terminal completion and its full ordered hash trace."""
+
+    normalized_run_id = _research_agent_audit_identifier(run_id, field_name="run_id")
+    normalized_request_hash = _research_agent_audit_hash(
+        request_hash,
+        field_name="request_hash",
+    )
+    normalized_result_hash = _research_agent_audit_hash(result_hash, field_name="result_hash")
+    normalized_completed_at = _research_agent_audit_time(
+        completed_at,
+        field_name="completed_at",
+    )
+    inputs = tuple(trace_entries)
+    if not inputs or not all(type(item) is ResearchAgentRunTraceInput for item in inputs):
+        raise ResearchAgentRunAuditError("RESEARCH_AGENT_RUN_AUDIT_TRACE_REQUIRED")
+    trace_values = tuple(
+        _research_agent_run_trace_values(
+            run_id=normalized_run_id,
+            sequence=item.sequence,
+            tool_name=item.tool_name,
+            request_hash=item.request_hash,
+            response_hash=item.response_hash,
+            predecessor_trace_hash=item.predecessor_trace_hash,
+            trace_hash=item.trace_hash,
+            recorded_at=normalized_completed_at,
+            lifecycle=_RESEARCH_AGENT_LIFECYCLE,
+            eligible_for_trading=False,
+        )
+        for item in inputs
+    )
+    _validate_research_agent_trace_values(trace_values)
+    _require_clean_research_agent_audit_write_session(session)
+    terminal_row: ResearchAgentRunAuditEventRecord | None = None
+    try:
+        with session.begin():
+            admission = _terminal_research_agent_run_preconditions(
+                session=session,
+                run_id=normalized_run_id,
+                request_hash=normalized_request_hash,
+                occurred_at=normalized_completed_at,
+            )
+            terminal_values = _research_agent_run_audit_event_values(
+                run_id=normalized_run_id,
+                event_kind="COMPLETED",
+                is_terminal=True,
+                request_hash=normalized_request_hash,
+                result_hash=normalized_result_hash,
+                failure_code=None,
+                trace_count=len(trace_values),
+                trace_root_hash=trace_values[0].trace_hash,
+                trace_tail_hash=trace_values[-1].trace_hash,
+                as_of=admission.as_of,
+                occurred_at=normalized_completed_at,
+                predecessor_record_hash=admission.record_hash,
+                lifecycle=_RESEARCH_AGENT_LIFECYCLE,
+                eligible_for_trading=False,
+            )
+            trace_rows = [
+                ResearchAgentRunTraceEntryRecord(
+                    run_id=values.run_id,
+                    sequence=values.sequence,
+                    tool_name=values.tool_name,
+                    request_hash=values.request_hash,
+                    response_hash=values.response_hash,
+                    predecessor_trace_hash=values.predecessor_trace_hash,
+                    trace_hash=values.trace_hash,
+                    recorded_at=values.recorded_at,
+                    lifecycle=values.lifecycle,
+                    eligible_for_trading=values.eligible_for_trading,
+                    record_hash=values.record_hash,
+                )
+                for values in trace_values
+            ]
+            terminal_row = ResearchAgentRunAuditEventRecord(
+                run_id=terminal_values.run_id,
+                event_kind=terminal_values.event_kind,
+                is_terminal=terminal_values.is_terminal,
+                request_hash=terminal_values.request_hash,
+                result_hash=terminal_values.result_hash,
+                failure_code=terminal_values.failure_code,
+                trace_count=terminal_values.trace_count,
+                trace_root_hash=terminal_values.trace_root_hash,
+                trace_tail_hash=terminal_values.trace_tail_hash,
+                as_of=terminal_values.as_of,
+                occurred_at=terminal_values.occurred_at,
+                predecessor_record_hash=terminal_values.predecessor_record_hash,
+                lifecycle=terminal_values.lifecycle,
+                eligible_for_trading=terminal_values.eligible_for_trading,
+                record_hash=terminal_values.record_hash,
+            )
+            session.add_all([*trace_rows, terminal_row])
+            session.flush()
+    except ResearchAgentRunAuditError:
+        if session.in_transaction():
+            session.rollback()
+        raise
+    except IntegrityError as exc:
+        if session.in_transaction():
+            session.rollback()
+        raise ResearchAgentRunAuditError("RESEARCH_AGENT_RUN_AUDIT_WRITE_CONFLICT") from exc
+    if terminal_row is None:
+        raise ResearchAgentRunAuditError("RESEARCH_AGENT_RUN_AUDIT_WRITE_CONFLICT")
+    return terminal_row
+
+
+def fail_research_agent_run(
+    session: Session,
+    *,
+    run_id: str,
+    request_hash: str,
+    failure_code: str,
+    failed_at: datetime,
+) -> ResearchAgentRunAuditEventRecord:
+    """Atomically append a terminal failed fact with only a stable failure code."""
+
+    normalized_run_id = _research_agent_audit_identifier(run_id, field_name="run_id")
+    normalized_request_hash = _research_agent_audit_hash(
+        request_hash,
+        field_name="request_hash",
+    )
+    normalized_failure_code = _research_agent_failure_code(failure_code)
+    normalized_failed_at = _research_agent_audit_time(failed_at, field_name="failed_at")
+    _require_clean_research_agent_audit_write_session(session)
+    terminal_row: ResearchAgentRunAuditEventRecord | None = None
+    try:
+        with session.begin():
+            admission = _terminal_research_agent_run_preconditions(
+                session=session,
+                run_id=normalized_run_id,
+                request_hash=normalized_request_hash,
+                occurred_at=normalized_failed_at,
+            )
+            terminal_values = _research_agent_run_audit_event_values(
+                run_id=normalized_run_id,
+                event_kind="FAILED",
+                is_terminal=True,
+                request_hash=normalized_request_hash,
+                result_hash=None,
+                failure_code=normalized_failure_code,
+                trace_count=0,
+                trace_root_hash=None,
+                trace_tail_hash=None,
+                as_of=admission.as_of,
+                occurred_at=normalized_failed_at,
+                predecessor_record_hash=admission.record_hash,
+                lifecycle=_RESEARCH_AGENT_LIFECYCLE,
+                eligible_for_trading=False,
+            )
+            terminal_row = ResearchAgentRunAuditEventRecord(
+                run_id=terminal_values.run_id,
+                event_kind=terminal_values.event_kind,
+                is_terminal=terminal_values.is_terminal,
+                request_hash=terminal_values.request_hash,
+                result_hash=terminal_values.result_hash,
+                failure_code=terminal_values.failure_code,
+                trace_count=terminal_values.trace_count,
+                trace_root_hash=terminal_values.trace_root_hash,
+                trace_tail_hash=terminal_values.trace_tail_hash,
+                as_of=terminal_values.as_of,
+                occurred_at=terminal_values.occurred_at,
+                predecessor_record_hash=terminal_values.predecessor_record_hash,
+                lifecycle=terminal_values.lifecycle,
+                eligible_for_trading=terminal_values.eligible_for_trading,
+                record_hash=terminal_values.record_hash,
+            )
+            session.add(terminal_row)
+            session.flush()
+    except ResearchAgentRunAuditError:
+        if session.in_transaction():
+            session.rollback()
+        raise
+    except IntegrityError as exc:
+        if session.in_transaction():
+            session.rollback()
+        raise ResearchAgentRunAuditError("RESEARCH_AGENT_RUN_AUDIT_WRITE_CONFLICT") from exc
+    if terminal_row is None:
+        raise ResearchAgentRunAuditError("RESEARCH_AGENT_RUN_AUDIT_WRITE_CONFLICT")
+    return terminal_row
+
+
+def read_research_agent_run_audit_trail(
+    session: Session,
+    *,
+    run_id: str,
+) -> tuple[
+    tuple[ResearchAgentRunAuditEventRecord, ...],
+    tuple[ResearchAgentRunTraceEntryRecord, ...],
+] | None:
+    """Read a run's hash-only trail after fully replaying its event and trace chain."""
+
+    normalized_run_id = _research_agent_audit_identifier(run_id, field_name="run_id")
+    event_records, trace_records = _load_research_agent_run_audit_rows(
+        session,
+        run_id=normalized_run_id,
+        lock_events=False,
+    )
+    _validate_research_agent_run_audit_rows(
+        run_id=normalized_run_id,
+        event_records=event_records,
+        trace_records=trace_records,
+    )
+    if not event_records:
+        return None
+    return event_records, trace_records
+
+
 def prepare_order_submission(
     session: Session,
     order: OrderRequest,
     *,
     broker: str,
     account: str,
+    before_durable_intent: Callable[[OrderRequest], None] | None = None,
+    submission_guard: Callable[[OrderRequest], None] | None = None,
 ) -> tuple[OrderRecord, bool]:
     """在触达券商前持久化完整订单意图。
 
@@ -1559,6 +3265,15 @@ def prepare_order_submission(
         submitted_at=None,
         updated_at=now,
     )
+    # These hooks run only for a newly created intent.  An idempotent replay
+    # returns above without staging a duplicate execution plan or consuming the
+    # same provenance commitment again.  Both hooks run before the intent is
+    # added and the following commit makes the plan, consumption, and intent
+    # one atomic durable boundary.
+    if before_durable_intent is not None:
+        before_durable_intent(order)
+    if submission_guard is not None:
+        submission_guard(order)
     session.add(row)
     try:
         session.commit()
@@ -2226,6 +3941,7 @@ def list_execution_recovery_blockers(
     *,
     broker: str,
     account: str,
+    ignore_in_flight_order_ref: str | None = None,
 ) -> list[str]:
     """列出必须先完成券商恢复、不得开启新提交的本地状态。"""
 
@@ -2257,12 +3973,15 @@ def list_execution_recovery_blockers(
             )
         )
     )
+    ignored_order_ref = str(ignore_in_flight_order_ref or "").strip()
     blockers = [
         (
             f"订单恢复未完成：order_id={row.id}，"
             f"order_ref={row.order_ref or 'N/A'}，status={row.status}"
         )
         for row in uncertain_orders
+        if not ignored_order_ref
+        or str(row.order_ref or "").strip() != ignored_order_ref
     ]
     blockers.extend(
         (
@@ -2571,7 +4290,7 @@ def list_recent_account_attributions(
 ) -> list[AccountAttributionRecord]:
     """读取最近账户区间收益归因。"""
 
-    stmt = select(AccountAttributionRecord).where(True)
+    stmt = select(AccountAttributionRecord)
     if profile_id is not None:
         stmt = stmt.where(AccountAttributionRecord.profile_id == profile_id)
     if account is not None:
@@ -2738,6 +4457,214 @@ def latest_runtime_risk_record(
             RuntimeRiskRecord.id.desc(),
         ).limit(1)
     )
+
+
+def latest_reconciliation_safety_state(
+    session: Session,
+    *,
+    profile_id: str | None,
+    broker: str,
+    account: str | None,
+) -> ReconciliationSafetyStateRecord | None:
+    """读取账户最新的、不可被盘中风控结果覆盖的对账安全状态。"""
+
+    normalized_account = _optional_text(account)
+    stmt = select(ReconciliationSafetyStateRecord).where(
+        ReconciliationSafetyStateRecord.profile_id
+        == (str(profile_id).strip() or _UNSCOPED_RECONCILIATION_PROFILE),
+        ReconciliationSafetyStateRecord.broker == str(broker).strip().lower(),
+    )
+    if normalized_account is None:
+        stmt = stmt.where(ReconciliationSafetyStateRecord.account.is_(None))
+    else:
+        stmt = stmt.where(ReconciliationSafetyStateRecord.account == normalized_account)
+    return session.scalar(
+        stmt.order_by(
+            ReconciliationSafetyStateRecord.occurred_at.desc(),
+            ReconciliationSafetyStateRecord.id.desc(),
+        ).limit(1)
+    )
+
+
+def acquire_reconciliation_safety_fence(
+    session: Session,
+    *,
+    profile_id: str | None,
+    broker: str,
+    account: str | None,
+) -> int:
+    """Serialize safety-state reads and writes for one broker account.
+
+    The fence is transaction-scoped deliberately: a candidate holds it from
+    its final persisted-NORMAL check through the locked broker mutation and
+    durable outcome commit.  Reconciliation and HALT transitions use the same
+    key, so a safety transition cannot race between that check and mutation.
+    """
+
+    bind = session.get_bind()
+    if bind.dialect.name != "postgresql":
+        raise RuntimeError("RECONCILIATION_SAFETY_FENCE_POSTGRES_REQUIRED")
+    normalized_profile = str(profile_id or "").strip() or _UNSCOPED_RECONCILIATION_PROFILE
+    normalized_broker = str(broker or "").strip().lower()
+    normalized_account = _optional_text(account) or "__unscoped__"
+    if not normalized_broker:
+        raise ValueError("RECONCILIATION_SAFETY_FENCE_BROKER_REQUIRED")
+    material = "\x1f".join(
+        (
+            "northstar.reconciliation-safety-fence.v1",
+            normalized_profile,
+            normalized_broker,
+            normalized_account,
+        )
+    )
+    fence_key = int.from_bytes(
+        sha256(material.encode("utf-8")).digest()[:8],
+        byteorder="big",
+        signed=True,
+    )
+    session.execute(select(func.pg_advisory_xact_lock(fence_key)))
+    return fence_key
+
+
+def save_reconciliation_safety_state(
+    session: Session,
+    *,
+    profile_id: str | None,
+    broker: str,
+    account: str | None,
+    state: str,
+    reason: str,
+    evidence: dict[str, object],
+    predecessor_hash: str | None,
+    state_hash: str,
+    recovery_approver_id: str | None,
+    occurred_at: datetime,
+    commit: bool = True,
+) -> ReconciliationSafetyStateRecord:
+    """追加一条对账安全状态；调用方负责执行领域状态机转换。"""
+
+    normalized_state = str(state).strip().upper()
+    if not normalized_state or not str(reason).strip() or not str(state_hash).strip():
+        raise ValueError("对账安全状态必须包含 state、reason 和 state_hash")
+    row = ReconciliationSafetyStateRecord(
+        profile_id=str(profile_id).strip() or _UNSCOPED_RECONCILIATION_PROFILE,
+        broker=str(broker).strip().lower(),
+        account=_optional_text(account),
+        state=normalized_state,
+        reason=str(reason).strip(),
+        evidence_json=_serialize_json(evidence) or "{}",
+        predecessor_hash=_optional_text(predecessor_hash),
+        state_hash=str(state_hash).strip(),
+        recovery_approver_id=_optional_text(recovery_approver_id),
+        occurred_at=ensure_utc(occurred_at),
+    )
+    session.add(row)
+    if commit:
+        session.commit()
+    else:
+        session.flush()
+    return row
+
+
+def assert_broker_order_rows_explained(
+    session: Session,
+    broker_rows: Sequence[dict],
+    *,
+    broker: str,
+    account: str | None,
+) -> None:
+    """拒绝无法归属到内部订单账本的券商订单，避免静默接受账户外风险。"""
+
+    normalized_broker = str(broker).strip().lower()
+    expected_account = _optional_text(account)
+    for row in broker_rows:
+        broker_order_id = _optional_text(row.get("broker_order_id"))
+        order_ref = _optional_text(row.get("order_ref"))
+        raw_perm_id = row.get("perm_id")
+        perm_id = (
+            _optional_broker_int(raw_perm_id, field_name="perm_id", positive=True)
+            if raw_perm_id is not None
+            else None
+        )
+        row_account = _optional_text(row.get("account")) or expected_account
+        if expected_account is not None and row_account != expected_account:
+            raise RuntimeError(
+                "BROKER_ORDER_ACCOUNT_MISMATCH: 券商订单账户不属于本次对账账户。"
+            )
+        if not broker_order_id and not order_ref and perm_id is None:
+            raise RuntimeError(
+                "BROKER_ORDER_IDENTITY_REQUIRED: 券商订单缺少可审计身份，无法对账。"
+            )
+        identity_conditions = []
+        if broker_order_id:
+            identity_conditions.append(OrderRecord.broker_order_id == broker_order_id)
+        if order_ref:
+            identity_conditions.append(OrderRecord.order_ref == order_ref)
+        if perm_id is not None:
+            identity_conditions.append(OrderRecord.perm_id == perm_id)
+        stmt = select(OrderRecord.id).where(
+            OrderRecord.broker == normalized_broker,
+            or_(*identity_conditions),
+        )
+        if row_account is None:
+            stmt = stmt.where(OrderRecord.account.is_(None))
+        else:
+            stmt = stmt.where(OrderRecord.account == row_account)
+        if session.scalar(stmt.limit(1)) is None:
+            raise RuntimeError(
+                "BROKER_ORDER_UNEXPLAINED: 券商订单未在内部订单账本中找到。"
+            )
+
+
+def assert_broker_fills_explained(
+    session: Session,
+    fills: Sequence[FillSnapshot],
+    *,
+    broker: str,
+    account: str | None,
+) -> None:
+    """拒绝不能归属到内部订单的券商成交，避免外部成交静默写入账本。"""
+
+    normalized_broker = str(broker).strip().lower()
+    expected_account = _optional_text(account)
+    for item in fills:
+        item_account = _optional_text(item.account) or expected_account
+        if expected_account is not None and item_account != expected_account:
+            raise RuntimeError(
+                "BROKER_FILL_ACCOUNT_MISMATCH: 券商成交账户不属于本次对账账户。"
+            )
+        broker_order_id = _optional_text(item.broker_order_id)
+        order_ref = _optional_text(item.order_ref)
+        perm_id = item.perm_id
+        client_id = item.client_id
+        if not broker_order_id and not order_ref and perm_id is None:
+            raise RuntimeError(
+                "BROKER_FILL_IDENTITY_REQUIRED: 券商成交缺少可审计订单身份。"
+            )
+        identity_conditions = []
+        if broker_order_id:
+            identity_conditions.append(OrderRecord.broker_order_id == broker_order_id)
+        if order_ref:
+            identity_conditions.append(OrderRecord.order_ref == order_ref)
+        if perm_id is not None:
+            identity_conditions.append(OrderRecord.perm_id == int(perm_id))
+        if client_id is not None and broker_order_id:
+            identity_conditions.append(
+                (OrderRecord.broker_order_id == broker_order_id)
+                & (OrderRecord.client_id == int(client_id))
+            )
+        stmt = select(OrderRecord.id).where(
+            OrderRecord.broker == normalized_broker,
+            or_(*identity_conditions),
+        )
+        if item_account is None:
+            stmt = stmt.where(OrderRecord.account.is_(None))
+        else:
+            stmt = stmt.where(OrderRecord.account == item_account)
+        if session.scalar(stmt.limit(1)) is None:
+            raise RuntimeError(
+                "BROKER_FILL_UNEXPLAINED: 券商成交未在内部订单账本中找到。"
+            )
 
 
 def save_run_health_record(

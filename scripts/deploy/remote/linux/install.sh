@@ -1,4 +1,7 @@
-#!/usr/bin/env bash
+#!/bin/bash -p
+unset BASH_ENV ENV CDPATH
+PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+export PATH
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -11,4 +14,4 @@ if [ "${SETUP_SERVER:-1}" != "1" ]; then
   deploy_fail "首次安装必须使用 SETUP_SERVER=1。"
 fi
 
-exec env SETUP_SERVER=1 bash "${DEPLOY_DIR}/provision.sh" "$@"
+exec env SETUP_SERVER=1 /bin/bash -p "${DEPLOY_DIR}/provision.sh" "$@"

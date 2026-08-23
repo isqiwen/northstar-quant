@@ -1,4 +1,7 @@
-#!/usr/bin/env bash
+#!/bin/bash -p
+unset BASH_ENV ENV CDPATH
+PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+export PATH
 set -euo pipefail
 
 # 只采集系统、systemd 和磁盘摘要；不得读取 .env、凭据、数据库内容或账户状态。
@@ -7,14 +10,13 @@ if [ "$#" -ne 2 ]; then
   exit 64
 fi
 
+readonly CANONICAL_SERVICE_NAME="northstar-quant"
+readonly CANONICAL_APP_ROOT="/opt/northstar"
 service_name="$1"
 app_root="$2"
-if [[ ! "${service_name}" =~ ^[A-Za-z0-9._-]+$ ]]; then
-  printf '%s\n' '拒绝不安全的 systemd 服务名。' >&2
-  exit 64
-fi
-if [[ ! "${app_root}" =~ ^/srv/[A-Za-z0-9._/-]+$ ]] || [[ "${app_root}" == *".."* ]]; then
-  printf '%s\n' '拒绝不安全的应用根目录。' >&2
+if [ "${service_name}" != "${CANONICAL_SERVICE_NAME}" ] || \
+  [ "${app_root}" != "${CANONICAL_APP_ROOT}" ]; then
+  printf '%s\n' '远程诊断只允许受管 Northstar 服务及其固定应用根目录。' >&2
   exit 64
 fi
 

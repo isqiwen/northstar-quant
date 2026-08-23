@@ -1,4 +1,7 @@
-#!/usr/bin/env bash
+#!/bin/bash -p
+unset BASH_ENV ENV CDPATH
+PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+export PATH
 set -euo pipefail
 
 # 仅只读：展示 systemd 状态和应用 health 命令的输出，不启动服务或修改配置。
@@ -8,8 +11,8 @@ if [ "$#" -ne 1 ]; then
 fi
 
 service_name="$1"
-if [[ ! "${service_name}" =~ ^[A-Za-z0-9._-]+$ ]]; then
-  printf '%s\n' '拒绝不安全的 systemd 服务名。' >&2
+if [ "${service_name}" != "northstar-quant" ]; then
+  printf '%s\n' '远程健康检查只允许受管 Northstar systemd 服务。' >&2
   exit 64
 fi
 

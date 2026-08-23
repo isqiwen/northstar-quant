@@ -11,6 +11,8 @@ import pytest
 import northstar_quant.application.decision_replay_backtest as decision_replay_backtest
 from northstar_quant.application.decision_replay_backtest import (
     DecisionReplayCompositionError,
+    build_profile_decision_replay_backtest_request,
+    build_profile_decision_replay_receipt,
     build_profile_decision_replay_targets,
 )
 from northstar_quant.data_platform.artifacts.immutable_store import ArtifactStore
@@ -27,6 +29,7 @@ from northstar_quant.research.validation.lookahead import (
     DecisionReplayCheckpoint,
     DecisionReplayPlan,
 )
+from northstar_quant.research.backtest.models import BacktestContractError, BacktestResult
 from tests.helpers.pit_publication import publish_authorized_pit_dataset
 
 
@@ -212,6 +215,46 @@ def test_composition_replays_prefix_versions_and_only_emits_current_target_slice
     assert manifest["decision_time_safe"] is False
     assert manifest["candidate_admission_eligible"] is False
     assert manifest["aggregate_target"]["row_count"] == full_trace.targets_frame().height  # type: ignore[index]
+
+    receipt = build_profile_decision_replay_receipt(
+        profile_id=PROFILE_ID,
+        artifact_store=store,
+        plan=DecisionReplayPlan.create((early_checkpoint, later_checkpoint)),
+    )
+    assert receipt.trace.trace_hash == full_trace.trace_hash
+    assert receipt.certificate.decision_time_safe is False
+    assert receipt.certificate.candidate_admission_eligible is False
+    certified_target_hashes = [
+        report.evidence.target.target_hash for report in receipt.certificate.reports
+    ]
+    assert certified_target_hashes == [
+        item.target_frame_sha256 for item in receipt.trace.target_slices
+    ]
+    receipt_mapping = receipt.as_mapping()
+    assert receipt_mapping["decision_time_safe"] is False
+    assert receipt_mapping["receipt_hash"] == receipt.receipt_hash
+
+    request = build_profile_decision_replay_backtest_request(
+        profile_id=PROFILE_ID,
+        artifact_store=store,
+        plan=DecisionReplayPlan.create((early_checkpoint, later_checkpoint)),
+    )
+    assert request.engine.value == "weight_return"
+    assert request.target == receipt.trace.aggregate_target
+    assert request.data.input_kind.value == "decision_replay_receipt"
+    assert request.data.decision_time_safe is False
+    assert request.data.decision_replay is not None
+    assert request.data.decision_replay.receipt_hash == receipt.receipt_hash
+    assert request.code.strategy_identity_hash == receipt.trace.strategy_identity.identity_hash
+    with pytest.raises(BacktestContractError, match="construction-only"):
+        BacktestResult(
+            engine=request.engine,
+            total_return=0.0,
+            annualized_return=0.0,
+            max_drawdown=0.0,
+            turnover_estimate=0.0,
+            equity_curve=({"date": str(days[-1]), "equity": 1.0},),
+        ).bind_request(request)
 
 
 def test_composition_rejects_a_later_dataset_version_for_an_earlier_checkpoint(

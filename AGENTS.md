@@ -554,15 +554,16 @@ NORTHSTAR_
 当前主要质量门禁：
 
 ```bash
-uv run pytest
-uv run ruff check .
-uv run python scripts/ci/check_mypy_baseline.py check
+just env-bootstrap
+uv run --offline --no-sync pytest
+uv run --offline --no-sync ruff check .
+uv run --offline --no-sync python scripts/ci/check_mypy_baseline.py check
 ```
 
 Codex 应先运行 focused tests：
 
 ```bash
-uv run pytest <affected tests>
+uv run --offline --no-sync pytest <affected tests>
 ```
 
 如果修改涉及：
@@ -578,7 +579,7 @@ uv run pytest <affected tests>
 则完成前必须运行完整：
 
 ```bash
-uv run pytest
+uv run --offline --no-sync pytest
 ```
 
 测试分类：
@@ -906,9 +907,18 @@ git status
 - 失败路径显式
 - 高风险代码避免 broad `except Exception`
 
-项目尚未正式发布，因此：
+项目尚未正式发布，仍处于研发阶段，因此：
 
-> 不需要为未发布的旧实现维护兼容层。
+> 本仓库不对任何既有实现、旧接口、旧配置、旧 CLI contract 或旧数据模型承诺兼容性。
+
+除非用户在当前会话明确要求兼容过渡，否则禁止为了保留历史实现而新增或保留：
+
+- compatibility alias / legacy adapter
+- deprecated configuration fallback
+- 旧 CLI 参数、旧 API 路径或双写数据模型
+- 仅用于迁就旧调用方的 shim、wrapper 或迁移分支
+
+应优先进行干净的 breaking change，并在同一变更中同步更新全部调用方、测试、配置、文档与 schema / migration（如适用）。
 
 如需 breaking change，应：
 

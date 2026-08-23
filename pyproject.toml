@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=69", "wheel"]
+requires = ["setuptools==80.9.0", "wheel==0.45.1"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -46,6 +46,15 @@ dev = [
   "pytest-cov>=5.0",
   "ruff>=0.5",
   "mypy>=1.11",
+]
+
+# This is deliberately a PEP 735 dependency group rather than a distributable
+# project extra.  The hermetic PEP 517 bootstrap installs it into a fresh venv
+# before it materializes any source distribution or the local project.
+[dependency-groups]
+build-bootstrap = [
+  "setuptools==80.9.0",
+  "wheel==0.45.1",
 ]
 
 [project.scripts]

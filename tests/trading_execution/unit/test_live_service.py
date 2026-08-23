@@ -6,11 +6,14 @@ from types import SimpleNamespace
 import pytest
 import polars as pl
 
+import northstar_quant.application.live_service as live_service
 from northstar_quant.platform.common.enums import AssetType
 from northstar_quant.trading_execution.execution.models import OrderRequest, OrderResult
 from northstar_quant.application.live_service import (
+    _assert_p8_ctp_sim_candidate_execution_path,
     _collect_execution_symbols,
     _latest_valuation_price_map,
+    _pick_broker,
     _route_order_batch_fail_closed,
 )
 
@@ -99,3 +102,84 @@ def test_live_service_rejects_continuous_research_symbol_before_ctp_lookup():
             SimpleNamespace(positions=(), open_orders=()),
             broker_name="ctp_sim",
         )
+
+
+def test_application_composition_root_still_rejects_real_ctp_before_connecting(
+    monkeypatch,
+):
+    monkeypatch.setattr(live_service, "get_settings", lambda: SimpleNamespace(broker="ctp"))
+
+    with pytest.raises(NotImplementedError, match="CTP_EXECUTION_ADAPTER_REQUIRED"):
+        _pick_broker()
+
+
+def test_legacy_live_execute_blocks_ctp_sim_before_broker_creation(monkeypatch):
+    monkeypatch.setattr(
+        live_service,
+        "_load_broker_profile",
+        lambda *_args, **_kwargs: SimpleNamespace(profile_id="ctp-sim-profile"),
+    )
+    monkeypatch.setattr(
+        live_service,
+        "get_settings",
+        lambda: SimpleNamespace(broker="ctp_sim", kill_switch_enabled=False),
+    )
+    monkeypatch.setattr(
+        live_service,
+        "_pick_broker",
+        lambda: pytest.fail("legacy CTP-sim execution must not create a broker"),
+    )
+
+    with pytest.raises(PermissionError, match="P8_CTP_SIM_CANDIDATE_GATE_REQUIRED"):
+        live_service.execute_latest_targets_once()
+
+
+def test_p8_ctp_sim_candidate_gate_leaves_paper_execution_path_available():
+    _assert_p8_ctp_sim_candidate_execution_path("paper")
+
+
+def test_sync_broker_once_keeps_ctp_sim_non_submit_path_available(monkeypatch):
+    class _CtpSimSyncBroker:
+        def __init__(self) -> None:
+            self.calls: list[str] = []
+
+        def connect(self) -> None:
+            self.calls.append("connect")
+
+        def disconnect(self) -> None:
+            self.calls.append("disconnect")
+
+        def get_name(self) -> str:
+            return "ctp_sim"
+
+    class _Session:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args) -> None:
+            return None
+
+    broker = _CtpSimSyncBroker()
+    monkeypatch.setattr(
+        live_service,
+        "_load_broker_profile",
+        lambda *_args, **_kwargs: SimpleNamespace(profile_id="ctp-sim-profile"),
+    )
+    monkeypatch.setattr(live_service, "_pick_broker", lambda: broker)
+    monkeypatch.setattr(live_service, "SessionLocal", _Session)
+    monkeypatch.setattr(
+        live_service,
+        "reconcile_broker_state",
+        lambda _session, observed_broker, *, profile_id: {
+            "positions_synced": 0,
+            "fills_synced": 0,
+            "broker": observed_broker.get_name(),
+            "profile_id": profile_id,
+        },
+    )
+
+    result = live_service.sync_broker_once()
+
+    assert result["broker"] == "ctp_sim"
+    assert result["profile_id"] == "ctp-sim-profile"
+    assert broker.calls == ["connect", "disconnect"]

@@ -94,6 +94,21 @@ def _request(engine: BacktestEngine = BacktestEngine.WEIGHT_RETURN) -> BacktestR
     )
 
 
+def test_decision_replay_data_reference_requires_a_typed_binding() -> None:
+    with pytest.raises(BacktestContractError, match="requires BacktestDecisionReplayBinding"):
+        BacktestDataReference(
+            input_kind=BacktestDataInputKind.DECISION_REPLAY_RECEIPT,
+            dataset_id="research-dataset",
+            source_id="fixture-source",
+            adapter_id=None,
+            content_sha256=_HASH_A,
+            schema_version="market_data_v2",
+            source_config_sha256=_HASH_B,
+            selection_mode="PER_DECISION_POINT_IN_TIME_REPLAY",
+            decision_time_safe=False,
+        )
+
+
 def _result(engine: BacktestEngine) -> BacktestResult:
     payload: dict[str, object] = {
         "engine": engine,

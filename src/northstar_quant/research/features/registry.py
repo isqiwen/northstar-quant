@@ -10,6 +10,8 @@ from collections.abc import Iterable, Mapping
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 from northstar_quant.research.features.models import (
+    DecisionReplayFeatureMaterialization,
+    _DECISION_REPLAY_FEATURE_ISSUER,
     FeatureBackfill,
     _FeatureBackfillRunner,
     FeatureDependency,
@@ -58,6 +60,10 @@ class FeatureRegistry:
         self._lineages_by_hash: dict[str, FeatureLineage] = {}
         self._backfills_by_lineage_hash: dict[str, FeatureBackfill] = {}
         self._computers_by_version_hash: dict[str, FeatureComputer] = {}
+        self._decision_replay_materializations: dict[
+            str,
+            DecisionReplayFeatureMaterialization,
+        ] = {}
         self._artifact_store = artifact_store
 
     def register_spec(self, spec: FeatureSpec) -> FeatureSpec:
@@ -354,3 +360,81 @@ class FeatureRegistry:
             return existing
         self._backfills_by_lineage_hash[lineage.lineage_hash] = backfill
         return backfill
+
+    def materialize_per_decision_replay(
+        self,
+        *,
+        feature_version_hash: str,
+        market_snapshot: MarketDataSnapshot,
+        replay_checkpoint_hash: str,
+        parameters: Mapping[str, object],
+    ) -> DecisionReplayFeatureMaterialization:
+        """从单个 checkpoint 的 immutable PIT snapshot 受控物化严格特征输出。"""
+
+        from northstar_quant.data_platform.market.pit import MarketDataSnapshot
+
+        if not isinstance(market_snapshot, MarketDataSnapshot):
+            raise FeatureRegistryError("market_snapshot 必须是 MarketDataSnapshot")
+        version = self.get_version(feature_version_hash)
+        feature_spec = self.get_spec(version.feature_id)
+        proposed_evidence = FeatureDatasetEvidence.from_market_data_snapshot(market_snapshot)
+        verified_snapshot = self._reselect_dataset_evidence(proposed_evidence)
+        if verified_snapshot.snapshot_id != market_snapshot.snapshot_id:
+            raise FeatureRegistryError("market_snapshot 未能通过 immutable DatasetVersion 重算验证")
+        self._assert_feature_input_compatible(feature_spec, verified_snapshot)
+        lineage = FeatureLineage.create_per_decision_replay(
+            feature_version=version,
+            dependencies=(
+                FeatureDependency.from_market_data_snapshot(
+                    role="market_data",
+                    snapshot=verified_snapshot,
+                ),
+            ),
+            parameters=parameters,
+            decision_at=verified_snapshot.as_of,
+            available_at=verified_snapshot.as_of,
+            replay_checkpoint_hash=replay_checkpoint_hash,
+        )
+        computer = self._computers_by_version_hash.get(version.version_hash)
+        if computer is None:
+            raise FeatureRegistryError("FeatureVersion 尚未登记受控 FeatureComputer，拒绝执行逐决策 replay")
+        if (
+            computer.feature_version_hash != version.version_hash
+            or computer.implementation_hash != version.implementation_hash
+        ):
+            raise FeatureRegistryError("已登记 FeatureComputer 身份与 FeatureVersion 不一致")
+
+        def compute_once() -> tuple[FeatureValue, ...]:
+            values = tuple(
+                computer.compute(
+                    market_snapshot=verified_snapshot,
+                    parameters=lineage.parameters,
+                    lineage=lineage,
+                )
+            )
+            expected_keys = set(feature_spec.entity_key_columns)
+            for value in values:
+                if set(value.key) != expected_keys:
+                    raise FeatureRegistryError(
+                        "FeatureValue.key 必须精确匹配已登记 FeatureSpec.entity_key_columns"
+                    )
+            return values
+
+        first = compute_once()
+        second = compute_once()
+        first_ids = tuple(sorted(item.value_id for item in first))
+        second_ids = tuple(sorted(item.value_id for item in second))
+        if first_ids != second_ids:
+            raise FeatureRegistryError("同一逐决策 FeatureLineage 的两次计算结果不同")
+        materialization = DecisionReplayFeatureMaterialization(
+            lineage=lineage,
+            replay_checkpoint_hash=replay_checkpoint_hash,
+            input_snapshot_hash=verified_snapshot.snapshot_id,
+            values=first,
+            _issuer=_DECISION_REPLAY_FEATURE_ISSUER,
+        )
+        existing = self._decision_replay_materializations.get(materialization.materialization_hash)
+        if existing is not None:
+            return existing
+        self._decision_replay_materializations[materialization.materialization_hash] = materialization
+        return materialization

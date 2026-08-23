@@ -241,6 +241,29 @@ def test_registry_reselects_an_authorized_dataset_and_freezes_full_pit_evidence(
     assert backfill.implementation_hash == version.implementation_hash
     assert computer.seen_snapshot_ids == [snapshot.snapshot_id] * 4
 
+    strict = registry.materialize_per_decision_replay(
+        feature_version_hash=version.version_hash,
+        market_snapshot=snapshot,
+        replay_checkpoint_hash=_hash("decision-checkpoint"),
+        parameters={"scale": 1.0},
+    )
+    assert strict.lineage.selection_mode == "PER_DECISION_POINT_IN_TIME_REPLAY"
+    assert strict.lineage.decision_time_safe is True
+    assert strict.lineage.replay_checkpoint_hash == _hash("decision-checkpoint")
+    assert strict.input_snapshot_hash == snapshot.snapshot_id
+    assert strict.values[0].lineage_hash == strict.lineage.lineage_hash
+    assert computer.seen_snapshot_ids == [snapshot.snapshot_id] * 6
+
+    computer.unstable = True
+    with pytest.raises(FeatureRegistryError, match="两次计算结果不同"):
+        registry.materialize_per_decision_replay(
+            feature_version_hash=version.version_hash,
+            market_snapshot=snapshot,
+            replay_checkpoint_hash=_hash("decision-checkpoint-unstable"),
+            parameters={"scale": 1.0},
+        )
+    computer.unstable = False
+
     computer.value = 3551.5
     with pytest.raises(FeatureRegistryError, match="已登记不同的 deterministic backfill"):
         registry.materialize_deterministic_backfill(lineage)

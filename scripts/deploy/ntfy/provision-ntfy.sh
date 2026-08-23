@@ -1,4 +1,9 @@
-#!/usr/bin/env bash
+#!/bin/bash -p
+# This is a root-only entrypoint.  Do not inherit command lookup or startup
+# hooks from an untrusted deployment shell.
+unset BASH_ENV ENV CDPATH
+PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+export PATH
 set -euo pipefail
 
 # 这个脚本只在远端以 root 身份执行。ntfy 是独立于 Northstar release 的持久服务：
@@ -12,8 +17,11 @@ APP_ENV_FILE="${APP_ENV_FILE:-}"
 NTFY_DEPLOY_ENABLED="${NTFY_DEPLOY_ENABLED:-0}"
 UPLOAD_NTFY_BOOTSTRAP="${UPLOAD_NTFY_BOOTSTRAP:-0}"
 NTFY_BOOTSTRAP_PATH="${NTFY_BOOTSTRAP_PATH:-}"
+RELEASE_ID="${RELEASE_ID:-}"
+DEPLOY_STATE_DIR="/var/lib/northstar/deploy-state"
 NTFY_SERVICE_ACCOUNT="northstar-ntfy"
 NTFY_PROJECT_NAME="northstar-ntfy"
+MANAGED_BOOTSTRAP_CANDIDATE=""
 
 COMPOSE_FILE=""
 CADDY_FILE=""
@@ -32,12 +40,25 @@ cleanup_temporary_files() {
 }
 
 cleanup_bootstrap_file() {
-  if [ "${UPLOAD_NTFY_BOOTSTRAP}" = "1" ] && [ -n "${NTFY_BOOTSTRAP_PATH}" ]; then
-    rm -f -- "${NTFY_BOOTSTRAP_PATH}" || true
+  if [ "${UPLOAD_NTFY_BOOTSTRAP}" = "1" ] && [ -n "${MANAGED_BOOTSTRAP_CANDIDATE}" ]; then
+    rm -f -- "${MANAGED_BOOTSTRAP_CANDIDATE}" || true
   fi
 }
 
-trap 'cleanup_temporary_files; cleanup_bootstrap_file' EXIT
+cleanup_on_exit() {
+  local exit_status="$?"
+
+  cleanup_temporary_files
+  # An interrupted root apply has an unknown outcome. Preserve the exact
+  # verified candidate for later durable recovery; ordinary success/failure
+  # remains safe to clean up because this one-time bootstrap has been consumed.
+  if [ "${exit_status}" -lt 128 ]; then
+    cleanup_bootstrap_file
+  fi
+  return "${exit_status}"
+}
+
+trap cleanup_on_exit EXIT
 
 ntfy_require_root() {
   if [ "${EUID}" -ne 0 ]; then
@@ -45,19 +66,35 @@ ntfy_require_root() {
   fi
 }
 
-ntfy_validate_remote_bootstrap_path() {
-  case "${NTFY_BOOTSTRAP_PATH}" in
-    /tmp/*|/var/tmp/*)
-      ;;
-    *)
-      deploy_fail "NTFY_BOOTSTRAP_PATH 只能位于 /tmp 或 /var/tmp。"
-      ;;
-  esac
-  case "/${NTFY_BOOTSTRAP_PATH}/" in
-    *"/../"*|*"/./"*)
-      deploy_fail "NTFY_BOOTSTRAP_PATH 不能包含 . 或 .. 路径段。"
-      ;;
-  esac
+ntfy_assert_managed_bootstrap_candidate() {
+  local expected_candidate
+  local state_metadata
+  local candidate_metadata
+
+  deploy_assert_safe_name "RELEASE_ID" "${RELEASE_ID}"
+  expected_candidate="${DEPLOY_STATE_DIR}/.ntfy-bootstrap.${RELEASE_ID}.candidate.env"
+  if [ "${NTFY_BOOTSTRAP_PATH}" != "${expected_candidate}" ]; then
+    deploy_fail "NTFY bootstrap 必须是当前 release 的受管候选文件。"
+  fi
+
+  # These are fixed Linux production paths. Check type and metadata without
+  # dereferencing a link before root reads the one-time secret candidate.
+  if [ ! -d "${DEPLOY_STATE_DIR}" ] || [ -L "${DEPLOY_STATE_DIR}" ]; then
+    deploy_fail "NTFY bootstrap 受管状态目录必须是普通非链接目录。"
+  fi
+  state_metadata="$(stat -c '%u:%g:%a' -- "${DEPLOY_STATE_DIR}" 2>/dev/null || true)"
+  if [ "${state_metadata}" != "0:0:700" ]; then
+    deploy_fail "NTFY bootstrap 受管状态目录必须是 root:root 0700 的普通目录。"
+  fi
+  if [ ! -f "${NTFY_BOOTSTRAP_PATH}" ] || [ -L "${NTFY_BOOTSTRAP_PATH}" ]; then
+    deploy_fail "NTFY bootstrap 候选文件必须是普通非链接文件。"
+  fi
+  candidate_metadata="$(stat -c '%u:%g:%a' -- "${NTFY_BOOTSTRAP_PATH}" 2>/dev/null || true)"
+  if [ "${candidate_metadata}" != "0:0:600" ]; then
+    deploy_fail "NTFY bootstrap 候选文件必须是 root:root 0600 的普通非链接文件。"
+  fi
+
+  MANAGED_BOOTSTRAP_CANDIDATE="${expected_candidate}"
 }
 
 ntfy_assert_docker_ready() {
@@ -75,6 +112,9 @@ ntfy_assert_docker_ready() {
 }
 
 ntfy_ensure_service_account() {
+  deploy_need_cmd awk
+  deploy_need_cmd getent
+
   if ! id "${NTFY_SERVICE_ACCOUNT}" >/dev/null 2>&1; then
     adduser \
       --system \
@@ -84,19 +124,137 @@ ntfy_ensure_service_account() {
       "${NTFY_SERVICE_ACCOUNT}"
   fi
 
+  if ! ntfy_assert_canonical_service_account; then
+    deploy_fail "既有 ntfy 服务账户不符合专用非 root、nologin、私有主组与无补充组约束。"
+  fi
+
   NTFY_SERVICE_UID="$(id -u "${NTFY_SERVICE_ACCOUNT}")"
   NTFY_SERVICE_GID="$(id -g "${NTFY_SERVICE_ACCOUNT}")"
 }
 
+ntfy_assert_canonical_service_account() {
+  local account_record
+  local account_name
+  local ignored_password
+  local account_uid
+  local account_gid
+  local ignored_gecos
+  local account_home
+  local account_shell
+  local group_record
+  local group_name
+  local ignored_group_password
+  local group_gid
+  local group_members
+  local foreign_primary_member
+
+  account_record="$(getent passwd "${NTFY_SERVICE_ACCOUNT}")" || return 1
+  IFS=: read -r \
+    account_name \
+    ignored_password \
+    account_uid \
+    account_gid \
+    ignored_gecos \
+    account_home \
+    account_shell <<< "${account_record}"
+  [ "${account_name}" = "${NTFY_SERVICE_ACCOUNT}" ] || return 1
+  [ "${account_uid}" != "0" ] || return 1
+  [ "${account_gid}" != "0" ] || return 1
+  [ "${account_home}" = "/nonexistent" ] || return 1
+  [ "${account_shell}" = "/usr/sbin/nologin" ] || return 1
+  [ "$(id -gn "${NTFY_SERVICE_ACCOUNT}")" = "${NTFY_SERVICE_ACCOUNT}" ] || return 1
+  [ "$(id -Gn "${NTFY_SERVICE_ACCOUNT}")" = "${NTFY_SERVICE_ACCOUNT}" ] || return 1
+
+  group_record="$(getent group "${NTFY_SERVICE_ACCOUNT}")" || return 1
+  IFS=: read -r \
+    group_name \
+    ignored_group_password \
+    group_gid \
+    group_members <<< "${group_record}"
+  [ "${group_name}" = "${NTFY_SERVICE_ACCOUNT}" ] || return 1
+  [ "${group_gid}" = "${account_gid}" ] || return 1
+  [ -z "${group_members}" ] || return 1
+  if ! foreign_primary_member="$(
+    getent passwd | awk -F: -v group_gid="${group_gid}" -v service_account="${NTFY_SERVICE_ACCOUNT}" \
+      '$1 != service_account && $4 == group_gid { print $1; exit }'
+  )"; then
+    return 1
+  fi
+  [ -z "${foreign_primary_member}" ]
+}
+
+ntfy_directory_matches_contract() {
+  local directory_path="$1"
+  local expected_uid="$2"
+  local expected_gid="$3"
+  local expected_mode="$4"
+  local directory_metadata
+
+  if [ ! -d "${directory_path}" ] || [ -L "${directory_path}" ]; then
+    return 1
+  fi
+  directory_metadata="$(stat -c '%u:%g:%a' -- "${directory_path}" 2>/dev/null || true)"
+  [ "${directory_metadata}" = "${expected_uid}:${expected_gid}:${expected_mode}" ]
+}
+
+ntfy_ensure_managed_directory() {
+  local directory_path="$1"
+  local owner_name="$2"
+  local group_name="$3"
+  local expected_uid="$4"
+  local expected_gid="$5"
+  local expected_mode="$6"
+
+  # mkdir succeeds only for a new final path. Do not chown/chmod after a
+  # failed mkdir: that object existed before this invocation and must already
+  # satisfy the contract, otherwise an administrator must remediate it.
+  if ! mkdir -m "${expected_mode}" -- "${directory_path}" 2>/dev/null; then
+    if ntfy_directory_matches_contract \
+      "${directory_path}" \
+      "${expected_uid}" \
+      "${expected_gid}" \
+      "${expected_mode}"; then
+      return
+    fi
+    deploy_fail "拒绝修改未受管的 ntfy 目录：${directory_path}"
+  fi
+  if ! chown "${owner_name}:${group_name}" -- "${directory_path}" ||
+    ! chmod "${expected_mode}" -- "${directory_path}"; then
+    deploy_fail "无法设置新建 ntfy 受管目录的所有权或权限：${directory_path}"
+  fi
+  if ! ntfy_directory_matches_contract \
+    "${directory_path}" \
+    "${expected_uid}" \
+    "${expected_gid}" \
+    "${expected_mode}"; then
+    deploy_fail "新建 ntfy 目录未满足受管所有权与权限约束：${directory_path}"
+  fi
+}
+
 ntfy_ensure_directories() {
-  install -d -o root -g "${NTFY_SERVICE_ACCOUNT}" -m 0750 "${NTFY_CONFIG_DIR}"
-  install -d -o root -g root -m 0750 "${NTFY_DATA_DIR}"
-  install -d -o "${NTFY_SERVICE_ACCOUNT}" -g "${NTFY_SERVICE_ACCOUNT}" -m 0750 \
-    "${NTFY_DATA_DIR}/ntfy"
-  install -d -o root -g root -m 0700 \
-    "${NTFY_DATA_DIR}/caddy" \
-    "${NTFY_DATA_DIR}/caddy/data" \
-    "${NTFY_DATA_DIR}/caddy/config"
+  deploy_need_cmd chown
+  deploy_need_cmd chmod
+  deploy_need_cmd mkdir
+  deploy_need_cmd stat
+  ntfy_require_canonical_directories
+
+  ntfy_ensure_managed_directory \
+    "${NTFY_CONFIG_DIR}" root "${NTFY_SERVICE_ACCOUNT}" 0 "${NTFY_SERVICE_GID}" 750
+  ntfy_ensure_managed_directory \
+    "${NTFY_DATA_DIR}" root root 0 0 750
+  ntfy_ensure_managed_directory \
+    "${NTFY_DATA_DIR}/ntfy" \
+    "${NTFY_SERVICE_ACCOUNT}" \
+    "${NTFY_SERVICE_ACCOUNT}" \
+    "${NTFY_SERVICE_UID}" \
+    "${NTFY_SERVICE_GID}" \
+    750
+  ntfy_ensure_managed_directory \
+    "${NTFY_DATA_DIR}/caddy" root root 0 0 700
+  ntfy_ensure_managed_directory \
+    "${NTFY_DATA_DIR}/caddy/data" root root 0 0 700
+  ntfy_ensure_managed_directory \
+    "${NTFY_DATA_DIR}/caddy/config" root root 0 0 700
 }
 
 ntfy_compose() {
@@ -375,7 +533,14 @@ ntfy_read_bootstrap_file() {
   NTFY_READER_USERNAME=""
   NTFY_READER_PASSWORD=""
 
-  if [ ! -f "${NTFY_BOOTSTRAP_PATH}" ]; then
+  if [ "${NTFY_BOOTSTRAP_PATH}" != "${MANAGED_BOOTSTRAP_CANDIDATE}" ]; then
+    deploy_fail "NTFY bootstrap 文件未通过受管候选文件验证。"
+  fi
+  # Recheck immediately before opening the file. This is redundant for the
+  # root-only state directory, but keeps the parser fail-closed if its
+  # metadata changes between validation and consumption.
+  ntfy_assert_managed_bootstrap_candidate
+  if [ ! -f "${NTFY_BOOTSTRAP_PATH}" ] || [ -L "${NTFY_BOOTSTRAP_PATH}" ]; then
     deploy_fail "未找到私有 ntfy bootstrap 文件：${NTFY_BOOTSTRAP_PATH}。"
   fi
 
@@ -610,7 +775,7 @@ if [ "${UPLOAD_NTFY_BOOTSTRAP}" = "1" ]; then
   if [ -z "${NTFY_BOOTSTRAP_PATH}" ]; then
     deploy_fail "UPLOAD_NTFY_BOOTSTRAP=1 时必须提供远端 NTFY_BOOTSTRAP_PATH。"
   fi
-  ntfy_validate_remote_bootstrap_path
+  ntfy_assert_managed_bootstrap_candidate
 fi
 
 ntfy_assert_docker_ready

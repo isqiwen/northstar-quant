@@ -8,15 +8,13 @@ import polars as pl
 from northstar_quant.platform.config.settings import get_settings
 from northstar_quant.platform.config.trading_profile import load_trading_profile
 from northstar_quant.trading_execution.execution.models import BrokerStateSnapshot
-from northstar_quant.trading_execution.live import preflight
 from northstar_quant.trading_execution.live.preflight import build_preflight_result
 
 
-def _provenance_check(monkeypatch, *, allowlist: str, manifest: dict):
+def _provenance_check(*, allowlist: str, manifest: dict):
     settings = get_settings().model_copy(
         update={"approved_live_data_providers": allowlist}
     )
-    monkeypatch.setattr(preflight, "get_settings", lambda: settings)
     profile = load_trading_profile()
     profile = replace(
         profile,
@@ -32,6 +30,7 @@ def _provenance_check(monkeypatch, *, allowlist: str, manifest: dict):
     )
     result = build_preflight_result(
         profile=profile,
+        settings=settings,
         raw_market_df=frame,
         signal_market_df=frame,
         output_frame=pl.DataFrame(
@@ -58,9 +57,8 @@ def _provenance_check(monkeypatch, *, allowlist: str, manifest: dict):
     return next(check for check in result.checks if check.code == "data_provenance")
 
 
-def test_preflight_rejects_live_provider_when_allowlist_is_empty(monkeypatch):
+def test_preflight_rejects_live_provider_when_allowlist_is_empty():
     check = _provenance_check(
-        monkeypatch,
         allowlist="",
         manifest={
             "manifest_version": "data_manifest_v3",
@@ -76,9 +74,8 @@ def test_preflight_rejects_live_provider_when_allowlist_is_empty(monkeypatch):
     assert "未配置真实交易数据提供器白名单" in check.message
 
 
-def test_preflight_accepts_explicitly_approved_hashed_provider(monkeypatch):
+def test_preflight_accepts_explicitly_approved_hashed_provider():
     check = _provenance_check(
-        monkeypatch,
         allowlist="verified_vendor",
         manifest={
             "manifest_version": "data_manifest_v3",

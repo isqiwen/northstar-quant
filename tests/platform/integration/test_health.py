@@ -14,6 +14,9 @@ def test_healthcheck_contains_app_name():
     assert payload["app_name"] == "Northstar Quant"
     assert payload["status"] in {"ok", "degraded", "blocked"}
     assert payload["checks"]
+    assert payload["operational_snapshot"]["job_state"] == "unknown"
+    assert payload["operational_snapshot"]["risk_state"] == "unknown"
+    assert "northstar_health_status" in payload["metrics_prometheus"]
 
 
 def test_healthcheck_skips_disabled_database_backup_readiness_policy():

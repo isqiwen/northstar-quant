@@ -12,7 +12,7 @@ lineage 的输出可用时间。因此调用方不能把未来数据伪装成历
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable, Mapping
-from dataclasses import dataclass, field
+from dataclasses import InitVar, dataclass, field
 from datetime import UTC, date, datetime
 from enum import Enum
 import json
@@ -52,6 +52,7 @@ class FeatureDependencyKind(str, Enum):
 
 
 _STATIC_SELECTION_MODE = "STATIC_AS_OF_VIEW_NOT_DECISION_REPLAY"
+_PER_DECISION_SELECTION_MODE = "PER_DECISION_POINT_IN_TIME_REPLAY"
 _PER_DECISION_SELECTION_MODE = "PER_DECISION_POINT_IN_TIME_REPLAY"
 _PIT_SPEC_FORMAT = "northstar.market-data-pit-spec.v1"
 
@@ -783,8 +784,9 @@ class FeatureLineage:
     parameters_json: str
     decision_at: datetime
     available_at: datetime
-    selection_mode: str = field(init=False)
-    decision_time_safe: bool = field(init=False)
+    selection_mode: str = _STATIC_SELECTION_MODE
+    decision_time_safe: bool = False
+    replay_checkpoint_hash: str | None = None
     lineage_hash: str = field(init=False)
 
     @classmethod
@@ -819,6 +821,48 @@ class FeatureLineage:
             parameters_json=_validate_parameters(parameters, feature_version.parameter_schema_json),
             decision_at=decision_at,
             available_at=available_at,
+        )
+
+    @classmethod
+    def create_per_decision_replay(
+        cls,
+        *,
+        feature_version: FeatureVersion,
+        dependencies: Iterable[FeatureDependency],
+        parameters: Mapping[str, object],
+        decision_at: datetime,
+        available_at: datetime,
+        replay_checkpoint_hash: str,
+    ) -> "FeatureLineage":
+        """构造只能由逐 checkpoint PIT 重放使用的严格特征血缘。
+
+        该工厂不改变 P2-WP01 的静态血缘语义；调用方还必须通过受控 Registry
+        重放输入和双执行计算，不能把任意 ``FeatureLineage`` 当作严格证据。
+        """
+
+        if not isinstance(feature_version, FeatureVersion):
+            raise FeatureRegistryError("feature_version 必须是 FeatureVersion")
+        normalized_dependencies = tuple(dependencies)
+        if any(
+            item.kind is FeatureDependencyKind.FEATURE
+            and item.feature_version_hash == feature_version.version_hash
+            for item in normalized_dependencies
+        ):
+            raise FeatureRegistryError("FeatureLineage 不能直接依赖自身的 FeatureVersion")
+        if any(item.kind is FeatureDependencyKind.FEATURE for item in normalized_dependencies):
+            raise FeatureRegistryError(
+                "逐决策 Feature replay 尚未接受 Feature 类型输入；必须使用已重放 DatasetVersion"
+            )
+        return cls(
+            feature_version_hash=feature_version.version_hash,
+            implementation_hash=feature_version.implementation_hash,
+            dependencies=normalized_dependencies,
+            parameters_json=_validate_parameters(parameters, feature_version.parameter_schema_json),
+            decision_at=decision_at,
+            available_at=available_at,
+            selection_mode=_PER_DECISION_SELECTION_MODE,
+            decision_time_safe=True,
+            replay_checkpoint_hash=replay_checkpoint_hash,
         )
 
     @property
@@ -870,10 +914,28 @@ class FeatureLineage:
             _required_text(self.parameters_json, "parameters_json"), "parameters_json"
         )
         canonical_dependencies = tuple(sorted(dependencies, key=lambda item: item.role))
-        # P1 当前只产生单一静态 as-of snapshot。P2-WP01 不能仅因调用方提供了一段
-        # 字符串就把它升级为逐决策 PIT 安全；该能力留给 P2-WP05 的专用 replay 证据。
-        decision_time_safe = False
-        selection_mode = _STATIC_SELECTION_MODE
+        selection_mode = _required_text(self.selection_mode, "selection_mode")
+        if type(self.decision_time_safe) is not bool:
+            raise FeatureRegistryError("decision_time_safe 必须是 bool")
+        if selection_mode == _STATIC_SELECTION_MODE:
+            if self.decision_time_safe or self.replay_checkpoint_hash is not None:
+                raise FeatureRegistryError(
+                    "STATIC FeatureLineage 不得声明逐决策 checkpoint 或 decision_time_safe"
+                )
+            decision_time_safe = False
+            replay_checkpoint_hash = None
+        elif selection_mode == _PER_DECISION_SELECTION_MODE:
+            if self.decision_time_safe is not True:
+                raise FeatureRegistryError(
+                    "PER_DECISION FeatureLineage 必须显式声明 decision_time_safe=true"
+                )
+            replay_checkpoint_hash = _hash(
+                self.replay_checkpoint_hash,
+                "replay_checkpoint_hash",
+            )
+            decision_time_safe = True
+        else:
+            raise FeatureRegistryError("FeatureLineage.selection_mode 不受支持")
         lineage_hash = canonical_json_sha256(
             {
                 "available_at": available_at.isoformat(),
@@ -899,6 +961,7 @@ class FeatureLineage:
                 "format": "northstar.feature-lineage.v1",
                 "implementation_hash": implementation_hash,
                 "parameters": parameters,
+                "replay_checkpoint_hash": replay_checkpoint_hash,
                 "selection_mode": selection_mode,
                 "decision_time_safe": decision_time_safe,
             }
@@ -910,6 +973,7 @@ class FeatureLineage:
         object.__setattr__(self, "available_at", available_at)
         object.__setattr__(self, "selection_mode", selection_mode)
         object.__setattr__(self, "decision_time_safe", decision_time_safe)
+        object.__setattr__(self, "replay_checkpoint_hash", replay_checkpoint_hash)
         object.__setattr__(self, "lineage_hash", lineage_hash)
 
 
@@ -1003,6 +1067,68 @@ class FeatureValue:
         object.__setattr__(self, "available_at", available_at)
         object.__setattr__(self, "missing_reason", missing_reason)
         object.__setattr__(self, "value_id", value_id)
+
+
+_DECISION_REPLAY_FEATURE_ISSUER = object()
+
+
+@dataclass(frozen=True, slots=True)
+class DecisionReplayFeatureMaterialization:
+    """受控 Registry 逐 checkpoint 重放产生的特征输出。
+
+    它与 ``FeatureBackfill`` 并列而不复用后者：后者固定为静态 as-of 语义，不能被
+    仅靠修改布尔字段升级为逐决策证据。
+    """
+
+    lineage: FeatureLineage
+    replay_checkpoint_hash: str
+    input_snapshot_hash: str
+    values: tuple[FeatureValue, ...]
+    materialization_hash: str = field(init=False)
+    _issuer: InitVar[object | None] = None
+
+    def __post_init__(self, _issuer: object | None) -> None:
+        if _issuer is not _DECISION_REPLAY_FEATURE_ISSUER:
+            raise FeatureRegistryError(
+                "DecisionReplayFeatureMaterialization 只能由受控 FeatureRegistry 创建"
+            )
+        if not isinstance(self.lineage, FeatureLineage):
+            raise FeatureRegistryError("lineage 必须是 FeatureLineage")
+        if (
+            self.lineage.selection_mode != _PER_DECISION_SELECTION_MODE
+            or self.lineage.decision_time_safe is not True
+        ):
+            raise FeatureRegistryError("逐决策特征输出必须绑定 PER_DECISION FeatureLineage")
+        checkpoint_hash = _hash(self.replay_checkpoint_hash, "replay_checkpoint_hash")
+        if self.lineage.replay_checkpoint_hash != checkpoint_hash:
+            raise FeatureRegistryError("replay_checkpoint_hash 必须与 FeatureLineage 精确一致")
+        input_snapshot_hash = _hash(self.input_snapshot_hash, "input_snapshot_hash")
+        values = tuple(self.values)
+        if not values or not all(isinstance(item, FeatureValue) for item in values):
+            raise FeatureRegistryError("values 必须是非空 FeatureValue 元组")
+        if any(item.lineage_hash != self.lineage.lineage_hash for item in values):
+            raise FeatureRegistryError("values 必须来自同一逐决策 FeatureLineage")
+        if any(item.feature_version_hash != self.lineage.feature_version_hash for item in values):
+            raise FeatureRegistryError("values 必须来自同一 FeatureVersion")
+        if any(item.available_at != self.lineage.available_at for item in values):
+            raise FeatureRegistryError("values.available_at 必须与逐决策 lineage 输出时间一致")
+        if len({item.value_id for item in values}) != len(values):
+            raise FeatureRegistryError("values 不能包含重复 FeatureValue")
+        canonical_values = tuple(sorted(values, key=lambda item: item.value_id))
+        materialization_hash = canonical_json_sha256(
+            {
+                "feature_version_hash": self.lineage.feature_version_hash,
+                "format": "northstar.decision-replay-feature-materialization.v1",
+                "input_snapshot_hash": input_snapshot_hash,
+                "lineage_hash": self.lineage.lineage_hash,
+                "replay_checkpoint_hash": checkpoint_hash,
+                "value_ids": [item.value_id for item in canonical_values],
+            }
+        )
+        object.__setattr__(self, "replay_checkpoint_hash", checkpoint_hash)
+        object.__setattr__(self, "input_snapshot_hash", input_snapshot_hash)
+        object.__setattr__(self, "values", canonical_values)
+        object.__setattr__(self, "materialization_hash", materialization_hash)
 
 
 @dataclass(frozen=True, slots=True)

@@ -46,6 +46,15 @@ configs/.app.yaml.tmp.*
 # 仍忽略以防误加入版本库。
 configs/app.local.yaml
 
+# Private credentials and client certificates are runtime-only material.  Public
+# templates belong in documented ``*.example`` files, never beside live keys.
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+credentials/
+
 # IDE / OS files
 .idea/
 .vscode/*
@@ -60,6 +69,7 @@ Thumbs.db
 logs/
 storage/
 reports/
+/artifacts/
 .streamlit/
 *.log
 

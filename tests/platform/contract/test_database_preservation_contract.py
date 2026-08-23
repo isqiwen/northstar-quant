@@ -16,7 +16,7 @@ AUTOMATION_TARGETS = (
     PROJECT_ROOT / "scripts" / "dev",
     PROJECT_ROOT / "scripts" / "db",
     PROJECT_ROOT / "scripts" / "deploy",
-    PROJECT_ROOT / "scripts" / "deploy.sh",
+    PROJECT_ROOT / "scripts" / "maintenance",
     PROJECT_ROOT / "scripts" / "ops",
     PROJECT_ROOT / "infra" / "docker" / "compose.yaml",
 )
@@ -42,6 +42,15 @@ DESTRUCTIVE_MIGRATION_SQL = re.compile(
     r"\b(?:drop\s+(?:database|schema|table|index|column|constraint)|"
     r"truncate(?:\s+table)?|delete\s+from)\b",
     re.IGNORECASE,
+)
+_IMMUTABLE_TRUNCATE_GUARD_SQL = re.compile(
+    r"\A\s*CREATE\s+TRIGGER\s+"
+    r"trg_research_agent_(?:audit_events|trace_entries)_reject_truncate\s+"
+    r"BEFORE\s+TRUNCATE\s+ON\s+research_agent_run_"
+    r"(?:audit_events|trace_entries)\s+FOR\s+EACH\s+STATEMENT\s+"
+    r"EXECUTE\s+FUNCTION\s+"
+    r"northstar_reject_research_agent_run_audit_mutation\s*\(\s*\)\s*;\s*\Z",
+    re.IGNORECASE | re.DOTALL,
 )
 DOCUMENTATION_TARGETS = (
     PROJECT_ROOT / "AGENTS.md",
@@ -147,7 +156,10 @@ def _destructive_migration_violations(
                 f"{path.relative_to(PROJECT_ROOT)}:{call.lineno}: "
                 f"{function.name}() SQL 必须可静态审查"
             )
-        elif DESTRUCTIVE_MIGRATION_SQL.search(sql):
+        elif (
+            DESTRUCTIVE_MIGRATION_SQL.search(sql)
+            and _IMMUTABLE_TRUNCATE_GUARD_SQL.fullmatch(sql) is None
+        ):
             violations.append(
                 f"{path.relative_to(PROJECT_ROOT)}:{call.lineno}: "
                 f"{function.name}() 包含破坏性 SQL"

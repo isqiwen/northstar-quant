@@ -503,16 +503,21 @@ def get_settings() -> Settings:
     return load_settings()
 
 
-def load_settings() -> Settings:
-    """重新读取唯一活动 `.env` 与 `configs/app.yaml`，不使用进程缓存。"""
+def load_settings(*, project_root: Path | None = None) -> Settings:
+    """Read one validated active configuration without using process cache.
 
-    env_file = _default_env_file()
+    ``project_root`` is intentionally explicit for maintenance tools running from
+    an immutable release venv: installed package paths are not the release root.
+    """
+
+    resolved_project_root = _resolve_project_root(project_root)
+    env_file = resolved_project_root / ".env"
     validate_active_environment_file(
         env_file,
         expected_keys=active_environment_file_keys(),
         retired_keys=LEGACY_RUNTIME_PATH_ENV_VARS,
     )
-    return Settings(_env_file=env_file)  # type: ignore[call-arg]
+    return Settings(project_root=resolved_project_root, _env_file=env_file)  # type: ignore[call-arg]
 
 
 def active_environment_file_keys() -> frozenset[str]:
@@ -527,11 +532,9 @@ def active_environment_file_keys() -> frozenset[str]:
     return frozenset(settings_keys | ENVIRONMENT_FILE_AUXILIARY_KEYS)
 
 
-def _default_env_file() -> Path:
-    """让全局设置读取其项目根目录下的 .env，而非调用进程的当前目录。"""
-
-    configured_root = os.getenv("NORTHSTAR_PROJECT_ROOT")
-    project_root = Path(configured_root) if configured_root else _PROJECT_ROOT
-    if not project_root.is_absolute():
-        project_root = _PROJECT_ROOT / project_root
-    return project_root.resolve() / ".env"
+def _resolve_project_root(project_root: Path | None = None) -> Path:
+    configured_root = project_root or os.getenv("NORTHSTAR_PROJECT_ROOT")
+    root = Path(configured_root) if configured_root else _PROJECT_ROOT
+    if not root.is_absolute():
+        root = _PROJECT_ROOT / root
+    return root.resolve()

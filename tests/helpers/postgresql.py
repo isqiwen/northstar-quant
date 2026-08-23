@@ -19,6 +19,7 @@ _DEFAULT_TEST_DATABASE_URL = (
 )
 _LOCAL_TEST_DATABASE_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
 _TEST_DATABASE_NAME = "northstar_test"
+_TEST_CONNECTION_PARALLELISM_OPTION = "-cmax_parallel_workers_per_gather=0"
 _SCHEMA_BY_KEY: dict[str, str] = {}
 _LOCK = Lock()
 
@@ -69,7 +70,16 @@ def postgresql_test_url(key: str | Path) -> str:
                 admin_engine.dispose()
             _SCHEMA_BY_KEY[normalized_key] = schema
 
+    # PostgreSQL may parallelize large catalog-reflection queries after the test
+    # database has accumulated many intentionally preserved isolated schemas.
+    # Parallel workers allocate dynamic shared-memory segments in Docker's
+    # /dev/shm; constrain only this disposable test connection rather than
+    # changing cluster-wide production-like settings or deleting test data.
     isolated_url = _base_test_url().update_query_dict(
-        {"options": f"-csearch_path={schema}"}
+        {
+            "options": " ".join(
+                (f"-csearch_path={schema}", _TEST_CONNECTION_PARALLELISM_OPTION)
+            )
+        }
     )
     return isolated_url.render_as_string(hide_password=False)

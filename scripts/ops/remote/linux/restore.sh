@@ -1,4 +1,7 @@
-#!/usr/bin/env bash
+#!/bin/bash -p
+unset BASH_ENV ENV CDPATH
+PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+export PATH
 set -euo pipefail
 
 # 明确失败关闭。生产恢复涉及独立备份介质、恢复目标隔离、凭据和人工批准；不能由通用部署

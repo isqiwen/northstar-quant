@@ -1,0 +1,865 @@
+{
+  "schema_version": "northstar.intelligence.fixture-only-corpus.v1",
+  "fixture_only": true,
+  "authority": {
+    "authorized_market_data": false,
+    "actual_contract_data": false,
+    "authoritative_calendar": false,
+    "authoritative_dynamic_rules": false,
+    "eligible_for_trading": false
+  },
+  "ontology_version": "v1",
+  "commodity_cases": [
+    {
+      "case_id": "fixture-case-copper",
+      "commodity_id": "copper",
+      "entity": {
+        "entity_id": "fixture-entity-copper-mine",
+        "entity_type": "Mine",
+        "canonical_name": "Fixture Copper Mine",
+        "alias": "Fixture Copper Mine"
+      },
+      "documents": [
+        {
+          "document_key": "fixture-document-copper-primary",
+          "source_id": "fixture-source-copper-primary",
+          "canonical_url": "https://fixture.invalid/intelligence/copper/primary",
+          "title": "Fixture copper mine outage",
+          "license_classification": "fixture_only",
+          "content": "Fixture copper mine outage reduces available copper supply.",
+          "content_sha256": "a36d4b90d699d71aa29360ae349b4810de4fb2e501ec3fdce7a4d5269b2a3b40",
+          "published_at": "2026-08-20T09:00:00+00:00",
+          "collected_at": "2026-08-20T09:05:00+00:00",
+          "extraction": {
+            "extraction_id": "fixture-extraction-copper-primary",
+            "extraction_confidence": 0.7,
+            "evidence": {
+              "span_start": 0,
+              "span_end": 59,
+              "text": "Fixture copper mine outage reduces available copper supply."
+            },
+            "observed_at": "2026-08-20T09:00:00+00:00",
+            "lifecycle": "OPEN"
+          }
+        },
+        {
+          "document_key": "fixture-document-copper-confirmation",
+          "source_id": "fixture-source-copper-confirmation",
+          "canonical_url": "https://fixture.invalid/intelligence/copper/confirmation",
+          "title": "Fixture copper operator confirmation",
+          "license_classification": "fixture_only",
+          "content": "Fixture copper operator confirms the mine outage.",
+          "content_sha256": "8853f6479f13e3f681f492aa657856358316e6430c03b05db362679fcabe6cb2",
+          "published_at": "2026-08-20T09:07:00+00:00",
+          "collected_at": "2026-08-20T09:11:00+00:00",
+          "extraction": {
+            "extraction_id": "fixture-extraction-copper-confirmation",
+            "extraction_confidence": 0.8,
+            "evidence": {
+              "span_start": 0,
+              "span_end": 49,
+              "text": "Fixture copper operator confirms the mine outage."
+            },
+            "observed_at": "2026-08-20T09:10:00+00:00",
+            "lifecycle": "CONFIRMED"
+          }
+        },
+        {
+          "document_key": "fixture-document-copper-late",
+          "source_id": "fixture-source-copper-late",
+          "canonical_url": "https://fixture.invalid/intelligence/copper/late",
+          "title": "Fixture copper shipment report",
+          "license_classification": "fixture_only",
+          "content": "Fixture copper shipment report corroborates the outage.",
+          "content_sha256": "0de17acb67b01d8744e26747e61024bd5ea64f88dc614af44090fb6f12687e32",
+          "published_at": "2026-08-20T08:50:00+00:00",
+          "collected_at": "2026-08-20T09:15:00+00:00",
+          "extraction": {
+            "extraction_id": "fixture-extraction-copper-late",
+            "extraction_confidence": 0.6,
+            "evidence": {
+              "span_start": 0,
+              "span_end": 55,
+              "text": "Fixture copper shipment report corroborates the outage."
+            },
+            "observed_at": "2026-08-20T08:55:00+00:00",
+            "lifecycle": "OPEN"
+          }
+        }
+      ],
+      "event": {
+        "event_id": "fixture-event-copper-supply",
+        "semantic_key": "fixture-semantic-copper-supply",
+        "event_type": "SUPPLY",
+        "mechanism_type": "SUPPLY_REDUCTION",
+        "rationale": "Fixture-only copper supply evidence.",
+        "assessment_confidence": 0.7,
+        "impact": {
+          "impact_id": "fixture-impact-copper-supply",
+          "direction": "UP"
+        },
+        "primary_extraction_id": "fixture-extraction-copper-primary",
+        "evidence_document_keys": [
+          "fixture-document-copper-primary",
+          "fixture-document-copper-confirmation"
+        ],
+        "expected_event_hash": "da8f9412f8526a2568f3c108b9894d38e2c7895ac4c79f0682e2e6cf6f15c4d5"
+      },
+      "crosswalk": {
+        "fixture_only": true,
+        "event_id": "fixture-event-copper-supply",
+        "mechanism_type": "SUPPLY_REDUCTION",
+        "entity_id": "fixture-entity-copper-mine",
+        "commodity_id": "copper",
+        "market": {
+          "market_id": "fixture-market-copper-v1",
+          "commodity_id": "copper"
+        },
+        "instrument": {
+          "instrument_id": "fixture-instrument-copper-v1",
+          "market_id": "fixture-market-copper-v1",
+          "commodity_id": "copper"
+        },
+        "contract": {
+          "contract_id": "fixture-contract-copper-v1",
+          "instrument_id": "fixture-instrument-copper-v1",
+          "commodity_id": "copper"
+        },
+        "feature_id": "intelligence.supply_risk_1h",
+        "expected_feature_definition_handoff_hash": "fe4afcd86c6e2907dd534ea4b7bd69f103e43ed102f7db8064c014066f3980f3",
+        "research_only": true
+      }
+    },
+    {
+      "case_id": "fixture-case-crude-oil",
+      "commodity_id": "crude_oil",
+      "entity": {
+        "entity_id": "fixture-entity-crude-port",
+        "entity_type": "Port",
+        "canonical_name": "Fixture Crude Port",
+        "alias": "Fixture Crude Port"
+      },
+      "documents": [
+        {
+          "document_key": "fixture-document-crude-primary",
+          "source_id": "fixture-source-crude-primary",
+          "canonical_url": "https://fixture.invalid/intelligence/crude-oil/primary",
+          "title": "Fixture crude export disruption",
+          "license_classification": "fixture_only",
+          "content": "Fixture port disruption delays crude oil exports.",
+          "content_sha256": "f43e5cfb00ef706c2e94e59a2dc4563e1b4b84d186cc257663c2364be289b681",
+          "published_at": "2026-08-20T09:00:00+00:00",
+          "collected_at": "2026-08-20T09:05:00+00:00",
+          "extraction": {
+            "extraction_id": "fixture-extraction-crude-primary",
+            "extraction_confidence": 0.7,
+            "evidence": {
+              "span_start": 0,
+              "span_end": 49,
+              "text": "Fixture port disruption delays crude oil exports."
+            },
+            "observed_at": "2026-08-20T09:00:00+00:00",
+            "lifecycle": "OPEN"
+          }
+        },
+        {
+          "document_key": "fixture-document-crude-confirmation",
+          "source_id": "fixture-source-crude-confirmation",
+          "canonical_url": "https://fixture.invalid/intelligence/crude-oil/confirmation",
+          "title": "Fixture crude logistics confirmation",
+          "license_classification": "fixture_only",
+          "content": "Fixture pipeline operator confirms crude oil logistics disruption.",
+          "content_sha256": "c768790401fcc23bb430d10ce2aca98cefc511f3a93b0357af019effbe3c0d23",
+          "published_at": "2026-08-20T09:07:00+00:00",
+          "collected_at": "2026-08-20T09:11:00+00:00",
+          "extraction": {
+            "extraction_id": "fixture-extraction-crude-confirmation",
+            "extraction_confidence": 0.8,
+            "evidence": {
+              "span_start": 0,
+              "span_end": 66,
+              "text": "Fixture pipeline operator confirms crude oil logistics disruption."
+            },
+            "observed_at": "2026-08-20T09:10:00+00:00",
+            "lifecycle": "CONFIRMED"
+          }
+        },
+        {
+          "document_key": "fixture-document-crude-update",
+          "source_id": "fixture-source-crude-update",
+          "canonical_url": "https://fixture.invalid/intelligence/crude-oil/update",
+          "title": "Fixture crude logistics update",
+          "license_classification": "fixture_only",
+          "content": "Fixture market report updates crude oil logistics disruption.",
+          "content_sha256": "5e3a0e2b694fbb86d43d749e4002ceb827c64b9cad7c1d664bf8de822608b7fa",
+          "published_at": "2026-08-20T09:14:00+00:00",
+          "collected_at": "2026-08-20T09:16:00+00:00",
+          "extraction": {
+            "extraction_id": "fixture-extraction-crude-update",
+            "extraction_confidence": 0.8,
+            "evidence": {
+              "span_start": 0,
+              "span_end": 61,
+              "text": "Fixture market report updates crude oil logistics disruption."
+            },
+            "observed_at": "2026-08-20T09:15:00+00:00",
+            "lifecycle": "UPDATED"
+          }
+        },
+        {
+          "document_key": "fixture-document-crude-resolved",
+          "source_id": "fixture-source-crude-resolved",
+          "canonical_url": "https://fixture.invalid/intelligence/crude-oil/resolved",
+          "title": "Fixture crude logistics resolved",
+          "license_classification": "fixture_only",
+          "content": "Fixture refinery reports crude oil flow has resolved.",
+          "content_sha256": "37a8de0642b32c8596daec92af40dbc7205c27654900d057e99f4a979b8af532",
+          "published_at": "2026-08-20T09:19:00+00:00",
+          "collected_at": "2026-08-20T09:21:00+00:00",
+          "extraction": {
+            "extraction_id": "fixture-extraction-crude-resolved",
+            "extraction_confidence": 0.8,
+            "evidence": {
+              "span_start": 0,
+              "span_end": 53,
+              "text": "Fixture refinery reports crude oil flow has resolved."
+            },
+            "observed_at": "2026-08-20T09:20:00+00:00",
+            "lifecycle": "RESOLVED"
+          }
+        }
+      ],
+      "event": {
+        "event_id": "fixture-event-crude-logistics",
+        "semantic_key": "fixture-semantic-crude-logistics",
+        "event_type": "LOGISTICS",
+        "mechanism_type": "TRANSPORT_DISRUPTION",
+        "rationale": "Fixture-only crude logistics evidence.",
+        "assessment_confidence": 0.7,
+        "impact": {
+          "impact_id": "fixture-impact-crude-logistics",
+          "direction": "UP"
+        },
+        "primary_extraction_id": "fixture-extraction-crude-primary",
+        "evidence_document_keys": [
+          "fixture-document-crude-primary",
+          "fixture-document-crude-confirmation"
+        ],
+        "expected_event_hash": "132e92c81da6dd135674527b912a43a6112d27b271714703a22d585dff7a7880"
+      },
+      "crosswalk": {
+        "fixture_only": true,
+        "event_id": "fixture-event-crude-logistics",
+        "mechanism_type": "TRANSPORT_DISRUPTION",
+        "entity_id": "fixture-entity-crude-port",
+        "commodity_id": "crude_oil",
+        "market": {
+          "market_id": "fixture-market-crude-oil-v1",
+          "commodity_id": "crude_oil"
+        },
+        "instrument": {
+          "instrument_id": "fixture-instrument-crude-oil-v1",
+          "market_id": "fixture-market-crude-oil-v1",
+          "commodity_id": "crude_oil"
+        },
+        "contract": {
+          "contract_id": "fixture-contract-crude-oil-v1",
+          "instrument_id": "fixture-instrument-crude-oil-v1",
+          "commodity_id": "crude_oil"
+        },
+        "feature_id": "intelligence.supply_risk_6h",
+        "expected_feature_definition_handoff_hash": "8ffeb4d95be2e5871e31d4a6d3b20aacc6961d41bdf13c038e2eb202f584ec81",
+        "research_only": true
+      }
+    },
+    {
+      "case_id": "fixture-case-gold",
+      "commodity_id": "gold",
+      "entity": {
+        "entity_id": "fixture-entity-gold-country",
+        "entity_type": "Country",
+        "canonical_name": "Fixture Gold Country",
+        "alias": "Fixture Gold Country"
+      },
+      "documents": [
+        {
+          "document_key": "fixture-document-gold-primary",
+          "source_id": "fixture-source-gold-primary",
+          "canonical_url": "https://fixture.invalid/intelligence/gold/primary",
+          "title": "Fixture gold geopolitical tension",
+          "license_classification": "fixture_only",
+          "content": "Fixture geopolitical tension increases gold risk premium.",
+          "content_sha256": "2ff2d42635c90b91735bd653e0169611133e54dab9c86a55e74687a18d4efb29",
+          "published_at": "2026-08-20T09:00:00+00:00",
+          "collected_at": "2026-08-20T09:05:00+00:00",
+          "extraction": {
+            "extraction_id": "fixture-extraction-gold-primary",
+            "extraction_confidence": 0.7,
+            "evidence": {
+              "span_start": 0,
+              "span_end": 57,
+              "text": "Fixture geopolitical tension increases gold risk premium."
+            },
+            "observed_at": "2026-08-20T09:00:00+00:00",
+            "lifecycle": "OPEN"
+          }
+        },
+        {
+          "document_key": "fixture-document-gold-confirmation",
+          "source_id": "fixture-source-gold-confirmation",
+          "canonical_url": "https://fixture.invalid/intelligence/gold/confirmation",
+          "title": "Fixture gold geopolitical confirmation",
+          "license_classification": "fixture_only",
+          "content": "Fixture officials confirm elevated geopolitical risk.",
+          "content_sha256": "6079e6f9a34254a4b0d39a75c0e8bc0bcc3a6309abdce859bdfb49595b6fb829",
+          "published_at": "2026-08-20T09:07:00+00:00",
+          "collected_at": "2026-08-20T09:11:00+00:00",
+          "extraction": {
+            "extraction_id": "fixture-extraction-gold-confirmation",
+            "extraction_confidence": 0.8,
+            "evidence": {
+              "span_start": 0,
+              "span_end": 53,
+              "text": "Fixture officials confirm elevated geopolitical risk."
+            },
+            "observed_at": "2026-08-20T09:10:00+00:00",
+            "lifecycle": "CONFIRMED"
+          }
+        },
+        {
+          "document_key": "fixture-document-gold-retraction",
+          "source_id": "fixture-source-gold-retraction",
+          "canonical_url": "https://fixture.invalid/intelligence/gold/retraction",
+          "title": "Fixture gold report retraction",
+          "license_classification": "fixture_only",
+          "content": "Fixture diplomatic statement retracts the gold risk report.",
+          "content_sha256": "e49ef5de3d6debd9cee409a870862c2777daec298270ede53bba6ef515e26091",
+          "published_at": "2026-08-20T09:19:00+00:00",
+          "collected_at": "2026-08-20T09:21:00+00:00",
+          "extraction": {
+            "extraction_id": "fixture-extraction-gold-retraction",
+            "extraction_confidence": 0.8,
+            "evidence": {
+              "span_start": 0,
+              "span_end": 59,
+              "text": "Fixture diplomatic statement retracts the gold risk report."
+            },
+            "observed_at": "2026-08-20T09:20:00+00:00",
+            "lifecycle": "RETRACTED"
+          }
+        },
+        {
+          "document_key": "fixture-document-gold-late",
+          "source_id": "fixture-source-gold-late",
+          "canonical_url": "https://fixture.invalid/intelligence/gold/late",
+          "title": "Fixture archived gold report",
+          "license_classification": "fixture_only",
+          "content": "Fixture archived report confirms prior gold risk.",
+          "content_sha256": "3b1a91fe3931567f0ee9a743a4508a3d507bb4e59be74c2e5f51549e26311c54",
+          "published_at": "2026-08-20T09:04:00+00:00",
+          "collected_at": "2026-08-20T09:30:00+00:00",
+          "extraction": {
+            "extraction_id": "fixture-extraction-gold-late",
+            "extraction_confidence": 0.5,
+            "evidence": {
+              "span_start": 0,
+              "span_end": 49,
+              "text": "Fixture archived report confirms prior gold risk."
+            },
+            "observed_at": "2026-08-20T09:05:00+00:00",
+            "lifecycle": "CONFIRMED"
+          }
+        }
+      ],
+      "event": {
+        "event_id": "fixture-event-gold-risk",
+        "semantic_key": "fixture-semantic-gold-risk",
+        "event_type": "GEOPOLITICS",
+        "mechanism_type": "RISK_PREMIUM_INCREASE",
+        "rationale": "Fixture-only gold geopolitical evidence.",
+        "assessment_confidence": 0.7,
+        "impact": {
+          "impact_id": "fixture-impact-gold-risk",
+          "direction": "UP"
+        },
+        "primary_extraction_id": "fixture-extraction-gold-primary",
+        "evidence_document_keys": [
+          "fixture-document-gold-primary",
+          "fixture-document-gold-confirmation"
+        ],
+        "expected_event_hash": "35bd7ef75bbaf8089358814d0d1405b7892b939e885d177f3ca4e798f0743956"
+      },
+      "crosswalk": {
+        "fixture_only": true,
+        "event_id": "fixture-event-gold-risk",
+        "mechanism_type": "RISK_PREMIUM_INCREASE",
+        "entity_id": "fixture-entity-gold-country",
+        "commodity_id": "gold",
+        "market": {
+          "market_id": "fixture-market-gold-v1",
+          "commodity_id": "gold"
+        },
+        "instrument": {
+          "instrument_id": "fixture-instrument-gold-v1",
+          "market_id": "fixture-market-gold-v1",
+          "commodity_id": "gold"
+        },
+        "contract": {
+          "contract_id": "fixture-contract-gold-v1",
+          "instrument_id": "fixture-instrument-gold-v1",
+          "commodity_id": "gold"
+        },
+        "feature_id": "intelligence.geopolitical_risk",
+        "expected_feature_definition_handoff_hash": "8ac2b24420d27ae28582e20fbb1d1d48f2f957c5424e95597e548df19340661a",
+        "research_only": true
+      }
+    },
+    {
+      "case_id": "fixture-case-iron-ore",
+      "commodity_id": "iron_ore",
+      "entity": {
+        "entity_id": "fixture-entity-iron-company",
+        "entity_type": "Company",
+        "canonical_name": "Fixture Iron Company",
+        "alias": "Fixture Iron Company"
+      },
+      "documents": [
+        {
+          "document_key": "fixture-document-iron-primary",
+          "source_id": "fixture-source-iron-primary",
+          "canonical_url": "https://fixture.invalid/intelligence/iron-ore/primary",
+          "title": "Fixture iron ore demand reduction",
+          "license_classification": "fixture_only",
+          "content": "Fixture steel demand reduction lowers iron ore demand.",
+          "content_sha256": "4d790a6454dca04e7232db3ef428c509fd310e6900c306d28d6d8f12cae76974",
+          "published_at": "2026-08-20T09:00:00+00:00",
+          "collected_at": "2026-08-20T09:05:00+00:00",
+          "extraction": {
+            "extraction_id": "fixture-extraction-iron-primary",
+            "extraction_confidence": 0.7,
+            "evidence": {
+              "span_start": 0,
+              "span_end": 54,
+              "text": "Fixture steel demand reduction lowers iron ore demand."
+            },
+            "observed_at": "2026-08-20T09:00:00+00:00",
+            "lifecycle": "OPEN"
+          }
+        },
+        {
+          "document_key": "fixture-document-iron-confirmation",
+          "source_id": "fixture-source-iron-confirmation",
+          "canonical_url": "https://fixture.invalid/intelligence/iron-ore/confirmation",
+          "title": "Fixture iron ore demand confirmation",
+          "license_classification": "fixture_only",
+          "content": "Fixture producer confirms reduced iron ore purchases.",
+          "content_sha256": "d109c06d2ad0221291c91ac2378c076e1cfd287b8486f3609019d6f992af4189",
+          "published_at": "2026-08-20T09:07:00+00:00",
+          "collected_at": "2026-08-20T09:11:00+00:00",
+          "extraction": {
+            "extraction_id": "fixture-extraction-iron-confirmation",
+            "extraction_confidence": 0.8,
+            "evidence": {
+              "span_start": 0,
+              "span_end": 53,
+              "text": "Fixture producer confirms reduced iron ore purchases."
+            },
+            "observed_at": "2026-08-20T09:10:00+00:00",
+            "lifecycle": "CONFIRMED"
+          }
+        }
+      ],
+      "event": {
+        "event_id": "fixture-event-iron-demand",
+        "semantic_key": "fixture-semantic-iron-demand",
+        "event_type": "DEMAND",
+        "mechanism_type": "DEMAND_REDUCTION",
+        "rationale": "Fixture-only iron demand evidence.",
+        "assessment_confidence": 0.7,
+        "impact": {
+          "impact_id": "fixture-impact-iron-demand",
+          "direction": "DOWN"
+        },
+        "primary_extraction_id": "fixture-extraction-iron-primary",
+        "evidence_document_keys": [
+          "fixture-document-iron-primary",
+          "fixture-document-iron-confirmation"
+        ],
+        "expected_event_hash": "2cfe1e566f3050051956ae0e5ff6e91610a35e03ec890272dda12c9967675554"
+      },
+      "crosswalk": {
+        "fixture_only": true,
+        "event_id": "fixture-event-iron-demand",
+        "mechanism_type": "DEMAND_REDUCTION",
+        "entity_id": "fixture-entity-iron-company",
+        "commodity_id": "iron_ore",
+        "market": {
+          "market_id": "fixture-market-iron-ore-v1",
+          "commodity_id": "iron_ore"
+        },
+        "instrument": {
+          "instrument_id": "fixture-instrument-iron-ore-v1",
+          "market_id": "fixture-market-iron-ore-v1",
+          "commodity_id": "iron_ore"
+        },
+        "contract": {
+          "contract_id": "fixture-contract-iron-ore-v1",
+          "instrument_id": "fixture-instrument-iron-ore-v1",
+          "commodity_id": "iron_ore"
+        },
+        "feature_id": "intelligence.demand_shock",
+        "expected_feature_definition_handoff_hash": "814049d500e6cdc2278f49bca4743a3a9e97f94cc44c8f9a14770c4f4f4ae90a",
+        "research_only": true
+      }
+    },
+    {
+      "case_id": "fixture-case-soybean-meal",
+      "commodity_id": "soybean_meal",
+      "entity": {
+        "entity_id": "fixture-entity-soybean-port",
+        "entity_type": "Port",
+        "canonical_name": "Fixture Soybean Port",
+        "alias": "Fixture Soybean Port"
+      },
+      "documents": [
+        {
+          "document_key": "fixture-document-soybean-primary",
+          "source_id": "fixture-source-soybean-primary",
+          "canonical_url": "https://fixture.invalid/intelligence/soybean-meal/primary",
+          "title": "Fixture soybean meal inventory draw",
+          "license_classification": "fixture_only",
+          "content": "Fixture soybean meal inventory draw tightens supply.",
+          "content_sha256": "177c87c9cb7c6610a3de65c7a1636156e0a83d0eb2a7080c7ee3784fff8aa8a0",
+          "published_at": "2026-08-20T09:00:00+00:00",
+          "collected_at": "2026-08-20T09:05:00+00:00",
+          "extraction": {
+            "extraction_id": "fixture-extraction-soybean-primary",
+            "extraction_confidence": 0.7,
+            "evidence": {
+              "span_start": 0,
+              "span_end": 52,
+              "text": "Fixture soybean meal inventory draw tightens supply."
+            },
+            "observed_at": "2026-08-20T09:00:00+00:00",
+            "lifecycle": "OPEN"
+          }
+        },
+        {
+          "document_key": "fixture-document-soybean-confirmation",
+          "source_id": "fixture-source-soybean-confirmation",
+          "canonical_url": "https://fixture.invalid/intelligence/soybean-meal/confirmation",
+          "title": "Fixture soybean meal inventory confirmation",
+          "license_classification": "fixture_only",
+          "content": "Fixture port confirms soybean meal inventory draw.",
+          "content_sha256": "4271e7932feffdf26f61e19ed923bda8ac6237a6351e2c9f7111c65f0a15fff2",
+          "published_at": "2026-08-20T09:07:00+00:00",
+          "collected_at": "2026-08-20T09:11:00+00:00",
+          "extraction": {
+            "extraction_id": "fixture-extraction-soybean-confirmation",
+            "extraction_confidence": 0.8,
+            "evidence": {
+              "span_start": 0,
+              "span_end": 50,
+              "text": "Fixture port confirms soybean meal inventory draw."
+            },
+            "observed_at": "2026-08-20T09:10:00+00:00",
+            "lifecycle": "CONFIRMED"
+          }
+        }
+      ],
+      "event": {
+        "event_id": "fixture-event-soybean-inventory",
+        "semantic_key": "fixture-semantic-soybean-inventory",
+        "event_type": "INVENTORY",
+        "mechanism_type": "INVENTORY_DRAW",
+        "rationale": "Fixture-only soybean inventory evidence.",
+        "assessment_confidence": 0.7,
+        "impact": {
+          "impact_id": "fixture-impact-soybean-inventory",
+          "direction": "UP"
+        },
+        "primary_extraction_id": "fixture-extraction-soybean-primary",
+        "evidence_document_keys": [
+          "fixture-document-soybean-primary",
+          "fixture-document-soybean-confirmation"
+        ],
+        "expected_event_hash": "23d19022d1c3aab7fd45aec1c32a071032b8e458a23792ab396661da83c71494"
+      },
+      "crosswalk": {
+        "fixture_only": true,
+        "event_id": "fixture-event-soybean-inventory",
+        "mechanism_type": "INVENTORY_DRAW",
+        "entity_id": "fixture-entity-soybean-port",
+        "commodity_id": "soybean_meal",
+        "market": {
+          "market_id": "fixture-market-soybean-meal-v1",
+          "commodity_id": "soybean_meal"
+        },
+        "instrument": {
+          "instrument_id": "fixture-instrument-soybean-meal-v1",
+          "market_id": "fixture-market-soybean-meal-v1",
+          "commodity_id": "soybean_meal"
+        },
+        "contract": {
+          "contract_id": "fixture-contract-soybean-meal-v1",
+          "instrument_id": "fixture-instrument-soybean-meal-v1",
+          "commodity_id": "soybean_meal"
+        },
+        "feature_id": "intelligence.inventory_stress",
+        "expected_feature_definition_handoff_hash": "246504f40787bb4d59e176173e9c60c631434c3a5ce70e4461d0d9dbe11a6b18",
+        "research_only": true
+      }
+    },
+    {
+      "case_id": "fixture-case-palm-oil",
+      "commodity_id": "palm_oil",
+      "entity": {
+        "entity_id": "fixture-entity-palm-region",
+        "entity_type": "Region",
+        "canonical_name": "Fixture Palm Region",
+        "alias": "Fixture Palm Region"
+      },
+      "documents": [
+        {
+          "document_key": "fixture-document-palm-primary",
+          "source_id": "fixture-source-palm-primary",
+          "canonical_url": "https://fixture.invalid/intelligence/palm-oil/primary",
+          "title": "Fixture palm oil weather damage",
+          "license_classification": "fixture_only",
+          "content": "Fixture weather damage reduces palm oil output.",
+          "content_sha256": "870097fadee8c9eff8299e97eaf1a536d9e8e5e95c07084e829c5813250c81ec",
+          "published_at": "2026-08-20T09:00:00+00:00",
+          "collected_at": "2026-08-20T09:05:00+00:00",
+          "extraction": {
+            "extraction_id": "fixture-extraction-palm-primary",
+            "extraction_confidence": 0.7,
+            "evidence": {
+              "span_start": 0,
+              "span_end": 47,
+              "text": "Fixture weather damage reduces palm oil output."
+            },
+            "observed_at": "2026-08-20T09:00:00+00:00",
+            "lifecycle": "OPEN"
+          }
+        },
+        {
+          "document_key": "fixture-document-palm-confirmation",
+          "source_id": "fixture-source-palm-confirmation",
+          "canonical_url": "https://fixture.invalid/intelligence/palm-oil/confirmation",
+          "title": "Fixture palm oil output confirmation",
+          "license_classification": "fixture_only",
+          "content": "Fixture agency confirms palm oil output losses.",
+          "content_sha256": "d7078b8e4b7a8d8696562f4713bcb8888dcfdb216f80fd0d71def62556662339",
+          "published_at": "2026-08-20T09:07:00+00:00",
+          "collected_at": "2026-08-20T09:11:00+00:00",
+          "extraction": {
+            "extraction_id": "fixture-extraction-palm-confirmation",
+            "extraction_confidence": 0.8,
+            "evidence": {
+              "span_start": 0,
+              "span_end": 47,
+              "text": "Fixture agency confirms palm oil output losses."
+            },
+            "observed_at": "2026-08-20T09:10:00+00:00",
+            "lifecycle": "CONFIRMED"
+          }
+        }
+      ],
+      "event": {
+        "event_id": "fixture-event-palm-weather",
+        "semantic_key": "fixture-semantic-palm-weather",
+        "event_type": "WEATHER",
+        "mechanism_type": "SUPPLY_REDUCTION",
+        "rationale": "Fixture-only palm weather evidence.",
+        "assessment_confidence": 0.7,
+        "impact": {
+          "impact_id": "fixture-impact-palm-weather",
+          "direction": "UP"
+        },
+        "primary_extraction_id": "fixture-extraction-palm-primary",
+        "evidence_document_keys": [
+          "fixture-document-palm-primary",
+          "fixture-document-palm-confirmation"
+        ],
+        "expected_event_hash": "dd9afd9e9039381a6c55554ddefc59430960e5c66863b5d8ace4ee212d48b83d"
+      },
+      "crosswalk": {
+        "fixture_only": true,
+        "event_id": "fixture-event-palm-weather",
+        "mechanism_type": "SUPPLY_REDUCTION",
+        "entity_id": "fixture-entity-palm-region",
+        "commodity_id": "palm_oil",
+        "market": {
+          "market_id": "fixture-market-palm-oil-v1",
+          "commodity_id": "palm_oil"
+        },
+        "instrument": {
+          "instrument_id": "fixture-instrument-palm-oil-v1",
+          "market_id": "fixture-market-palm-oil-v1",
+          "commodity_id": "palm_oil"
+        },
+        "contract": {
+          "contract_id": "fixture-contract-palm-oil-v1",
+          "instrument_id": "fixture-instrument-palm-oil-v1",
+          "commodity_id": "palm_oil"
+        },
+        "feature_id": "intelligence.supply_risk_24h",
+        "expected_feature_definition_handoff_hash": "1ee871db9ff436b09eaa68ee13ca399183d7d678da92007a9fd08577c564ac4f",
+        "research_only": true
+      }
+    }
+  ],
+  "merge_scenarios": [
+    {
+      "scenario_id": "fixture-merge-copper",
+      "case_id": "fixture-case-copper",
+      "semantic_key": "fixture-semantic-copper-supply",
+      "steps": [
+        {
+          "document_key": "fixture-document-copper-primary",
+          "observed_at": "2026-08-20T09:00:00+00:00",
+          "lifecycle": "OPEN",
+          "expected_lifecycle": "OPEN",
+          "expected_observed_at": "2026-08-20T09:00:00+00:00",
+          "expected_extraction_ids": ["fixture-extraction-copper-primary"]
+        },
+        {
+          "document_key": "fixture-document-copper-confirmation",
+          "observed_at": "2026-08-20T09:10:00+00:00",
+          "lifecycle": "CONFIRMED",
+          "expected_lifecycle": "CONFIRMED",
+          "expected_observed_at": "2026-08-20T09:10:00+00:00",
+          "expected_extraction_ids": [
+            "fixture-extraction-copper-confirmation",
+            "fixture-extraction-copper-primary"
+          ]
+        },
+        {
+          "document_key": "fixture-document-copper-confirmation",
+          "observed_at": "2026-08-20T09:10:00+00:00",
+          "lifecycle": "CONFIRMED",
+          "expected_lifecycle": "CONFIRMED",
+          "expected_observed_at": "2026-08-20T09:10:00+00:00",
+          "expected_extraction_ids": [
+            "fixture-extraction-copper-confirmation",
+            "fixture-extraction-copper-primary"
+          ]
+        },
+        {
+          "document_key": "fixture-document-copper-late",
+          "observed_at": "2026-08-20T08:55:00+00:00",
+          "lifecycle": "OPEN",
+          "expected_lifecycle": "CONFIRMED",
+          "expected_observed_at": "2026-08-20T09:10:00+00:00",
+          "expected_extraction_ids": [
+            "fixture-extraction-copper-confirmation",
+            "fixture-extraction-copper-late",
+            "fixture-extraction-copper-primary"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario_id": "fixture-merge-crude",
+      "case_id": "fixture-case-crude-oil",
+      "semantic_key": "fixture-semantic-crude-logistics",
+      "steps": [
+        {
+          "document_key": "fixture-document-crude-primary",
+          "observed_at": "2026-08-20T09:00:00+00:00",
+          "lifecycle": "OPEN",
+          "expected_lifecycle": "OPEN",
+          "expected_observed_at": "2026-08-20T09:00:00+00:00",
+          "expected_extraction_ids": ["fixture-extraction-crude-primary"]
+        },
+        {
+          "document_key": "fixture-document-crude-confirmation",
+          "observed_at": "2026-08-20T09:10:00+00:00",
+          "lifecycle": "CONFIRMED",
+          "expected_lifecycle": "CONFIRMED",
+          "expected_observed_at": "2026-08-20T09:10:00+00:00",
+          "expected_extraction_ids": [
+            "fixture-extraction-crude-confirmation",
+            "fixture-extraction-crude-primary"
+          ]
+        },
+        {
+          "document_key": "fixture-document-crude-update",
+          "observed_at": "2026-08-20T09:15:00+00:00",
+          "lifecycle": "UPDATED",
+          "expected_lifecycle": "UPDATED",
+          "expected_observed_at": "2026-08-20T09:15:00+00:00",
+          "expected_extraction_ids": [
+            "fixture-extraction-crude-confirmation",
+            "fixture-extraction-crude-primary",
+            "fixture-extraction-crude-update"
+          ]
+        },
+        {
+          "document_key": "fixture-document-crude-resolved",
+          "observed_at": "2026-08-20T09:20:00+00:00",
+          "lifecycle": "RESOLVED",
+          "expected_lifecycle": "RESOLVED",
+          "expected_observed_at": "2026-08-20T09:20:00+00:00",
+          "expected_extraction_ids": [
+            "fixture-extraction-crude-confirmation",
+            "fixture-extraction-crude-primary",
+            "fixture-extraction-crude-resolved",
+            "fixture-extraction-crude-update"
+          ]
+        }
+      ]
+    },
+    {
+      "scenario_id": "fixture-merge-gold",
+      "case_id": "fixture-case-gold",
+      "semantic_key": "fixture-semantic-gold-risk",
+      "steps": [
+        {
+          "document_key": "fixture-document-gold-primary",
+          "observed_at": "2026-08-20T09:00:00+00:00",
+          "lifecycle": "OPEN",
+          "expected_lifecycle": "OPEN",
+          "expected_observed_at": "2026-08-20T09:00:00+00:00",
+          "expected_extraction_ids": ["fixture-extraction-gold-primary"]
+        },
+        {
+          "document_key": "fixture-document-gold-confirmation",
+          "observed_at": "2026-08-20T09:10:00+00:00",
+          "lifecycle": "CONFIRMED",
+          "expected_lifecycle": "CONFIRMED",
+          "expected_observed_at": "2026-08-20T09:10:00+00:00",
+          "expected_extraction_ids": [
+            "fixture-extraction-gold-confirmation",
+            "fixture-extraction-gold-primary"
+          ]
+        },
+        {
+          "document_key": "fixture-document-gold-retraction",
+          "observed_at": "2026-08-20T09:20:00+00:00",
+          "lifecycle": "RETRACTED",
+          "expected_lifecycle": "RETRACTED",
+          "expected_observed_at": "2026-08-20T09:20:00+00:00",
+          "expected_extraction_ids": [
+            "fixture-extraction-gold-confirmation",
+            "fixture-extraction-gold-primary",
+            "fixture-extraction-gold-retraction"
+          ]
+        },
+        {
+          "document_key": "fixture-document-gold-late",
+          "observed_at": "2026-08-20T09:05:00+00:00",
+          "lifecycle": "CONFIRMED",
+          "expected_lifecycle": "RETRACTED",
+          "expected_observed_at": "2026-08-20T09:20:00+00:00",
+          "expected_extraction_ids": [
+            "fixture-extraction-gold-confirmation",
+            "fixture-extraction-gold-late",
+            "fixture-extraction-gold-primary",
+            "fixture-extraction-gold-retraction"
+          ]
+        }
+      ]
+    }
+  ]
+}

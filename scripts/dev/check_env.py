@@ -2,7 +2,7 @@
 """检查跨平台开发工作站的必要条件。
 
 本脚本只读取本地状态，不会创建 `.env`、启动 Docker、运行迁移或触发任何交易命令。
-Windows 和 Linux 都可通过 ``uv run python scripts/dev/check_env.py`` 调用。
+Windows 和 Linux 都可通过 ``python scripts/dev/check_env.py`` 调用；该只读检查不需要项目依赖。
 """
 
 from __future__ import annotations
@@ -168,7 +168,7 @@ def check_environment(
             _check_docker_compose(require_docker=require_docker),
             _check_docker_daemon(require_docker=require_docker),
             _check_command("ssh", "SSH", required=require_deploy_tools),
-            _check_command("scp", "SCP", required=require_deploy_tools),
+            _check_command("ssh-keygen", "OpenSSH ssh-keygen", required=require_deploy_tools),
         )
     )
 
@@ -214,7 +214,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--require-deploy-tools",
         action="store_true",
-        help="将缺少 ssh/scp 部署控制面工具视为错误。",
+        help="将缺少 ssh/ssh-keygen 部署控制面工具视为错误。",
     )
     parser.add_argument("--json", action="store_true", help="输出稳定 JSON。")
     return parser.parse_args()

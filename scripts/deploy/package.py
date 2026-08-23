@@ -11,8 +11,14 @@ import tarfile
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+import re
 from stat import S_IMODE
 from typing import Final, Iterable
+
+try:  # Allow direct-script execution and module imports.
+    from .archive_policy import archive_path_is_excluded
+except ImportError:  # pragma: no cover - direct-script invocation path.
+    from archive_policy import archive_path_is_excluded
 
 
 class PackageError(ValueError):
@@ -21,14 +27,18 @@ class PackageError(ValueError):
 
 _BUNDLE_PATHS: Final = (
     "pyproject.toml",
+    "README.md",
     "uv.lock",
     "alembic.ini",
+    "scripts/ci/check_dependency_policy.py",
+    "scripts/ci/bootstrap_pep517.py",
     "alembic",
     "configs",
     "src",
     "templates",
     "ontology",
     "datasets",
+    "infra/systemd",
 )
 _EXCLUDED_FILES: Final = frozenset(
     {
@@ -37,8 +47,6 @@ _EXCLUDED_FILES: Final = frozenset(
         Path("configs/app.local.example.yaml"),
     }
 )
-_EXCLUDED_DIRECTORY_NAMES: Final = frozenset({"__pycache__", ".mypy_cache", ".pytest_cache"})
-_EXCLUDED_SUFFIXES: Final = frozenset({".pyc", ".pyo"})
 
 
 @dataclass(frozen=True)
@@ -48,26 +56,42 @@ class Artifact:
     path: Path
     release_id: str
     sha256: str
+    revision: str = ""
 
 
-def _git_revision(project_root: Path) -> str:
+_COMMITTED_REVISION_PATTERN: Final = re.compile(r"^[0-9a-f]{40}$")
+
+
+def _git_revision(project_root: Path, *, require_clean_commit: bool) -> str:
     result = subprocess.run(
-        ["git", "-C", str(project_root), "rev-parse", "--short=12", "HEAD"],
+        ["git", "-C", str(project_root), "rev-parse", "HEAD"],
         check=False,
         capture_output=True,
         text=True,
     )
-    if result.returncode == 0 and result.stdout.strip():
-        return result.stdout.strip()
+    revision = result.stdout.strip()
+    if result.returncode == 0 and _COMMITTED_REVISION_PATTERN.fullmatch(revision):
+        if require_clean_commit:
+            status = subprocess.run(
+                ["git", "-C", str(project_root), "status", "--porcelain", "--untracked-files=all"],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            if status.returncode != 0 or status.stdout.strip():
+                raise PackageError(
+                    "signed release packaging requires an exact committed, clean worktree"
+                )
+        return revision
+    if require_clean_commit:
+        raise PackageError("signed release packaging requires a reachable full Git revision")
     return datetime.now(UTC).strftime("%Y%m%d%H%M%S")
 
 
-def _is_excluded(relative_path: Path) -> bool:
+def _is_excluded(relative_path: Path, *, is_directory: bool) -> bool:
     if relative_path in _EXCLUDED_FILES:
         return True
-    if any(part in _EXCLUDED_DIRECTORY_NAMES for part in relative_path.parts):
-        return True
-    return relative_path.suffix in _EXCLUDED_SUFFIXES
+    return archive_path_is_excluded(relative_path, is_directory=is_directory)
 
 
 def _iter_bundle_paths(project_root: Path) -> Iterable[Path]:
@@ -79,7 +103,7 @@ def _iter_bundle_paths(project_root: Path) -> Iterable[Path]:
         if source.is_symlink():
             raise PackageError(f"部署制品不允许包含符号链接：{relative_root}")
         if source.is_file():
-            if not _is_excluded(relative_root):
+            if not _is_excluded(relative_root, is_directory=False):
                 yield source
             continue
         if not source.is_dir():
@@ -87,11 +111,12 @@ def _iter_bundle_paths(project_root: Path) -> Iterable[Path]:
 
         for candidate in sorted(source.rglob("*")):
             relative_path = candidate.relative_to(project_root)
-            if _is_excluded(relative_path):
-                continue
             if candidate.is_symlink():
                 raise PackageError(f"部署制品不允许包含符号链接：{relative_path}")
-            if candidate.is_dir() or candidate.is_file():
+            is_directory = candidate.is_dir()
+            if _is_excluded(relative_path, is_directory=is_directory):
+                continue
+            if is_directory or candidate.is_file():
                 yield candidate
             else:
                 raise PackageError(f"部署制品包含不受支持的文件类型：{relative_path}")
@@ -131,6 +156,7 @@ def build_artifact(
     output_dir: Path,
     revision: str | None = None,
     built_at: datetime | None = None,
+    require_clean_commit: bool = False,
 ) -> Artifact:
     """构建制品，且绝不把活动配置、秘密或本地缓存带入归档。"""
 
@@ -140,7 +166,7 @@ def build_artifact(
     if not (project_root / ".env.example").is_file():
         raise PackageError("构建制品缺少 .env.example 安全模板。")
 
-    revision = revision or _git_revision(project_root)
+    revision = revision or _git_revision(project_root, require_clean_commit=require_clean_commit)
     if not revision.replace("-", "").replace("_", "").isalnum():
         raise PackageError("制品 revision 只能包含字母、数字、下划线和连字符。")
     built_at = built_at or datetime.now(UTC)
@@ -179,7 +205,12 @@ def build_artifact(
         artifact_path.unlink(missing_ok=True)
         raise PackageError(f"写入部署制品失败：{exc}") from exc
     artifact_path.chmod(0o600)
-    return Artifact(path=artifact_path, release_id=release_id, sha256=_artifact_sha256(artifact_path))
+    return Artifact(
+        path=artifact_path,
+        release_id=release_id,
+        sha256=_artifact_sha256(artifact_path),
+        revision=revision,
+    )
 
 
 def _build_parser() -> argparse.ArgumentParser:

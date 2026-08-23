@@ -12,6 +12,11 @@ from northstar_quant.platform.db.repositories import (
     save_runtime_risk_record,
 )
 from northstar_quant.trading_execution.execution.models import OrderRequest
+from northstar_quant.trading_execution.reconciliation.reconciliation import (
+    begin_reconciliation_manual_recovery,
+    complete_reconciliation_manual_recovery,
+    halt_for_reconciliation,
+)
 from northstar_quant.application import live_service as service
 
 
@@ -86,6 +91,35 @@ def test_submission_guard_uses_latest_persisted_runtime_risk(
     assert calendar_calls[0]["order"] is order
     assert len(contract_calls) == 1
     assert contract_calls[0]["order"] is order
+
+    with postgresql_session_factory() as session:
+        halt_for_reconciliation(
+            session,
+            profile_id="cn_futures_daily_live",
+            broker="ctp",
+            account="ctp-test",
+            reason="RECONCILIATION_UNEXPLAINED_DIFFERENCE",
+            evidence={"test": True},
+        )
+    with pytest.raises(PermissionError, match="RECONCILIATION_SAFETY_BLOCKED"):
+        service._assert_live_submission_allowed("ctp", order)
+    with postgresql_session_factory() as session:
+        begin_reconciliation_manual_recovery(
+            session,
+            profile_id="cn_futures_daily_live",
+            broker="ctp",
+            account="ctp-test",
+            approver_id="risk-owner",
+            reason="investigated",
+        )
+        complete_reconciliation_manual_recovery(
+            session,
+            profile_id="cn_futures_daily_live",
+            broker="ctp",
+            account="ctp-test",
+            approver_id="risk-owner",
+            reason="cleared",
+        )
 
     with postgresql_session_factory() as session:
         save_runtime_risk_record(

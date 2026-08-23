@@ -3,7 +3,16 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from datetime import UTC, datetime
 
+from northstar_quant.trading_execution.broker.contracts import (
+    BrokerCapabilities,
+    BrokerConnectionState,
+    BrokerIdentity,
+    BrokerMode,
+    BrokerStatus,
+    MarketGateway,
+)
 from northstar_quant.trading_execution.execution.models import (
     BrokerStateSnapshot,
     MarketQuoteSnapshot,
@@ -157,3 +166,18 @@ class BrokerAdapter(ABC):
         """返回券商 API client 身份；不适用的适配器返回 ``None``。"""
 
         return None
+
+    def market_gateway(self) -> MarketGateway:
+        """Expose the adapter's read-only quote boundary explicitly."""
+
+        return self
+
+    def broker_status(self) -> BrokerStatus:
+        """Default is deliberately UNKNOWN: it can never authorize new risk."""
+
+        return BrokerStatus(
+            identity=BrokerIdentity(self.get_name(), BrokerMode.PAPER, self.get_account(), self.get_client_id()),
+            connection_state=BrokerConnectionState.UNKNOWN,
+            capabilities=BrokerCapabilities(False, False, False, False, False),
+            observed_at=datetime.now(UTC),
+        )

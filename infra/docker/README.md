@@ -1,7 +1,7 @@
 # Docker 开发基础设施
 
 `compose.yaml` 仅用于本地 PostgreSQL 开发环境。Windows 与 Linux 均通过项目根目录的
-`just dev-postgres`（或 `uv run python scripts/dev/setup.py --initialize-config --with-postgres --migrate`）
+`just dev-postgres`（或先完成 bootstrap 后运行 `uv run --offline --no-sync python scripts/dev/setup.py --initialize-config --with-postgres --migrate`）
 显式启动；入口会指定此 Compose 文件并将项目根目录设为 Compose project directory，因此本地忽略的
 `.env` 与 `scripts/db/` 初始化脚本仍从仓库根解析。
 

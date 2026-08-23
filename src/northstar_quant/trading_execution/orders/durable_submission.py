@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, replace
 from uuid import uuid4
 
@@ -30,11 +31,20 @@ from northstar_quant.platform.db.repositories import (
     update_single_order_status,
 )
 from northstar_quant.trading_execution.broker.broker_base import BrokerAdapter
+from northstar_quant.trading_execution.broker.contracts import BrokerStatus, MarketGateway
 from northstar_quant.trading_execution.execution.models import (
     BrokerStateSnapshot,
     MarketQuoteSnapshot,
     OrderRequest,
     OrderResult,
+)
+from northstar_quant.trading_execution.orders.state_machine import (
+    BrokerOrderStatus,
+    apply_broker_order_status,
+    canonicalize_broker_order_status,
+)
+from northstar_quant.trading_execution.orders.ctp_sim_submission_guard import (
+    CtpSimSubmissionAuthority,
 )
 from northstar_quant.platform.observability.logging.logger import get_logger
 
@@ -55,6 +65,21 @@ class SubmissionLease:
     ttl_seconds: int
 
 
+def _require_ctp_sim_submission_authority(
+    value: object,
+) -> CtpSimSubmissionAuthority:
+    """Require the opaque CTP-sim authority without a reverse import."""
+
+    if value is None:
+        raise PermissionError(
+            "CTP_SIM_FINAL_SUBMISSION_AUTHORITY_REQUIRED: "
+            "durable CTP-sim submission requires the P8 candidate authority"
+        )
+    if not isinstance(value, CtpSimSubmissionAuthority):
+        raise PermissionError("CTP_SIM_SUBMISSION_AUTHORITY_INVALID")
+    return value
+
+
 class DurableBrokerAdapter(BrokerAdapter):
     """为任意券商适配器增加数据库幂等提交协议。"""
 
@@ -68,12 +93,16 @@ class DurableBrokerAdapter(BrokerAdapter):
         lease: SubmissionLease | None = None,
         cancel_reason: str = "broker_cancel_request",
         cancel_batch_id: str | None = None,
+        ctp_sim_submission_authority: CtpSimSubmissionAuthority | None = None,
+        before_durable_intent: Callable[[OrderRequest], None] | None = None,
     ) -> None:
         self.delegate = delegate
         self.session = session
         self.lease = lease
         self.cancel_reason = cancel_reason
         self.cancel_batch_id = cancel_batch_id
+        self.ctp_sim_submission_authority = ctp_sim_submission_authority
+        self.before_durable_intent = before_durable_intent
 
     def _assert_lease(self) -> None:
         if self.lease is None:
@@ -103,11 +132,28 @@ class DurableBrokerAdapter(BrokerAdapter):
         if not account:
             raise ValueError("持久化提交前必须明确订单账户。")
 
+        submission_guard: Callable[[OrderRequest], None] | None = None
+        if broker == "ctp_sim":
+            authority = _require_ctp_sim_submission_authority(
+                self.ctp_sim_submission_authority
+            )
+            if (
+                getattr(self.delegate, "submission_authority", None)
+                is not authority
+            ):
+                raise PermissionError(
+                    "CTP_SIM_AUTHORITY_BINDING_MISMATCH: "
+                    "durable and simulator submission authorities must be the same instance"
+                )
+            submission_guard = authority.reserve
+
         row, _created = prepare_order_submission(
             self.session,
             order,
             broker=broker,
             account=account,
+            before_durable_intent=self.before_durable_intent,
+            submission_guard=submission_guard,
         )
         if row.broker_order_id or is_final_order_status(row.status):
             logger.bind(
@@ -122,7 +168,7 @@ class DurableBrokerAdapter(BrokerAdapter):
             return OrderResult(
                 accepted=not is_rejected_order_status(row.status),
                 broker_order_id=str(row.broker_order_id or ""),
-                status=row.status,
+                status=canonicalize_broker_order_status(row.status).value,
                 message="幂等命中：复用已持久化券商订单结果。",
                 submitted_at=row.submitted_at,
                 replayed=True,
@@ -166,6 +212,12 @@ class DurableBrokerAdapter(BrokerAdapter):
                 order_ref=row.order_ref,
             ).exception("券商提交未返回可持久化确认，订单进入待恢复状态")
             raise
+
+        canonical_status = apply_broker_order_status(
+            current=BrokerOrderStatus.SUBMITTING,
+            broker_status=result.status,
+        )
+        result = replace(result, status=canonical_status.value)
 
         complete_order_submission(
             self.session,
@@ -332,6 +384,16 @@ class DurableBrokerAdapter(BrokerAdapter):
         self._assert_lease()
         return self.delegate.get_market_quotes(symbols)
 
+    def market_gateway(self) -> MarketGateway:
+        """Keep quote reads behind the durable wrapper's lease boundary."""
+
+        return self
+
+    def broker_status(self) -> BrokerStatus:
+        """Persistence does not alter broker identity, capability or connection state."""
+
+        return self.delegate.broker_status()
+
     def cancel_order(self, broker_order_id: str) -> bool:
         return self._cancel_order(broker_order_id)
 
@@ -431,6 +493,11 @@ class DurableBrokerAdapter(BrokerAdapter):
             exchange_id=order.exchange_id,
         )
         if row is not None:
+            canonical_status = apply_broker_order_status(
+                current=order.status,
+                broker_status=row.get("status"),
+            )
+            row = {**row, "status": canonical_status.value}
             update_single_order_status(
                 self.session,
                 row,

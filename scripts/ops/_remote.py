@@ -19,6 +19,22 @@ PROJECT_ROOT: Final = SCRIPT_ROOT.parent
 DEPLOY_SCRIPT_ROOT: Final = SCRIPT_ROOT / "deploy"
 REMOTE_LINUX_ROOT: Final = Path(__file__).resolve().parent / "remote" / "linux"
 _REMOTE_ARGUMENT_PATTERN: Final = re.compile(r"^[A-Za-z0-9._/@:+=-]+$")
+_SSH_OPTIONS: Final = (
+    "-o",
+    "BatchMode=yes",
+    "-o",
+    "StrictHostKeyChecking=yes",
+    "-o",
+    "ConnectTimeout=15",
+    "-o",
+    "ConnectionAttempts=1",
+    "-o",
+    "ServerAliveInterval=15",
+    "-o",
+    "ServerAliveCountMax=3",
+)
+_REMOTE_OPERATION_TIMEOUT_SECONDS: Final = 300
+_REMOTE_SAFE_PATH: Final = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 if str(DEPLOY_SCRIPT_ROOT) not in sys.path:
     sys.path.insert(0, str(DEPLOY_SCRIPT_ROOT))
@@ -70,19 +86,28 @@ def run_linux_operation(
     # 所有远端操作都以非交互 sudo 启动：权限未预配置时应失败，而非卡在密码提示。
     command = [
         ssh,
+        *_SSH_OPTIONS,
         inventory.deploy_host,
         "sudo",
         "-n",
-        "bash",
+        "env",
+        "-i",
+        f"PATH={_REMOTE_SAFE_PATH}",
+        "/bin/bash",
+        "-p",
         "-s",
         "--",
         *arguments,
     ]
     print(f"连接 Linux 目标：{inventory.deploy_host}（{operation}）")
-    result = subprocess.run(
-        command,
-        input=script_path.read_text(encoding="utf-8"),
-        text=True,
-        check=False,
-    )
+    try:
+        result = subprocess.run(
+            command,
+            input=script_path.read_text(encoding="utf-8"),
+            text=True,
+            check=False,
+            timeout=_REMOTE_OPERATION_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise RemoteOperationError("远程运维操作超时。") from exc
     return result.returncode

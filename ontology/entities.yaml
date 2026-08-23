@@ -1,0 +1,14 @@
+ontology_version: v1
+entity_types:
+  - Country
+  - Region
+  - Company
+  - Mine
+  - Refinery
+  - Port
+  - Pipeline
+  - Commodity
+  - Exchange
+  - Instrument
+  - Contract
+  - GovernmentAgency

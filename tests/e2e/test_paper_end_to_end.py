@@ -10,6 +10,7 @@ import northstar_quant.trading_execution.broker.paper_broker as paper_broker
 from northstar_quant.platform.config.settings import Settings, get_settings
 from northstar_quant.trading_execution.execution.models import OrderRequest
 from northstar_quant.trading_execution.broker.paper_broker import PaperBrokerAdapter
+from northstar_quant.trading_execution.orders.durable_submission import DurableBrokerAdapter
 from northstar_quant.trading_execution.reconciliation.reconciliation import reconcile_broker_state
 from northstar_quant.application import reporting as report_builder
 
@@ -34,17 +35,18 @@ def test_paper_order_reconcile_attribution_and_report_infrastructure(
         broker = PaperBrokerAdapter()
         testing_session = postgresql_session_factory
 
-        broker.submit_order(
-            OrderRequest(
-                strategy_id="paper-infrastructure-test",
-                symbol="RB_TEST",
-                side="BUY",
-                qty=10.0,
-                reference_price=100.0,
-                account="paper-e2e",
-            )
-        )
         with testing_session() as session:
+            DurableBrokerAdapter(broker, session).submit_order(
+                OrderRequest(
+                    strategy_id="paper-infrastructure-test",
+                    symbol="RB_TEST",
+                    side="BUY",
+                    qty=10.0,
+                    plan_id="paper-e2e-plan-1",
+                    reference_price=100.0,
+                    account="paper-e2e",
+                )
+            )
             first = reconcile_broker_state(
                 session,
                 broker,
@@ -53,17 +55,18 @@ def test_paper_order_reconcile_attribution_and_report_infrastructure(
                 profile_id="paper-infrastructure-test",
             )
 
-        broker.submit_order(
-            OrderRequest(
-                strategy_id="paper-infrastructure-test",
-                symbol="RB_TEST",
-                side="BUY",
-                qty=1.0,
-                reference_price=110.0,
-                account="paper-e2e",
-            )
-        )
         with testing_session() as session:
+            DurableBrokerAdapter(broker, session).submit_order(
+                OrderRequest(
+                    strategy_id="paper-infrastructure-test",
+                    symbol="RB_TEST",
+                    side="BUY",
+                    qty=1.0,
+                    plan_id="paper-e2e-plan-2",
+                    reference_price=110.0,
+                    account="paper-e2e",
+                )
+            )
             second = reconcile_broker_state(
                 session,
                 broker,

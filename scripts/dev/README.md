@@ -33,7 +33,7 @@ python scripts/dev/setup.py --bootstrap-tools --install-docker --apply --confirm
 ```
 
 Windows 计划使用 `winget`；Linux 仅正式支持 Ubuntu/Debian，其他发行版会失败关闭而不执行命令。
-bootstrap 不自动安装 Python、接受 Docker Desktop 许可、配置 WSL、启动服务或执行 `usermod`。`ssh`/`scp`
+bootstrap 不自动安装 Python、接受 Docker Desktop 许可、配置 WSL、启动服务或执行 `usermod`。`ssh`/`ssh-keygen`
 只供部署控制面使用，环境检查会报告它们，但不会自动安装。
 
 ## 幂等性与中断恢复
@@ -53,7 +53,8 @@ bootstrap 不自动安装 Python、接受 Docker Desktop 许可、配置 WSL、�
 
 ## 项目初始化
 
-`dev-setup` 显式创建本地活动配置、生成不回显的本地数据库密码、固定安全交易开关并同步锁定依赖；
+先运行 `just env-bootstrap`，它在全新 `.venv` 中仅 materialize 已审计的锁定构建输入；后续
+`dev-setup` 显式创建本地活动配置、生成不回显的本地数据库密码并固定安全交易开关；
 `dev-postgres` 才会启动 Docker PostgreSQL 并运行迁移。两者都会保持 `paper`、禁用实盘和 kill switch，绝不会下载
 市场数据、启动 scheduler 或提交订单。已有疑似生产、非 paper、live、kill-switch 或外部数据库 `.env`
 会被拒绝覆盖；确认它只是本地开发文件后，才可手动追加

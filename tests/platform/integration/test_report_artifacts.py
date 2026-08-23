@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import polars as pl
@@ -100,6 +101,30 @@ def test_yearly_report_uses_year_directory_and_template(tmp_path, monkeypatch):
         "# Northstar Quant 年报"
     )
     assert pdf_renderer.parse_markdown_report(report_path).meta.report_type == "年报"
+
+
+def test_report_artifact_redacts_secret_like_input_before_export(tmp_path, monkeypatch):
+    settings = get_settings().model_copy()
+    object.__setattr__(settings, "project_root", PROJECT_ROOT)
+    object.__setattr__(settings, "reports_dir", tmp_path / "reports")
+    monkeypatch.setattr(report_builder, "get_settings", lambda: settings)
+
+    raw_secret = "not-for-report-output"  # secret-scan: allow; reason: disposable test fixture
+    report_path = Path(
+        report_builder.build_markdown_report(
+            report_type="daily",
+            strategy_id="portfolio",
+            metrics={"api_token": raw_secret},
+            profile_id="cn_futures_daily_trend_offline",
+            analytics={"endpoint": f"https://example.test/?access_token={raw_secret}"},
+        )
+    )
+
+    markdown = report_path.read_text(encoding="utf-8")
+    report_json = json.loads(report_path.with_name("report.json").read_text(encoding="utf-8"))
+    assert raw_secret not in markdown
+    assert raw_secret not in json.dumps(report_json)
+    assert report_json["metrics"]["api_token"] == "[REDACTED]"
 
 
 def test_generic_report_builder_rejects_backtest_report_type(tmp_path, monkeypatch):

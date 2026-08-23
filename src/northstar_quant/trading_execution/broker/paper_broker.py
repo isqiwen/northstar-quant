@@ -1,15 +1,15 @@
 """纸面券商适配器。"""
 
 from __future__ import annotations
-
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import uuid4
 
 from northstar_quant.platform.common.time import ensure_utc, utc_now
 from northstar_quant.platform.common.order_status import is_final_order_status
 from northstar_quant.platform.config.settings import get_settings
 from northstar_quant.trading_execution.broker.broker_base import BrokerAdapter
+from northstar_quant.trading_execution.broker.contracts import BrokerCapabilities, BrokerConnectionState, BrokerIdentity, BrokerMode, BrokerStatus
 from northstar_quant.trading_execution.execution.models import (
     BrokerStateSnapshot,
     FillSnapshot,
@@ -468,6 +468,14 @@ class PaperBrokerAdapter(BrokerAdapter):
 
     def get_account(self) -> str:
         return self.account
+
+    def broker_status(self) -> BrokerStatus:
+        return BrokerStatus(
+            BrokerIdentity(self.get_name(), BrokerMode.PAPER, self.account, None),
+            BrokerConnectionState.CONNECTED,
+            BrokerCapabilities(True, True, True, True, False),
+            datetime.now(UTC),
+        )
 
     def get_name(self) -> str:
         return "paper"

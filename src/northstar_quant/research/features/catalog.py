@@ -22,6 +22,10 @@ from northstar_quant.research.features.inventory import (
     INVENTORY_LEVEL_CHANGE,
     InventoryLevelChangeComputer,
 )
+from northstar_quant.research.features.intelligence import (
+    INTELLIGENCE_FEATURE_DEFINITIONS,
+    IntelligenceMetricComputer,
+)
 from northstar_quant.research.features.models import FeatureVersion
 from northstar_quant.research.features.momentum import MOMENTUM_ROC, MomentumRocComputer
 from northstar_quant.research.features.positioning import (
@@ -57,6 +61,7 @@ _REGISTRATIONS: tuple[CanonicalFeatureRegistration, ...] = (
     CanonicalFeatureRegistration(RELATIVE_BASIS, RelativeBasisComputer),
     CanonicalFeatureRegistration(INVENTORY_LEVEL_CHANGE, InventoryLevelChangeComputer),
     CanonicalFeatureRegistration(NET_POSITION_RATIO, NetPositionRatioComputer),
+    *(CanonicalFeatureRegistration(definition, IntelligenceMetricComputer) for definition in INTELLIGENCE_FEATURE_DEFINITIONS),
 )
 _REGISTRATIONS_BY_ID = {item.definition.feature_id: item for item in _REGISTRATIONS}
 # Registry 对同一 FeatureVersion 只接受同一个 computer 对象，防止实现被静默替换。

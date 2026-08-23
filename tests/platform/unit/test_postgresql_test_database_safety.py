@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from sqlalchemy.engine import make_url
 
 from tests.helpers import postgresql
 from tests.helpers.paths import PROJECT_ROOT
@@ -60,3 +61,23 @@ def test_test_helper_has_no_automatic_schema_cleanup_api() -> None:
 
     for source in sources:
         assert not any(operation in source for operation in forbidden)
+
+
+def test_isolated_test_connections_disable_parallel_catalog_workers(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The resource cap is session-scoped and does not alter the PostgreSQL cluster."""
+
+    database_url = "postgresql+psycopg://northstar@127.0.0.1:5432/northstar_test"
+    monkeypatch.setenv("NORTHSTAR_TEST_DATABASE_URL", database_url)
+
+    key = str(tmp_path / "parallelism-cap")
+    schema = "test_parallelism_cap"
+    monkeypatch.setitem(postgresql._SCHEMA_BY_KEY, key, schema)
+
+    isolated_url = make_url(postgresql.postgresql_test_url(key))
+
+    assert isolated_url.query["options"] == (
+        f"-csearch_path={schema} -cmax_parallel_workers_per_gather=0"
+    )

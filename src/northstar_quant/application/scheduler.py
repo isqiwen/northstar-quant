@@ -7,6 +7,7 @@ from apscheduler.triggers.cron import CronTrigger  # type: ignore[import-untyped
 
 from northstar_quant.platform.config.settings import get_settings
 from northstar_quant.platform.config.trading_profile import get_production_profile_id, load_trading_profile
+from northstar_quant.platform.scheduling import JobRegistry, ScheduledJob, ScheduledJobKind
 from northstar_quant.application.live_service import (
     execute_latest_targets_once,
     run_runtime_risk_monitor_once,
@@ -285,111 +286,94 @@ def run_scheduler() -> None:
         )
 
     scheduler = BlockingScheduler(timezone=profile_timezone)
+    job_registry = JobRegistry()
     logger.bind(profile=profile.profile_id).info("开始初始化调度器")
 
-    scheduler.add_job(
-        sync_broker_once,
-        _parse_cron(settings.broker_sync_cron, timezone=profile_timezone),
-        id="broker_sync",
-        replace_existing=True,
+    def register_job(
+        *,
+        job_id: str,
+        kind: ScheduledJobKind,
+        action,
+        trigger: CronTrigger,
+        lifecycle_gate=None,
+        **scheduler_options,
+    ) -> None:
+        job = job_registry.register(
+            ScheduledJob(
+                job_id=job_id,
+                kind=kind,
+                action=action,
+                lifecycle_gate=lifecycle_gate,
+            )
+        )
+        scheduler.add_job(job.run, trigger, id=job.job_id, replace_existing=True, **scheduler_options)
+
+    register_job(
+        job_id="broker_sync",
+        kind=ScheduledJobKind.MAINTENANCE,
+        action=lambda: sync_broker_once(profile.profile_id),
+        trigger=_parse_cron(settings.broker_sync_cron, timezone=profile_timezone),
     )
-    scheduler.add_job(
-        _guarded_job(
-            "daily_signal",
-            lambda: generate_daily_targets_once(profile.profile_id),
-            calendar_guard=trading_day_guard,
+    register_job(
+        job_id="daily_signal",
+        kind=ScheduledJobKind.RESEARCH,
+        action=_guarded_job(
+            "daily_signal", lambda: generate_daily_targets_once(profile.profile_id), calendar_guard=trading_day_guard
         ),
-        _parse_cron(
-            schedule.get("daily_signal_cron", settings.daily_signal_cron),
-            timezone=profile_timezone,
-        ),
-        id="daily_signal",
-        replace_existing=True,
+        trigger=_parse_cron(schedule.get("daily_signal_cron", settings.daily_signal_cron), timezone=profile_timezone),
         max_instances=1,
         coalesce=True,
     )
-    scheduler.add_job(
-        _guarded_job(
-            "daily_shadow_run",
-            lambda: run_shadow_once(profile.profile_id),
-            calendar_guard=trading_day_guard,
+    register_job(
+        job_id="daily_shadow_run",
+        kind=ScheduledJobKind.RESEARCH,
+        action=_guarded_job(
+            "daily_shadow_run", lambda: run_shadow_once(profile.profile_id), calendar_guard=trading_day_guard
         ),
-        _parse_cron(
-            schedule.get("shadow_run_cron", settings.shadow_run_cron),
-            timezone=profile_timezone,
-        ),
-        id="daily_shadow_run",
-        replace_existing=True,
+        trigger=_parse_cron(schedule.get("shadow_run_cron", settings.shadow_run_cron), timezone=profile_timezone),
         max_instances=1,
         coalesce=True,
     )
-    scheduler.add_job(
-        _guarded_job(
-            "daily_execution",
-            lambda: execute_latest_targets_once(profile.profile_id),
-            calendar_guard=execution_session_guard,
-        ),
-        _parse_cron(
-            schedule.get("execution_cron", settings.execution_cron),
-            timezone=profile_timezone,
-        ),
-        id="daily_execution",
-        replace_existing=True,
+    register_job(
+        job_id="daily_execution",
+        kind=ScheduledJobKind.LIVE,
+        action=lambda: execute_latest_targets_once(profile.profile_id),
+        lifecycle_gate=execution_session_guard,
+        trigger=_parse_cron(schedule.get("execution_cron", settings.execution_cron), timezone=profile_timezone),
         max_instances=1,
         coalesce=True,
     )
-    scheduler.add_job(
-        lambda: run_runtime_risk_monitor_once(profile.profile_id),
-        _parse_cron(
-            schedule.get("runtime_risk_cron", settings.runtime_risk_cron),
-            timezone=profile_timezone,
-        ),
-        id="runtime_risk",
-        replace_existing=True,
+    register_job(
+        job_id="runtime_risk",
+        kind=ScheduledJobKind.MAINTENANCE,
+        action=lambda: run_runtime_risk_monitor_once(profile.profile_id),
+        trigger=_parse_cron(schedule.get("runtime_risk_cron", settings.runtime_risk_cron), timezone=profile_timezone),
         max_instances=1,
         coalesce=True,
     )
-    scheduler.add_job(
-        lambda: _build_and_send_report("daily"),
-        _parse_cron(
-            schedule.get("daily_report_cron", settings.daily_report_cron),
-            timezone=profile_timezone,
-        ),
-        id="daily_report",
-        replace_existing=True,
+    register_job(
+        job_id="daily_report",
+        kind=ScheduledJobKind.MAINTENANCE,
+        action=lambda: _build_and_send_report("daily"),
+        trigger=_parse_cron(schedule.get("daily_report_cron", settings.daily_report_cron), timezone=profile_timezone),
     )
-    scheduler.add_job(
-        lambda: _build_and_send_report("weekly"),
-        _parse_cron(
-            schedule.get("weekly_report_cron", settings.weekly_report_cron),
-            timezone=profile_timezone,
-        ),
-        id="weekly_report",
-        replace_existing=True,
+    register_job(
+        job_id="weekly_report",
+        kind=ScheduledJobKind.MAINTENANCE,
+        action=lambda: _build_and_send_report("weekly"),
+        trigger=_parse_cron(schedule.get("weekly_report_cron", settings.weekly_report_cron), timezone=profile_timezone),
     )
-    scheduler.add_job(
-        lambda: _build_monthly_report_if_due(
-            profile=profile,
-            broker_name=broker_name,
-        ),
-        _parse_cron(
-            schedule.get("monthly_report_cron", settings.monthly_report_cron),
-            timezone=profile_timezone,
-        ),
-        id="monthly_report",
-        replace_existing=True,
+    register_job(
+        job_id="monthly_report",
+        kind=ScheduledJobKind.MAINTENANCE,
+        action=lambda: _build_monthly_report_if_due(profile=profile, broker_name=broker_name),
+        trigger=_parse_cron(schedule.get("monthly_report_cron", settings.monthly_report_cron), timezone=profile_timezone),
     )
-    scheduler.add_job(
-        lambda: _build_yearly_report_if_due(
-            profile=profile,
-            broker_name=broker_name,
-        ),
-        _parse_cron(
-            schedule.get("yearly_report_cron", settings.yearly_report_cron),
-            timezone=profile_timezone,
-        ),
-        id="yearly_report",
-        replace_existing=True,
+    register_job(
+        job_id="yearly_report",
+        kind=ScheduledJobKind.MAINTENANCE,
+        action=lambda: _build_yearly_report_if_due(profile=profile, broker_name=broker_name),
+        trigger=_parse_cron(schedule.get("yearly_report_cron", settings.yearly_report_cron), timezone=profile_timezone),
     )
 
     send_alert("Northstar Quant 日频调度器已启动。", level="info")

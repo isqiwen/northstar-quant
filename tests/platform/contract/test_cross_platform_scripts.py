@@ -24,6 +24,8 @@ PYTHON_ENTRYPOINTS = (
     "scripts/ops/logs.py",
     "scripts/ops/backup.py",
     "scripts/ops/diagnose.py",
+    "scripts/maintenance/backup_bundle.py",
+    "scripts/maintenance/restore_drill.py",
 )
 
 
@@ -57,7 +59,7 @@ def test_workstation_check_is_read_only_and_reports_optional_tools() -> None:
         "Docker Compose v2",
         "Docker daemon",
         "SSH",
-        "SCP",
+        "OpenSSH ssh-keygen",
     }
 
 
@@ -120,7 +122,8 @@ def test_justfile_is_thin_cross_platform_command_router() -> None:
         "test-unit:",
         "test-backtest:",
         "test-cli:",
-        "deploy-prod inventory='deploy.env':",
+        "candidate-acceptance:",
+        "deploy-prod signing_key inventory='deploy.env':",
         "ops-health inventory='deploy.env':",
         "ops-backup inventory='deploy.env':",
     ):
@@ -193,6 +196,8 @@ def test_justfile_is_parseable_when_just_is_available() -> None:
         check=False,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="strict",
     )
 
     assert result.returncode == 0, result.stdout + result.stderr
@@ -204,12 +209,20 @@ def test_tier_one_ci_installs_and_exercises_just() -> None:
 
     assert workflow.count("uses: extractions/setup-just@v3") == 2
     assert workflow.count("just --list") == 2
+    assert "runs-on: ubuntu-24.04" in workflow
+    assert "image: postgres:16" in workflow
+    assert "postgresql-client-16" in workflow
     for command in (
         "just dev-check",
         "just test-unit",
         "just test-backtest",
         "just test-cli",
+        "just candidate-acceptance",
         "just check",
+        "command -v pg_dump",
+        "command -v pg_restore",
+        "command -v psql",
+        "SHOW server_version_num",
     ):
         assert command in workflow
 
@@ -220,11 +233,33 @@ def test_deploy_control_plane_does_not_require_local_bash_or_git_bash() -> None:
     assert "bash.exe" not in deploy
     assert "find_bash_executable" not in deploy
     assert 'shutil.which("ssh")' in deploy
-    assert 'shutil.which("scp")' in deploy
-    assert "remote/linux" in deploy
-    assert "sudo -n env" in deploy
-    assert "--upload-ntfy-bootstrap" in deploy
-    assert "--confirm-ntfy-bootstrap" in deploy
+    assert 'shutil.which("scp")' not in deploy
+    assert "sudo -n env" not in deploy
+    assert "StrictHostKeyChecking=yes" in deploy
+    assert "--skip-tests" not in deploy
+    assert "--skip-ruff" not in deploy
+    assert "--allow-dirty" not in deploy
+    assert "--upload-ntfy-bootstrap" not in deploy
+    assert "--confirm-ntfy-bootstrap" not in deploy
+    assert "--signing-key" in deploy
+    assert 'f"sudo -n {ROOT_RUNNER_PATH} identity"' in deploy
+    assert 'f"sudo -n {ROOT_RUNNER_PATH} submit"' in deploy
+    assert "subprocess.Popen(command, stdin=subprocess.PIPE)" in deploy
+    assert "write_submission(process.stdin, submission)" in deploy
+    assert "build_control_artifact(" in deploy
+    assert "build_manifest(" in deploy
+    assert "sign_manifest(" in deploy
+    assert "sign_environment(" in deploy
+    for forbidden_remote_staging_reference in ("remote_paths", "work_dir", "/tmp"):
+        assert forbidden_remote_staging_reference not in deploy
+
+    remote_ops = (PROJECT_ROOT / "scripts" / "ops" / "_remote.py").read_text(encoding="utf-8")
+    assert "StrictHostKeyChecking=yes" in remote_ops
+    assert "timeout=_REMOTE_OPERATION_TIMEOUT_SECONDS" in remote_ops
+    assert '"env",' in remote_ops
+    assert '"-i",' in remote_ops
+    assert '"/bin/bash",' in remote_ops
+    assert '"-p",' in remote_ops
 
 
 def test_linux_remote_ops_are_read_only_or_fail_closed() -> None:
@@ -233,7 +268,24 @@ def test_linux_remote_ops_are_read_only_or_fail_closed() -> None:
         assert (remote_dir / name).is_file()
 
     backup = (remote_dir / "backup.sh").read_text(encoding="utf-8")
+    diagnose = (remote_dir / "diagnose.sh").read_text(encoding="utf-8")
     restore = (remote_dir / "restore.sh").read_text(encoding="utf-8")
+    health = (remote_dir / "health.sh").read_text(encoding="utf-8")
+    logs = (remote_dir / "logs.sh").read_text(encoding="utf-8")
+
+    for script in (backup, diagnose, restore, health, logs):
+        assert script.startswith("#!/bin/bash -p\n")
+        assert "unset BASH_ENV ENV CDPATH" in script
+        assert 'PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"' in script
+
     assert "ops backup status" in backup
     assert "runuser -u" in backup
+    assert 'readonly CANONICAL_SERVICE_USER="northstar"' in backup
+    assert 'readonly CANONICAL_APP_ROOT="/opt/northstar"' in backup
+    assert 'readonly CANONICAL_SERVICE_NAME="northstar-quant"' in diagnose
+    assert 'readonly CANONICAL_APP_ROOT="/opt/northstar"' in diagnose
+    assert 'if [ "${service_name}" != "northstar-quant" ]; then' in health
+    assert 'if [ "${service_name}" != "northstar-quant" ]; then' in logs
+    assert "/srv/" not in backup
+    assert "/srv/" not in diagnose
     assert "被拒绝" in restore

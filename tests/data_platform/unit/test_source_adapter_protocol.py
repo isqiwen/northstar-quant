@@ -273,7 +273,7 @@ def test_fetch_request_and_raw_capture_are_secret_free_and_hash_bound() -> None:
         RawCapture(
             payload=b"raw",
             raw_format="application/json",
-            source_reference="https://example.test/feed?token=plain-secret",
+            source_reference="https://example.test/feed?token=plain-secret",  # secret-scan: allow; reason: disposable test fixture
             collection_method="fixture-import",
             available_at=AUTHORIZED_AT,
             capture_quality_status=QualityStatus.PASS,

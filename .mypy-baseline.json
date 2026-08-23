@@ -76,81 +76,11 @@
       "message": "Library stubs not installed for \"yaml\""
     },
     {
-      "file": "src/northstar_quant/platform/db/repositories.py",
-      "line": 223,
-      "column": 21,
-      "code": "arg-type",
-      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
-    },
-    {
-      "file": "src/northstar_quant/platform/db/repositories.py",
-      "line": 978,
-      "column": 8,
-      "code": "operator",
-      "message": "Unsupported operand types for / (\"float\" and \"None\")"
-    },
-    {
-      "file": "src/northstar_quant/platform/db/repositories.py",
-      "line": 983,
-      "column": 8,
-      "code": "operator",
-      "message": "Unsupported operand types for / (\"float\" and \"None\")"
-    },
-    {
-      "file": "src/northstar_quant/platform/db/repositories.py",
-      "line": 1152,
-      "column": 45,
-      "code": "arg-type",
-      "message": "Argument 1 to \"float\" has incompatible type \"float | None\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
-    },
-    {
-      "file": "src/northstar_quant/platform/db/repositories.py",
-      "line": 1160,
-      "column": 45,
-      "code": "arg-type",
-      "message": "Argument 1 to \"float\" has incompatible type \"float | None\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
-    },
-    {
-      "file": "src/northstar_quant/platform/db/repositories.py",
-      "line": 1186,
-      "column": 10,
-      "code": "assignment",
-      "message": "Incompatible types in assignment (expression has type \"AccountAttributionRecord\", variable has type \"PositionSnapshotRecord\")"
-    },
-    {
-      "file": "src/northstar_quant/platform/db/repositories.py",
-      "line": 1222,
-      "column": 11,
-      "code": "return-value",
-      "message": "Incompatible return value type (got \"PositionSnapshotRecord\", expected \"AccountAttributionRecord | None\")"
-    },
-    {
-      "file": "src/northstar_quant/platform/db/repositories.py",
-      "line": 2574,
-      "column": 50,
-      "code": "arg-type",
-      "message": "Argument 1 to \"where\" of \"Select\" has incompatible type \"bool\"; expected \"ColumnElement[bool] | _HasClauseElement[bool] | SQLCoreOperations[bool] | ExpressionElementRole[bool] | TypedColumnsClauseRole[bool] | Callable[[], ColumnElement[bool]] | LambdaElement\""
-    },
-    {
       "file": "src/northstar_quant/platform/reporting/email_sender.py",
       "line": 18,
       "column": 0,
       "code": "import-untyped",
       "message": "Library stubs not installed for \"markdown\""
-    },
-    {
-      "file": "src/northstar_quant/platform/reporting/email_sender.py",
-      "line": 122,
-      "column": 30,
-      "code": "arg-type",
-      "message": "Argument 1 to \"SMTP_SSL\" has incompatible type \"str | None\"; expected \"str\""
-    },
-    {
-      "file": "src/northstar_quant/platform/reporting/email_sender.py",
-      "line": 127,
-      "column": 26,
-      "code": "arg-type",
-      "message": "Argument 1 to \"SMTP\" has incompatible type \"str | None\"; expected \"str\""
     },
     {
       "file": "src/northstar_quant/platform/reporting/pdf_renderer.py",
@@ -287,28 +217,28 @@
     },
     {
       "file": "src/northstar_quant/trading_execution/live/preflight.py",
-      "line": 494,
+      "line": 496,
       "column": 97,
       "code": "arg-type",
       "message": "Argument 1 to \"float\" has incompatible type \"float | None\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
     },
     {
       "file": "src/northstar_quant/trading_execution/live/preflight.py",
-      "line": 498,
+      "line": 500,
       "column": 25,
       "code": "arg-type",
       "message": "Argument 1 to \"float\" has incompatible type \"float | None\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
     },
     {
       "file": "src/northstar_quant/trading_execution/live/preflight.py",
-      "line": 527,
+      "line": 529,
       "column": 81,
       "code": "arg-type",
       "message": "Argument 1 to \"float\" has incompatible type \"float | None\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
     },
     {
       "file": "src/northstar_quant/trading_execution/live/preflight.py",
-      "line": 528,
+      "line": 530,
       "column": 37,
       "code": "arg-type",
       "message": "Argument 1 to \"float\" has incompatible type \"float | None\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""

@@ -85,10 +85,10 @@ ntfy_normalize_path() {
       ;;
     data)
       case "${normalized_path}" in
-        /var/lib/*|/srv/*|/mnt/*|/data/*)
+        /var/lib/*)
           ;;
         *)
-          deploy_fail "${variable_name} 必须位于 /var/lib、/srv、/mnt 或 /data 下。"
+          deploy_fail "${variable_name} 必须位于 /var/lib 下。"
           ;;
       esac
       case "/${normalized_path}/" in
@@ -108,6 +108,63 @@ ntfy_normalize_path() {
   esac
 
   printf -v "${variable_name}" "%s" "${normalized_path}"
+}
+
+ntfy_paths_overlap() {
+  local first_path="$1"
+  local second_path="$2"
+
+  [ "${first_path}" = "${second_path}" ] ||
+    [[ "${first_path}" == "${second_path}/"* ]] ||
+    [[ "${second_path}" == "${first_path}/"* ]]
+}
+
+ntfy_assert_separate_from_northstar_layout() {
+  local variable_name="$1"
+  local ntfy_path="$2"
+  local protected_path
+
+  for protected_path in \
+    "/opt/northstar" \
+    "/etc/northstar" \
+    "/var/lib/northstar" \
+    "/var/cache/northstar" \
+    "/var/log/northstar" \
+    "${RUNTIME_STORAGE_DIR}" \
+    "${RUNTIME_DOWNLOADS_DIR}" \
+    "${RUNTIME_REPORTS_DIR}" \
+    "${RUNTIME_LOG_DIR}" \
+    "${RUNTIME_CACHE_DIR}" \
+    "${RUNTIME_MATPLOTLIB_DIR}"; do
+    if ntfy_paths_overlap "${ntfy_path}" "${protected_path}"; then
+      deploy_fail "${variable_name} 不得与 Northstar 受保护的代码、配置、状态或运行时目录重叠。"
+    fi
+  done
+}
+
+ntfy_require_northstar_runtime_layout() {
+  local runtime_path_name
+
+  for runtime_path_name in \
+    RUNTIME_STORAGE_DIR \
+    RUNTIME_DOWNLOADS_DIR \
+    RUNTIME_REPORTS_DIR \
+    RUNTIME_LOG_DIR \
+    RUNTIME_CACHE_DIR \
+    RUNTIME_MATPLOTLIB_DIR; do
+    if [ -z "${!runtime_path_name:-}" ]; then
+      deploy_fail "私有 ntfy 部署需要已验证的 ${runtime_path_name} 目录边界。"
+    fi
+  done
+}
+
+ntfy_require_canonical_directories() {
+  if [ "${NTFY_CONFIG_DIR}" != "/etc/northstar-ntfy" ]; then
+    deploy_fail "NTFY_CONFIG_DIR 固定为 /etc/northstar-ntfy，拒绝接管任意主机目录。"
+  fi
+  if [ "${NTFY_DATA_DIR}" != "/var/lib/northstar-ntfy" ]; then
+    deploy_fail "NTFY_DATA_DIR 固定为 /var/lib/northstar-ntfy，拒绝接管任意主机目录。"
+  fi
 }
 
 ntfy_validate_cache_duration() {
@@ -171,7 +228,11 @@ ntfy_validate_deployment_config() {
   ntfy_validate_acme_email "${NTFY_ACME_EMAIL}"
   ntfy_validate_image "NTFY_IMAGE" "${NTFY_IMAGE}"
   ntfy_validate_image "NTFY_CADDY_IMAGE" "${NTFY_CADDY_IMAGE}"
+  ntfy_require_northstar_runtime_layout
   ntfy_normalize_path "NTFY_CONFIG_DIR" "${NTFY_CONFIG_DIR}" "config"
   ntfy_normalize_path "NTFY_DATA_DIR" "${NTFY_DATA_DIR}" "data"
+  ntfy_require_canonical_directories
+  ntfy_assert_separate_from_northstar_layout "NTFY_CONFIG_DIR" "${NTFY_CONFIG_DIR}"
+  ntfy_assert_separate_from_northstar_layout "NTFY_DATA_DIR" "${NTFY_DATA_DIR}"
   ntfy_validate_cache_duration "${NTFY_CACHE_DURATION}"
 }

@@ -1,0 +1,16 @@
+{
+  "source_id": "eia",
+  "canonical_url": "https://example.test/eia/copper-outage",
+  "content": "A mine outage reduces copper supply.",
+  "title": "Copper mine outage reduces supply",
+  "license_classification": "public",
+  "published_at": "2026-08-20T09:00:00+00:00",
+  "collected_at": "2026-08-20T09:05:00+00:00",
+  "event_id": "event-copper-outage",
+  "entity": {"entity_id": "mine-example", "entity_type": "Mine", "canonical_name": "Example Mine", "alias": "Example Mine"},
+  "confidence": {"source_trust": 0.8, "cross_source_confirmation": 0.9, "extraction_confidence": 0.7, "entity_resolution_confidence": 0.95, "expected_final": 0.4788},
+  "commodity_id": "copper",
+  "market_id": "shfe",
+  "instrument_id": "cu",
+  "contract_id": "cu2609"
+}

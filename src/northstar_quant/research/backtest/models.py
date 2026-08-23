@@ -88,6 +88,7 @@ class BacktestDataInputKind(str, Enum):
 
     LEGACY_MARKET_PROJECTION = "legacy_market_projection"
     IMMUTABLE_PIT_SNAPSHOT = "immutable_pit_snapshot"
+    DECISION_REPLAY_RECEIPT = "decision_replay_receipt"
 
 
 @dataclass(frozen=True, slots=True)
@@ -444,6 +445,134 @@ class TargetFrameReference:
 
 
 @dataclass(frozen=True, slots=True)
+class BacktestDecisionReplayBinding:
+    """Hash-only binding for a controlled per-decision replay receipt.
+
+    This records every immutable PIT snapshot used by the replay without representing the
+    receipt as decision-time safe or candidate-admissible.  A future runner must explicitly
+    support this input kind; it cannot be silently downgraded to a static PIT view.
+    """
+
+    receipt_hash: str
+    certificate_hash: str
+    trace_hash: str
+    schedule_hash: str
+    market_replay_hash: str
+    strategy_identity_hash: str
+    target_frame_sha256: str
+    profile_id: str
+    profile_config_sha256: str
+    profile_dimension_key: str
+    selected_strategy_ids: tuple[str, ...]
+    pit_evidence_json: tuple[str, ...]
+    binding_hash: str = field(init=False)
+
+    def __post_init__(self) -> None:
+        for field_name in (
+            "receipt_hash",
+            "certificate_hash",
+            "trace_hash",
+            "schedule_hash",
+            "market_replay_hash",
+            "strategy_identity_hash",
+            "target_frame_sha256",
+            "profile_config_sha256",
+        ):
+            object.__setattr__(
+                self,
+                field_name,
+                _require_sha256(getattr(self, field_name), field_name=field_name),
+            )
+        for field_name in ("profile_id", "profile_dimension_key"):
+            object.__setattr__(
+                self,
+                field_name,
+                _require_text(getattr(self, field_name), field_name=field_name),
+            )
+        if not isinstance(self.selected_strategy_ids, tuple) or not self.selected_strategy_ids:
+            raise BacktestContractError("decision replay selected_strategy_ids must be non-empty")
+        strategy_ids = tuple(
+            _require_text(item, field_name="decision replay selected_strategy_id")
+            for item in self.selected_strategy_ids
+        )
+        if len(set(strategy_ids)) != len(strategy_ids):
+            raise BacktestContractError("decision replay selected_strategy_ids cannot repeat")
+        if not isinstance(self.pit_evidence_json, tuple) or not self.pit_evidence_json:
+            raise BacktestContractError("decision replay pit_evidence_json must be non-empty")
+        canonical_evidence: list[str] = []
+        evidence_mappings: list[dict[str, object]] = []
+        as_of_values: list[str] = []
+        for item in self.pit_evidence_json:
+            try:
+                value = json.loads(item)
+            except (TypeError, json.JSONDecodeError) as exc:
+                raise BacktestContractError("decision replay PIT evidence must be canonical JSON") from exc
+            canonical, evidence = _canonical_pit_evidence(value)
+            if evidence["selection_mode"] != "STATIC_AS_OF_VIEW_NOT_DECISION_REPLAY":
+                raise BacktestContractError("decision replay snapshots must retain static PIT semantics")
+            if evidence["decision_time_safe"] is not False:
+                raise BacktestContractError("decision replay snapshots cannot self-declare decision safety")
+            canonical_evidence.append(canonical)
+            evidence_mappings.append(evidence)
+            as_of_values.append(str(evidence["as_of"]))
+        if as_of_values != sorted(as_of_values) or len(set(as_of_values)) != len(as_of_values):
+            raise BacktestContractError("decision replay snapshot as_of values must be strictly ordered")
+        first_evidence = evidence_mappings[0]
+        for evidence in evidence_mappings[1:]:
+            if (
+                evidence["dataset_id"] != first_evidence["dataset_id"]
+                or evidence["source_id"] != first_evidence["source_id"]
+                or evidence["source_config_sha256"] != first_evidence["source_config_sha256"]
+                or evidence["spec"] != first_evidence["spec"]
+            ):
+                raise BacktestContractError(
+                    "decision replay checkpoints must share dataset, source, and PIT specification"
+                )
+        binding_hash = _sha256(
+            {
+                "certificate_hash": self.certificate_hash,
+                "format": "northstar.backtest-decision-replay-binding.v1",
+                "market_replay_hash": self.market_replay_hash,
+                "pit_snapshot_ids": [item["snapshot_id"] for item in evidence_mappings],
+                "profile_config_sha256": self.profile_config_sha256,
+                "profile_dimension_key": self.profile_dimension_key,
+                "profile_id": self.profile_id,
+                "receipt_hash": self.receipt_hash,
+                "schedule_hash": self.schedule_hash,
+                "selected_strategy_ids": list(strategy_ids),
+                "strategy_identity_hash": self.strategy_identity_hash,
+                "target_frame_sha256": self.target_frame_sha256,
+                "trace_hash": self.trace_hash,
+            }
+        )
+        object.__setattr__(self, "selected_strategy_ids", strategy_ids)
+        object.__setattr__(self, "pit_evidence_json", tuple(canonical_evidence))
+        object.__setattr__(self, "binding_hash", binding_hash)
+
+    def as_mapping(self) -> dict[str, object]:
+        return {
+            "binding_hash": self.binding_hash,
+            "certificate_hash": self.certificate_hash,
+            "decision_time_safe": False,
+            "format": "northstar.backtest-decision-replay-binding.v1",
+            "market_replay_hash": self.market_replay_hash,
+            "pit_evidence": [json.loads(item) for item in self.pit_evidence_json],
+            "profile": {
+                "dimension_key": self.profile_dimension_key,
+                "profile_config_sha256": self.profile_config_sha256,
+                "profile_id": self.profile_id,
+            },
+            "receipt_hash": self.receipt_hash,
+            "schedule_hash": self.schedule_hash,
+            "selected_strategy_ids": list(self.selected_strategy_ids),
+            "selection_mode": "PER_DECISION_POINT_IN_TIME_REPLAY",
+            "strategy_identity_hash": self.strategy_identity_hash,
+            "target_frame_sha256": self.target_frame_sha256,
+            "trace_hash": self.trace_hash,
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class BacktestDataReference:
     """回测输入数据的最小、可审计且无路径的证据。"""
 
@@ -462,6 +591,7 @@ class BacktestDataReference:
     publication_authorization_hash: str | None = None
     publication_scope_json: str | None = None
     pit_evidence_json: str | None = None
+    decision_replay: BacktestDecisionReplayBinding | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.input_kind, BacktestDataInputKind):
@@ -526,7 +656,9 @@ class BacktestDataReference:
                 raise BacktestContractError("legacy 市场投影不能声明逐决策 PIT 安全")
             if pit_evidence is not None:
                 raise BacktestContractError("legacy 市场投影不得携带 immutable PIT evidence")
-        else:
+            if self.decision_replay is not None:
+                raise BacktestContractError("legacy market projection cannot carry decision replay binding")
+        elif self.input_kind is BacktestDataInputKind.IMMUTABLE_PIT_SNAPSHOT:
             required = (
                 self.dataset_version_hash,
                 self.snapshot_id,
@@ -575,6 +707,39 @@ class BacktestDataReference:
                 raise BacktestContractError(
                     "PIT evidence spec.schema_version 与回测数据 schema_version 不一致"
                 )
+            if self.decision_replay is not None:
+                raise BacktestContractError("static PIT snapshot cannot carry decision replay binding")
+        else:
+            if not isinstance(self.decision_replay, BacktestDecisionReplayBinding):
+                raise BacktestContractError("decision replay input requires BacktestDecisionReplayBinding")
+            if self.decision_time_safe:
+                raise BacktestContractError("decision replay receipt cannot self-declare decision safety")
+            if self.selection_mode != "PER_DECISION_POINT_IN_TIME_REPLAY":
+                raise BacktestContractError("decision replay input requires PER_DECISION_POINT_IN_TIME_REPLAY")
+            if any(
+                value is not None
+                for value in (
+                    self.dataset_version_hash,
+                    self.snapshot_id,
+                    self.selected_frame_hash,
+                    self.publication_authorization_hash,
+                    self.publication_scope_json,
+                    pit_evidence,
+                )
+            ):
+                raise BacktestContractError("decision replay input cannot masquerade as one static PIT snapshot")
+            binding = self.decision_replay
+            first_evidence = json.loads(binding.pit_evidence_json[0])
+            if not isinstance(first_evidence, dict):  # pragma: no cover - binding validates this.
+                raise BacktestContractError("decision replay binding evidence is invalid")
+            if (
+                self.dataset_id != first_evidence["dataset_id"]
+                or self.source_id != first_evidence["source_id"]
+                or self.source_config_sha256 != first_evidence["source_config_sha256"]
+                or self.schema_version != first_evidence["spec"]["schema_version"]
+                or self.content_sha256 != binding.market_replay_hash
+            ):
+                raise BacktestContractError("decision replay binding does not match data reference")
 
     @classmethod
     def from_source_manifest(cls, source_manifest: Mapping[str, object]) -> "BacktestDataReference":
@@ -656,7 +821,9 @@ class BacktestDataReference:
                 "source_config_sha256": self.source_config_sha256,
             },
             "point_in_time": (
-                json.loads(self.pit_evidence_json)
+                self.decision_replay.as_mapping()
+                if self.decision_replay is not None
+                else json.loads(self.pit_evidence_json)
                 if self.pit_evidence_json is not None
                 else {
                     "status": "LEGACY_NOT_PIT",
@@ -741,6 +908,7 @@ class BacktestCodeReference:
     git_commit: str | None
     git_dirty: bool | None
     worktree_sha256: str | None
+    strategy_identity_hash: str | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "package_version", _require_text(self.package_version, field_name="package_version"))
@@ -752,6 +920,15 @@ class BacktestCodeReference:
             self,
             "worktree_sha256",
             _require_sha256(self.worktree_sha256, field_name="worktree_sha256", allow_none=True),
+        )
+        object.__setattr__(
+            self,
+            "strategy_identity_hash",
+            _require_sha256(
+                self.strategy_identity_hash,
+                field_name="strategy_identity_hash",
+                allow_none=True,
+            ),
         )
 
     @classmethod
@@ -771,11 +948,17 @@ class BacktestCodeReference:
             field_name="worktree_sha256",
             allow_none=True,
         )
+        strategy_identity_hash = _require_sha256(
+            value.get("strategy_identity_hash"),
+            field_name="strategy_identity_hash",
+            allow_none=True,
+        )
         return cls(
             package_version=package_version,
             git_commit=git_commit,
             git_dirty=raw_git_dirty,
             worktree_sha256=worktree_sha256,
+            strategy_identity_hash=strategy_identity_hash,
         )
 
     def as_mapping(self) -> dict[str, object]:
@@ -784,6 +967,7 @@ class BacktestCodeReference:
             "git_commit": self.git_commit,
             "git_dirty": self.git_dirty,
             "worktree_sha256": self.worktree_sha256,
+            "strategy_identity_hash": self.strategy_identity_hash,
         }
 
 
@@ -849,6 +1033,21 @@ class BacktestRequest:
             raise BacktestContractError("assumptions 必须是 BacktestAssumptions")
         if not isinstance(self.code, BacktestCodeReference):
             raise BacktestContractError("code 必须是 BacktestCodeReference")
+        if self.data.input_kind is BacktestDataInputKind.DECISION_REPLAY_RECEIPT:
+            binding = self.data.decision_replay
+            if binding is None:  # pragma: no cover - BacktestDataReference validates this.
+                raise BacktestContractError("decision replay request requires a binding")
+            if self.engine is not BacktestEngine.WEIGHT_RETURN:
+                raise BacktestContractError("decision replay receipt currently supports weight_return only")
+            if (
+                self.profile_id != binding.profile_id
+                or self.profile_config_sha256 != binding.profile_config_sha256
+                or self.profile_dimension_key != binding.profile_dimension_key
+                or self.selected_strategy_ids != binding.selected_strategy_ids
+                or self.target.target_frame_sha256 != binding.target_frame_sha256
+                or self.code.strategy_identity_hash != binding.strategy_identity_hash
+            ):
+                raise BacktestContractError("decision replay binding does not match BacktestRequest")
 
     @property
     def semantics(self) -> BacktestEngineSemantics:
@@ -1062,6 +1261,10 @@ class BacktestResult:
     def bind_request(self, request: BacktestRequest) -> "BacktestResult":
         if not isinstance(request, BacktestRequest):
             raise BacktestContractError("request 必须是 BacktestRequest")
+        if request.data.input_kind is BacktestDataInputKind.DECISION_REPLAY_RECEIPT:
+            raise BacktestContractError(
+                "decision replay receipt requests are construction-only and cannot bind a result"
+            )
         if request.engine is not self.engine:
             raise BacktestContractError(
                 f"回测结果引擎 {self.engine.value} 与请求 {request.engine.value} 不一致"
@@ -1312,6 +1515,7 @@ __all__ = [
     "BacktestContractError",
     "BacktestDataInputKind",
     "BacktestDataReference",
+    "BacktestDecisionReplayBinding",
     "BacktestDataSemantics",
     "BacktestEngine",
     "BacktestEngineSemantics",

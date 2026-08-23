@@ -379,14 +379,14 @@ def test_license_and_provenance_fail_closed_on_secrets_wrong_booleans_and_invali
     with pytest.raises(DataDomainError, match="凭据、令牌"):
         ArtifactProvenance(
             source_id="source-a",
-            source_reference="https://vendor.example/data?token=plain-secret",
+            source_reference="https://vendor.example/data?token=plain-secret",  # secret-scan: allow; reason: disposable test fixture
             collection_method="api-export",
         )
     with pytest.raises(DataDomainError, match="凭据、令牌"):
         ArtifactProvenance(
             source_id="source-a",
             source_reference="vendor-dataset",
-            collection_method="Authorization: Bearer plain-secret",
+            collection_method="Authorization: Bearer plain-secret",  # secret-scan: allow; reason: disposable test fixture
         )
     with pytest.raises(DataDomainError, match="绝对路径"):
         ArtifactProvenance(
@@ -574,7 +574,7 @@ def test_quality_result_must_be_available_for_publication_and_must_not_leak_secr
             check_id="schema",
             quality_status=QualityStatus.PASS,
             checked_at=BASE_TIME + timedelta(hours=1, minutes=30),
-            summary="Authorization: Bearer plain-secret",
+            summary="Authorization: Bearer plain-secret",  # secret-scan: allow; reason: disposable test fixture
         )
 
 

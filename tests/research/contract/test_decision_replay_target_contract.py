@@ -75,9 +75,10 @@ def test_composition_root_does_not_call_backtest_admission_or_any_execution_path
         "run_target_backtest",
         "evaluate_research_admission",
         "run_profile_backtest",
-        "LookaheadCertificate",
     )
     assert not [name for name in forbidden_names if name in source]
+    assert "LookaheadGuard" in source
+    assert "candidate_admission_eligible" in source
 
 
 def test_target_replay_never_reads_current_clock_or_generates_random_identity() -> None:

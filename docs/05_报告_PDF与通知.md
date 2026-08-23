@@ -32,16 +32,16 @@ PDF 从现有 `report.md` 与 `report.json` 渲染，不会改变 Markdown、JSO
 即画像中所有启用策略；只有需要明确缩小策略范围时才传入单一策略 ID。
 
 ```powershell
-uv run northstar report daily --profile cn_futures_daily_trend_offline
-uv run northstar report weekly --profile cn_futures_daily_trend_offline
-uv run northstar report monthly --profile cn_futures_daily_trend_offline
-uv run northstar report yearly --profile cn_futures_daily_trend_offline
+uv run --offline --no-sync northstar report daily --profile cn_futures_daily_trend_offline
+uv run --offline --no-sync northstar report weekly --profile cn_futures_daily_trend_offline
+uv run --offline --no-sync northstar report monthly --profile cn_futures_daily_trend_offline
+uv run --offline --no-sync northstar report yearly --profile cn_futures_daily_trend_offline
 ```
 
 生成或重渲染已有制品的 PDF：
 
 ```powershell
-uv run northstar report pdf <report.md 的路径>
+uv run --offline --no-sync northstar report pdf <report.md 的路径>
 ```
 
 回测报告的研究准入、数据质量和统计样本不足会如实显示。报告生成成功不等于策略通过
@@ -71,8 +71,8 @@ Docker/Caddy 私有服务、首次身份初始化和移动端送达边界见
 操作者已在本地 `.env` 配置 SMTP 和收件人后，才显式请求发送：
 
 ```powershell
-uv run northstar report daily --profile cn_futures_daily_trend_offline --send-email
-uv run northstar report send <report.md 的路径> --attach-pdf
+uv run --offline --no-sync northstar report daily --profile cn_futures_daily_trend_offline --send-email
+uv run --offline --no-sync northstar report send <report.md 的路径> --attach-pdf
 ```
 
 周期报告命令的 `--send-pdf/--no-send-pdf` 与 `report send` 的

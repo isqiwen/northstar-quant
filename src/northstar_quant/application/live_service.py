@@ -35,6 +35,7 @@ from northstar_quant.platform.db.repositories import (
     list_recent_account_attributions,
     list_run_health_records,
     list_recent_trade_attributions,
+    latest_reconciliation_safety_state,
     latest_runtime_risk_record,
     release_execution_lease,
     save_runtime_risk_record,
@@ -156,6 +157,22 @@ def _pick_broker():
     raise ValueError(f"不支持的券商模式：{settings.broker}")
 
 
+def _assert_p8_ctp_sim_candidate_execution_path(broker_name: str) -> None:
+    """Keep the legacy live execution composition root out of the CTP-sim path.
+
+    P8 CTP-sim submissions must originate from the candidate execution composition
+    root, where provenance, final submission gating, and reconciliation are bound
+    together. The other live-service operations deliberately remain available for
+    CTP-sim state sync, polling, preflight, shadow, and cancellation work.
+    """
+
+    if broker_name.strip().lower() == "ctp_sim":
+        raise PermissionError(
+            "P8_CTP_SIM_CANDIDATE_GATE_REQUIRED: legacy live.execute may not "
+            "submit CTP-sim orders; use the P8 candidate CTP-sim execution path."
+        )
+
+
 def _live_execution_guard_messages(broker_name: str, *, settings=None) -> list[str]:
     settings = settings or get_settings()
     normalized_broker = broker_name.strip().lower()
@@ -223,11 +240,25 @@ def _assert_live_submission_allowed(
             "RUNTIME_RISK_ACCOUNT_REQUIRED: 订单缺少账户，无法读取盘中风控结论。"
         )
     with SessionLocal() as session:
+        reconciliation_safety = latest_reconciliation_safety_state(
+            session,
+            profile_id=profile.profile_id,
+            broker=normalized_broker,
+            account=account,
+        )
         runtime_risk = latest_runtime_risk_record(
             session,
             profile_id=profile.profile_id,
             broker=normalized_broker,
             account=account,
+        )
+    if (
+        reconciliation_safety is not None
+        and reconciliation_safety.state != "NORMAL"
+    ):
+        raise PermissionError(
+            "RECONCILIATION_SAFETY_BLOCKED: 对账安全状态未回到 NORMAL，"
+            "必须完成具名 MANUAL_RECOVERY。"
         )
     if runtime_risk is None:
         raise PermissionError(
@@ -635,6 +666,7 @@ def run_live_preflight(profile_id: str | None = None) -> dict:
         )
         preflight = build_preflight_result(
             profile=profile,
+            settings=get_settings(),
             raw_market_df=raw_market_df,
             signal_market_df=signal_market_df,
             output_frame=pipeline.frame,
@@ -877,6 +909,7 @@ def run_shadow_once(profile_id: str | None = None) -> dict:
             )
             preflight = build_preflight_result(
                 profile=profile,
+                settings=get_settings(),
                 raw_market_df=raw_market_df,
                 signal_market_df=signal_market_df,
                 output_frame=pipeline.frame,
@@ -980,6 +1013,8 @@ def execute_latest_targets_once(profile_id: str | None = None) -> list[str]:
         )
         return guard_messages
 
+    _assert_p8_ctp_sim_candidate_execution_path(settings.broker)
+
     raw_market_df = load_profile_market_data(profile)
     signal_market_df = load_profile_signal_data(profile)
     valuation_prices = _latest_valuation_price_map(raw_market_df)
@@ -1070,6 +1105,7 @@ def execute_latest_targets_once(profile_id: str | None = None) -> list[str]:
             )
             preflight = build_preflight_result(
                 profile=profile,
+                settings=settings,
                 raw_market_df=raw_market_df,
                 signal_market_df=signal_market_df,
                 output_frame=pipeline.frame,
@@ -1361,16 +1397,17 @@ def run_live_once(profile_id: str | None = None) -> list[str]:
     return execute_latest_targets_once(profile_id)
 
 
-def sync_broker_once() -> dict:
+def sync_broker_once(profile_id: str | None = None) -> dict:
     """单独执行一次券商状态同步与对账。"""
 
-    sync_logger = logger.bind(command="live.sync")
+    profile = _load_broker_profile(profile_id, context="live.sync")
+    sync_logger = logger.bind(command="live.sync", profile=profile.profile_id)
     sync_logger.info("开始执行券商状态同步")
     broker = _pick_broker()
     broker.connect()
     try:
         with SessionLocal() as session:
-            result = reconcile_broker_state(session, broker)
+            result = reconcile_broker_state(session, broker, profile_id=profile.profile_id)
         sync_logger.info(
             "券商状态同步完成，持仓同步=%s，成交同步=%s",
             result["positions_synced"],
@@ -1586,16 +1623,17 @@ def _build_order_risk_context(
     return context
 
 
-def poll_orders_and_fills_once() -> dict:
+def poll_orders_and_fills_once(profile_id: str | None = None) -> dict:
     """执行一次订单状态轮询与成交回写。"""
 
-    poll_logger = logger.bind(command="live.poll")
+    profile = _load_broker_profile(profile_id, context="live.poll")
+    poll_logger = logger.bind(command="live.poll", profile=profile.profile_id)
     poll_logger.info("开始轮询订单状态与成交")
     broker = _pick_broker()
     broker.connect()
     try:
         with SessionLocal() as session:
-            result = reconcile_broker_state(session, broker)
+            result = reconcile_broker_state(session, broker, profile_id=profile.profile_id)
         poll_logger.info(
             "订单状态轮询完成，持仓同步=%s，成交同步=%s",
             result["positions_synced"],

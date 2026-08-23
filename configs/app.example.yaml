@@ -9,7 +9,8 @@
 # 唯一派生例外是 downloads_dir: null，它始终表示最终 storage_dir/downloads。
 runtime:
   # 标准行情、不可变制品、模拟账户状态等本地持久化文件根目录。
-  # "storage" 解析为 <项目根>/storage；也可明确设为如 /srv/northstar/storage 的绝对路径。
+  # "storage" 解析为 <项目根>/storage；生产绝对路径仅可使用受管叶子，
+  # 例如 /mnt/northstar-quant/storage。
   storage_dir: storage
   # null 表示自动使用最终 storage_dir/downloads。
   # 若显式填写：相对路径仍相对项目根，绝对路径直接使用且不再跟随 storage_dir；例如 /mnt/fast/downloads。

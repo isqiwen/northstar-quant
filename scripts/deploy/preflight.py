@@ -135,7 +135,6 @@ def run_preflight(
     inventory: DeploymentInventory,
     upload_env: bool,
     env_file: Path | None,
-    allow_dirty: bool,
     apply: bool,
     confirm_live_deploy: str,
 ) -> PreflightReport:
@@ -146,9 +145,18 @@ def run_preflight(
         project_root / "pyproject.toml",
         project_root / "uv.lock",
         project_root / "configs" / "app.example.yaml",
-        project_root / "scripts" / "deploy" / "deploy.sh",
-        project_root / "scripts" / "deploy" / "remote" / "linux" / "install.sh",
-        project_root / "scripts" / "deploy" / "remote" / "linux" / "upgrade.sh",
+        project_root / "scripts" / "deploy" / "deploy.py",
+        project_root / "scripts" / "deploy" / "package.py",
+        project_root / "scripts" / "deploy" / "control_bundle.py",
+        project_root / "scripts" / "deploy" / "release_manifest.py",
+        project_root / "scripts" / "deploy" / "release_signing.py",
+        project_root / "scripts" / "deploy" / "release_transaction.py",
+        project_root / "scripts" / "deploy" / "release_transaction_hook.py",
+        project_root / "scripts" / "deploy" / "root_release_runner.py",
+        project_root / "scripts" / "deploy" / "gate_release.sh",
+        project_root / "scripts" / "deploy" / "install-runtime.sh",
+        project_root / "scripts" / "deploy" / "install-release.sh",
+        project_root / "scripts" / "deploy" / "release_gate_bootstrap.py",
         project_root / "infra" / "systemd" / "health.service.in",
         project_root / "infra" / "systemd" / "scheduler.service.in",
     )
@@ -163,10 +171,8 @@ def run_preflight(
         report.warnings.append("无法读取 Git 工作区状态；Linux 后端会在执行时重新检查。")
     elif clean:
         report.checks.append("Git 工作区干净")
-    elif allow_dirty:
-        report.warnings.append("已明确允许未提交工作区；此构建不可复现，不应用于正式发布。")
     else:
-        report.errors.append("工作区存在未提交修改；如确有必要请明确传入 --allow-dirty。")
+        report.errors.append("工作区存在未提交修改；部署制品必须来自已提交的可复现 revision。")
 
     if inventory.service_mode == "health":
         report.checks.append("服务模式为 health，默认不会启动交易调度器")
@@ -192,7 +198,7 @@ def run_preflight(
         report.checks.append("未请求上传活动 .env")
 
     if apply:
-        for command in ("ssh", "scp", "uv"):
+        for command in ("ssh", "ssh-keygen", "uv"):
             if shutil.which(command) is None:
                 report.errors.append(f"--apply 需要本机命令：{command}")
         if not report.errors:
@@ -206,7 +212,6 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--project-root", type=Path, default=Path.cwd(), help="项目根目录。")
     parser.add_argument("--upload-env", action="store_true", help="校验待上传的活动 .env。")
     parser.add_argument("--env-file", type=Path, help="唯一活动环境文件，文件名必须为 .env。")
-    parser.add_argument("--allow-dirty", action="store_true", help="明确允许未提交工作区。")
     parser.add_argument("--apply", action="store_true", help="检查实际部署所需的本机工具。")
     parser.add_argument(
         "--confirm-live-deploy",
@@ -249,7 +254,6 @@ def main() -> int:
         inventory=inventory,
         upload_env=args.upload_env,
         env_file=env_file,
-        allow_dirty=args.allow_dirty,
         apply=args.apply,
         confirm_live_deploy=args.confirm_live_deploy,
     )

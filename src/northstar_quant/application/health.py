@@ -17,10 +17,20 @@ from northstar_quant.platform.config.trading_profile import (
     ensure_broker_profile,
     load_trading_profile,
 )
+from northstar_quant.platform.config.runtime_configuration import (
+    resolve_runtime_configuration,
+)
 from northstar_quant.data_platform.artifacts.storage import load_profile_market_data
 from northstar_quant.platform.observability.monitoring.database_backup_readiness import (
     evaluate_database_backup_readiness,
 )
+from northstar_quant.platform.observability.monitoring.snapshot import (
+    OperationalSnapshot,
+    ObservationState,
+    load_execution_observation_states,
+    observation_state_from_health,
+)
+from northstar_quant.platform.observability.monitoring.metrics import MetricsRegistry
 
 
 def _check(code: str, status: str, message: str, **details) -> dict:
@@ -65,7 +75,11 @@ def run_healthcheck() -> dict:
 
     profile = None
     try:
-        profile = load_trading_profile(settings.default_profile_id)
+        profile = load_trading_profile(
+            settings.default_profile_id,
+            config_dir=settings.profile_config_dir,
+        )
+        resolve_runtime_configuration(settings=settings, profile=profile)
     except Exception as exc:
         checks.append(
             _check(
@@ -252,6 +266,30 @@ def run_healthcheck() -> dict:
         "kill_switch_enabled": settings.kill_switch_enabled,
         "checks": checks,
     }
+    checks_by_code = {item["code"]: item["status"] for item in checks}
+    job_state, risk_state, reconciliation_state = (
+        load_execution_observation_states(
+            profile_id=profile.profile_id,
+            broker=settings.broker,
+            account=settings.ctp_sim_account if settings.broker == "ctp_sim" else settings.paper_account,
+        )
+        if profile is not None
+        else (ObservationState.UNKNOWN,) * 3
+    )
+    operational_snapshot = OperationalSnapshot(
+        system=observation_state_from_health(overall_status),
+        job_state=job_state,
+        broker_state=observation_state_from_health(checks_by_code.get("broker_capability", "unknown")),
+        data_staleness=observation_state_from_health(checks_by_code.get("market_data_artifact", "unknown")),
+        risk_state=risk_state,
+        reconciliation_state=reconciliation_state,
+    ).as_dict()
+    payload["operational_snapshot"] = operational_snapshot
+    metrics = MetricsRegistry()
+    metrics.gauge("northstar_health_status", _observation_metric_value(operational_snapshot["system"]))
+    for name, state in operational_snapshot.items():
+        metrics.gauge("northstar_operational_state", _observation_metric_value(state), component=name)
+    payload["metrics_prometheus"] = metrics.export_prometheus()
     if settings.broker == "ctp":
         payload["ctp_execution_available"] = False
         payload["ctp_execution_reason"] = "CTP 报单适配器尚未实现。"
@@ -260,3 +298,7 @@ def run_healthcheck() -> dict:
         payload["ctp_execution_available"] = False
         payload["ctp_execution_reason"] = "仅本地语义仿真，未连接真实 CTP 前置。"
     return payload
+
+
+def _observation_metric_value(state: str) -> float:
+    return {"healthy": 1.0, "degraded": 0.5, "blocked": 0.0, "unknown": -1.0}.get(state, -1.0)

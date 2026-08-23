@@ -145,6 +145,8 @@
       "command": "uv",
       "args": [
         "run",
+        "--offline",
+        "--no-sync",
         "python",
         "scripts/deploy/deploy.py",
         "--inventory",

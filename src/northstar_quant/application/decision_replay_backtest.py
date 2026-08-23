@@ -13,6 +13,7 @@ strict 回测还需要受控 Feature/Event/Target producer、artifact-backed Con
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import dataclass, field
 from datetime import date, datetime
 import hashlib
 import inspect
@@ -56,7 +57,14 @@ from northstar_quant.portfolio_risk.portfolio.multi_strategy import (
 from northstar_quant.portfolio_risk.risk import global_risk as global_risk_module
 from northstar_quant.portfolio_risk.risk import strategy_risk as strategy_risk_module
 from northstar_quant.research.backtest.models import (
+    BacktestAssumptions,
+    BacktestCodeReference,
     BacktestContractError,
+    BacktestDataInputKind,
+    BacktestDataReference,
+    BacktestDecisionReplayBinding,
+    BacktestEngine,
+    BacktestRequest,
     TargetFrameReference,
 )
 from northstar_quant.research.strategies import base as strategy_base_module
@@ -70,7 +78,12 @@ from northstar_quant.research.validation.decision_replay import (
     DecisionTargetSlice,
     DecisionTargetStatus,
 )
-from northstar_quant.research.validation.lookahead import DecisionReplayPlan
+from northstar_quant.research.validation.lookahead import (
+    DecisionReplayPlan,
+    LookaheadCertificate,
+    LookaheadGuard,
+    LookaheadGuardError,
+)
 
 
 _SUPPORTED_PROFILE_ID = "cn_futures_daily_trend_offline"
@@ -79,6 +92,57 @@ _SUPPORTED_STRATEGY_ID = "futures_trend"
 
 class DecisionReplayCompositionError(ValueError):
     """受控逐决策 target replay 的输入或编排边界不满足。"""
+
+
+@dataclass(frozen=True, slots=True)
+class DecisionReplayReceipt:
+    """A controlled target trace and its recomputable LookaheadGuard receipt.
+
+    The receipt only proves that every target slice matches immutable market replay at its
+    checkpoint. It is never admission, simulation, or trading evidence.
+    """
+
+    trace: DecisionReplayTargetTrace
+    certificate: LookaheadCertificate
+    receipt_hash: str = field(init=False)
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.trace, DecisionReplayTargetTrace):
+            raise DecisionReplayCompositionError("trace must be a DecisionReplayTargetTrace")
+        if not isinstance(self.certificate, LookaheadCertificate):
+            raise DecisionReplayCompositionError("certificate must be a LookaheadCertificate")
+        if self.certificate.plan != self.trace.plan:
+            raise DecisionReplayCompositionError("certificate must bind the trace replay plan")
+        expected_target_hashes = tuple(
+            item.target_frame_sha256 for item in self.trace.target_slices
+        )
+        certified_target_hashes = tuple(
+            report.evidence.target.target_hash for report in self.certificate.reports
+        )
+        if certified_target_hashes != expected_target_hashes:
+            raise DecisionReplayCompositionError(
+                "certificate must bind every target trace slice"
+            )
+        if self.certificate.decision_time_safe or self.certificate.candidate_admission_eligible:
+            raise DecisionReplayCompositionError("receipt cannot be promoted to admission evidence")
+        receipt_hash = canonical_json_sha256(
+            {
+                "certificate_hash": self.certificate.certificate_hash,
+                "format": "northstar.decision-replay-receipt.v1",
+                "trace_hash": self.trace.trace_hash,
+            }
+        )
+        object.__setattr__(self, "receipt_hash", receipt_hash)
+
+    def as_mapping(self) -> dict[str, object]:
+        return {
+            "candidate_admission_eligible": False,
+            "certificate": self.certificate.as_manifest_mapping(),
+            "decision_time_safe": False,
+            "format": "northstar.decision-replay-receipt.v1",
+            "receipt_hash": self.receipt_hash,
+            "trace": self.trace.as_mapping(),
+        }
 
 
 def _selected_strategy_ids(strategy_ids: Sequence[str] | None) -> tuple[str, ...]:
@@ -503,7 +567,150 @@ def build_profile_decision_replay_targets(
         raise DecisionReplayCompositionError("逐决策 target trace 无法通过不可变合同校验") from exc
 
 
+def build_profile_decision_replay_receipt(
+    *,
+    profile_id: str,
+    artifact_store: ArtifactStore,
+    plan: DecisionReplayPlan,
+    strategy_ids: Sequence[str] | None = None,
+) -> DecisionReplayReceipt:
+    """Build a controlled target trace and bind it to a recomputable guard receipt.
+
+    This remains a research-only API: it does not call a backtest engine, Research Admission,
+    or any trading entry point.
+    """
+
+    trace = build_profile_decision_replay_targets(
+        profile_id=profile_id,
+        artifact_store=artifact_store,
+        plan=plan,
+        strategy_ids=strategy_ids,
+    )
+    try:
+        market_data = DecisionReplayPlan.replay_market_data(plan, artifact_store)
+        certificate = LookaheadGuard().certify(
+            plan,
+            trace.lookahead_evidence(market_data),
+            artifact_store=artifact_store,
+        )
+    except (DecisionReplayTargetError, LookaheadGuardError) as exc:
+        raise DecisionReplayCompositionError(
+            "controlled target trace could not be bound to a LookaheadGuard receipt"
+        ) from exc
+    return DecisionReplayReceipt(trace=trace, certificate=certificate)
+
+
+def build_profile_decision_replay_backtest_request(
+    *,
+    profile_id: str,
+    artifact_store: ArtifactStore,
+    plan: DecisionReplayPlan,
+    strategy_ids: Sequence[str] | None = None,
+) -> BacktestRequest:
+    """Build, but never execute, a weight-return request bound to a verified replay receipt."""
+
+    receipt = build_profile_decision_replay_receipt(
+        profile_id=profile_id,
+        artifact_store=artifact_store,
+        plan=plan,
+        strategy_ids=strategy_ids,
+    )
+    try:
+        certificate = LookaheadGuard().verify_certificate(
+            receipt.certificate,
+            artifact_store=artifact_store,
+        )
+    except LookaheadGuardError as exc:
+        raise DecisionReplayCompositionError(
+            "decision replay receipt failed full LookaheadGuard recomputation"
+        ) from exc
+    profile = load_trading_profile(profile_id.strip())
+    snapshots = tuple(
+        report.evidence.market_data.market_snapshot for report in certificate.reports
+    )
+    if not snapshots:  # pragma: no cover - receipt construction requires checkpoints.
+        raise DecisionReplayCompositionError("decision replay receipt has no market snapshots")
+    first_snapshot = snapshots[0]
+    binding = BacktestDecisionReplayBinding(
+        receipt_hash=receipt.receipt_hash,
+        certificate_hash=certificate.certificate_hash,
+        trace_hash=receipt.trace.trace_hash,
+        schedule_hash=receipt.trace.plan.schedule_hash,
+        market_replay_hash=receipt.trace.market_replay_hash,
+        strategy_identity_hash=receipt.trace.strategy_identity.identity_hash,
+        target_frame_sha256=receipt.trace.aggregate_target.target_frame_sha256,
+        profile_id=receipt.trace.profile_id,
+        profile_config_sha256=receipt.trace.profile_config_sha256,
+        profile_dimension_key=receipt.trace.profile_dimension_key,
+        selected_strategy_ids=receipt.trace.selected_strategy_ids,
+        pit_evidence_json=tuple(
+            json.dumps(
+                snapshot.as_manifest_mapping(),
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+                allow_nan=False,
+            )
+            for snapshot in snapshots
+        ),
+    )
+    config = profile.backtest
+    try:
+        return BacktestRequest(
+            engine=BacktestEngine.WEIGHT_RETURN,
+            profile_id=receipt.trace.profile_id,
+            profile_config_sha256=receipt.trace.profile_config_sha256,
+            profile_dimension_key=receipt.trace.profile_dimension_key,
+            source_frequency=profile.data_frequency.value,
+            signal_frequency=profile.strategy_data_frequency.value,
+            execution_frequency="1d",
+            settlement_frequency="1d_eod",
+            result_frequency="1d_eod",
+            selected_strategy_ids=receipt.trace.selected_strategy_ids,
+            target=receipt.trace.aggregate_target,
+            data=BacktestDataReference(
+                input_kind=BacktestDataInputKind.DECISION_REPLAY_RECEIPT,
+                dataset_id=first_snapshot.dataset_id,
+                source_id=first_snapshot.source_id,
+                adapter_id=None,
+                content_sha256=receipt.trace.market_replay_hash,
+                schema_version=first_snapshot.spec.schema_version,
+                source_config_sha256=first_snapshot.source_config_sha256,
+                selection_mode="PER_DECISION_POINT_IN_TIME_REPLAY",
+                decision_time_safe=False,
+                decision_replay=binding,
+            ),
+            assumptions=BacktestAssumptions(
+                initial_cash=config.initial_cash,
+                commission_bps=config.commission_bps,
+                min_commission=config.min_commission,
+                slippage_bps=config.slippage_bps,
+                slippage_ticks=config.slippage_ticks,
+                max_volume_participation=config.max_volume_participation,
+                lot_size=config.lot_size,
+                execution_delay_sessions=config.execution_delay_sessions,
+                sellable_after_sessions=config.sellable_after_sessions,
+                order_ttl_bars=config.order_ttl_bars,
+                queue_ahead_ratio=config.queue_ahead_ratio,
+            ),
+            code=BacktestCodeReference(
+                package_version=__version__,
+                git_commit=None,
+                git_dirty=None,
+                worktree_sha256=None,
+                strategy_identity_hash=receipt.trace.strategy_identity.identity_hash,
+            ),
+        )
+    except BacktestContractError as exc:
+        raise DecisionReplayCompositionError(
+            "verified decision replay receipt could not build a BacktestRequest"
+        ) from exc
+
+
 __all__ = [
     "DecisionReplayCompositionError",
+    "DecisionReplayReceipt",
+    "build_profile_decision_replay_backtest_request",
+    "build_profile_decision_replay_receipt",
     "build_profile_decision_replay_targets",
 ]

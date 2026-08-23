@@ -120,7 +120,7 @@ def test_ntfy_timeout_must_be_positive():
 
 def test_ntfy_rejects_non_ntfy_access_token():
     with pytest.raises(ValidationError, match="32 位 tk_ 访问令牌"):
-        Settings(_env_file=None, ntfy_token="not-a-token")
+        Settings(_env_file=None, ntfy_token="not-a-token")  # secret-scan: allow; reason: disposable test fixture
 
 
 @pytest.mark.parametrize(
@@ -128,8 +128,8 @@ def test_ntfy_rejects_non_ntfy_access_token():
     [
         "http://ntfy.example.test",
         "ftp://ntfy.example.test",
-        "https://user:password@ntfy.example.test",
-        "https://ntfy.example.test/?token=must-not-be-here",
+        "https://user:password@ntfy.example.test",  # secret-scan: allow; reason: disposable test fixture
+        "https://ntfy.example.test/?token=must-not-be-here",  # secret-scan: allow; reason: disposable test fixture
         "https://ntfy.sh",
         "https://demo.ntfy.sh",
     ],
@@ -237,6 +237,23 @@ def test_load_settings_accepts_complete_active_environment_file(tmp_path, monkey
     settings = load_settings()
 
     assert settings.project_root == tmp_path
+
+
+def test_load_settings_explicit_release_root_wins_over_process_root(tmp_path, monkeypatch):
+    installed_package_root = tmp_path / "installed-package-root"
+    release_root = tmp_path / "release-20260823"
+    _write_runtime_config(installed_package_root)
+    _write_runtime_config(release_root)
+    for root in (installed_package_root, release_root):
+        (root / ".env").write_text(
+            "\n".join(f"{key}=" for key in sorted(active_environment_file_keys())) + "\n",
+            encoding="utf-8",
+        )
+    monkeypatch.setenv("NORTHSTAR_PROJECT_ROOT", str(installed_package_root))
+
+    settings = load_settings(project_root=release_root)
+
+    assert settings.project_root == release_root
 
 
 def test_explicit_runtime_paths_do_not_bypass_active_config_validation(tmp_path):

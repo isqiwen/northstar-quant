@@ -21,7 +21,7 @@ def test_execution_lease_is_account_scoped_and_fenced_across_sessions(postgresql
         first_token = try_acquire_execution_lease(
             first,
             resource_key=resource,
-            owner_token="process-a",
+            owner_token="process-a",  # secret-scan: allow; reason: disposable test fixture
             ttl_seconds=30,
             now=now,
         )
@@ -30,7 +30,7 @@ def test_execution_lease_is_account_scoped_and_fenced_across_sessions(postgresql
         blocked = try_acquire_execution_lease(
             second,
             resource_key=resource,
-            owner_token="process-b",
+            owner_token="process-b",  # secret-scan: allow; reason: disposable test fixture
             ttl_seconds=30,
             now=now + timedelta(seconds=10),
         )
@@ -42,7 +42,7 @@ def test_execution_lease_is_account_scoped_and_fenced_across_sessions(postgresql
         second_token = try_acquire_execution_lease(
             second,
             resource_key=resource,
-            owner_token="process-b",
+            owner_token="process-b",  # secret-scan: allow; reason: disposable test fixture
             ttl_seconds=30,
             now=now + timedelta(seconds=31),
         )
@@ -54,7 +54,7 @@ def test_execution_lease_is_account_scoped_and_fenced_across_sessions(postgresql
             renew_execution_lease(
                 first,
                 resource_key=resource,
-                owner_token="process-a",
+                owner_token="process-a",  # secret-scan: allow; reason: disposable test fixture
                 fencing_token=first_token,
                 ttl_seconds=30,
                 now=now + timedelta(seconds=32),
@@ -65,7 +65,7 @@ def test_execution_lease_is_account_scoped_and_fenced_across_sessions(postgresql
             release_execution_lease(
                 first,
                 resource_key=resource,
-                owner_token="process-a",
+                owner_token="process-a",  # secret-scan: allow; reason: disposable test fixture
                 fencing_token=first_token,
             )
             is False
@@ -75,7 +75,7 @@ def test_execution_lease_is_account_scoped_and_fenced_across_sessions(postgresql
         assert renew_execution_lease(
             second,
             resource_key=resource,
-            owner_token="process-b",
+            owner_token="process-b",  # secret-scan: allow; reason: disposable test fixture
             fencing_token=second_token,
             ttl_seconds=30,
             now=now + timedelta(seconds=32),
@@ -83,7 +83,7 @@ def test_execution_lease_is_account_scoped_and_fenced_across_sessions(postgresql
         assert release_execution_lease(
             second,
             resource_key=resource,
-            owner_token="process-b",
+            owner_token="process-b",  # secret-scan: allow; reason: disposable test fixture
             fencing_token=second_token,
         )
 
@@ -96,14 +96,14 @@ def test_same_owner_renews_without_incrementing_fencing_token(postgresql_engine)
         first = try_acquire_execution_lease(
             session,
             resource_key="live-submit:paper:paper-account",
-            owner_token="run-1",
+            owner_token="run-1",  # secret-scan: allow; reason: disposable test fixture
             ttl_seconds=60,
             now=now,
         )
         renewed = try_acquire_execution_lease(
             session,
             resource_key="live-submit:paper:paper-account",
-            owner_token="run-1",
+            owner_token="run-1",  # secret-scan: allow; reason: disposable test fixture
             ttl_seconds=60,
             now=now + timedelta(seconds=5),
         )

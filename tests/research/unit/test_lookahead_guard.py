@@ -20,6 +20,13 @@ from northstar_quant.data_platform.contracts.contract_master import (
     ListingState,
     RuleQualityStatus,
 )
+from northstar_quant.data_platform.contracts.artifact_rulebook import (
+    RULEBOOK_DATASET_ID,
+    RULEBOOK_DATASET_TRANSFORM_VERSION,
+    RULEBOOK_SCHEMA_VERSION,
+    RULEBOOK_TRANSFORM_VERSION,
+    _REQUIRED_COLUMNS as RULEBOOK_COLUMNS,
+)
 from northstar_quant.data_platform.market.pit import (
     MarketDataKind,
     MarketDataPITSpec,
@@ -39,9 +46,14 @@ from northstar_quant.research.validation.lookahead import (
     LookaheadCertificate,
     LookaheadGuard,
     LookaheadGuardError,
+    LookaheadInputKind,
+    LookaheadInputUsage,
+    LookaheadInputUsageDeclaration,
     LookaheadReport,
     LookaheadViolationKind,
     TargetDecisionEvidence,
+    replay_artifact_event_evidence,
+    replay_artifact_rulebook_evidence,
 )
 from tests.helpers.pit_publication import publish_authorized_pit_dataset
 
@@ -157,6 +169,101 @@ def _rule(
     )
 
 
+def _rulebook_frame() -> pl.DataFrame:
+    row: dict[str, object] = {
+        "master_id": "CN_FUTURES",
+        "master_version": "rulebook-v1",
+        "commodity_id": "REBAR",
+        "commodity_name": "螺纹钢",
+        "exchange_id": "SHFE",
+        "exchange_name": "上海期货交易所",
+        "market": "CN",
+        "timezone_name": "Asia/Shanghai",
+        "instrument_id": "SHFE.RB",
+        "product_code": "RB",
+        "contract_id": "SHFE.RB.2605",
+        "contract_symbol": "RB2605",
+        "contract_available_at": DECISION - timedelta(minutes=3),
+        "listed_on": date(2025, 10, 1),
+        "contract_expires_on": date(2026, 5, 15),
+        "rule_snapshot_id": "SHFE.RB.2605.20260105",
+        "observed_at": DECISION - timedelta(minutes=3),
+        "available_at": DECISION - timedelta(minutes=2),
+        "effective_from": DECISION - timedelta(minutes=2),
+        "effective_until": None,
+        "listing_state": "listed",
+        "multiplier": 10.0,
+        "tick_size": 1.0,
+        "initial_margin_rate": 0.1,
+        "open_per_lot": 1.0,
+        "open_rate": 0.0,
+        "close_per_lot": 1.0,
+        "close_rate": 0.0,
+        "close_today_per_lot": 1.0,
+        "close_today_rate": 0.0,
+        "lower_price_limit": 2800.0,
+        "upper_price_limit": 3600.0,
+        "sessions_json": '[{"closes_at":"15:00:00","opens_at":"09:00:00","session_id":"day"}]',
+        "delivery_restriction": "none",
+        "source_authority": "fixture_rulebook_notice",
+    }
+    schema: dict[str, object] = {column: pl.String for column in RULEBOOK_COLUMNS}
+    for column in (
+        "contract_available_at",
+        "observed_at",
+        "available_at",
+        "effective_from",
+        "effective_until",
+    ):
+        schema[column] = pl.Datetime(time_zone="UTC")
+    for column in ("listed_on", "contract_expires_on"):
+        schema[column] = pl.Date
+    for column in (
+        "multiplier",
+        "tick_size",
+        "initial_margin_rate",
+        "open_per_lot",
+        "open_rate",
+        "close_per_lot",
+        "close_rate",
+        "close_today_per_lot",
+        "close_today_rate",
+        "lower_price_limit",
+        "upper_price_limit",
+    ):
+        schema[column] = pl.Float64
+    return pl.DataFrame([row], schema=schema, strict=True).select(RULEBOOK_COLUMNS)
+
+
+def _published_rulebook(tmp_path: Path) -> tuple[ArtifactStore, str]:
+    store, dataset = publish_authorized_pit_dataset(
+        tmp_path,
+        _rulebook_frame(),
+        dataset_id=RULEBOOK_DATASET_ID,
+        source_id="lookahead-rulebook-source",
+        adapter_id="lookahead-rulebook-adapter",
+        schema_version=RULEBOOK_SCHEMA_VERSION,
+        artifact_id="lookahead-rulebook-v1",
+        key_columns=("contract_id", "rule_snapshot_id"),
+        event_time_column="effective_from",
+        available_at_column="available_at",
+        value_columns=tuple(
+            column
+            for column in RULEBOOK_COLUMNS
+            if column not in {"contract_id", "rule_snapshot_id", "available_at"}
+        ),
+        normalized_available_at=DECISION,
+        frequency="snapshot",
+        scope_exchanges=("SHFE",),
+        scope_products=("RB",),
+        actual_contract_data=True,
+        requires_authoritative_dynamic_rules=True,
+        transform_version=RULEBOOK_TRANSFORM_VERSION,
+        dataset_transform_version=RULEBOOK_DATASET_TRANSFORM_VERSION,
+    )
+    return store, dataset.version_hash
+
+
 def _evidence(
     *,
     snapshot: MarketDataSnapshot | None = None,
@@ -166,12 +273,38 @@ def _evidence(
     target_execution_at: datetime | None = DECISION + timedelta(days=1),
     features: tuple[FeatureAvailabilityEvidence, ...] = (),
     events: tuple[EventAvailabilityEvidence, ...] = (),
+    artifact_events: lookahead_module.ArtifactEventReplayEvidence | None = None,
     contracts: tuple[ContractKnowledgeEvidence, ...] = (),
     rules: tuple[FeeMarginRuleEvidence, ...] = (),
+    artifact_rulebook: lookahead_module.ArtifactRuleBookEvidence | None = None,
+    input_usage: tuple[LookaheadInputUsageDeclaration, ...] | None = None,
     require_execution_rules: bool = False,
 ) -> DecisionReplayEvidence:
     market_snapshot = snapshot or _snapshot()
     checkpoint = checkpoint or _checkpoint()
+    if input_usage is None:
+        input_usage = (
+            LookaheadInputUsageDeclaration(
+                input_kind=LookaheadInputKind.FEATURE,
+                usage=LookaheadInputUsage.PROVIDED if features else LookaheadInputUsage.NOT_USED,
+                producer_identity_hash=_hash("fixture-producer"),
+            ),
+            LookaheadInputUsageDeclaration(
+                input_kind=LookaheadInputKind.EVENT,
+                usage=LookaheadInputUsage.PROVIDED if events else LookaheadInputUsage.NOT_USED,
+                producer_identity_hash=_hash("fixture-producer"),
+            ),
+            LookaheadInputUsageDeclaration(
+                input_kind=LookaheadInputKind.CONTRACT,
+                usage=LookaheadInputUsage.PROVIDED if contracts else LookaheadInputUsage.NOT_USED,
+                producer_identity_hash=_hash("fixture-producer"),
+            ),
+            LookaheadInputUsageDeclaration(
+                input_kind=LookaheadInputKind.FEE_MARGIN_RULE,
+                usage=LookaheadInputUsage.PROVIDED if rules else LookaheadInputUsage.NOT_USED,
+                producer_identity_hash=_hash("fixture-producer"),
+            ),
+        )
     return DecisionReplayEvidence(
         market_data=DecisionMarketDataEvidence(
             checkpoint=checkpoint,
@@ -186,8 +319,11 @@ def _evidence(
         ),
         features=features,
         events=events,
+        artifact_events=artifact_events,
         contracts=contracts,
         fee_margin_rules=rules,
+        artifact_rulebook=artifact_rulebook,
+        input_usage=input_usage,
         require_execution_rules=require_execution_rules,
     )
 
@@ -202,7 +338,7 @@ def _published_evidence(tmp_path: Path) -> tuple[ArtifactStore, DecisionReplayEv
             "date": [date(2026, 1, 5)],
             "symbol": ["RB_CONT"],
             "close": [100.0],
-            "available_at": [DECISION - timedelta(minutes=1)],
+            "available_at": [DECISION],
         }
     ).with_columns(pl.col("available_at").cast(pl.Datetime("us", "UTC")))
     store, dataset = publish_authorized_pit_dataset(
@@ -328,6 +464,24 @@ def test_guard_rejects_hand_built_market_snapshot_that_does_not_match_replay(
         LookaheadGuard().certify(plan, (evidence,), artifact_store=store)
 
 
+def test_guard_refuses_to_sign_a_receipt_with_implicit_empty_input_categories(
+    tmp_path: Path,
+) -> None:
+    store, safe_evidence = _published_evidence(tmp_path)
+    evidence = _evidence(
+        snapshot=safe_evidence.market_data.market_snapshot,
+        checkpoint=safe_evidence.market_data.checkpoint,
+        input_usage=(),
+    )
+    plan = DecisionReplayPlan.create((evidence.market_data.checkpoint,))
+
+    with pytest.raises(
+        LookaheadGuardError,
+        match="INPUT_USAGE_DECLARATIONS_INCOMPLETE",
+    ):
+        LookaheadGuard().certify(plan, (evidence,), artifact_store=store)
+
+
 def test_replay_plan_rejects_unsorted_or_duplicate_decision_times() -> None:
     first = _checkpoint()
     later = DecisionReplayCheckpoint(
@@ -392,6 +546,79 @@ def test_guard_reports_future_event_and_target_but_allows_delayed_execution() ->
     assert LookaheadViolationKind.FUTURE_TARGET in kinds
 
 
+def test_guard_replays_immutable_event_fact_dataset_when_signing(tmp_path: Path) -> None:
+    store, safe_evidence = _published_evidence(tmp_path)
+    source_hash = safe_evidence.market_data.market_snapshot.source_artifact_snapshot_hash
+    event_frame = pl.DataFrame(
+        {
+            "event_id": ["fixture-event"],
+            "event_at": [DECISION - timedelta(minutes=2)],
+            "available_at": [DECISION],
+            "source_evidence_hash": [source_hash],
+        }
+    ).with_columns(
+        pl.col("event_at").cast(pl.Datetime("us", "UTC")),
+        pl.col("available_at").cast(pl.Datetime("us", "UTC")),
+    )
+    event_store, event_dataset = publish_authorized_pit_dataset(
+        tmp_path,
+        event_frame,
+        dataset_id="research_event_fact",
+        source_id="event-fixture-source",
+        adapter_id="event-fixture-adapter",
+        schema_version="research_event_fact_v1",
+        artifact_id="event-fixture-v1",
+        key_columns=("event_id", "event_at"),
+        event_time_column="event_at",
+        available_at_column="available_at",
+        value_columns=("source_evidence_hash",),
+        normalized_available_at=DECISION,
+    )
+    strict_events = replay_artifact_event_evidence(
+        artifact_store=event_store,
+        dataset_version_hash=event_dataset.version_hash,
+        decision_at=DECISION,
+    )
+    evidence = _evidence(
+        snapshot=safe_evidence.market_data.market_snapshot,
+        checkpoint=safe_evidence.market_data.checkpoint,
+        events=strict_events.events,
+        artifact_events=strict_events,
+    )
+
+    certificate = LookaheadGuard().certify(
+        DecisionReplayPlan.create((evidence.market_data.checkpoint,)),
+        (evidence,),
+        artifact_store=event_store,
+    )
+
+    assert certificate.certificate_hash
+    assert strict_events.events[0].event_id == "fixture-event"
+
+
+def test_guard_refuses_hand_built_event_evidence_when_signing(tmp_path: Path) -> None:
+    store, safe_evidence = _published_evidence(tmp_path)
+    evidence = _evidence(
+        snapshot=safe_evidence.market_data.market_snapshot,
+        checkpoint=safe_evidence.market_data.checkpoint,
+        events=(
+            EventAvailabilityEvidence(
+                event_id="manual-event",
+                event_at=DECISION - timedelta(minutes=1),
+                available_at=DECISION,
+                source_artifact_snapshot_hash=_hash("manual-event-source"),
+            ),
+        ),
+    )
+
+    with pytest.raises(LookaheadGuardError, match="ARTIFACT_EVENT_EVIDENCE_REQUIRED_FOR_EVENTS"):
+        LookaheadGuard().certify(
+            DecisionReplayPlan.create((evidence.market_data.checkpoint,)),
+            (evidence,),
+            artifact_store=store,
+        )
+
+
 def test_target_evidence_rejects_backdated_availability_or_execution() -> None:
     with pytest.raises(LookaheadGuardError, match="available_at 不能早于"):
         TargetDecisionEvidence(
@@ -407,6 +634,98 @@ def test_target_evidence_rejects_backdated_availability_or_execution() -> None:
             source_snapshot_hash=_hash("source"),
             target_hash=_hash("target"),
             execution_at=DECISION - timedelta(seconds=1),
+        )
+
+
+def test_guard_uses_only_replayed_immutable_rulebook_contract_and_rule_evidence(
+    tmp_path: Path,
+) -> None:
+    store, dataset_version_hash = _published_rulebook(tmp_path)
+    strict = replay_artifact_rulebook_evidence(
+        artifact_store=store,
+        dataset_version_hash=dataset_version_hash,
+        decision_at=DECISION,
+        contract_refs=("SHFE.RB.2605",),
+    )
+    market_dataset_store, market_dataset = publish_authorized_pit_dataset(
+        tmp_path,
+        pl.DataFrame(
+            {
+                "date": [date(2026, 1, 5)],
+                "symbol": ["RB_CONT"],
+                "close": [100.0],
+                "available_at": [DECISION - timedelta(minutes=1)],
+            }
+        ).with_columns(pl.col("available_at").cast(pl.Datetime("us", "UTC"))),
+        dataset_id="lookahead-market-dataset",
+        source_id="lookahead-market-source",
+        adapter_id="lookahead-market-adapter",
+        schema_version="lookahead_fixture_v1",
+        artifact_id="lookahead-market-v1",
+        key_columns=("date", "symbol"),
+        event_time_column="date",
+        available_at_column="available_at",
+        value_columns=("close",),
+        normalized_available_at=DECISION,
+    )
+    checkpoint = DecisionReplayCheckpoint(
+        decision_at=DECISION,
+        decision_event_time=date(2026, 1, 5),
+        dataset_version_hash=market_dataset.version_hash,
+        pit_spec=_spec(),
+    )
+    market = DecisionReplayPlan.create((checkpoint,)).replay_market_data(market_dataset_store)[0]
+    evidence = _evidence(
+        snapshot=market.market_snapshot,
+        checkpoint=checkpoint,
+        contracts=strict.contracts,
+        rules=strict.fee_margin_rules,
+        artifact_rulebook=strict,
+    )
+
+    certificate = LookaheadGuard().certify(
+        DecisionReplayPlan.create((checkpoint,)),
+        (evidence,),
+        artifact_store=market_dataset_store,
+    )
+
+    assert certificate.certificate_hash
+    assert strict.replay.dataset_version_hash == dataset_version_hash
+    assert strict.contracts[0].available_at == strict.fee_margin_rules[0].rule_snapshot.available_at
+    assert strict.fee_margin_rules[0].rule_snapshot.execution_eligible is False
+
+
+def test_guard_refuses_hand_built_contract_rule_evidence_when_signing(
+    tmp_path: Path,
+) -> None:
+    store, safe_evidence = _published_evidence(tmp_path)
+    evidence = _evidence(
+        snapshot=safe_evidence.market_data.market_snapshot,
+        checkpoint=safe_evidence.market_data.checkpoint,
+        contracts=(
+            ContractKnowledgeEvidence(
+                contract=_contract(),
+                master_fingerprint=_hash("manual-master"),
+                available_at=DECISION,
+                source_artifact_snapshot_hash=_hash("manual-contract-source"),
+            ),
+        ),
+        rules=(
+            FeeMarginRuleEvidence(
+                master_fingerprint=_hash("manual-master"),
+                rule_snapshot=_rule(),
+            ),
+        ),
+    )
+
+    with pytest.raises(
+        LookaheadGuardError,
+        match="ARTIFACT_RULEBOOK_EVIDENCE_REQUIRED_FOR_CONTRACT_RULES",
+    ):
+        LookaheadGuard().certify(
+            DecisionReplayPlan.create((evidence.market_data.checkpoint,)),
+            (evidence,),
+            artifact_store=store,
         )
 
 

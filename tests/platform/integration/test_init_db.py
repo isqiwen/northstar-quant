@@ -11,7 +11,7 @@ from tests.helpers.postgresql import postgresql_test_url
 
 def test_redact_database_url_hides_password():
     redacted = _redact_database_url(
-        "postgresql+psycopg://northstar:super-secret@db.example.com:5432/northstar"
+        "postgresql+psycopg://northstar:super-secret@db.example.com:5432/northstar"  # secret-scan: allow; reason: disposable test fixture
     )
 
     assert "super-secret" not in redacted
@@ -48,6 +48,6 @@ def test_init_db_uses_alembic_head_and_is_idempotent(tmp_path, monkeypatch):
             revision = connection.scalar(
                 text("SELECT version_num FROM alembic_version")
             )
-        assert revision == "0003_ctp_sim_execution_semantics"
+        assert revision == "0010_agent_run_audit_hardening"
     finally:
         get_settings.cache_clear()

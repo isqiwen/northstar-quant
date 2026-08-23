@@ -1,4 +1,9 @@
-#!/usr/bin/env bash
+#!/bin/bash -p
+# Remote wrappers may be directly invoked by an operator.  Harden before
+# resolving their own location or sourcing the privileged deployment helpers.
+unset BASH_ENV ENV CDPATH
+PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+export PATH
 set -euo pipefail
 
 # 这些脚本只会随部署控制面暂存到 Linux 目标。它们不接受 Windows 路径，也不应

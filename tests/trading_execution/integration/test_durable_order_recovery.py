@@ -36,7 +36,7 @@ def test_confirmed_terminal_without_broker_order_id_is_replayed(postgresql_engin
         )
 
     assert replay.replayed is True
-    assert replay.status == "Filled"
+    assert replay.status == "FILLED"
     assert replay.broker_order_id == ""
     assert replay.client_id == 7
     assert replay.perm_id == 101
@@ -74,7 +74,7 @@ def test_unknown_submission_recovers_by_order_ref_without_resubmission(postgresq
         replay = DurableBrokerAdapter(healthy_broker, session).submit_order(order_request())
 
     assert replay.replayed is True
-    assert replay.status == "Filled"
+    assert replay.status == "FILLED"
     assert replay.broker_order_id == "broker-recovered"
     assert healthy_broker.submit_count == 0
 

@@ -101,6 +101,7 @@ class FeatureInputContract:
     entity_key_columns: tuple[str, ...]
     event_time_column: str
     available_at_column: str
+    value_columns: tuple[str, ...] | None = None
     requires_actual_contract_data: bool = False
 
     def __post_init__(self) -> None:
@@ -116,16 +117,28 @@ class FeatureInputContract:
         available_at_column = _required_identifier(
             self.available_at_column, "input_contract.available_at_column"
         )
+        value_columns = (
+            None
+            if self.value_columns is None
+            else _tuple_of_identifiers(self.value_columns, "input_contract.value_columns")
+        )
         if event_time_column in entity_key_columns:
             raise FeatureRegistryError("event_time_column 不能同时是 entity key")
         if available_at_column in {*entity_key_columns, event_time_column}:
             raise FeatureRegistryError("available_at_column 不能同时是 key/event time")
+        if value_columns is not None and set(value_columns).intersection(
+            {*entity_key_columns, event_time_column, available_at_column}
+        ):
+            raise FeatureRegistryError(
+                "input_contract.value_columns 不能与 key/event time/available_at 重叠"
+            )
         if type(self.requires_actual_contract_data) is not bool:
             raise FeatureRegistryError("requires_actual_contract_data 必须是 bool")
         object.__setattr__(self, "schema_version", schema_version)
         object.__setattr__(self, "entity_key_columns", entity_key_columns)
         object.__setattr__(self, "event_time_column", event_time_column)
         object.__setattr__(self, "available_at_column", available_at_column)
+        object.__setattr__(self, "value_columns", value_columns)
 
     def validate_snapshot(
         self,
@@ -159,6 +172,10 @@ class FeatureInputContract:
             raise FeatureRegistryError("canonical feature 输入 event_time_column 不一致")
         if spec.available_at_column != self.available_at_column:
             raise FeatureRegistryError("canonical feature 输入 available_at_column 不一致")
+        if self.value_columns is not None and spec.value_columns != self.value_columns:
+            raise FeatureRegistryError(
+                "canonical feature 输入 value_columns 必须精确匹配 feature-ready 契约"
+            )
         actual_entity_keys = tuple(key for key in spec.key_columns if key != spec.event_time_column)
         if set(actual_entity_keys) != set(self.entity_key_columns):
             raise FeatureRegistryError("canonical feature 输入 entity key 与契约不一致")
@@ -279,6 +296,11 @@ class CanonicalFeatureDefinition:
                         self.input_contract.requires_actual_contract_data
                     ),
                     "schema_version": self.input_contract.schema_version,
+                    "value_columns": (
+                        list(self.input_contract.value_columns)
+                        if self.input_contract.value_columns is not None
+                        else None
+                    ),
                 },
                 "description": self.description,
                 "lookback_semantics": self.lookback_semantics,

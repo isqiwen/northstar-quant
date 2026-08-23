@@ -28,7 +28,13 @@ from northstar_quant.research.backtest.models import (
     TargetFrameReference,
 )
 from northstar_quant.research.validation.lookahead import (
+    DecisionMarketDataEvidence,
+    DecisionReplayEvidence,
     DecisionReplayPlan,
+    LookaheadInputKind,
+    LookaheadInputUsage,
+    LookaheadInputUsageDeclaration,
+    TargetDecisionEvidence,
 )
 
 
@@ -558,6 +564,75 @@ class DecisionReplayTargetTrace:
         if reference != self.aggregate_target:
             raise DecisionReplayTargetError("target trace aggregate 完整性校验失败")
         return frame
+
+    def lookahead_evidence(
+        self,
+        market_data: tuple[DecisionMarketDataEvidence, ...],
+    ) -> tuple[DecisionReplayEvidence, ...]:
+        """Bind this immutable target trace to the exact replayed market snapshots.
+
+        This helper deliberately supplies no feature, event, contract, or execution-rule
+        evidence: the currently supported continuous ``weight_return`` target producer does
+        not consume those inputs.  It is therefore only suitable for the current
+        evidence-consistency receipt, which remains non-admissible.  A future actual-contract
+        composition root must use controlled producers for each of those categories instead of
+        extending this method.
+        """
+
+        if not isinstance(market_data, tuple) or not all(
+            isinstance(item, DecisionMarketDataEvidence) for item in market_data
+        ):
+            raise DecisionReplayTargetError(
+                "market_data 必须是 DecisionMarketDataEvidence 元组"
+            )
+        if len(market_data) != len(self.target_slices):
+            raise DecisionReplayTargetError("market_data 必须与 target_slices 一一对应")
+
+        evidence_items: list[DecisionReplayEvidence] = []
+        for target_slice, market_evidence in zip(
+            self.target_slices,
+            market_data,
+            strict=True,
+        ):
+            snapshot = market_evidence.market_snapshot
+            if market_evidence.checkpoint.checkpoint_hash != target_slice.checkpoint_hash:
+                raise DecisionReplayTargetError(
+                    "market_data checkpoint 必须与 target slice 精确一致"
+                )
+            revision_ids_hash = canonical_json_sha256(
+                {"revision_ids": list(snapshot.revision_ids)}
+            )
+            if (
+                target_slice.decision_at != market_evidence.decision_at
+                or target_slice.market_snapshot_id != snapshot.snapshot_id
+                or target_slice.market_selected_frame_hash != snapshot.selected_frame_hash
+                or target_slice.market_revision_ids_hash != revision_ids_hash
+                or target_slice.source_artifact_snapshot_hash
+                != snapshot.source_artifact_snapshot_hash
+            ):
+                raise DecisionReplayTargetError(
+                    "target slice 必须绑定同一 checkpoint 的完整 replay 市场快照"
+                )
+            evidence_items.append(
+                DecisionReplayEvidence(
+                    market_data=market_evidence,
+                    target=TargetDecisionEvidence(
+                        decision_at=target_slice.decision_at,
+                        available_at=target_slice.decision_at,
+                        source_snapshot_hash=snapshot.snapshot_id,
+                        target_hash=target_slice.target_frame_sha256,
+                    ),
+                    input_usage=tuple(
+                        LookaheadInputUsageDeclaration(
+                            input_kind=input_kind,
+                            usage=LookaheadInputUsage.NOT_USED,
+                            producer_identity_hash=self.strategy_identity.identity_hash,
+                        )
+                        for input_kind in LookaheadInputKind
+                    ),
+                )
+            )
+        return tuple(evidence_items)
 
     def as_mapping(self) -> dict[str, object]:
         """返回无 target 数值、不可作为准入结论的轨迹清单。"""
