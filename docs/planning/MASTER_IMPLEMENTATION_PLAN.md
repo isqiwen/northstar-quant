@@ -82,7 +82,7 @@ next_task:
 blocked_work_packages: [P10-WP08, P10-WP09]
 ```
 
-P10 已完成 `7/9` 个 Work Package（78%）；其余 P10-WP08 与 P10-WP09 均需外部前提，当前没有可离线继续的 Work Package。
+P10 已完成 `7/9` 个 Work Package（78%）；其余 P10-WP08 与 P10-WP09 均需外部前提。用户请求的跨阶段文档治理工作包 `DOC-WP01` 已完成，不改变 P10 的验收计数或外部阻塞状态。
 
 ---
 
@@ -3785,6 +3785,50 @@ loopback drill 升级为生产验收。
 
 ---
 
+# 19.1 用户请求的跨阶段维护
+
+## DOC-WP01 — Documentation Consolidation & Architecture Specification
+
+**Status:** DONE
+
+**Origin:** 用户明确要求清理项目文档，并整理为一份规范的架构设计文档。本工作包独立于 P10
+验收计数：它只治理仓库文档、入口和文档契约，不会把 P10-WP08/P10-WP09 的外部前提误记为已完成。
+
+**Goal:** 将重叠的编号说明文档收敛为清晰、可维护的规范文档集；以单一 `docs/ARCHITECTURE.md`
+描述已实现的系统边界、依赖规则、数据/研究/风险/执行流和明确的非升级边界。
+
+**Scope:**
+
+- 收敛根 README 与 `docs/` 导航，删除已被合并的旧编号文档；
+- 保留主实施计划、P10 验收证据和故障矩阵等控制面，不将它们改写成架构事实来源；
+- 在同一变更中更新配置、脚本、测试和规划文档中的本地链接；
+- 用文档契约测试验证所有本地 Markdown 链接与关键安全陈述。
+
+**Non-goals:**
+
+- 不修改生产代码、数据、数据库 schema、迁移、真实交易能力或外部集成；
+- 不创建兼容跳转页。项目尚未发布，仓库内调用方和测试必须直接迁移到新文档路径。
+
+**Acceptance:**
+
+- `ARCHITECTURE.md` 是唯一的架构设计权威，明确领域边界、composition root、语义、PIT、证据与交易安全链；
+- 开发、运行和治理内容各有唯一权威，不重复维护路线图；
+- 无失效本地 Markdown 链接，旧文档路径没有残留引用；
+- 文档契约、静态质量门禁和主计划状态同步通过。
+
+**Completion:**
+
+```yaml
+completed_at: 2026-08-23
+commit: null
+notes: >-
+  收敛旧编号文档与重复 README 内容为 ARCHITECTURE、DEVELOPMENT、OPERATIONS、GOVERNANCE 四份规范文档，
+  保留 planning 控制面并同步所有仓库链接与文档契约。删除旧路径而不保留 compatibility redirect；
+  全量 pytest 1710 passed, 23 skipped，Ruff 与 mypy baseline 通过。
+```
+
+---
+
 # 20. Codex Work Package 标准模板
 
 ```yaml
@@ -4090,7 +4134,7 @@ next_task:
   status: BLOCKED
 ```
 
-P10-WP08 与 P10-WP09 均由外部前提阻塞；在获得授权的外部条件前维持 `NO LIVE ACTION`。
+P10-WP08 与 P10-WP09 均由外部前提阻塞；`DOC-WP01` 已完成。在获得授权的外部条件前维持 `NO LIVE ACTION`。
 
 ---
 
@@ -4187,5 +4231,6 @@ P10-WP08 与 P10-WP09 均由外部前提阻塞；在获得授权的外部条件�
 | 2026-08-23 | P10-WP05：完成组合级风险证据与审批 gate。exact composition、profile policy、账户、CTP-sim broker snapshot 与 reconciliation safety state 派生并 hash-bind exposure、limits、七场景 stress 和风险状态；UNKNOWN/WARN/BLOCK/HALT、scope/hash/attestation/expiry drift 均在 approval、P8 receipt、intent 与 broker mutation 之前失败关闭。hash-only durable manual record 使用前向 PostgreSQL migration `0008_portfolio_risk_approval`；issuer 成功路径只在 private test composition。认证人工批准服务与专用 DB roles 仍 `BLOCKED_EXTERNAL`，无真实 CTP、身份认证或 live order。P10-WP06 已开始。 | DONE |
 | 2026-08-23 | P10-WP06：完成 Research Agent 跨进程 durable evidence audit。独立 wrapper 先写 `ADMITTED`，成功时原子追加 `COMPLETED` 和有序 hash trace；generic tool/Agent 异常与终态写入不确定性均保留 unresolved reservation，拒绝同一 `run_id` 重放。前向 `0009_agent_run_audit`/`0010_agent_run_audit_hardening` 强制 hash-only、tool/failure allowlist 和 UPDATE/DELETE/TRUNCATE 不可变性；无 raw prompt/CoT、无新增 Agent/交易能力、无真实 CTP 或实盘。P10-WP07 已开始。 | DONE |
 | 2026-08-23 | P10-WP07：完成 Trading Acceptance Evidence Closure。`P10_TRADING_FAILURE_MATRIX.md` 将 P5-WP10 的 disconnect/restart、重复/乱序回调、unknown order、stale facts、DB unavailable、timeout/network partition、identity mismatch、margin、price limit、cancel reject 和 rollover 固定为 T05-01 至 T05-11，并补 T05-12 的真实 P3 `BLOCK` 无 plan/intent/broker mutation sentinel contract 与 T05-13 的真实 CTP 连接前拒绝边界。所有正向证据仅为本地 `ctp_sim` / 隔离 PostgreSQL；没有真实 CTP、账户或实盘操作。P10 剩余 P10-WP08/P10-WP09 均为外部阻塞。 | DONE |
+| 2026-08-23 | DOC-WP01：完成文档治理与架构设计收敛。旧编号文档、陈旧路线图和重复 README 叙述已由 `ARCHITECTURE.md`、`DEVELOPMENT.md`、`OPERATIONS.md`、`GOVERNANCE.md` 替代；planning 保留为独立控制面。所有仓库入口、配置/脚本引用和文档契约已同步，未创建旧路径兼容页。 | DONE |
 
 > 所有重大架构变化、阶段调整、WP 删除/新增都必须记录在这里。

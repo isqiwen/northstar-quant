@@ -98,7 +98,7 @@
 | ID / P10 验收项 | 状态 | 可复核证据 | 边界或后续动作 |
 |---|---|---|---|
 | PL01 Windows/Linux 开发 | `VERIFIED_OFFLINE` | `scripts/dev/check_env.py`、`scripts/dev/setup.py`；`test_cross_platform_scripts.py`、`test_dev_tool_bootstrap.py`；`scripts/dev/README.md`。 | Linux 工具 bootstrap 仅支持 Ubuntu/Debian，其他系统失败关闭。 |
-| PL02 Windows/Linux deployment control | `VERIFIED_OFFLINE` | `scripts/deploy/deploy.py`、`scripts/README.md`、`docs/07_Linux一键部署.md`、cross-platform contracts。 | controller 可跨平台；Linux target 另见 PL03。 |
+| PL02 Windows/Linux deployment control | `VERIFIED_OFFLINE` | `scripts/deploy/deploy.py`、`scripts/README.md`、`docs/OPERATIONS.md`、cross-platform contracts。 | controller 可跨平台；Linux target 另见 PL03。 |
 | PL03 Linux production | `BLOCKED_EXTERNAL` | FHS/root-gate/systemd/release assets和 Docker validation 已存在。 | 需要真实 Linux host、root gate/signer、known_hosts、managed Python、production PostgreSQL 与人工批准；未满足前不可声称 production accepted。 |
 | PL04 health/logs | `VERIFIED_OFFLINE` | `application/health.py`、logger、operational snapshot、Prometheus metrics；`test_health_cli.py`、`test_logging.py`、`test_metrics.py`、`test_operational_snapshot.py`。 | fail-closed local evidence。 |
 | PL05 backup/restore | `PARTIAL` | `platform/backup/bundle.py`、`restore_drill.py` 和 integration tests。 | 仅六类 local bundle + loopback `northstar_test` drill；缺 production restore、offsite/encryption/WAL/PITR/RPO/RTO。 |
@@ -110,9 +110,9 @@
 | ID / P10 验收项 | 状态 | 可复核证据 | 边界或后续动作 |
 |---|---|---|---|
 | A01 Agent 无生产交易越权 | `SAFE_BOUNDARY` | `application/agent_tools.py`、agent result `eligible_for_trading=False`、`test_agent_tool_api_boundaries.py`、agent contracts。 | 没有 portfolio/trading/live capability。 |
-| A02 AI conclusion 有 evidence | `VERIFIED_OFFLINE` | `research_agent.py` 与 intelligence/data-quality/ops agent evidence hashes；`docs/10_AI研究工具边界.md` 的限制和相应 tests。 | 只说明 constrained typed output，有证据不等于任意 LLM 结论为真。 |
+| A02 AI conclusion 有 evidence | `VERIFIED_OFFLINE` | `research_agent.py` 与 intelligence/data-quality/ops agent evidence hashes；`docs/GOVERNANCE.md` 的限制和相应 tests。 | 只说明 constrained typed output，有证据不等于任意 LLM 结论为真。 |
 | A03 Research Agent 产物可追踪 | `VERIFIED_OFFLINE` | `application/research_agent_evidence_audit.py` 的独立 wrapper、`platform/db/models.py` / `repositories.py`、前向 `0009_agent_run_audit` / `0010_agent_run_audit_hardening`；`test_research_agent_evidence_audit.py`、`test_research_agent_run_audit_repository.py`、architecture/contract tests 覆盖跨进程 reservation、hash chain、default-expiring session、unknown outcome、DB direct-insert 与 UPDATE/DELETE/TRUNCATE 拒绝。 | 仅隔离本地 PostgreSQL。始终 `RESEARCH_ONLY` / `eligible_for_trading=False`；不持久化 raw prompt 或 CoT，也不保存 query/Document/result/rationale/exception message/payload；不是 real CTP、实盘、生产部署或新 Agent capability。 |
-| A04 AI 无法绕过风险门禁 | `SAFE_BOUNDARY` | closed typed facade、architecture contracts、ops-agent restrictions 和 `docs/10_AI研究工具边界.md`。 | 无 Agent API 可 approve、enable-live、resume-risk、submit 或连接 broker。 |
+| A04 AI 无法绕过风险门禁 | `SAFE_BOUNDARY` | closed typed facade、architecture contracts、ops-agent restrictions 和 `docs/GOVERNANCE.md`。 | 无 Agent API 可 approve、enable-live、resume-risk、submit 或连接 broker。 |
 
 ## 后续依赖图
 

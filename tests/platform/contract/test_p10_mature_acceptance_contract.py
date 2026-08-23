@@ -170,7 +170,7 @@ def test_p10_reconciles_stale_completion_matrix_entries() -> None:
 
 
 def test_p10_fixture_only_intelligence_corpus_is_documented_as_non_authorizing() -> None:
-    architecture = (PROJECT_ROOT / "docs" / "01_架构总览.md").read_text(encoding="utf-8")
+    architecture = (PROJECT_ROOT / "docs" / "ARCHITECTURE.md").read_text(encoding="utf-8")
     tests_readme = (PROJECT_ROOT / "tests" / "README.md").read_text(encoding="utf-8")
 
     assert "six_commodity_fixture_only_v1.json" in architecture
@@ -183,7 +183,7 @@ def test_p10_fixture_only_intelligence_corpus_is_documented_as_non_authorizing()
 
 
 def test_p10_canonical_multi_strategy_composition_is_documented_as_non_executable() -> None:
-    architecture = (PROJECT_ROOT / "docs" / "01_架构总览.md").read_text(encoding="utf-8")
+    architecture = (PROJECT_ROOT / "docs" / "ARCHITECTURE.md").read_text(encoding="utf-8")
     tests_readme = (PROJECT_ROOT / "tests" / "README.md").read_text(encoding="utf-8")
 
     assert "CanonicalPortfolioComposer" in architecture

@@ -1,4 +1,4 @@
-"""关键文档与实际工程边界的一致性契约。"""
+"""Contracts for the consolidated documentation surface."""
 
 from __future__ import annotations
 
@@ -9,16 +9,25 @@ import re
 from northstar_quant.platform.config.settings import Settings
 from tests.helpers.paths import PROJECT_ROOT
 
+
 README_PATH = PROJECT_ROOT / "README.md"
-DOCS_INDEX_PATH = PROJECT_ROOT / "docs" / "README.md"
-ROADMAP_PATH = PROJECT_ROOT / "docs" / "08_项目主规划与实施状态.md"
-ADMISSION_POLICY_PATH = PROJECT_ROOT / "docs" / "09_研究准入政策与数据治理.md"
-CONFIG_GUIDE_PATH = PROJECT_ROOT / "docs" / "02_配置说明.md"
-TUTORIAL_PATH = PROJECT_ROOT / "docs" / "00_第一个策略与回测教程.md"
+DOCS_DIR = PROJECT_ROOT / "docs"
+DOCS_INDEX_PATH = DOCS_DIR / "README.md"
+ARCHITECTURE_PATH = DOCS_DIR / "ARCHITECTURE.md"
+DEVELOPMENT_PATH = DOCS_DIR / "DEVELOPMENT.md"
+OPERATIONS_PATH = DOCS_DIR / "OPERATIONS.md"
+GOVERNANCE_PATH = DOCS_DIR / "GOVERNANCE.md"
+PLANNING_INDEX_PATH = DOCS_DIR / "planning" / "README.md"
+MASTER_PLAN_PATH = DOCS_DIR / "planning" / "MASTER_IMPLEMENTATION_PLAN.md"
 LOCAL_LINK_PATTERN = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
-NUMBERED_DOCUMENT_PATTERN = re.compile(r"^(\d{2})_.+\.md$")
 
 CANONICAL_DOCUMENTS = (
+    "ARCHITECTURE.md",
+    "DEVELOPMENT.md",
+    "OPERATIONS.md",
+    "GOVERNANCE.md",
+)
+RETIRED_DOCUMENTS = (
     "00_第一个策略与回测教程.md",
     "01_架构总览.md",
     "02_配置说明.md",
@@ -30,16 +39,7 @@ CANONICAL_DOCUMENTS = (
     "08_项目主规划与实施状态.md",
     "09_研究准入政策与数据治理.md",
     "10_AI研究工具边界.md",
-)
-
-RETIRED_DUPLICATE_DOCUMENTS = (
-    "03_模块设计说明.md",
-    "05_限价执行_超时撤单_交易日历与Dashboard.md",
-    "06_限价单追价执行器.md",
-    "08_邮件附件PDF报告.md",
-    "09_正式版PDF报告版式.md",
-    "10_架构审核与演进路线.md",
-    "13_审计修复与上线门槛.md",
+    "platform_security_audit.md",
 )
 
 
@@ -72,23 +72,25 @@ def test_docs_index_is_the_only_canonical_navigation() -> None:
 
     assert "[文档导航](docs/README.md)" in readme
     for filename in CANONICAL_DOCUMENTS:
-        assert (DOCS_INDEX_PATH.parent / filename).is_file()
+        assert (DOCS_DIR / filename).is_file()
         assert f"]({filename})" in docs_index
-    for filename in RETIRED_DUPLICATE_DOCUMENTS:
-        assert not (DOCS_INDEX_PATH.parent / filename).exists()
+    assert "](planning/README.md)" in docs_index
+    for filename in RETIRED_DOCUMENTS:
+        assert not (DOCS_DIR / filename).exists()
 
 
-def test_numbered_docs_are_continuous() -> None:
-    numbered_documents = sorted(
-        path.name
-        for path in DOCS_INDEX_PATH.parent.glob("*.md")
-        if NUMBERED_DOCUMENT_PATTERN.fullmatch(path.name)
-    )
+def test_consolidated_documents_have_single_responsibility() -> None:
+    architecture = _read(ARCHITECTURE_PATH)
+    development = _read(DEVELOPMENT_PATH)
+    operations = _read(OPERATIONS_PATH)
+    governance = _read(GOVERNANCE_PATH)
 
-    assert numbered_documents == list(CANONICAL_DOCUMENTS)
-    assert [filename[:2] for filename in numbered_documents] == [
-        f"{index:02d}" for index in range(len(CANONICAL_DOCUMENTS))
-    ]
+    assert "唯一的架构设计权威" in architecture
+    assert "开发环境、代码约定、第一条研究路径" in development
+    assert "运行、配置、报告、部署和数据保全" in operations
+    assert "数据授权、研究准入、AI 权限、安全审计和人工控制" in governance
+    assert "唯一实施进度事实来源" in _read(PLANNING_INDEX_PATH)
+    assert MASTER_PLAN_PATH.is_file()
 
 
 def test_local_markdown_links_resolve() -> None:
@@ -102,18 +104,28 @@ def test_local_markdown_links_resolve() -> None:
     assert not broken_links, "失效的仓库内 Markdown 链接：\n" + "\n".join(broken_links)
 
 
+def test_retired_document_names_have_no_remaining_references() -> None:
+    remnants: list[str] = []
+    for markdown_path in _markdown_files():
+        content = _read(markdown_path)
+        for filename in RETIRED_DOCUMENTS:
+            if filename in content:
+                remnants.append(f"{markdown_path.relative_to(PROJECT_ROOT)} -> {filename}")
+
+    assert not remnants, "已收敛文档仍被引用：\n" + "\n".join(remnants)
+
+
 def test_user_facing_uv_run_commands_cannot_implicitly_materialize_dependencies() -> None:
     documentation_paths = (
         README_PATH,
         PROJECT_ROOT / "AGENTS.md",
-        *(path for path in (PROJECT_ROOT / "docs").glob("*.md")),
-        *(path for path in (PROJECT_ROOT / "scripts").rglob("README.md")),
+        *_markdown_files(),
         *(path for path in (PROJECT_ROOT / "configs" / "profiles").rglob("README.md")),
         PROJECT_ROOT / "tests" / "README.md",
         PROJECT_ROOT / "infra" / "docker" / "README.md",
     )
     violations: list[str] = []
-    for path in documentation_paths:
+    for path in dict.fromkeys(documentation_paths):
         for line_number, raw_line in enumerate(_read(path).splitlines(), start=1):
             command = raw_line.strip()
             if command.startswith("uv run ") and not command.startswith(
@@ -126,65 +138,38 @@ def test_user_facing_uv_run_commands_cannot_implicitly_materialize_dependencies(
     )
 
 
-def test_roadmap_is_linked_and_preserves_all_phase_gates() -> None:
+def test_root_readme_links_to_control_plane_without_a_stale_roadmap() -> None:
     readme = _read(README_PATH)
-    roadmap = _read(ROADMAP_PATH)
 
-    assert "[项目主规划与实施状态](docs/08_项目主规划与实施状态.md)" in readme
-    for phase in range(8):
-        assert f"### P{phase}：" in roadmap
-    assert "AI 实施协议" in roadmap
-    assert "P0-01 至 P0-07" in roadmap
-    for filename in (
-        "01_架构总览.md",
-        "03_执行与安全边界.md",
-        "04_期货回测器说明.md",
-        "09_研究准入政策与数据治理.md",
-    ):
-        assert (ROADMAP_PATH.parent / filename).is_file()
-
-
-def test_research_admission_policy_is_linked_and_keeps_fail_closed_boundaries() -> None:
-    readme = _read(README_PATH)
-    policy = _read(ADMISSION_POLICY_PATH)
-
-    assert "(docs/09_研究准入政策与数据治理.md)" in readme
-    assert "procurement_pending" in policy
-    assert "pending_owner_approval" in policy
-    assert "不适用范围：模拟交易授权、真实 CTP、真实资金" in policy
-    assert (PROJECT_ROOT / "configs" / "data" / "sources.yaml").is_file()
-    assert (
-        PROJECT_ROOT
-        / "configs"
-        / "research"
-        / "admission"
-        / "cn_commodity_futures_research_conservative_v1.yaml"
-    ).is_file()
+    assert "[主实施计划](docs/planning/MASTER_IMPLEMENTATION_PLAN.md)" in readme
+    assert "P10 已完成 7/9 个 Work Package（78%）" in readme
+    assert "唯一实施进度事实来源" in _read(PLANNING_INDEX_PATH)
+    assert "DOC-WP01" in _read(MASTER_PLAN_PATH)
 
 
 def test_configuration_documentation_matches_safe_runtime_defaults() -> None:
-    config_guide = _read(CONFIG_GUIDE_PATH)
+    operations = _read(OPERATIONS_PATH)
 
-    assert "scripts/dev/setup.py" in config_guide
-    assert "开发环境只支持 macOS 或 Linux" not in config_guide
-    assert "configs/data/sources.yaml" in config_guide
-    assert "research_admission" in config_guide
-    assert "ctp_sim" in config_guide
-    assert "runtime.downloads_dir" in config_guide
-    assert "runtime.log_dir" in config_guide
-    assert "configs/app.example.yaml" in config_guide
-    assert "configs/app.yaml" in config_guide
-    assert "configs/app.local.yaml" in config_guide
-    assert "不再被支持" in config_guide
-    assert "northstar data cleanup" in config_guide
-    assert "northstar ops backup status" in config_guide
-    assert "database_backup_readiness.yaml" in config_guide
-    assert "backup_bundle.py" in config_guide
-    assert "restore_drill.py" in config_guide
-    assert "标准市场数据" in config_guide
-    assert "futures.calendar_artifact_snapshot_hashes" in config_guide
-    assert "ArtifactSnapshot" in config_guide
-    assert "PostgreSQL 服务的独立数据卷" in config_guide
+    for required in (
+        "scripts/dev/setup.py",
+        "configs/data/sources.yaml",
+        "research/admission",
+        "ctp_sim",
+        "runtime.downloads_dir",
+        "runtime.log_dir",
+        "configs/app.example.yaml",
+        "configs/app.yaml",
+        "configs/app.local.yaml",
+        "northstar data cleanup",
+        "northstar ops backup status",
+        "database_backup_readiness.yaml",
+        "backup_bundle.py",
+        "restore_drill.py",
+        "futures.calendar_artifact_snapshot_hashes",
+        "ArtifactSnapshot",
+        "PostgreSQL-only",
+    ):
+        assert required in operations
     assert (PROJECT_ROOT / "configs" / "maintenance" / "output_retention.yaml").is_file()
     assert (
         PROJECT_ROOT / "configs" / "maintenance" / "database_backup_readiness.yaml"
@@ -194,12 +179,11 @@ def test_configuration_documentation_matches_safe_runtime_defaults() -> None:
     assert Settings.model_fields["kill_switch_enabled"].default is False
     assert not (PROJECT_ROOT / "configs" / "risk" / "global.yaml").exists()
     assert not (PROJECT_ROOT / "configs" / "portfolio" / "multi_strategy.yaml").exists()
-    assert "已被移除" in config_guide
 
 
-def test_calendar_documentation_keeps_runtime_sources_fail_closed() -> None:
-    architecture = _read(PROJECT_ROOT / "docs" / "01_架构总览.md")
-    execution = _read(PROJECT_ROOT / "docs" / "03_执行与安全边界.md")
+def test_calendar_docs_keep_runtime_sources_fail_closed() -> None:
+    architecture = _read(ARCHITECTURE_PATH)
+    operations = _read(OPERATIONS_PATH)
     simulated = _read(
         PROJECT_ROOT / "configs" / "profiles" / "simulated" / "README.md"
     )
@@ -208,46 +192,39 @@ def test_calendar_documentation_keeps_runtime_sources_fail_closed() -> None:
     assert "Trading Calendar" in architecture
     assert "test_only" in architecture
     assert "futures.calendar_artifact_snapshot_hashes" in architecture
-    assert "runtime Calendar Artifact" in execution
+    assert "runtime Calendar Artifact" in operations
     assert "TRADING_CALENDAR_ARTIFACT_REQUIRED" in simulated
     assert calendar_readme.is_file()
     assert "没有可运行的日历制品" in _read(calendar_readme)
 
 
-def test_p8_activation_and_provenance_docs_preserve_non_trading_submission_boundary() -> None:
-    readme = _read(README_PATH)
-    architecture = _read(PROJECT_ROOT / "docs" / "01_架构总览.md")
-    execution = _read(PROJECT_ROOT / "docs" / "03_执行与安全边界.md")
-    ai_boundary = _read(PROJECT_ROOT / "docs" / "10_AI研究工具边界.md")
+def test_architecture_preserves_non_trading_submission_boundary() -> None:
+    architecture = _read(ARCHITECTURE_PATH)
+    governance = _read(GOVERNANCE_PATH)
     scripts = _read(PROJECT_ROOT / "scripts" / "README.md")
 
-    assert "HumanStrategyTargetActivationApproval" in readme
-    assert "ResearchStrategyTargetActivator" in architecture
-    assert "StrategyTargetActivationRef" in architecture
-    assert "P8-WP04" in architecture
-    assert "synthetic target" in execution
-    assert "RESEARCH_TO_PORTFOLIO_RISK" in ai_boundary
-    assert "decision_time_safe=false" in ai_boundary
-    assert "eligible_for_trading=False" in ai_boundary
-    assert "ExecutionProvenancePreflight" in execution
-    assert "eligible_for_ctp_sim=false" in ai_boundary
-    assert "CtpSimCandidateExecutor" in execution
-    assert "CtpSimSubmissionAuthority" in execution
-    assert "调用方 snapshot" in execution
-    assert "一次性" in readme
-    assert "PORTFOLIO_RISK_TO_EXECUTION_SIMULATION" in ai_boundary
+    for required in (
+        "ResearchStrategyTargetActivator",
+        "StrategyTargetActivationRef",
+        "ExecutionProvenancePreflight",
+        "CtpSimCandidateExecutor",
+        "eligible_for_broker_order=false",
+        "CTP_REAL_FRONT_DISABLED",
+    ):
+        assert required in architecture
+    assert "不得 approve、enable-live、resume-risk、submit、连接 broker" in governance
     assert "opaque-authority `Portfolio/Risk→ctp_sim`" in scripts
     assert "P8_RESEARCH_TO_PORTFOLIO_RISK" in scripts
     assert "P8_EXECUTION_PROVENANCE_PREFLIGHT" in scripts
     assert "P8_CTP_SIM_CANDIDATE_E2E" in scripts
 
 
-def test_tutorial_python_examples_remain_parseable_and_describe_explicit_flat_targets() -> None:
-    tutorial = _read(TUTORIAL_PATH)
-    python_blocks = _fenced_python_blocks(tutorial)
+def test_development_python_example_is_parseable_and_describes_flat_targets() -> None:
+    development = _read(DEVELOPMENT_PATH)
+    python_blocks = _fenced_python_blocks(development)
 
     assert python_blocks
     for index, source in enumerate(python_blocks, start=1):
-        ast.parse(source, filename=f"{TUTORIAL_PATH.name}:python-block-{index}")
-    assert "target_weight: 0.0" in tutorial
-    assert "uv run --offline --no-sync northstar backtest run first_breakout" in tutorial
+        ast.parse(source, filename=f"{DEVELOPMENT_PATH.name}:python-block-{index}")
+    assert "target_weight: 0.0" in development
+    assert "uv run --offline --no-sync northstar backtest run portfolio" in development

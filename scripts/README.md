@@ -105,4 +105,4 @@ Linux systemd、服务、scheduler、worker、目标监控和未来 live trading
 `DASHBOARD_DEPLOY_ENABLED=1` 时，Linux 发布才会管理独立的
 `<SYSTEMD_SERVICE_NAME>-dashboard.service`，它固定监听 `127.0.0.1`。私有 ntfy 不属于签名 release：
 正常发布必须保持 `NTFY_DEPLOY_ENABLED=0`，其 Docker、DNS、bootstrap 和认证只可走
-[Linux 一键部署](../docs/07_Linux一键部署.md#私有-ntfy可选独立-root-operated-工作流)规定的独立 root-operated 工作流。
+[运行、配置与部署手册](../docs/OPERATIONS.md)规定的独立 root-operated 工作流。

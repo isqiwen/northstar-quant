@@ -41,7 +41,7 @@ uv run --offline --no-sync northstar backtest run portfolio --profile <你的期
 
 如果画像使用新策略，必须使用唯一的 `dataset_id` 与 `data.path`，并在 `data.source_id`、
 `universe_id` 和 `research_admission` 上保持与数据治理配置一致。完整示例见
-[`docs/00_第一个策略与回测教程.md`](../../../docs/00_第一个策略与回测教程.md)。
+[`docs/DEVELOPMENT.md`](../../../docs/DEVELOPMENT.md)。
 
 连接券商模拟账户必须在 `../simulated/` 创建 `*_simulated` 画像；连接真实账户必须在
 `../live/` 创建经过柜台、实际合约、保证金和开平仓规则核验的 `*_live` 画像。不得通过修改

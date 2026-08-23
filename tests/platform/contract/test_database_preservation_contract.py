@@ -55,7 +55,7 @@ _IMMUTABLE_TRUNCATE_GUARD_SQL = re.compile(
 DOCUMENTATION_TARGETS = (
     PROJECT_ROOT / "AGENTS.md",
     PROJECT_ROOT / "README.md",
-    PROJECT_ROOT / "docs" / "02_配置说明.md",
+    PROJECT_ROOT / "docs" / "OPERATIONS.md",
     PROJECT_ROOT / "scripts" / "README.md",
 )
 PRESERVATION_STATEMENT = "仓库自动化绝不删除或清空数据库、表、schema 或 Docker 数据卷"

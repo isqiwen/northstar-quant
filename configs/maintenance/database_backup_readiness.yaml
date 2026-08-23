@@ -7,7 +7,7 @@ version: 1
 enabled: false
 
 # 相对 runtime.storage_dir 的安全路径。证据文件不得包含数据库 URL、对象存储地址、
-# 令牌、账户号或其他凭据；详见 docs/07_Linux一键部署.md。
+# 令牌、账户号或其他凭据；详见 docs/OPERATIONS.md。
 evidence_relative_path: operations/database-backup/readiness.json
 
 # 启用后，证据中的最近逻辑备份与最近隔离恢复演练不得超过以下时效。

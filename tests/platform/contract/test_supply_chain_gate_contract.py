@@ -9,7 +9,7 @@ from tests.helpers.paths import PROJECT_ROOT
 
 JUSTFILE = PROJECT_ROOT / "justfile"
 CI_WORKFLOW = PROJECT_ROOT / ".github" / "workflows" / "ci.yml"
-SECURITY_POLICY = PROJECT_ROOT / "docs" / "platform_security_audit.md"
+SECURITY_POLICY = PROJECT_ROOT / "docs" / "GOVERNANCE.md"
 LOCAL_POSTGRES_COMPOSE = PROJECT_ROOT / "infra" / "docker" / "compose.yaml"
 
 

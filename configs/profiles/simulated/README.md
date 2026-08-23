@@ -37,4 +37,4 @@ uv run --offline --no-sync northstar live preview-rebalance \
 `live poll` 或 `live sync` 取得异步成交并对账。
 
 这条流程只会修改本地 `ctp_sim` 状态和开发数据库，绝不连接期货公司。完整能力边界见
-[`docs/03_执行与安全边界.md`](../../../docs/03_执行与安全边界.md)。
+[`docs/ARCHITECTURE.md`](../../../docs/ARCHITECTURE.md)。
