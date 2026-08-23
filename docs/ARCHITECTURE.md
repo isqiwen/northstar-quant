@@ -420,6 +420,185 @@ Research Card + named activation
 短时 receipt，不能 submit 或控制 broker。只有最终、opaque 的 `ctp_sim` authority 可以消费收据，且必须在每次副作用前
 完成新鲜状态和报价检查。任何直写 synthetic target、手工 hash、过期 quote 或 scope 漂移都被拒绝。
 
+### 模拟盘：paper 与 `ctp_sim` 的完整执行数据流
+
+`paper` 与 `ctp_sim` 都是隔离运行模式，却不是可互换的同一提交路径。`paper` 走 application 的常规本地纸面账户闭环；
+`ctp_sim` 只接受 `CtpSimCandidateExecutor` 从完整 provenance 请求重放出的实际合约批次。两条路径的订单、成交、
+持仓、账本和对账安全状态都会反馈到下一轮风控与 preflight；普通 `live.execute` 入口不能直接向 `ctp_sim` 提交订单。
+
+#### `paper`：本地纸面账户闭环
+
+```mermaid
+flowchart LR
+    subgraph inputs["受控输入"]
+        paperSettings["Settings: broker=paper"]
+        marketData["受控 market / signal 数据"]
+        frozenTarget["冻结策略目标"]
+    end
+
+    subgraph paperExecution["application 与 paper 执行"]
+        paperService["live_service<br/>execute_latest_targets_once"]
+        paperConnect["PaperBrokerAdapter.connect"]
+        paperSnapshot["PaperBrokerAdapter.sync_state<br/>BrokerStateSnapshot 与 paper_state quotes"]
+        runtimeRisk["assess_runtime_risk<br/>安全开关、行情、资金、仓位与挂单"]
+        paperPreflight["build_preflight_result<br/>PIT、合约、日历、账户与报价"]
+        paperPlan["ExecutionPlan / RebalanceOrderPlan<br/>OrderRequest 不是 BrokerOrder"]
+        executionLease["账户 execution lease"]
+        paperRouter["OrderRouter<br/>准备前后重验风险"]
+        paperDurable["DurableBrokerAdapter<br/>持久化 intent 与幂等身份"]
+        paperBroker["PaperBrokerAdapter.submit_order"]
+        pollPaper["poll_orders_and_fills_once<br/>或下一次同步"]
+    end
+
+    paperState[("paper state.json<br/>cash、positions、orders、fills、last_prices")]
+    executionRecords[("PostgreSQL<br/>plan、order intent、ledger、<br/>reconciliation safety state")]
+    paperReconciliation["reconcile_broker_state<br/>reconciliation / ledger / settlement"]
+    noPaperRisk["NO NEW RISK<br/>风险或 preflight 未通过"]
+    paperHalt["sticky HALT<br/>快照、订单或成交不可解释"]
+
+    paperSettings --> paperService
+    marketData --> paperService
+    frozenTarget --> paperService
+    paperService --> executionLease
+    executionLease --> paperConnect
+    paperConnect --> paperSnapshot
+    paperState --> paperSnapshot
+    paperSnapshot --> paperReconciliation
+    paperSnapshot --> runtimeRisk
+    marketData --> runtimeRisk
+    frozenTarget --> runtimeRisk
+    paperSnapshot --> paperPreflight
+    marketData --> paperPreflight
+    frozenTarget --> paperPreflight
+    runtimeRisk --> paperPreflight
+    paperPreflight -->|"can trade"| paperPlan
+    paperPlan -->|"保存 ExecutionPlan"| executionRecords
+    paperPlan --> paperRouter
+    paperRouter --> paperDurable
+    executionLease -.->|"提交期持有"| paperDurable
+    paperDurable -->|"先写入 durable intent"| executionRecords
+    paperDurable --> paperBroker
+    paperBroker --> paperState
+    paperState --> pollPaper
+    pollPaper --> paperSnapshot
+    paperReconciliation -->|"写入账本与安全状态"| executionRecords
+    executionRecords -.->|"下一轮状态"| runtimeRisk
+    executionRecords -.->|"下一轮状态"| paperPreflight
+    runtimeRisk -.->|"阻断"| noPaperRisk
+    paperPreflight -.->|"阻断"| noPaperRisk
+    paperReconciliation -.->|"未知或冲突"| paperHalt
+```
+
+#### `ctp_sim`：受证据、人工审批和一次性授权约束的本地 CTP 语义模拟器
+
+```mermaid
+flowchart LR
+    subgraph provenance["可验证的候选执行证据"]
+        simSettings["Settings: broker=ctp_sim<br/>live disabled、kill switch disabled"]
+        activation["具名 activation 与组合目标"]
+        riskApproval["账户绑定的人工风险批准"]
+        simFacts["账户快照、实际合约、日历、规则、<br/>fresh ctp_sim quotes 与 NORMAL 对账状态"]
+        provenanceRequest["ExecutionProvenanceRequest"]
+    end
+
+    subgraph ctpSimExecution["受控 ctp_sim 提交边界"]
+        simExecutor["CtpSimCandidateExecutor.prepare"]
+        provenancePreflight["ExecutionProvenancePreflight<br/>重放数据、组合、风险与执行证据"]
+        evidenceReceipt["短时 hash-bound receipt<br/>全部 eligibility 均为 false"]
+        simBundle["CtpSimCandidateExecutionBundle<br/>规范化 OrderRequest"]
+        simSubmit["bundle.submit<br/>提交前新鲜对账与预校验"]
+        simLease["账户 execution lease"]
+        simGate["不透明一次性 authority<br/>重验 expiry、approval、state 与 quote hash"]
+        simDurable["DurableBrokerAdapter / OrderRouter<br/>持久化 intent、幂等与风险重验"]
+        simBroker["CtpSimBrokerAdapter.submit_order"]
+        simSync["sync_state_checked<br/>推进 partial / fill / cancel"]
+    end
+
+    simState[("ctp_sim state.json<br/>quotes、positions、orders、fills、<br/>balance、margin、trading day")]
+    simRecords[("PostgreSQL 原子边界<br/>plan、durable order intent、<br/>provenance consumption、ledger、safety state")]
+    simReconciliation["reconcile_broker_state<br/>所有 order_ref / fill 必须可解释"]
+    noSimRisk["NO NEW RISK<br/>证据、审批、报价、账户或对账异常"]
+    simHalt["sticky HALT<br/>漂移、未知订单或未知 fill"]
+
+    activation --> provenanceRequest
+    provenanceRequest --> simExecutor
+    simSettings --> simExecutor
+    riskApproval --> simExecutor
+    simFacts --> simExecutor
+    simExecutor --> provenancePreflight
+    provenancePreflight --> evidenceReceipt
+    simExecutor --> simBundle
+    evidenceReceipt -.->|"证据，不是提交能力"| simBundle
+    simBundle --> simReconciliation
+    simState --> simSync
+    simSync --> simReconciliation
+    simReconciliation -->|"NORMAL"| simLease
+    simLease --> simSubmit
+    simSubmit --> simGate
+    simGate --> simDurable
+    simDurable -->|"原子写入记录"| simRecords
+    simDurable --> simBroker
+    simBroker --> simState
+    simReconciliation -->|"写入账本与安全状态"| simRecords
+    simRecords -.->|"解释 order / fill"| simReconciliation
+    provenancePreflight -.->|"任一验证失败"| noSimRisk
+    simSubmit -.->|"状态、报价、审批或租约异常"| noSimRisk
+    simGate -.->|"过期、漂移或重验失败"| noSimRisk
+    simReconciliation -.->|"不可解释"| simHalt
+```
+
+`ExecutionProvenancePreflight` 的 receipt 仅是证据，不能授权提交；`CtpSimCandidateExecutor` 自行重放请求，
+再由私有 authority、fresh quotes、正常对账状态、执行租约和一次性 consumption 共同约束 `ctp_sim` 副作用。
+当前默认运行环境没有可用的人工批准签发器，因此上图的正向提交支路只有在已提供经验证批准的隔离 composition
+中可达；缺少任一证据时立即 `NO NEW RISK`。`PaperBrokerAdapter` 与 `CtpSimBrokerAdapter` 都只写本地状态文件，
+绝不连接期货公司前置。
+
+### 真实 CTP / 实盘：当前可达的数据流以拒绝结束
+
+真实 CTP 不能被画成一条已接通的交易链，因为仓库当前不存在这样的路径。下面展示的是所有当前可达的输入、
+安全门和拒绝点：授权数据、画像、账户、日历、报价和审批是未来实盘所需的证据，却不足以绕过 application 或
+adapter 的 fail-closed 边界。图中没有“真实 CTP 前置已连接”或“真实 BrokerOrder 已提交”的节点。
+
+```mermaid
+flowchart LR
+    subgraph futureInputs["未来实盘所需但当前不足的输入"]
+        liveConfig["Settings: broker=ctp<br/>即使显式 live enabled"]
+        liveEvidence["授权数据、production profile、账户、<br/>实际合约、日历、报价与风险审批"]
+        liveRequest["请求 CTP 执行"]
+    end
+
+    safetyGate{"画像治理、<br/>safety switch 与运行时证据通过？"}
+    stopSafety["NO NEW RISK<br/>默认开关、画像或证据失败"]
+    liveService["application / live_service"]
+    pickBroker["_pick_broker"]
+    applicationRefusal["CTP_EXECUTION_ADAPTER_REQUIRED<br/>未实现连接、报单和回报状态机"]
+    directFront["直接提供真实 CTP front / SDK / credentials"]
+    ctpAdapter["CtpBrokerAdapter.connect"]
+    adapterRefusal["CTP_REAL_FRONT_DISABLED<br/>front.connect 前拒绝"]
+    fakeFront["FakeCtpFront<br/>仅 unit-test double"]
+    fakeOnly["fake-only contract test"]
+    noMutation["无真实连接、无 BrokerOrder、<br/>无账户变更、无真实回报"]
+
+    liveConfig --> safetyGate
+    liveEvidence --> safetyGate
+    liveRequest --> safetyGate
+    safetyGate -->|"否或未知"| stopSafety
+    safetyGate -->|"即使假设未来通过"| liveService
+    liveService --> pickBroker
+    pickBroker --> applicationRefusal
+    applicationRefusal --> noMutation
+    directFront --> ctpAdapter
+    ctpAdapter --> adapterRefusal
+    adapterRefusal --> noMutation
+    fakeFront --> ctpAdapter
+    ctpAdapter -->|"仅精确 fake"| fakeOnly
+```
+
+`live_service._pick_broker()` 在 `broker=ctp` 时即拒绝连接、报单和回报状态机；即便绕过该 composition root，
+`CtpBrokerAdapter` 也只允许精确的 `FakeCtpFront`，任何真实 front 都在连接前以 `CTP_REAL_FRONT_DISABLED` 失败。
+所以这张图描述的是当前实盘的完整安全数据流，而不是生产接入完成声明。真正的后续链还需要受授权的实时数据、
+production profile 和运行时制品、真实 CTP SDK/front/credential/callback 实现，以及独立人工审批与生产运维前提。
+
 ## 5. AI 边界
 
 AI 只能经封闭、typed 的 `TypedResearchToolApi` 访问 research-only 工具：它不可达 portfolio/risk/trading/live、

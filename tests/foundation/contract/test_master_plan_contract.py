@@ -106,6 +106,12 @@ def test_master_plan_tracks_completed_wp_and_current_work() -> None:
     doc_wp05 = plan.split("## DOC-WP05", maxsplit=1)[1].split("# 20.", maxsplit=1)[0]
     assert "**Status:** DONE" in doc_wp05
     assert "Commodity/Instrument/Contract 约束放入 Data" in doc_wp05
+    assert "## DOC-WP06 — Simulation and Live Data Flows" in plan
+    doc_wp06 = plan.split("## DOC-WP06", maxsplit=1)[1].split("# 20.", maxsplit=1)[0]
+    assert "**Status:** DONE" in doc_wp06
+    assert "分别包含 `paper`、`ctp_sim` 与真实 CTP fail-closed 的完整流图" in doc_wp06
+    assert "CTP_REAL_FRONT_DISABLED" in doc_wp06
+    assert "未启用 real CTP、账户、凭据或实盘操作" in doc_wp06
     assert "P10-WP08 与 P10-WP09 均需外部前提" in plan
     wp01_p7 = plan.split("## P7-WP01 — Typed Tool API", maxsplit=1)[1].split(
         "## P7-WP02", maxsplit=1

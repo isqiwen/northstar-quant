@@ -347,6 +347,93 @@ def test_architecture_preserves_non_trading_submission_boundary() -> None:
     assert "P8_CTP_SIM_CANDIDATE_E2E" in scripts
 
 
+def test_architecture_documents_complete_simulation_and_live_data_flows() -> None:
+    architecture = _read(ARCHITECTURE_PATH)
+    paper_flow = architecture.split(
+        "#### `paper`：本地纸面账户闭环\n", maxsplit=1
+    )[1].split("#### `ctp_sim`：", maxsplit=1)[0]
+    ctp_sim_flow = architecture.split(
+        "#### `ctp_sim`：受证据、人工审批和一次性授权约束的本地 CTP 语义模拟器\n",
+        maxsplit=1,
+    )[1].split("### 真实 CTP / 实盘：", maxsplit=1)[0]
+    live_flow = architecture.split(
+        "### 真实 CTP / 实盘：当前可达的数据流以拒绝结束\n", maxsplit=1
+    )[1].split("## 5. AI 边界", maxsplit=1)[0]
+
+    for flow in (paper_flow, ctp_sim_flow, live_flow):
+        assert "```mermaid\nflowchart LR" in flow
+
+    for required in (
+        "PaperBrokerAdapter.sync_state",
+        "assess_runtime_risk",
+        "build_preflight_result",
+        "ExecutionPlan / RebalanceOrderPlan",
+        "OrderRouter",
+        "DurableBrokerAdapter",
+        "paper state.json",
+        "reconcile_broker_state",
+        "sticky HALT",
+    ):
+        assert required in paper_flow
+
+    for required in (
+        "ExecutionProvenanceRequest",
+        "CtpSimCandidateExecutor.prepare",
+        "ExecutionProvenancePreflight",
+        "全部 eligibility 均为 false",
+        "CtpSimCandidateExecutionBundle",
+        "CtpSimBrokerAdapter.submit_order",
+        "ctp_sim state.json",
+        "provenance consumption",
+        "NO NEW RISK",
+    ):
+        assert required in ctp_sim_flow
+
+    for required in (
+        "CTP_EXECUTION_ADAPTER_REQUIRED",
+        "CTP_REAL_FRONT_DISABLED",
+        "FakeCtpFront",
+        "front.connect 前拒绝",
+        "无真实连接、无 BrokerOrder",
+    ):
+        assert required in live_flow
+
+    source_markers = {
+        "src/northstar_quant/application/live_service.py": (
+            "def execute_latest_targets_once",
+            "def poll_orders_and_fills_once",
+            "CTP_EXECUTION_ADAPTER_REQUIRED",
+        ),
+        "src/northstar_quant/application/execution_provenance_preflight.py": (
+            "class ExecutionProvenancePreflight",
+        ),
+        "src/northstar_quant/application/ctp_sim_candidate_execution.py": (
+            "class CtpSimCandidateExecutionBundle",
+            "class CtpSimCandidateExecutor",
+        ),
+        "src/northstar_quant/trading_execution/broker/paper_broker.py": (
+            "class PaperBrokerAdapter",
+        ),
+        "src/northstar_quant/trading_execution/broker/ctp_sim_broker.py": (
+            "class CtpSimBrokerAdapter",
+        ),
+        "src/northstar_quant/trading_execution/broker/ctp_broker.py": (
+            "class CtpBrokerAdapter",
+            "CTP_REAL_FRONT_DISABLED",
+        ),
+        "src/northstar_quant/trading_execution/orders/durable_submission.py": (
+            "class DurableBrokerAdapter",
+        ),
+        "src/northstar_quant/trading_execution/reconciliation/reconciliation.py": (
+            "def reconcile_broker_state",
+        ),
+    }
+    for relative_path, markers in source_markers.items():
+        source = _read(PROJECT_ROOT / relative_path)
+        for marker in markers:
+            assert marker in source
+
+
 def test_development_python_example_is_parseable_and_describes_flat_targets() -> None:
     development = _read(DEVELOPMENT_PATH)
     python_blocks = _fenced_python_blocks(development)

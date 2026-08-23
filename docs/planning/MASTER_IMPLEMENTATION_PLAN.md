@@ -82,7 +82,7 @@ next_task:
 blocked_work_packages: [P10-WP08, P10-WP09]
 ```
 
-P10 已完成 `7/9` 个 Work Package（78%）；其余 P10-WP08 与 P10-WP09 均需外部前提。用户授权的跨阶段文档工作包 `DOC-WP05` 已完成；它不改变 P10 的验收计数或外部阻塞状态。
+P10 已完成 `7/9` 个 Work Package（78%）；其余 P10-WP08 与 P10-WP09 均需外部前提。用户授权的跨阶段文档工作包 `DOC-WP06` 已完成；它不改变 P10 的验收计数或外部阻塞状态。
 
 ---
 
@@ -3995,6 +3995,50 @@ verification:
 
 ---
 
+## DOC-WP06 — Simulation and Live Data Flows
+
+**Status:** DONE
+
+**Origin:** 用户要求架构设计补充模拟盘与实盘的完整数据流图。
+
+**Goal:** 用与实际实现一致的 Mermaid flowchart 展示 paper / `ctp_sim` 的端到端数据、证据、执行、
+回报、持仓、账本与对账反馈流，并单独展示真实 CTP 在当前仓库中止于 fail-closed 边界的完整路径。
+
+**Scope:**
+
+- 在架构文档的跨领域证据流中分别增加 `paper`、`ctp_sim` 与真实 CTP fail-closed 数据流；
+- 区分 paper、`ctp_sim`、真实 CTP 的适配器与状态边界，不把任何本地证据表述为生产授权；
+- 标注配置、授权数据、PIT/合约/日历、风险审批、preflight、durable intent、订单回报、对账与风险状态的关系；
+- 为完整性、当前真实 CTP 拒绝点和核心安全文案增加文档契约；
+- 不新增 CTP SDK、凭据、账户、网络连接、实盘操作或数据库 schema。
+
+**Acceptance:**
+
+- 架构文档分别包含 `paper`、`ctp_sim` 与真实 CTP fail-closed 的完整流图；
+- 图中真实 CTP 路径在 `CTP_REAL_FRONT_DISABLED` 前终止，不能被理解为已连接或可报单；
+- 图中的关键类型、存储和安全边界可追溯到源码；
+- 文档、架构契约、Ruff 和 mypy baseline 通过。
+
+**Completion:**
+
+```yaml
+completed_at: 2026-08-23
+commit: null
+notes: >-
+  新增三张与源码契约对应的 Mermaid flowchart：paper 展示受控数据/冻结目标、运行时风险、
+  preflight、计划、租约、durable intent、纸面状态、轮询与对账反馈；ctp_sim 展示 provenance
+  重放、非交易 receipt、人工审批、opaque authority、一次性消费和本地模拟器闭环；真实 CTP
+  展示 application 与 adapter 的两个 fail-closed 停止点。未启用 real CTP、账户、凭据或实盘操作。
+verification:
+  - "Documentation contract — 14 passed"
+  - "Documentation/master-plan/P10/architecture contracts — 124 passed"
+  - "ruff check ."
+  - "check_mypy_baseline.py check"
+  - "git diff --check"
+```
+
+---
+
 # 20. Codex Work Package 标准模板
 
 ```yaml
@@ -4300,7 +4344,7 @@ next_task:
   status: BLOCKED
 ```
 
-P10-WP08 与 P10-WP09 均由外部前提阻塞；DOC-WP01 至 DOC-WP05 均已完成。
+DOC-WP06 已完成；P10-WP08 与 P10-WP09 仍由外部前提阻塞。
 在获得授权的外部条件前维持 `NO LIVE ACTION`。
 
 ---
@@ -4403,5 +4447,6 @@ P10-WP08 与 P10-WP09 均由外部前提阻塞；DOC-WP01 至 DOC-WP05 均已完
 | 2026-08-23 | DOC-WP03：完成架构核心类型关系图。Foundation、Data、Intelligence、Research、Portfolio/Risk、Trading/Execution 和 application 各有一张源码可追溯的 Mermaid 类图；图显式保留 Target/Plan/Order 非等同性、PIT 制品快照和 ctp_sim fail-closed 边界。 | DONE |
 | 2026-08-23 | DOC-WP04：将六张领域类关系图归位到对应模块说明，将 application 图归位到系统拓扑的 composition-root 说明；删除脱离上下文的独立图章节并以文档契约固定位置。 | DONE |
 | 2026-08-23 | DOC-WP05：删除重复的领域语义总览，将 Commodity/Instrument/Contract 与 Fill/ClosedTrade 约束分别归入 Data 与 Trading/Execution；同步更新锚点、章节编号与文档契约。 | DONE |
+| 2026-08-23 | DOC-WP06：补齐运行模式数据流。paper、`ctp_sim` 与真实 CTP 各有一张 Mermaid flowchart，分别覆盖本地纸面闭环、受证据/审批/一次性授权约束的本地 CTP 语义模拟，以及连接前 fail-closed 的真实 CTP 拒绝路径；未启用账户、凭据、连接或实盘操作。 | DONE |
 
 > 所有重大架构变化、阶段调整、WP 删除/新增都必须记录在这里。
