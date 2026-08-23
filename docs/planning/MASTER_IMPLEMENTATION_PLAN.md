@@ -82,7 +82,7 @@ next_task:
 blocked_work_packages: [P10-WP08, P10-WP09]
 ```
 
-P10 已完成 `7/9` 个 Work Package（78%）；其余 P10-WP08 与 P10-WP09 均需外部前提。用户授权的跨阶段文档工作包 `DOC-WP03` 已完成；它不改变 P10 的验收计数或外部阻塞状态。
+P10 已完成 `7/9` 个 Work Package（78%）；其余 P10-WP08 与 P10-WP09 均需外部前提。用户授权的跨阶段文档工作包 `DOC-WP04` 已完成；它不改变 P10 的验收计数或外部阻塞状态。
 
 ---
 
@@ -3911,6 +3911,49 @@ notes: >-
 
 ---
 
+## DOC-WP04 — Architecture Diagram Placement
+
+**Status:** DONE
+
+**Origin:** 用户指出核心类型关系图应当紧贴 `## 4. 六个领域` 中对应领域的说明，而不是作为脱离上下文的独立总章节。
+
+**Goal:** 将六个领域的图分别归位到其领域说明下，将 `application` composition root 的图归位到系统拓扑中的
+`application/` 说明下，使读者可以在阅读模块职责时立即看到对应的核心类型关系。
+
+**Scope:**
+
+- 保留 DOC-WP03 已验证的七张 Mermaid `classDiagram`、关系语义和安全说明；
+- 删除独立的“核心类型关系图”总章节，将图例作为 `## 4. 六个领域` 的共同阅读约定；
+- 将 Foundation、Data、Intelligence、Research、Portfolio/Risk、Trading/Execution 图各自放在对应的领域小节内；
+- 将 application 图放在系统拓扑的 composition-root 说明内，不把它误写成第七个业务领域；
+- 更新文档契约，验证图的数量、源码可追溯性以及所属章节位置；
+- 不改动代码、数据库 schema、运行配置、数据源或交易能力。
+
+**Acceptance:**
+
+- 六张领域图均位于 `## 4. 六个领域` 下对应的领域小节中；
+- application 图位于 `application/` composition-root 的说明中，而非六领域或独立总章节；
+- 图例、关系和 fail-closed 说明不丢失，且不暗示生产授权；
+- 文档、架构契约、Ruff 和 mypy baseline 通过。
+
+**Completion:**
+
+```yaml
+completed_at: 2026-08-23
+commit: null
+notes: >-
+  将 Foundation、Data、Intelligence、Research、Portfolio/Risk 与 Trading/Execution 的六张已验证类图
+  分别归位到 `## 4. 六个领域` 中的对应小节，并将 application 图归位到系统拓扑的 composition-root
+  说明下。删除独立图章节、保留共同图例和所有关系/安全文字；文档契约同时验证图数量、源码类型与所属位置。
+verification:
+  - "Documentation/master-plan/P10/architecture contracts — 122 passed"
+  - "ruff check ."
+  - "check_mypy_baseline.py check"
+  - "git diff --check"
+```
+
+---
+
 # 20. Codex Work Package 标准模板
 
 ```yaml
@@ -4216,7 +4259,7 @@ next_task:
   status: BLOCKED
 ```
 
-P10-WP08 与 P10-WP09 均由外部前提阻塞；DOC-WP01、DOC-WP02 与 DOC-WP03 已完成。
+P10-WP08 与 P10-WP09 均由外部前提阻塞；DOC-WP01、DOC-WP02、DOC-WP03 与 DOC-WP04 已完成。
 在获得授权的外部条件前维持 `NO LIVE ACTION`。
 
 ---
@@ -4317,5 +4360,6 @@ P10-WP08 与 P10-WP09 均由外部前提阻塞；DOC-WP01、DOC-WP02 与 DOC-WP0
 | 2026-08-23 | DOC-WP01：完成文档治理与架构设计收敛。旧编号文档、陈旧路线图和重复 README 叙述已由 `ARCHITECTURE.md`、`DEVELOPMENT.md`、`OPERATIONS.md`、`GOVERNANCE.md` 替代；planning 保留为独立控制面。所有仓库入口、配置/脚本引用和文档契约已同步，未创建旧路径兼容页。 | DONE |
 | 2026-08-23 | DOC-WP02：完成技术底座与数据领域模块的 clean breaking rename。`platform`/`data_platform` 目录、imports、测试布局、架构契约、脚本、迁移、CI、配置和文档已统一为 `foundation`/`data`；旧包不存在，未保留 alias、adapter、wrapper 或双路径兼容层。 | DONE |
 | 2026-08-23 | DOC-WP03：完成架构核心类型关系图。Foundation、Data、Intelligence、Research、Portfolio/Risk、Trading/Execution 和 application 各有一张源码可追溯的 Mermaid 类图；图显式保留 Target/Plan/Order 非等同性、PIT 制品快照和 ctp_sim fail-closed 边界。 | DONE |
+| 2026-08-23 | DOC-WP04：将六张领域类关系图归位到 `## 4. 六个领域` 的对应模块说明，将 application 图归位到系统拓扑的 composition-root 说明；删除脱离上下文的独立图章节并以文档契约固定位置。 | DONE |
 
 > 所有重大架构变化、阶段调整、WP 删除/新增都必须记录在这里。

@@ -114,19 +114,34 @@ def test_architecture_documents_verified_core_class_relationship_diagrams() -> N
         flags=re.DOTALL,
     )
 
-    expected_sections = (
-        "### Foundation：运行时配置组合",
-        "### Data：不可变制品、质量与 PIT 版本",
-        "### Intelligence：证据到非交易特征投影",
-        "### Research：可复现实验的静态证据链",
-        "### Portfolio/Risk：目标、组合证据与批准",
-        "### Trading/Execution：计划绑定与提交边界",
-        "### Application：跨领域 composition root",
+    domain_sections = (
+        ("### Foundation\n", "### Data\n", "RuntimeConfiguration"),
+        ("### Data\n", "### Intelligence\n", "DatasetVersion"),
+        (
+            "### Intelligence\n",
+            "### Research & Strategy\n",
+            "IntelligenceFeatureProjectionRequest",
+        ),
+        ("### Research & Strategy\n", "### Portfolio & Risk\n", "ExperimentSpec"),
+        (
+            "### Portfolio & Risk\n",
+            "### Trading & Execution\n",
+            "PortfolioCompositionEvidence",
+        ),
+        ("### Trading & Execution\n", "## 5. 跨领域证据流\n", "ExecutionPlan"),
     )
-    assert "## 5. 核心类型关系图" in architecture
-    assert len(diagrams) == len(expected_sections)
-    for section in expected_sections:
-        assert section in architecture
+    assert "## 4. 六个领域" in architecture
+    assert "## 5. 核心类型关系图" not in architecture
+    assert len(diagrams) == len(domain_sections) + 1
+    for start, end, class_name in domain_sections:
+        domain_section = architecture.split(start, maxsplit=1)[1].split(end, maxsplit=1)[0]
+        assert "#### 核心类型关系图" in domain_section
+        assert f"class {class_name}" in domain_section
+
+    application_section = architecture.split(
+        "### Application：跨领域 composition root\n", maxsplit=1
+    )[1].split("## 3. 不可合并的领域语义\n", maxsplit=1)[0]
+    assert "class CtpSimCandidateExecutor" in application_section
 
     source_classes = {
         "src/northstar_quant/foundation/config/runtime_configuration.py": (

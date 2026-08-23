@@ -98,6 +98,10 @@ def test_master_plan_tracks_completed_wp_and_current_work() -> None:
     assert "**Status:** DONE" in plan.split("## DOC-WP03", maxsplit=1)[1].split(
         "# 20.", maxsplit=1
     )[0]
+    assert "## DOC-WP04 — Architecture Diagram Placement" in plan
+    doc_wp04 = plan.split("## DOC-WP04", maxsplit=1)[1].split("# 20.", maxsplit=1)[0]
+    assert "**Status:** DONE" in doc_wp04
+    assert "application 图位于 `application/` composition-root 的说明中" in doc_wp04
     assert "P10-WP08 与 P10-WP09 均需外部前提" in plan
     wp01_p7 = plan.split("## P7-WP01 — Typed Tool API", maxsplit=1)[1].split(
         "## P7-WP02", maxsplit=1
