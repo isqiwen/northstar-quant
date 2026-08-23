@@ -94,7 +94,7 @@ def breakout_target(*, instrument_id: str, close: float, high_20: float) -> Targ
 - 同一 dataset/config/code 输入的可重放结果。
 
 不要把 Feature、Strategy、PortfolioTarget、ExecutionPlan 或 BrokerOrder 合并成一个对象；完整语义见
-[架构设计](ARCHITECTURE.md#3-不可合并的领域语义)。
+[架构设计](ARCHITECTURE.md#3-六个领域)。
 
 ## 5. 回测与研究准入
 

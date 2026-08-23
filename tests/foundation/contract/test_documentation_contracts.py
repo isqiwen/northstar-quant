@@ -128,9 +128,9 @@ def test_architecture_documents_verified_core_class_relationship_diagrams() -> N
             "### Trading & Execution\n",
             "PortfolioCompositionEvidence",
         ),
-        ("### Trading & Execution\n", "## 5. 跨领域证据流\n", "ExecutionPlan"),
+        ("### Trading & Execution\n", "## 4. 跨领域证据流\n", "ExecutionPlan"),
     )
-    assert "## 4. 六个领域" in architecture
+    assert "## 3. 六个领域" in architecture
     assert "## 5. 核心类型关系图" not in architecture
     assert len(diagrams) == len(domain_sections) + 1
     for start, end, class_name in domain_sections:
@@ -140,7 +140,7 @@ def test_architecture_documents_verified_core_class_relationship_diagrams() -> N
 
     application_section = architecture.split(
         "### Application：跨领域 composition root\n", maxsplit=1
-    )[1].split("## 3. 不可合并的领域语义\n", maxsplit=1)[0]
+    )[1].split("## 3. 六个领域\n", maxsplit=1)[0]
     assert "class CtpSimCandidateExecutor" in application_section
 
     source_classes = {
@@ -205,6 +205,20 @@ def test_architecture_documents_verified_core_class_relationship_diagrams() -> N
         "CtpSimCandidateExecutionBundle *-- ExecutionProvenancePreflightReceipt : receipt",
     ):
         assert relation in architecture
+
+
+def test_architecture_places_domain_semantics_with_owning_modules() -> None:
+    architecture = _read(ARCHITECTURE_PATH)
+
+    assert "## 3. 不可合并的领域语义" not in architecture
+    data_section = architecture.split("### Data\n", maxsplit=1)[1].split(
+        "### Intelligence\n", maxsplit=1
+    )[0]
+    trading_section = architecture.split("### Trading & Execution\n", maxsplit=1)[1].split(
+        "## 4. 跨领域证据流\n", maxsplit=1
+    )[0]
+    assert "`Commodity` 是经济品种，`Instrument` 是可交易标的，`Contract` 是具体可交易合约" in data_section
+    assert "`Fill` 是外部成交事实，不等同于 `ClosedTrade` 或收益结论" in trading_section
 
 
 def test_local_markdown_links_resolve() -> None:

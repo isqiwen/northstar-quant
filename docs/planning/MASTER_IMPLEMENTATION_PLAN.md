@@ -82,7 +82,7 @@ next_task:
 blocked_work_packages: [P10-WP08, P10-WP09]
 ```
 
-P10 已完成 `7/9` 个 Work Package（78%）；其余 P10-WP08 与 P10-WP09 均需外部前提。用户授权的跨阶段文档工作包 `DOC-WP04` 已完成；它不改变 P10 的验收计数或外部阻塞状态。
+P10 已完成 `7/9` 个 Work Package（78%）；其余 P10-WP08 与 P10-WP09 均需外部前提。用户授权的跨阶段文档工作包 `DOC-WP05` 已完成；它不改变 P10 的验收计数或外部阻塞状态。
 
 ---
 
@@ -3915,7 +3915,7 @@ notes: >-
 
 **Status:** DONE
 
-**Origin:** 用户指出核心类型关系图应当紧贴 `## 4. 六个领域` 中对应领域的说明，而不是作为脱离上下文的独立总章节。
+**Origin:** 用户指出核心类型关系图应当紧贴“六个领域”中对应领域的说明，而不是作为脱离上下文的独立总章节。
 
 **Goal:** 将六个领域的图分别归位到其领域说明下，将 `application` composition root 的图归位到系统拓扑中的
 `application/` 说明下，使读者可以在阅读模块职责时立即看到对应的核心类型关系。
@@ -3923,7 +3923,7 @@ notes: >-
 **Scope:**
 
 - 保留 DOC-WP03 已验证的七张 Mermaid `classDiagram`、关系语义和安全说明；
-- 删除独立的“核心类型关系图”总章节，将图例作为 `## 4. 六个领域` 的共同阅读约定；
+- 删除独立的“核心类型关系图”总章节，将图例作为“六个领域”的共同阅读约定；
 - 将 Foundation、Data、Intelligence、Research、Portfolio/Risk、Trading/Execution 图各自放在对应的领域小节内；
 - 将 application 图放在系统拓扑的 composition-root 说明内，不把它误写成第七个业务领域；
 - 更新文档契约，验证图的数量、源码可追溯性以及所属章节位置；
@@ -3931,7 +3931,7 @@ notes: >-
 
 **Acceptance:**
 
-- 六张领域图均位于 `## 4. 六个领域` 下对应的领域小节中；
+- 六张领域图均位于“六个领域”下对应的领域小节中；
 - application 图位于 `application/` composition-root 的说明中，而非六领域或独立总章节；
 - 图例、关系和 fail-closed 说明不丢失，且不暗示生产授权；
 - 文档、架构契约、Ruff 和 mypy baseline 通过。
@@ -3943,10 +3943,51 @@ completed_at: 2026-08-23
 commit: null
 notes: >-
   将 Foundation、Data、Intelligence、Research、Portfolio/Risk 与 Trading/Execution 的六张已验证类图
-  分别归位到 `## 4. 六个领域` 中的对应小节，并将 application 图归位到系统拓扑的 composition-root
+  分别归位到“六个领域”的对应小节，并将 application 图归位到系统拓扑的 composition-root
   说明下。删除独立图章节、保留共同图例和所有关系/安全文字；文档契约同时验证图数量、源码类型与所属位置。
 verification:
   - "Documentation/master-plan/P10/architecture contracts — 122 passed"
+  - "ruff check ."
+  - "check_mypy_baseline.py check"
+  - "git diff --check"
+```
+
+---
+
+## DOC-WP05 — Domain Semantics Consolidation
+
+**Status:** DONE
+
+**Origin:** 用户确认架构设计中独立的“不可合并的领域语义”总览与各领域说明和核心关系图重复。
+
+**Goal:** 删除重复总览，将仍需显式表达的 Commodity/Instrument/Contract 与 Fill/ClosedTrade 语义分别放入
+Data 和 Trading/Execution 的职责说明，使约束紧贴其所属领域。
+
+**Scope:**
+
+- 删除 `ARCHITECTURE.md` 中独立的领域语义章节，并连续重编号后续章节；
+- 在 Data 中保留 Commodity、Instrument 与 Contract 的层级语义；
+- 在 Trading/Execution 中保留 Fill 与 ClosedTrade 的非等同性；
+- 更新文档契约与主计划，不改动任何领域模型、数据库或交易安全机制。
+
+**Acceptance:**
+
+- 不再存在独立的“不可合并的领域语义”章节；
+- 语义约束只在其对应的领域说明中出现，且不与已有类图/职责描述重复；
+- 文档、架构契约、Ruff 和 mypy baseline 通过。
+
+**Completion:**
+
+```yaml
+completed_at: 2026-08-23
+commit: null
+notes: >-
+  删除独立领域语义总览并连续重编号；将 Commodity/Instrument/Contract 约束放入 Data，
+  将 Fill/ClosedTrade 约束放入 Trading/Execution。同步修复开发文档的锚点和文档契约，
+  不改变任何代码、模型、数据库或交易安全边界。
+verification:
+  - "Documentation contract — 13 passed"
+  - "Documentation/master-plan/P10/architecture contracts — 123 passed"
   - "ruff check ."
   - "check_mypy_baseline.py check"
   - "git diff --check"
@@ -4259,7 +4300,7 @@ next_task:
   status: BLOCKED
 ```
 
-P10-WP08 与 P10-WP09 均由外部前提阻塞；DOC-WP01、DOC-WP02、DOC-WP03 与 DOC-WP04 已完成。
+P10-WP08 与 P10-WP09 均由外部前提阻塞；DOC-WP01 至 DOC-WP05 均已完成。
 在获得授权的外部条件前维持 `NO LIVE ACTION`。
 
 ---
@@ -4360,6 +4401,7 @@ P10-WP08 与 P10-WP09 均由外部前提阻塞；DOC-WP01、DOC-WP02、DOC-WP03 
 | 2026-08-23 | DOC-WP01：完成文档治理与架构设计收敛。旧编号文档、陈旧路线图和重复 README 叙述已由 `ARCHITECTURE.md`、`DEVELOPMENT.md`、`OPERATIONS.md`、`GOVERNANCE.md` 替代；planning 保留为独立控制面。所有仓库入口、配置/脚本引用和文档契约已同步，未创建旧路径兼容页。 | DONE |
 | 2026-08-23 | DOC-WP02：完成技术底座与数据领域模块的 clean breaking rename。`platform`/`data_platform` 目录、imports、测试布局、架构契约、脚本、迁移、CI、配置和文档已统一为 `foundation`/`data`；旧包不存在，未保留 alias、adapter、wrapper 或双路径兼容层。 | DONE |
 | 2026-08-23 | DOC-WP03：完成架构核心类型关系图。Foundation、Data、Intelligence、Research、Portfolio/Risk、Trading/Execution 和 application 各有一张源码可追溯的 Mermaid 类图；图显式保留 Target/Plan/Order 非等同性、PIT 制品快照和 ctp_sim fail-closed 边界。 | DONE |
-| 2026-08-23 | DOC-WP04：将六张领域类关系图归位到 `## 4. 六个领域` 的对应模块说明，将 application 图归位到系统拓扑的 composition-root 说明；删除脱离上下文的独立图章节并以文档契约固定位置。 | DONE |
+| 2026-08-23 | DOC-WP04：将六张领域类关系图归位到对应模块说明，将 application 图归位到系统拓扑的 composition-root 说明；删除脱离上下文的独立图章节并以文档契约固定位置。 | DONE |
+| 2026-08-23 | DOC-WP05：删除重复的领域语义总览，将 Commodity/Instrument/Contract 与 Fill/ClosedTrade 约束分别归入 Data 与 Trading/Execution；同步更新锚点、章节编号与文档契约。 | DONE |
 
 > 所有重大架构变化、阶段调整、WP 删除/新增都必须记录在这里。

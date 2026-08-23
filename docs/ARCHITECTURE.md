@@ -96,20 +96,7 @@ Application 只协调各领域已存在的契约：activation receipt、风险 a
 
 `tests/architecture/` 强制检查无循环、无动态导入绕过、无反向业务依赖和公共 API 边界；失败时修复实现，不能删除测试。
 
-## 3. 不可合并的领域语义
-
-以下概念是不同的类型和状态机，禁止以临时字典或名称复用混淆：
-
-```text
-Document ≠ Event ≠ Feature ≠ Strategy
-StrategyTarget ≠ PortfolioTarget ≠ ExecutionPlan ≠ BrokerOrder
-Fill ≠ ClosedTrade
-Commodity ≠ Instrument ≠ Contract
-```
-
-`ExecutionPlan` 只是可审计计划，永远不是订单；`Fill` 是外部成交事实，不能自行代表已平仓交易或收益结论。
-
-## 4. 六个领域
+## 3. 六个领域
 
 以下每个领域说明后的“核心类型关系图”只展示该模块中最稳定、最能说明边界的关系，而不是把全部实现类、ORM
 记录或私有 helper 画成难以维护的全量 UML。图中的类名可直接在 `src/northstar_quant/` 对应模块中找到；跨阶段协作
@@ -161,6 +148,9 @@ Data 发布受治理的事实，而不是策略或交易行为：
 - Contract Master、product/instrument/contract、规则快照、品种池和交易日历；
 - 数据质量、版本、发布授权和 point-in-time（PIT）快照；
 - 标准化市场数据及其可用时点。
+
+`Commodity` 是经济品种，`Instrument` 是可交易标的，`Contract` 是具体可交易合约；三者不互换，
+规则、日历与可用性必须按其正确层级绑定。
 
 所有研究数据需要明确 `event_time`、`source_time`、`published_time`、`ingested_time`、`processed_time` 和
 `available_time`（按适用性取用）。回测只能消费：
@@ -346,6 +336,8 @@ ApprovedPortfolioTarget
 → reconciliation / ledger / settlement
 ```
 
+`Fill` 是外部成交事实，不等同于 `ClosedTrade` 或收益结论；后者只能由完整的持仓、账本与结算事实推导。
+
 持久化 intent 必须在 broker 调用之前；callback 必须能处理 duplicate、out-of-order、reconnect、retry 和 idempotency。
 未知订单、无法解释的成交或不一致账户状态导致 sticky `HALT`，且不能自动恢复。
 
@@ -384,7 +376,7 @@ classDiagram
 `DurableBrokerAdapter` 在调用底层适配器前增加持久化、幂等和租约边界。图中没有计划直达真实 CTP 的路径：
 不透明的 CTP-sim authority 只存在于隔离模拟提交边界，真实 CTP front 仍在连接前失败关闭。
 
-## 5. 跨领域证据流
+## 4. 跨领域证据流
 
 ### 数据与研究
 
@@ -428,7 +420,7 @@ Research Card + named activation
 短时 receipt，不能 submit 或控制 broker。只有最终、opaque 的 `ctp_sim` authority 可以消费收据，且必须在每次副作用前
 完成新鲜状态和报价检查。任何直写 synthetic target、手工 hash、过期 quote 或 scope 漂移都被拒绝。
 
-## 6. AI 边界
+## 5. AI 边界
 
 AI 只能经封闭、typed 的 `TypedResearchToolApi` 访问 research-only 工具：它不可达 portfolio/risk/trading/live、
 broker、配置、数据库、网络、进程或文件系统。Research、Intelligence 与 Data Quality Agent 的输出均为 non-tradable；
@@ -438,7 +430,7 @@ Ops Agent 只能读取单项 typed diagnostic snapshot。
 不得持久化 raw prompt、chain-of-thought、原始查询、文档、结果、rationale 或异常 payload。Agent 无权 approve、
 enable-live、resume-risk、submit 或连接 broker。
 
-## 7. 配置、运行与部署边界
+## 6. 配置、运行与部署边界
 
 运行设置是显式、typed、validated 的：活动 `configs/app.yaml` 由示例生成，`configs/app.local.yaml` 和 `.env`
 是本地私有覆盖；tracked 示例永远保持 paper / live-disabled。画像、source、研究准入、Contract Master、instrument、
@@ -458,7 +450,7 @@ release gate 在 root-owned transaction 内验证签名、manifest、控制/运�
 自动化不降级、不重试迁移、不绕过 health gate。systemd 服务采用 root-owned release/env snapshot、最小可写路径、
 `ProtectSystem=strict` 和 loopback-only dashboard。备份、恢复演练和生产 DR 的详细操作及限制见[运行手册](OPERATIONS.md)。
 
-## 8. 架构约束的执行
+## 7. 架构约束的执行
 
 架构不是只靠文字维护。`tests/architecture/` 检查分层、循环、公共 API 和特殊候选执行 seam；领域 contract、integration、
 simulation、golden、regression 与 failure tests 共同约束实现不得越过本文的依赖和安全边界。
