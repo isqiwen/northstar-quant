@@ -170,24 +170,28 @@ def test_p10_reconciles_stale_completion_matrix_entries() -> None:
 
 
 def test_p10_fixture_only_intelligence_corpus_is_documented_as_non_authorizing() -> None:
-    architecture = (PROJECT_ROOT / "docs" / "ARCHITECTURE.md").read_text(encoding="utf-8")
+    evidence_register = (
+        PROJECT_ROOT / "docs" / "planning" / "P10_MATURE_V1_ACCEPTANCE_EVIDENCE.md"
+    ).read_text(encoding="utf-8")
     tests_readme = (PROJECT_ROOT / "tests" / "README.md").read_text(encoding="utf-8")
 
-    assert "six_commodity_fixture_only_v1.json" in architecture
-    assert "Feature **定义**" in architecture
-    assert "FIXTURE_ONLY_INTELLIGENCE_REPLAY" in architecture
-    assert "synthetic outcome" in architecture
-    assert "不会构造" in architecture
+    assert "six_commodity_fixture_only_v1.json" in evidence_register
+    assert "Feature-definition handoff" in evidence_register
+    assert "FIXTURE_ONLY_INTELLIGENCE_REPLAY" in evidence_register
+    assert "synthetic outcome" in evidence_register
+    assert "不能伪造授权 source" in evidence_register
     assert "fixture_only" in tests_readme
     assert "交易映射" in tests_readme
 
 
 def test_p10_canonical_multi_strategy_composition_is_documented_as_non_executable() -> None:
-    architecture = (PROJECT_ROOT / "docs" / "ARCHITECTURE.md").read_text(encoding="utf-8")
+    evidence_register = (
+        PROJECT_ROOT / "docs" / "planning" / "P10_MATURE_V1_ACCEPTANCE_EVIDENCE.md"
+    ).read_text(encoding="utf-8")
     tests_readme = (PROJECT_ROOT / "tests" / "README.md").read_text(encoding="utf-8")
 
-    assert "CanonicalPortfolioComposer" in architecture
-    assert "PortfolioCompositionEvidence" in architecture
-    assert "PortfolioTarget v2" in architecture
-    assert "eligible_for_broker_order=false" in architecture
+    assert "CanonicalPortfolioComposer" in evidence_register
+    assert "PortfolioCompositionEvidence" in evidence_register
+    assert "PortfolioTarget v2" in evidence_register
+    assert "非执行、非 broker" in evidence_register
     assert "p10_canonical_multi_strategy_composition_v1.json" in tests_readme

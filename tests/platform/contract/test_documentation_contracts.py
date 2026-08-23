@@ -85,12 +85,25 @@ def test_consolidated_documents_have_single_responsibility() -> None:
     operations = _read(OPERATIONS_PATH)
     governance = _read(GOVERNANCE_PATH)
 
-    assert "唯一的架构设计权威" in architecture
+    assert "长期软件架构" in architecture
     assert "开发环境、代码约定、第一条研究路径" in development
     assert "运行、配置、报告、部署和数据保全" in operations
     assert "数据授权、研究准入、AI 权限、安全审计和人工控制" in governance
     assert "唯一实施进度事实来源" in _read(PLANNING_INDEX_PATH)
     assert MASTER_PLAN_PATH.is_file()
+
+
+def test_architecture_document_excludes_planning_and_acceptance_status() -> None:
+    architecture = _read(ARCHITECTURE_PATH)
+
+    assert "P10" not in architecture
+    assert "P8" not in architecture
+    assert "P3" not in architecture
+    assert "VERIFIED_OFFLINE" not in architecture
+    assert "VERIFIED_SIMULATION" not in architecture
+    assert "P10 验收证据" not in architecture
+    assert "Work Package" not in architecture
+    assert "模块职责、依赖方向、领域语义、证据流和安全控制边界" in architecture
 
 
 def test_local_markdown_links_resolve() -> None:

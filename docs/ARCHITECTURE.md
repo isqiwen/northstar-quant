@@ -1,16 +1,11 @@
 # Northstar Quant 架构设计
 
-> **规范状态：ACTIVE。** 本文是仓库唯一的架构设计权威；实现进度、Work Package 状态和验收证据分别以
-> [主实施计划](planning/MASTER_IMPLEMENTATION_PLAN.md)、[P10 验收证据登记册](planning/P10_MATURE_V1_ACCEPTANCE_EVIDENCE.md)
-> 与 [交易故障矩阵](planning/P10_TRADING_FAILURE_MATRIX.md) 为准。本文描述已实现边界，绝不把离线或仿真证据表述为生产授权。
+> 本文定义 Northstar Quant 的长期软件架构：模块职责、依赖方向、领域语义、证据流和安全控制边界。
 
 ## 1. 目的、状态与原则
 
 Northstar Quant 是面向中国商品期货的量化研究、情报、组合、风险和交易平台。它是
 **real-money-adjacent** 系统：即使在 offline、paper 或 `ctp_sim` 模式，也按未来真实资金系统的安全和可审计标准构建。
-
-P10 已完成 7/9 个 Work Package（78%）；剩余的生产灾备和权威数据接入受外部条件阻塞。因此仓库中的正向证据只可能是
-`VERIFIED_OFFLINE`、`VERIFIED_SIMULATION` 或 `SAFE_BOUNDARY`，不代表真实账户、真实 CTP、生产主机或实盘审批已经就绪。
 
 优先级固定为：Safety、Correctness、Data Integrity、Reproducibility、Architecture、Research Capability、
 Production Reliability、Performance、UI。
@@ -131,10 +126,8 @@ Source → Document → Entity → Event → Mechanism → Impact → Market Con
 Document 是原始证据，Event 是经生命周期和多来源 merge 后的事实主张；两者必须分离。事件保留 evidence，
 ontology 必须有版本；LLM 仅可提出受验证的结构化输出，不能作为 ground truth，也不能直接产生交易信号。
 
-P10 的六商品语料为 `FIXTURE_ONLY_INTELLIGENCE_REPLAY`：
-`six_commodity_fixture_only_v1.json` 只验证文档、事件、影响路径和 Feature **定义** 的可重放证据链。它不会构造
-P1 市场 `FeatureValue`、授权数据源、真实合约、target、approval、plan 或订单。`fixture_only` 与后续
-`synthetic outcome` 研究结果均是验证材料，不是可交易市场结论。
+未授权 source、fixture 或 synthetic input 只能用于隔离测试；它们不能构造可交易的市场 `FeatureValue`、
+真实合约、target、approval、plan 或订单。
 
 ### Research & Strategy
 
@@ -147,9 +140,8 @@ Feature → Experiment → Backtest → Validation → OOS / Stress → Research
 每次实验记录 DatasetVersion、FeatureVersion、StrategyVersion、配置、代码 revision、成本模型、滑点模型和 OOS 区间。
 同一输入必须产生同一结果。单次 Sharpe、短样本盈利、漂亮连续合约或参数搜索结果都不足以升级策略。
 
-Research 不依赖 broker。P8 中 `ResearchStrategyTargetActivator` 只重放具名人工 activation 审批、Research Card 和验证链，
-产生含 `StrategyTargetActivationRef` 的 hash-bound、non-tradable `StrategyTarget` 收据。即使在 `P8-WP04` 后，
-它也没有订单、运行时或 broker 权限。
+Research 不依赖 broker。应用层的 `ResearchStrategyTargetActivator` 只重放具名人工 activation 审批、Research Card 和验证链，
+产生含 `StrategyTargetActivationRef` 的 hash-bound、non-tradable `StrategyTarget` 收据；它没有订单、运行时或 broker 权限。
 
 ### Portfolio & Risk
 
@@ -163,7 +155,7 @@ eligible_for_broker_order=false
 ```
 
 组合审批必须以完整、未过期、同 scope 的市场/账户/风险/对账证据为条件。`UNKNOWN`、`WARN`、`BLOCK`、`HALT`、
-人工恢复要求或 drift 任一存在时，均不得产生 approval、P8 receipt、intent 或 broker mutation。认证的人类审批者与
+人工恢复要求或 drift 任一存在时，均不得产生 approval、execution-provenance receipt、intent 或 broker mutation。认证的人类审批者与
 最小权限数据库角色仍是外部前提；测试 issuer 不得成为生产接口。
 
 ### Trading & Execution
@@ -183,10 +175,10 @@ ApprovedPortfolioTarget
 持久化 intent 必须在 broker 调用之前；callback 必须能处理 duplicate、out-of-order、reconnect、retry 和 idempotency。
 未知订单、无法解释的成交或不一致账户状态导致 sticky `HALT`，且不能自动恢复。
 
-`ctp_sim` 是本地、持久化的 CTP 语义模拟，不连接期货公司。`CtpSimCandidateExecutor` 是 P8 受控副作用边界：
+`ctp_sim` 是本地、持久化的 CTP 语义模拟，不连接期货公司。`CtpSimCandidateExecutor` 是受控副作用边界：
 它在锁内重验状态和报价，一次性消费 durable provenance，写入 intent 后才提交到隔离的 `ctp_sim`。它无法访问真实
 CTP、Agent、CLI、scheduler、paper broker 或网络/进程面。真实 CTP front 在连接前拒绝
-`CTP_REAL_FRONT_DISABLED`；这是一条 `SAFE_BOUNDARY`，不是适配器或集成完成声明。
+`CTP_REAL_FRONT_DISABLED`；这只是连接前的安全拒绝边界，不是适配器或集成完成声明。
 
 ## 5. 跨领域证据流
 
@@ -228,8 +220,8 @@ Research Card + named activation
 → callbacks / reconciliation / ledger / settlement
 ```
 
-`ExecutionProvenancePreflight` 只是应用层纯验证器：它重放 activation、P3 和 P5 证据并返回所有 eligibility 都为 false 的
-短时 receipt，不能 submit 或控制 broker。只有最终、opaque 的 P8 `ctp_sim` authority 可以消费收据，且必须在每次副作用前
+`ExecutionProvenancePreflight` 只是应用层纯验证器：它重放 activation、组合、风险和执行证据并返回所有 eligibility 都为 false 的
+短时 receipt，不能 submit 或控制 broker。只有最终、opaque 的 `ctp_sim` authority 可以消费收据，且必须在每次副作用前
 完成新鲜状态和报价检查。任何直写 synthetic target、手工 hash、过期 quote 或 scope 漂移都被拒绝。
 
 ## 6. AI 边界
@@ -262,17 +254,7 @@ release gate 在 root-owned transaction 内验证签名、manifest、控制/运�
 自动化不降级、不重试迁移、不绕过 health gate。systemd 服务采用 root-owned release/env snapshot、最小可写路径、
 `ProtectSystem=strict` 和 loopback-only dashboard。备份、恢复演练和生产 DR 的详细操作及限制见[运行手册](OPERATIONS.md)。
 
-## 8. 验证与当前外部前提
+## 8. 架构约束的执行
 
-架构不是只靠文字维护。`tests/architecture/` 检查分层、循环、公共 API 和特殊 P8 seam；领域 contract、integration、
-simulation、golden、regression 与 failure tests 共同证明行为。当前可重放的交易故障证据索引见
-[P10 Trading Failure Matrix](planning/P10_TRADING_FAILURE_MATRIX.md)。
-
-下列事项仍需人工提供，未满足前必须保持 `NO LIVE ACTION`：
-
-- 经授权的 Linux production host、root gate/signer/known_hosts、hosted CI、生产 PostgreSQL 与受控 DR/PITR；
-- 数据 license、source authorization、权威合约/日历/规则制品和 production PIT 证据；
-- 认证的人类审批服务、最小权限 DB role，以及明确允许的真实账户操作；
-- 真实 CTP credential、前置和用户对 broker/account/environment/action 的明确确认。
-
-这些不是待补的“开关”，而是故意保留的安全边界。没有外部事实时，系统的正确行为是拒绝新风险。
+架构不是只靠文字维护。`tests/architecture/` 检查分层、循环、公共 API 和特殊候选执行 seam；领域 contract、integration、
+simulation、golden、regression 与 failure tests 共同约束实现不得越过本文的依赖和安全边界。
