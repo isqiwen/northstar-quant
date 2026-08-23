@@ -128,6 +128,10 @@ def test_p10_master_plan_links_evidence_and_tracks_only_ready_offline_work() -> 
     assert "**Status:** DONE" in plan.split("## DOC-WP02", maxsplit=1)[1].split(
         "# 20.", maxsplit=1
     )[0]
+    assert "## DOC-WP03 — Module Class Relationship Diagrams" in plan
+    assert "**Status:** DONE" in plan.split("## DOC-WP03", maxsplit=1)[1].split(
+        "# 20.", maxsplit=1
+    )[0]
 
     for evidence_id in ("I01", "I04", "I05", "I06"):
         line = next(line for line in register.splitlines() if line.startswith(f"| {evidence_id} "))

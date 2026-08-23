@@ -106,6 +106,92 @@ def test_architecture_document_excludes_planning_and_acceptance_status() -> None
     assert "模块职责、依赖方向、领域语义、证据流和安全控制边界" in architecture
 
 
+def test_architecture_documents_verified_core_class_relationship_diagrams() -> None:
+    architecture = _read(ARCHITECTURE_PATH)
+    diagrams = re.findall(
+        r"```mermaid\nclassDiagram\n(.*?)\n```",
+        architecture,
+        flags=re.DOTALL,
+    )
+
+    expected_sections = (
+        "### Foundation：运行时配置组合",
+        "### Data：不可变制品、质量与 PIT 版本",
+        "### Intelligence：证据到非交易特征投影",
+        "### Research：可复现实验的静态证据链",
+        "### Portfolio/Risk：目标、组合证据与批准",
+        "### Trading/Execution：计划绑定与提交边界",
+        "### Application：跨领域 composition root",
+    )
+    assert "## 5. 核心类型关系图" in architecture
+    assert len(diagrams) == len(expected_sections)
+    for section in expected_sections:
+        assert section in architecture
+
+    source_classes = {
+        "src/northstar_quant/foundation/config/runtime_configuration.py": (
+            "RuntimeConfiguration",
+        ),
+        "src/northstar_quant/data/contracts/data_domain.py": (
+            "Artifact",
+            "NormalizedArtifact",
+            "DatasetVersion",
+        ),
+        "src/northstar_quant/intelligence/domain/models.py": ("Event",),
+        "src/northstar_quant/intelligence/feature_projection/projection.py": (
+            "IntelligenceFeatureProjectionRequest",
+            "IntelligenceFeatureProjector",
+            "VersionedIntelligenceFeatureProjection",
+        ),
+        "src/northstar_quant/research/features/models.py": (
+            "FeatureVersion",
+            "FeatureLineage",
+            "FeatureBackfill",
+        ),
+        "src/northstar_quant/research/experiments/models.py": (
+            "ExperimentSpec",
+            "ExperimentRun",
+        ),
+        "src/northstar_quant/portfolio_risk/portfolio/composition.py": (
+            "CanonicalPortfolioComposer",
+            "PortfolioCompositionEvidence",
+        ),
+        "src/northstar_quant/portfolio_risk/portfolio/approval.py": (
+            "ApprovedPortfolioTarget",
+        ),
+        "src/northstar_quant/trading_execution/execution/plan.py": ("ExecutionPlan",),
+        "src/northstar_quant/trading_execution/live/plan_gate.py": ("PlanPreTradeGate",),
+        "src/northstar_quant/trading_execution/orders/durable_submission.py": (
+            "DurableBrokerAdapter",
+        ),
+        "src/northstar_quant/application/research_strategy_activation.py": (
+            "ResearchStrategyTargetActivator",
+        ),
+        "src/northstar_quant/application/execution_provenance_preflight.py": (
+            "ExecutionProvenancePreflight",
+        ),
+        "src/northstar_quant/application/ctp_sim_candidate_execution.py": (
+            "CtpSimCandidateExecutor",
+        ),
+    }
+    for relative_path, class_names in source_classes.items():
+        source = _read(PROJECT_ROOT / relative_path)
+        for class_name in class_names:
+            assert f"class {class_name}" in source
+            assert f"class {class_name}" in architecture
+
+    for relation in (
+        "RuntimeConfiguration o-- Settings : settings",
+        "DatasetVersion *-- ArtifactSnapshot : artifact_snapshots",
+        "Event *-- Evidence : evidence",
+        "ExperimentSpec --> ExperimentFeatureInput : feature_inputs",
+        "PortfolioCompositionEvidence *-- PortfolioTarget : portfolio_target",
+        "PlanPreTradeGate o-- PreflightResult : preflight",
+        "CtpSimCandidateExecutionBundle *-- ExecutionProvenancePreflightReceipt : receipt",
+    ):
+        assert relation in architecture
+
+
 def test_local_markdown_links_resolve() -> None:
     broken_links: list[str] = []
     for markdown_path in _markdown_files():

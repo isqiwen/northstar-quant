@@ -82,7 +82,7 @@ next_task:
 blocked_work_packages: [P10-WP08, P10-WP09]
 ```
 
-P10 已完成 `7/9` 个 Work Package（78%）；其余 P10-WP08 与 P10-WP09 均需外部前提。用户授权的跨阶段命名收敛工作包 `DOC-WP02` 已完成；它不改变 P10 的验收计数或外部阻塞状态。
+P10 已完成 `7/9` 个 Work Package（78%）；其余 P10-WP08 与 P10-WP09 均需外部前提。用户授权的跨阶段文档工作包 `DOC-WP03` 已完成；它不改变 P10 的验收计数或外部阻塞状态。
 
 ---
 
@@ -3873,6 +3873,44 @@ notes: >-
 
 ---
 
+## DOC-WP03 — Module Class Relationship Diagrams
+
+**Status:** DONE
+
+**Origin:** 用户指出架构设计只有模块边界和证据流，缺少各模块核心类型之间的关系图。
+
+**Goal:** 在唯一架构设计文档中为六个领域和 `application` composition root 补充与实际代码一致、可审查的类关系图，
+使读者能从模块职责继续追踪到关键模型、服务、协议和持久化/副作用边界。
+
+**Scope:**
+
+- 为 `foundation`、`data`、`intelligence`、`research`、`portfolio_risk`、`trading_execution` 和 `application`
+  分别增加一张 Mermaid `classDiagram`；
+- 每张图只表达稳定的核心公开类型及继承、组合或受控依赖，不罗列私有 helper 或重复内部实现；
+- 在图旁明确箭头语义和适用边界，保持 Document/Event、Target/Plan/Order、Fill/ClosedTrade 等语义不合并；
+- 增加文档契约，确保各图及其关键类型/安全边界不会被静默删除；
+- 不添加外部绘图资产、生产连接、数据源、账户、schema 或交易能力。
+
+**Acceptance:**
+
+- 架构文档包含七张按模块划分的 Mermaid `classDiagram`，并能追溯到实际实现中的类型；
+- 图中准确区分模型拥有关系、协议依赖和 application composition，不暗示跨层反向依赖；
+- 交易图仍显式保留 `ApprovedPortfolioTarget → ExecutionPlan → PreTradeCheck → BrokerOrder` 的非等同性和 fail-closed 边界；
+- 文档契约、Ruff、mypy baseline 与相关架构/文档测试通过。
+
+**Completion:**
+
+```yaml
+completed_at: 2026-08-23
+commit: null
+notes: >-
+  为 Foundation、Data、Intelligence、Research、Portfolio/Risk、Trading/Execution 与 application
+  composition root 增加七张源码可追溯的 Mermaid classDiagram；明确对象拥有、稳定绑定、受控依赖和
+  继承语义，不将离线或 ctp_sim 证据描述为生产授权。文档/架构契约 122 passed，Ruff 与 mypy baseline 通过。
+```
+
+---
+
 # 20. Codex Work Package 标准模板
 
 ```yaml
@@ -4173,12 +4211,13 @@ Northstar Quant 最终应该能够由一个高级技术负责人配合 Codex 长
 
 ```yaml
 next_task:
-  id: DOC-WP02
-  title: Foundation / Data Module Rename
-  status: IN_PROGRESS
+  id: P10-WP08
+  title: Platform Production / DR Acceptance
+  status: BLOCKED
 ```
 
-P10-WP08 与 P10-WP09 均由外部前提阻塞；当前执行 `DOC-WP02`。在获得授权的外部条件前维持 `NO LIVE ACTION`。
+P10-WP08 与 P10-WP09 均由外部前提阻塞；DOC-WP01、DOC-WP02 与 DOC-WP03 已完成。
+在获得授权的外部条件前维持 `NO LIVE ACTION`。
 
 ---
 
@@ -4277,5 +4316,6 @@ P10-WP08 与 P10-WP09 均由外部前提阻塞；当前执行 `DOC-WP02`。在�
 | 2026-08-23 | P10-WP07：完成 Trading Acceptance Evidence Closure。`P10_TRADING_FAILURE_MATRIX.md` 将 P5-WP10 的 disconnect/restart、重复/乱序回调、unknown order、stale facts、DB unavailable、timeout/network partition、identity mismatch、margin、price limit、cancel reject 和 rollover 固定为 T05-01 至 T05-11，并补 T05-12 的真实 P3 `BLOCK` 无 plan/intent/broker mutation sentinel contract 与 T05-13 的真实 CTP 连接前拒绝边界。所有正向证据仅为本地 `ctp_sim` / 隔离 PostgreSQL；没有真实 CTP、账户或实盘操作。P10 剩余 P10-WP08/P10-WP09 均为外部阻塞。 | DONE |
 | 2026-08-23 | DOC-WP01：完成文档治理与架构设计收敛。旧编号文档、陈旧路线图和重复 README 叙述已由 `ARCHITECTURE.md`、`DEVELOPMENT.md`、`OPERATIONS.md`、`GOVERNANCE.md` 替代；planning 保留为独立控制面。所有仓库入口、配置/脚本引用和文档契约已同步，未创建旧路径兼容页。 | DONE |
 | 2026-08-23 | DOC-WP02：完成技术底座与数据领域模块的 clean breaking rename。`platform`/`data_platform` 目录、imports、测试布局、架构契约、脚本、迁移、CI、配置和文档已统一为 `foundation`/`data`；旧包不存在，未保留 alias、adapter、wrapper 或双路径兼容层。 | DONE |
+| 2026-08-23 | DOC-WP03：完成架构核心类型关系图。Foundation、Data、Intelligence、Research、Portfolio/Risk、Trading/Execution 和 application 各有一张源码可追溯的 Mermaid 类图；图显式保留 Target/Plan/Order 非等同性、PIT 制品快照和 ctp_sim fail-closed 边界。 | DONE |
 
 > 所有重大架构变化、阶段调整、WP 删除/新增都必须记录在这里。
