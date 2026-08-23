@@ -9,8 +9,8 @@ from sqlalchemy.orm import Session
 from tests.helpers.durable_submission import RecordingBroker, order_request
 
 import northstar_quant.trading_execution.orders.durable_submission as durable_submission_module
-from northstar_quant.platform.db.models import OrderRecord
-from northstar_quant.platform.db.repositories import (
+from northstar_quant.foundation.db.models import OrderRecord
+from northstar_quant.foundation.db.repositories import (
     prepare_order_submission,
 )
 from northstar_quant.trading_execution.execution.models import OrderRequest

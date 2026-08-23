@@ -6,8 +6,8 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from northstar_quant.platform.common.enums import StrategyOutputType
-from northstar_quant.platform.db.models import (
+from northstar_quant.foundation.common.enums import StrategyOutputType
+from northstar_quant.foundation.db.models import (
     AccountSnapshotRecord,
     ExecutionPlanRecord,
     LedgerAdjustmentRecord,
@@ -16,7 +16,7 @@ from northstar_quant.platform.db.models import (
     StrategySnapshotRecord,
     WorkingOrderSnapshotRecord,
 )
-from northstar_quant.platform.db.repositories import (
+from northstar_quant.foundation.db.repositories import (
     save_account_snapshot,
     save_execution_plan_records,
     record_controlled_ledger_adjustment,

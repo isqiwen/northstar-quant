@@ -5,7 +5,7 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from northstar_quant.platform.db.models import (
+from northstar_quant.foundation.db.models import (
     AccountSnapshotRecord,
     BrokerSyncLog,
     OrderRecord,

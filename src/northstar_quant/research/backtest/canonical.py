@@ -8,9 +8,9 @@ from __future__ import annotations
 
 from northstar_quant.research.backtest.models import BacktestResult
 from northstar_quant.research.backtest.registry import run_target_backtest
-from northstar_quant.platform.common.enums import StrategyOutputType
-from northstar_quant.platform.common.types import StrategyOutputBundle
-from northstar_quant.platform.config.trading_profile import TradingProfile
+from northstar_quant.foundation.common.enums import StrategyOutputType
+from northstar_quant.foundation.common.types import StrategyOutputBundle
+from northstar_quant.foundation.config.trading_profile import TradingProfile
 
 
 def run_strategy_output_backtest(

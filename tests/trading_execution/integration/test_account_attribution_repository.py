@@ -4,13 +4,13 @@ import json
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from northstar_quant.platform.db.models import (
+from northstar_quant.foundation.db.models import (
     AccountAttributionRecord,
     AccountSnapshotRecord,
     PositionSnapshotRecord,
     TradeAttributionRecord,
 )
-from northstar_quant.platform.db.repositories import save_account_attribution_for_snapshot
+from northstar_quant.foundation.db.repositories import save_account_attribution_for_snapshot
 
 
 def test_save_account_attribution_for_snapshot_splits_price_and_rebalance_pnl(postgresql_engine):

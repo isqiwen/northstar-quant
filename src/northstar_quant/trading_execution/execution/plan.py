@@ -7,9 +7,9 @@ from datetime import datetime
 
 import polars as pl
 
-from northstar_quant.platform.common.enums import StrategyOutputType
-from northstar_quant.platform.common.time import ensure_utc
-from northstar_quant.platform.config.trading_profile import TradingProfile
+from northstar_quant.foundation.common.enums import StrategyOutputType
+from northstar_quant.foundation.common.time import ensure_utc
+from northstar_quant.foundation.config.trading_profile import TradingProfile
 from northstar_quant.portfolio_risk.portfolio import ApprovedPortfolioTarget
 from northstar_quant.trading_execution.execution.models import (
     BrokerStateSnapshot,

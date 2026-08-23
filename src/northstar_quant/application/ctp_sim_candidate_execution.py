@@ -38,19 +38,19 @@ from northstar_quant.application.portfolio_risk_authority import (
     PortfolioRiskAuthorityError,
     ReconciliationSafetyStateEvidence,
 )
-from northstar_quant.data_platform.artifacts.fingerprints import canonical_json_sha256
-from northstar_quant.platform.common.order_identity import build_order_ref
-from northstar_quant.platform.common.time import ensure_utc, utc_now
-from northstar_quant.platform.config.settings import (
+from northstar_quant.data.artifacts.fingerprints import canonical_json_sha256
+from northstar_quant.foundation.common.order_identity import build_order_ref
+from northstar_quant.foundation.common.time import ensure_utc, utc_now
+from northstar_quant.foundation.config.settings import (
     Settings,
     load_settings,
     normalize_local_state_account,
 )
-from northstar_quant.platform.config.trading_profile import (
+from northstar_quant.foundation.config.trading_profile import (
     TradingProfile,
     load_trading_profile_uncached,
 )
-from northstar_quant.platform.db.repositories import (
+from northstar_quant.foundation.db.repositories import (
     acquire_reconciliation_safety_fence,
     find_execution_provenance_consumption,
     latest_reconciliation_safety_state,

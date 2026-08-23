@@ -27,7 +27,7 @@ def _runtime_imports(tree: ast.AST) -> set[str]:
 def test_experiment_model_does_not_reach_backtest_validation_application_or_database():
     forbidden_prefixes = (
         "northstar_quant.application",
-        "northstar_quant.platform.db",
+        "northstar_quant.foundation.db",
         "northstar_quant.research.backtest",
         "northstar_quant.research.validation",
         "sqlalchemy",

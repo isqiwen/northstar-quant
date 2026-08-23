@@ -5,8 +5,8 @@ from datetime import UTC, datetime
 
 import polars as pl
 
-from northstar_quant.platform.config.settings import get_settings
-from northstar_quant.platform.config.trading_profile import load_trading_profile
+from northstar_quant.foundation.config.settings import get_settings
+from northstar_quant.foundation.config.trading_profile import load_trading_profile
 from northstar_quant.trading_execution.execution.models import BrokerStateSnapshot
 from northstar_quant.trading_execution.live.preflight import build_preflight_result
 

@@ -41,147 +41,147 @@
       "message": "Skipping analyzing \"plotly.graph_objects\": module is installed, but missing library stubs or py.typed marker"
     },
     {
-      "file": "src/northstar_quant/data_platform/contracts/futures_contracts.py",
+      "file": "src/northstar_quant/data/contracts/futures_contracts.py",
       "line": 136,
       "column": 24,
       "code": "arg-type",
       "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
     },
     {
-      "file": "src/northstar_quant/data_platform/contracts/product_cards.py",
+      "file": "src/northstar_quant/data/contracts/product_cards.py",
       "line": 152,
       "column": 23,
       "code": "arg-type",
       "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\""
     },
     {
-      "file": "src/northstar_quant/data_platform/market/overview.py",
+      "file": "src/northstar_quant/data/market/overview.py",
       "line": 8,
       "column": 0,
       "code": "import-untyped",
       "message": "Library stubs not installed for \"pandas\""
     },
     {
-      "file": "src/northstar_quant/data_platform/sources/providers/akshare.py",
+      "file": "src/northstar_quant/data/sources/providers/akshare.py",
       "line": 53,
       "column": 0,
       "code": "import-untyped",
       "message": "Skipping analyzing \"akshare\": module is installed, but missing library stubs or py.typed marker"
     },
     {
-      "file": "src/northstar_quant/platform/config/yaml_loader.py",
+      "file": "src/northstar_quant/foundation/config/yaml_loader.py",
       "line": 6,
       "column": 0,
       "code": "import-untyped",
       "message": "Library stubs not installed for \"yaml\""
     },
     {
-      "file": "src/northstar_quant/platform/reporting/email_sender.py",
+      "file": "src/northstar_quant/foundation/reporting/email_sender.py",
       "line": 18,
       "column": 0,
       "code": "import-untyped",
       "message": "Library stubs not installed for \"markdown\""
     },
     {
-      "file": "src/northstar_quant/platform/reporting/pdf_renderer.py",
+      "file": "src/northstar_quant/foundation/reporting/pdf_renderer.py",
       "line": 25,
       "column": 0,
       "code": "import-untyped",
       "message": "Library stubs not installed for \"reportlab.graphics\""
     },
     {
-      "file": "src/northstar_quant/platform/reporting/pdf_renderer.py",
+      "file": "src/northstar_quant/foundation/reporting/pdf_renderer.py",
       "line": 26,
       "column": 0,
       "code": "import-untyped",
       "message": "Library stubs not installed for \"reportlab.graphics.charts.barcharts\""
     },
     {
-      "file": "src/northstar_quant/platform/reporting/pdf_renderer.py",
+      "file": "src/northstar_quant/foundation/reporting/pdf_renderer.py",
       "line": 27,
       "column": 0,
       "code": "import-untyped",
       "message": "Library stubs not installed for \"reportlab.graphics.charts.lineplots\""
     },
     {
-      "file": "src/northstar_quant/platform/reporting/pdf_renderer.py",
+      "file": "src/northstar_quant/foundation/reporting/pdf_renderer.py",
       "line": 28,
       "column": 0,
       "code": "import-untyped",
       "message": "Library stubs not installed for \"reportlab.graphics.charts.legends\""
     },
     {
-      "file": "src/northstar_quant/platform/reporting/pdf_renderer.py",
+      "file": "src/northstar_quant/foundation/reporting/pdf_renderer.py",
       "line": 29,
       "column": 0,
       "code": "import-untyped",
       "message": "Library stubs not installed for \"reportlab.graphics.charts.piecharts\""
     },
     {
-      "file": "src/northstar_quant/platform/reporting/pdf_renderer.py",
+      "file": "src/northstar_quant/foundation/reporting/pdf_renderer.py",
       "line": 30,
       "column": 0,
       "code": "import-untyped",
       "message": "Library stubs not installed for \"reportlab.graphics.shapes\""
     },
     {
-      "file": "src/northstar_quant/platform/reporting/pdf_renderer.py",
+      "file": "src/northstar_quant/foundation/reporting/pdf_renderer.py",
       "line": 31,
       "column": 0,
       "code": "import-untyped",
       "message": "Library stubs not installed for \"reportlab.lib\""
     },
     {
-      "file": "src/northstar_quant/platform/reporting/pdf_renderer.py",
+      "file": "src/northstar_quant/foundation/reporting/pdf_renderer.py",
       "line": 32,
       "column": 0,
       "code": "import-untyped",
       "message": "Library stubs not installed for \"reportlab.lib.enums\""
     },
     {
-      "file": "src/northstar_quant/platform/reporting/pdf_renderer.py",
+      "file": "src/northstar_quant/foundation/reporting/pdf_renderer.py",
       "line": 33,
       "column": 0,
       "code": "import-untyped",
       "message": "Library stubs not installed for \"reportlab.lib.pagesizes\""
     },
     {
-      "file": "src/northstar_quant/platform/reporting/pdf_renderer.py",
+      "file": "src/northstar_quant/foundation/reporting/pdf_renderer.py",
       "line": 34,
       "column": 0,
       "code": "import-untyped",
       "message": "Library stubs not installed for \"reportlab.lib.styles\""
     },
     {
-      "file": "src/northstar_quant/platform/reporting/pdf_renderer.py",
+      "file": "src/northstar_quant/foundation/reporting/pdf_renderer.py",
       "line": 35,
       "column": 0,
       "code": "import-untyped",
       "message": "Library stubs not installed for \"reportlab.lib.units\""
     },
     {
-      "file": "src/northstar_quant/platform/reporting/pdf_renderer.py",
+      "file": "src/northstar_quant/foundation/reporting/pdf_renderer.py",
       "line": 36,
       "column": 0,
       "code": "import-untyped",
       "message": "Library stubs not installed for \"reportlab.pdfbase.cidfonts\""
     },
     {
-      "file": "src/northstar_quant/platform/reporting/pdf_renderer.py",
+      "file": "src/northstar_quant/foundation/reporting/pdf_renderer.py",
       "line": 37,
       "column": 0,
       "code": "import-untyped",
       "message": "Library stubs not installed for \"reportlab.pdfbase.pdfmetrics\""
     },
     {
-      "file": "src/northstar_quant/platform/reporting/pdf_renderer.py",
+      "file": "src/northstar_quant/foundation/reporting/pdf_renderer.py",
       "line": 38,
       "column": 0,
       "code": "import-untyped",
       "message": "Library stubs not installed for \"reportlab.platypus\""
     },
     {
-      "file": "src/northstar_quant/platform/reporting/pdf_renderer.py",
+      "file": "src/northstar_quant/foundation/reporting/pdf_renderer.py",
       "line": 137,
       "column": 23,
       "code": "arg-type",

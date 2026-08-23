@@ -136,7 +136,7 @@ def test_research_agent_reaches_northstar_only_through_the_typed_tool_api() -> N
 
     assert not internal_edges, (
         "ResearchAgent must use only TypedResearchToolApi; it cannot compose direct domain, "
-        "platform, live, broker, risk, storage, or configuration dependencies:\n"
+        "foundation, live, broker, risk, storage, or configuration dependencies:\n"
         f"{format_diagnostics(internal_edges)}"
     )
     assert any(edge.target_module == TOOL_API_MODULE for edge in reachable), (

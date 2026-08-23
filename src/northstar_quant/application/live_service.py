@@ -10,25 +10,25 @@ from uuid import uuid4
 
 import polars as pl
 
-from northstar_quant.platform.common.enums import AssetType, StrategyOutputType
-from northstar_quant.platform.common.order_identity import (
+from northstar_quant.foundation.common.enums import AssetType, StrategyOutputType
+from northstar_quant.foundation.common.order_identity import (
     build_execution_batch_id,
     build_execution_plan_id,
 )
-from northstar_quant.platform.common.time import ensure_utc, utc_now
-from northstar_quant.platform.config.settings import get_settings, load_settings
+from northstar_quant.foundation.common.time import ensure_utc, utc_now
+from northstar_quant.foundation.config.settings import get_settings, load_settings
 from northstar_quant.trading_execution.broker.ctp_contract_mapping import load_ctp_contract_registry
-from northstar_quant.platform.config.trading_profile import (
+from northstar_quant.foundation.config.trading_profile import (
     ensure_broker_profile,
     load_trading_profile,
     load_trading_profile_uncached,
 )
-from northstar_quant.data_platform.sources.downloader import read_profile_manifest
-from northstar_quant.data_platform.artifacts.storage import load_profile_market_data, load_profile_signal_data
-from northstar_quant.data_platform.contracts.profile_governance import (
+from northstar_quant.data.sources.downloader import read_profile_manifest
+from northstar_quant.data.artifacts.storage import load_profile_market_data, load_profile_signal_data
+from northstar_quant.data.contracts.profile_governance import (
     validate_profile_data_governance,
 )
-from northstar_quant.platform.db.repositories import (
+from northstar_quant.foundation.db.repositories import (
     count_anomaly_events,
     list_execution_recovery_blockers,
     list_recent_anomaly_events,
@@ -44,7 +44,7 @@ from northstar_quant.platform.db.repositories import (
     save_strategy_run_snapshot,
     try_acquire_execution_lease,
 )
-from northstar_quant.platform.db.session import SessionLocal
+from northstar_quant.foundation.db.session import SessionLocal
 from northstar_quant.trading_execution.execution.models import (
     BrokerStateSnapshot,
     FuturesExecutionRule,
@@ -80,9 +80,9 @@ from northstar_quant.application.calendar_gate import (
     assert_order_calendar_open,
     load_calendar_service_for_profile,
 )
-from northstar_quant.platform.observability.logging.logger import get_logger
-from northstar_quant.platform.observability.monitoring.alerts import AlertLevel, send_alert
-from northstar_quant.platform.observability.monitoring.run_health import (
+from northstar_quant.foundation.observability.logging.logger import get_logger
+from northstar_quant.foundation.observability.monitoring.alerts import AlertLevel, send_alert
+from northstar_quant.foundation.observability.monitoring.run_health import (
     anomaly_trend,
     soak_summary as _soak_summary,
 )

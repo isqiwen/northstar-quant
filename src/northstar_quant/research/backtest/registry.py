@@ -19,8 +19,8 @@ from northstar_quant.research.backtest.futures_intraday_adapter import (
     run_actual_futures_intraday_replay,
 )
 from northstar_quant.research.backtest.metrics import periods_per_year_for_frequency
-from northstar_quant.platform.common.enums import AssetType, DataFrequency, Market, RebalanceFrequency, StrategyFamily
-from northstar_quant.platform.config.trading_profile import TradingProfile
+from northstar_quant.foundation.common.enums import AssetType, DataFrequency, Market, RebalanceFrequency, StrategyFamily
+from northstar_quant.foundation.config.trading_profile import TradingProfile
 
 TargetBacktester = Callable[[TradingProfile, pl.DataFrame, pl.DataFrame], BacktestResult]
 

@@ -27,12 +27,12 @@ from typing import NoReturn, Protocol
 from sqlalchemy.orm import Session
 
 from northstar_quant.application.portfolio_risk_authority import PortfolioRiskApprovalAuthority
-from northstar_quant.data_platform.artifacts.fingerprints import canonical_json_sha256
-from northstar_quant.platform.config.trading_profile import (
+from northstar_quant.data.artifacts.fingerprints import canonical_json_sha256
+from northstar_quant.foundation.config.trading_profile import (
     ProfilePortfolioRiskApprovalConfig,
     TradingProfile,
 )
-from northstar_quant.platform.db.repositories import (
+from northstar_quant.foundation.db.repositories import (
     find_portfolio_risk_approval,
     record_portfolio_risk_approval,
 )

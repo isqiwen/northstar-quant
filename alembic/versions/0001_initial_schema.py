@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from alembic import op
-import northstar_quant.platform.db.types
+import northstar_quant.foundation.db.types
 import sqlalchemy as sa
 
 revision = "0001_initial_schema"
@@ -25,8 +25,8 @@ def upgrade() -> None:
         sa.Column("account", sa.String(length=64), nullable=True),
         sa.Column("start_position_snapshot_batch_id", sa.String(length=64), nullable=True),
         sa.Column("end_position_snapshot_batch_id", sa.String(length=64), nullable=True),
-        sa.Column("start_asof", northstar_quant.platform.db.types.UTCDateTime(), nullable=False),
-        sa.Column("end_asof", northstar_quant.platform.db.types.UTCDateTime(), nullable=False),
+        sa.Column("start_asof", northstar_quant.foundation.db.types.UTCDateTime(), nullable=False),
+        sa.Column("end_asof", northstar_quant.foundation.db.types.UTCDateTime(), nullable=False),
         sa.Column("starting_equity", sa.Float(), nullable=True),
         sa.Column("ending_equity", sa.Float(), nullable=True),
         sa.Column("equity_change", sa.Float(), nullable=True),
@@ -45,7 +45,7 @@ def upgrade() -> None:
         sa.Column("traded_notional", sa.Float(), nullable=True),
         sa.Column("fill_count", sa.Integer(), nullable=False),
         sa.Column("residual_pnl", sa.Float(), nullable=True),
-        sa.Column("created_at", northstar_quant.platform.db.types.UTCDateTime(), nullable=False),
+        sa.Column("created_at", northstar_quant.foundation.db.types.UTCDateTime(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(
@@ -127,7 +127,7 @@ def upgrade() -> None:
         sa.Column("realized_pnl", sa.Float(), nullable=True),
         sa.Column("unrealized_pnl", sa.Float(), nullable=True),
         sa.Column("account_values_json", sa.Text(), nullable=True),
-        sa.Column("asof", northstar_quant.platform.db.types.UTCDateTime(), nullable=False),
+        sa.Column("asof", northstar_quant.foundation.db.types.UTCDateTime(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(
@@ -177,8 +177,8 @@ def upgrade() -> None:
         sa.Column("summary", sa.Text(), nullable=False),
         sa.Column("details_json", sa.Text(), nullable=True),
         sa.Column("report_path", sa.Text(), nullable=True),
-        sa.Column("detected_at", northstar_quant.platform.db.types.UTCDateTime(), nullable=False),
-        sa.Column("created_at", northstar_quant.platform.db.types.UTCDateTime(), nullable=False),
+        sa.Column("detected_at", northstar_quant.foundation.db.types.UTCDateTime(), nullable=False),
+        sa.Column("created_at", northstar_quant.foundation.db.types.UTCDateTime(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(
@@ -236,7 +236,7 @@ def upgrade() -> None:
         sa.Column("sync_type", sa.String(length=32), nullable=False),
         sa.Column("status", sa.String(length=32), nullable=False),
         sa.Column("detail", sa.Text(), nullable=True),
-        sa.Column("created_at", northstar_quant.platform.db.types.UTCDateTime(), nullable=False),
+        sa.Column("created_at", northstar_quant.foundation.db.types.UTCDateTime(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(
@@ -260,7 +260,7 @@ def upgrade() -> None:
         sa.Column("account", sa.String(length=64), nullable=True),
         sa.Column("reason", sa.Text(), nullable=True),
         sa.Column("status", sa.String(length=32), nullable=False),
-        sa.Column("requested_at", northstar_quant.platform.db.types.UTCDateTime(), nullable=False),
+        sa.Column("requested_at", northstar_quant.foundation.db.types.UTCDateTime(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(op.f("ix_cancel_records_account"), "cancel_records", ["account"], unique=False)
@@ -293,9 +293,9 @@ def upgrade() -> None:
         sa.Column("resource_key", sa.String(length=255), nullable=False),
         sa.Column("owner_token", sa.String(length=64), nullable=False),
         sa.Column("fencing_token", sa.Integer(), nullable=False),
-        sa.Column("acquired_at", northstar_quant.platform.db.types.UTCDateTime(), nullable=False),
-        sa.Column("heartbeat_at", northstar_quant.platform.db.types.UTCDateTime(), nullable=False),
-        sa.Column("expires_at", northstar_quant.platform.db.types.UTCDateTime(), nullable=False),
+        sa.Column("acquired_at", northstar_quant.foundation.db.types.UTCDateTime(), nullable=False),
+        sa.Column("heartbeat_at", northstar_quant.foundation.db.types.UTCDateTime(), nullable=False),
+        sa.Column("expires_at", northstar_quant.foundation.db.types.UTCDateTime(), nullable=False),
         sa.PrimaryKeyConstraint("resource_key"),
     )
     op.create_index(
@@ -332,7 +332,7 @@ def upgrade() -> None:
         sa.Column("reason", sa.Text(), nullable=True),
         sa.Column("order_type", sa.String(length=16), nullable=True),
         sa.Column("limit_price", sa.Float(), nullable=True),
-        sa.Column("created_at", northstar_quant.platform.db.types.UTCDateTime(), nullable=False),
+        sa.Column("created_at", northstar_quant.foundation.db.types.UTCDateTime(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(
@@ -387,7 +387,7 @@ def upgrade() -> None:
         sa.Column("side", sa.String(length=8), nullable=True),
         sa.Column("qty", sa.Float(), nullable=False),
         sa.Column("price", sa.Float(), nullable=False),
-        sa.Column("filled_at", northstar_quant.platform.db.types.UTCDateTime(), nullable=False),
+        sa.Column("filled_at", northstar_quant.foundation.db.types.UTCDateTime(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint(
             "broker", "account", "exec_id", name="uq_fill_records_broker_account_exec_id"
@@ -445,11 +445,11 @@ def upgrade() -> None:
         sa.Column("submission_owner", sa.String(length=64), nullable=True),
         sa.Column("lease_fencing_token", sa.Integer(), nullable=True),
         sa.Column("last_submission_error", sa.Text(), nullable=True),
-        sa.Column("prepared_at", northstar_quant.platform.db.types.UTCDateTime(), nullable=False),
-        sa.Column("submission_started_at", northstar_quant.platform.db.types.UTCDateTime(), nullable=True),
-        sa.Column("submitted_at", northstar_quant.platform.db.types.UTCDateTime(), nullable=True),
-        sa.Column("broker_acknowledged_at", northstar_quant.platform.db.types.UTCDateTime(), nullable=True),
-        sa.Column("updated_at", northstar_quant.platform.db.types.UTCDateTime(), nullable=False),
+        sa.Column("prepared_at", northstar_quant.foundation.db.types.UTCDateTime(), nullable=False),
+        sa.Column("submission_started_at", northstar_quant.foundation.db.types.UTCDateTime(), nullable=True),
+        sa.Column("submitted_at", northstar_quant.foundation.db.types.UTCDateTime(), nullable=True),
+        sa.Column("broker_acknowledged_at", northstar_quant.foundation.db.types.UTCDateTime(), nullable=True),
+        sa.Column("updated_at", northstar_quant.foundation.db.types.UTCDateTime(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint(
             "broker",
@@ -514,8 +514,8 @@ def upgrade() -> None:
         sa.Column("broker", sa.String(length=32), nullable=True),
         sa.Column("account", sa.String(length=64), nullable=True),
         sa.Column("position_count", sa.Integer(), nullable=False),
-        sa.Column("asof", northstar_quant.platform.db.types.UTCDateTime(), nullable=False),
-        sa.Column("created_at", northstar_quant.platform.db.types.UTCDateTime(), nullable=False),
+        sa.Column("asof", northstar_quant.foundation.db.types.UTCDateTime(), nullable=False),
+        sa.Column("created_at", northstar_quant.foundation.db.types.UTCDateTime(), nullable=False),
         sa.PrimaryKeyConstraint("snapshot_batch_id"),
     )
     op.create_index(
@@ -557,7 +557,7 @@ def upgrade() -> None:
         sa.Column("avg_cost", sa.Float(), nullable=True),
         sa.Column("market_price", sa.Float(), nullable=True),
         sa.Column("market_value", sa.Float(), nullable=True),
-        sa.Column("asof", northstar_quant.platform.db.types.UTCDateTime(), nullable=False),
+        sa.Column("asof", northstar_quant.foundation.db.types.UTCDateTime(), nullable=False),
         sa.Column("snapshot_batch_id", sa.String(length=64), nullable=False),
         sa.PrimaryKeyConstraint("id"),
     )
@@ -611,7 +611,7 @@ def upgrade() -> None:
         sa.Column("anomaly_count_prev_7d", sa.Integer(), nullable=False),
         sa.Column("anomaly_trend", sa.String(length=16), nullable=True),
         sa.Column("details_json", sa.Text(), nullable=True),
-        sa.Column("created_at", northstar_quant.platform.db.types.UTCDateTime(), nullable=False),
+        sa.Column("created_at", northstar_quant.foundation.db.types.UTCDateTime(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(
@@ -644,7 +644,7 @@ def upgrade() -> None:
         sa.Column("task_name", sa.String(length=128), nullable=False),
         sa.Column("status", sa.String(length=32), nullable=False),
         sa.Column("detail", sa.Text(), nullable=True),
-        sa.Column("created_at", northstar_quant.platform.db.types.UTCDateTime(), nullable=False),
+        sa.Column("created_at", northstar_quant.foundation.db.types.UTCDateTime(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(op.f("ix_run_logs_status"), "run_logs", ["status"], unique=False)
@@ -656,7 +656,7 @@ def upgrade() -> None:
         sa.Column("symbol", sa.String(length=32), nullable=False),
         sa.Column("signal_value", sa.Float(), nullable=False),
         sa.Column("target_weight", sa.Float(), nullable=False),
-        sa.Column("asof", northstar_quant.platform.db.types.UTCDateTime(), nullable=False),
+        sa.Column("asof", northstar_quant.foundation.db.types.UTCDateTime(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(op.f("ix_signal_records_asof"), "signal_records", ["asof"], unique=False)
@@ -674,11 +674,11 @@ def upgrade() -> None:
         sa.Column("selected_strategy_ids_json", sa.Text(), nullable=True),
         sa.Column("strategy_params_json", sa.Text(), nullable=True),
         sa.Column("risk_limits_json", sa.Text(), nullable=True),
-        sa.Column("market_data_asof", northstar_quant.platform.db.types.UTCDateTime(), nullable=True),
-        sa.Column("signal_data_asof", northstar_quant.platform.db.types.UTCDateTime(), nullable=True),
-        sa.Column("output_asof", northstar_quant.platform.db.types.UTCDateTime(), nullable=True),
+        sa.Column("market_data_asof", northstar_quant.foundation.db.types.UTCDateTime(), nullable=True),
+        sa.Column("signal_data_asof", northstar_quant.foundation.db.types.UTCDateTime(), nullable=True),
+        sa.Column("output_asof", northstar_quant.foundation.db.types.UTCDateTime(), nullable=True),
         sa.Column("snapshot_count", sa.Integer(), nullable=False),
-        sa.Column("created_at", northstar_quant.platform.db.types.UTCDateTime(), nullable=False),
+        sa.Column("created_at", northstar_quant.foundation.db.types.UTCDateTime(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(
@@ -725,7 +725,7 @@ def upgrade() -> None:
         sa.Column("order_type", sa.String(length=16), nullable=True),
         sa.Column("limit_price", sa.Float(), nullable=True),
         sa.Column("reason", sa.Text(), nullable=True),
-        sa.Column("asof", northstar_quant.platform.db.types.UTCDateTime(), nullable=False),
+        sa.Column("asof", northstar_quant.foundation.db.types.UTCDateTime(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(
@@ -795,7 +795,7 @@ def upgrade() -> None:
         sa.Column("implementation_shortfall_bps", sa.Float(), nullable=True),
         sa.Column("order_semantic", sa.String(length=16), nullable=True),
         sa.Column("reason", sa.Text(), nullable=True),
-        sa.Column("attributed_at", northstar_quant.platform.db.types.UTCDateTime(), nullable=False),
+        sa.Column("attributed_at", northstar_quant.foundation.db.types.UTCDateTime(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(
@@ -888,8 +888,8 @@ def upgrade() -> None:
         sa.Column("status", sa.String(length=32), nullable=False),
         sa.Column("order_type", sa.String(length=16), nullable=True),
         sa.Column("limit_price", sa.Float(), nullable=True),
-        sa.Column("submitted_at", northstar_quant.platform.db.types.UTCDateTime(), nullable=True),
-        sa.Column("observed_at", northstar_quant.platform.db.types.UTCDateTime(), nullable=False),
+        sa.Column("submitted_at", northstar_quant.foundation.db.types.UTCDateTime(), nullable=True),
+        sa.Column("observed_at", northstar_quant.foundation.db.types.UTCDateTime(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(

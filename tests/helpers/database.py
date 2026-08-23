@@ -8,7 +8,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from northstar_quant.platform.db.base import Base
+from northstar_quant.foundation.db.base import Base
 from tests.helpers.postgresql import postgresql_test_url
 
 

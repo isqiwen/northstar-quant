@@ -5,9 +5,9 @@ from __future__ import annotations
 from apscheduler.schedulers.blocking import BlockingScheduler  # type: ignore[import-untyped]
 from apscheduler.triggers.cron import CronTrigger  # type: ignore[import-untyped]
 
-from northstar_quant.platform.config.settings import get_settings
-from northstar_quant.platform.config.trading_profile import get_production_profile_id, load_trading_profile
-from northstar_quant.platform.scheduling import JobRegistry, ScheduledJob, ScheduledJobKind
+from northstar_quant.foundation.config.settings import get_settings
+from northstar_quant.foundation.config.trading_profile import get_production_profile_id, load_trading_profile
+from northstar_quant.foundation.scheduling import JobRegistry, ScheduledJob, ScheduledJobKind
 from northstar_quant.application.live_service import (
     execute_latest_targets_once,
     run_runtime_risk_monitor_once,
@@ -21,9 +21,9 @@ from northstar_quant.application.calendar_gate import (
     assert_profile_calendar_trading_day,
     is_profile_last_trading_day,
 )
-from northstar_quant.platform.observability.logging.logger import get_logger
-from northstar_quant.platform.observability.monitoring.alerts import send_alert
-from northstar_quant.platform.reporting.email_sender import send_report_via_email
+from northstar_quant.foundation.observability.logging.logger import get_logger
+from northstar_quant.foundation.observability.monitoring.alerts import send_alert
+from northstar_quant.foundation.reporting.email_sender import send_report_via_email
 from northstar_quant.application.reporting import (
     build_daily_alert_notification,
     build_report_email_subject,

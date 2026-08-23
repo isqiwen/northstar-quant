@@ -14,7 +14,7 @@ from pathlib import Path
 
 import polars as pl
 
-from northstar_quant.data_platform.market.pit import (
+from northstar_quant.data.market.pit import (
     MarketDataKind,
     MarketDataPITSelector,
     MarketDataPITSpec,

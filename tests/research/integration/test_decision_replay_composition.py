@@ -15,16 +15,16 @@ from northstar_quant.application.decision_replay_backtest import (
     build_profile_decision_replay_receipt,
     build_profile_decision_replay_targets,
 )
-from northstar_quant.data_platform.artifacts.immutable_store import ArtifactStore
-from northstar_quant.data_platform.contracts.instrument_universes import (
+from northstar_quant.data.artifacts.immutable_store import ArtifactStore
+from northstar_quant.data.contracts.instrument_universes import (
     load_instrument_universe,
 )
-from northstar_quant.data_platform.market.pit import (
+from northstar_quant.data.market.pit import (
     MarketDataKind,
     MarketDataPITError,
     MarketDataPITSpec,
 )
-from northstar_quant.platform.config.trading_profile import load_trading_profile
+from northstar_quant.foundation.config.trading_profile import load_trading_profile
 from northstar_quant.research.validation.lookahead import (
     DecisionReplayCheckpoint,
     DecisionReplayPlan,

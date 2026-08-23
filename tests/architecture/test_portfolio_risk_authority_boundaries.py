@@ -38,7 +38,7 @@ def test_p3_approval_gate_has_no_application_database_broker_or_config_dependenc
     imports = _direct_imports(APPROVAL_PATH)
     forbidden_prefixes = (
         "northstar_quant.application",
-        "northstar_quant.platform",
+        "northstar_quant.foundation",
         "northstar_quant.trading_execution",
         "sqlalchemy",
         "psycopg",
@@ -68,7 +68,7 @@ def test_portfolio_risk_authority_is_an_application_only_composition_boundary() 
 
     assert not violations, (
         "only application composition may depend on portfolio-risk authority binding; "
-        "P3/P5/platform domains must not acquire an upward authority dependency:\n"
+        "P3/P5/foundation domains must not acquire an upward authority dependency:\n"
         f"{format_diagnostics(violations)}"
     )
 
@@ -77,7 +77,7 @@ def test_authority_resolver_accepts_typed_sources_but_no_database_or_broker_io(
 ) -> None:
     imports = _direct_imports(AUTHORITY_PATH)
     forbidden_prefixes = (
-        "northstar_quant.platform.db",
+        "northstar_quant.foundation.db",
         "northstar_quant.trading_execution.broker.broker_base",
         "northstar_quant.trading_execution.broker.ctp_broker",
         "northstar_quant.trading_execution.broker.ctp_front",

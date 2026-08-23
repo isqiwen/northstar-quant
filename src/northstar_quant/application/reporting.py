@@ -16,20 +16,20 @@ from jinja2 import Environment, FileSystemLoader
 
 from northstar_quant.research.backtest.models import BacktestResult
 from northstar_quant.application.backtest import BacktestRun, run_profile_backtest_run
-from northstar_quant.platform.common.time import utc_now
-from northstar_quant.platform.config.settings import get_settings
-from northstar_quant.platform.db.repositories import (
+from northstar_quant.foundation.common.time import utc_now
+from northstar_quant.foundation.config.settings import get_settings
+from northstar_quant.foundation.db.repositories import (
     list_recent_account_attributions,
     replace_anomaly_events_for_account_attribution,
 )
-from northstar_quant.platform.db.session import SessionLocal
-from northstar_quant.platform.observability.logging.logger import get_logger
-from northstar_quant.platform.observability.monitoring.run_health import soak_summary
-from northstar_quant.platform.reporting.artifacts import (
+from northstar_quant.foundation.db.session import SessionLocal
+from northstar_quant.foundation.observability.logging.logger import get_logger
+from northstar_quant.foundation.observability.monitoring.run_health import soak_summary
+from northstar_quant.foundation.reporting.artifacts import (
     REPORT_SCHEMA_VERSION,
     report_artifact_label,
 )
-from northstar_quant.platform.security import redact
+from northstar_quant.foundation.security import redact
 from northstar_quant.portfolio_risk.portfolio.strategy_pipeline import (
     parse_strategy_selection,
 )

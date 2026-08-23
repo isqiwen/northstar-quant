@@ -7,8 +7,8 @@ from datetime import date, datetime
 import math
 from typing import cast
 
-from northstar_quant.data_platform.market.pit import MarketDataKind, MarketDataSnapshot
-from northstar_quant.data_platform.sources.protocol import PublicationScope
+from northstar_quant.data.market.pit import MarketDataKind, MarketDataSnapshot
+from northstar_quant.data.sources.protocol import PublicationScope
 from northstar_quant.research.features.canonical import (
     CanonicalFeatureComputer,
     CanonicalFeatureDefinition,

@@ -1,6 +1,6 @@
 """回测指标口径工具。"""
 
-from northstar_quant.platform.common.enums import DataFrequency
+from northstar_quant.foundation.common.enums import DataFrequency
 
 
 def periods_per_year_for_frequency(data_frequency: DataFrequency) -> int:

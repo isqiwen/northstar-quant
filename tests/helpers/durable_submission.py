@@ -1,6 +1,6 @@
 """持久化报单测试使用的构造器与 broker fake。"""
 
-from northstar_quant.platform.common.time import utc_now
+from northstar_quant.foundation.common.time import utc_now
 from northstar_quant.trading_execution.broker.broker_base import BrokerAdapter
 from northstar_quant.trading_execution.execution.models import OrderRequest, OrderResult
 

@@ -11,8 +11,8 @@ from typing import NoReturn
 import polars as pl
 from sqlalchemy.orm import Session
 
-from northstar_quant.platform.common.time import ensure_utc, utc_now
-from northstar_quant.platform.db.repositories import (
+from northstar_quant.foundation.common.time import ensure_utc, utc_now
+from northstar_quant.foundation.db.repositories import (
     acquire_reconciliation_safety_fence,
     assert_broker_fills_explained,
     assert_broker_order_rows_explained,
@@ -31,7 +31,7 @@ from northstar_quant.platform.db.repositories import (
 )
 from northstar_quant.portfolio_risk.risk import RiskState, RiskStateSnapshot
 from northstar_quant.trading_execution.broker.broker_base import BrokerAdapter
-from northstar_quant.platform.observability.logging.logger import get_logger
+from northstar_quant.foundation.observability.logging.logger import get_logger
 
 logger = get_logger(__name__)
 

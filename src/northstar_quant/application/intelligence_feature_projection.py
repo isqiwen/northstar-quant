@@ -23,8 +23,8 @@ from northstar_quant.application.intelligence_feature_projection_evidence import
     ImmutableIntelligenceFeatureProjectionEvidenceVerifier,
     IntelligenceFeatureProjectionEvidenceError,
 )
-from northstar_quant.data_platform.contracts.data_domain import QualityStatus
-from northstar_quant.data_platform.sources.protocol import (
+from northstar_quant.data.contracts.data_domain import QualityStatus
+from northstar_quant.data.sources.protocol import (
     CANONICAL_NORMALIZED_FORMAT,
     AdapterMetadata,
     NormalizedTable,
@@ -33,7 +33,7 @@ from northstar_quant.data_platform.sources.protocol import (
     RawCapture,
     SourceFetchRequest,
 )
-from northstar_quant.data_platform.sources.publisher import (
+from northstar_quant.data.sources.publisher import (
     DataSourcePublisher,
     PublishedSourceDataset,
     SourcePublicationSpec,

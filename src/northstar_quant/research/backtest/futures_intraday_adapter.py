@@ -18,10 +18,10 @@ from northstar_quant.research.backtest.futures_intraday import (
     IntradayWeightTarget,
     run_intraday_futures_replay,
 )
-from northstar_quant.data_platform.contracts.product_cards import load_product_cards
-from northstar_quant.platform.config.trading_profile import TradingProfile
-from northstar_quant.data_platform.market.futures_intraday import intraday_active_contract_rows
-from northstar_quant.data_platform.quality.schema import validate_market_dataset
+from northstar_quant.data.contracts.product_cards import load_product_cards
+from northstar_quant.foundation.config.trading_profile import TradingProfile
+from northstar_quant.data.market.futures_intraday import intraday_active_contract_rows
+from northstar_quant.data.quality.schema import validate_market_dataset
 
 
 def run_actual_futures_intraday_replay(

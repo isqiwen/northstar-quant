@@ -40,7 +40,7 @@ def test_canonical_portfolio_risk_gate_has_only_p3_dependencies_and_no_legacy_da
         "northstar_quant.application",
         "northstar_quant.research",
         "northstar_quant.trading_execution",
-        "northstar_quant.platform.db",
+        "northstar_quant.foundation.db",
         "northstar_quant.portfolio_risk.portfolio.multi_strategy",
         "northstar_quant.portfolio_risk.portfolio.strategy_pipeline",
         "polars",

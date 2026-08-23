@@ -8,10 +8,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from northstar_quant.platform.common.enums import AssetType, DataFrequency, Market, StrategyFamily, StrategyOutputType
-from northstar_quant.platform.config.settings import get_settings
-from northstar_quant.platform.config.trading_profile import ProfileStrategyConfig, TradingProfile
-from northstar_quant.platform.config.yaml_loader import load_yaml
+from northstar_quant.foundation.common.enums import AssetType, DataFrequency, Market, StrategyFamily, StrategyOutputType
+from northstar_quant.foundation.config.settings import get_settings
+from northstar_quant.foundation.config.trading_profile import ProfileStrategyConfig, TradingProfile
+from northstar_quant.foundation.config.yaml_loader import load_yaml
 from northstar_quant.research.strategies.base import StrategyBase
 from northstar_quant.research.strategies.futures_trend import FuturesTrendStrategy
 

@@ -51,7 +51,7 @@ def _attribute_calls(path: Path) -> set[tuple[str, str]]:
 def test_target_trace_model_has_no_application_database_or_trading_dependency() -> None:
     forbidden_prefixes = (
         "northstar_quant.application",
-        "northstar_quant.platform.db",
+        "northstar_quant.foundation.db",
         "northstar_quant.trading_execution",
         "sqlalchemy",
         "alembic",
@@ -62,7 +62,7 @@ def test_target_trace_model_has_no_application_database_or_trading_dependency() 
 
 def test_composition_root_does_not_call_backtest_admission_or_any_execution_path() -> None:
     forbidden_prefixes = (
-        "northstar_quant.platform.db",
+        "northstar_quant.foundation.db",
         "northstar_quant.trading_execution",
         "northstar_quant.application.live_service",
         "northstar_quant.application.scheduler",

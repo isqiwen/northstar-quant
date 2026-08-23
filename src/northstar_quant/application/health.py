@@ -8,29 +8,29 @@ from alembic.config import Config
 from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine, inspect, text
 
-from northstar_quant.platform.config.database_backup_readiness import (
+from northstar_quant.foundation.config.database_backup_readiness import (
     DatabaseBackupReadinessConfigError,
     load_database_backup_readiness_policy,
 )
-from northstar_quant.platform.config.settings import get_settings
-from northstar_quant.platform.config.trading_profile import (
+from northstar_quant.foundation.config.settings import get_settings
+from northstar_quant.foundation.config.trading_profile import (
     ensure_broker_profile,
     load_trading_profile,
 )
-from northstar_quant.platform.config.runtime_configuration import (
+from northstar_quant.foundation.config.runtime_configuration import (
     resolve_runtime_configuration,
 )
-from northstar_quant.data_platform.artifacts.storage import load_profile_market_data
-from northstar_quant.platform.observability.monitoring.database_backup_readiness import (
+from northstar_quant.data.artifacts.storage import load_profile_market_data
+from northstar_quant.foundation.observability.monitoring.database_backup_readiness import (
     evaluate_database_backup_readiness,
 )
-from northstar_quant.platform.observability.monitoring.snapshot import (
+from northstar_quant.foundation.observability.monitoring.snapshot import (
     OperationalSnapshot,
     ObservationState,
     load_execution_observation_states,
     observation_state_from_health,
 )
-from northstar_quant.platform.observability.monitoring.metrics import MetricsRegistry
+from northstar_quant.foundation.observability.monitoring.metrics import MetricsRegistry
 
 
 def _check(code: str, status: str, message: str, **details) -> dict:

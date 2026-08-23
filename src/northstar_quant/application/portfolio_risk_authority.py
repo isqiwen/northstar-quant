@@ -15,8 +15,8 @@ import math
 import re
 from typing import NoReturn
 
-from northstar_quant.data_platform.artifacts.fingerprints import canonical_json_sha256
-from northstar_quant.platform.config.trading_profile import (
+from northstar_quant.data.artifacts.fingerprints import canonical_json_sha256
+from northstar_quant.foundation.config.trading_profile import (
     ProfilePortfolioRiskApprovalConfig,
     TradingProfile,
 )

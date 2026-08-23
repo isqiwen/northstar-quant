@@ -30,9 +30,9 @@ _FORBIDDEN_REACHABLE_PREFIXES = (
     "northstar_quant.application.live_service",
     "northstar_quant.application.scheduler",
     "northstar_quant.application.target_service",
-    "northstar_quant.platform.db",
-    "northstar_quant.platform.messaging",
-    "northstar_quant.platform.scheduling",
+    "northstar_quant.foundation.db",
+    "northstar_quant.foundation.messaging",
+    "northstar_quant.foundation.scheduling",
     "northstar_quant.trading_execution",
 )
 _FORBIDDEN_DIRECT_IMPORT_ROOTS = frozenset(
@@ -164,7 +164,7 @@ def test_manual_activation_directly_uses_only_p2_p3_pure_data_and_standard_libra
         for imported in visitor.imports
         if imported.startswith("northstar_quant.")
         and not (
-            _has_prefix(imported, "northstar_quant.data_platform.artifacts")
+            _has_prefix(imported, "northstar_quant.data.artifacts")
             or _has_prefix(imported, "northstar_quant.portfolio_risk.portfolio")
             or _has_prefix(imported, "northstar_quant.research")
         )

@@ -32,8 +32,8 @@ from northstar_quant.application.research_strategy_activation import (
     ResearchStrategyTargetActivator,
     StrategyTargetProposal,
 )
-from northstar_quant.platform.config.settings import Settings, get_settings
-from northstar_quant.platform.config.trading_profile import TradingProfile, load_trading_profile
+from northstar_quant.foundation.config.settings import Settings, get_settings
+from northstar_quant.foundation.config.trading_profile import TradingProfile, load_trading_profile
 from northstar_quant.portfolio_risk.allocation import (
     AllocationPolicy,
     StrategyAllocationInput,

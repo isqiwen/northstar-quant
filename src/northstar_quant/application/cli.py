@@ -17,18 +17,18 @@ from northstar_quant.application.backtest import (
     run_profile_backtest,
     run_profile_backtest_run,
 )
-from northstar_quant.platform.config.data_sources import list_data_source_summaries
-from northstar_quant.platform.config.database_backup_readiness import (
+from northstar_quant.foundation.config.data_sources import list_data_source_summaries
+from northstar_quant.foundation.config.database_backup_readiness import (
     DatabaseBackupReadinessConfigError,
     load_database_backup_readiness_policy,
 )
-from northstar_quant.platform.config.output_retention import (
+from northstar_quant.foundation.config.output_retention import (
     OutputRetentionConfigError,
     load_output_retention_policy,
 )
-from northstar_quant.platform.config.settings import get_settings
-from northstar_quant.platform.config.trading_profile import resolve_profile_id
-from northstar_quant.data_platform.sources.downloader import (
+from northstar_quant.foundation.config.settings import get_settings
+from northstar_quant.foundation.config.trading_profile import resolve_profile_id
+from northstar_quant.data.sources.downloader import (
     download_profile_data,
     import_profile_data,
     list_data_providers,
@@ -36,11 +36,11 @@ from northstar_quant.data_platform.sources.downloader import (
     read_profile_manifest,
     validate_profile_data,
 )
-from northstar_quant.data_platform.artifacts.output_cleanup import (
+from northstar_quant.data.artifacts.output_cleanup import (
     OutputCleanupSafetyError,
     cleanup_output_files,
 )
-from northstar_quant.platform.db.init_db import init_db
+from northstar_quant.foundation.db.init_db import init_db
 from northstar_quant.application.scheduler import run_scheduler
 from northstar_quant.application.live_service import (
     analyze_live_position_drift,
@@ -60,14 +60,14 @@ from northstar_quant.application.live_service import (
     sync_broker_once,
 )
 from northstar_quant.application.target_service import generate_daily_targets_once
-from northstar_quant.platform.observability.logging.logger import get_logger, setup_logging
+from northstar_quant.foundation.observability.logging.logger import get_logger, setup_logging
 from northstar_quant.application.health import run_healthcheck
-from northstar_quant.platform.security import redact, redact_text
-from northstar_quant.platform.observability.monitoring.database_backup_readiness import (
+from northstar_quant.foundation.security import redact, redact_text
+from northstar_quant.foundation.observability.monitoring.database_backup_readiness import (
     evaluate_database_backup_readiness,
 )
-from northstar_quant.platform.reporting.email_sender import send_report_via_email
-from northstar_quant.platform.reporting.pdf_renderer import markdown_to_pdf
+from northstar_quant.foundation.reporting.email_sender import send_report_via_email
+from northstar_quant.foundation.reporting.pdf_renderer import markdown_to_pdf
 from northstar_quant.application.reporting import (
     build_report_email_subject,
     build_periodic_backtest_view,

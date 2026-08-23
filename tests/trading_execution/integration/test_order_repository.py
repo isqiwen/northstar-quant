@@ -4,8 +4,8 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from northstar_quant.platform.db.models import OrderRecord
-from northstar_quant.platform.db.repositories import save_order_result
+from northstar_quant.foundation.db.models import OrderRecord
+from northstar_quant.foundation.db.repositories import save_order_result
 from northstar_quant.trading_execution.execution.models import OrderRequest, OrderResult
 
 

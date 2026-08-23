@@ -11,14 +11,14 @@ from __future__ import annotations
 from datetime import timedelta
 from uuid import uuid4
 
-from northstar_quant.platform.common.time import utc_now
+from northstar_quant.foundation.common.time import utc_now
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from northstar_quant.platform.common.order_status import WORKING_ORDER_STATUSES
-from northstar_quant.platform.config.settings import get_settings
-from northstar_quant.platform.db.models import OrderRecord
-from northstar_quant.platform.db.repositories import (
+from northstar_quant.foundation.common.order_status import WORKING_ORDER_STATUSES
+from northstar_quant.foundation.config.settings import get_settings
+from northstar_quant.foundation.db.models import OrderRecord
+from northstar_quant.foundation.db.repositories import (
     finalize_order_cancel_request,
     prepare_order_cancel,
 )

@@ -3,8 +3,8 @@ from datetime import timedelta
 import pytest
 
 import northstar_quant.trading_execution.broker.ctp_sim_broker as ctp_sim_broker
-from northstar_quant.platform.common.time import utc_now
-from northstar_quant.platform.config.settings import Settings, get_settings
+from northstar_quant.foundation.common.time import utc_now
+from northstar_quant.foundation.config.settings import Settings, get_settings
 from northstar_quant.trading_execution.broker.ctp_sim_broker import CtpSimBrokerAdapter
 from northstar_quant.trading_execution.broker.contracts import BrokerConnectionState
 from northstar_quant.trading_execution.execution.models import (

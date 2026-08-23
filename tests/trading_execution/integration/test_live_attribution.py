@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from northstar_quant.platform.db.models import (
+from northstar_quant.foundation.db.models import (
     AccountAttributionRecord,
     AnomalyEventRecord,
     RunHealthRecord,

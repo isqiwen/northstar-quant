@@ -20,13 +20,13 @@ from northstar_quant.application.portfolio_risk_authority import (
     PortfolioRiskAuthorityResolver,
     ReconciliationSafetyStateEvidence,
 )
-from northstar_quant.platform.common.time import utc_now
-from northstar_quant.platform.db.models import (
+from northstar_quant.foundation.common.time import utc_now
+from northstar_quant.foundation.db.models import (
     ExecutionPlanRecord,
     ExecutionProvenanceConsumptionRecord,
     OrderRecord,
 )
-from northstar_quant.platform.db.repositories import (
+from northstar_quant.foundation.db.repositories import (
     acquire_reconciliation_safety_fence,
     latest_reconciliation_safety_state,
     record_execution_provenance_consumption,

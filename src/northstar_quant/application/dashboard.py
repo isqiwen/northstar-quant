@@ -12,30 +12,30 @@ import polars as pl
 import streamlit as st
 from sqlalchemy import text
 
-from northstar_quant.platform.config.settings import get_settings
-from northstar_quant.platform.config.trading_profile import (
+from northstar_quant.foundation.config.settings import get_settings
+from northstar_quant.foundation.config.trading_profile import (
     list_production_profiles,
     list_trading_profiles,
     load_trading_profile,
 )
-from northstar_quant.data_platform.sources.downloader import read_profile_manifest, validate_profile_data
-from northstar_quant.data_platform.market.overview import (
+from northstar_quant.data.sources.downloader import read_profile_manifest, validate_profile_data
+from northstar_quant.data.market.overview import (
     build_data_overview_metrics,
     build_data_snapshot_table,
     build_normalized_price_frame,
     build_recent_candles,
     build_symbol_summary_table,
 )
-from northstar_quant.data_platform.artifacts.storage import load_profile_market_data
-from northstar_quant.platform.db.repositories import (
+from northstar_quant.data.artifacts.storage import load_profile_market_data
+from northstar_quant.foundation.db.repositories import (
     aggregate_position_market_value,
     list_latest_positions,
     list_recent_fills,
     list_recent_orders,
 )
-from northstar_quant.platform.db.session import SessionLocal
-from northstar_quant.platform.observability.logging.logger import get_logger
-from northstar_quant.platform.observability.monitoring.report_catalog import list_recent_report_artifacts
+from northstar_quant.foundation.db.session import SessionLocal
+from northstar_quant.foundation.observability.logging.logger import get_logger
+from northstar_quant.foundation.observability.monitoring.report_catalog import list_recent_report_artifacts
 
 
 logger = get_logger(__name__)

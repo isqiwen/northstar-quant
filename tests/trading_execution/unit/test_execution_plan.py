@@ -1,6 +1,6 @@
 import pytest
 
-from northstar_quant.platform.config.trading_profile import load_trading_profile
+from northstar_quant.foundation.config.trading_profile import load_trading_profile
 from northstar_quant.trading_execution.execution import (
     ExecutionPlan,
     ExecutionPlanError,

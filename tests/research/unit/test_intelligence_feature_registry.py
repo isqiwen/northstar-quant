@@ -4,8 +4,8 @@ from hashlib import sha256
 import polars as pl
 import pytest
 
-from northstar_quant.data_platform.market.pit import MarketDataPITSpec, MarketDataSnapshot
-from northstar_quant.data_platform.sources.protocol import PublicationPurpose, PublicationScope
+from northstar_quant.data.market.pit import MarketDataPITSpec, MarketDataSnapshot
+from northstar_quant.data.sources.protocol import PublicationPurpose, PublicationScope
 from northstar_quant.research.features import FeatureRegistry, register_canonical_feature
 from northstar_quant.research.features.intelligence import (
     EVENT_CONFIDENCE,

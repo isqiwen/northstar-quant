@@ -27,8 +27,8 @@ TOOL_API_MODULE = "northstar_quant.application.agent_tools"
 
 _ALLOWED_INTERNAL_IMPORT_PREFIXES = (
     "northstar_quant.application.research_agent",
-    "northstar_quant.platform.common",
-    "northstar_quant.platform.db",
+    "northstar_quant.foundation.common",
+    "northstar_quant.foundation.db",
 )
 _FORBIDDEN_DIRECT_INTERNAL_PREFIXES = (
     "northstar_quant.application.agent_tools",
@@ -36,7 +36,7 @@ _FORBIDDEN_DIRECT_INTERNAL_PREFIXES = (
     "northstar_quant.application.live_service",
     "northstar_quant.application.scheduler",
     "northstar_quant.application.target_service",
-    "northstar_quant.data_platform",
+    "northstar_quant.data",
     "northstar_quant.intelligence",
     "northstar_quant.portfolio_risk",
     "northstar_quant.research",
@@ -181,7 +181,7 @@ def test_durable_research_agent_audit_is_an_explicit_application_boundary() -> N
     assert PATH.is_file(), "P10-WP06 must define application/research_agent_evidence_audit.py"
 
 
-def test_audit_runner_directly_composes_only_research_agent_and_platform_db_contracts() -> None:
+def test_audit_runner_directly_composes_only_research_agent_and_foundation_db_contracts() -> None:
     visitor = _source_dependencies()
     unexpected_internal = sorted(
         imported

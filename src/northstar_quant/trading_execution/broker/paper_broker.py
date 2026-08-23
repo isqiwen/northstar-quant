@@ -5,9 +5,9 @@ import json
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from northstar_quant.platform.common.time import ensure_utc, utc_now
-from northstar_quant.platform.common.order_status import is_final_order_status
-from northstar_quant.platform.config.settings import get_settings
+from northstar_quant.foundation.common.time import ensure_utc, utc_now
+from northstar_quant.foundation.common.order_status import is_final_order_status
+from northstar_quant.foundation.config.settings import get_settings
 from northstar_quant.trading_execution.broker.broker_base import BrokerAdapter
 from northstar_quant.trading_execution.broker.contracts import BrokerCapabilities, BrokerConnectionState, BrokerIdentity, BrokerMode, BrokerStatus
 from northstar_quant.trading_execution.execution.models import (

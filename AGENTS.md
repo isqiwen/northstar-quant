@@ -216,20 +216,20 @@ Master Plan 必须反映仓库真实状态。
 ```text
 src/northstar_quant/
 ├── application/        # 根级 composition root，不属于六个领域
-├── data_platform/
+├── data/
 ├── intelligence/
 ├── research/
 ├── portfolio_risk/
 ├── trading_execution/
-└── platform/
+└── foundation/
 ```
 
 依赖原则：
 
 ```text
-platform
+foundation
   ↑
-data_platform
+data
   ↑
 intelligence
   ↑
@@ -243,13 +243,13 @@ trading_execution
 这表示允许使用更低层稳定 contract，
 但不允许形成反向业务依赖或循环依赖。
 
-`application/` 是唯一跨领域 composition root，可调用六个领域与 `platform`；它不承载
-领域模型，且六个领域和 `platform` 都不得反向导入它。
+`application/` 是唯一跨领域 composition root，可调用六个领域与 `foundation`；它不承载
+领域模型，且六个领域和 `foundation` 都不得反向导入它。
 
 强制规则：
 
-- `platform` 不依赖业务域
-- `data_platform` 不依赖 research / trading
+- `foundation` 不依赖业务域
+- `data` 不依赖 research / trading
 - `intelligence` 不依赖 trading_execution
 - `research` 不直接访问 broker
 - `portfolio_risk` 不直接提交订单
@@ -616,7 +616,7 @@ tests/architecture/
 
 - dependency cycles
 - forbidden imports
-- platform business dependency
+- foundation business dependency
 - research → broker dependency
 - data → trading dependency
 - public API boundaries

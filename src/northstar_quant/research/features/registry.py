@@ -24,8 +24,8 @@ from northstar_quant.research.features.models import (
 )
 
 if TYPE_CHECKING:
-    from northstar_quant.data_platform.artifacts.immutable_store import ArtifactStore
-    from northstar_quant.data_platform.market.pit import MarketDataSnapshot
+    from northstar_quant.data.artifacts.immutable_store import ArtifactStore
+    from northstar_quant.data.market.pit import MarketDataSnapshot
 
 
 @runtime_checkable
@@ -194,7 +194,7 @@ class FeatureRegistry:
         Feature Registry 绝不会把它升级为逐决策无前视证据。
         """
 
-        from northstar_quant.data_platform.market.pit import MarketDataSnapshot
+        from northstar_quant.data.market.pit import MarketDataSnapshot
 
         version = self.get_version(feature_version_hash)
         feature_spec = self.get_spec(version.feature_id)
@@ -265,12 +265,12 @@ class FeatureRegistry:
     def _reselect_dataset_evidence(self, evidence: FeatureDatasetEvidence) -> MarketDataSnapshot:
         """按 lineage 自身冻结的 DatasetVersion/spec/as-of 重放并逐项核验。"""
 
-        from northstar_quant.data_platform.market.pit import (
+        from northstar_quant.data.market.pit import (
             MarketDataPITError,
             MarketDataPITSelector,
             MarketDataSnapshot,
         )
-        from northstar_quant.data_platform.artifacts.immutable_store import ArtifactStore
+        from northstar_quant.data.artifacts.immutable_store import ArtifactStore
 
         if not isinstance(evidence, FeatureDatasetEvidence):
             raise FeatureRegistryError("dataset evidence 必须是 FeatureDatasetEvidence")
@@ -371,7 +371,7 @@ class FeatureRegistry:
     ) -> DecisionReplayFeatureMaterialization:
         """从单个 checkpoint 的 immutable PIT snapshot 受控物化严格特征输出。"""
 
-        from northstar_quant.data_platform.market.pit import MarketDataSnapshot
+        from northstar_quant.data.market.pit import MarketDataSnapshot
 
         if not isinstance(market_snapshot, MarketDataSnapshot):
             raise FeatureRegistryError("market_snapshot 必须是 MarketDataSnapshot")

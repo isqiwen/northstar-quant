@@ -7,12 +7,12 @@
   "python.testing.pytestEnabled": true,
   "python.testing.unittestEnabled": false,
   "python.testing.pytestArgs": [
-    "tests/data_platform/unit",
+    "tests/data/unit",
     "tests/intelligence/unit",
     "tests/research/unit",
     "tests/portfolio_risk/unit",
     "tests/trading_execution/unit",
-    "tests/platform/unit"
+    "tests/foundation/unit"
   ],
   "[python]": {
     "editor.defaultFormatter": "charliermarsh.ruff",

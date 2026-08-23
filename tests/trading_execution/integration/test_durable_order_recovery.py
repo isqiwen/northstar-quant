@@ -3,9 +3,9 @@ import pytest
 from sqlalchemy.orm import Session
 from tests.helpers.durable_submission import RecordingBroker, order_request
 
-from northstar_quant.platform.common.order_identity import build_order_ref
-from northstar_quant.platform.db.models import OrderRecord
-from northstar_quant.platform.db.repositories import (
+from northstar_quant.foundation.common.order_identity import build_order_ref
+from northstar_quant.foundation.db.models import OrderRecord
+from northstar_quant.foundation.db.repositories import (
     prepare_order_submission,
     update_order_statuses,
 )

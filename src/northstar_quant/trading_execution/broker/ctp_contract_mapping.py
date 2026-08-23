@@ -12,8 +12,8 @@ from pathlib import Path
 import re
 from typing import Any, NoReturn
 
-from northstar_quant.platform.config.settings import get_settings
-from northstar_quant.platform.config.yaml_loader import load_yaml
+from northstar_quant.foundation.config.settings import get_settings
+from northstar_quant.foundation.config.yaml_loader import load_yaml
 
 _ROOT_FIELDS = frozenset({"version", "broker", "contracts"})
 _CONTRACT_FIELDS = frozenset(

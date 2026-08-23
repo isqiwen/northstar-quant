@@ -45,8 +45,8 @@ def test_fixture_replay_runtime_has_no_p1_p3_p5_or_application_dependency() -> N
     imports = _imports(MODULE)
     forbidden_prefixes = (
         "northstar_quant.application",
-        "northstar_quant.data_platform.market",
-        "northstar_quant.data_platform.sources",
+        "northstar_quant.data.market",
+        "northstar_quant.data.sources",
         "northstar_quant.portfolio_risk",
         "northstar_quant.trading_execution",
         "tests",

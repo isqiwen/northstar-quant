@@ -56,7 +56,7 @@ _FORBIDDEN_P4_DOMAIN_PREFIXES = (
     "northstar_quant.trading_execution",
 )
 _P4_ALLOWED_INTERNAL_IMPORT_PREFIXES = (
-    "northstar_quant.data_platform",
+    "northstar_quant.data",
     "northstar_quant.intelligence",
 )
 _FORBIDDEN_P2_IMPORT_PREFIXES = (
@@ -306,7 +306,7 @@ def test_p4_feature_projection_has_no_io_dynamic_or_control_capability() -> None
 
     assert not forbidden_internal_imports, (
         "P4 feature projection can use only Intelligence and stable Data Platform contracts; "
-        "it cannot acquire an internal platform/control capability: "
+        "it cannot acquire an internal foundation/control capability: "
         f"{forbidden_internal_imports}"
     )
     assert not forbidden_imports, (

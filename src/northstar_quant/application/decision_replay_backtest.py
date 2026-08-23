@@ -24,25 +24,25 @@ import sys
 import polars as pl
 
 from northstar_quant import __version__
-from northstar_quant.data_platform.artifacts.fingerprints import canonical_json_sha256
-from northstar_quant.data_platform.artifacts.immutable_store import ArtifactStore
-from northstar_quant.data_platform.artifacts.storage import profile_config_sha256
-from northstar_quant.data_platform.contracts.instrument_universes import (
+from northstar_quant.data.artifacts.fingerprints import canonical_json_sha256
+from northstar_quant.data.artifacts.immutable_store import ArtifactStore
+from northstar_quant.data.artifacts.storage import profile_config_sha256
+from northstar_quant.data.contracts.instrument_universes import (
     load_instrument_universe,
 )
-from northstar_quant.data_platform.contracts.profile_governance import (
+from northstar_quant.data.contracts.profile_governance import (
     validate_profile_data_governance,
 )
-from northstar_quant.data_platform.market.pit import MarketDataSnapshot
-from northstar_quant.data_platform.quality.schema import (
+from northstar_quant.data.market.pit import MarketDataSnapshot
+from northstar_quant.data.quality.schema import (
     schema_version_for_profile,
     to_signal_market_data,
     validate_market_dataset,
 )
-from northstar_quant.data_platform.quality import schema as quality_schema_module
-from northstar_quant.data_platform.sources.protocol import PublicationPurpose
-from northstar_quant.platform.common.enums import DataFrequency, StrategyFamily
-from northstar_quant.platform.config.trading_profile import TradingProfile, load_trading_profile
+from northstar_quant.data.quality import schema as quality_schema_module
+from northstar_quant.data.sources.protocol import PublicationPurpose
+from northstar_quant.foundation.common.enums import DataFrequency, StrategyFamily
+from northstar_quant.foundation.config.trading_profile import TradingProfile, load_trading_profile
 from northstar_quant.portfolio_risk.allocation import allocator as allocation_module
 from northstar_quant.portfolio_risk.limits import models as risk_limits_module
 from northstar_quant.portfolio_risk.portfolio.strategy_pipeline import (

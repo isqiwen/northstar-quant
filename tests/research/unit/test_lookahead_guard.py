@@ -10,8 +10,8 @@ import polars as pl
 import pytest
 
 import northstar_quant.research.validation.lookahead as lookahead_module
-from northstar_quant.data_platform.artifacts.immutable_store import ArtifactStore
-from northstar_quant.data_platform.contracts.contract_master import (
+from northstar_quant.data.artifacts.immutable_store import ArtifactStore
+from northstar_quant.data.contracts.contract_master import (
     Contract,
     ContractFeeSchedule,
     ContractRuleSnapshot,
@@ -20,19 +20,19 @@ from northstar_quant.data_platform.contracts.contract_master import (
     ListingState,
     RuleQualityStatus,
 )
-from northstar_quant.data_platform.contracts.artifact_rulebook import (
+from northstar_quant.data.contracts.artifact_rulebook import (
     RULEBOOK_DATASET_ID,
     RULEBOOK_DATASET_TRANSFORM_VERSION,
     RULEBOOK_SCHEMA_VERSION,
     RULEBOOK_TRANSFORM_VERSION,
     _REQUIRED_COLUMNS as RULEBOOK_COLUMNS,
 )
-from northstar_quant.data_platform.market.pit import (
+from northstar_quant.data.market.pit import (
     MarketDataKind,
     MarketDataPITSpec,
     MarketDataSnapshot,
 )
-from northstar_quant.data_platform.sources.protocol import PublicationPurpose, PublicationScope
+from northstar_quant.data.sources.protocol import PublicationPurpose, PublicationScope
 from northstar_quant.research.features.models import FeatureBackfill, FeatureValue
 from northstar_quant.research.validation.lookahead import (
     ContractKnowledgeEvidence,

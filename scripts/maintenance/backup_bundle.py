@@ -21,7 +21,7 @@ import subprocess
 import sys
 import tempfile
 
-from northstar_quant.platform.backup import (
+from northstar_quant.foundation.backup import (
     BackupBundleError,
     BackupBundleSources,
     PostgreSQLBackupError,
@@ -30,8 +30,8 @@ from northstar_quant.platform.backup import (
     verify_backup_bundle,
     verify_postgresql_dump,
 )
-from northstar_quant.platform.config.settings import load_settings
-from northstar_quant.platform.security import redact_text
+from northstar_quant.foundation.config.settings import load_settings
+from northstar_quant.foundation.security import redact_text
 
 
 _SERVICE_NAME = "northstar-quant.service"

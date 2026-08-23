@@ -11,7 +11,7 @@ from northstar_quant.application.portfolio_risk_manual_approval import (
     _create_portfolio_risk_approval_issuer_for_test,
     _verified_manual_risk_approval_from_trusted_verifier,
 )
-from northstar_quant.data_platform.artifacts.fingerprints import canonical_json_sha256
+from northstar_quant.data.artifacts.fingerprints import canonical_json_sha256
 
 
 @dataclass(frozen=True, slots=True)

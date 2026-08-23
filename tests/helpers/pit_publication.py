@@ -14,14 +14,14 @@ from typing import cast
 
 import polars as pl
 
-from northstar_quant.data_platform.artifacts.immutable_store import ArtifactStore
-from northstar_quant.data_platform.contracts.data_domain import (
+from northstar_quant.data.artifacts.immutable_store import ArtifactStore
+from northstar_quant.data.contracts.data_domain import (
     Artifact,
     DatasetVersion,
     NormalizedArtifact,
     QualityStatus,
 )
-from northstar_quant.data_platform.quality import (
+from northstar_quant.data.quality import (
     CompletenessRule,
     DataQualityEngine,
     GapRule,
@@ -36,7 +36,7 @@ from northstar_quant.data_platform.quality import (
     StalenessRule,
     UniquenessRule,
 )
-from northstar_quant.data_platform.sources.protocol import (
+from northstar_quant.data.sources.protocol import (
     AdapterMetadata,
     CANONICAL_NORMALIZED_FORMAT,
     NormalizedTable,
@@ -45,11 +45,11 @@ from northstar_quant.data_platform.sources.protocol import (
     RawCapture,
     SourceFetchRequest,
 )
-from northstar_quant.data_platform.sources.publisher import (
+from northstar_quant.data.sources.publisher import (
     DataSourcePublisher,
     SourcePublicationSpec,
 )
-from northstar_quant.platform.config.data_sources import (
+from northstar_quant.foundation.config.data_sources import (
     DataSourceConfig,
     DataSourceLicense,
     DataSourceSupport,

@@ -323,7 +323,7 @@ cleanup_known_failed_handoffs() {
   # This is deliberately called only on a child process's ordinary failure.
   # An EXIT/INT/TERM trap would erase evidence or a valid candidate after an
   # unknown interruption; durable interrupted-cutover recovery is handled by
-  # later platform work.
+  # later foundation work.
   if ! cleanup_managed_artifact_candidate; then
     deploy_log "警告：无法清理已知失败部署的 root 管理候选制品。"
     cleanup_failed=1

@@ -7,7 +7,7 @@ import pytest
 import polars as pl
 
 import northstar_quant.application.live_service as live_service
-from northstar_quant.platform.common.enums import AssetType
+from northstar_quant.foundation.common.enums import AssetType
 from northstar_quant.trading_execution.execution.models import OrderRequest, OrderResult
 from northstar_quant.application.live_service import (
     _assert_p8_ctp_sim_candidate_execution_path,

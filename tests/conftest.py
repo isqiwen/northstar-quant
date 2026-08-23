@@ -17,12 +17,12 @@ from tests.helpers.paths import PROJECT_ROOT
 
 _DOMAIN_TEST_ROOTS = frozenset(
     {
-        "data_platform",
+        "data",
         "intelligence",
         "research",
         "portfolio_risk",
         "trading_execution",
-        "platform",
+        "foundation",
     }
 )
 _TEST_CATEGORY_MARKERS = frozenset(

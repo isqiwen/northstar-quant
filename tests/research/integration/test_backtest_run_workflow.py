@@ -12,10 +12,10 @@ from typer.testing import CliRunner
 import northstar_quant.application.cli as cli
 from northstar_quant.application.backtest import run_profile_backtest_run
 from northstar_quant.research.backtest.models import BacktestContractError
-from northstar_quant.platform.config.settings import get_settings
-from northstar_quant.data_platform.artifacts import storage
-from northstar_quant.data_platform.sources import downloader
-from northstar_quant.data_platform.sources.downloader import download_profile_data
+from northstar_quant.foundation.config.settings import get_settings
+from northstar_quant.data.artifacts import storage
+from northstar_quant.data.sources import downloader
+from northstar_quant.data.sources.downloader import download_profile_data
 from northstar_quant.application import reporting as report_builder
 from tests.helpers.futures_actual import actual_futures_frame
 from tests.helpers.paths import PROJECT_ROOT

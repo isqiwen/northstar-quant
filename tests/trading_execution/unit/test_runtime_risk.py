@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime, timedelta
 
-from northstar_quant.platform.config.settings import get_settings
+from northstar_quant.foundation.config.settings import get_settings
 from northstar_quant.trading_execution.execution.models import (
     BrokerStateSnapshot,
     MarketQuoteSnapshot,

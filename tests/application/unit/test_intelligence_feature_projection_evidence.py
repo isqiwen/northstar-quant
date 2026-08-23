@@ -12,16 +12,16 @@ from northstar_quant.application.intelligence_feature_projection_evidence import
     ImmutableIntelligenceFeatureProjectionEvidenceVerifier,
     IntelligenceFeatureProjectionEvidenceError,
 )
-from northstar_quant.data_platform.artifacts.fingerprints import content_sha256
-from northstar_quant.data_platform.artifacts.immutable_store import ArtifactStore
-from northstar_quant.data_platform.contracts.data_domain import (
+from northstar_quant.data.artifacts.fingerprints import content_sha256
+from northstar_quant.data.artifacts.immutable_store import ArtifactStore
+from northstar_quant.data.contracts.data_domain import (
     ArtifactMetadata,
     ArtifactProvenance,
     DataSource,
     QualityStatus,
     RawArtifact,
 )
-from northstar_quant.data_platform.sources.protocol import (
+from northstar_quant.data.sources.protocol import (
     CANONICAL_NORMALIZED_FORMAT,
     AdapterMetadata,
     PublicationAuthorization,

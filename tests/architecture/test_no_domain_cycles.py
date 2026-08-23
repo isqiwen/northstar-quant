@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-from tests.architecture._imports import BUSINESS_DOMAINS, ImportEdge, format_diagnostics, runtime_import_edges
+from tests.architecture._imports import ARCHITECTURE_SCOPES, ImportEdge, format_diagnostics, runtime_import_edges
 
 
 def _find_cycle(graph: dict[str, set[str]]) -> list[str] | None:
@@ -41,11 +41,11 @@ def test_business_domain_dependency_graph_is_acyclic() -> None:
     edges = [
         edge
         for edge in runtime_import_edges()
-        if edge.source_scope in BUSINESS_DOMAINS
-        and edge.target_scope in BUSINESS_DOMAINS
+        if edge.source_scope in ARCHITECTURE_SCOPES
+        and edge.target_scope in ARCHITECTURE_SCOPES
         and edge.source_scope != edge.target_scope
     ]
-    graph: dict[str, set[str]] = {domain: set() for domain in BUSINESS_DOMAINS}
+    graph: dict[str, set[str]] = {domain: set() for domain in ARCHITECTURE_SCOPES}
     evidence: dict[tuple[str, str], list[ImportEdge]] = defaultdict(list)
     for edge in edges:
         graph[edge.source_scope].add(edge.target_scope)

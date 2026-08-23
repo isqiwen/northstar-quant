@@ -34,7 +34,7 @@ from northstar_quant.research.backtest.futures_intraday.orders import (
     index_orders,
     schedule_weight_targets,
 )
-from northstar_quant.data_platform.contracts.product_cards import load_product_cards
+from northstar_quant.data.contracts.product_cards import load_product_cards
 
 
 def run_intraday_futures_replay(

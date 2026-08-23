@@ -110,7 +110,7 @@ jobs:
         run: uv run --offline --no-sync alembic upgrade head
 
       - name: 验证 Linux 部署契约
-        run: uv run --offline --no-sync pytest tests/platform/contract/test_deploy_scripts.py -q
+        run: uv run --offline --no-sync pytest tests/foundation/contract/test_deploy_scripts.py -q
 
       - name: 运行完整 pytest（含 integration）
         run: uv run --offline --no-sync pytest
@@ -187,7 +187,7 @@ jobs:
         shell: pwsh
         run: |
           just test-cli
-          uv run --offline --no-sync pytest tests/platform/contract/test_cross_platform_scripts.py tests/architecture -q
+          uv run --offline --no-sync pytest tests/foundation/contract/test_cross_platform_scripts.py tests/architecture -q
 
       - name: 运行跨平台静态检查
         run: just check

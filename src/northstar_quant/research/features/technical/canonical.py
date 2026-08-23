@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 import math
 
-from northstar_quant.data_platform.market.pit import MarketDataSnapshot
+from northstar_quant.data.market.pit import MarketDataSnapshot
 from northstar_quant.research.features.canonical import (
     CN_FUTURES_ACTUAL_CONTRACT_FEATURE_BAR_V1,
     CN_FUTURES_FEATURE_BAR_V1,

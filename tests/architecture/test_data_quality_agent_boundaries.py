@@ -3,7 +3,7 @@
 ``DataQualityAgent`` is deliberately a diagnostic reader over the closed
 ``TypedResearchToolApi``.  It can search an already-authorized immutable
 dataset summary and inspect that exact version's quality projection, but it
-must never gain a second capability path to the data platform, a repair path,
+must never gain a second capability path to the data domain, a repair path,
 or any trading/runtime privilege.
 """
 
@@ -189,7 +189,7 @@ def test_data_quality_agent_reaches_northstar_only_through_the_typed_tool_api() 
     ]
 
     assert not internal_edges, (
-        "DataQualityAgent must use only TypedResearchToolApi; it cannot compose direct data-platform, "
+        "DataQualityAgent must use only TypedResearchToolApi; it cannot compose direct data-domain, "
         "artifact, source, database, configuration, broker, trading, repair, or publication dependencies:\n"
         f"{format_diagnostics(internal_edges)}"
     )

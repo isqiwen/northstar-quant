@@ -8,7 +8,7 @@ from northstar_quant.research.backtest.futures_intraday_adapter import (
     run_actual_futures_intraday_replay,
 )
 from northstar_quant.research.backtest.futures_intraday import FuturesReplayResult
-from northstar_quant.platform.config.trading_profile import load_trading_profile
+from northstar_quant.foundation.config.trading_profile import load_trading_profile
 from tests.helpers.futures_actual import actual_futures_intraday_frame
 
 

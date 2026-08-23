@@ -82,7 +82,7 @@ next_task:
 blocked_work_packages: [P10-WP08, P10-WP09]
 ```
 
-P10 已完成 `7/9` 个 Work Package（78%）；其余 P10-WP08 与 P10-WP09 均需外部前提。用户请求的跨阶段文档治理工作包 `DOC-WP01` 已完成，不改变 P10 的验收计数或外部阻塞状态。
+P10 已完成 `7/9` 个 Work Package（78%）；其余 P10-WP08 与 P10-WP09 均需外部前提。用户授权的跨阶段命名收敛工作包 `DOC-WP02` 已完成；它不改变 P10 的验收计数或外部阻塞状态。
 
 ---
 
@@ -97,7 +97,7 @@ Northstar Quant 最终定义为：
 ```text
 Market / World
       ↓
-Data Platform
+Data
       ↓
 Intelligence
       ↓
@@ -109,10 +109,10 @@ Trading & Execution
       ↓
 Market
       ↓
-Data Platform
+Data
 ```
 
-Platform Foundation 横向提供：
+Foundation 横向提供：
 
 ```text
 Config / DB / Messaging / Scheduling / Observability
@@ -135,15 +135,15 @@ Security / Reporting / CLI / Deployment / Audit
 ```text
 src/northstar_quant/
 ├── application/            # 根级 composition root，不属于六个业务领域
-├── data_platform/
+├── data/
 ├── intelligence/
 ├── research/
 ├── portfolio_risk/
 ├── trading_execution/
-└── platform/
+└── foundation/
 ```
 
-## 3.1 Data Platform
+## 3.1 Data
 
 负责：
 
@@ -259,7 +259,7 @@ Approved Portfolio
 - settlement；
 - live orchestration。
 
-## 3.6 Platform Foundation
+## 3.6 Foundation
 
 负责：
 
@@ -274,13 +274,13 @@ Approved Portfolio
 - CLI；
 - deployment contracts。
 
-`platform` 不得反向依赖业务领域。
+`foundation` 不得反向依赖业务领域。
 
 ## 3.7 Application Composition Root
 
 `application/` 不是第七个业务领域。它只负责装配跨领域用例，例如 CLI、回测工作流、
-运行编排、报告、健康检查与看板；因此可以调用六个领域和 Platform Foundation。反向依赖
-一律禁止：任一领域和 `platform/` 都不得导入 `application/`。
+运行编排、报告、健康检查与看板；因此可以调用六个领域和 `foundation`。反向依赖
+一律禁止：任一领域和 `foundation/` 都不得导入 `application/`。
 ---
 
 # 4. 目标工程结构
@@ -289,7 +289,7 @@ Approved Portfolio
 northstar-quant/
 ├── src/northstar_quant/
 │   ├── application/          # CLI、工作流和运行编排；不承载领域模型
-│   ├── data_platform/
+│   ├── data/
 │   │   ├── sources/
 │   │   ├── market/
 │   │   ├── fundamentals/
@@ -337,7 +337,7 @@ northstar-quant/
 │   │   ├── reconciliation/
 │   │   ├── settlement/
 │   │   └── live/
-│   └── platform/
+│   └── foundation/
 │       ├── common/
 │       ├── config/
 │       ├── db/
@@ -348,12 +348,12 @@ northstar-quant/
 │       ├── reporting/
 │       └── cli/
 ├── configs/
-│   ├── data_platform/
+│   ├── data/
 │   ├── intelligence/
 │   ├── research/
 │   ├── portfolio_risk/
 │   ├── trading_execution/
-│   └── platform/
+│   └── foundation/
 ├── ontology/
 │   ├── events.yaml
 │   ├── mechanisms.yaml
@@ -362,12 +362,12 @@ northstar-quant/
 │   └── relations.yaml
 ├── tests/
 │   ├── architecture/
-│   ├── data_platform/
+│   ├── data/
 │   ├── intelligence/
 │   ├── research/
 │   ├── portfolio_risk/
 │   ├── trading_execution/
-│   ├── platform/
+│   ├── foundation/
 │   ├── e2e/
 │   ├── fixtures/
 │   ├── golden/
@@ -421,7 +421,7 @@ Codex 永远不得违反：
 15. Data adapter 可替换。
 16. Broker adapter 可替换。
 17. Ontology 版本化。
-18. Platform 不反向依赖业务域。
+18. Foundation 不反向依赖业务域。
 19. AI 不得绕过 Research Gate / Risk Gate / Trading Gate。
 20. 未发布系统不为旧错误设计兼容层；应直接修正并同步所有调用方。
 
@@ -453,7 +453,7 @@ available_time
 
 ```text
 tests/research/statistical/test_no_lookahead.py
-tests/data_platform/contract/test_point_in_time_semantics.py
+tests/data/contract/test_point_in_time_semantics.py
 ```
 
 ---
@@ -463,7 +463,7 @@ tests/data_platform/contract/test_point_in_time_semantics.py
 ```text
 tests/
 ├── architecture/
-├── data_platform/
+├── data/
 │   ├── unit/
 │   ├── integration/
 │   └── contract/
@@ -486,7 +486,7 @@ tests/
 │   ├── integration/
 │   ├── simulation/
 │   └── failure/
-├── platform/
+├── foundation/
 │   ├── unit/
 │   ├── integration/
 │   └── contract/
@@ -563,7 +563,7 @@ uv run --offline --no-sync python scripts/ci/check_mypy_baseline.py check
 
 ```bash
 just env-bootstrap
-uv run --offline --no-sync pytest tests/platform/contract tests/architecture
+uv run --offline --no-sync pytest tests/foundation/contract tests/architecture
 uv run --offline --no-sync ruff check .
 ```
 
@@ -587,8 +587,8 @@ completion:
 **Status:** DONE
 
 - [x] 建立 architecture tests
-- [x] platform → 无业务依赖
-- [x] data_platform 不依赖 research/trading
+- [x] foundation → 无业务依赖
+- [x] data 不依赖 research/trading
 - [x] intelligence 不依赖 trading
 - [x] research 不直接调用 broker
 - [x] portfolio_risk 不依赖 live orchestration
@@ -604,7 +604,7 @@ status: DONE
 completion:
   completed_at: 2026-08-19
   commit: null
-  notes: 建立 AST 架构契约与六领域 DAG；跨领域 CLI、回测与 live 编排收敛到根级 application composition root，Platform Foundation 保持无业务运行时依赖。
+  notes: 建立 AST 架构契约与六领域 DAG；跨领域 CLI、回测与 live 编排收敛到根级 application composition root，foundation 保持无业务运行时依赖。
 ```
 
 ## P0-WP03 — scripts / infra / just
@@ -747,8 +747,8 @@ completion:
   commit: null
   notes: 新增纯值、不可变的数据领域契约；不改写现有下载、manifest、数据库或交易链路。ArtifactSnapshot 将内容、来源、PIT 时间、质量和 provenance 绑定为可验证快照；DatasetVersion 仅引用已校验快照。标准化确定性工厂校验 raw bytes，并对同一转换双执行，不一致即失败关闭。
   verification:
-    - pytest tests/data_platform/unit/test_data_domain_core.py tests/data_platform/contract/test_data_domain_contract.py：14 passed
-    - pytest tests/data_platform（临时、无密钥配置根；未启动数据库）：50 passed
+    - pytest tests/data/unit/test_data_domain_core.py tests/data/contract/test_data_domain_contract.py：14 passed
+    - pytest tests/data（临时、无密钥配置根；未启动数据库）：50 passed
     - pytest tests/architecture、文档与主计划契约：26 passed
     - ruff check .；mypy baseline check（86 条历史诊断无新增）；git diff --check
   residual_boundary:
@@ -780,7 +780,7 @@ completion:
   commit: null
   notes: 新增独立 immutable_store，不复用 legacy storage.py 的可覆盖 market/cache 投影，也不接入数据库或迁移。永久对象固定在 <storage_dir>/artifacts，以 SHA-256 路径、canonical JSON、no-replace hard link 与 create-or-verify 语义保存。POSIX 发布与读取使用 root/parent dir_fd、O_NOFOLLOW 和回读校验；normalized 绑定在 record 前作为并发唯一闸门。DatasetVersion 逐项验证 blob、record、snapshot-level lineage、PIT 与质量状态后回放。output cleanup 始终保护 artifacts 根。
   verification:
-    - pytest tests/data_platform（临时、无密钥配置根；未启动数据库）：69 passed
+    - pytest tests/data（临时、无密钥配置根；未启动数据库）：69 passed
     - pytest 核心 immutable store、cleanup、领域和存储 contract：37 passed
     - pytest tests/architecture、文档与主计划 contract：26 passed
     - ruff check .；mypy baseline check（86 条历史诊断无新增）；git diff --check
@@ -827,7 +827,7 @@ completion:
   commit: null
   notes: 新增 Data Platform 的 Commodity、Exchange、Instrument、ContinuousResearchSeries、实际 Contract、ContractRuleSnapshot 与带 Master 指纹的 ContractResolution。静态 Contract Master YAML 只保存稳定身份并拒绝任何 rule_snapshots；执行解析以显式 decision_at、PIT、质量、挂牌/到期、交割限制和执行资格失败关闭。CTP 映射、执行计划、实盘服务及 ctp_sim 都拒绝连续研究序列，实际月份合约才可进入券商身份查询。
   verification:
-    - pytest tests/data_platform（临时、无密钥配置根；未启动数据库）：89 passed
+    - pytest tests/data（临时、无密钥配置根；未启动数据库）：89 passed
     - pytest Contract Master、CTP mapping/sim、execution registry、live service、architecture 与文档契约（临时安全配置根）：62 passed
     - ruff check .；mypy contract master / static loader / CTP mapping；git diff --check
     - 独立安全复审：无 blocker，可标记 DONE
@@ -917,8 +917,8 @@ completion:
   notes: 新增纯内存、PIT-aware 的预发布质量评估核心。QualityRequest 以 canonical frame payload 逐字节绑定候选 Artifact 内容哈希，并在构造和执行时防御 Polars 原地变异；Calendar/Contract/coverage 只能通过带 available_at 与 immutable reference_hash 的注入事实参与判断。十条固定规则完整覆盖，缺失、未来或不可信证据均为 UNKNOWN；gap 明确检查覆盖窗口首尾、内部区间和每个分组，revision 只接受可见且质量/来源/schema/transform/kind 兼容的 prior immutable baseline。正式绑定不得改善候选制品已有的质量状态。
   verification:
     - pytest quality engine、质量公开契约与 architecture（临时安全配置根）：36 passed
-    - pytest tests/data_platform tests/architecture（临时安全配置根）：141 passed
-    - ruff check quality 与对应测试；mypy src/northstar_quant/data_platform/quality；git diff --check
+    - pytest tests/data tests/architecture（临时安全配置根）：141 passed
+    - ruff check quality 与对应测试；mypy src/northstar_quant/data/quality；git diff --check
     - 独立安全复审：修复 frame/artifact 错绑、可变 frame、gap、revision baseline 与质量状态洗白后，无剩余 blocker
   residual_boundary:
     - assessment 已由 P1-WP06 作为不可变 sidecar/binding 写入 ArtifactStore 和 DatasetVersion manifest；legacy 下载缓存仍不具有该证据。
@@ -961,7 +961,7 @@ completion:
   notes: 新增纯值 DataSourceAdapter 协议、PublicationScope/PublicationAuthorization 授权模型、受控 DataSourcePublisher 及 adapter 注册表。发布器只接受 adapter 产生的 raw bytes；在 fetch 前后、raw/normalized 写入前和 DatasetVersion 释放前重新核验当前来源配置、许可范围和 adapter metadata。从已存 raw 再读取后双执行 normalized 转换，再由发布器自身调用 Quality Engine；最终 assessment、唯一 snapshot binding 和无密钥授权收据均追加式写入 ArtifactStore，DatasetVersion manifest 精确引用它们。
   verification:
     - pytest 发布器、协议、不可变制品库、质量与公开契约（临时安全配置根）：55 passed
-    - pytest tests/data_platform tests/architecture（临时安全配置根）：169 passed
+    - pytest tests/data tests/architecture（临时安全配置根）：169 passed
     - ruff check Data Platform 与对应测试；mypy protocol/publisher/immutable_store/quality；mypy baseline check；git diff --check
     - 合成 commercial_licensed 来源完整回放 raw → normalized → assessment → DatasetVersion；未授权 AKShare 在 fetch 前拒绝，撤销、非确定性、FAIL 质量和篡改 evidence 均失败关闭
   residual_boundary:
@@ -989,8 +989,8 @@ completion:
   commit: null
   notes: 新增 MarketDataPITSpec、MarketDataRevision、MarketDataSnapshot 与 MarketDataPITSelector。选择器只回放明确 immutable DatasetVersion，要求唯一 normalized 制品、PASS 质量、不可变 quality assessment 和 publication authorization；行级 available_at 不得晚于其制品可读时间，未声明列、并列冲突修订、future row、无授权/无质量证据、schema 不一致均失败关闭。快照只保存 canonical bytes 并逐次重建 frame，revision 与 frame 逐行绑定。授权 hash 与完整脱敏 scope 会冻结进 snapshot/manifest；应用回测入口重新计算 snapshot，并严格核对 historical_backtest 用途、画像维度和 profile universe 的产品/交易所覆盖，不能扩大仅内部研究或部分品种授权。
   verification:
-    - pytest tests/data_platform/unit/test_market_pit.py tests/data_platform/contract/test_point_in_time_semantics.py tests/research/statistical/test_no_lookahead.py tests/research/unit/test_admission.py（临时安全配置根）：18 passed
-    - pytest tests/data_platform tests/architecture tests/research（临时安全配置根；未启动数据库）：260 passed
+    - pytest tests/data/unit/test_market_pit.py tests/data/contract/test_point_in_time_semantics.py tests/research/statistical/test_no_lookahead.py tests/research/unit/test_admission.py（临时安全配置根）：18 passed
+    - pytest tests/data tests/architecture tests/research（临时安全配置根；未启动数据库）：260 passed
     - ruff check PIT、应用回测、研究准入与对应测试；mypy PIT/回测/研究准入与对应测试；git diff --check
   residual_boundary:
     - 当前 MarketDataSnapshot 是单一 STATIC_AS_OF_VIEW_NOT_DECISION_REPLAY，manifest 明确 decision_time_safe=false，研究准入会阻断它进入候选策略；完整逐决策 PIT replay/Look-ahead guard 留给后续研究工作包。
@@ -1022,8 +1022,8 @@ completion:
   commit: null
   notes: 完成 Source → Raw → Normalize → Validate → DatasetVersion → Research Consumer 的单条受控离线闭环。测试 adapter 只从持久化 raw JSON bytes 重新解析标准化表，Publisher 对同一 raw 双执行 normalize；真实 DataQualityEngine 运行全部十项规则并把 PASS assessment 作为不可变 sidecar 写入制品库。随后通过 DatasetVersion replay、MarketDataPITSelector 与真实研究回测入口，且回测 manifest 冻结授权范围和静态 PIT 标记。
   verification:
-    - pytest tests/data_platform/integration/test_data_platform_e2e.py（临时安全配置根）：1 passed
-    - pytest tests/data_platform tests/architecture tests/research tests/platform/contract/test_master_plan_contract.py tests/platform/contract/test_documentation_contracts.py（临时安全配置根；未启动数据库）：271 passed
+    - pytest tests/data/integration/test_data_e2e.py（临时安全配置根）：1 passed
+    - pytest tests/data tests/architecture tests/research tests/foundation/contract/test_master_plan_contract.py tests/foundation/contract/test_documentation_contracts.py（临时安全配置根；未启动数据库）：271 passed
     - ruff check .；ruff check P1-WP08 测试；git diff --check
     - 独立终审：确认未使用 _PassQualityEngine 或预置 DataFrame；raw→normalize、真实质量十规则、不可变 DatasetVersion/PIT/研究消费者链均已覆盖
   residual_boundary:
@@ -2781,7 +2781,7 @@ Hypothesis
 实现边界：
 
 - `ResearchAgent` 只能注入并调用 `TypedResearchToolApi.invoke(ToolName, request)`；不得直接导入
-  research domain、platform、配置、DB、文件系统、网络、provider、portfolio/risk、broker 或 live runtime。
+  research domain、foundation、配置、DB、文件系统、网络、provider、portfolio/risk、broker 或 live runtime。
 - Hypothesis 与 FeatureSpec proposal 仅是带 evidence/hash 的不可执行研究提案；不得注册 Feature、
   生成/执行策略代码、SQL、路径或 callable。
 - 每次 run 必须固定一个带时区 `as_of`，并按
@@ -2985,7 +2985,7 @@ completion:
   九项 research-only allowlist 不变；
 - [x] immutable typed snapshot 精确覆盖 health、redacted log summary、deployment diagnosis、backup
   status，并对 scope、authorization、PIT、evidence、时间序、redaction 与 UNKNOWN 实施 fail-closed；
-- [x] `OpsAgent(TypedOpsToolApi)` 只公开一次只读 run，固定单步 trace，不能直达 platform/ops 脚本/
+- [x] `OpsAgent(TypedOpsToolApi)` 只公开一次只读 run，固定单步 trace，不能直达 foundation/ops 脚本/
   live service/risk/trading，也不能发出恢复、部署、备份、交易或写入操作；
 - [x] HALT、kill switch ENABLED 和 UNKNOWN 在输出中只读保留，结果始终 diagnostic-only/non-tradable，
   不含 command、action、recommendation、recovery、target、order 或 trade 语义；
@@ -3829,6 +3829,50 @@ notes: >-
 
 ---
 
+## DOC-WP02 — Foundation / Data Module Rename
+
+**Status:** DONE
+
+**Origin:** 用户明确批准将含混的技术底座与数据领域模块分别收敛为 `foundation` 与 `data`。
+这是研发阶段的 clean breaking change，不保留 alias、legacy adapter、双路径导入或旧目录。
+
+**Goal:** 让技术基础设施与受治理的数据领域在包路径、测试布局、架构契约和文档中使用不重叠的名称：
+
+```text
+src/northstar_quant/platform         → src/northstar_quant/foundation
+src/northstar_quant/data_platform    → src/northstar_quant/data
+tests/platform                        → tests/foundation
+tests/data_platform                   → tests/data
+```
+
+**Scope:**
+
+- 迁移全部 Python imports、动态 import 字符串、包路径、测试目录和 architecture-test allowlist；
+- 迁移代码注释、开发脚本、配置、文档和规划中作为包路径或模块名的引用；
+- 将架构图、依赖契约和根目录 `AGENTS.md` 同步为 `foundation → data → intelligence → research → portfolio_risk → trading_execution`；
+- 不改动持久化 schema、Alembic revision、交易安全逻辑或对外数据/交易能力。
+
+**Acceptance:**
+
+- `northstar_quant.platform` 与 `northstar_quant.data_platform` 不再存在，也没有任何生产或测试 import；
+- `northstar_quant.foundation` 与 `northstar_quant.data` 存在，且所有 package/test 路径、动态引用、docs/config/scripts 和 architecture contract 使用新名称；
+- 不存在 compatibility alias、wrapper 或旧路径重定向；
+- focused import/architecture suites、完整 pytest、Ruff、mypy baseline 和 link/static checks 通过。
+
+**Completion:**
+
+```yaml
+completed_at: 2026-08-23
+commit: null
+notes: >-
+  将技术底座与数据领域一次性重命名为 foundation/data，删除旧包及旧测试目录，
+  不保留 alias、adapter、wrapper 或双路径 import。全库静态导入契约、架构边界、
+  scripts、迁移、CI、配置、文档和 mypy baseline 均已同步；pytest 1712 passed, 23 skipped，
+  Ruff、mypy baseline 与 Alembic single-head 均通过。
+```
+
+---
+
 # 20. Codex Work Package 标准模板
 
 ```yaml
@@ -4079,16 +4123,16 @@ P8 → P9 → P10
 | Trading | CTP adapter skeleton | DONE（仅精确 FakeCtpFront、实际合约映射和账户匹配快照；应用层仍拒绝真实 ctp） |
 | Trading | Reconciliation | DONE（订单/成交身份与账户均须可归属；不可解释差异追加粘性 HALT，具名人工恢复后才可重新提交） |
 | Trading | Ledger | DONE（订单/成交/撤单、账户/持仓、结算事实与具名 controlled adjustment 均 append-only） |
-| Platform | Config | DONE（统一环境/画像/数据源/研究准入/ontology 交叉校验，失败关闭） |
-| Platform | Messaging | DONE（typed 进程内 FIFO、显式重试/重复消息/无订阅者失败关闭） |
-| Platform | Scheduling | DONE（typed registry、统一既有作业注册、LIVE 生命周期 gate） |
-| Platform | Observability | DONE（结构化日志、fail-closed operational snapshot、Prometheus metrics 与健康输出统一） |
-| Platform | Security | DONE（统一密钥扫描、日志/导出脱敏、稳定审计 JSON 与服务/部署身份最小权限边界） |
-| Platform | Deployment | DONE（唯一 Python 控制面、强制质量门禁、受限 SSH、互斥发布、健康回退） |
-| Platform | Linux production layout | DONE（固定 FHS、root 控制祖先链、release 环境/systemd 快照与 mount-aware 特权遍历） |
-| Platform | Backup/restore | DONE（六类受限 SHA-256 逻辑包、无覆盖发布、双重静默检查与隔离 PostgreSQL 恢复演练） |
-| Platform | Release | DONE（固定 root gate、canonical signed manifest、环境独立签名、受限 SSH stdin 提交、不可变事务审计与 migration 后人工恢复边界） |
-| Platform | Hermetic PEP 517 bootstrap | DONE（精确 builder/source provenance、fresh staging venv、offline/no-sync 后续门禁、Windows/Linux release contract） |
+| Foundation | Config | DONE（统一环境/画像/数据源/研究准入/ontology 交叉校验，失败关闭） |
+| Foundation | Messaging | DONE（typed 进程内 FIFO、显式重试/重复消息/无订阅者失败关闭） |
+| Foundation | Scheduling | DONE（typed registry、统一既有作业注册、LIVE 生命周期 gate） |
+| Foundation | Observability | DONE（结构化日志、fail-closed operational snapshot、Prometheus metrics 与健康输出统一） |
+| Foundation | Security | DONE（统一密钥扫描、日志/导出脱敏、稳定审计 JSON 与服务/部署身份最小权限边界） |
+| Foundation | Deployment | DONE（唯一 Python 控制面、强制质量门禁、受限 SSH、互斥发布、健康回退） |
+| Foundation | Linux production layout | DONE（固定 FHS、root 控制祖先链、release 环境/systemd 快照与 mount-aware 特权遍历） |
+| Foundation | Backup/restore | DONE（六类受限 SHA-256 逻辑包、无覆盖发布、双重静默检查与隔离 PostgreSQL 恢复演练） |
+| Foundation | Release | DONE（固定 root gate、canonical signed manifest、环境独立签名、受限 SSH stdin 提交、不可变事务审计与 migration 后人工恢复边界） |
+| Foundation | Hermetic PEP 517 bootstrap | DONE（精确 builder/source provenance、fresh staging venv、offline/no-sync 后续门禁、Windows/Linux release contract） |
 | AI | Typed research tool API | DONE（九项封闭 typed allowlist；新增只读质量 inspection，显式 injected research ports、PIT/证据链 fail-closed、无交易权限） |
 | AI | Research agent | DONE（单一 typed-tool capability、证据绑定七步链、静态实验语义、无敏感 hash trace；独立 PostgreSQL append-only/hash-only audit 保留跨进程 `run_id` reservation、终态和有序 trace，始终 `RESEARCH_ONLY`、不可交易） |
 | AI | Intelligence agent | DONE（唯一 search_events typed capability、授权 source/document/span citation、精确 Event identity、严格历史 analogue、evidence-bound Event→mechanism→commodity impact、PIT fail-closed、无交易权限） |
@@ -4129,12 +4173,12 @@ Northstar Quant 最终应该能够由一个高级技术负责人配合 Codex 长
 
 ```yaml
 next_task:
-  id: P10-WP08
-  title: Platform Production / DR Acceptance
-  status: BLOCKED
+  id: DOC-WP02
+  title: Foundation / Data Module Rename
+  status: IN_PROGRESS
 ```
 
-P10-WP08 与 P10-WP09 均由外部前提阻塞；`DOC-WP01` 已完成。在获得授权的外部条件前维持 `NO LIVE ACTION`。
+P10-WP08 与 P10-WP09 均由外部前提阻塞；当前执行 `DOC-WP02`。在获得授权的外部条件前维持 `NO LIVE ACTION`。
 
 ---
 
@@ -4232,5 +4276,6 @@ P10-WP08 与 P10-WP09 均由外部前提阻塞；`DOC-WP01` 已完成。在获�
 | 2026-08-23 | P10-WP06：完成 Research Agent 跨进程 durable evidence audit。独立 wrapper 先写 `ADMITTED`，成功时原子追加 `COMPLETED` 和有序 hash trace；generic tool/Agent 异常与终态写入不确定性均保留 unresolved reservation，拒绝同一 `run_id` 重放。前向 `0009_agent_run_audit`/`0010_agent_run_audit_hardening` 强制 hash-only、tool/failure allowlist 和 UPDATE/DELETE/TRUNCATE 不可变性；无 raw prompt/CoT、无新增 Agent/交易能力、无真实 CTP 或实盘。P10-WP07 已开始。 | DONE |
 | 2026-08-23 | P10-WP07：完成 Trading Acceptance Evidence Closure。`P10_TRADING_FAILURE_MATRIX.md` 将 P5-WP10 的 disconnect/restart、重复/乱序回调、unknown order、stale facts、DB unavailable、timeout/network partition、identity mismatch、margin、price limit、cancel reject 和 rollover 固定为 T05-01 至 T05-11，并补 T05-12 的真实 P3 `BLOCK` 无 plan/intent/broker mutation sentinel contract 与 T05-13 的真实 CTP 连接前拒绝边界。所有正向证据仅为本地 `ctp_sim` / 隔离 PostgreSQL；没有真实 CTP、账户或实盘操作。P10 剩余 P10-WP08/P10-WP09 均为外部阻塞。 | DONE |
 | 2026-08-23 | DOC-WP01：完成文档治理与架构设计收敛。旧编号文档、陈旧路线图和重复 README 叙述已由 `ARCHITECTURE.md`、`DEVELOPMENT.md`、`OPERATIONS.md`、`GOVERNANCE.md` 替代；planning 保留为独立控制面。所有仓库入口、配置/脚本引用和文档契约已同步，未创建旧路径兼容页。 | DONE |
+| 2026-08-23 | DOC-WP02：完成技术底座与数据领域模块的 clean breaking rename。`platform`/`data_platform` 目录、imports、测试布局、架构契约、脚本、迁移、CI、配置和文档已统一为 `foundation`/`data`；旧包不存在，未保留 alias、adapter、wrapper 或双路径兼容层。 | DONE |
 
 > 所有重大架构变化、阶段调整、WP 删除/新增都必须记录在这里。

@@ -16,7 +16,7 @@ import json
 import math
 import re
 
-from northstar_quant.data_platform.artifacts.fingerprints import canonical_json_sha256
+from northstar_quant.data.artifacts.fingerprints import canonical_json_sha256
 from northstar_quant.research.features.models import FeatureDatasetEvidence
 
 

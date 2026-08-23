@@ -6,7 +6,7 @@ from collections.abc import Callable
 
 from northstar_quant.trading_execution.broker.broker_base import BrokerAdapter
 from northstar_quant.trading_execution.execution.models import OrderRequest, OrderResult
-from northstar_quant.platform.observability.logging.logger import get_logger
+from northstar_quant.foundation.observability.logging.logger import get_logger
 from northstar_quant.portfolio_risk.limits.models import OrderRiskContext, RiskLimits
 from northstar_quant.portfolio_risk.risk.pretrade import reserve_order_context, validate_order
 

@@ -9,7 +9,7 @@ from hashlib import sha256
 import polars as pl
 import pytest
 
-from northstar_quant.data_platform.market.pit import (
+from northstar_quant.data.market.pit import (
     MarketDataKind,
     MarketDataPITSelector,
     MarketDataPITSpec,

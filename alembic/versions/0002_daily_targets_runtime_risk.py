@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from alembic import op
-import northstar_quant.platform.db.types
+import northstar_quant.foundation.db.types
 import sqlalchemy as sa
 
 revision = "0002_daily_targets_runtime_risk"
@@ -32,12 +32,12 @@ def upgrade() -> None:
         sa.Column("checks_json", sa.Text(), nullable=False),
         sa.Column(
             "checked_at",
-            northstar_quant.platform.db.types.UTCDateTime(),
+            northstar_quant.foundation.db.types.UTCDateTime(),
             nullable=False,
         ),
         sa.Column(
             "created_at",
-            northstar_quant.platform.db.types.UTCDateTime(),
+            northstar_quant.foundation.db.types.UTCDateTime(),
             nullable=False,
         ),
         sa.PrimaryKeyConstraint("id"),

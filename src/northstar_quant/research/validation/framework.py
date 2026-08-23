@@ -17,7 +17,7 @@ import math
 import random
 import re
 
-from northstar_quant.data_platform.artifacts.fingerprints import canonical_json_sha256
+from northstar_quant.data.artifacts.fingerprints import canonical_json_sha256
 
 
 _TEXT_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]*$")

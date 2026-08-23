@@ -4,13 +4,13 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from northstar_quant.platform.db.models import (
+from northstar_quant.foundation.db.models import (
     CancelRecord,
     FillRecord,
     OrderRecord,
     TradeAttributionRecord,
 )
-from northstar_quant.platform.db.repositories import list_execution_recovery_blockers
+from northstar_quant.foundation.db.repositories import list_execution_recovery_blockers
 from northstar_quant.trading_execution.execution.models import (
     BrokerStateSnapshot,
     FillSnapshot,

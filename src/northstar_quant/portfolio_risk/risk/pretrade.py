@@ -6,8 +6,8 @@ import math
 from collections.abc import Mapping
 from typing import Protocol
 
-from northstar_quant.platform.common.order_status import is_final_order_status
-from northstar_quant.platform.common.quantity import resolve_qty_step
+from northstar_quant.foundation.common.order_status import is_final_order_status
+from northstar_quant.foundation.common.quantity import resolve_qty_step
 from northstar_quant.portfolio_risk.limits.models import OrderRiskContext, RiskLimits
 
 

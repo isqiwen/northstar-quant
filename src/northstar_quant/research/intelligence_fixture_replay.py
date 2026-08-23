@@ -27,7 +27,7 @@ import math
 import re
 from typing import Final
 
-from northstar_quant.data_platform.artifacts.fingerprints import (
+from northstar_quant.data.artifacts.fingerprints import (
     FingerprintError,
     canonical_json_sha256,
     require_sha256,
@@ -41,7 +41,7 @@ _SCORE_ISSUER: Final = object()
 _MANIFEST_ISSUER: Final = object()
 
 # This is intentionally an exact, closed fixture universe.  A real commodity,
-# market, instrument, or contract universe belongs in the data-platform and
+# market, instrument, or contract universe belongs in the data domain and
 # intelligence contracts, not in this P10 fixture-only research boundary.
 SIX_COMMODITY_FIXTURE_UNIVERSE: Final[frozenset[str]] = frozenset(
     {

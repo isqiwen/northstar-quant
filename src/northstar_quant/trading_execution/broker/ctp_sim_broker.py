@@ -16,15 +16,15 @@ from pathlib import Path
 from collections.abc import Callable
 from typing import Any, TextIO, cast
 
-from northstar_quant.platform.common.enums import CtpOffset
-from northstar_quant.platform.common.order_identity import build_order_ref
-from northstar_quant.platform.common.order_status import is_final_order_status
-from northstar_quant.platform.common.time import ensure_utc, utc_now
+from northstar_quant.foundation.common.enums import CtpOffset
+from northstar_quant.foundation.common.order_identity import build_order_ref
+from northstar_quant.foundation.common.order_status import is_final_order_status
+from northstar_quant.foundation.common.time import ensure_utc, utc_now
 from northstar_quant.trading_execution.broker.ctp_contract_mapping import (
     CtpContractMapping,
     load_ctp_contract_registry,
 )
-from northstar_quant.platform.config.settings import get_settings, normalize_local_state_account
+from northstar_quant.foundation.config.settings import get_settings, normalize_local_state_account
 from northstar_quant.trading_execution.broker.broker_base import BrokerAdapter
 from northstar_quant.trading_execution.broker.contracts import BrokerCapabilities, BrokerConnectionState, BrokerIdentity, BrokerMode, BrokerStatus
 from northstar_quant.trading_execution.execution.models import (

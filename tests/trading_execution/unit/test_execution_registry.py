@@ -5,8 +5,8 @@ from datetime import UTC, datetime
 import pytest
 import polars as pl
 
-from northstar_quant.platform.common.enums import StrategyOutputType
-from northstar_quant.platform.config.trading_profile import load_trading_profile
+from northstar_quant.foundation.common.enums import StrategyOutputType
+from northstar_quant.foundation.config.trading_profile import load_trading_profile
 from northstar_quant.trading_execution.execution.models import (
     BrokerStateSnapshot,
     FillSnapshot,

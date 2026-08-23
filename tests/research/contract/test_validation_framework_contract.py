@@ -28,7 +28,7 @@ def test_validation_framework_does_not_import_application_broker_or_database() -
     forbidden = (
         "northstar_quant.application",
         "northstar_quant.trading_execution",
-        "northstar_quant.platform.db",
+        "northstar_quant.foundation.db",
     )
     assert not any(
         imported == prefix or imported.startswith(prefix + ".")

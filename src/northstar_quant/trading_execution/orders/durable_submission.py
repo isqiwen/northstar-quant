@@ -14,13 +14,13 @@ from uuid import uuid4
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from northstar_quant.platform.common.order_identity import build_order_idempotency_key
-from northstar_quant.platform.common.order_status import (
+from northstar_quant.foundation.common.order_identity import build_order_idempotency_key
+from northstar_quant.foundation.common.order_status import (
     is_final_order_status,
     is_rejected_order_status,
 )
-from northstar_quant.platform.db.models import OrderRecord
-from northstar_quant.platform.db.repositories import (
+from northstar_quant.foundation.db.models import OrderRecord
+from northstar_quant.foundation.db.repositories import (
     claim_order_submission,
     complete_order_submission,
     finalize_order_cancel_request,
@@ -46,7 +46,7 @@ from northstar_quant.trading_execution.orders.state_machine import (
 from northstar_quant.trading_execution.orders.ctp_sim_submission_guard import (
     CtpSimSubmissionAuthority,
 )
-from northstar_quant.platform.observability.logging.logger import get_logger
+from northstar_quant.foundation.observability.logging.logger import get_logger
 
 logger = get_logger(__name__)
 

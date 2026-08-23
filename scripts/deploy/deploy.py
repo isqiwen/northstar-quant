@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Final
 
-from northstar_quant.platform.security import SecurityAuditEvent
+from northstar_quant.foundation.security import SecurityAuditEvent
 
 try:  # 允许作为 ``python scripts/deploy/deploy.py`` 或模块导入运行。
     from .control_bundle import ControlBundleError, build_control_artifact

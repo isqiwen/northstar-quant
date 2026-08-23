@@ -14,9 +14,9 @@ P3_APPROVAL_PATH = PACKAGE_ROOT / "portfolio_risk" / "portfolio" / "approval.py"
 CANDIDATE_PATH = PACKAGE_ROOT / "application" / "ctp_sim_candidate_execution.py"
 CLI_PATH = PACKAGE_ROOT / "application" / "cli.py"
 AGENT_TOOLS_PATH = PACKAGE_ROOT / "application" / "agent_tools.py"
-REPOSITORIES_PATH = PACKAGE_ROOT / "platform" / "db" / "repositories.py"
+REPOSITORIES_PATH = PACKAGE_ROOT / "foundation" / "db" / "repositories.py"
 MANUAL_APPROVAL_MODULE = "northstar_quant.application.portfolio_risk_manual_approval"
-REPOSITORIES_MODULE = "northstar_quant.platform.db.repositories"
+REPOSITORIES_MODULE = "northstar_quant.foundation.db.repositories"
 RAW_VERIFIER_RECEIPT_RE = re.compile(r"\bverifier_receipt\b(?!_hash)")
 
 

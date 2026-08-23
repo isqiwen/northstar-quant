@@ -10,28 +10,28 @@ from zoneinfo import ZoneInfo
 
 import polars as pl
 
-from northstar_quant.platform.common.enums import DataFrequency, StrategyOutputType
-from northstar_quant.platform.common.time import ensure_utc, utc_now
-from northstar_quant.platform.common.types import StrategyOutputBundle
-from northstar_quant.platform.config.settings import get_settings
-from northstar_quant.platform.config.trading_profile import (
+from northstar_quant.foundation.common.enums import DataFrequency, StrategyOutputType
+from northstar_quant.foundation.common.time import ensure_utc, utc_now
+from northstar_quant.foundation.common.types import StrategyOutputBundle
+from northstar_quant.foundation.config.settings import get_settings
+from northstar_quant.foundation.config.trading_profile import (
     TradingProfile,
     ensure_broker_profile,
     load_trading_profile,
 )
-from northstar_quant.data_platform.artifacts.storage import (
+from northstar_quant.data.artifacts.storage import (
     load_profile_market_data,
     load_profile_signal_data,
 )
-from northstar_quant.platform.db.models import StrategyRunRecord
-from northstar_quant.platform.db.repositories import (
+from northstar_quant.foundation.db.models import StrategyRunRecord
+from northstar_quant.foundation.db.repositories import (
     get_strategy_run_by_run_id,
     latest_strategy_run,
     list_strategy_snapshots_for_run,
     save_strategy_run_snapshot,
 )
-from northstar_quant.platform.db.session import SessionLocal
-from northstar_quant.platform.observability.logging.logger import get_logger
+from northstar_quant.foundation.db.session import SessionLocal
+from northstar_quant.foundation.observability.logging.logger import get_logger
 from northstar_quant.portfolio_risk.portfolio.strategy_pipeline import run_profile_strategy_pipeline
 
 logger = get_logger(__name__)

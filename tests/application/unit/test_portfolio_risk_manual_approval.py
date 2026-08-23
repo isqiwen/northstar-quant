@@ -12,7 +12,7 @@ from northstar_quant.application.portfolio_risk_manual_approval import (
     ManualRiskApprovalError,
     require_persisted_portfolio_risk_approval,
 )
-from northstar_quant.platform.db.models import PortfolioRiskApprovalRecord
+from northstar_quant.foundation.db.models import PortfolioRiskApprovalRecord
 from tests.helpers.execution_provenance import build_execution_provenance_fixture
 from tests.helpers.manual_risk_approval import (
     FakeManualRiskApprovalVerifier,

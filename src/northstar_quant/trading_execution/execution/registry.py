@@ -10,7 +10,7 @@ import math
 
 import polars as pl
 
-from northstar_quant.platform.common.enums import (
+from northstar_quant.foundation.common.enums import (
     AssetType,
     CtpOffset,
     DataFrequency,
@@ -20,14 +20,14 @@ from northstar_quant.platform.common.enums import (
     StrategyFamily,
     StrategyOutputType,
 )
-from northstar_quant.platform.common.order_status import is_final_order_status
-from northstar_quant.platform.common.time import ensure_utc
+from northstar_quant.foundation.common.order_status import is_final_order_status
+from northstar_quant.foundation.common.time import ensure_utc
 from northstar_quant.trading_execution.broker.ctp_contract_mapping import (
     CtpContractMapping,
     CtpContractRegistry,
     load_ctp_contract_registry,
 )
-from northstar_quant.platform.config.trading_profile import TradingProfile
+from northstar_quant.foundation.config.trading_profile import TradingProfile
 from northstar_quant.trading_execution.execution.models import (
     BrokerStateSnapshot,
     FillSnapshot,

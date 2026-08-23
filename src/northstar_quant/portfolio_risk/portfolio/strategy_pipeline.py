@@ -10,11 +10,11 @@ from collections.abc import Sequence
 
 import polars as pl
 
-from northstar_quant.platform.common.enums import StrategyOutputType
-from northstar_quant.platform.common.types import StrategyOutputBundle
-from northstar_quant.platform.config.settings import get_settings
-from northstar_quant.platform.config.trading_profile import TradingProfile
-from northstar_quant.platform.observability.logging.logger import get_logger
+from northstar_quant.foundation.common.enums import StrategyOutputType
+from northstar_quant.foundation.common.types import StrategyOutputBundle
+from northstar_quant.foundation.config.settings import get_settings
+from northstar_quant.foundation.config.trading_profile import TradingProfile
+from northstar_quant.foundation.observability.logging.logger import get_logger
 from northstar_quant.portfolio_risk.portfolio.multi_strategy import (
     build_target_weight_portfolio,
     build_target_weight_portfolio_history,

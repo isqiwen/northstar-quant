@@ -8,7 +8,7 @@ from datetime import UTC, date, datetime
 import polars as pl
 import pytest
 
-from northstar_quant.data_platform.market.pit import MarketDataPITSelector, MarketDataPITSpec
+from northstar_quant.data.market.pit import MarketDataPITSelector, MarketDataPITSpec
 from northstar_quant.research.features.basis import RELATIVE_BASIS
 from northstar_quant.research.features.canonical import CanonicalFeatureDefinition
 from northstar_quant.research.features.carry import (

@@ -34,27 +34,27 @@ from northstar_quant.research.backtest.registry import (
     resolve_target_backtester,
     run_target_backtest,
 )
-from northstar_quant.platform.common.enums import StrategyOutputType
-from northstar_quant.platform.common.types import StrategyOutputBundle
-from northstar_quant.platform.config.trading_profile import TradingProfile, load_trading_profile
-from northstar_quant.data_platform.market.pit import (
+from northstar_quant.foundation.common.enums import StrategyOutputType
+from northstar_quant.foundation.common.types import StrategyOutputBundle
+from northstar_quant.foundation.config.trading_profile import TradingProfile, load_trading_profile
+from northstar_quant.data.market.pit import (
     MarketDataPITSelector,
     MarketDataSnapshot,
 )
-from northstar_quant.data_platform.contracts.profile_governance import (
+from northstar_quant.data.contracts.profile_governance import (
     validate_profile_data_governance,
 )
-from northstar_quant.data_platform.contracts.instrument_universes import (
+from northstar_quant.data.contracts.instrument_universes import (
     InstrumentUniverseMember,
     load_instrument_universe,
 )
-from northstar_quant.data_platform.sources.protocol import PublicationPurpose, PublicationScope
-from northstar_quant.data_platform.quality.schema import (
+from northstar_quant.data.sources.protocol import PublicationPurpose, PublicationScope
+from northstar_quant.data.quality.schema import (
     schema_version_for_profile,
     to_signal_market_data,
     validate_market_dataset,
 )
-from northstar_quant.data_platform.artifacts.storage import (
+from northstar_quant.data.artifacts.storage import (
     dataset_manifest_path,
     load_json,
     load_profile_market_data,

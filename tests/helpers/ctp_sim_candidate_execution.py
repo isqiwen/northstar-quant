@@ -8,7 +8,7 @@ from datetime import datetime
 from northstar_quant.application.ctp_sim_candidate_execution import (
     CtpSimCandidateExecutor,
 )
-from northstar_quant.platform.config.settings import Settings
+from northstar_quant.foundation.config.settings import Settings
 
 
 def create_test_ctp_sim_candidate_executor(

@@ -24,16 +24,16 @@ NORTHSTAR_LIVE_TRADING_ENABLED=false
 
 ```mermaid
 flowchart LR
-    P[platform]
-    D[data_platform]
+    F[foundation]
+    D[data]
     I[intelligence]
     R[research]
     PR[portfolio_risk]
     T[trading_execution]
     A[application\ncomposition root]
 
-    P --> D --> I --> R --> PR --> T
-    A -. composes .-> P
+    F --> D --> I --> R --> PR --> T
+    A -. composes .-> F
     A -. composes .-> D
     A -. composes .-> I
     A -. composes .-> R
@@ -44,25 +44,25 @@ flowchart LR
 ```text
 src/northstar_quant/
 ├── application/        # 唯一跨领域 composition root
-├── data_platform/
+├── data/
 ├── intelligence/
 ├── research/
 ├── portfolio_risk/
 ├── trading_execution/
-└── platform/
+└── foundation/
 ```
 
-`application/` 不是第七个业务领域；它只能组合稳定的领域契约，不承载领域模型。业务领域和 `platform`
+`application/` 不是第七个业务领域；它只能组合稳定的领域契约，不承载领域模型。业务领域和 `foundation`
 均不得反向导入 `application`。依赖只能从较高层使用较低层的稳定契约：
 
 | 模块 | 可以依赖 | 禁止承担的职责 |
 |---|---|---|
-| `platform` | 自身 | 任何业务领域语义 |
-| `data_platform` | `platform` | 研究、风险、交易决策 |
-| `intelligence` | `data_platform`、`platform` | 提交订单或生成 BUY/SELL |
-| `research` | `intelligence`、`data_platform`、`platform` | 访问 broker 或升级生产策略 |
-| `portfolio_risk` | `research`、`platform` | 直接提交订单 |
-| `trading_execution` | `portfolio_risk`、`platform` | 策略研究逻辑 |
+| `foundation` | 自身 | 任何业务领域语义 |
+| `data` | `foundation` | 研究、风险、交易决策 |
+| `intelligence` | `data`、`foundation` | 提交订单或生成 BUY/SELL |
+| `research` | `intelligence`、`data`、`foundation` | 访问 broker 或升级生产策略 |
+| `portfolio_risk` | `research`、`foundation` | 直接提交订单 |
+| `trading_execution` | `portfolio_risk`、`foundation` | 策略研究逻辑 |
 | `application` | 所有领域 | 反向成为领域依赖 |
 
 `tests/architecture/` 强制检查无循环、无动态导入绕过、无反向业务依赖和公共 API 边界；失败时修复实现，不能删除测试。
@@ -82,18 +82,18 @@ Commodity ≠ Instrument ≠ Contract
 
 ## 4. 六个领域
 
-### Platform
+### Foundation
 
-Platform 提供类型、时间、订单身份与状态、Pydantic 配置、PostgreSQL session/models/repositories、消息、调度、
+Foundation 提供类型、时间、订单身份与状态、Pydantic 配置、PostgreSQL session/models/repositories、消息、调度、
 可观测性、报告、安全、备份和部署基础。配置只接受 `NORTHSTAR_` 前缀，数据库 URL 必须是
 `postgresql+psycopg://`；SQLite 不属于支持路径。
 
 数据库是保全边界：迁移只前进，自动化不会删除、清空或截断 database、schema、table 或 Docker volume。
 `init-db` 只执行 `alembic upgrade head`。模型、repository、Alembic migration、测试和文档必须一并变更。
 
-### Data Platform
+### Data
 
-Data Platform 发布受治理的事实，而不是策略或交易行为：
+Data 发布受治理的事实，而不是策略或交易行为：
 
 - source protocol、授权收据和 provider adapter；
 - append-only raw / normalized artifact、内容 hash、fingerprint、lineage 与 `ArtifactSnapshot`；

@@ -20,7 +20,7 @@ import re
 from types import MappingProxyType
 from typing import Final, Literal, cast
 
-from northstar_quant.data_platform.artifacts.fingerprints import (
+from northstar_quant.data.artifacts.fingerprints import (
     FingerprintError,
     canonical_json_sha256,
     require_sha256,

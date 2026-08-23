@@ -10,7 +10,7 @@ from tests.architecture.test_dependency_boundaries import ALLOWED_RUNTIME_TARGET
 
 @pytest.mark.parametrize(
     "domain",
-    ["data_platform", "intelligence", "research", "portfolio_risk", "trading_execution"],
+    ["data", "intelligence", "research", "portfolio_risk", "trading_execution"],
 )
 def test_business_domain_obeys_its_allowed_lower_layers(domain: str) -> None:
     """每个领域只能依赖自身、许可的下游事实层和技术平台。"""

@@ -23,13 +23,13 @@ from typing import cast
 
 import polars as pl
 
-from northstar_quant.data_platform.artifacts.fingerprints import canonical_json_sha256
-from northstar_quant.data_platform.market.pit import (
+from northstar_quant.data.artifacts.fingerprints import canonical_json_sha256
+from northstar_quant.data.market.pit import (
     MarketDataKind,
     MarketDataPITSpec,
     MarketDataSnapshot,
 )
-from northstar_quant.data_platform.sources.protocol import PublicationScope
+from northstar_quant.data.sources.protocol import PublicationScope
 from northstar_quant.research.features.models import (
     FeatureLineage,
     FeatureRegistryError,

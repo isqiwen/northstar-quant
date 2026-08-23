@@ -144,7 +144,7 @@ def test_ops_tool_api_has_no_runtime_northstar_dependency() -> None:
 
     assert not internal_edges, (
         "TypedOpsToolApi must receive its single typed diagnostic port through explicit injection, "
-        "not import application health/CLI, platform backup/config/db, deployment, trading, or another "
+        "not import application health/CLI, foundation backup/config/db, deployment, trading, or another "
         f"Northstar runtime module:\n{format_diagnostics(internal_edges)}"
     )
 

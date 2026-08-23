@@ -30,8 +30,8 @@ from northstar_quant.application.research_agent import (
     ResearchAgentTraceEntry,
     research_agent_request_hash,
 )
-from northstar_quant.platform.common.time import utc_now
-from northstar_quant.platform.db.repositories import (
+from northstar_quant.foundation.common.time import utc_now
+from northstar_quant.foundation.db.repositories import (
     ResearchAgentRunTraceInput,
     admit_research_agent_run,
     complete_research_agent_run,

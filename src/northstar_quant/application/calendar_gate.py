@@ -1,6 +1,6 @@
 """Application 层的期货交易日历组合门禁。
 
-Data Platform 只保存可回放的日历事实，Trading & Execution 只认识订单与券商身份。
+Data 领域只保存可回放的日历事实，Trading & Execution 只认识订单与券商身份。
 本模块在两者之间组合已验证的不可变日历、CTP 实际合约映射和最终订单载荷；它不是
 交易授权，也不会用工作日、连续合约代码或本机时钟猜测会话。
 """
@@ -11,36 +11,36 @@ from datetime import UTC, date, datetime
 from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from northstar_quant.data_platform.artifacts.immutable_store import (
+from northstar_quant.data.artifacts.immutable_store import (
     ArtifactStore,
     ArtifactStoreError,
 )
-from northstar_quant.data_platform.artifacts.fingerprints import (
+from northstar_quant.data.artifacts.fingerprints import (
     FingerprintError,
     content_sha256,
     require_sha256,
 )
-from northstar_quant.data_platform.calendars import (
+from northstar_quant.data.calendars import (
     CalendarDecision,
     CalendarError,
     CalendarService,
     calendar_content_hash,
     load_trading_calendar_payload,
 )
-from northstar_quant.data_platform.contracts import ArtifactKind, QualityStatus
-from northstar_quant.data_platform.contracts.contract_master import (
+from northstar_quant.data.contracts import ArtifactKind, QualityStatus
+from northstar_quant.data.contracts.contract_master import (
     Contract,
     ContractMaster,
     ContractMasterError,
     ContractRuleSnapshot,
 )
-from northstar_quant.data_platform.contracts.contract_master_loader import load_contract_master
-from northstar_quant.platform.config.data_sources import (
+from northstar_quant.data.contracts.contract_master_loader import load_contract_master
+from northstar_quant.foundation.config.data_sources import (
     DataSourceConfigError,
     data_source_config_sha256,
     get_data_source,
 )
-from northstar_quant.platform.config.settings import get_settings
+from northstar_quant.foundation.config.settings import get_settings
 from northstar_quant.trading_execution.broker.ctp_contract_mapping import (
     CtpContractMapping,
     CtpContractMappingError,
@@ -49,7 +49,7 @@ from northstar_quant.trading_execution.broker.ctp_contract_mapping import (
 from northstar_quant.trading_execution.execution.models import OrderRequest
 
 if TYPE_CHECKING:
-    from northstar_quant.platform.config.trading_profile import TradingProfile
+    from northstar_quant.foundation.config.trading_profile import TradingProfile
 
 
 class CalendarGateError(PermissionError):

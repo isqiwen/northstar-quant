@@ -18,7 +18,7 @@ from typing import Any
 
 import polars as pl
 
-from northstar_quant.data_platform.artifacts.fingerprints import (
+from northstar_quant.data.artifacts.fingerprints import (
     FingerprintError,
     canonical_json_sha256,
     require_sha256,

@@ -23,12 +23,12 @@ from northstar_quant.application.research_strategy_activation import (
     ResearchStrategyTargetActivator,
     StrategyTargetProposal,
 )
-from northstar_quant.platform.db.models import (
+from northstar_quant.foundation.db.models import (
     ExecutionPlanRecord,
     ExecutionProvenanceConsumptionRecord,
     OrderRecord,
 )
-from northstar_quant.platform.db.repositories import latest_reconciliation_safety_state
+from northstar_quant.foundation.db.repositories import latest_reconciliation_safety_state
 from northstar_quant.portfolio_risk.portfolio import (
     CanonicalPortfolioComposer,
     PortfolioCompositionRequest,

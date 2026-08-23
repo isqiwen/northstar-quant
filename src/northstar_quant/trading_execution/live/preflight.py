@@ -10,10 +10,10 @@ from typing import Any
 
 import polars as pl
 
-from northstar_quant.platform.common.enums import DataFrequency
-from northstar_quant.platform.common.time import ensure_utc, utc_now
-from northstar_quant.platform.config.settings import Settings
-from northstar_quant.platform.config.trading_profile import TradingProfile
+from northstar_quant.foundation.common.enums import DataFrequency
+from northstar_quant.foundation.common.time import ensure_utc, utc_now
+from northstar_quant.foundation.config.settings import Settings
+from northstar_quant.foundation.config.trading_profile import TradingProfile
 from northstar_quant.trading_execution.execution.models import BrokerStateSnapshot
 
 _ACCEPTED_EXECUTION_SOURCES = {

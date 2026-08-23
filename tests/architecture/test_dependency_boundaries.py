@@ -15,20 +15,20 @@ from tests.architecture._imports import (
 
 
 ALLOWED_RUNTIME_TARGETS = {
-    "data_platform": {"data_platform", "platform", ROOT_SCOPE},
-    "intelligence": {"intelligence", "data_platform", "platform", ROOT_SCOPE},
-    "research": {"research", "data_platform", "intelligence", "platform", ROOT_SCOPE},
-    "portfolio_risk": {"portfolio_risk", "research", "platform", ROOT_SCOPE},
-    "trading_execution": {"trading_execution", "portfolio_risk", "platform", ROOT_SCOPE},
-    "platform": {"platform", ROOT_SCOPE},
+    "data": {"data", "foundation", ROOT_SCOPE},
+    "intelligence": {"intelligence", "data", "foundation", ROOT_SCOPE},
+    "research": {"research", "data", "intelligence", "foundation", ROOT_SCOPE},
+    "portfolio_risk": {"portfolio_risk", "research", "foundation", ROOT_SCOPE},
+    "trading_execution": {"trading_execution", "portfolio_risk", "foundation", ROOT_SCOPE},
+    "foundation": {"foundation", ROOT_SCOPE},
     "application": {
         "application",
-        "data_platform",
+        "data",
         "intelligence",
         "research",
         "portfolio_risk",
         "trading_execution",
-        "platform",
+        "foundation",
         ROOT_SCOPE,
     },
     ROOT_SCOPE: {"application", ROOT_SCOPE},
@@ -56,30 +56,30 @@ def test_runtime_imports_follow_six_domain_policy() -> None:
     )
 
 
-def test_platform_to_data_platform_is_reported_as_a_violation() -> None:
+def test_foundation_to_data_is_reported_as_a_violation() -> None:
     """防止测试意外弱化为只观察当前恰好干净的源码树。"""
 
     forbidden = ImportEdge(
-        "northstar_quant.platform.db.synthetic",
-        PACKAGE_ROOT / "platform" / "db" / "synthetic.py",
+        "northstar_quant.foundation.db.synthetic",
+        PACKAGE_ROOT / "foundation" / "db" / "synthetic.py",
         17,
-        "northstar_quant.data_platform.artifacts.storage",
+        "northstar_quant.data.artifacts.storage",
     )
 
     assert boundary_violations([forbidden]) == [forbidden]
 
 
 def test_relative_import_fixture_resolves_and_is_rejected_across_boundary() -> None:
-    """相对导入不能成为 Platform 绕过 Data Platform 边界的途径。"""
+    """相对导入不能成为 Foundation 绕过 Data 边界的途径。"""
 
-    node = ast.parse("from ...data_platform import artifacts").body[0]
+    node = ast.parse("from ...data import artifacts").body[0]
     assert isinstance(node, ast.ImportFrom)
-    target = _resolve_import_from("northstar_quant.platform.db", node)
-    assert target == "northstar_quant.data_platform"
+    target = _resolve_import_from("northstar_quant.foundation.db", node)
+    assert target == "northstar_quant.data"
 
     forbidden = ImportEdge(
-        "northstar_quant.platform.db.synthetic",
-        PACKAGE_ROOT / "platform" / "db" / "synthetic.py",
+        "northstar_quant.foundation.db.synthetic",
+        PACKAGE_ROOT / "foundation" / "db" / "synthetic.py",
         node.lineno,
         target,
     )

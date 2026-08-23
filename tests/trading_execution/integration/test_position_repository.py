@@ -3,11 +3,11 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from northstar_quant.platform.db.models import (
+from northstar_quant.foundation.db.models import (
     PositionSnapshotBatchRecord,
     PositionSnapshotRecord,
 )
-from northstar_quant.platform.db.repositories import (
+from northstar_quant.foundation.db.repositories import (
     list_latest_positions,
     save_position_snapshot_batch,
 )

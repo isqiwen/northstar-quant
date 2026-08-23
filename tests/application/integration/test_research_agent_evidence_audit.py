@@ -12,7 +12,7 @@ from northstar_quant.application.research_agent_evidence_audit import (
     DurableResearchAgentRunner,
     ResearchAgentEvidenceAuditError,
 )
-from northstar_quant.platform.db.repositories import read_research_agent_run_audit_trail
+from northstar_quant.foundation.db.repositories import read_research_agent_run_audit_trail
 from tests.application.unit.test_research_agent import _fixture
 
 

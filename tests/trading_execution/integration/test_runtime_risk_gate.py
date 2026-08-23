@@ -5,9 +5,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from northstar_quant.platform.common.time import utc_now
-from northstar_quant.platform.config.settings import get_settings
-from northstar_quant.platform.db.repositories import (
+from northstar_quant.foundation.common.time import utc_now
+from northstar_quant.foundation.config.settings import get_settings
+from northstar_quant.foundation.db.repositories import (
     latest_runtime_risk_record,
     save_runtime_risk_record,
 )

@@ -1,6 +1,6 @@
 """逐决策时点的前视偏差防线。
 
-P1 的 :class:`~northstar_quant.data_platform.market.pit.MarketDataSnapshot` 是一份
+P1 的 :class:`~northstar_quant.data.market.pit.MarketDataSnapshot` 是一份
 可复现的静态 as-of 视图。它本身并不表示历史模拟的每一个决策时点都经过了重放。
 本模块在 Research 边界建立另一层严格合同：每一个决策时点都必须显式绑定当时重放的
 市场快照、特征、合约/费率规则、事件和目标证据；任何一项在该时点之后才可用，都会
@@ -19,28 +19,28 @@ from datetime import UTC, date, datetime
 from enum import Enum
 import re
 
-from northstar_quant.data_platform.artifacts.fingerprints import (
+from northstar_quant.data.artifacts.fingerprints import (
     FingerprintError,
     canonical_json_sha256,
     require_sha256,
 )
-from northstar_quant.data_platform.artifacts.immutable_store import (
+from northstar_quant.data.artifacts.immutable_store import (
     ArtifactStore,
     ArtifactStoreError,
 )
-from northstar_quant.data_platform.contracts.contract_master import (
+from northstar_quant.data.contracts.contract_master import (
     Contract,
     ContractRuleSnapshot,
     DeliveryRestriction,
     ListingState,
     RuleQualityStatus,
 )
-from northstar_quant.data_platform.contracts.artifact_rulebook import (
+from northstar_quant.data.contracts.artifact_rulebook import (
     ArtifactBackedContractRuleReplay,
     ArtifactRuleBookError,
     ContractRuleBookPITSelector,
 )
-from northstar_quant.data_platform.market.pit import (
+from northstar_quant.data.market.pit import (
     MarketDataKind,
     MarketDataPITError,
     MarketDataPITSelector,

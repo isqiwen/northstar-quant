@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
 
-from northstar_quant.data_platform.market.pit import MarketDataKind, MarketDataSnapshot
+from northstar_quant.data.market.pit import MarketDataKind, MarketDataSnapshot
 from northstar_quant.research.features.canonical import (
     CanonicalFeatureComputer,
     CanonicalFeatureDefinition,

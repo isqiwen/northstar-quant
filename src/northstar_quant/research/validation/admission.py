@@ -13,18 +13,18 @@ from typing import Literal, Mapping
 
 import polars as pl
 
-from northstar_quant.platform.config.data_sources import (
+from northstar_quant.foundation.config.data_sources import (
     DataSourceConfig,
     data_source_config_sha256,
     get_data_source,
 )
-from northstar_quant.data_platform.contracts.instrument_universes import InstrumentUniverse, load_instrument_universe
-from northstar_quant.platform.config.research_admission import (
+from northstar_quant.data.contracts.instrument_universes import InstrumentUniverse, load_instrument_universe
+from northstar_quant.foundation.config.research_admission import (
     ResearchAdmissionPolicy,
     load_research_admission_policy,
     research_admission_policy_sha256,
 )
-from northstar_quant.platform.config.trading_profile import TradingProfile
+from northstar_quant.foundation.config.trading_profile import TradingProfile
 from northstar_quant.research.validation.lookahead import LookaheadCertificate
 
 

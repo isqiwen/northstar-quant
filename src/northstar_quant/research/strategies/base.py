@@ -7,12 +7,12 @@ from collections.abc import Iterable
 
 import polars as pl
 
-from northstar_quant.platform.common.enums import (
+from northstar_quant.foundation.common.enums import (
     DataFrequency,
     OrderSemantic,
     StrategyOutputType,
 )
-from northstar_quant.platform.common.types import StrategyOutputBundle
+from northstar_quant.foundation.common.types import StrategyOutputBundle
 
 
 class StrategyBase(ABC):

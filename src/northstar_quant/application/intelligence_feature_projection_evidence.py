@@ -16,7 +16,7 @@ import math
 import re
 from typing import Protocol, cast
 
-from northstar_quant.data_platform.artifacts.immutable_store import (
+from northstar_quant.data.artifacts.immutable_store import (
     ArtifactReplay,
     ArtifactStore,
     ArtifactStoreError,
@@ -24,9 +24,9 @@ from northstar_quant.data_platform.artifacts.immutable_store import (
     StoredArtifact,
     StoredPublicationAuthorization,
 )
-from northstar_quant.data_platform.artifacts.fingerprints import content_sha256
-from northstar_quant.data_platform.contracts.data_domain import ArtifactKind
-from northstar_quant.data_platform.sources.protocol import PublicationPurpose
+from northstar_quant.data.artifacts.fingerprints import content_sha256
+from northstar_quant.data.contracts.data_domain import ArtifactKind
+from northstar_quant.data.sources.protocol import PublicationPurpose
 from northstar_quant.intelligence.context import MarketContextError, MarketContextSnapshot
 from northstar_quant.intelligence.feature_projection import (
     AuthorizedMarketContext,

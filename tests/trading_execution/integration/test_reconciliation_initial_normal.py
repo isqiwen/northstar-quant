@@ -7,12 +7,12 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 import northstar_quant.trading_execution.reconciliation.reconciliation as reconciliation_module
-from northstar_quant.platform.db.models import (
+from northstar_quant.foundation.db.models import (
     BrokerSyncLog,
     ReconciliationSafetyStateRecord,
 )
-from northstar_quant.platform.db.repositories import acquire_reconciliation_safety_fence
-from northstar_quant.platform.common.time import utc_now
+from northstar_quant.foundation.db.repositories import acquire_reconciliation_safety_fence
+from northstar_quant.foundation.common.time import utc_now
 from northstar_quant.trading_execution.execution.models import BrokerStateSnapshot
 from northstar_quant.trading_execution.reconciliation.reconciliation import (
     begin_reconciliation_manual_recovery,

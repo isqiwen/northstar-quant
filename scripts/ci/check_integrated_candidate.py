@@ -21,7 +21,7 @@ class EvidenceGate:
 EVIDENCE_GATES: tuple[EvidenceGate, ...] = (
     EvidenceGate(
         "P1_DATA_PIT",
-        ("tests/data_platform/integration/test_data_platform_e2e.py",),
+        ("tests/data/integration/test_data_e2e.py",),
     ),
     EvidenceGate(
         "P4_INTELLIGENCE_GOLDEN",
@@ -74,31 +74,31 @@ EVIDENCE_GATES: tuple[EvidenceGate, ...] = (
     EvidenceGate(
         "P6_RELEASE_HERMETIC",
         (
-            "tests/platform/unit/test_release_transaction.py",
-            "tests/platform/unit/test_release_control_bundle.py",
-            "tests/platform/unit/test_release_gate_bootstrap.py",
-            "tests/platform/unit/test_release_manifest.py",
-            "tests/platform/unit/test_release_signing.py",
-            "tests/platform/contract/test_release_pipeline_contract.py",
-            "tests/platform/contract/test_release_environment_upgrade_contract.py",
-            "tests/platform/contract/test_release_gate_bootstrap_contract.py",
+            "tests/foundation/unit/test_release_transaction.py",
+            "tests/foundation/unit/test_release_control_bundle.py",
+            "tests/foundation/unit/test_release_gate_bootstrap.py",
+            "tests/foundation/unit/test_release_manifest.py",
+            "tests/foundation/unit/test_release_signing.py",
+            "tests/foundation/contract/test_release_pipeline_contract.py",
+            "tests/foundation/contract/test_release_environment_upgrade_contract.py",
+            "tests/foundation/contract/test_release_gate_bootstrap_contract.py",
         ),
     ),
     EvidenceGate(
         "P6_MONITORING_HERMETIC",
         (
-            "tests/platform/unit/test_metrics.py",
-            "tests/platform/unit/test_operational_snapshot.py",
+            "tests/foundation/unit/test_metrics.py",
+            "tests/foundation/unit/test_operational_snapshot.py",
         ),
     ),
     EvidenceGate(
         "P6_BACKUP_HERMETIC",
         (
-            "tests/platform/unit/test_database_backup_readiness_config.py",
-            "tests/platform/unit/test_database_backup_readiness.py",
-            "tests/platform/unit/test_backup_bundle.py",
-            "tests/platform/unit/test_postgresql_backup.py",
-            "tests/platform/unit/test_postgresql_restore_drill.py",
+            "tests/foundation/unit/test_database_backup_readiness_config.py",
+            "tests/foundation/unit/test_database_backup_readiness.py",
+            "tests/foundation/unit/test_backup_bundle.py",
+            "tests/foundation/unit/test_postgresql_backup.py",
+            "tests/foundation/unit/test_postgresql_restore_drill.py",
         ),
     ),
     EvidenceGate(
@@ -115,11 +115,11 @@ EVIDENCE_GATES: tuple[EvidenceGate, ...] = (
     EvidenceGate(
         "P7_CONTRACT",
         (
-            "tests/platform/contract/test_agent_tool_api_contract.py",
-            "tests/platform/contract/test_research_agent_contract.py",
-            "tests/platform/contract/test_intelligence_agent_contract.py",
-            "tests/platform/contract/test_data_quality_agent_contract.py",
-            "tests/platform/contract/test_ops_agent_contract.py",
+            "tests/foundation/contract/test_agent_tool_api_contract.py",
+            "tests/foundation/contract/test_research_agent_contract.py",
+            "tests/foundation/contract/test_intelligence_agent_contract.py",
+            "tests/foundation/contract/test_data_quality_agent_contract.py",
+            "tests/foundation/contract/test_ops_agent_contract.py",
         ),
     ),
     EvidenceGate("P7_ARCHITECTURE", ("tests/architecture",)),

@@ -10,12 +10,12 @@ import math
 import polars as pl
 import pytest
 
-from northstar_quant.data_platform.market.pit import (
+from northstar_quant.data.market.pit import (
     MarketDataPITError,
     MarketDataPITSpec,
     MarketDataSnapshot,
 )
-from northstar_quant.data_platform.sources.protocol import PublicationPurpose, PublicationScope
+from northstar_quant.data.sources.protocol import PublicationPurpose, PublicationScope
 from northstar_quant.research.features.basis import RELATIVE_BASIS, RelativeBasisComputer
 from northstar_quant.research.features.canonical import CanonicalFeatureDefinition
 from northstar_quant.research.features.carry import (

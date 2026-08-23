@@ -10,23 +10,23 @@ from northstar_quant.research.backtest.registry import (
     resolve_target_backtester,
 )
 from northstar_quant.application.backtest import run_profile_backtest
-from northstar_quant.platform.common.enums import AssetType
-from northstar_quant.platform.config.trading_profile import (
+from northstar_quant.foundation.common.enums import AssetType
+from northstar_quant.foundation.config.trading_profile import (
     ensure_broker_profile,
     ensure_production_profile,
     list_trading_profiles,
     load_trading_profile,
     load_trading_profile_uncached,
 )
-from northstar_quant.platform.config.settings import get_settings
-from northstar_quant.data_platform.artifacts import storage
-from northstar_quant.data_platform.sources import downloader
-from northstar_quant.data_platform.sources.downloader import (
+from northstar_quant.foundation.config.settings import get_settings
+from northstar_quant.data.artifacts import storage
+from northstar_quant.data.sources import downloader
+from northstar_quant.data.sources.downloader import (
     download_profile_data,
     import_profile_data,
     validate_profile_data,
 )
-from northstar_quant.data_platform.artifacts.storage import (
+from northstar_quant.data.artifacts.storage import (
     load_json,
     load_profile_signal_data,
     save_parquet,

@@ -28,22 +28,22 @@ from northstar_quant.application.candidate_acceptance import (
 from northstar_quant.application.portfolio_risk_authority import (
     ReconciliationSafetyStateEvidence,
 )
-from northstar_quant.data_platform.artifacts.fingerprints import (
+from northstar_quant.data.artifacts.fingerprints import (
     canonical_json_sha256,
 )
-from northstar_quant.platform.db.models import (
+from northstar_quant.foundation.db.models import (
     ExecutionProvenanceConsumptionRecord,
     FillRecord,
     OrderRecord,
 )
-from northstar_quant.platform.db.repositories import latest_reconciliation_safety_state
+from northstar_quant.foundation.db.repositories import latest_reconciliation_safety_state
 from northstar_quant.application.research_strategy_activation import (
     HumanStrategyTargetActivationApproval,
     ResearchStrategyActivationRequest,
     ResearchStrategyTargetActivator,
     StrategyTargetProposal,
 )
-from northstar_quant.data_platform.market.pit import MarketDataPITSelector, MarketDataPITSpec
+from northstar_quant.data.market.pit import MarketDataPITSelector, MarketDataPITSpec
 from northstar_quant.portfolio_risk.portfolio import TargetPosition
 from northstar_quant.research.features import FeatureRegistry, register_canonical_feature
 from northstar_quant.research.features.intelligence import EVENT_CONFIDENCE, INTELLIGENCE_EVENT_INPUT

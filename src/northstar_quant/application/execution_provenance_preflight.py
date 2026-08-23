@@ -35,9 +35,9 @@ from northstar_quant.application.portfolio_risk_authority import (
     ReconciliationSafetyStateEvidence,
     broker_state_hash as trusted_broker_state_hash,
 )
-from northstar_quant.data_platform.artifacts.fingerprints import canonical_json_sha256
-from northstar_quant.platform.config.settings import Settings
-from northstar_quant.platform.config.trading_profile import TradingProfile
+from northstar_quant.data.artifacts.fingerprints import canonical_json_sha256
+from northstar_quant.foundation.config.settings import Settings
+from northstar_quant.foundation.config.trading_profile import TradingProfile
 from northstar_quant.portfolio_risk.portfolio import (
     ApprovedPortfolioTarget,
     PortfolioTarget,

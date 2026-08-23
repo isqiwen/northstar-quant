@@ -9,7 +9,7 @@ import polars as pl
 import pytest
 
 from northstar_quant.application.decision_replay_backtest import _code_reference_sources
-from northstar_quant.data_platform.market.pit import MarketDataKind, MarketDataPITSpec
+from northstar_quant.data.market.pit import MarketDataKind, MarketDataPITSpec
 from northstar_quant.research.backtest.models import TargetFrameReference
 from northstar_quant.research.validation.decision_replay import (
     DecisionReplayStrategyIdentity,

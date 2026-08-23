@@ -33,7 +33,7 @@ def test_canonical_composer_has_no_application_execution_or_legacy_dataframe_dep
         "northstar_quant.application",
         "northstar_quant.research",
         "northstar_quant.trading_execution",
-        "northstar_quant.platform.db",
+        "northstar_quant.foundation.db",
         "northstar_quant.portfolio_risk.portfolio.multi_strategy",
         "polars",
     )

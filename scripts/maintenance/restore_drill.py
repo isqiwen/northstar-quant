@@ -9,11 +9,11 @@ import os
 from pathlib import Path
 import sys
 
-from northstar_quant.platform.backup.restore_drill import (
+from northstar_quant.foundation.backup.restore_drill import (
     RestoreDrillError,
     run_test_postgresql_restore_drill,
 )
-from northstar_quant.platform.security import redact_text
+from northstar_quant.foundation.security import redact_text
 
 
 def _parser() -> argparse.ArgumentParser:

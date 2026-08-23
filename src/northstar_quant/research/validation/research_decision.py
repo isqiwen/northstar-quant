@@ -12,7 +12,7 @@ from datetime import UTC, datetime
 from enum import Enum
 import re
 
-from northstar_quant.data_platform.artifacts.fingerprints import canonical_json_sha256
+from northstar_quant.data.artifacts.fingerprints import canonical_json_sha256
 from northstar_quant.research.validation.framework import ValidationReport
 
 

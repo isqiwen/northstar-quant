@@ -1,6 +1,6 @@
 """Fail-closed, diagnostic-only orchestration for dataset quality findings.
 
-``DataQualityAgent`` has no direct data-platform, persistence, filesystem,
+``DataQualityAgent`` has no direct data-domain, persistence, filesystem,
 network, configuration, broker, portfolio, or execution capability.  Its only
 runtime capability is the closed ``TypedResearchToolApi``.  One invocation
 performs exactly two typed, read-only calls: it selects one immutable Dataset

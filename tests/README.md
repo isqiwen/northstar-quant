@@ -6,7 +6,7 @@
 ```text
 tests/
 ├── architecture/          依赖方向、循环、分层与公开 API 边界
-├── data_platform/
+├── data/
 │   ├── unit/
 │   ├── integration/
 │   └── contract/
@@ -29,7 +29,7 @@ tests/
 │   ├── integration/
 │   ├── simulation/
 │   └── failure/
-├── platform/
+├── foundation/
 │   ├── unit/
 │   ├── integration/
 │   └── contract/
@@ -112,7 +112,7 @@ Linux CI 额外运行完整 pytest、部署 shell 契约和 PostgreSQL integrati
 
 - 将测试放入拥有被测行为的领域；跨领域闭环才使用 `e2e/`；
 - 纯计算、局部配置校验放在领域 `unit/`；多个模块、文件制品或 PostgreSQL 协作放在领域 `integration/`；
-- 依赖边界、CLI、迁移、文档和部署安全门禁放在 `architecture/` 或 `platform/contract/`；
+- 依赖边界、CLI、迁移、文档和部署安全门禁放在 `architecture/` 或 `foundation/contract/`；
 - Intelligence 语义输出使用 `golden/`；P10 六商品语料位于 `tests/intelligence/golden/`，其
   `fixture_only` 来源、crosswalk 和 Feature-definition handoff 绝不能当作授权数据、运行时配置或交易映射；
 - P10-WP03 的 companion replay fixture 位于 `tests/research/golden/`：它只能以同一 handoff 的
@@ -137,7 +137,7 @@ Linux CI 额外运行完整 pytest、部署 shell 契约和 PostgreSQL integrati
   CTP，也不授权交易；
 - P10-WP05 的 durable manual-risk approval 覆盖位于
   `tests/application/unit/test_portfolio_risk_manual_approval.py`、
-  `tests/platform/integration/test_portfolio_risk_manual_approval_repository.py`、
+  `tests/foundation/integration/test_portfolio_risk_manual_approval_repository.py`、
   `tests/architecture/test_portfolio_risk_manual_approval_boundaries.py` 与 candidate unit tests：它验证
   `RiskApprovalAttestation` 只是 P3 claim、grant 只保存 `verifier_receipt_hash`、以及 isolated PostgreSQL
   CTP-sim candidate 会在 prepare、prevalidate 和最终 adapter fence 精确重检 scoped hashes。测试 fake issuer

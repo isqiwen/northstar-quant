@@ -3,7 +3,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from northstar_quant.platform.db.models import CancelRecord, OrderRecord
+from northstar_quant.foundation.db.models import CancelRecord, OrderRecord
 from northstar_quant.trading_execution.broker.broker_base import BrokerAdapter
 from northstar_quant.trading_execution.execution.models import OrderRequest, OrderResult
 from northstar_quant.trading_execution.orders.durable_submission import DurableBrokerAdapter

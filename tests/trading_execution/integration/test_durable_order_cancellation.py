@@ -5,10 +5,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from tests.helpers.durable_submission import RecordingBroker, order_request
 
-from northstar_quant.platform.common.order_identity import build_order_ref
-from northstar_quant.platform.common.time import utc_now
-from northstar_quant.platform.db.models import CancelRecord, OrderRecord
-from northstar_quant.platform.db.repositories import (
+from northstar_quant.foundation.common.order_identity import build_order_ref
+from northstar_quant.foundation.common.time import utc_now
+from northstar_quant.foundation.db.models import CancelRecord, OrderRecord
+from northstar_quant.foundation.db.repositories import (
     finalize_order_cancel_request,
     prepare_order_cancel,
     prepare_order_submission,

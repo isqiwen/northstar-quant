@@ -8,14 +8,14 @@ from datetime import date, timedelta
 import polars as pl
 
 from northstar_quant.research.validation.admission import evaluate_research_admission
-from northstar_quant.platform.config.data_sources import (
+from northstar_quant.foundation.config.data_sources import (
     ExchangeAuthorizationEvidence,
     data_source_config_sha256,
     get_data_source,
 )
-from northstar_quant.data_platform.contracts.instrument_universes import load_instrument_universe
-from northstar_quant.platform.config.research_admission import load_research_admission_policy
-from northstar_quant.platform.config.trading_profile import load_trading_profile
+from northstar_quant.data.contracts.instrument_universes import load_instrument_universe
+from northstar_quant.foundation.config.research_admission import load_research_admission_policy
+from northstar_quant.foundation.config.trading_profile import load_trading_profile
 
 
 def test_current_public_short_sample_is_not_promoted_but_keeps_a_traceable_result():

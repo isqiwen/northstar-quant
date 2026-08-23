@@ -30,7 +30,7 @@ from northstar_quant.research.backtest.futures_daily.models import (
     FuturesWeightTarget,
     PositionState,
 )
-from northstar_quant.data_platform.contracts.product_cards import load_product_cards
+from northstar_quant.data.contracts.product_cards import load_product_cards
 
 
 def run_daily_futures_backtest(

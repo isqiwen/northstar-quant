@@ -13,8 +13,8 @@ from northstar_quant.application.portfolio_risk_authority import (
     PortfolioRiskAuthorityResolver,
     ReconciliationSafetyStateEvidence,
 )
-from northstar_quant.platform.db.models import ReconciliationSafetyStateRecord
-from northstar_quant.platform.db.repositories import latest_reconciliation_safety_state
+from northstar_quant.foundation.db.models import ReconciliationSafetyStateRecord
+from northstar_quant.foundation.db.repositories import latest_reconciliation_safety_state
 from northstar_quant.trading_execution.execution.models import BrokerStateSnapshot
 from northstar_quant.trading_execution.reconciliation.reconciliation import (
     reconcile_broker_state,

@@ -8,11 +8,11 @@ from pathlib import Path
 import pytest
 import yaml
 
-from northstar_quant.platform.config.research_admission import (
+from northstar_quant.foundation.config.research_admission import (
     ResearchAdmissionConfigError,
     load_research_admission_policy,
 )
-from northstar_quant.platform.config.yaml_loader import load_yaml
+from northstar_quant.foundation.config.yaml_loader import load_yaml
 from tests.helpers.paths import PROJECT_ROOT
 
 

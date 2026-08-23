@@ -8,12 +8,12 @@ from hashlib import sha256
 import pytest
 import polars as pl
 
-from northstar_quant.data_platform.market.pit import (
+from northstar_quant.data.market.pit import (
     MarketDataKind,
     MarketDataPITSpec,
     MarketDataSnapshot,
 )
-from northstar_quant.data_platform.sources.protocol import PublicationPurpose, PublicationScope
+from northstar_quant.data.sources.protocol import PublicationPurpose, PublicationScope
 
 from northstar_quant.research.features import (
     FeatureBackfill,

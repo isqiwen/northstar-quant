@@ -2,8 +2,8 @@ import polars as pl
 import pytest
 from dataclasses import replace
 
-from northstar_quant.platform.config.settings import get_settings
-from northstar_quant.platform.config.trading_profile import load_trading_profile
+from northstar_quant.foundation.config.settings import get_settings
+from northstar_quant.foundation.config.trading_profile import load_trading_profile
 from northstar_quant.portfolio_risk.portfolio.multi_strategy import (
     build_target_weight_portfolio,
     combine_strategy_targets,

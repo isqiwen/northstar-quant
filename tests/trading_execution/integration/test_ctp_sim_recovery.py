@@ -1,8 +1,8 @@
 from sqlalchemy import select
 
 import northstar_quant.trading_execution.broker.ctp_sim_broker as ctp_sim_broker
-from northstar_quant.platform.config.settings import Settings, get_settings
-from northstar_quant.platform.db.models import FillRecord, OrderRecord, PositionSnapshotRecord
+from northstar_quant.foundation.config.settings import Settings, get_settings
+from northstar_quant.foundation.db.models import FillRecord, OrderRecord, PositionSnapshotRecord
 from northstar_quant.trading_execution.broker.ctp_sim_broker import CtpSimBrokerAdapter
 from northstar_quant.trading_execution.execution.models import OrderRequest
 from northstar_quant.trading_execution.orders.durable_submission import DurableBrokerAdapter

@@ -6,9 +6,9 @@ from datetime import date, timedelta
 import polars as pl
 from sqlalchemy import func, select
 
-from northstar_quant.platform.config.trading_profile import load_trading_profile
-from northstar_quant.platform.db.models import StrategyRunRecord, StrategySnapshotRecord
-from northstar_quant.platform.db.repositories import save_strategy_run_snapshot
+from northstar_quant.foundation.config.trading_profile import load_trading_profile
+from northstar_quant.foundation.db.models import StrategyRunRecord, StrategySnapshotRecord
+from northstar_quant.foundation.db.repositories import save_strategy_run_snapshot
 from northstar_quant.application import target_service
 
 

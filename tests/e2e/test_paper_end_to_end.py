@@ -7,7 +7,7 @@
 from pathlib import Path
 
 import northstar_quant.trading_execution.broker.paper_broker as paper_broker
-from northstar_quant.platform.config.settings import Settings, get_settings
+from northstar_quant.foundation.config.settings import Settings, get_settings
 from northstar_quant.trading_execution.execution.models import OrderRequest
 from northstar_quant.trading_execution.broker.paper_broker import PaperBrokerAdapter
 from northstar_quant.trading_execution.orders.durable_submission import DurableBrokerAdapter

@@ -3,8 +3,8 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from northstar_quant.platform.db.models import FillRecord, OrderRecord, TradeAttributionRecord
-from northstar_quant.platform.db.repositories import save_fill_snapshots
+from northstar_quant.foundation.db.models import FillRecord, OrderRecord, TradeAttributionRecord
+from northstar_quant.foundation.db.repositories import save_fill_snapshots
 from northstar_quant.trading_execution.execution.models import FillSnapshot
 
 

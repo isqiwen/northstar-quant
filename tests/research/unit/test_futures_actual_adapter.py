@@ -8,7 +8,7 @@ from northstar_quant.research.backtest.futures_actual_adapter import (
     run_actual_futures_backtest,
 )
 from northstar_quant.research.backtest.futures_daily import FuturesDailyBacktestResult
-from northstar_quant.platform.config.trading_profile import load_trading_profile
+from northstar_quant.foundation.config.trading_profile import load_trading_profile
 from tests.helpers.futures_actual import actual_futures_frame
 
 

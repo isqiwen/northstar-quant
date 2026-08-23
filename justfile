@@ -37,13 +37,13 @@ dev-postgres: env-bootstrap
     uv run --offline --no-sync python scripts/dev/setup.py --initialize-config --with-postgres --migrate
 
 test-unit:
-    uv run --offline --no-sync pytest tests/data_platform/unit tests/intelligence/unit tests/research/unit tests/portfolio_risk/unit tests/trading_execution/unit tests/platform/unit -q
+    uv run --offline --no-sync pytest tests/data/unit tests/intelligence/unit tests/research/unit tests/portfolio_risk/unit tests/trading_execution/unit tests/foundation/unit -q
 
 test-backtest:
     uv run --offline --no-sync pytest tests/research/unit -q
 
 test-cli:
-    uv run --offline --no-sync pytest tests/platform/contract/test_cli_help.py -q
+    uv run --offline --no-sync pytest tests/foundation/contract/test_cli_help.py -q
 
 check:
     python scripts/ci/check_dependency_policy.py

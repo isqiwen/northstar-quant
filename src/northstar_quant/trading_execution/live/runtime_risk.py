@@ -7,8 +7,8 @@ from datetime import datetime
 import math
 from typing import Any
 
-from northstar_quant.platform.common.time import ensure_utc, utc_now
-from northstar_quant.platform.config.settings import Settings
+from northstar_quant.foundation.common.time import ensure_utc, utc_now
+from northstar_quant.foundation.config.settings import Settings
 from northstar_quant.trading_execution.execution.models import (
     BrokerStateSnapshot,
     MarketQuoteSnapshot,

@@ -19,8 +19,8 @@ from northstar_quant.application.calendar_gate import (
     assert_profile_calendar_trading_day,
     load_calendar_service_for_profile,
 )
-from northstar_quant.data_platform.artifacts.fingerprints import content_sha256
-from northstar_quant.data_platform.calendars import (
+from northstar_quant.data.artifacts.fingerprints import content_sha256
+from northstar_quant.data.calendars import (
     CalendarError,
     CalendarQualityStatus,
     CalendarSession,
@@ -30,7 +30,7 @@ from northstar_quant.data_platform.calendars import (
     load_trading_calendar,
     load_trading_calendar_payload,
 )
-from northstar_quant.data_platform.contracts import (
+from northstar_quant.data.contracts import (
     ArtifactKind,
     Commodity,
     Contract,
@@ -45,7 +45,7 @@ from northstar_quant.data_platform.contracts import (
     QualityStatus,
     RuleQualityStatus,
 )
-from northstar_quant.platform.common.enums import AssetType
+from northstar_quant.foundation.common.enums import AssetType
 from northstar_quant.trading_execution.broker.broker_base import BrokerAdapter
 from northstar_quant.trading_execution.execution.models import OrderRequest, OrderResult
 from northstar_quant.trading_execution.execution.router import OrderRouter

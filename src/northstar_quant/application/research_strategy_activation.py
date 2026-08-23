@@ -13,7 +13,7 @@ from datetime import UTC, datetime
 import re
 from typing import Literal
 
-from northstar_quant.data_platform.artifacts.fingerprints import canonical_json_sha256
+from northstar_quant.data.artifacts.fingerprints import canonical_json_sha256
 from northstar_quant.portfolio_risk.portfolio.targets import (
     StrategyTarget,
     StrategyTargetActivationRef,

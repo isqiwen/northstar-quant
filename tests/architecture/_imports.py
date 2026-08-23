@@ -3,7 +3,7 @@
 架构边界约束的是运行时依赖，而不是静态类型提示。仓库启用了
 ``from __future__ import annotations``，因此 ``if TYPE_CHECKING:`` 中的导入不会在
 运行时加载，也不会形成领域依赖；采集器会明确跳过该分支，同时继续遍历 ``else``。
-这让 Platform 可以保留精确的领域模型注解，而不反向依赖业务领域。
+这让 Foundation 可以保留精确的领域模型注解，而不反向依赖业务领域。
 """
 
 from __future__ import annotations
@@ -18,14 +18,14 @@ from tests.helpers.paths import PROJECT_ROOT
 PACKAGE_NAME = "northstar_quant"
 PACKAGE_ROOT = PROJECT_ROOT / "src" / PACKAGE_NAME
 
-BUSINESS_DOMAINS = frozenset(
+ARCHITECTURE_SCOPES = frozenset(
     {
-        "data_platform",
+        "data",
         "intelligence",
         "research",
         "portfolio_risk",
         "trading_execution",
-        "platform",
+        "foundation",
     }
 )
 APPLICATION_SCOPE = "application"
@@ -85,7 +85,7 @@ def scope_for_module(module: str) -> str:
     if parts[0] != PACKAGE_NAME or len(parts) == 1:
         return ROOT_SCOPE
     first_child = parts[1]
-    if first_child in BUSINESS_DOMAINS:
+    if first_child in ARCHITECTURE_SCOPES:
         return first_child
     if first_child == APPLICATION_SCOPE:
         return APPLICATION_SCOPE

@@ -22,16 +22,16 @@ from northstar_quant.application.intelligence_feature_projection import (
 from northstar_quant.application.intelligence_feature_projection_evidence import (
     ImmutableIntelligenceFeatureProjectionEvidenceVerifier,
 )
-from northstar_quant.data_platform.artifacts.immutable_store import ArtifactStore
-from northstar_quant.data_platform.market.pit import (
+from northstar_quant.data.artifacts.immutable_store import ArtifactStore
+from northstar_quant.data.market.pit import (
     MarketDataKind,
     MarketDataPITError,
     MarketDataPITSelector,
     MarketDataPITSpec,
     MarketDataSnapshot,
 )
-from northstar_quant.data_platform.sources.protocol import DataSourceAdapter
-from northstar_quant.data_platform.sources.publisher import (
+from northstar_quant.data.sources.protocol import DataSourceAdapter
+from northstar_quant.data.sources.publisher import (
     DataSourcePublisher,
     PublishedSourceDataset,
     SourcePublicationSpec,

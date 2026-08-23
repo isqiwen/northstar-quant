@@ -21,16 +21,16 @@ from northstar_quant.application.intelligence_feature_projection import (
 from northstar_quant.application.intelligence_feature_projection_evidence import (
     ImmutableIntelligenceFeatureProjectionEvidenceVerifier,
 )
-from northstar_quant.data_platform.artifacts.fingerprints import content_sha256
-from northstar_quant.data_platform.artifacts.immutable_store import ArtifactStore
-from northstar_quant.data_platform.contracts.data_domain import (
+from northstar_quant.data.artifacts.fingerprints import content_sha256
+from northstar_quant.data.artifacts.immutable_store import ArtifactStore
+from northstar_quant.data.contracts.data_domain import (
     ArtifactMetadata,
     ArtifactProvenance,
     NormalizedArtifact,
     QualityStatus,
     RawArtifact,
 )
-from northstar_quant.data_platform.quality import (
+from northstar_quant.data.quality import (
     CompletenessRule,
     GapRule,
     OrderingRule,
@@ -42,7 +42,7 @@ from northstar_quant.data_platform.quality import (
     StalenessRule,
     UniquenessRule,
 )
-from northstar_quant.data_platform.sources.protocol import (
+from northstar_quant.data.sources.protocol import (
     CANONICAL_NORMALIZED_FORMAT,
     AdapterMetadata,
     NormalizedTable,
@@ -51,7 +51,7 @@ from northstar_quant.data_platform.sources.protocol import (
     SourceFetchRequest,
     build_publication_authorization,
 )
-from northstar_quant.data_platform.sources.publisher import (
+from northstar_quant.data.sources.publisher import (
     DataSourcePublisher,
     PublishedSourceDataset,
     SourcePublicationSpec,

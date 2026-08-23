@@ -20,14 +20,14 @@ import math
 import re
 from typing import TYPE_CHECKING
 
-from northstar_quant.data_platform.artifacts.fingerprints import (
+from northstar_quant.data.artifacts.fingerprints import (
     FingerprintError,
     canonical_json_sha256,
     require_sha256,
 )
 
 if TYPE_CHECKING:
-    from northstar_quant.data_platform.market.pit import MarketDataPITSpec, MarketDataSnapshot
+    from northstar_quant.data.market.pit import MarketDataPITSpec, MarketDataSnapshot
 
 
 _IDENTIFIER_RE = re.compile(r"^[a-z][a-z0-9_]*$")
@@ -271,7 +271,7 @@ def _pit_spec_from_mapping(
 ) -> "MarketDataPITSpec":
     """严格重建 P1 PIT spec；血缘不能只保存无法重放的 spec hash。"""
 
-    from northstar_quant.data_platform.market.pit import (
+    from northstar_quant.data.market.pit import (
         MarketDataKind,
         MarketDataPITError,
         MarketDataPITSpec,
@@ -523,7 +523,7 @@ class FeatureDatasetEvidence:
     def from_market_data_snapshot(cls, snapshot: MarketDataSnapshot) -> "FeatureDatasetEvidence":
         """从 P1 snapshot 完整复制无密钥、可进入研究 manifest 的证据。"""
 
-        from northstar_quant.data_platform.market.pit import MarketDataSnapshot
+        from northstar_quant.data.market.pit import MarketDataSnapshot
 
         if not isinstance(snapshot, MarketDataSnapshot):
             raise FeatureRegistryError("snapshot 必须是已验证的 MarketDataSnapshot")
