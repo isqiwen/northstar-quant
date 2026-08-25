@@ -68,11 +68,39 @@ SQLite 仅允许由 Local tools 作为独立的本地缓存、索引或 scratch 
 `NORTHSTAR_DATABASE_URL`，不参与 Alembic、`init-db`、核心 integration test，也不能保存订单、持仓、
 风险、审批、对账或审计的权威事实。
 
-大规模历史数据以受治理的 Parquet 制品保存：tick、bars、factors、features 和可复现的 research/backtest
-输入或结果必须保留 manifest、内容 hash、lineage、PIT、license 与保留期语义。DuckDB 只查询这些 Parquet 制品
-进行历史分析；它不保存当前交易状态，不直写 PostgreSQL 权威记录，也不绕过 Research、Risk 或 Execution 门禁。
-当前代码已使用 Parquet 发布受治理的市场制品，但尚未安装 DuckDB 或提供 DuckDB runtime adapter、CLI 和查询契约；
-具体 DuckDB adapter 或 Local tools SQLite schema 尚须在对应工具/分析 Work Package 中单独实现与验收。
+大规模历史数据以受治理的 Parquet Lake 制品保存：tick、bars、factors、features 和可复现的 research/backtest
+输入或结果必须保留 manifest、逐文件内容 hash、lineage、逐行 PIT、license 与保留期语义。Lake 只能通过受验证的
+immutable `DatasetVersion` 物化；`storage/market`、下载缓存或任意本地 Parquet 都不能直接被当成 Lake 历史证据。
+
+DuckDB 已作为内存、只读历史分析 adapter 接入：它先逐文件验证 Lake manifest/hash/schema/partition，再把刚重验的
+Parquet 字节复制到私有 query snapshot，并固定过滤 `available_at <= as_of`。`northstar research lake-query` 只接受单条
+SELECT/WITH；物理计划只能扫描受控 `lake_data`，并禁止写入、扩展、外部 I/O、随机/时间/顺序敏感函数及用户自定义
+limit/offset。系统统一稳定排序、限制结果行数并返回可重放查询收据；它不保存当前交易状态，不直写 PostgreSQL 权威记录，
+也不绕过 Research、Risk 或 Execution 门禁。
+
+典型操作顺序如下。materialize 的输入 Parquet 必须与指定 `DatasetVersion` 中 artifact 的 canonical payload 完全一致；
+命令不会把普通文件“升级”为受治理数据。
+
+```powershell
+uv run --offline --no-sync northstar data lake materialize --input <verified-artifact.parquet> --dataset-version <dataset-version-sha256> --artifact-snapshot <snapshot-sha256> --kind bars --event-time-column date
+uv run --offline --no-sync northstar data lake verify --kind bars --dataset-id <dataset-id> --version <lake-version-sha256>
+uv run --offline --no-sync northstar research lake-query --kind bars --dataset-id <dataset-id> --version <lake-version-sha256> --as-of 2026-08-25T00:00:00+00:00 --sql-file <query.sql>
+```
+
+查询文件必须从 `lake_data` relation 读取；多行结果由系统在最外层稳定排序，不应在查询内使用 `LIMIT` 或 `OFFSET`。
+
+SQLite 已实际用于一个隔离的 Local-tools manifest index，固定路径为
+`<storage_dir>/local-tools/lake-manifest-index.sqlite3`。它只能保存可重建的 Lake discovery metadata，不能成为 Lake 验证、
+DuckDB 查询或核心 PostgreSQL 的 fallback，也绝不保存交易或风险权威事实。操作员可显式运行：
+
+```powershell
+uv run --offline --no-sync northstar local-tools lake-index rebuild
+uv run --offline --no-sync northstar local-tools lake-index list --kind bars --dataset-id <dataset-id>
+```
+
+`rebuild` 对每个发现到的 Lake version 重新验证 manifest 与 Parquet hash；任何失败都不会替换最新可用 index generation。
+索引文件并发访问使用 SQLite transaction/busy timeout；文件损坏或 schema 不兼容时，只有显式 `rebuild` 会将固定
+tool-owned 文件隔离为 `.corrupt-<timestamp>` 后重建，绝不触碰 Lake 文件、PostgreSQL、Alembic 或其他数据库。
 
 `paper` / `ctp_sim` 的可变模拟 broker state 已保存到 PostgreSQL 的账户隔离快照与不可变 transition 审计链；不会写入
 `state.json` 或 Local-tools SQLite。该 adapter-private 状态机不替代 PostgreSQL 中的 durable order、fill、position

@@ -175,12 +175,14 @@ def test_runtime_paths_derive_from_storage_unless_explicit(tmp_path):
 
     assert derived.storage_dir == tmp_path / "runtime/storage"
     assert derived.downloads_dir == tmp_path / "runtime/storage/downloads"
+    assert derived.local_tools_dir == tmp_path / "runtime/storage/local-tools"
     assert derived.reports_dir == tmp_path / "runtime/reports"
     assert derived.log_dir == tmp_path / "runtime/logs"
     assert "paper_state_path" not in Settings.model_fields
     assert "ctp_sim_state_path" not in Settings.model_fields
     assert explicit.storage_dir == tmp_path / "test-runtime/storage"
     assert explicit.downloads_dir == tmp_path / "runtime/download-cache"
+    assert explicit.local_tools_dir == tmp_path / "test-runtime/storage/local-tools"
     assert explicit.reports_dir == tmp_path / "test-runtime/reports"
     assert explicit.log_dir == tmp_path / "test-runtime/logs"
 

@@ -299,7 +299,7 @@ def test_configuration_documentation_matches_safe_runtime_defaults() -> None:
         "futures.calendar_artifact_snapshot_hashes",
         "ArtifactSnapshot",
         "SQLite 仅允许由 Local tools",
-        "Parquet 制品",
+        "Parquet Lake",
         "DuckDB",
     ):
         assert required in operations
@@ -332,10 +332,14 @@ def test_storage_roles_preserve_authority_and_research_boundaries() -> None:
     for required in ("合约", "订单", "成交", "持仓", "策略状态", "风险状态"):
         assert required in architecture
     assert "DuckDB 是分析引擎而非交易权威库" in agent_rules
-    assert "DuckDB 只查询这些 Parquet 制品" in operations
+    assert "DuckDB 已作为内存、只读历史分析 adapter 接入" in operations
     assert "不使用核心数据库 URL" in architecture
     assert "hash-chained transition 审计链" in architecture
-    assert "尚未安装 DuckDB" in operations
+    assert "northstar data lake materialize" in operations
+    assert "northstar research lake-query" in operations
+    assert "northstar local-tools lake-index rebuild" in operations
+    assert "lake-manifest-index.sqlite3" in operations
+    assert "available_at <= as_of" in operations
 
 
 def test_calendar_docs_keep_runtime_sources_fail_closed() -> None:

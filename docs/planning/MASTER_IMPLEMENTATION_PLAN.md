@@ -75,9 +75,9 @@ Codex 每次进入仓库必须：
 ```yaml
 active_phase: P10
 active_work_package:
-  id: DEV-WP03
-  title: PostgreSQL Trading-State Authority
-  status: VERIFY
+  id: null
+  title: null
+  status: null
 next_task:
   id: P10-WP08
   title: Platform Production / DR Acceptance
@@ -85,7 +85,7 @@ next_task:
 blocked_work_packages: [P10-WP08, P10-WP09]
 ```
 
-P10 已完成 `7/9` 个 Work Package（78%）；其余 P10-WP08 与 P10-WP09 均需外部前提。用户授权的跨阶段文档工作包 `DOC-WP06` 已完成；它不改变 P10 的验收计数或外部阻塞状态。
+P10 已完成 `7/9` 个 Work Package（78%）；当前没有 READY 的自主工作包，其余 P10-WP08 与 P10-WP09 均需外部前提。用户授权的跨阶段文档工作包 `DOC-WP06` 已完成；它不改变 P10 的验收计数或外部阻塞状态。
 
 ---
 
@@ -3994,12 +3994,16 @@ local_operator_action:
 
 ## DEV-WP05 — Historical Parquet Lake & DuckDB Analytics
 
-**Status:** TODO
+**Status:** DONE
 
 **Dependencies:** DEV-WP02.
 
 **Goal:** 建立受治理的 Parquet 历史数据湖，并引入只读 DuckDB 分析边界，以可复现方式支持 tick、bars、factors、
 features、research 和 backtest 的历史分析。
+
+**Implementation note (2026-08-25):** 用户明确要求将 Parquet、DuckDB 与 SQLite 从架构原则落实为实际使用能力。
+本工作包只实现受验证 `DatasetVersion` 到不可变 Parquet Lake、以及只读 DuckDB 研究分析闭环；不会把可覆盖的
+`storage/market` 投影、PostgreSQL 核心状态或任何交易路径接入湖。
 
 **Acceptance:**
 
@@ -4007,6 +4011,86 @@ features、research 和 backtest 的历史分析。
 - DuckDB 只读取经验证的 Parquet 制品，查询输入、版本、参数和结果均可重放；
 - DuckDB 不保存或直写订单、成交、持仓、风险、审批、对账或审计权威事实，分析结果仍必须经过研究与风险门禁；
 - 依赖、adapter、CLI、配置、unit / integration / regression 测试和文档在同一 Work Package 完成。
+
+**Implementation and verification:**
+
+```yaml
+implementation_completed_at: 2026-08-25
+commit: null
+notes: >-
+  新增唯一受控入口：已验证 immutable DatasetVersion 中的 NORMALIZED/DERIVED tabular artifact，只有其
+  canonical payload 与输入 Parquet 完全相同时，才能发布至 <storage_dir>/lake。每个 Lake version 是不可覆盖的
+  分区 Parquet 加 manifest，绑定逐文件 SHA-256、schema、partition、上游 DatasetVersion/artifact/lineage、
+  合同有效期/用途/保留期授权快照和 available_at 范围；验证会重新计算这些事实。Lake 拒绝 root 或中间目录符号链接，
+  DuckDB 打开前还会将刚重新校验 hash 的分区复制至私有 query snapshot，避免验证与使用之间重用可替换路径。
+  DuckDB 只在内存中将 snapshot 的 available_at <= as_of 行物化为 lake_data，随后禁用外部访问，并以 physical plan
+  拒绝 lake_data 之外的 base scan、随机/时间/顺序敏感函数和用户 limit/offset；外层统一稳定排序和限制行数，生成
+  可重放 receipt。没有将可覆盖的 storage/market 投影、核心 PostgreSQL 状态或交易路径接入 Lake。
+passed:
+  - "Lake unit / contract 与 DuckDB PIT/replay/failure suite — 18 passed"
+  - "clean .env.example root: Lake, CLI, documentation and master-plan contracts — 51 passed"
+  - "ruff check affected Lake/DuckDB code and tests"
+  - "mypy affected Lake/DuckDB modules"
+  - "git diff --check"
+global_gate_pending:
+  command: >-
+    clean .env.example project root + umask 022; uv run --offline --no-sync pytest -q -k
+    'not test_active_env_declaration_keys_match_the_example_without_reading_values'
+  result: "1762 passed, 4 known unrelated failures, 1 deselected"
+  unrelated_blockers:
+    - "ignored legacy platform/data_platform package remnants"
+    - "deploy cleanup test's brittle ownership expectation"
+    - "host lacks pg_dump, pg_restore, and psql for the restore drill"
+    - "release transaction test assumes Path.iterdir() lexical ordering"
+```
+
+---
+
+## DEV-WP06 — SQLite Local-tools Manifest Index
+
+**Status:** DONE
+
+**Dependencies:** DEV-WP05.
+
+**Goal:** 为本地工具提供显式、隔离、非权威的 SQLite Parquet Lake manifest 索引，便于离线发现已验证的历史制品，
+且不让 SQLite 成为核心 PostgreSQL、Alembic、研究输入校验或交易状态的替代品。
+
+**Acceptance:**
+
+- SQLite 仅保存可重建的 Lake manifest 索引，不保存订单、成交、持仓、策略状态、风险、审批、对账或审计事实；
+- 路径固定为 tool-owned `<storage_dir>/local-tools/`，不读取或复用 `NORTHSTAR_DATABASE_URL`，不参与 Alembic、
+  `init-db` 或核心 PostgreSQL integration fixture；
+- CLI 可显式 rebuild/list，实际使用 Lake 时仍逐文件重验 manifest 与 Parquet hash，索引缺失、并发或损坏绝不影响
+  PostgreSQL 或 DuckDB 的正确性；
+- 文件隔离、并发、损坏隔离/恢复、CLI、架构约束、unit / failure 测试和文档在同一 Work Package 完成。
+
+**Implementation and verification:**
+
+```yaml
+implementation_completed_at: 2026-08-25
+commit: null
+notes: >-
+  在 <storage_dir>/local-tools/lake-manifest-index.sqlite3 实现一个只用 Python 标准库 sqlite3 的 tool-owned index。
+  rebuild 扫描每个 Lake 版本并逐份调用 Lake verify，只有全部验证成功才在 BEGIN IMMEDIATE transaction 中追加新的
+  generation；list 只显示最新 generation，绝不把索引作为 Lake 验证或 DuckDB 输入。文件路径、祖先目录、所有权和
+  权限均受限，SQLite busy timeout 处理并发；二进制损坏或不兼容 schema 时，只有显式 rebuild 可以隔离固定 index
+  及其 sidecar 为 .corrupt-<timestamp> 后重建，绝不触碰 Lake、PostgreSQL、Alembic 或交易状态。
+passed:
+  - "SQLite Local-tools unit / contract suite：隔离、验证失败保留旧 generation、并发、文件/路径安全、损坏与不兼容 schema 恢复"
+  - "clean .env.example root CLI smoke：local-tools lake-index rebuild / list"
+  - "Lake、DuckDB、SQLite、CLI、documentation、master-plan focused suite：101 passed"
+  - "just env-bootstrap；ruff check .；mypy baseline；dependency policy；uv lock --check；git diff --check"
+global_gate_result:
+  command: >-
+    clean .env.example project root + umask 022; uv run --offline --no-sync pytest -q -k
+    'not test_active_env_declaration_keys_match_the_example_without_reading_values'
+  result: "1772 passed, 4 known unrelated failures, 1 deselected"
+  unrelated_blockers:
+    - "ignored legacy data_platform package remnant"
+    - "deploy cleanup test's brittle ownership expectation"
+    - "host lacks pg_dump, pg_restore, and psql for the restore drill"
+    - "release transaction test assumes Path.iterdir() lexical ordering"
+```
 
 ---
 

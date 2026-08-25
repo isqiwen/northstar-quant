@@ -46,6 +46,36 @@ just dev-postgres
 Parquet，本地工具集才可使用独立 SQLite。DuckDB 或 SQLite 不得替代 PostgreSQL integration test、交易前事实或风险状态；
 所有 Parquet 输入仍须通过版本、hash、lineage 和 PIT 校验。
 
+### 历史 Parquet Lake 与 DuckDB
+
+历史 Lake 与当前可覆盖的 `storage/market` 投影刻意分离。先通过受控 Source → ArtifactStore → `DatasetVersion`
+链完成授权、质量和血缘验证；只有与该 artifact canonical payload 完全一致的 Parquet，才可以物化到 Lake：
+
+```powershell
+uv run --offline --no-sync northstar data lake materialize --input <verified-artifact.parquet> --dataset-version <dataset-version-sha256> --artifact-snapshot <snapshot-sha256> --kind bars --event-time-column date
+```
+
+物化结果会返回 immutable Lake version。使用 `northstar data lake verify` 重新计算 manifest、文件 hash、schema、分区和
+`available_at`；再用 `northstar research lake-query --as-of <ISO-8601-with-timezone> --sql-file <query.sql>` 执行分析。
+DuckDB 在内存中运行、只暴露已经通过 `available_at <= as_of` 过滤的 `lake_data` relation；它会重新验证 Parquet 字节后
+创建本次查询专用 snapshot，并检查物理计划没有读取其他 relation。查询必须是单条 SELECT/WITH，不能使用外部 I/O、写入、
+随机/时间/顺序敏感函数或用户自定义 `LIMIT`/`OFFSET`；系统统一稳定排序并限制结果行数。每次输出都有可回放 receipt，查询
+或 receipt 本身不构成策略、风险批准或订单。
+
+### SQLite Local-tools Lake 索引
+
+SQLite 不是核心数据库的 fallback。唯一已实现的本地工具库位于 `<storage_dir>/local-tools/`，保存可从 Lake 重新构建的
+manifest discovery metadata；它没有订单、成交、持仓、策略状态、风险、审批、对账或审计事实。显式操作如下：
+
+```powershell
+uv run --offline --no-sync northstar local-tools lake-index rebuild
+uv run --offline --no-sync northstar local-tools lake-index list --kind bars
+```
+
+`rebuild` 先逐份调用 Lake verify，再以并发安全的 SQLite transaction 追加新的 index generation；SQLite 损坏或 schema
+不兼容时，只会隔离固定的 tool-owned 文件并在显式 rebuild 中重建。`list` 不是验证，也不会被 DuckDB 或 PostgreSQL
+自动读取。
+
 当前开发期只有一个完整的 Alembic 基线 `0001_current_schema_baseline`，不支持从历史 revision 升级。若本地开发库的
 `alembic_version` 不是该基线，操作者必须在仓库自动化之外手动重建它，然后才可运行 `just dev-postgres` 或
 `northstar init-db`；不要添加 `stamp`、drop、truncate 或自动重建脚本来绕过这个边界。

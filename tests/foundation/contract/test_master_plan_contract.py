@@ -84,9 +84,9 @@ def test_master_plan_tracks_completed_wp_and_current_work() -> None:
     assert "P10 已完成 `7/9` 个 Work Package（78%）" in plan
     assert (
         "active_work_package:\n"
-        "  id: DEV-WP03\n"
-        "  title: PostgreSQL Trading-State Authority\n"
-        "  status: VERIFY"
+        "  id: null\n"
+        "  title: null\n"
+        "  status: null"
     ) in plan
     assert "id: P10-WP08" in plan
     assert ("title: Platform Production / DR Acceptance\n  status: BLOCKED") in plan
@@ -107,6 +107,14 @@ def test_master_plan_tracks_completed_wp_and_current_work() -> None:
     assert "1744 passed, 4 failed, 1 deselected" in dev_wp03
     assert "## DEV-WP04 — PostgreSQL Contract Authority" in plan
     assert "## DEV-WP05 — Historical Parquet Lake & DuckDB Analytics" in plan
+    dev_wp05 = plan.split("## DEV-WP05", maxsplit=1)[1].split("## DEV-WP06", maxsplit=1)[0]
+    assert "**Status:** DONE" in dev_wp05
+    assert "DatasetVersion" in dev_wp05
+    assert "## DEV-WP06 — SQLite Local-tools Manifest Index" in plan
+    dev_wp06 = plan.split("## DEV-WP06", maxsplit=1)[1].split("## DOC-WP01", maxsplit=1)[0]
+    assert "**Status:** DONE" in dev_wp06
+    assert "Lake manifest" in dev_wp06
+    assert "1772 passed, 4 known unrelated failures, 1 deselected" in dev_wp06
     assert "## DOC-WP01 — Documentation Consolidation & Architecture Specification" in plan
     assert (
         "**Status:** DONE" in plan.split("## DOC-WP01", maxsplit=1)[1].split("# 20.", maxsplit=1)[0]

@@ -466,6 +466,15 @@ class Settings(BaseSettings):
         object.__setattr__(self, "log_dir", log_dir)
         object.__setattr__(self, "downloads_dir", downloads_dir)
 
+    @property
+    def local_tools_dir(self) -> Path:
+        """返回 SQLite Local tools 唯一允许使用的独立目录。
+
+        这是 ``storage_dir`` 的只读派生值，不是可由环境变量覆盖的第二个核心数据库配置。
+        """
+
+        return self.storage_dir / "local-tools"
+
 def _resolve_runtime_setting_path(value: str | Path, project_root: Path) -> Path:
     """将 YAML 或测试显式传入的运行输出路径解析为绝对路径。"""
 

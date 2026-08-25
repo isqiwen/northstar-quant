@@ -143,9 +143,9 @@ def test_p10_master_plan_links_evidence_and_tracks_only_ready_offline_work() -> 
     assert "P10 已完成 `7/9` 个 Work Package（78%）" in plan
     assert (
         "active_work_package:\n"
-        "  id: DEV-WP03\n"
-        "  title: PostgreSQL Trading-State Authority\n"
-        "  status: VERIFY"
+        "  id: null\n"
+        "  title: null\n"
+        "  status: null"
     ) in plan
     assert "id: P10-WP08" in plan
     assert ("title: Platform Production / DR Acceptance\n  status: BLOCKED") in plan

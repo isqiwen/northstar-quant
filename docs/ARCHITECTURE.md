@@ -93,22 +93,30 @@ flowchart TB
 
 - **PostgreSQL** 是核心交易和运行状态的唯一权威来源：合约、订单、成交、持仓、策略状态、风险、审批、对账和审计。
   `NORTHSTAR_DATABASE_URL`、Alembic、core repository 与 PostgreSQL integration test 都在此边界内。
-- **Parquet** 是大规模、版本化历史数据制品格式。tick、bars、factors、features 以及可复现的 research/backtest
-  输入和结果必须保持 manifest、hash、lineage、授权与 point-in-time 语义。
-- **DuckDB** 只承担 Parquet 上的历史查询、探索、研究与回测分析。它不是 broker、订单或风险状态库；分析产物只有经过
-  既有 Research → Portfolio/Risk → Execution 链才可能影响核心状态。
+- **Parquet** 是大规模、版本化历史数据制品格式。`data lake materialize` 只会把已验证的 immutable
+  `DatasetVersion` 中、与 canonical payload 完全一致的 tabular artifact 物化为不可覆盖的分区 Parquet；每个版本都保存
+  manifest、逐文件 hash、schema、lineage、冻结授权（合同、有效期、用途）和保留期审计事实，以及逐行 `available_at`
+  PIT 语义。Lake root 是服务用户私有目录，读取拒绝符号链接；可覆盖的 `storage/market` 当前投影不能直接进入历史 Lake。
+- **DuckDB** 只承担已验证 Parquet 上的历史查询、探索、研究与回测分析。`research lake-query` 使用内存 DuckDB，强制
+  `available_at <= as_of`：先把刚重验 hash 的分区复制为私有 query snapshot，再只暴露受控 `lake_data` relation。查询
+  只能是单条 SELECT/WITH，DuckDB physical plan 的所有 base scan 必须是 `lake_data`，外部访问、写入、随机/时间/顺序敏感
+  函数和用户自定义 limit/offset 均被拒绝；系统在最外层稳定排序和限制行数。每次都生成包含输入版本、manifest hash、参数、
+  as-of、引擎版本和结果 hash 的可回放收据。它不是 broker、订单或风险状态库；分析产物只有经过既有
+  Research → Portfolio/Risk → Execution 链才可能影响核心状态。
 - **SQLite** 只属于 Local tools 的独立缓存、索引或 scratch storage。它不使用核心数据库 URL，不参与 Alembic 或
-  `init-db`，也不保存任何交易/风险权威事实。
+  `init-db`，也不保存任何交易/风险权威事实。当前已落地的 tool 是
+  `<storage_dir>/local-tools/lake-manifest-index.sqlite3`：`local-tools lake-index rebuild` 逐份验证 Lake 后追加一代
+  可重建 discovery metadata，`list` 只展示最新一代。DuckDB 与任何实际 Lake 消费路径都不读取或信任这个 index。
 
-这是一项职责边界，不是“真实 CTP 已接通”或“DuckDB runtime adapter 已实现”的声明；具体 adapter、查询接口和
-Local tools schema 都需要独立实现、测试和验收。
+这不是“真实 CTP 已接通”的声明。Parquet Lake、DuckDB 历史分析 adapter 与 SQLite Local-tools manifest index 均已实现并有
+独立测试；SQLite 仍只是隔离、非权威工具，不能借此绕过 core database 或交易门禁。
 
 `PaperBrokerAdapter` 与 `CtpSimBrokerAdapter` 的可变模拟柜台状态已保存于 PostgreSQL：每个 broker/account scope 有
 当前受控快照和不可变 hash-chained transition 审计链，且状态变更与 durable CTP-sim 提交确认可处于同一 PostgreSQL
 事务。它不写入 `state.json`，也不把 Local-tools SQLite 当 fallback；现有 durable order、fill、position snapshot、risk、
 approval、reconciliation 与 audit 账本仍是独立的 PostgreSQL 权威事实。当前 Contract Master 与 CTP mapping 仍为版本受控
-YAML 配置，尚未成为 PostgreSQL 的时间版本化合约权威库。现有 Parquet 已覆盖受治理市场制品，但完整历史数据湖和
-DuckDB 查询 adapter 也尚未实现。
+YAML 配置，尚未成为 PostgreSQL 的时间版本化合约权威库。完整历史 Parquet Lake 和 DuckDB 查询 adapter 已经落地，
+但现有 legacy profile market 投影尚未自动迁入 Lake：它必须先经过 immutable `DatasetVersion` 入口验证。
 
 ### Application：跨领域 composition root
 
