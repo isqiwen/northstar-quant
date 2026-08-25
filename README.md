@@ -18,18 +18,21 @@ NORTHSTAR_LIVE_TRADING_ENABLED=false
 just env-bootstrap
 just dev-setup
 just check
-just test
+uv run --offline --no-sync pytest
 ```
 
 需要隔离 PostgreSQL 时：
 
 ```powershell
-just db-up
-just db-migrate
+just dev-postgres
 ```
 
 数据库自动化只前向迁移和复用已有数据。仓库自动化绝不删除或清空数据库、表、schema 或 Docker 数据卷；
 数据库删除或清空只能由用户在仓库自动化之外手动执行。
+
+当前仍处于开发期，`alembic/versions/` 只保留完整的
+`0001_current_schema_baseline`。旧 revision 不受支持；若本地数据库记录的是旧 revision，必须由操作者在
+仓库自动化之外手动重建后，再运行 `just dev-postgres` 或 `northstar init-db`。自动化不会 reset、stamp 或删除数据库。
 
 ## 文档
 

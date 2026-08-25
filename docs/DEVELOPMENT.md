@@ -20,7 +20,7 @@ Windows x86_64 和 Linux x86_64 均为 Tier 1 开发平台。生产目标仅为 
 just env-bootstrap
 just dev-setup
 just check
-just test
+uv run --offline --no-sync pytest
 ```
 
 `env-bootstrap` 是唯一显式的本地依赖同步边界。之后所有 `uv run` 命令必须使用
@@ -36,12 +36,15 @@ uv run --offline --no-sync python scripts/ci/check_mypy_baseline.py check
 只在确实需要本地 PostgreSQL 或 integration 测试时才启动 Docker：
 
 ```powershell
-just db-up
-just db-migrate
+just dev-postgres
 ```
 
 数据库自动化只复用既有数据并执行前向迁移，绝不会清空数据库、表、schema 或 Docker volume。测试数据库必须是隔离的
 `northstar_test`；具体连接与备份边界见[运行手册](OPERATIONS.md)。
+
+当前开发期只有一个完整的 Alembic 基线 `0001_current_schema_baseline`，不支持从历史 revision 升级。若本地开发库的
+`alembic_version` 不是该基线，操作者必须在仓库自动化之外手动重建它，然后才可运行 `just dev-postgres` 或
+`northstar init-db`；不要添加 `stamp`、drop、truncate 或自动重建脚本来绕过这个边界。
 
 ## 3. 创建研究画像
 
@@ -118,7 +121,7 @@ Feature → Experiment → Backtest → Validation → OOS / Stress → Research
 - 注释解释量化假设、时间语义、单位、失败关闭条件和不可变性，而不重复代码语法；
 - 不新增 compatibility alias、legacy adapter、deprecated fallback 或旧 CLI 参数。项目未发布，调用方、测试、配置、
   文档与 migration 应在同一变更中迁移；
-- 改动共享模型、配置、数据库、execution 或 risk 时，完成前运行完整 `just test`；
+- 改动共享模型、配置、数据库、execution 或 risk 时，完成前运行完整 `uv run --offline --no-sync pytest`；
 - 修改架构或运行边界时，同步更新相应的规范文档和 [主实施计划](planning/MASTER_IMPLEMENTATION_PLAN.md)。
 
 ## 7. 排查顺序

@@ -911,7 +911,11 @@ class ReconciliationSafetyStateRecord(Base):
     account: Mapped[str | None] = mapped_column(String(64), index=True, default=None)
     state: Mapped[str] = mapped_column(String(32), index=True)
     reason: Mapped[str] = mapped_column(Text)
-    evidence_json: Mapped[str] = mapped_column(Text, default="{}")
+    evidence_json: Mapped[str] = mapped_column(
+        Text,
+        default="{}",
+        server_default="{}",
+    )
     predecessor_hash: Mapped[str | None] = mapped_column(String(64), default=None)
     state_hash: Mapped[str] = mapped_column(String(64))
     recovery_approver_id: Mapped[str | None] = mapped_column(

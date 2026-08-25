@@ -59,6 +59,8 @@ Python 3.11+ 需要预先安装。没有 `uv` 或 `just` 时，先用
 `dev-setup` 不会启动 Docker；`dev-postgres` 才会启动并复用本地 Docker PostgreSQL，并确保
 `northstar` 与 `northstar_test` 存在且只升级到 Alembic head。两者都强制 `paper`、禁用 live，不会下载
 市场数据或提交订单；仓库自动化绝不删除或清空数据库、表、schema 或 Docker 数据卷。
+当前开发期仅支持完整基线 `0001_current_schema_baseline`；带有旧 revision 的本地库必须由操作者在仓库自动化之外手动重建，
+测试或开发脚本不会 reset、stamp 或清理它。
 没有安装 `just` 时，先运行 `python scripts/ci/bootstrap_pep517.py --profile development`，再使用
 `uv run --offline --no-sync python scripts/dev/setup.py --initialize-config`，并按需加入
 `--with-postgres --migrate`。

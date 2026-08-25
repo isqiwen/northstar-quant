@@ -509,6 +509,12 @@ PostgreSQL-only
 数据库删除或清空只能由用户在仓库自动化之外手动执行。`init-db` 只能执行
 `alembic upgrade head`；未来迁移的 `upgrade()` 不得包含破坏性 DDL/DML。
 
+开发期 schema baseline（2026-08-25 用户授权）：在尚无需要兼容或保留的数据库 revision 时，
+`alembic/versions/` 只保留一个显式的当前完整 baseline。每次 schema 变化仍必须同步 ORM、repository、baseline、
+测试和文档；不得新增兼容旧 revision 的迁移链。旧 revision 的本地库必须由用户在仓库自动化之外手动重建，
+不得通过 `stamp`、`downgrade`、drop、truncate 或自动重置绕过。若未来出现需要保留的环境或数据，必须在开始前
+获得用户的新明确决定，再恢复版本化升级策略。
+
 测试数据库必须使用隔离：
 
 ```text

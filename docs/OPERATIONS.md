@@ -57,13 +57,16 @@ Docker volume。未知路径、符号链接、范围不清或未显式确认时�
 Northstar 是 PostgreSQL-only：
 
 ```powershell
-just db-up
-just db-migrate
+just dev-postgres
 ```
 
 本地 PostgreSQL 使用独立数据卷；自动化不会使用 `down -v`、drop、truncate、delete 或 migration downgrade。
 仓库自动化绝不删除或清空数据库、表、schema 或 Docker 数据卷；数据库删除或清空只能由用户在仓库自动化之外手动执行。
-测试数据库仅可为隔离的 `northstar_test`。`init-db`/`db-migrate` 只能前进到 Alembic head。
+测试数据库仅可为隔离的 `northstar_test`。`init-db`/`dev-postgres` 只能前进到 Alembic head。
+
+当前开发期的 head 是唯一完整基线 `0001_current_schema_baseline`，历史 revision 不提供升级路径。若本地
+`alembic_version` 记录其他值，必须由操作者在仓库自动化之外手动重建本地数据库或数据卷，然后再执行
+`just dev-postgres` 或 `northstar init-db`。仓库自动化不会 drop、truncate、stamp、downgrade 或替你重建数据库。
 
 ## 3. 数据、日历与运行模式
 

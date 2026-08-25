@@ -45,9 +45,7 @@ def test_init_db_uses_alembic_head_and_is_idempotent(tmp_path, monkeypatch):
         assert business_tables == set(Base.metadata.tables)
 
         with engine.connect() as connection:
-            revision = connection.scalar(
-                text("SELECT version_num FROM alembic_version")
-            )
-        assert revision == "0010_agent_run_audit_hardening"
+            revision = connection.scalar(text("SELECT version_num FROM alembic_version"))
+        assert revision == "0001_current_schema_baseline"
     finally:
         get_settings.cache_clear()

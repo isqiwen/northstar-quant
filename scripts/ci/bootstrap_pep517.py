@@ -751,7 +751,17 @@ def bootstrap_environment(
         ]
     )
 
-    venv_command = [uv, "venv", "--no-config", "--no-project", "--no-python-downloads"]
+    # Development promotes a sibling to ``.venv`` and release archives a
+    # build venv into its final location. Console-script launchers must
+    # survive either relocation.
+    venv_command = [
+        uv,
+        "venv",
+        "--no-config",
+        "--no-project",
+        "--no-python-downloads",
+        "--relocatable",
+    ]
     if trusted_python_request is not None:
         venv_command.extend(("--python", trusted_python_request))
     venv_command.append(str(venv))

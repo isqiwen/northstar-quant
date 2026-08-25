@@ -91,47 +91,68 @@ def test_p10_master_plan_links_evidence_and_tracks_only_ready_offline_work() -> 
 
     assert "P10_MATURE_V1_ACCEPTANCE_EVIDENCE.md" in plan
     assert "## P10-WP02 — Six-Commodity Intelligence Evidence Corpus" in plan
-    assert "**Status:** DONE" in plan.split(
-        "## P10-WP02 — Six-Commodity Intelligence Evidence Corpus", maxsplit=1
-    )[1].split("## P10-WP03", maxsplit=1)[0]
-    assert "**Status:** DONE" in plan.split(
-        "## P10-WP03 — Intelligence Feature Research Backtest Evidence", maxsplit=1
-    )[1].split("## P10-WP04", maxsplit=1)[0]
-    assert "**Status:** DONE" in plan.split(
-        "## P10-WP04 — Canonical Multi-Strategy Portfolio Composition", maxsplit=1
-    )[1].split("## P10-WP05", maxsplit=1)[0]
-    assert "**Status:** DONE" in plan.split(
-        "## P10-WP05 — Portfolio-Wide Risk Evidence & Approval Gate", maxsplit=1
-    )[1].split("## P10-WP06", maxsplit=1)[0]
-    assert "**Status:** DONE" in plan.split(
-        "## P10-WP06 — Durable Agent Evidence Audit", maxsplit=1
-    )[1].split("## P10-WP07", maxsplit=1)[0]
-    assert "**Status:** DONE" in plan.split(
-        "## P10-WP07 — Trading Acceptance Evidence Closure", maxsplit=1
-    )[1].split("## P10-WP08", maxsplit=1)[0]
-    assert "**Status:** BLOCKED" in plan.split(
-        "## P10-WP08 — Platform Production / DR Acceptance", maxsplit=1
-    )[1].split("## P10-WP09", maxsplit=1)[0]
-    assert "**Status:** BLOCKED" in plan.split(
-        "## P10-WP09 — Authoritative Data & Source Onboarding", maxsplit=1
-    )[1].split("---", maxsplit=1)[0]
+    assert (
+        "**Status:** DONE"
+        in plan.split("## P10-WP02 — Six-Commodity Intelligence Evidence Corpus", maxsplit=1)[
+            1
+        ].split("## P10-WP03", maxsplit=1)[0]
+    )
+    assert (
+        "**Status:** DONE"
+        in plan.split("## P10-WP03 — Intelligence Feature Research Backtest Evidence", maxsplit=1)[
+            1
+        ].split("## P10-WP04", maxsplit=1)[0]
+    )
+    assert (
+        "**Status:** DONE"
+        in plan.split("## P10-WP04 — Canonical Multi-Strategy Portfolio Composition", maxsplit=1)[
+            1
+        ].split("## P10-WP05", maxsplit=1)[0]
+    )
+    assert (
+        "**Status:** DONE"
+        in plan.split("## P10-WP05 — Portfolio-Wide Risk Evidence & Approval Gate", maxsplit=1)[
+            1
+        ].split("## P10-WP06", maxsplit=1)[0]
+    )
+    assert (
+        "**Status:** DONE"
+        in plan.split("## P10-WP06 — Durable Agent Evidence Audit", maxsplit=1)[1].split(
+            "## P10-WP07", maxsplit=1
+        )[0]
+    )
+    assert (
+        "**Status:** DONE"
+        in plan.split("## P10-WP07 — Trading Acceptance Evidence Closure", maxsplit=1)[1].split(
+            "## P10-WP08", maxsplit=1
+        )[0]
+    )
+    assert (
+        "**Status:** BLOCKED"
+        in plan.split("## P10-WP08 — Platform Production / DR Acceptance", maxsplit=1)[1].split(
+            "## P10-WP09", maxsplit=1
+        )[0]
+    )
+    assert (
+        "**Status:** BLOCKED"
+        in plan.split("## P10-WP09 — Authoritative Data & Source Onboarding", maxsplit=1)[1].split(
+            "---", maxsplit=1
+        )[0]
+    )
     assert "| P10 | Mature v1 Acceptance | IN_PROGRESS | 78% |" in plan
     assert "P10 已完成 `7/9` 个 Work Package（78%）" in plan
     assert "active_work_package: null" in plan
     assert "id: P10-WP08" in plan
-    assert (
-        "title: Platform Production / DR Acceptance\n"
-        "  status: BLOCKED"
-    ) in plan
+    assert ("title: Platform Production / DR Acceptance\n  status: BLOCKED") in plan
     assert "blocked_work_packages: [P10-WP08, P10-WP09]" in plan
     assert "## DOC-WP02 — Foundation / Data Module Rename" in plan
-    assert "**Status:** DONE" in plan.split("## DOC-WP02", maxsplit=1)[1].split(
-        "# 20.", maxsplit=1
-    )[0]
+    assert (
+        "**Status:** DONE" in plan.split("## DOC-WP02", maxsplit=1)[1].split("# 20.", maxsplit=1)[0]
+    )
     assert "## DOC-WP03 — Module Class Relationship Diagrams" in plan
-    assert "**Status:** DONE" in plan.split("## DOC-WP03", maxsplit=1)[1].split(
-        "# 20.", maxsplit=1
-    )[0]
+    assert (
+        "**Status:** DONE" in plan.split("## DOC-WP03", maxsplit=1)[1].split("# 20.", maxsplit=1)[0]
+    )
 
     for evidence_id in ("I01", "I04", "I05", "I06"):
         line = next(line for line in register.splitlines() if line.startswith(f"| {evidence_id} "))
@@ -148,6 +169,7 @@ def test_p10_master_plan_links_evidence_and_tracks_only_ready_offline_work() -> 
     a03 = next(line for line in register.splitlines() if line.startswith("| A03 "))
     assert "`VERIFIED_OFFLINE`" in a03
     assert "0010_agent_run_audit_hardening" in a03
+    assert "0001_current_schema_baseline" in a03
     pr03 = next(line for line in register.splitlines() if line.startswith("| PR03 "))
     pr09 = next(line for line in register.splitlines() if line.startswith("| PR09 "))
     assert "`VERIFIED_OFFLINE`" in pr03
@@ -174,7 +196,9 @@ def test_p10_reconciles_stale_completion_matrix_entries() -> None:
     assert "HALT →" in reconciliation
     assert "| Risk | Stress | TODO |" not in plan
     assert "| Trading | Ledger | TODO |" not in plan
-    assert "Portfolio-wide exposure / limits / stress / risk-state evidence and approval gate" in plan
+    assert (
+        "Portfolio-wide exposure / limits / stress / risk-state evidence and approval gate" in plan
+    )
 
 
 def test_p10_fixture_only_intelligence_corpus_is_documented_as_non_authorizing() -> None:

@@ -3787,6 +3787,64 @@ loopback drill 升级为生产验收。
 
 # 19.1 用户请求的跨阶段维护
 
+> 2026-08-25 的用户授权开发期 schema baseline 维护不改变 P10 的验收计数、活动阶段或外部阻塞状态。
+> 本节之前完成记录中出现的 `0007`—`0010` 是当时的历史 revision 标识；当前仓库只保留
+> `0001_current_schema_baseline`，不支持从那些历史 revision 升级。
+
+## DEV-WP01 — Development Alembic Baseline Consolidation
+
+**Status:** IN_PROGRESS
+
+**Origin:** 用户确认项目仍处于开发期，数据库不需要保留，且始终以当前 schema 为准。
+
+**Goal:** 将十段历史 Alembic 链压缩为单个显式、静态的 PostgreSQL 当前 schema baseline，避免为不存在的
+旧数据库兼容性维护迁移历史，同时保留所有数据表、约束、不可变审计函数和触发器。
+
+**Scope:**
+
+- 用唯一 `0001_current_schema_baseline` 创建完整 current schema；不在 migration 中调用 ORM metadata；
+- 删除旧 revision 文件，不新增 `stamp`、drop、truncate、downgrade 或自动数据库重建入口；
+- 将模型、migration/immutability 合同、初始化测试、开发/运行文档与计划同步；
+- 明确旧 revision 的本地库只能由操作者在仓库自动化之外手动重建；
+- 不改变任何领域语义、broker、账户、真实 CTP 或 live trading 能力。
+
+**Acceptance:**
+
+- `alembic/versions/` 只有一个无父节点的 current baseline，且 fresh isolated PostgreSQL 可 `upgrade head`、
+  重复升级并通过 `alembic check`；
+- baseline 精确保留当前 ORM 表/列/索引/唯一约束，以及 ResearchAgent audit 的 check constraints、
+  UPDATE/DELETE/TRUNCATE 拒绝触发器；
+- 所有数据库自动化仍只允许 `upgrade head`，不会删除或清空数据库、表、schema 或 volume；
+- 当前 P10 `next_task` 保持 P10-WP08 `BLOCKED`，不将这项本地维护误记为 production/DR 或数据授权完成。
+
+**Implementation and verification:**
+
+```yaml
+implementation_completed_at: 2026-08-25
+commit: null
+notes: >-
+  用户明确授权不保留开发数据库或历史 revision 后，将原 0001—0010 单线迁移压缩为唯一、静态、
+  forward-only 的 0001_current_schema_baseline。baseline 保留所有 current PostgreSQL schema、
+  audit hash/check constraints 和四个不可变 trigger；没有增加自动 reset/stamp/drop/downgrade。
+  旧 revision 数据库必须在仓库自动化之外由操作者手动重建。P10-WP08/P10-WP09 继续 BLOCKED。
+passed:
+  - "focused migration, initialization, audit, preservation and bootstrap tests — 42 passed"
+  - "fresh local PostgreSQL upgrade head, repeated upgrade, and alembic check"
+  - "ruff check ."
+  - "check_mypy_baseline.py check"
+  - "git diff --check"
+global_gate_pending:
+  command: "umask 022; uv run --offline --no-sync pytest"
+  result: "1738 passed, 4 failed"
+  unrelated_blockers:
+    - "ignored legacy platform/data_platform __pycache__ remnants"
+    - "deploy cleanup test's brittle shell-function extraction"
+    - "host lacks pg_dump, pg_restore, and psql for the restore drill"
+    - "release transaction test assumes Path.iterdir() lexical ordering"
+```
+
+---
+
 ## DOC-WP01 — Documentation Consolidation & Architecture Specification
 
 **Status:** DONE
@@ -4344,7 +4402,8 @@ next_task:
   status: BLOCKED
 ```
 
-DOC-WP06 已完成；P10-WP08 与 P10-WP09 仍由外部前提阻塞。
+DEV-WP01 的实现与相关验收已完成，但完整全局质量门禁仍待四项既有仓库/主机问题处理；
+P10-WP08 与 P10-WP09 仍由外部前提阻塞。
 在获得授权的外部条件前维持 `NO LIVE ACTION`。
 
 ---
@@ -4448,5 +4507,6 @@ DOC-WP06 已完成；P10-WP08 与 P10-WP09 仍由外部前提阻塞。
 | 2026-08-23 | DOC-WP04：将六张领域类关系图归位到对应模块说明，将 application 图归位到系统拓扑的 composition-root 说明；删除脱离上下文的独立图章节并以文档契约固定位置。 | DONE |
 | 2026-08-23 | DOC-WP05：删除重复的领域语义总览，将 Commodity/Instrument/Contract 与 Fill/ClosedTrade 约束分别归入 Data 与 Trading/Execution；同步更新锚点、章节编号与文档契约。 | DONE |
 | 2026-08-23 | DOC-WP06：补齐运行模式数据流。paper、`ctp_sim` 与真实 CTP 各有一张 Mermaid flowchart，分别覆盖本地纸面闭环、受证据/审批/一次性授权约束的本地 CTP 语义模拟，以及连接前 fail-closed 的真实 CTP 拒绝路径；未启用账户、凭据、连接或实盘操作。 | DONE |
+| 2026-08-25 | DEV-WP01：用户确认开发数据库无需保留后，将历史 `0001`—`0010` Alembic 链压缩为唯一静态 `0001_current_schema_baseline`；保留完整 schema、约束与不可变审计触发器，不增加自动 reset、stamp、drop、truncate 或 downgrade。旧 revision 数据库仅能由操作者在仓库自动化之外手动重建；相关验收已通过，但完整 pytest 仍受四项既有仓库/主机问题阻塞。P10-WP08/P10-WP09 仍为外部阻塞。 | IN_PROGRESS |
 
 > 所有重大架构变化、阶段调整、WP 删除/新增都必须记录在这里。
