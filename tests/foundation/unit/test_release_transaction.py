@@ -111,7 +111,7 @@ def test_transition_is_append_only_and_hash_chained(tmp_path: Path) -> None:
 
     assert verified.events[-1].previous_event_sha256 == transaction.current_event.sha256
     assert staging_started.events[-1].previous_event_sha256 == verified.current_event.sha256
-    assert [path.name for path in (store.root / transaction.release_id / "events").iterdir()] == [
+    assert sorted(path.name for path in (store.root / transaction.release_id / "events").iterdir()) == [
         "00000001.json",
         "00000002.json",
         "00000003.json",

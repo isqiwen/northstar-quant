@@ -1,6 +1,6 @@
 """追加式、内容寻址的数据制品库。
 
-本模块与 ``storage.py`` 的 legacy market/cache 投影刻意分离：后者使用原子替换以维护当前
+本模块与 ``storage.py`` 的可覆盖 market/cache 投影刻意分离：后者使用原子替换以维护当前
 可读文件，本模块则只允许创建新对象或验证完全相同的既有对象。它不连接数据库、不维护
 ``latest`` 指针，也不提供 GC/清理能力；旧制品和中断后留下的不可达对象必须保留，直到用户
 在仓库外明确处置。
@@ -192,7 +192,7 @@ class ArtifactStore:
 
     @classmethod
     def from_settings(cls) -> "ArtifactStore":
-        """从运行时 storage 根构造制品库；不读取 downloads 或 legacy market 投影。"""
+        """从运行时 storage 根构造制品库；不读取 downloads 或可覆盖 market 投影。"""
 
         from northstar_quant.foundation.config.settings import get_settings
 

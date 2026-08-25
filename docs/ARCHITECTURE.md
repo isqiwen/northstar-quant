@@ -116,7 +116,7 @@ flowchart TB
 事务。它不写入 `state.json`，也不把 Local-tools SQLite 当 fallback；现有 durable order、fill、position snapshot、risk、
 approval、reconciliation 与 audit 账本仍是独立的 PostgreSQL 权威事实。当前 Contract Master 与 CTP mapping 仍为版本受控
 YAML 配置，尚未成为 PostgreSQL 的时间版本化合约权威库。完整历史 Parquet Lake 和 DuckDB 查询 adapter 已经落地，
-但现有 legacy profile market 投影尚未自动迁入 Lake：它必须先经过 immutable `DatasetVersion` 入口验证。
+但现有可覆盖的 profile market 投影尚未自动迁入 Lake：它必须先经过 immutable `DatasetVersion` 入口验证。
 
 ### Application：跨领域 composition root
 
@@ -668,9 +668,9 @@ enable-live、resume-risk、submit 或连接 broker。
 
 ## 6. 配置、运行与部署边界
 
-运行设置是显式、typed、validated 的：活动 `configs/app.yaml` 由示例生成，`configs/app.local.yaml` 和 `.env`
-是本地私有覆盖；tracked 示例永远保持 paper / live-disabled。画像、source、研究准入、Contract Master、instrument、
-calendar 和策略配置各有职责，不能以一个 YAML 暗中替代另一个。
+运行设置是显式、typed、validated 的：活动配置仅为 `configs/app.yaml` 与 `.env`，`configs/app.local.yaml`
+已经废弃，发现它即失败关闭并要求完整迁移至 `app.yaml`；tracked 示例永远保持 paper / live-disabled。画像、source、
+研究准入、Contract Master、instrument、calendar 和策略配置各有职责，不能以一个 YAML 暗中替代另一个。
 
 生产目标仅 Linux x86_64；Windows/Linux 均为开发和部署控制端。可信部署路径是：
 

@@ -29,7 +29,6 @@ _NTFY_TOPIC_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 _NTFY_TOKEN_PATTERN = re.compile(r"^tk_[A-Za-z0-9]{29}$")
 _NTFY_LOOPBACK_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
 _NTFY_PUBLIC_SERVICE_HOSTS = frozenset({"ntfy.sh"})
-_DASHBOARD_LOOPBACK_HOST = "127.0.0.1"
 
 # 这四个字段保留在模型中，便于测试显式构造 Settings；运行时真源始终是 YAML。
 ENV_DISABLED_FIELDS = frozenset({"storage_dir", "downloads_dir", "reports_dir", "log_dir"})
@@ -41,6 +40,19 @@ _RETIRED_SIMULATOR_STATE_FIELDS = frozenset(
 )
 RETIRED_SIMULATOR_STATE_ENV_VARS = frozenset(
     f"NORTHSTAR_{field.upper()}" for field in _RETIRED_SIMULATOR_STATE_FIELDS
+)
+_RETIRED_UNUSED_SETTINGS_FIELDS = frozenset(
+    {
+        "dashboard_host",
+        "futures_trend_lookback_days",
+        "limit_chase_fallback_mode",
+        "limit_chase_max_steps",
+        "limit_chase_per_step_timeout_seconds",
+        "limit_chase_sleep_seconds",
+    }
+)
+RETIRED_UNUSED_SETTINGS_ENV_VARS = frozenset(
+    f"NORTHSTAR_{field.upper()}" for field in _RETIRED_UNUSED_SETTINGS_FIELDS
 )
 
 
@@ -70,8 +82,8 @@ class _ExcludedSettingsFieldsSource(PydanticBaseSettingsSource):
         }
 
 
-class _RejectLegacyRuntimePathEnvironmentSource(PydanticBaseSettingsSource):
-    """阻止旧输出路径变量悄悄覆盖可审计的 YAML 配置。"""
+class _RejectRetiredEnvironmentSource(PydanticBaseSettingsSource):
+    """阻止已移除的环境变量被 Settings 的 ``extra=ignore`` 静默吞掉。"""
 
     def __init__(
         self,
@@ -89,23 +101,36 @@ class _RejectLegacyRuntimePathEnvironmentSource(PydanticBaseSettingsSource):
         return None, field_name, False
 
     def __call__(self) -> dict[str, Any]:
-        seen: set[str] = set()
+        legacy_runtime_paths: set[str] = set()
+        retired_unused_settings: set[str] = set()
         for source in self._sources:
             env_vars = getattr(source, "env_vars", {})
             if not isinstance(env_vars, dict):
                 continue
-            seen.update(
+            names = {str(name).upper() for name in env_vars}
+            legacy_runtime_paths.update(
                 str(name).upper()
-                for name in env_vars
-                if str(name).upper() in LEGACY_RUNTIME_PATH_ENV_VARS
+                for name in names
+                if name in LEGACY_RUNTIME_PATH_ENV_VARS
+            )
+            retired_unused_settings.update(
+                str(name).upper()
+                for name in names
+                if name in RETIRED_UNUSED_SETTINGS_ENV_VARS
             )
 
-        if seen:
-            names = "、".join(sorted(seen))
+        if legacy_runtime_paths:
+            path_names = "、".join(sorted(legacy_runtime_paths))
             raise ValueError(
-                f"不再接受运行输出路径环境变量：{names}。"
+                f"不再接受运行输出路径环境变量：{path_names}。"
                 "请从 OS/.env 中删除这些变量，并改为在 configs/app.yaml 的 "
                 "runtime 段中完整配置 storage_dir、downloads_dir、reports_dir、log_dir。"
+            )
+        if retired_unused_settings:
+            retired_names = "、".join(sorted(retired_unused_settings))
+            raise ValueError(
+                f"已移除未接线运行时环境变量：{retired_names}。"
+                "这些值从未进入实际追价、趋势或 Dashboard 监听路径；请从 OS/.env 中删除。"
             )
         return {}
 
@@ -137,8 +162,8 @@ class Settings(BaseSettings):
 
     @model_validator(mode="before")
     @classmethod
-    def _reject_retired_simulator_state_paths(cls, value: object) -> object:
-        """Reject removed JSON-state options instead of silently ignoring them.
+    def _reject_retired_settings(cls, value: object) -> object:
+        """Reject removed configuration instead of silently ignoring it.
 
         Development intentionally makes a clean break here: Paper and CTP-sim
         mutable state is PostgreSQL authority, so accepting old path settings
@@ -147,14 +172,27 @@ class Settings(BaseSettings):
 
         if not isinstance(value, dict):
             return value
-        retired = sorted(
+        retired_simulator_state_paths = sorted(
             field for field in _RETIRED_SIMULATOR_STATE_FIELDS if field in value
         )
-        if retired:
-            names = "、".join(f"NORTHSTAR_{field.upper()}" for field in retired)
+        if retired_simulator_state_paths:
+            names = "、".join(
+                f"NORTHSTAR_{field.upper()}" for field in retired_simulator_state_paths
+            )
             raise ValueError(
                 f"已移除模拟柜台 JSON 状态配置：{names}。"
                 "Paper 和 CTP-sim 状态必须保存到核心 PostgreSQL。"
+            )
+        retired_unused_settings = sorted(
+            field for field in _RETIRED_UNUSED_SETTINGS_FIELDS if field in value
+        )
+        if retired_unused_settings:
+            names = "、".join(
+                f"NORTHSTAR_{field.upper()}" for field in retired_unused_settings
+            )
+            raise ValueError(
+                f"已移除未接线运行时配置：{names}。"
+                "这些值从未进入实际追价、趋势或 Dashboard 监听路径；请删除它们。"
             )
         return value
 
@@ -171,7 +209,7 @@ class Settings(BaseSettings):
 
         return (
             init_settings,
-            _RejectLegacyRuntimePathEnvironmentSource(
+            _RejectRetiredEnvironmentSource(
                 settings_cls,
                 env_settings,
                 dotenv_settings,
@@ -221,10 +259,6 @@ class Settings(BaseSettings):
     ctp_contract_mapping_path: Path = Field(default=Path("configs/instruments/ctp.yaml"))
     order_timeout_seconds: int = Field(default=300, gt=0)
     limit_price_offset_bps: float = Field(default=15.0, ge=0)
-    limit_chase_max_steps: int = Field(default=3, ge=1, le=20)
-    limit_chase_sleep_seconds: float = Field(default=2.0, ge=0.2)
-    limit_chase_per_step_timeout_seconds: int = Field(default=20, gt=0)
-    limit_chase_fallback_mode: Literal["cancel", "market"] = Field(default="cancel")
     execution_lease_ttl_seconds: int = Field(default=120, ge=30, le=3600)
 
     # 交易日历配置。期货夜盘须由期货数据/会话配置进一步约束，不能只依赖本默认值。
@@ -272,7 +306,6 @@ class Settings(BaseSettings):
 
     # 报告与执行控制。
     report_benchmark_symbol: str = Field(default="RB_CONT")
-    futures_trend_lookback_days: int = Field(default=60)
     trading_currency: str = Field(default="CNY")
 
     # 低频策略、盘中执行与实时风控的独立调度配置。
@@ -287,14 +320,12 @@ class Settings(BaseSettings):
     monthly_report_cron: str = Field(default="0 17 24-31 * *")
     yearly_report_cron: str = Field(default="15 17 * 12 *")
 
-    # Dashboard 只能监听 IPv4 loopback；远程查看通过 SSH 隧道或 VPN，不提供公网绑定开关。
-    dashboard_host: str = Field(default=_DASHBOARD_LOOPBACK_HOST)
+    # Dashboard 地址在 CLI 中固定为 IPv4 loopback；这里只允许配置端口。
     dashboard_port: int = Field(default=8501, ge=1, le=65535)
 
     @field_validator(
         "broker",
         "paper_fill_price_mode",
-        "limit_chase_fallback_mode",
         "alert_mode",
         mode="before",
     )
@@ -314,19 +345,6 @@ class Settings(BaseSettings):
             raise ValueError(
                 "NORTHSTAR_DATABASE_URL 是核心运行数据库，必须使用 postgresql+psycopg://；"
                 "SQLite 仅允许 Local tools 的独立存储使用。"
-            )
-        return normalized
-
-    @field_validator("dashboard_host")
-    @classmethod
-    def _require_dashboard_loopback(cls, value: str) -> str:
-        """拒绝 Dashboard 监听公网或局域网地址。"""
-
-        normalized = value.strip()
-        if normalized != _DASHBOARD_LOOPBACK_HOST:
-            raise ValueError(
-                "NORTHSTAR_DASHBOARD_HOST 只能是 127.0.0.1；"
-                "远程访问请使用 SSH 隧道或受控 VPN，不能直接暴露 Dashboard。"
             )
         return normalized
 
@@ -504,7 +522,9 @@ def load_settings(*, project_root: Path | None = None) -> Settings:
         env_file,
         expected_keys=active_environment_file_keys(),
         retired_keys=(
-            LEGACY_RUNTIME_PATH_ENV_VARS | RETIRED_SIMULATOR_STATE_ENV_VARS
+            LEGACY_RUNTIME_PATH_ENV_VARS
+            | RETIRED_SIMULATOR_STATE_ENV_VARS
+            | RETIRED_UNUSED_SETTINGS_ENV_VARS
         ),
     )
     return Settings(project_root=resolved_project_root, _env_file=env_file)  # type: ignore[call-arg]

@@ -51,9 +51,9 @@ just dev-postgres
 
 ## 当前边界
 
-P10 已完成 7/9 个 Work Package（78%）。生产灾备与权威数据 onboarding 仍需要外部授权、主机、数据许可和制品证据；
-它们不会因本地 Docker、fixture 或 `ctp_sim` 成功而自动升级。详见
-[主实施计划](docs/planning/MASTER_IMPLEMENTATION_PLAN.md)。
+当前实施状态、完成度与外部阻塞只由[主实施计划](docs/planning/MASTER_IMPLEMENTATION_PLAN.md)维护；本 README
+不复制会随工作包变化的数字。生产灾备与权威数据 onboarding 仍需要外部授权、主机、数据许可和制品证据，它们不会因
+本地 Docker、fixture 或 `ctp_sim` 成功而自动升级。
 
 ## License
 

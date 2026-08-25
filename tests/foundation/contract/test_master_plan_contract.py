@@ -123,6 +123,11 @@ def test_master_plan_tracks_completed_wp_and_current_work() -> None:
     assert (
         "**Status:** DONE" in plan.split("## DOC-WP02", maxsplit=1)[1].split("# 20.", maxsplit=1)[0]
     )
+    maintenance = plan.split("## MAINT-WP01", maxsplit=1)[1].split("# 20.", maxsplit=1)[0]
+    assert "**Status:** DONE" in maintenance
+    assert "northstar_quant.platform" in maintenance
+    assert "1787 passed, 1 failed, 1 deselected" in maintenance
+    assert "pg_dump、pg_restore 与 psql" in maintenance
     assert "## DOC-WP03 — Module Class Relationship Diagrams" in plan
     assert (
         "**Status:** DONE" in plan.split("## DOC-WP03", maxsplit=1)[1].split("# 20.", maxsplit=1)[0]

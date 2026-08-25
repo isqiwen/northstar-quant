@@ -85,7 +85,8 @@ next_task:
 blocked_work_packages: [P10-WP08, P10-WP09]
 ```
 
-P10 已完成 `7/9` 个 Work Package（78%）；当前没有 READY 的自主工作包，其余 P10-WP08 与 P10-WP09 均需外部前提。用户授权的跨阶段文档工作包 `DOC-WP06` 已完成；它不改变 P10 的验收计数或外部阻塞状态。
+P10 已完成 `7/9` 个 Work Package（78%）；P10-WP08 与 P10-WP09 均需外部前提。用户授权的维护工作包
+`MAINT-WP01` 已完成旧包生成残留、失实运行文档和已确认死代码的清理；它不改变 P10 的验收计数或外部阻塞状态。
 
 ---
 
@@ -4346,6 +4347,56 @@ verification:
 
 ---
 
+## MAINT-WP01 — Legacy Residue & Documentation Reconciliation
+
+**Status:** DONE
+
+**Dependencies:** DOC-WP02.
+
+**Origin:** 用户要求清理项目遗留代码和文档。审计确认旧 `platform` / `data_platform` 源码已完成 clean
+breaking rename，但工作区仍有未跟踪的旧 build 输出与 Python bytecode；同时运行文档仍把已废弃配置和不存在的
+`just` 命令写为可用入口。
+
+**Goal:** 清理已确认无权威性的历史生成物，并使面向操作者的文档只描述当前运行契约；不删除仍被运行路径使用、
+但被明确标记为非权威的 mutable market projection 或历史审计证据。
+
+**Acceptance:**
+
+- 只删除已核验的 ignored build / bytecode 旧包残留，不使用无范围的 `git clean`，不触及 `.env`、storage、数据库、
+  credentials 或其他本地状态；
+- `northstar_quant.platform` / `northstar_quant.data_platform` 物理残留、import 和可发现 package 均不存在，既有
+  architecture guard 继续保留；
+- 已确认无调用方的旧 demo、孤立 helper/model 和无效运行时 settings 连同 `.env.example`、systemd/template、测试一并
+  删除；旧环境变量必须显式拒绝，不能静默忽略或作为 fallback；
+- 根 README 不再复制会漂移的实施进度，部署命令、`app.local.yaml` 语义与实际 `justfile` / runtime fail-closed 行为一致；
+- 历史计划记录继续作为审计证据保留，文档契约、architecture、Ruff、mypy baseline 与完整 pytest 同步验证。
+
+**Completion:**
+
+```yaml
+completed_at: 2026-08-25
+commit: null
+notes:
+  - "仅将已核验的 ignored 旧 build / bytecode 目录移至系统回收站；未触及 .env、storage、数据库、credentials 或其他本地状态。"
+  - "删除无调用方的 demo、helper、孤立 TradePlan model 与 canonical dispatcher；保留仍被当前运行路径使用的 mutable market projection、历史计划记录及架构占位目录。"
+  - "移除六项从未接线的 settings，并令旧环境变量与直接传参显式失败；同步 .env.example、Dashboard systemd template、CLI 与测试。"
+  - "修复两项原有测试脆弱性（目录枚举顺序、抽取脚本时的函数覆盖），并为 SQLite Local-tools bootstrap 锁竞争加入有界重试，不重试 generation 写入事务。"
+  - "修正文档入口、部署命令、已废弃 app.local.yaml 语义，以及 Linux restore drill 的 PostgreSQL 客户端前提。"
+verification:
+  - "just env-bootstrap — PASS"
+  - "clean-root cleanup focused suite — 117 passed, 1 deselected"
+  - "selected deployment contracts — 2 passed, 58 deselected"
+  - "SQLite Local-tools unit suite — 9 passed；并发 rebuild 重复 10 次均通过"
+  - "release transaction unit suite — 12 passed"
+  - "release cleanup contract — 1 passed, 59 deselected"
+  - "clean-root full pytest — 1787 passed, 1 failed, 1 deselected"
+  - "ruff check . / mypy baseline / uv lock --check --offline / dependency policy / git diff --check — PASS"
+known_external_blocker:
+  - "当前 Linux 工作站缺少 pg_dump、pg_restore 与 psql；restore drill 明确失败，未改为 skip。CI 已安装匹配客户端。"
+```
+
+---
+
 # 20. Codex Work Package 标准模板
 
 ```yaml
@@ -4651,8 +4702,9 @@ next_task:
   status: BLOCKED
 ```
 
-DEV-WP01 的实现与相关验收已完成，但完整全局质量门禁仍待四项既有仓库/主机问题处理；
-DEV-WP02 的规则、文档和相关契约已完成，等待同样四项既有全局质量门禁问题消除后才能标记 DONE；
+MAINT-WP01 已完成。隔离示例配置下的完整 pytest 为 `1787 passed, 1 failed, 1 deselected`；唯一剩余失败是当前
+Linux 工作站缺少 `pg_dump`、`pg_restore` 与 `psql`，而 restore drill 必须保持强制执行，不能静默 skip。
+DEV-WP01 的实现与相关验收已完成；DEV-WP02 的规则、文档和相关契约已完成，仍须按各自状态和验收条件推进；
 P10-WP08 与 P10-WP09 仍由外部前提阻塞。
 在获得授权的外部条件前维持 `NO LIVE ACTION`。
 
@@ -4759,5 +4811,6 @@ P10-WP08 与 P10-WP09 仍由外部前提阻塞。
 | 2026-08-23 | DOC-WP06：补齐运行模式数据流。paper、`ctp_sim` 与真实 CTP 各有一张 Mermaid flowchart，分别覆盖本地纸面闭环、受证据/审批/一次性授权约束的本地 CTP 语义模拟，以及连接前 fail-closed 的真实 CTP 拒绝路径；未启用账户、凭据、连接或实盘操作。 | DONE |
 | 2026-08-25 | DEV-WP01：用户确认开发数据库无需保留后，将历史 `0001`—`0010` Alembic 链压缩为唯一静态 `0001_current_schema_baseline`；保留完整 schema、约束与不可变审计触发器，不增加自动 reset、stamp、drop、truncate 或 downgrade。旧 revision 数据库仅能由操作者在仓库自动化之外手动重建；相关验收已通过，但完整 pytest 仍受四项既有仓库/主机问题阻塞。P10-WP08/P10-WP09 仍为外部阻塞。 | IN_PROGRESS |
 | 2026-08-25 | DEV-WP02：用户确定四层存储职责：交易与权威运行状态使用 PostgreSQL；大规模历史数据使用 Parquet；历史分析使用 DuckDB；SQLite 仅用于本地工具集。规则、文档和契约已完成；当前 JSON simulated broker state、YAML Contract Master、部分 Parquet 覆盖与 DuckDB adapter 分别进入 DEV-WP03—DEV-WP05，完整 pytest 仍有四项既有阻塞。 | VERIFY |
+| 2026-08-25 | MAINT-WP01：清理已核验旧包 build/bytecode 残留、孤立 demo/helper/model 与未接线 settings；文档、部署命令、已废弃配置语义和测试契约已同步。保留活动 mutable market projection、历史记录和数据库；SQLite Local-tools bootstrap 并发锁竞争已采用仅限无写入阶段的有界重试。隔离 full pytest 仅剩本机缺少 PostgreSQL restore 客户端这一强制环境前提。 | DONE |
 
 > 所有重大架构变化、阶段调整、WP 删除/新增都必须记录在这里。

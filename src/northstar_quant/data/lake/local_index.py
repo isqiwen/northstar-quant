@@ -15,6 +15,7 @@ from pathlib import Path
 import secrets
 import sqlite3
 import stat
+import time
 
 from northstar_quant.data.lake.models import (
     LakeContractError,
@@ -26,6 +27,8 @@ from northstar_quant.data.lake.store import LakeStoreError, ParquetLakeStore
 
 _DATABASE_FILENAME = "lake-manifest-index.sqlite3"
 _SCHEMA_VERSION = 1
+_SQLITE_BOOTSTRAP_RETRY_DELAY_SECONDS = 0.05
+_SQLITE_BOOTSTRAP_RETRY_TIMEOUT_SECONDS = 5.0
 
 
 class LakeLocalIndexError(RuntimeError):
@@ -180,7 +183,27 @@ class LakeManifestLocalIndex:
         )
 
     def _open_initialized_rebuild_connection(self) -> sqlite3.Connection:
-        """打开可写 index；仅显式 rebuild 可隔离不兼容的本地 schema。"""
+        """打开可写 index，并在短暂 bootstrap 锁竞争时重试。
+
+        新建 SQLite 文件时，``quick_check`` 与 ``journal_mode=WAL`` 的锁升级会与另一
+        个同时启动的 local-tool 竞争。每次尝试都关闭连接后再重试，避免保留读取锁；真正
+        的 generation 写入仍由后续的 ``BEGIN IMMEDIATE`` 串行化。
+        """
+
+        deadline = time.monotonic() + _SQLITE_BOOTSTRAP_RETRY_TIMEOUT_SECONDS
+        while True:
+            try:
+                return self._open_initialized_rebuild_connection_once()
+            except LakeLocalIndexError as exc:
+                if not _has_sqlite_lock_cause(exc):
+                    raise
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise
+                time.sleep(min(_SQLITE_BOOTSTRAP_RETRY_DELAY_SECONDS, remaining))
+
+    def _open_initialized_rebuild_connection_once(self) -> sqlite3.Connection:
+        """执行一次可写 index bootstrap；锁竞争由调用方有界重试。"""
 
         connection = self._open_connection(recover_corruption=True, create=True)
         try:
@@ -570,3 +593,8 @@ def _entry_sort_key(reference: LakeDatasetReference) -> tuple[str, str, str]:
 def _is_lock_error(error: sqlite3.DatabaseError) -> bool:
     message = str(error).casefold()
     return "locked" in message or "busy" in message
+
+
+def _has_sqlite_lock_cause(error: LakeLocalIndexError) -> bool:
+    cause = error.__cause__
+    return isinstance(cause, sqlite3.DatabaseError) and _is_lock_error(cause)

@@ -39,6 +39,10 @@ uv run --offline --no-sync python scripts/ci/check_mypy_baseline.py check
 just dev-postgres
 ```
 
+Linux 上的完整 `pytest` 包含真实 PostgreSQL restore drill；在运行前，`PATH` 必须能找到与本机 PostgreSQL
+服务端 major 兼容的 `pg_dump`、`pg_restore` 和 `psql`。`just dev-postgres` 只启动 Docker PostgreSQL，不会安装这些
+宿主机客户端；缺少它们时完整套件会明确失败，不能把 restore drill 静默跳过。Windows 工作站不执行该 Linux-only drill。
+
 数据库自动化只复用既有数据并执行前向迁移，绝不会清空数据库、表、schema 或 Docker volume。测试数据库必须是隔离的
 `northstar_test`；具体连接与备份边界见[运行手册](OPERATIONS.md)。
 

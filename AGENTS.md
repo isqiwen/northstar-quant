@@ -776,17 +776,16 @@ Linux production
 优先提供：
 
 ```text
-just setup
+just env-bootstrap
+just dev-setup
+just dev-postgres
 just check
-just test
-just lint
-just typecheck
-just db-up
-just db-migrate
-just backtest-smoke
-just sim-smoke
-just deploy-prod
-just prod-health
+just test-unit
+just test-backtest
+just test-cli
+just candidate-acceptance
+just deploy-prod <signing-key>
+just ops-health
 ```
 
 `justfile` 负责组合命令。

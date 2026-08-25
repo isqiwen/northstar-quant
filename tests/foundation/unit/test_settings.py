@@ -10,6 +10,7 @@ from northstar_quant.foundation.config.environment_file import ActiveEnvironment
 from northstar_quant.foundation.config.settings import (
     ENV_DISABLED_FIELDS,
     LEGACY_RUNTIME_PATH_ENV_VARS,
+    RETIRED_UNUSED_SETTINGS_ENV_VARS,
     Settings,
     active_environment_file_keys,
     load_settings,
@@ -73,16 +74,27 @@ def test_core_database_rejects_sqlite_url():
         )
 
 
-def test_dashboard_host_only_allows_ipv4_loopback():
-    settings = Settings(_env_file=None, dashboard_host=" 127.0.0.1 ")
+@pytest.mark.parametrize(
+    "field",
+    (
+        "dashboard_host",
+        "futures_trend_lookback_days",
+        "limit_chase_fallback_mode",
+        "limit_chase_max_steps",
+        "limit_chase_per_step_timeout_seconds",
+        "limit_chase_sleep_seconds",
+    ),
+)
+def test_removed_unwired_settings_are_rejected(field):
+    with pytest.raises(ValidationError, match="已移除未接线运行时配置"):
+        Settings(_env_file=None, **{field: "retired"})
 
-    assert settings.dashboard_host == "127.0.0.1"
 
+def test_removed_unwired_environment_settings_are_rejected(monkeypatch):
+    monkeypatch.setenv("NORTHSTAR_DASHBOARD_HOST", "127.0.0.1")
 
-@pytest.mark.parametrize("host", ["0.0.0.0", "::1", "localhost", "192.168.1.10"])
-def test_dashboard_host_rejects_non_ipv4_loopback_values(host):
-    with pytest.raises(ValidationError, match="NORTHSTAR_DASHBOARD_HOST"):
-        Settings(_env_file=None, dashboard_host=host)
+    with pytest.raises(ValueError, match="已移除未接线运行时环境变量"):
+        Settings(_env_file=None)
 
 
 def test_empty_optional_ntfy_environment_values_are_ignored(monkeypatch):
@@ -180,6 +192,14 @@ def test_runtime_paths_derive_from_storage_unless_explicit(tmp_path):
     assert derived.log_dir == tmp_path / "runtime/logs"
     assert "paper_state_path" not in Settings.model_fields
     assert "ctp_sim_state_path" not in Settings.model_fields
+    assert not {
+        "dashboard_host",
+        "futures_trend_lookback_days",
+        "limit_chase_fallback_mode",
+        "limit_chase_max_steps",
+        "limit_chase_per_step_timeout_seconds",
+        "limit_chase_sleep_seconds",
+    } & set(Settings.model_fields)
     assert explicit.storage_dir == tmp_path / "test-runtime/storage"
     assert explicit.downloads_dir == tmp_path / "runtime/download-cache"
     assert explicit.local_tools_dir == tmp_path / "test-runtime/storage/local-tools"
@@ -293,7 +313,11 @@ def test_retired_simulator_state_path_settings_are_rejected(tmp_path, field):
 
 @pytest.mark.parametrize(
     "retired_key",
-    ("NORTHSTAR_PAPER_STATE_PATH", "NORTHSTAR_CTP_SIM_STATE_PATH"),
+    (
+        "NORTHSTAR_PAPER_STATE_PATH",
+        "NORTHSTAR_CTP_SIM_STATE_PATH",
+        *sorted(RETIRED_UNUSED_SETTINGS_ENV_VARS),
+    ),
 )
 def test_active_environment_file_rejects_retired_simulator_state_paths(
     tmp_path,

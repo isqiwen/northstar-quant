@@ -13,6 +13,7 @@ from northstar_quant.data.lake import (
     LakeLocalIndexError,
     LakeManifestLocalIndex,
 )
+from northstar_quant.data.lake import local_index as local_index_module
 from northstar_quant.foundation.config import settings as settings_module
 from tests.helpers.historical_lake import build_materialized_bars_lake
 
@@ -84,6 +85,51 @@ def test_local_sqlite_index_serializes_concurrent_rebuilds_without_duplicate_lat
     assert len(set(generations)) == 2
     assert len(entries) == 1
     assert entries[0].reference == fixture.materialized.verified.manifest.reference
+
+
+def test_local_sqlite_index_retries_a_transient_bootstrap_lock(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    fixture = build_materialized_bars_lake(tmp_path)
+    index = LakeManifestLocalIndex(tmp_path / "local-tools")
+    original_open = index._open_initialized_rebuild_connection_once
+    attempts = 0
+
+    def transient_lock():
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            cause = sqlite3.OperationalError("database is locked")
+            raise LakeLocalIndexError("SQLite Local-tools index 正被其他本地工具使用") from cause
+        return original_open()
+
+    monkeypatch.setattr(index, "_open_initialized_rebuild_connection_once", transient_lock)
+
+    rebuild = index.rebuild(fixture.lake_store)
+
+    assert attempts == 2
+    assert rebuild.entry_count == 1
+    assert not tuple(index.root.glob("lake-manifest-index.sqlite3.corrupt-*"))
+
+
+def test_local_sqlite_index_reports_an_unresolved_bootstrap_lock_without_quarantine(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    index = LakeManifestLocalIndex(tmp_path / "local-tools")
+
+    def persistent_lock():
+        cause = sqlite3.OperationalError("database is locked")
+        raise LakeLocalIndexError("SQLite Local-tools index 正被其他本地工具使用") from cause
+
+    monkeypatch.setattr(index, "_open_initialized_rebuild_connection_once", persistent_lock)
+    monkeypatch.setattr(local_index_module, "_SQLITE_BOOTSTRAP_RETRY_TIMEOUT_SECONDS", 0.0)
+
+    with pytest.raises(LakeLocalIndexError, match="正被其他本地工具使用"):
+        index._open_initialized_rebuild_connection()
+
+    assert not tuple(index.root.glob("lake-manifest-index.sqlite3.corrupt-*"))
 
 
 def test_explicit_rebuild_quarantines_only_corrupt_tool_owned_sqlite_file(tmp_path: Path):

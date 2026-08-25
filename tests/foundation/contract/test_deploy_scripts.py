@@ -1205,9 +1205,9 @@ def test_cleanup_preserves_a_published_release_snapshot_but_removes_an_unpublish
             "deploy_assert_managed_environment_file() {",
             '  [ -f "$1" ] && [ ! -L "$1" ]',
             "}",
-            "assert_root_owned_tree_without_mounts() { return 0; }",
             published_check,
             cleanup,
+            "assert_root_owned_tree_without_mounts() { return 0; }",
             'mkdir -p "${RELEASES_ROOT}" "${ENV_ROOT}"',
             "# Simulate a signal immediately after stage -> release rename, before shell flags update.",
             'RELEASE_DIR="${RELEASES_ROOT}/published"',
@@ -2721,7 +2721,7 @@ def test_private_dashboard_deploy_is_explicit_opt_in_and_keeps_main_service_mode
     assert 'case "${SERVICE_MODE}" in\n  health|scheduler)' in release_script
     assert '"health", "scheduler"' in (DEPLOY_DIR / "inventory.py").read_text(encoding="utf-8")
 
-    assert "Environment=NORTHSTAR_DASHBOARD_HOST=127.0.0.1" in dashboard_template
+    assert "NORTHSTAR_DASHBOARD_HOST" not in dashboard_template
     assert "0.0.0.0" not in dashboard_template
     assert "ExecStart=@CURRENT_LINK@/.venv/bin/northstar dashboard run" in dashboard_template
     assert "EnvironmentFile=@CURRENT_LINK@/.env" in dashboard_template

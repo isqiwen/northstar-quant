@@ -271,9 +271,36 @@ def test_root_readme_links_to_control_plane_without_a_stale_roadmap() -> None:
     readme = _read(README_PATH)
 
     assert "[主实施计划](docs/planning/MASTER_IMPLEMENTATION_PLAN.md)" in readme
-    assert "P10 已完成 7/9 个 Work Package（78%）" in readme
+    assert "P10 已完成" not in readme
+    assert "不复制会随工作包变化的数字" in readme
     assert "唯一实施进度事实来源" in _read(PLANNING_INDEX_PATH)
     assert "DOC-WP01" in _read(MASTER_PLAN_PATH)
+
+
+def test_operations_documentation_matches_current_just_and_configuration_contracts() -> None:
+    operations = _read(OPERATIONS_PATH)
+    architecture = _read(ARCHITECTURE_PATH)
+    justfile = _read(PROJECT_ROOT / "justfile")
+
+    assert "just deploy-prod /secure/operator/northstar-release-signing-key" in operations
+    assert "just ops-health" in operations
+    assert "just prod-health" not in operations
+    assert "deploy-prod signing_key inventory='deploy.env':" in justfile
+    assert "ops-health inventory='deploy.env':" in justfile
+    for document in (operations, architecture):
+        assert "configs/app.local.yaml" in document
+        assert "废弃" in document
+        assert "拒绝" in document
+
+
+def test_development_documentation_states_the_linux_restore_client_requirement() -> None:
+    development = _read(DEVELOPMENT_PATH)
+
+    assert "pg_dump" in development
+    assert "pg_restore" in development
+    assert "psql" in development
+    assert "just dev-postgres` 只启动 Docker PostgreSQL，不会安装这些" in development
+    assert "不能把 restore drill 静默跳过" in development
 
 
 def test_configuration_documentation_matches_safe_runtime_defaults() -> None:

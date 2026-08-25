@@ -9,7 +9,8 @@
 
 | 类别 | 事实来源 | 用途 |
 |---|---|---|
-| 应用设置 | `.env`、`configs/app.yaml`、`configs/app.local.yaml` | 本机私有运行参数与活动配置 |
+| 活动应用设置 | `.env`、`configs/app.yaml` | 本机私有运行参数与唯一活动配置 |
+| 已废弃的本地覆盖 | `configs/app.local.yaml` | 发现即拒绝启动；必须完整迁移至 `app.yaml` 后删除 |
 | 可跟踪模板 | `.env.example`、`configs/app.example.yaml` | 安全默认值，不能当作运行时配置 |
 | 画像 | `configs/profiles/` | offline、simulated、future live 的明确生命周期 |
 | 数据与准入 | `configs/data/sources.yaml`、`configs/research/admission/` | source、授权和研究资格 |
@@ -174,8 +175,8 @@ workstation
 常用入口：
 
 ```powershell
-just deploy-prod
-just prod-health
+just deploy-prod /secure/operator/northstar-release-signing-key
+just ops-health
 ```
 
 部署控制器、脚本分工和环境变量参见[`scripts/README.md`](../scripts/README.md)，部署声明见

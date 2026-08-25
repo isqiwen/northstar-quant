@@ -182,7 +182,7 @@ def test_dashboard_run_keeps_streamlit_private_and_hardened(monkeypatch):
     monkeypatch.setattr(
         cli,
         "get_settings",
-        lambda: SimpleNamespace(dashboard_host="0.0.0.0", dashboard_port=8517),
+        lambda: SimpleNamespace(dashboard_port=8517),
     )
     monkeypatch.setattr(subprocess, "call", lambda command: commands.append(command) or 0)
 

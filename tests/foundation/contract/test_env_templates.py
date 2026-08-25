@@ -15,6 +15,7 @@ from northstar_quant.foundation.config.environment_file import (
 from northstar_quant.foundation.config.settings import (
     ENV_DISABLED_FIELDS,
     RETIRED_SIMULATOR_STATE_ENV_VARS,
+    RETIRED_UNUSED_SETTINGS_ENV_VARS,
     Settings,
 )
 from tests.helpers.paths import PROJECT_ROOT
@@ -63,12 +64,16 @@ def _assert_template_lists_each_setting_once() -> dict[str, list[str]]:
     declaration_counts = _declaration_key_counts(ENV_TEMPLATE_PATH)
     expected = _settings_environment_keys() | ENVIRONMENT_FILE_AUXILIARY_KEYS
 
-    assert len(expected) == 78
+    assert len(expected) == 72
     assert set(declaration_counts) == expected
     for key in expected:
         assert declaration_counts[key] == 1, f".env.example 重复声明 {key}"
 
-    for retired_key in RETIRED_OUTPUT_ENV_KEYS | RETIRED_SIMULATOR_STATE_ENV_VARS:
+    for retired_key in (
+        RETIRED_OUTPUT_ENV_KEYS
+        | RETIRED_SIMULATOR_STATE_ENV_VARS
+        | RETIRED_UNUSED_SETTINGS_ENV_VARS
+    ):
         assert retired_key not in declaration_counts
     return _template_values(ENV_TEMPLATE_PATH)
 
@@ -136,5 +141,9 @@ def test_env_example_keeps_live_trading_disabled_by_default() -> None:
 
 def test_env_example_does_not_offer_retired_output_path_environment_variables() -> None:
     declaration_counts = _declaration_key_counts(ENV_TEMPLATE_PATH)
-    for key in RETIRED_OUTPUT_ENV_KEYS | RETIRED_SIMULATOR_STATE_ENV_VARS:
+    for key in (
+        RETIRED_OUTPUT_ENV_KEYS
+        | RETIRED_SIMULATOR_STATE_ENV_VARS
+        | RETIRED_UNUSED_SETTINGS_ENV_VARS
+    ):
         assert key not in declaration_counts
