@@ -10,11 +10,13 @@ from contextlib import contextmanager
 from dataclasses import replace
 from datetime import UTC, date, datetime
 from functools import wraps
-import json
 import math
 from pathlib import Path
+from threading import RLock
 from collections.abc import Callable
-from typing import Any, TextIO, cast
+from typing import Any, cast
+
+from sqlalchemy.orm import Session
 
 from northstar_quant.foundation.common.enums import CtpOffset
 from northstar_quant.foundation.common.order_identity import build_order_ref
@@ -24,7 +26,7 @@ from northstar_quant.trading_execution.broker.ctp_contract_mapping import (
     CtpContractMapping,
     load_ctp_contract_registry,
 )
-from northstar_quant.foundation.config.settings import get_settings, normalize_local_state_account
+from northstar_quant.foundation.config.settings import get_settings, normalize_simulator_account
 from northstar_quant.trading_execution.broker.broker_base import BrokerAdapter
 from northstar_quant.trading_execution.broker.contracts import BrokerCapabilities, BrokerConnectionState, BrokerIdentity, BrokerMode, BrokerStatus
 from northstar_quant.trading_execution.execution.models import (
@@ -39,18 +41,12 @@ from northstar_quant.trading_execution.orders.ctp_sim_submission_guard import (
     CtpSimSubmissionAuthority,
 )
 from northstar_quant.trading_execution.execution.pricing import normalize_symbols
-
-
-fcntl: Any = None
-msvcrt: Any = None
-try:  # pragma: no cover - the active platform determines the covered branch.
-    import fcntl as _fcntl
-except ModuleNotFoundError:  # Windows does not provide fcntl.
-    import msvcrt as _msvcrt
-
-    msvcrt = _msvcrt
-else:
-    fcntl = _fcntl
+from northstar_quant.trading_execution.broker.simulated_state import (
+    LockedSimulatedBrokerState,
+    PostgresSimulatedBrokerStateRepository,
+    SessionFactory,
+    SimulatedBrokerStateEvidence,
+)
 
 
 class CtpSimPreSyncGuardRefusal(RuntimeError):
@@ -63,7 +59,7 @@ class CtpSimPreSyncCheckRejected(RuntimeError):
     The adapter deliberately carries the immutable observed snapshot out to
     its caller.  Candidate composition can then persist a fenced HALT without
     ever running the simulator lifecycle processor over an externally changed
-    state file.
+    PostgreSQL state snapshot.
     """
 
     def __init__(self, *, snapshot: BrokerStateSnapshot, reason: str) -> None:
@@ -73,77 +69,33 @@ class CtpSimPreSyncCheckRejected(RuntimeError):
 
 
 def _locked_state(method):
-    """让一次仿真柜台读改写在跨进程文件锁内完成。"""
+    """让一次仿真柜台读改写在 PostgreSQL 账户锁与事务内完成。"""
 
     @wraps(method)
     def wrapped(self, *args, **kwargs):
-        with self._state_lock():
-            self._state = self._load_state()
+        with self._state_transaction(action=method.__name__):
             return method(self, *args, **kwargs)
 
     return wrapped
 
-
-def _lock_state_file(lock_file: TextIO) -> None:
-    """获取跨进程状态文件锁，兼容 Linux 与 Windows。"""
-
-    if fcntl is not None:
-        fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
-        return
-
-    assert msvcrt is not None
-    lock_file.seek(0, 2)
-    if lock_file.tell() == 0:
-        # Windows 的 msvcrt.locking 不能锁定空文件中的字节范围。
-        lock_file.write("0")
-        lock_file.flush()
-    lock_file.seek(0)
-    msvcrt.locking(lock_file.fileno(), msvcrt.LK_LOCK, 1)
-
-
-def _unlock_state_file(lock_file: TextIO) -> None:
-    """释放由 _lock_state_file 获取的文件锁。"""
-
-    if fcntl is not None:
-        fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
-        return
-
-    assert msvcrt is not None
-    lock_file.seek(0)
-    msvcrt.locking(lock_file.fileno(), msvcrt.LK_UNLCK, 1)
-
-
 class CtpSimBrokerAdapter(BrokerAdapter):
-    """使用本地状态文件实现的净持仓期货仿真柜台。"""
+    """使用 PostgreSQL 状态机实现的净持仓期货仿真柜台。"""
 
     client_id = 1
 
     def __init__(
         self,
         *,
-        state_path: str | Path | None = None,
         mapping_path: str | Path | None = None,
         account: str | None = None,
         default_cash: float | None = None,
         submission_authority: CtpSimSubmissionAuthority | None = None,
+        session_factory: SessionFactory | None = None,
     ) -> None:
         settings = get_settings()
-        self.account = normalize_local_state_account(
+        self.account = normalize_simulator_account(
             str(settings.ctp_sim_account if account is None else account)
         )
-        if state_path is None:
-            resolved_state_path = (
-                settings.ctp_sim_state_path
-                if account is None
-                else settings.storage_dir
-                / "brokers"
-                / "ctp_sim"
-                / self.account
-                / "state.json"
-            )
-        else:
-            resolved_state_path = Path(state_path)
-        self.state_path = Path(resolved_state_path).resolve()
         self.mapping_path = Path(
             mapping_path or settings.ctp_sim_contract_mapping_path
         ).resolve()
@@ -164,10 +116,23 @@ class CtpSimBrokerAdapter(BrokerAdapter):
             raise PermissionError("CTP_SIM_SUBMISSION_AUTHORITY_INVALID")
         self._submission_authority = submission_authority
         self._connected = False
-        self.state_path.parent.mkdir(parents=True, exist_ok=True)
-        self.lock_path = self.state_path.with_suffix(self.state_path.suffix + ".lock")
-        with self._state_lock():
-            self._state = self._load_state()
+        # A durable submit temporarily binds its caller-owned Session so its
+        # simulator transition and acknowledgement can commit together. This
+        # lock prevents concurrent polling or quote updates from reusing that
+        # Session across threads or exposing uncommitted state.
+        self._state_lock = RLock()
+        self._state_session: Session | None = None
+        self._active_state: LockedSimulatedBrokerState | None = None
+        self._active_state_action: str | None = None
+        self._state_repository = PostgresSimulatedBrokerStateRepository(
+            broker="ctp_sim",
+            account=self.account,
+            schema_version=1,
+            state_factory=self._empty_state,
+            state_validator=self._validate_state,
+            session_factory=session_factory,
+        )
+        self._state = self._load_state()
 
     @property
     def submission_authority(self) -> CtpSimSubmissionAuthority | None:
@@ -176,17 +141,46 @@ class CtpSimBrokerAdapter(BrokerAdapter):
         return self._submission_authority
 
     @contextmanager
-    def _state_lock(self):
-        with self.lock_path.open("a+", encoding="utf-8") as lock_file:
-            _lock_state_file(lock_file)
+    def submission_transaction(self, session: Session):
+        """Bind a durable submit to the caller's PostgreSQL transaction.
+
+        Candidate CTP-sim submission keeps its simulator transition, durable
+        intent, acknowledgement and reconciliation fence in one transaction.
+        Ordinary simulator lifecycle calls intentionally own a short-lived
+        PostgreSQL transaction instead.
+        """
+
+        if not isinstance(session, Session):
+            raise TypeError("CTP_SIM_POSTGRESQL_SESSION_REQUIRED")
+        with self._state_lock:
+            if self._state_session is not None and self._state_session is not session:
+                raise RuntimeError("CTP_SIM_STATE_SESSION_ALREADY_BOUND")
+            previous_session = self._state_session
+            self._state_session = session
             try:
                 yield
             finally:
-                _unlock_state_file(lock_file)
+                self._state_session = previous_session
+
+    @contextmanager
+    def _state_transaction(self, *, action: str):
+        with self._state_lock:
+            if self._active_state is not None:
+                raise RuntimeError("CTP_SIM_STATE_TRANSACTION_REENTRANT")
+            with self._state_repository.locked_state(session=self._state_session) as locked:
+                self._active_state = locked
+                self._active_state_action = action
+                self._state = locked.state
+                try:
+                    yield
+                finally:
+                    self._active_state = None
+                    self._active_state_action = None
 
     def _empty_state(self) -> dict:
         return {
             "version": 1,
+            "broker": "ctp_sim",
             "account": self.account,
             "balance": self.default_cash,
             "trading_day": utc_now().date().isoformat(),
@@ -198,37 +192,81 @@ class CtpSimBrokerAdapter(BrokerAdapter):
             "next_exec_seq": 1,
         }
 
-    def _load_state(self) -> dict:
-        if not self.state_path.exists():
-            state = self._empty_state()
-            self._state = state
-            self._save_state()
-            return state
-        payload = json.loads(self.state_path.read_text(encoding="utf-8"))
+    def _validate_state(self, payload: dict[str, Any]) -> None:
+        required = {
+            "version",
+            "broker",
+            "account",
+            "balance",
+            "trading_day",
+            "positions",
+            "orders",
+            "fills",
+            "quotes",
+            "next_order_seq",
+            "next_exec_seq",
+        }
+        if not required.issubset(payload):
+            raise ValueError("CTP_SIM_POSTGRESQL_STATE_FIELDS_MISSING")
         if int(payload.get("version", 0)) != 1:
-            raise ValueError("CTP_SIM_STATE_VERSION_UNSUPPORTED: 仿真柜台状态版本不受支持。")
+            raise ValueError("CTP_SIM_POSTGRESQL_STATE_VERSION_UNSUPPORTED")
+        if payload.get("broker") != "ctp_sim":
+            raise ValueError("CTP_SIM_POSTGRESQL_STATE_BROKER_MISMATCH")
         if str(payload.get("account") or "").strip() != self.account:
-            raise ValueError("CTP_SIM_ACCOUNT_MISMATCH: 状态文件账户与当前账户不一致。")
-        return payload
+            raise ValueError("CTP_SIM_ACCOUNT_MISMATCH")
+        if not math.isfinite(float(payload["balance"])):
+            raise ValueError("CTP_SIM_POSTGRESQL_STATE_BALANCE_INVALID")
+        try:
+            date.fromisoformat(str(payload["trading_day"]))
+        except (TypeError, ValueError) as exc:
+            raise ValueError("CTP_SIM_POSTGRESQL_STATE_TRADING_DAY_INVALID") from exc
+        if (
+            not isinstance(payload["positions"], dict)
+            or not isinstance(payload["orders"], dict)
+            or not isinstance(payload["fills"], list)
+            or not isinstance(payload["quotes"], dict)
+            or int(payload["next_order_seq"]) < 1
+            or int(payload["next_exec_seq"]) < 1
+        ):
+            raise ValueError("CTP_SIM_POSTGRESQL_STATE_SHAPE_INVALID")
+
+    def _load_state(self) -> dict:
+        with self._state_lock:
+            if self._active_state is not None:
+                return self._active_state.state
+            if self._state_session is not None:
+                return self._state_repository.read_state_in_session(self._state_session)
+            return self._state_repository.read_state()
+
+    def simulator_state_evidence(self) -> SimulatedBrokerStateEvidence:
+        """Return verified PostgreSQL state metadata without leaking payloads.
+
+        This supports operator diagnostics and test assertions while keeping
+        the mutable simulator snapshot adapter-private.
+        """
+
+        with self._state_lock:
+            if self._active_state is not None:
+                raise RuntimeError("CTP_SIM_STATE_EVIDENCE_REQUIRES_IDLE_ADAPTER")
+            return self._state_repository.current_evidence(session=self._state_session)
 
     def _save_state(self) -> None:
-        tmp_path = self.state_path.with_suffix(self.state_path.suffix + ".tmp")
-        tmp_path.write_text(
-            json.dumps(self._state, ensure_ascii=True, indent=2, sort_keys=True),
-            encoding="utf-8",
-        )
-        tmp_path.replace(self.state_path)
+        if self._active_state is None or self._active_state_action is None:
+            raise RuntimeError("CTP_SIM_POSTGRESQL_STATE_TRANSACTION_REQUIRED")
+        self._active_state.persist(action=self._active_state_action)
 
     def _require_connected(self) -> None:
         if not self._connected:
             raise ConnectionError("CTP_SIM_DISCONNECTED: 仿真柜台尚未连接。")
 
     def connect(self) -> None:
-        self._state = self._load_state()
-        self._connected = True
+        with self._state_lock:
+            self._state = self._load_state()
+            self._connected = True
 
     def disconnect(self) -> None:
-        self._connected = False
+        with self._state_lock:
+            self._connected = False
 
     def get_name(self) -> str:
         return "ctp_sim"
@@ -240,12 +278,17 @@ class CtpSimBrokerAdapter(BrokerAdapter):
         return self.client_id
 
     def broker_status(self) -> BrokerStatus:
-        return BrokerStatus(
-            BrokerIdentity(self.get_name(), BrokerMode.CTP_SIM, self.account, self.client_id),
-            BrokerConnectionState.CONNECTED if self._connected else BrokerConnectionState.DISCONNECTED,
-            BrokerCapabilities(True, True, True, True, True),
-            datetime.now(UTC),
-        )
+        with self._state_lock:
+            return BrokerStatus(
+                BrokerIdentity(self.get_name(), BrokerMode.CTP_SIM, self.account, self.client_id),
+                (
+                    BrokerConnectionState.CONNECTED
+                    if self._connected
+                    else BrokerConnectionState.DISCONNECTED
+                ),
+                BrokerCapabilities(True, True, True, True, True),
+                datetime.now(UTC),
+            )
 
     def _mapping_for_order(self, order: OrderRequest) -> CtpContractMapping:
         normalized_symbol = str(order.symbol or "").strip().upper()
@@ -453,11 +496,10 @@ class CtpSimBrokerAdapter(BrokerAdapter):
             client_id=self.client_id,
             perm_id=sequence,
         )
-        # We already hold the simulator's cross-process state lock here.  Pass
-        # its post-mutation snapshot directly to the candidate gate rather
-        # than making the durable layer re-acquire this file lock while its
-        # reconciliation fence is still held (which would form an ABBA cycle
-        # with another submit waiting on that fence).
+        # We already hold the simulator's account-scoped PostgreSQL state lock
+        # here.  Pass its post-mutation snapshot directly to the candidate gate
+        # rather than re-reading it through another transaction while the
+        # reconciliation fence is still held.
         authority.mark_submitted(
             order,
             snapshot=self._current_state_snapshot(asof=utc_now()),
@@ -826,8 +868,9 @@ class CtpSimBrokerAdapter(BrokerAdapter):
         """Read the current simulator state without advancing or persisting it.
 
         Candidate authority evaluation must be able to refuse a forged or
-        expired P3 claim without triggering simulator order processing.  This
-        path deliberately reloads under the ordinary cross-process lock but
+        expired P3 claim without triggering simulator order processing. This
+        path deliberately reloads under the ordinary cross-process PostgreSQL
+        account lock but
         never calls ``_process_orders`` or ``_save_state``.
         """
 
@@ -851,9 +894,9 @@ class CtpSimBrokerAdapter(BrokerAdapter):
         """Process simulator lifecycle only after a locked state-continuity check.
 
         Candidate execution uses this narrow CTP-sim operation to compare the
-        current state with its post-own-submission baseline while the state
-        file remains locked.  Doing a separate read followed by ``sync_state``
-        would leave a file-lock gap in which an external mutation could be
+        current state with its post-own-submission baseline while the
+        PostgreSQL account transaction remains locked. Doing a separate read
+        followed by ``sync_state`` would leave a lock gap in which an external mutation could be
         mistaken for the simulator's own fill progression.
         """
 
@@ -867,7 +910,7 @@ class CtpSimBrokerAdapter(BrokerAdapter):
         except CtpSimPreSyncGuardRefusal as exc:
             # The callback is a narrow in-process candidate guard.  Convert
             # its refusal into a snapshot-carrying adapter error only after
-            # releasing the file lock, so the candidate can persist its
+            # releasing the state transaction, so the candidate can persist its
             # database HALT without taking locks in the reverse order.
             raise CtpSimPreSyncCheckRejected(
                 snapshot=before_snapshot,
@@ -945,6 +988,7 @@ class CtpSimBrokerAdapter(BrokerAdapter):
         self._save_state()
         return True
 
+    @_locked_state
     def cancel_order_with_identity(
         self,
         broker_order_id: str,
@@ -970,7 +1014,14 @@ class CtpSimBrokerAdapter(BrokerAdapter):
         for key, value in expected.items():
             if value is not None and str(order.get(key)) != str(value):
                 raise ValueError(f"CTP_SIM_CANCEL_IDENTITY_MISMATCH: {key} 不一致。")
-        return self.cancel_order(broker_order_id)
+        if is_final_order_status(order["status"]):
+            return False
+        if order["status"] == "PendingCancel":
+            return True
+        order["status"] = "PendingCancel"
+        order["updated_at"] = utc_now().isoformat()
+        self._save_state()
+        return True
 
     @_locked_state
     def get_order_status(self, broker_order_id: str) -> dict | None:

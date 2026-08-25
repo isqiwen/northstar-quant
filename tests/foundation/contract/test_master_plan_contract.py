@@ -82,7 +82,12 @@ def test_master_plan_tracks_completed_wp_and_current_work() -> None:
     assert "| P9 | Hardening / Performance / Security | DONE | 100% |" in plan
     assert "| P10 | Mature v1 Acceptance | IN_PROGRESS | 78% |" in plan
     assert "P10 已完成 `7/9` 个 Work Package（78%）" in plan
-    assert "active_work_package: null" in plan
+    assert (
+        "active_work_package:\n"
+        "  id: DEV-WP03\n"
+        "  title: PostgreSQL Trading-State Authority\n"
+        "  status: VERIFY"
+    ) in plan
     assert "id: P10-WP08" in plan
     assert ("title: Platform Production / DR Acceptance\n  status: BLOCKED") in plan
     assert "## DEV-WP01 — Development Alembic Baseline Consolidation" in plan
@@ -91,6 +96,17 @@ def test_master_plan_tracks_completed_wp_and_current_work() -> None:
     assert "0001_current_schema_baseline" in dev_wp01
     assert "P10-WP08 `BLOCKED`" in dev_wp01
     assert "1738 passed, 4 failed" in dev_wp01
+    dev_wp02 = plan.split("## DEV-WP02", maxsplit=1)[1].split("## DEV-WP03", maxsplit=1)[0]
+    assert "**Status:** VERIFY" in dev_wp02
+    assert "PostgreSQL / Parquet / DuckDB / SQLite" in dev_wp02
+    assert "1739 passed, 4 failed" in dev_wp02
+    assert "## DEV-WP03 — PostgreSQL Trading-State Authority" in plan
+    dev_wp03 = plan.split("## DEV-WP03", maxsplit=1)[1].split("## DEV-WP04", maxsplit=1)[0]
+    assert "**Status:** VERIFY" in dev_wp03
+    assert "不连接真实 CTP" in dev_wp03
+    assert "1744 passed, 4 failed, 1 deselected" in dev_wp03
+    assert "## DEV-WP04 — PostgreSQL Contract Authority" in plan
+    assert "## DEV-WP05 — Historical Parquet Lake & DuckDB Analytics" in plan
     assert "## DOC-WP01 — Documentation Consolidation & Architecture Specification" in plan
     assert (
         "**Status:** DONE" in plan.split("## DOC-WP01", maxsplit=1)[1].split("# 20.", maxsplit=1)[0]

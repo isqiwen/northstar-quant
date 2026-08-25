@@ -3360,6 +3360,7 @@ def complete_order_submission(
     order_id: int,
     submission_owner: str,
     result: OrderResult,
+    commit: bool = True,
 ) -> None:
     """保存券商确认；仅当前提交所有者可以完成状态转换。"""
 
@@ -3387,7 +3388,10 @@ def complete_order_submission(
     if _affected_rows(update_result) != 1:
         session.rollback()
         raise RuntimeError("订单提交结果持久化失败：提交所有权已丢失。")
-    session.commit()
+    if commit:
+        session.commit()
+    else:
+        session.flush()
 
 
 def mark_order_submission_unknown(
@@ -3396,6 +3400,7 @@ def mark_order_submission_unknown(
     order_id: int,
     submission_owner: str,
     error: str,
+    commit: bool = True,
 ) -> None:
     """将券商调用异常持久化为禁止自动重发的不确定状态。"""
 
@@ -3417,7 +3422,10 @@ def mark_order_submission_unknown(
     if _affected_rows(result) != 1:
         session.rollback()
         raise RuntimeError("订单不确定状态持久化失败：提交所有权已丢失。")
-    session.commit()
+    if commit:
+        session.commit()
+    else:
+        session.flush()
 
 
 def _optional_broker_int(

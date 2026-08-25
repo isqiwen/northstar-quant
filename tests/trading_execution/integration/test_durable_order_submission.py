@@ -24,13 +24,14 @@ def test_order_intent_is_committed_before_broker_call_and_replay_is_idempotent(
 ):
     engine = postgresql_engine
 
-    def assert_durable_before_submit(_order_request: OrderRequest) -> None:
+    def assert_durable_before_submit(order: OrderRequest) -> None:
         with Session(engine, future=True) as observer:
             row = observer.scalar(select(OrderRecord))
             assert row is not None
             assert row.status == "Submitting"
             assert row.broker_order_id is None
             assert row.submission_started_at is not None
+            assert order.order_ref == row.order_ref
 
     broker = RecordingBroker(on_submit=assert_durable_before_submit)
     with Session(engine, future=True) as session:
@@ -129,6 +130,51 @@ def test_timeout_or_network_partition_stays_unknown_and_cannot_be_retried(
             durable.submit_order(order_request())
 
     assert broker.submit_count == 1
+
+
+def test_final_commit_failure_rolls_back_before_persisting_submission_unknown(
+    postgresql_engine,
+    monkeypatch,
+):
+    """An outer acknowledgement commit failure cannot reuse its failed transaction."""
+
+    engine = postgresql_engine
+    with Session(engine, future=True) as session:
+        original_commit = session.commit
+        original_mark_unknown = durable_submission_module.mark_order_submission_unknown
+        final_commit_attempts = 0
+
+        def fail_only_the_final_commit() -> None:
+            nonlocal final_commit_attempts
+            final_commit_attempts += 1
+            if final_commit_attempts == 1:
+                raise RuntimeError("final durable acknowledgement commit unavailable")
+            original_commit()
+
+        def arm_final_commit_failure(_order: OrderRequest) -> None:
+            monkeypatch.setattr(session, "commit", fail_only_the_final_commit)
+
+        def assert_clean_transaction_before_unknown(*args, **kwargs):
+            assert not session.in_transaction()
+            return original_mark_unknown(*args, **kwargs)
+
+        monkeypatch.setattr(
+            durable_submission_module,
+            "mark_order_submission_unknown",
+            assert_clean_transaction_before_unknown,
+        )
+        broker = RecordingBroker(on_submit=arm_final_commit_failure)
+
+        with pytest.raises(
+            RuntimeError,
+            match="final durable acknowledgement commit unavailable",
+        ):
+            DurableBrokerAdapter(broker, session).submit_order(order_request())
+
+        row = session.scalar(select(OrderRecord))
+        assert row is not None
+        assert row.status == "SubmissionUnknown"
+        assert "RuntimeError" in str(row.last_submission_error)
 
 
 def test_database_unavailable_prevents_any_broker_submission(monkeypatch):

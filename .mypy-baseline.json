@@ -202,20 +202,6 @@
       "message": "Incompatible types in assignment (expression has type \"tuple[str, str]\", base class \"DateBasedStrategyBase\" defined the type as \"tuple[str, str, str, str, str, str, str]\")"
     },
     {
-      "file": "src/northstar_quant/trading_execution/broker/paper_broker.py",
-      "line": 203,
-      "column": 27,
-      "code": "assignment",
-      "message": "Incompatible types in assignment (expression has type \"float | None\", variable has type \"float\")"
-    },
-    {
-      "file": "src/northstar_quant/trading_execution/broker/paper_broker.py",
-      "line": 416,
-      "column": 27,
-      "code": "arg-type",
-      "message": "Argument \"account_values\" to \"BrokerStateSnapshot\" has incompatible type \"dict[str, float]\"; expected \"dict[str, float | str]\""
-    },
-    {
       "file": "src/northstar_quant/trading_execution/live/preflight.py",
       "line": 496,
       "column": 97,

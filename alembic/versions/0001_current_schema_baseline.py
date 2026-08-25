@@ -552,6 +552,180 @@ def _apply_research_agent_run_audit_hardening() -> None:
     )
 
 
+_SIMULATED_BROKER_STATE_SHA256 = "^[0-9a-f]{64}$"
+
+
+def _apply_simulated_broker_state_authority() -> None:
+    """Create PostgreSQL authority and immutable audit for paper/CTP-sim state."""
+
+    op.create_table(
+        "simulated_broker_state_records",
+        sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
+        sa.Column("broker", sa.String(length=32), nullable=False),
+        sa.Column("account", sa.String(length=64), nullable=False),
+        sa.Column("schema_version", sa.Integer(), nullable=False),
+        sa.Column("revision", sa.Integer(), nullable=False),
+        sa.Column("state_json", sa.Text(), nullable=False),
+        sa.Column("state_hash", sa.String(length=64), nullable=False),
+        sa.Column("last_transition_hash", sa.String(length=64), nullable=False),
+        sa.Column(
+            "initialized_at",
+            northstar_quant.foundation.db.types.UTCDateTime(),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            northstar_quant.foundation.db.types.UTCDateTime(),
+            nullable=False,
+        ),
+        sa.UniqueConstraint(
+            "broker",
+            "account",
+            name="uq_simulated_broker_state_records_broker_account",
+        ),
+        sa.CheckConstraint(
+            "broker IN ('paper', 'ctp_sim')",
+            name="ck_simulated_broker_state_records_broker",
+        ),
+        sa.CheckConstraint(
+            "schema_version > 0",
+            name="ck_simulated_broker_state_records_schema_version",
+        ),
+        sa.CheckConstraint(
+            "revision >= 0",
+            name="ck_simulated_broker_state_records_revision",
+        ),
+        sa.CheckConstraint(
+            f"state_hash ~ '{_SIMULATED_BROKER_STATE_SHA256}'",
+            name="ck_simulated_broker_state_records_state_hash",
+        ),
+        sa.CheckConstraint(
+            f"last_transition_hash ~ '{_SIMULATED_BROKER_STATE_SHA256}'",
+            name="ck_simulated_broker_state_records_last_transition_hash",
+        ),
+    )
+    for column in (
+        "account",
+        "broker",
+        "last_transition_hash",
+        "state_hash",
+    ):
+        op.create_index(
+            op.f(f"ix_simulated_broker_state_records_{column}"),
+            "simulated_broker_state_records",
+            [column],
+            unique=False,
+        )
+
+    op.create_table(
+        "simulated_broker_state_transition_records",
+        sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
+        sa.Column("broker", sa.String(length=32), nullable=False),
+        sa.Column("account", sa.String(length=64), nullable=False),
+        sa.Column("schema_version", sa.Integer(), nullable=False),
+        sa.Column("revision", sa.Integer(), nullable=False),
+        sa.Column("action", sa.String(length=64), nullable=False),
+        sa.Column("state_json", sa.Text(), nullable=False),
+        sa.Column("state_hash", sa.String(length=64), nullable=False),
+        sa.Column("predecessor_transition_hash", sa.String(length=64), nullable=True),
+        sa.Column("transition_hash", sa.String(length=64), nullable=False),
+        sa.Column(
+            "occurred_at",
+            northstar_quant.foundation.db.types.UTCDateTime(),
+            nullable=False,
+        ),
+        sa.UniqueConstraint(
+            "broker",
+            "account",
+            "revision",
+            name="uq_simulated_broker_state_transition_scope_revision",
+        ),
+        sa.UniqueConstraint(
+            "transition_hash",
+            name="uq_simulated_broker_state_transition_hash",
+        ),
+        sa.CheckConstraint(
+            "broker IN ('paper', 'ctp_sim')",
+            name="ck_simulated_broker_state_transition_broker",
+        ),
+        sa.CheckConstraint(
+            "schema_version > 0",
+            name="ck_simulated_broker_state_transition_schema_version",
+        ),
+        sa.CheckConstraint(
+            "revision >= 0",
+            name="ck_simulated_broker_state_transition_revision",
+        ),
+        sa.CheckConstraint(
+            "action ~ '^[a-z][a-z0-9_]{0,63}$'",
+            name="ck_simulated_broker_state_transition_action",
+        ),
+        sa.CheckConstraint(
+            f"state_hash ~ '{_SIMULATED_BROKER_STATE_SHA256}'",
+            name="ck_simulated_broker_state_transition_state_hash",
+        ),
+        sa.CheckConstraint(
+            "predecessor_transition_hash IS NULL OR "
+            f"predecessor_transition_hash ~ '{_SIMULATED_BROKER_STATE_SHA256}'",
+            name="ck_simulated_broker_state_transition_predecessor_hash",
+        ),
+        sa.CheckConstraint(
+            f"transition_hash ~ '{_SIMULATED_BROKER_STATE_SHA256}'",
+            name="ck_simulated_broker_state_transition_hash_shape",
+        ),
+    )
+    for column in (
+        "account",
+        "action",
+        "broker",
+        "occurred_at",
+        "state_hash",
+        "transition_hash",
+    ):
+        op.create_index(
+            op.f(f"ix_simulated_broker_state_transition_records_{column}"),
+            "simulated_broker_state_transition_records",
+            [column],
+            unique=False,
+        )
+    op.create_index(
+        "ix_sim_broker_state_transition_predecessor_hash",
+        "simulated_broker_state_transition_records",
+        ["predecessor_transition_hash"],
+        unique=False,
+    )
+
+    op.execute(
+        """
+        CREATE FUNCTION northstar_reject_simulated_broker_state_transition_mutation()
+        RETURNS trigger
+        LANGUAGE plpgsql
+        AS $$
+        BEGIN
+            RAISE EXCEPTION 'SIMULATED_BROKER_STATE_TRANSITION_IMMUTABLE';
+            RETURN NULL;
+        END;
+        $$;
+        """
+    )
+    op.execute(
+        """
+        CREATE TRIGGER trg_simulated_broker_state_transition_immutable
+        BEFORE UPDATE OR DELETE ON simulated_broker_state_transition_records
+        FOR EACH ROW
+        EXECUTE FUNCTION northstar_reject_simulated_broker_state_transition_mutation();
+        """
+    )
+    op.execute(
+        sa.text(
+            """
+            CREATE TRIGGER trg_simulated_broker_state_transition_reject_truncate
+            BEFORE TRUNCATE ON simulated_broker_state_transition_records
+            FOR EACH STATEMENT
+            EXECUTE FUNCTION northstar_reject_simulated_broker_state_transition_mutation();
+            """
+        )
+    )
 # BASELINE_EXTENSION_HELPERS_END
 
 
@@ -1516,6 +1690,7 @@ def upgrade() -> None:
     _apply_portfolio_risk_approval()
     _apply_research_agent_run_audit()
     _apply_research_agent_run_audit_hardening()
+    _apply_simulated_broker_state_authority()
 
     # ### end Alembic commands ###
 

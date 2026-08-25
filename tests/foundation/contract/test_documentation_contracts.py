@@ -19,6 +19,7 @@ OPERATIONS_PATH = DOCS_DIR / "OPERATIONS.md"
 GOVERNANCE_PATH = DOCS_DIR / "GOVERNANCE.md"
 PLANNING_INDEX_PATH = DOCS_DIR / "planning" / "README.md"
 MASTER_PLAN_PATH = DOCS_DIR / "planning" / "MASTER_IMPLEMENTATION_PLAN.md"
+AGENTS_PATH = PROJECT_ROOT / "AGENTS.md"
 LOCAL_LINK_PATTERN = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
 
 CANONICAL_DOCUMENTS = (
@@ -277,6 +278,8 @@ def test_root_readme_links_to_control_plane_without_a_stale_roadmap() -> None:
 
 def test_configuration_documentation_matches_safe_runtime_defaults() -> None:
     operations = _read(OPERATIONS_PATH)
+    architecture = _read(ARCHITECTURE_PATH)
+    agent_rules = _read(AGENTS_PATH)
 
     for required in (
         "scripts/dev/setup.py",
@@ -295,9 +298,17 @@ def test_configuration_documentation_matches_safe_runtime_defaults() -> None:
         "restore_drill.py",
         "futures.calendar_artifact_snapshot_hashes",
         "ArtifactSnapshot",
-        "PostgreSQL-only",
+        "SQLite 仅允许由 Local tools",
+        "Parquet 制品",
+        "DuckDB",
     ):
         assert required in operations
+    assert "Northstar 是 PostgreSQL-only" not in operations
+    assert "PostgreSQL-only" not in agent_rules
+    for document in (operations, architecture, agent_rules):
+        assert "Local tools" in document
+        assert "Parquet" in document
+        assert "DuckDB" in document
     assert (PROJECT_ROOT / "configs" / "maintenance" / "output_retention.yaml").is_file()
     assert (
         PROJECT_ROOT / "configs" / "maintenance" / "database_backup_readiness.yaml"
@@ -307,6 +318,24 @@ def test_configuration_documentation_matches_safe_runtime_defaults() -> None:
     assert Settings.model_fields["kill_switch_enabled"].default is False
     assert not (PROJECT_ROOT / "configs" / "risk" / "global.yaml").exists()
     assert not (PROJECT_ROOT / "configs" / "portfolio" / "multi_strategy.yaml").exists()
+
+
+def test_storage_roles_preserve_authority_and_research_boundaries() -> None:
+    architecture = _read(ARCHITECTURE_PATH)
+    operations = _read(OPERATIONS_PATH)
+    agent_rules = _read(AGENTS_PATH)
+
+    for document in (architecture, operations, agent_rules):
+        for required in ("PostgreSQL", "Parquet", "DuckDB", "SQLite"):
+            assert required in document
+
+    for required in ("合约", "订单", "成交", "持仓", "策略状态", "风险状态"):
+        assert required in architecture
+    assert "DuckDB 是分析引擎而非交易权威库" in agent_rules
+    assert "DuckDB 只查询这些 Parquet 制品" in operations
+    assert "不使用核心数据库 URL" in architecture
+    assert "hash-chained transition 审计链" in architecture
+    assert "尚未安装 DuckDB" in operations
 
 
 def test_calendar_docs_keep_runtime_sources_fail_closed() -> None:
@@ -370,7 +399,7 @@ def test_architecture_documents_complete_simulation_and_live_data_flows() -> Non
         "ExecutionPlan / RebalanceOrderPlan",
         "OrderRouter",
         "DurableBrokerAdapter",
-        "paper state.json",
+        "paper current snapshot + immutable transitions",
         "reconcile_broker_state",
         "sticky HALT",
     ):
@@ -383,7 +412,7 @@ def test_architecture_documents_complete_simulation_and_live_data_flows() -> Non
         "全部 eligibility 均为 false",
         "CtpSimCandidateExecutionBundle",
         "CtpSimBrokerAdapter.submit_order",
-        "ctp_sim state.json",
+        "ctp_sim current snapshot + immutable transitions",
         "provenance consumption",
         "NO NEW RISK",
     ):

@@ -3,7 +3,11 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import UTC, datetime
+
+from sqlalchemy.orm import Session
 
 from northstar_quant.trading_execution.broker.contracts import (
     BrokerCapabilities,
@@ -36,6 +40,18 @@ class BrokerAdapter(ABC):
         """
 
         return order
+
+    @contextmanager
+    def submission_transaction(self, session: Session) -> Iterator[None]:
+        """Bind a durable submit to an adapter-owned state transaction.
+
+        Stateless and external adapters retain the no-op default. Stateful
+        simulators override this method so their state transition and durable
+        acknowledgement share the caller's PostgreSQL transaction.
+        """
+
+        del session
+        yield
 
     def restore_order_attempt(self, order: OrderRequest) -> OrderRequest:
         """恢复同一次执行尝试已经持久化的载荷。

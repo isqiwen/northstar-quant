@@ -105,7 +105,7 @@
 | PL02 Windows/Linux deployment control | `VERIFIED_OFFLINE` | `scripts/deploy/deploy.py`、`scripts/README.md`、`docs/OPERATIONS.md`、cross-platform contracts。 | controller 可跨平台；Linux target 另见 PL03。 |
 | PL03 Linux production | `BLOCKED_EXTERNAL` | FHS/root-gate/systemd/release assets和 Docker validation 已存在。 | 需要真实 Linux host、root gate/signer、known_hosts、managed Python、production PostgreSQL 与人工批准；未满足前不可声称 production accepted。 |
 | PL04 health/logs | `VERIFIED_OFFLINE` | `application/health.py`、logger、operational snapshot、Prometheus metrics；`test_health_cli.py`、`test_logging.py`、`test_metrics.py`、`test_operational_snapshot.py`。 | fail-closed local evidence。 |
-| PL05 backup/restore | `PARTIAL` | `foundation/backup/bundle.py`、`restore_drill.py` 和 integration tests。 | 仅六类 local bundle + loopback `northstar_test` drill；缺 production restore、offsite/encryption/WAL/PITR/RPO/RTO。 |
+| PL05 backup/restore | `PARTIAL` | `foundation/backup/bundle.py`、`restore_drill.py` 和 integration tests。 | 仅五类 local bundle（模拟 broker state/审计随 PostgreSQL dump 恢复）+ loopback `northstar_test` drill；缺 production restore、offsite/encryption/WAL/PITR/RPO/RTO。 |
 | PL06 rollback | `SAFE_BOUNDARY` | deployment rollback contracts 与 `scripts/deploy/remote/linux/README.md`。 | 仅 pre-migration auto rollback；migration 后严格人工恢复，不执行 DB downgrade/autorestart。 |
 | PL07 CI | `HOSTED_EVIDENCE_PENDING` | `.github/workflows/ci.yml` 定义 Linux/Windows jobs。 | 最终 commit 的 hosted run 是外部状态，未取得前不可标记为已验收。 |
 

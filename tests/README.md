@@ -151,5 +151,9 @@ Linux CI 额外运行完整 pytest、部署 shell 契约和 PostgreSQL integrati
 - 优先使用 `postgresql_engine` 或 `postgresql_session_factory` fixture；只有并发测试才直接使用
   `tests.helpers.database` 工厂。
 
-不要通过 SQLite、跳过 preflight、降低风险门槛或修改真实交易开关来让测试通过。新的配置、
+不要用 SQLite 替代核心 PostgreSQL、跳过 preflight、降低风险门槛或修改真实交易开关来让测试通过。Local tools 的
+SQLite 仅可在其独立 unit test 中使用，不能替代 PostgreSQL integration fixture。新的配置、
 数据制品、回测口径或执行行为必须同步增加覆盖。
+
+大规模历史 fixture 应使用受治理的 Parquet；DuckDB 历史分析测试必须使用隔离输入并验证数据版本、参数与结果可复现，
+不能把 DuckDB 当作交易状态、风险状态或 PostgreSQL integration fixture 的替代品。

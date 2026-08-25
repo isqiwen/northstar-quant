@@ -1,6 +1,6 @@
 """创建并验证不含秘密元数据的 Northstar 备份包。
 
-备份包是一个由受信任运维流程写入的目录。创建过程只接受明确的六类输入，
+备份包是一个由受信任运维流程写入的目录。创建过程只接受明确的五类输入，
 对每个进入包内的文件记录 SHA-256 和大小，并在最终发布前自行验证。它不读取
 ``.env``，也不接受任意目录的通配复制。
 """
@@ -28,25 +28,20 @@ BundleCategory = Literal[
     "config",
     "ontology",
     "run_manifest",
-    "runtime_state",
     "release_metadata",
 ]
 
-_BUNDLE_FORMAT_VERSION: Final = 1
+_BUNDLE_FORMAT_VERSION: Final = 2
 _MANIFEST_NAME: Final = "manifest.json"
 _ALL_CATEGORIES: Final[tuple[BundleCategory, ...]] = (
     "postgresql",
     "config",
     "ontology",
     "run_manifest",
-    "runtime_state",
     "release_metadata",
 )
 _CATEGORY_SET: Final = frozenset(_ALL_CATEGORIES)
 _ARCHIVE_SEGMENT_PATTERN: Final = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
-_RUNTIME_STATE_PATTERN: Final = re.compile(
-    r"^brokers/(?:paper|ctp_sim)/[A-Za-z0-9][A-Za-z0-9_-]{0,63}/state\.json$"
-)
 _SECRET_NAME_PATTERN: Final = re.compile(
     r"(?:^|[._-])(?:env|secret|password|credential|token|api[_-]?key|private[_-]?key)(?:$|[._-])",
     re.IGNORECASE,
@@ -84,7 +79,6 @@ class BackupBundleSources:
     config_file: Path
     ontology_dir: Path
     reports_dir: Path
-    storage_dir: Path
     release_metadata_dir: Path
 
 
@@ -332,20 +326,6 @@ def _plan_files(sources: BackupBundleSources) -> Iterable[_PlannedFile]:
                 category="run_manifest",
                 source=source,
                 archive_path=PurePosixPath("run-manifests", *relative.parts),
-            )
-
-    storage_dir = _secure_existing_directory(sources.storage_dir, "运行状态目录")
-    brokers_dir = storage_dir / "brokers"
-    if brokers_dir.exists() or brokers_dir.is_symlink():
-        brokers_dir = _secure_existing_directory(brokers_dir, "券商运行状态目录")
-        for source in _iter_regular_files(brokers_dir):
-            runtime_relative = PurePosixPath("brokers", *source.relative_to(brokers_dir).parts)
-            if not _RUNTIME_STATE_PATTERN.fullmatch(runtime_relative.as_posix()):
-                continue
-            yield _PlannedFile(
-                category="runtime_state",
-                source=source,
-                archive_path=PurePosixPath("runtime-state", *runtime_relative.parts),
             )
 
     release_metadata_dir = _secure_existing_directory(

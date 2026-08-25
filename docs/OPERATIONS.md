@@ -54,7 +54,7 @@ uv run --offline --no-sync northstar data cleanup --apply
 清理只可处理策略 allowlist 中已过期的下载缓存和临时文件；不能触及 reports、release、运行状态、数据库、备份或
 Docker volume。未知路径、符号链接、范围不清或未显式确认时应失败关闭。
 
-Northstar 是 PostgreSQL-only：
+Northstar 的核心运行数据库是 PostgreSQL：
 
 ```powershell
 just dev-postgres
@@ -63,6 +63,21 @@ just dev-postgres
 本地 PostgreSQL 使用独立数据卷；自动化不会使用 `down -v`、drop、truncate、delete 或 migration downgrade。
 仓库自动化绝不删除或清空数据库、表、schema 或 Docker 数据卷；数据库删除或清空只能由用户在仓库自动化之外手动执行。
 测试数据库仅可为隔离的 `northstar_test`。`init-db`/`dev-postgres` 只能前进到 Alembic head。
+
+SQLite 仅允许由 Local tools 作为独立的本地缓存、索引或 scratch storage 使用；它不配置为
+`NORTHSTAR_DATABASE_URL`，不参与 Alembic、`init-db`、核心 integration test，也不能保存订单、持仓、
+风险、审批、对账或审计的权威事实。
+
+大规模历史数据以受治理的 Parquet 制品保存：tick、bars、factors、features 和可复现的 research/backtest
+输入或结果必须保留 manifest、内容 hash、lineage、PIT、license 与保留期语义。DuckDB 只查询这些 Parquet 制品
+进行历史分析；它不保存当前交易状态，不直写 PostgreSQL 权威记录，也不绕过 Research、Risk 或 Execution 门禁。
+当前代码已使用 Parquet 发布受治理的市场制品，但尚未安装 DuckDB 或提供 DuckDB runtime adapter、CLI 和查询契约；
+具体 DuckDB adapter 或 Local tools SQLite schema 尚须在对应工具/分析 Work Package 中单独实现与验收。
+
+`paper` / `ctp_sim` 的可变模拟 broker state 已保存到 PostgreSQL 的账户隔离快照与不可变 transition 审计链；不会写入
+`state.json` 或 Local-tools SQLite。该 adapter-private 状态机不替代 PostgreSQL 中的 durable order、fill、position
+snapshot、risk、approval、reconciliation 与 audit 账本。当前 Contract Master / CTP mapping 仍为版本受控 YAML 配置，迁入
+PostgreSQL 的时间版本化合约权威库需要单独实现。
 
 当前开发期的 head 是唯一完整基线 `0001_current_schema_baseline`，历史 revision 不提供升级路径。若本地
 `alembic_version` 记录其他值，必须由操作者在仓库自动化之外手动重建本地数据库或数据卷，然后再执行
@@ -154,6 +169,8 @@ uv run --offline --no-sync northstar ops backup status
 
 受控维护脚本包括 `backup_bundle.py` 与 `restore_drill.py`。备份包必须有完整文件清单和 SHA-256，外部目录必须预先挂载、
 私有且不在 release、reports 或 storage 之内。采集前及最终发布前均需确认服务 inactive；脚本不能自动停止服务。
+备份包不复制 `paper` 或 `ctp_sim` 的 `state.json`：它们的当前快照与 transition 审计均属于 PostgreSQL，
+仅由 PostgreSQL 逻辑转储恢复。
 
 恢复演练只允许 loopback 隔离的 `northstar_test`，以 schema transaction rollback 证明恢复过程；它不是生产 restore。
 当前仍缺生产 DR policy、加密异地副本、WAL/PITR、RPO/RTO 目标和受控恢复演练，不能把本地 Docker 或 loopback evidence

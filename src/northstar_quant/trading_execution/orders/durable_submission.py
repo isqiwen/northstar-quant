@@ -196,35 +196,101 @@ class DurableBrokerAdapter(BrokerAdapter):
                 "必须先同步券商 completed/open orders，禁止重复下单。"
             )
 
-        try:
-            result = self.delegate.submit_order(order)
-        except Exception as exc:
-            mark_order_submission_unknown(
-                self.session,
-                order_id=row.id,
-                submission_owner=submission_owner,
-                error=f"{type(exc).__name__}: {exc}",
+        durable_order_ref = str(row.order_ref or "").strip()
+        if not durable_order_ref:
+            raise RuntimeError(
+                "DURABLE_ORDER_REF_REQUIRED: 持久化订单缺少稳定的 order_ref。"
             )
+        durable_order = replace(
+            order,
+            account=account,
+            order_ref=durable_order_ref,
+        )
+        durable_order_id = int(row.id)
+
+        try:
+            # Keep the broker mutation and durable acknowledgement atomic. If
+            # either side fails, only the pre-existing intent survives and is
+            # conservatively recorded as SubmissionUnknown for explicit
+            # recovery when it still remains Submitting.
+            # ``prepare_order_submission`` and ``claim_order_submission``
+            # deliberately commit their crash-recovery facts. Accessing the
+            # returned ORM row can therefore leave SQLAlchemy in an implicit
+            # read transaction. A savepoint gives the final broker mutation
+            # one rollback boundary in either case; the explicit commit below
+            # then commits the enclosing transaction containing both state
+            # transition and durable acknowledgement.
+            with self.session.begin_nested():
+                with self.delegate.submission_transaction(self.session):
+                    result = self.delegate.submit_order(durable_order)
+                    canonical_status = apply_broker_order_status(
+                        current=BrokerOrderStatus.SUBMITTING,
+                        broker_status=result.status,
+                    )
+                    result = replace(result, status=canonical_status.value)
+
+                    complete_order_submission(
+                        self.session,
+                        order_id=row.id,
+                        submission_owner=submission_owner,
+                        result=result,
+                        commit=False,
+                    )
+            self.session.commit()
+        except Exception as exc:
+            # ``Session.commit()`` may leave a failed/prepared transaction
+            # behind (and a network error can make the commit outcome
+            # unknowable). Never issue the fail-closed update inside that
+            # transaction. After rollback, the conditional repository update
+            # changes only an intent that is *still* owned and Submitting; an
+            # ambiguously successful commit therefore cannot be overwritten.
+            unknown_persisted = False
+            try:
+                self.session.rollback()
+            except Exception:
+                logger.bind(
+                    command="order.submit.unknown.rollback_failed",
+                    broker=broker,
+                    account=account,
+                    order_ref=durable_order_ref,
+                ).exception("提交失败后无法清理数据库事务；订单保持待恢复状态")
+            else:
+                try:
+                    mark_order_submission_unknown(
+                        self.session,
+                        order_id=durable_order_id,
+                        submission_owner=submission_owner,
+                        error=f"{type(exc).__name__}: {exc}",
+                    )
+                    unknown_persisted = True
+                except Exception:
+                    # A successful but unacknowledged commit can make the row
+                    # no longer Submitting. Preserve the original broker/DB
+                    # failure instead of masking it; either durable result is
+                    # still safe because automatic resubmission is forbidden.
+                    try:
+                        self.session.rollback()
+                    except Exception:
+                        logger.bind(
+                            command="order.submit.unknown.persist_rollback_failed",
+                            broker=broker,
+                            account=account,
+                            order_ref=durable_order_ref,
+                        ).exception("不确定状态落账失败后无法清理数据库事务")
+                    logger.bind(
+                        command="order.submit.unknown.persist_failed",
+                        broker=broker,
+                        account=account,
+                        order_ref=durable_order_ref,
+                    ).exception("提交不确定状态未能额外落账；订单保持待恢复/对账边界")
             logger.bind(
                 command="order.submit.unknown",
                 broker=broker,
                 account=account,
-                order_ref=row.order_ref,
+                order_ref=durable_order_ref,
+                unknown_persisted=unknown_persisted,
             ).exception("券商提交未返回可持久化确认，订单进入待恢复状态")
             raise
-
-        canonical_status = apply_broker_order_status(
-            current=BrokerOrderStatus.SUBMITTING,
-            broker_status=result.status,
-        )
-        result = replace(result, status=canonical_status.value)
-
-        complete_order_submission(
-            self.session,
-            order_id=row.id,
-            submission_owner=submission_owner,
-            result=result,
-        )
         return result
 
     def prepare_order(self, order: OrderRequest) -> OrderRequest:

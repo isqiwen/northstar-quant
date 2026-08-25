@@ -45,11 +45,18 @@ DESTRUCTIVE_MIGRATION_SQL = re.compile(
 )
 _IMMUTABLE_TRUNCATE_GUARD_SQL = re.compile(
     r"\A\s*CREATE\s+TRIGGER\s+"
+    r"(?:"
     r"trg_research_agent_(?:audit_events|trace_entries)_reject_truncate\s+"
     r"BEFORE\s+TRUNCATE\s+ON\s+research_agent_run_"
     r"(?:audit_events|trace_entries)\s+FOR\s+EACH\s+STATEMENT\s+"
     r"EXECUTE\s+FUNCTION\s+"
-    r"northstar_reject_research_agent_run_audit_mutation\s*\(\s*\)\s*;\s*\Z",
+    r"northstar_reject_research_agent_run_audit_mutation"
+    r"|"
+    r"trg_simulated_broker_state_transition_reject_truncate\s+"
+    r"BEFORE\s+TRUNCATE\s+ON\s+simulated_broker_state_transition_records\s+"
+    r"FOR\s+EACH\s+STATEMENT\s+EXECUTE\s+FUNCTION\s+"
+    r"northstar_reject_simulated_broker_state_transition_mutation"
+    r")\s*\(\s*\)\s*;\s*\Z",
     re.IGNORECASE | re.DOTALL,
 )
 DOCUMENTATION_TARGETS = (

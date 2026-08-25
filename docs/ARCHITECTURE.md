@@ -65,6 +65,51 @@ src/northstar_quant/
 | `trading_execution` | `portfolio_risk`、`foundation` | 策略研究逻辑 |
 | `application` | 所有领域 | 反向成为领域依赖 |
 
+### 存储职责
+
+存储按数据的权威性和访问模式分工，而不是由某一种数据库包办：
+
+```mermaid
+flowchart TB
+    ctp[CTP]
+    ingestion[Data Ingestion]
+    postgres[(PostgreSQL<br/>合约、订单、成交、持仓、<br/>策略状态、风险状态)]
+    parquet[(Parquet<br/>tick、bars、factors、features、<br/>research、backtest)]
+    duckdb[DuckDB<br/>历史分析]
+    research[Strategy / Research]
+    execution[Execution / Risk]
+    local_tools[本地工具集]
+    sqlite[(SQLite<br/>tool-owned cache / index / scratch)]
+
+    ctp --> ingestion
+    ingestion --> postgres
+    ingestion --> parquet
+    parquet --> duckdb
+    postgres --> research
+    duckdb --> research
+    research --> execution
+    local_tools --> sqlite
+```
+
+- **PostgreSQL** 是核心交易和运行状态的唯一权威来源：合约、订单、成交、持仓、策略状态、风险、审批、对账和审计。
+  `NORTHSTAR_DATABASE_URL`、Alembic、core repository 与 PostgreSQL integration test 都在此边界内。
+- **Parquet** 是大规模、版本化历史数据制品格式。tick、bars、factors、features 以及可复现的 research/backtest
+  输入和结果必须保持 manifest、hash、lineage、授权与 point-in-time 语义。
+- **DuckDB** 只承担 Parquet 上的历史查询、探索、研究与回测分析。它不是 broker、订单或风险状态库；分析产物只有经过
+  既有 Research → Portfolio/Risk → Execution 链才可能影响核心状态。
+- **SQLite** 只属于 Local tools 的独立缓存、索引或 scratch storage。它不使用核心数据库 URL，不参与 Alembic 或
+  `init-db`，也不保存任何交易/风险权威事实。
+
+这是一项职责边界，不是“真实 CTP 已接通”或“DuckDB runtime adapter 已实现”的声明；具体 adapter、查询接口和
+Local tools schema 都需要独立实现、测试和验收。
+
+`PaperBrokerAdapter` 与 `CtpSimBrokerAdapter` 的可变模拟柜台状态已保存于 PostgreSQL：每个 broker/account scope 有
+当前受控快照和不可变 hash-chained transition 审计链，且状态变更与 durable CTP-sim 提交确认可处于同一 PostgreSQL
+事务。它不写入 `state.json`，也不把 Local-tools SQLite 当 fallback；现有 durable order、fill、position snapshot、risk、
+approval、reconciliation 与 audit 账本仍是独立的 PostgreSQL 权威事实。当前 Contract Master 与 CTP mapping 仍为版本受控
+YAML 配置，尚未成为 PostgreSQL 的时间版本化合约权威库。现有 Parquet 已覆盖受治理市场制品，但完整历史数据湖和
+DuckDB 查询 adapter 也尚未实现。
+
 ### Application：跨领域 composition root
 
 ```mermaid
@@ -108,8 +153,9 @@ Application 只协调各领域已存在的契约：activation receipt、风险 a
 ### Foundation
 
 Foundation 提供类型、时间、订单身份与状态、Pydantic 配置、PostgreSQL session/models/repositories、消息、调度、
-可观测性、报告、安全、备份和部署基础。配置只接受 `NORTHSTAR_` 前缀，数据库 URL 必须是
-`postgresql+psycopg://`；SQLite 不属于支持路径。
+可观测性、报告、安全、备份和部署基础。核心 `NORTHSTAR_DATABASE_URL` 必须是
+`postgresql+psycopg://`，用于权威运行状态；完整的 PostgreSQL、Parquet、DuckDB 和 SQLite 职责见
+[存储职责](#存储职责)。
 
 数据库是保全边界：迁移只前进，自动化不会删除、清空或截断 database、schema、table 或 Docker volume。
 `init-db` 只执行 `alembic upgrade head`。模型、repository、Alembic migration、测试和文档必须一并变更。
@@ -148,6 +194,9 @@ Data 发布受治理的事实，而不是策略或交易行为：
 - Contract Master、product/instrument/contract、规则快照、品种池和交易日历；
 - 数据质量、版本、发布授权和 point-in-time（PIT）快照；
 - 标准化市场数据及其可用时点。
+
+大规模历史数据以受治理的 Parquet 制品发布；DuckDB 可在其上进行历史分析，但不能以分析结果直接替换 PIT、
+Research admission 或任何交易前事实。
 
 `Commodity` 是经济品种，`Instrument` 是可交易标的，`Contract` 是具体可交易合约；三者不互换，
 规则、日历与可用性必须按其正确层级绑定。
@@ -450,7 +499,7 @@ flowchart LR
         pollPaper["poll_orders_and_fills_once<br/>或下一次同步"]
     end
 
-    paperState[("paper state.json<br/>cash、positions、orders、fills、last_prices")]
+    paperState[("PostgreSQL simulated broker state<br/>paper current snapshot + immutable transitions<br/>cash、positions、orders、fills、last_prices")]
     executionRecords[("PostgreSQL<br/>plan、order intent、ledger、<br/>reconciliation safety state")]
     paperReconciliation["reconcile_broker_state<br/>reconciliation / ledger / settlement"]
     noPaperRisk["NO NEW RISK<br/>风险或 preflight 未通过"]
@@ -514,7 +563,7 @@ flowchart LR
         simSync["sync_state_checked<br/>推进 partial / fill / cancel"]
     end
 
-    simState[("ctp_sim state.json<br/>quotes、positions、orders、fills、<br/>balance、margin、trading day")]
+    simState[("PostgreSQL simulated broker state<br/>ctp_sim current snapshot + immutable transitions<br/>quotes、positions、orders、fills、balance、margin")]
     simRecords[("PostgreSQL 原子边界<br/>plan、durable order intent、<br/>provenance consumption、ledger、safety state")]
     simReconciliation["reconcile_broker_state<br/>所有 order_ref / fill 必须可解释"]
     noSimRisk["NO NEW RISK<br/>证据、审批、报价、账户或对账异常"]

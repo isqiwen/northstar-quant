@@ -487,13 +487,32 @@ Pre-trade check 是 broker submit 前最后一道强制防线。
 
 # 14. Database Rules
 
-Northstar 是：
+Northstar 的存储边界按职责划分：
 
-```text
-PostgreSQL-only
-```
+- **交易状态 / Platform core**：必须使用 PostgreSQL。`NORTHSTAR_DATABASE_URL`、
+  `NORTHSTAR_TEST_DATABASE_URL`、合约、订单、成交、持仓、策略运行状态、风险、审批、对账与审计都属于这一权威边界。
+- **大规模历史数据**：必须以受治理的 Parquet 制品保存，包括 tick、bars、factors、features，以及可复现的研究和
+  backtest 输入/结果。制品仍须有版本、manifest、内容 hash、lineage、PIT 和 license/retention 控制；不能把可变的
+  当前交易状态伪装成历史文件。
+- **历史分析**：使用 DuckDB 查询受治理的 Parquet 制品，服务于探索、研究和回测。DuckDB 是分析引擎而非交易权威库；
+  查询、数据版本、参数和产物必须可复现，且不得直接写入核心交易/风险状态或绕过 Research → Risk → Execution 门禁。
+- **本地工具集 / Local tools**：允许使用 SQLite 作为显式、隔离的本地缓存、索引或 scratch storage；它不是权威数据源，
+  不得静默替代核心 PostgreSQL。
 
-不得为了方便测试改用 SQLite。
+SQLite Local tools 必须：
+
+- 使用 tool-owned 的独立路径与数据模型，不能复用核心 `NORTHSTAR_DATABASE_URL`；
+- 不参与 Alembic、`init-db`、核心 repository 或 PostgreSQL integration fixture；
+- 不保存或派生订单、成交、持仓、策略状态、风险状态、审批、对账或审计的权威事实；
+- 显式测试其文件、并发和损坏恢复边界，不能成为核心数据库不可用时的 fallback。
+
+任何 DuckDB adapter、查询接口或本地工具 SQLite schema 都必须在其具体 Work Package 中单独设计、测试和验收；
+本规则本身不授权把它们接入核心 runtime。
+
+`paper` 与 `ctp_sim` 的可变模拟柜台状态必须保存为 PostgreSQL 中按 broker/account 隔离的当前快照与不可变 transition
+审计链；不得写入 `state.json`、SQLite 或其他文件 fallback。该 adapter-private 状态机不替代同样位于 PostgreSQL 的
+durable order、fill、position snapshot、risk、approval、reconciliation 与 audit 账本。当前 YAML Contract Master / CTP
+mapping 仍是版本受控配置；将合约权威事实迁入 PostgreSQL 需要独立迁移、时间版本化与验收。
 
 数据库 schema 修改必须同步：
 
@@ -515,13 +534,14 @@ PostgreSQL-only
 不得通过 `stamp`、`downgrade`、drop、truncate 或自动重置绕过。若未来出现需要保留的环境或数据，必须在开始前
 获得用户的新明确决定，再恢复版本化升级策略。
 
-测试数据库必须使用隔离：
+核心集成测试数据库必须使用隔离：
 
 ```text
 northstar_test
 ```
 
-或项目当前配置指定的测试 PostgreSQL。
+或项目当前配置指定的测试 PostgreSQL。SQLite Local tools 可以有独立 unit test，但不能替代核心
+PostgreSQL integration test。
 
 ---
 

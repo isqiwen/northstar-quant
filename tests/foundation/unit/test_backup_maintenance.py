@@ -70,7 +70,7 @@ def test_backup_parent_must_be_private_before_staging_a_database_dump(tmp_path: 
         backup_maintenance._assert_external_output_parent(output_parent, (source,))
 
 
-def test_runtime_state_copy_requires_fixed_service_to_be_inactive(monkeypatch):
+def test_recovery_bundle_requires_fixed_service_to_be_inactive(monkeypatch):
     monkeypatch.setattr(
         backup_maintenance.subprocess,
         "run",
@@ -88,7 +88,7 @@ def test_runtime_state_copy_requires_fixed_service_to_be_inactive(monkeypatch):
     backup_maintenance._assert_service_is_inactive()
 
 
-def test_explicit_create_orchestrates_all_six_backup_categories_without_reading_env(
+def test_explicit_create_orchestrates_all_five_backup_categories_without_reading_env(
     tmp_path: Path,
     monkeypatch,
 ):
@@ -100,10 +100,7 @@ def test_explicit_create_orchestrates_all_six_backup_categories_without_reading_
     reports = tmp_path / "reports"
     _write(reports / "backtest" / "run-1" / "manifest.json", '{"run":"one"}\n')
     storage = tmp_path / "storage"
-    _write(
-        storage / "brokers" / "paper" / "paper-account" / "state.json",
-        '{"version":1}\n',
-    )
+    _write(storage / "brokers" / "paper" / "paper-account" / "state.json", '{"version":1}\n')
     output_parent = tmp_path / "backup-output"
     output_parent.mkdir()
     monkeypatch.setattr(backup_maintenance, "_release_root", lambda: release)
@@ -143,6 +140,6 @@ def test_explicit_create_orchestrates_all_six_backup_categories_without_reading_
     assert (bundle_dir / "config" / "app.yaml").is_file()
     assert (bundle_dir / "ontology" / "events.yaml").is_file()
     assert (bundle_dir / "run-manifests" / "run-1" / "manifest.json").is_file()
-    assert (bundle_dir / "runtime-state" / "brokers" / "paper" / "paper-account" / "state.json").is_file()
+    assert not (bundle_dir / "runtime-state").exists()
     assert (bundle_dir / "release-metadata" / "current-release.json").is_file()
     assert inactive_checks == ["checked", "checked"]

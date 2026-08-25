@@ -42,6 +42,10 @@ just dev-postgres
 数据库自动化只复用既有数据并执行前向迁移，绝不会清空数据库、表、schema 或 Docker volume。测试数据库必须是隔离的
 `northstar_test`；具体连接与备份边界见[运行手册](OPERATIONS.md)。
 
+存储职责固定为：交易状态使用 PostgreSQL，大规模历史数据使用受治理的 Parquet，历史研究/回测分析使用 DuckDB 查询
+Parquet，本地工具集才可使用独立 SQLite。DuckDB 或 SQLite 不得替代 PostgreSQL integration test、交易前事实或风险状态；
+所有 Parquet 输入仍须通过版本、hash、lineage 和 PIT 校验。
+
 当前开发期只有一个完整的 Alembic 基线 `0001_current_schema_baseline`，不支持从历史 revision 升级。若本地开发库的
 `alembic_version` 不是该基线，操作者必须在仓库自动化之外手动重建它，然后才可运行 `just dev-postgres` 或
 `northstar init-db`；不要添加 `stamp`、drop、truncate 或自动重建脚本来绕过这个边界。

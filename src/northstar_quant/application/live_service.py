@@ -146,9 +146,9 @@ def _pipeline_output_asof(pipeline) -> str:
 def _pick_broker():
     settings = get_settings()
     if settings.broker == "paper":
-        return PaperBrokerAdapter()
+        return PaperBrokerAdapter(session_factory=SessionLocal)
     if settings.broker == "ctp_sim":
-        return CtpSimBrokerAdapter()
+        return CtpSimBrokerAdapter(session_factory=SessionLocal)
     if settings.broker == "ctp":
         raise NotImplementedError(
             "CTP_EXECUTION_ADAPTER_REQUIRED: 已配置 CTP 合约映射，"
