@@ -58,6 +58,8 @@ Python 3.11+ 需要预先安装。没有 `uv` 或 `just` 时，先用
 `setup` 不会启动 Docker；`setup-postgres` 才会启动并复用本地 Docker PostgreSQL，并确保
 `northstar` 与 `northstar_test` 存在且只升级到 Alembic head。两者都强制 `paper`、禁用 live，不会下载
 市场数据或提交订单；仓库自动化绝不删除或清空数据库、表、schema 或 Docker 数据卷。
+当前开发期仅支持完整基线 `0001_current_schema_baseline`；带有旧 revision 的本地库必须由操作者在仓库自动化之外手动重建，
+测试或开发脚本不会 reset、stamp 或清理它。
 没有安装 `just` 时，先运行 `python scripts/ci/bootstrap_pep517.py --profile development`，再使用
 `uv run --offline --no-sync python scripts/dev/setup.py --initialize-config`，并按需加入
 `--with-postgres --migrate`。
@@ -148,5 +150,9 @@ Linux CI 额外运行完整 pytest、部署 shell 契约和 PostgreSQL integrati
 - 优先使用 `postgresql_engine` 或 `postgresql_session_factory` fixture；只有并发测试才直接使用
   `tests.helpers.database` 工厂。
 
-不要通过 SQLite、跳过 preflight、降低风险门槛或修改真实交易开关来让测试通过。新的配置、
+不要用 SQLite 替代核心 PostgreSQL、跳过 preflight、降低风险门槛或修改真实交易开关来让测试通过。Local tools 的
+SQLite 仅可在其独立 unit test 中使用，不能替代 PostgreSQL integration fixture。新的配置、
 数据制品、回测口径或执行行为必须同步增加覆盖。
+
+大规模历史 fixture 应使用受治理的 Parquet；DuckDB 历史分析测试必须使用隔离输入并验证数据版本、参数与结果可复现，
+不能把 DuckDB 当作交易状态、风险状态或 PostgreSQL integration fixture 的替代品。

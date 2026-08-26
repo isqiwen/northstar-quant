@@ -54,6 +54,10 @@ bootstrap 不自动安装 Python、接受 Docker Desktop 许可、配置 WSL、�
 仓库自动化绝不删除或清空数据库、表、schema 或 Docker 数据卷。数据库删除或清空只能由用户在仓库
 自动化之外手动执行；`dev-postgres` 仅启动/复用已有本地服务并执行非破坏性的 Alembic 升级。
 
+开发期迁移已压缩为唯一完整基线 `0001_current_schema_baseline`，不支持旧 revision 的就地升级。若已保留的本地卷记录了
+其他 `alembic_version`，`dev-postgres` 会失败关闭；操作者必须在仓库自动化之外手动重建该本地开发数据库或卷，随后再运行
+`just dev-postgres`。脚本绝不会自动 reset、stamp、drop、truncate 或删除卷。
+
 ## 项目初始化
 
 日常本机初始化使用 `just setup`。它会先运行 `env-bootstrap`，在全新 `.venv` 中仅 materialize 已审计的锁定构建输入，

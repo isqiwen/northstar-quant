@@ -37,6 +37,7 @@ dependencies = [
   "streamlit>=1.38",
   "exchange-calendars>=4.5",
   "reportlab>=4.2",
+  "duckdb>=1.4",
 ]
 
 

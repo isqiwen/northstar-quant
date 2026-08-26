@@ -13,7 +13,7 @@ import re
 from typing import Any, Literal
 from urllib.parse import urlparse
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic.fields import FieldInfo
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
 
@@ -29,12 +29,30 @@ _NTFY_TOPIC_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 _NTFY_TOKEN_PATTERN = re.compile(r"^tk_[A-Za-z0-9]{29}$")
 _NTFY_LOOPBACK_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
 _NTFY_PUBLIC_SERVICE_HOSTS = frozenset({"ntfy.sh"})
-_DASHBOARD_LOOPBACK_HOST = "127.0.0.1"
 
 # 这四个字段保留在模型中，便于测试显式构造 Settings；运行时真源始终是 YAML。
 ENV_DISABLED_FIELDS = frozenset({"storage_dir", "downloads_dir", "reports_dir", "log_dir"})
 LEGACY_RUNTIME_PATH_ENV_VARS = frozenset(
     f"NORTHSTAR_{field.upper()}" for field in ENV_DISABLED_FIELDS
+)
+_RETIRED_SIMULATOR_STATE_FIELDS = frozenset(
+    {"paper_state_path", "ctp_sim_state_path"}
+)
+RETIRED_SIMULATOR_STATE_ENV_VARS = frozenset(
+    f"NORTHSTAR_{field.upper()}" for field in _RETIRED_SIMULATOR_STATE_FIELDS
+)
+_RETIRED_UNUSED_SETTINGS_FIELDS = frozenset(
+    {
+        "dashboard_host",
+        "futures_trend_lookback_days",
+        "limit_chase_fallback_mode",
+        "limit_chase_max_steps",
+        "limit_chase_per_step_timeout_seconds",
+        "limit_chase_sleep_seconds",
+    }
+)
+RETIRED_UNUSED_SETTINGS_ENV_VARS = frozenset(
+    f"NORTHSTAR_{field.upper()}" for field in _RETIRED_UNUSED_SETTINGS_FIELDS
 )
 
 
@@ -64,8 +82,8 @@ class _ExcludedSettingsFieldsSource(PydanticBaseSettingsSource):
         }
 
 
-class _RejectLegacyRuntimePathEnvironmentSource(PydanticBaseSettingsSource):
-    """阻止旧输出路径变量悄悄覆盖可审计的 YAML 配置。"""
+class _RejectRetiredEnvironmentSource(PydanticBaseSettingsSource):
+    """阻止已移除的环境变量被 Settings 的 ``extra=ignore`` 静默吞掉。"""
 
     def __init__(
         self,
@@ -83,34 +101,47 @@ class _RejectLegacyRuntimePathEnvironmentSource(PydanticBaseSettingsSource):
         return None, field_name, False
 
     def __call__(self) -> dict[str, Any]:
-        seen: set[str] = set()
+        legacy_runtime_paths: set[str] = set()
+        retired_unused_settings: set[str] = set()
         for source in self._sources:
             env_vars = getattr(source, "env_vars", {})
             if not isinstance(env_vars, dict):
                 continue
-            seen.update(
+            names = {str(name).upper() for name in env_vars}
+            legacy_runtime_paths.update(
                 str(name).upper()
-                for name in env_vars
-                if str(name).upper() in LEGACY_RUNTIME_PATH_ENV_VARS
+                for name in names
+                if name in LEGACY_RUNTIME_PATH_ENV_VARS
+            )
+            retired_unused_settings.update(
+                str(name).upper()
+                for name in names
+                if name in RETIRED_UNUSED_SETTINGS_ENV_VARS
             )
 
-        if seen:
-            names = "、".join(sorted(seen))
+        if legacy_runtime_paths:
+            path_names = "、".join(sorted(legacy_runtime_paths))
             raise ValueError(
-                f"不再接受运行输出路径环境变量：{names}。"
+                f"不再接受运行输出路径环境变量：{path_names}。"
                 "请从 OS/.env 中删除这些变量，并改为在 configs/app.yaml 的 "
                 "runtime 段中完整配置 storage_dir、downloads_dir、reports_dir、log_dir。"
+            )
+        if retired_unused_settings:
+            retired_names = "、".join(sorted(retired_unused_settings))
+            raise ValueError(
+                f"已移除未接线运行时环境变量：{retired_names}。"
+                "这些值从未进入实际追价、趋势或 Dashboard 监听路径；请从 OS/.env 中删除。"
             )
         return {}
 
 
-def normalize_local_state_account(value: str) -> str:
-    """规范本地模拟账户标识，避免它作为路径片段时发生路径穿越。"""
+def normalize_simulator_account(value: str) -> str:
+    """规范模拟账户标识，使 PostgreSQL 权威状态始终有稳定账户 scope。"""
 
     normalized = value.strip()
     if not _LOCAL_ACCOUNT_ID_PATTERN.fullmatch(normalized):
         raise ValueError(
-            "本地 Paper/CTP 模拟账户只能使用 1-64 位字母、数字、下划线或连字符，"
+            "Paper/CTP 模拟账户只能使用 1-64 位字母、数字、下划线或连字符，"
             "且必须以字母或数字开头。"
         )
     return normalized
@@ -129,6 +160,42 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    @model_validator(mode="before")
+    @classmethod
+    def _reject_retired_settings(cls, value: object) -> object:
+        """Reject removed configuration instead of silently ignoring it.
+
+        Development intentionally makes a clean break here: Paper and CTP-sim
+        mutable state is PostgreSQL authority, so accepting old path settings
+        would imply a fallback that no longer exists.
+        """
+
+        if not isinstance(value, dict):
+            return value
+        retired_simulator_state_paths = sorted(
+            field for field in _RETIRED_SIMULATOR_STATE_FIELDS if field in value
+        )
+        if retired_simulator_state_paths:
+            names = "、".join(
+                f"NORTHSTAR_{field.upper()}" for field in retired_simulator_state_paths
+            )
+            raise ValueError(
+                f"已移除模拟柜台 JSON 状态配置：{names}。"
+                "Paper 和 CTP-sim 状态必须保存到核心 PostgreSQL。"
+            )
+        retired_unused_settings = sorted(
+            field for field in _RETIRED_UNUSED_SETTINGS_FIELDS if field in value
+        )
+        if retired_unused_settings:
+            names = "、".join(
+                f"NORTHSTAR_{field.upper()}" for field in retired_unused_settings
+            )
+            raise ValueError(
+                f"已移除未接线运行时配置：{names}。"
+                "这些值从未进入实际追价、趋势或 Dashboard 监听路径；请删除它们。"
+            )
+        return value
+
     @classmethod
     def settings_customise_sources(
         cls,
@@ -142,7 +209,7 @@ class Settings(BaseSettings):
 
         return (
             init_settings,
-            _RejectLegacyRuntimePathEnvironmentSource(
+            _RejectRetiredEnvironmentSource(
                 settings_cls,
                 env_settings,
                 dotenv_settings,
@@ -168,7 +235,8 @@ class Settings(BaseSettings):
     reports_dir: Path = Field(default=Path("reports"))
     log_dir: Path = Field(default=Path("logs"))
 
-    # 数据库配置。项目只支持 PostgreSQL；凭据必须通过本地 .env 注入。
+    # 核心运行数据库配置。权威交易/风险状态必须使用 PostgreSQL；Local tools 的
+    # SQLite 存储必须使用其独立配置，不能复用此 URL。
     database_url: str = Field(
         default="postgresql+psycopg://northstar@127.0.0.1:5432/northstar"
     )
@@ -181,25 +249,16 @@ class Settings(BaseSettings):
     rebalance_min_trade_value: float = Field(default=500.0, ge=0)
     paper_fill_price_mode: Literal["close", "reference", "limit"] = Field(default="close")
     paper_account: str = Field(default="paper-account", min_length=1)
-    # 未显式配置时在 model_post_init 中派生为
-    # storage_dir / "brokers" / "paper" / paper_account / "state.json"。
-    paper_state_path: Path = Field(default=Path("storage/brokers/paper/state.json"))
 
-    # ctp_sim 是隔离的本地语义仿真，不连接交易前置；真实 CTP 适配器仍未实现。
+    # ctp_sim 是隔离的 PostgreSQL-backed 语义仿真，不连接交易前置；真实 CTP
+    # 适配器仍未实现。
     ctp_sim_account: str = Field(default="ctp-sim-account", min_length=1)
-    # 未显式配置时在 model_post_init 中派生为
-    # storage_dir / "brokers" / "ctp_sim" / ctp_sim_account / "state.json"。
-    ctp_sim_state_path: Path = Field(default=Path("storage/brokers/ctp_sim/state.json"))
     ctp_sim_contract_mapping_path: Path = Field(
         default=Path("configs/instruments/ctp_sim.yaml")
     )
     ctp_contract_mapping_path: Path = Field(default=Path("configs/instruments/ctp.yaml"))
     order_timeout_seconds: int = Field(default=300, gt=0)
     limit_price_offset_bps: float = Field(default=15.0, ge=0)
-    limit_chase_max_steps: int = Field(default=3, ge=1, le=20)
-    limit_chase_sleep_seconds: float = Field(default=2.0, ge=0.2)
-    limit_chase_per_step_timeout_seconds: int = Field(default=20, gt=0)
-    limit_chase_fallback_mode: Literal["cancel", "market"] = Field(default="cancel")
     execution_lease_ttl_seconds: int = Field(default=120, ge=30, le=3600)
 
     # 交易日历配置。期货夜盘须由期货数据/会话配置进一步约束，不能只依赖本默认值。
@@ -247,7 +306,6 @@ class Settings(BaseSettings):
 
     # 报告与执行控制。
     report_benchmark_symbol: str = Field(default="RB_CONT")
-    futures_trend_lookback_days: int = Field(default=60)
     trading_currency: str = Field(default="CNY")
 
     # 低频策略、盘中执行与实时风控的独立调度配置。
@@ -262,14 +320,12 @@ class Settings(BaseSettings):
     monthly_report_cron: str = Field(default="0 17 24-31 * *")
     yearly_report_cron: str = Field(default="15 17 * 12 *")
 
-    # Dashboard 只能监听 IPv4 loopback；远程查看通过 SSH 隧道或 VPN，不提供公网绑定开关。
-    dashboard_host: str = Field(default=_DASHBOARD_LOOPBACK_HOST)
+    # Dashboard 地址在 CLI 中固定为 IPv4 loopback；这里只允许配置端口。
     dashboard_port: int = Field(default=8501, ge=1, le=65535)
 
     @field_validator(
         "broker",
         "paper_fill_price_mode",
-        "limit_chase_fallback_mode",
         "alert_mode",
         mode="before",
     )
@@ -281,36 +337,23 @@ class Settings(BaseSettings):
 
     @field_validator("database_url")
     @classmethod
-    def _require_postgresql(cls, value: str) -> str:
-        """拒绝 SQLite 等非 PostgreSQL 数据库，避免测试与运行语义分叉。"""
+    def _require_core_postgresql(cls, value: str) -> str:
+        """核心运行数据库拒绝 SQLite，避免权威状态的语义分叉。"""
 
         normalized = value.strip()
         if not normalized.startswith("postgresql+psycopg://"):
             raise ValueError(
-                "NORTHSTAR_DATABASE_URL 必须使用 postgresql+psycopg://，"
-                "本项目不再支持 SQLite。"
-            )
-        return normalized
-
-    @field_validator("dashboard_host")
-    @classmethod
-    def _require_dashboard_loopback(cls, value: str) -> str:
-        """拒绝 Dashboard 监听公网或局域网地址。"""
-
-        normalized = value.strip()
-        if normalized != _DASHBOARD_LOOPBACK_HOST:
-            raise ValueError(
-                "NORTHSTAR_DASHBOARD_HOST 只能是 127.0.0.1；"
-                "远程访问请使用 SSH 隧道或受控 VPN，不能直接暴露 Dashboard。"
+                "NORTHSTAR_DATABASE_URL 是核心运行数据库，必须使用 postgresql+psycopg://；"
+                "SQLite 仅允许 Local tools 的独立存储使用。"
             )
         return normalized
 
     @field_validator("paper_account", "ctp_sim_account")
     @classmethod
     def _validate_local_state_account(cls, value: str) -> str:
-        """限制本地账户标识，避免其参与状态路径时产生路径穿越。"""
+        """限制模拟账户标识，使其可安全作为 PostgreSQL 状态 scope。"""
 
-        return normalize_local_state_account(value)
+        return normalize_simulator_account(value)
 
     @field_validator("ntfy_base_url")
     @classmethod
@@ -441,26 +484,14 @@ class Settings(BaseSettings):
         object.__setattr__(self, "log_dir", log_dir)
         object.__setattr__(self, "downloads_dir", downloads_dir)
 
-        paper_state_path = _resolve_local_state_path(
-            self.paper_state_path
-            if "paper_state_path" in self.model_fields_set
-            else self.storage_dir / "brokers" / "paper" / self.paper_account / "state.json",
-            project_root=project_root,
-            storage_dir=self.storage_dir,
-            setting_name="NORTHSTAR_PAPER_STATE_PATH",
-        )
-        object.__setattr__(self, "paper_state_path", paper_state_path)
+    @property
+    def local_tools_dir(self) -> Path:
+        """返回 SQLite Local tools 唯一允许使用的独立目录。
 
-        ctp_sim_state_path = _resolve_local_state_path(
-            self.ctp_sim_state_path
-            if "ctp_sim_state_path" in self.model_fields_set
-            else self.storage_dir / "brokers" / "ctp_sim" / self.ctp_sim_account / "state.json",
-            project_root=project_root,
-            storage_dir=self.storage_dir,
-            setting_name="NORTHSTAR_CTP_SIM_STATE_PATH",
-        )
-        object.__setattr__(self, "ctp_sim_state_path", ctp_sim_state_path)
+        这是 ``storage_dir`` 的只读派生值，不是可由环境变量覆盖的第二个核心数据库配置。
+        """
 
+        return self.storage_dir / "local-tools"
 
 def _resolve_runtime_setting_path(value: str | Path, project_root: Path) -> Path:
     """将 YAML 或测试显式传入的运行输出路径解析为绝对路径。"""
@@ -470,31 +501,6 @@ def _resolve_runtime_setting_path(value: str | Path, project_root: Path) -> Path
         path = project_root / path
     return path.resolve()
 
-
-def _resolve_local_state_path(
-    value: str | Path,
-    *,
-    project_root: Path,
-    storage_dir: Path,
-    setting_name: str,
-) -> Path:
-    """将本地模拟状态限制在 storage 根内，使部署白名单与运行时一致。"""
-
-    state_path = Path(value)
-    if not state_path.is_absolute():
-        state_path = project_root / state_path
-    resolved_state_path = state_path.resolve()
-    resolved_storage_dir = storage_dir.resolve()
-    try:
-        resolved_state_path.relative_to(resolved_storage_dir)
-    except ValueError as exc:
-        raise ValueError(
-            f"{setting_name} 必须位于 runtime.storage_dir 内；"
-            "如需迁移本地模拟状态，请调整 configs/app.yaml 的 runtime.storage_dir。"
-        ) from exc
-    if resolved_state_path == resolved_storage_dir:
-        raise ValueError(f"{setting_name} 必须指向 runtime.storage_dir 内的状态文件。")
-    return resolved_state_path
 
 @lru_cache
 def get_settings() -> Settings:
@@ -515,7 +521,11 @@ def load_settings(*, project_root: Path | None = None) -> Settings:
     validate_active_environment_file(
         env_file,
         expected_keys=active_environment_file_keys(),
-        retired_keys=LEGACY_RUNTIME_PATH_ENV_VARS,
+        retired_keys=(
+            LEGACY_RUNTIME_PATH_ENV_VARS
+            | RETIRED_SIMULATOR_STATE_ENV_VARS
+            | RETIRED_UNUSED_SETTINGS_ENV_VARS
+        ),
     )
     return Settings(project_root=resolved_project_root, _env_file=env_file)  # type: ignore[call-arg]
 

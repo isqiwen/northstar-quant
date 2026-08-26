@@ -74,7 +74,10 @@ Codex 每次进入仓库必须：
 
 ```yaml
 active_phase: P10
-active_work_package: null
+active_work_package:
+  id: null
+  title: null
+  status: null
 next_task:
   id: P10-WP08
   title: Platform Production / DR Acceptance
@@ -82,7 +85,9 @@ next_task:
 blocked_work_packages: [P10-WP08, P10-WP09]
 ```
 
-P10 已完成 `7/9` 个 Work Package（78%）；其余 P10-WP08 与 P10-WP09 均需外部前提。用户授权的跨阶段文档工作包 `DOC-WP07` 已完成；它不改变 P10 的验收计数或外部阻塞状态。
+P10 已完成 `7/9` 个 Work Package（78%）；P10-WP08 与 P10-WP09 均需外部前提。用户授权的维护工作包
+`MAINT-WP01` 已完成旧包生成残留、失实运行文档和已确认死代码的清理；跨阶段文档工作包 `DOC-WP07`
+已完成本地初始化入口收敛。二者都不改变 P10 的验收计数或外部阻塞状态。
 
 ---
 
@@ -516,7 +521,7 @@ uv run --offline --no-sync python scripts/ci/check_mypy_baseline.py check
 
 不得通过以下方式让测试变绿：
 
-- 用 SQLite 代替 PostgreSQL；
+- 用 SQLite 代替核心 PostgreSQL integration/runtime；
 - 删除安全检查；
 - 更改真实语义以迎合旧测试；
 - mock 掉本应验证的核心逻辑；
@@ -2620,7 +2625,7 @@ completion:
   completed_at: 2026-08-23
   commit: null
   notes: >
-    Delivered an explicit six-category PostgreSQL logical backup bundle with versioned SHA-256
+    Delivered an explicit PostgreSQL logical backup bundle with versioned SHA-256
     manifest, secret rejection, complete-tree verification, and platform-native no-overwrite
     publication. Maintenance creation requires two explicit confirmations, a private external
     output parent, and inactive-service checks both before capture and before publication.
@@ -2647,7 +2652,6 @@ completion:
 - configs
 - ontology
 - run manifests
-- critical runtime state
 - release metadata
 
 必须执行 restore drill。
@@ -3794,6 +3798,311 @@ loopback drill 升级为生产验收。
 
 # 19.1 用户请求的跨阶段维护
 
+> 2026-08-25 的用户授权开发期 schema baseline 维护不改变 P10 的验收计数、活动阶段或外部阻塞状态。
+> 本节之前完成记录中出现的 `0007`—`0010` 是当时的历史 revision 标识；当前仓库只保留
+> `0001_current_schema_baseline`，不支持从那些历史 revision 升级。
+>
+> 用户随后明确了四层存储职责：PostgreSQL 承载交易与权威运行状态，Parquet 承载大规模历史数据，
+> DuckDB 承载 Parquet 上的历史分析，SQLite 只用于 Local tools 的隔离、非权威存储；这同样不改变 P10 的
+> 验收计数、活动阶段或外部阻塞状态。
+
+## DEV-WP01 — Development Alembic Baseline Consolidation
+
+**Status:** IN_PROGRESS
+
+**Origin:** 用户确认项目仍处于开发期，数据库不需要保留，且始终以当前 schema 为准。
+
+**Goal:** 将十段历史 Alembic 链压缩为单个显式、静态的 PostgreSQL 当前 schema baseline，避免为不存在的
+旧数据库兼容性维护迁移历史，同时保留所有数据表、约束、不可变审计函数和触发器。
+
+**Scope:**
+
+- 用唯一 `0001_current_schema_baseline` 创建完整 current schema；不在 migration 中调用 ORM metadata；
+- 删除旧 revision 文件，不新增 `stamp`、drop、truncate、downgrade 或自动数据库重建入口；
+- 将模型、migration/immutability 合同、初始化测试、开发/运行文档与计划同步；
+- 明确旧 revision 的本地库只能由操作者在仓库自动化之外手动重建；
+- 不改变任何领域语义、broker、账户、真实 CTP 或 live trading 能力。
+
+**Acceptance:**
+
+- `alembic/versions/` 只有一个无父节点的 current baseline，且 fresh isolated PostgreSQL 可 `upgrade head`、
+  重复升级并通过 `alembic check`；
+- baseline 精确保留当前 ORM 表/列/索引/唯一约束，以及 ResearchAgent audit 的 check constraints、
+  UPDATE/DELETE/TRUNCATE 拒绝触发器；
+- 所有数据库自动化仍只允许 `upgrade head`，不会删除或清空数据库、表、schema 或 volume；
+- 当前 P10 `next_task` 保持 P10-WP08 `BLOCKED`，不将这项本地维护误记为 production/DR 或数据授权完成。
+
+**Implementation and verification:**
+
+```yaml
+implementation_completed_at: 2026-08-25
+commit: null
+notes: >-
+  用户明确授权不保留开发数据库或历史 revision 后，将原 0001—0010 单线迁移压缩为唯一、静态、
+  forward-only 的 0001_current_schema_baseline。baseline 保留所有 current PostgreSQL schema、
+  audit hash/check constraints 和四个不可变 trigger；没有增加自动 reset/stamp/drop/downgrade。
+  旧 revision 数据库必须在仓库自动化之外由操作者手动重建。P10-WP08/P10-WP09 继续 BLOCKED。
+passed:
+  - "focused migration, initialization, audit, preservation and bootstrap tests — 42 passed"
+  - "fresh local PostgreSQL upgrade head, repeated upgrade, and alembic check"
+  - "ruff check ."
+  - "check_mypy_baseline.py check"
+  - "git diff --check"
+global_gate_pending:
+  command: "umask 022; uv run --offline --no-sync pytest"
+  result: "1738 passed, 4 failed"
+  unrelated_blockers:
+    - "ignored legacy platform/data_platform __pycache__ remnants"
+    - "deploy cleanup test's brittle shell-function extraction"
+    - "host lacks pg_dump, pg_restore, and psql for the restore drill"
+    - "release transaction test assumes Path.iterdir() lexical ordering"
+```
+
+---
+
+## DEV-WP02 — Four-Tier Storage Boundary
+
+**Status:** VERIFY
+
+**Origin:** 用户明确新的存储职责：交易状态→PostgreSQL；大规模历史数据→Parquet；历史分析→DuckDB；
+SQLite→本地工具集数据库。
+
+**Goal:** 用四层职责边界取代全局数据库排他规则：核心交易/风险/审计事实继续以 PostgreSQL 为权威来源，
+大规模历史制品以 Parquet 保存，DuckDB 只作历史分析，SQLite 只作 Local tools 的显式、隔离、非权威存储。
+
+**Scope:**
+
+- 更新 Agent 规则、架构、开发/运行说明、测试与主计划中的存储职责表述；
+- 明确 `NORTHSTAR_DATABASE_URL`、`NORTHSTAR_TEST_DATABASE_URL`、Alembic 与 core repository 仍是 PostgreSQL；
+- 明确 Parquet 承载受治理的大规模历史 tick/bars/factors/features/research/backtest 制品，保持版本、manifest、
+  hash、lineage、PIT 与数据授权语义；
+- 明确 DuckDB 只查询 Parquet 用于历史分析，不是 broker、订单、持仓、风险或审计权威库；
+- 明确 SQLite 不得作为核心数据库不可用时的 fallback，也不得承载订单、成交、持仓、策略状态、风险、审批、
+  对账或审计事实；
+- 不在本 WP 新增 DuckDB runtime adapter、查询接口、SQLite runtime adapter、迁移或 Local tools schema；它们应在
+  具体分析或 tool 出现时单独设计与验收。
+
+**Known implementation gaps and follow-up boundary:** 在本 WP 完成时，`paper` / `ctp_sim` 的模拟 broker state 仍为本地
+JSON；该缺口已由后续 DEV-WP03 迁移至 PostgreSQL。Contract Master / CTP mapping 仍为 YAML；已有 Parquet 仅覆盖部分
+受治理市场制品，且仓库尚无 DuckDB dependency、adapter 或 query contract。后两项不得被误报为已实现四层架构，将分别由
+DEV-WP04—DEV-WP05 处理。
+
+**Acceptance:**
+
+- 仓库以 PostgreSQL / Parquet / DuckDB / SQLite 四层职责代替全局 PostgreSQL-only 表述；
+- 每层的允许用途、权威边界与禁止的跨界写入均有明确、可测试的文档和配置语义；
+- 不削弱 PostgreSQL integration fixture、真实 CTP/preflight、风险或数据库保全边界；
+- P10 `next_task` 继续保持 P10-WP08 `BLOCKED`。
+
+**Implementation and verification:**
+
+```yaml
+implementation_completed_at: 2026-08-25
+commit: null
+notes: >-
+  用四层职责边界取代全局 PostgreSQL-only 表述：PostgreSQL 保持核心权威状态；Parquet 承载
+  受治理的大规模历史制品；DuckDB 被限定为未来的只读历史分析层；SQLite 只允许 Local tools
+  的独立非权威存储。当前 paper/ctp_sim JSON broker state、YAML Contract Master、部分 Parquet
+  覆盖和缺失的 DuckDB adapter 均已明确为未完成实现，并拆分为 DEV-WP03—DEV-WP05，未误报为落地能力。
+passed:
+  - "focused settings, PostgreSQL safety, documentation, master-plan, P10 and migration contracts — 76 passed"
+  - "ruff check ."
+  - "check_mypy_baseline.py check — 33 recorded diagnostics, no new diagnostics"
+  - "git diff --check"
+global_gate_pending:
+  command: "umask 022; uv run --offline --no-sync pytest"
+  result: "1739 passed, 4 failed"
+  unrelated_blockers:
+    - "ignored legacy platform/data_platform __pycache__ remnants"
+    - "deploy cleanup test's brittle shell-function extraction"
+    - "host lacks pg_dump, pg_restore, and psql for the restore drill"
+    - "release transaction test assumes Path.iterdir() lexical ordering"
+```
+
+---
+
+## DEV-WP03 — PostgreSQL Trading-State Authority
+
+**Status:** VERIFY
+
+**Dependencies:** DEV-WP02 implementation complete (`VERIFY`; its remaining full-suite blockers are recorded
+as unrelated baseline defects).
+
+**Goal:** 将 `paper` 与 `ctp_sim` 的本地模拟 broker state 从交易状态权威路径中移除，使订单、成交、持仓、资金、
+报价基线与状态机推进在 PostgreSQL 的受控、可对账、幂等事务边界内完成。
+
+**Implementation note (2026-08-25):** 用户已明确授权按新的四层存储架构继续实施。本工作包从
+PostgreSQL 的模拟交易状态权威路径开始；不连接真实 CTP、不使用真实账户，且不会对已有数据库执行删除、清空、
+stamp、downgrade 或自动重建。
+
+**Acceptance:**
+
+- `PaperBrokerAdapter` 与 `CtpSimBrokerAdapter` 不再以 `state.json` 作为订单、成交、持仓、资金或状态机的权威来源；
+- broker snapshot、durable intent、ledger、risk 和 reconciliation 保持同一账户 scope 的可解释性与失败关闭；
+- 所有相关 unit / PostgreSQL integration / candidate E2E 同步迁移，且不接入真实 CTP、真实账户或实盘；
+- schema、repository、Alembic、配置、文档和数据库保全契约在同一变更中完成。
+
+**Implementation and verification:**
+
+```yaml
+implementation_completed_at: 2026-08-25
+commit: null
+notes: >-
+  paper 与 ctp_sim 的 adapter-private 模拟柜台状态已迁入 PostgreSQL：每个 broker/account 有受 schema
+  校验、canonical hash 保护的当前快照，以及不可变、hash-chained transition 审计记录。所有状态更新以
+  PostgreSQL 账户作用域锁串行化；CTP-sim 的最终 durable acknowledgement 可与模拟状态变更处于同一数据库
+  事务。核心 OrderRecord、FillRecord、position/risk/approval/reconciliation/audit 仍保持各自的结构化
+  PostgreSQL 权威边界。已移除 JSON state-path 配置与运行时 fallback；未接入真实 CTP、真实账户或实盘。
+  备份 bundle 已升级为 format v2 并移除 runtime-state 类别；旧 `state.json` 不再被复制，模拟状态和审计只由
+  PostgreSQL dump 覆盖。
+  因本仓库只保留一个 current Alembic baseline，已处于旧 baseline 的开发数据库必须由操作者在仓库自动化之外
+  手动重建，自动化不会执行 reset、stamp、downgrade、drop 或 truncate。
+passed:
+  - "paper simulated-state unit suite"
+  - "ctp_sim unit and recovery integration suite"
+  - "durable submission/recovery/cancel suite"
+  - "candidate unit/integration/E2E suite"
+  - "migration/baseline contract suite — 4 passed"
+  - "ruff check ."
+  - "check_mypy_baseline.py check — 31 recorded diagnostics, no new diagnostics"
+  - "git diff --check"
+global_gate_pending:
+  command: >-
+    clean .env.example project root + umask 022; uv run --offline --no-sync pytest -q -k
+    'not test_active_env_declaration_keys_match_the_example_without_reading_values'
+  result: "1744 passed, 4 failed, 1 deselected"
+  unrelated_blockers:
+    - "ignored legacy platform/data_platform package remnants"
+    - "deploy cleanup test's brittle ownership expectation"
+    - "host lacks pg_dump, pg_restore, and psql for the restore drill"
+    - "release transaction test assumes Path.iterdir() lexical ordering"
+local_operator_action:
+  - "remove NORTHSTAR_PAPER_STATE_PATH and NORTHSTAR_CTP_SIM_STATE_PATH from the ignored local .env"
+  - "manually rebuild any old development database outside repository automation before using the updated baseline"
+```
+
+---
+
+## DEV-WP04 — PostgreSQL Contract Authority
+
+**Status:** TODO
+
+**Dependencies:** DEV-WP02.
+
+**Goal:** 将当前版本受控的 Contract Master / CTP mapping 建立为 PostgreSQL 中具有时间版本、来源证据与 PIT 语义的
+权威合约事实，同时保留未知、缺失或冲突时的 `NO NEW RISK`。
+
+**Acceptance:**
+
+- 合约、品种、instrument、mapping、费用/保证金/交易规则的权威版本可按 `available_time` 重放；
+- 新旧配置路径不形成双写或静默 fallback，所有调用方在同一 breaking change 中迁移；
+- migration、repository、PIT / preflight / execution integration 测试和文档同步完成；
+- 不使用未来合约、规则或 mapping 为历史研究或订单放行。
+
+---
+
+## DEV-WP05 — Historical Parquet Lake & DuckDB Analytics
+
+**Status:** DONE
+
+**Dependencies:** DEV-WP02.
+
+**Goal:** 建立受治理的 Parquet 历史数据湖，并引入只读 DuckDB 分析边界，以可复现方式支持 tick、bars、factors、
+features、research 和 backtest 的历史分析。
+
+**Implementation note (2026-08-25):** 用户明确要求将 Parquet、DuckDB 与 SQLite 从架构原则落实为实际使用能力。
+本工作包只实现受验证 `DatasetVersion` 到不可变 Parquet Lake、以及只读 DuckDB 研究分析闭环；不会把可覆盖的
+`storage/market` 投影、PostgreSQL 核心状态或任何交易路径接入湖。
+
+**Acceptance:**
+
+- Parquet schema、partition、manifest、hash、lineage、license/retention 和 PIT 语义覆盖每种批准的数据集；
+- DuckDB 只读取经验证的 Parquet 制品，查询输入、版本、参数和结果均可重放；
+- DuckDB 不保存或直写订单、成交、持仓、风险、审批、对账或审计权威事实，分析结果仍必须经过研究与风险门禁；
+- 依赖、adapter、CLI、配置、unit / integration / regression 测试和文档在同一 Work Package 完成。
+
+**Implementation and verification:**
+
+```yaml
+implementation_completed_at: 2026-08-25
+commit: null
+notes: >-
+  新增唯一受控入口：已验证 immutable DatasetVersion 中的 NORMALIZED/DERIVED tabular artifact，只有其
+  canonical payload 与输入 Parquet 完全相同时，才能发布至 <storage_dir>/lake。每个 Lake version 是不可覆盖的
+  分区 Parquet 加 manifest，绑定逐文件 SHA-256、schema、partition、上游 DatasetVersion/artifact/lineage、
+  合同有效期/用途/保留期授权快照和 available_at 范围；验证会重新计算这些事实。Lake 拒绝 root 或中间目录符号链接，
+  DuckDB 打开前还会将刚重新校验 hash 的分区复制至私有 query snapshot，避免验证与使用之间重用可替换路径。
+  DuckDB 只在内存中将 snapshot 的 available_at <= as_of 行物化为 lake_data，随后禁用外部访问，并以 physical plan
+  拒绝 lake_data 之外的 base scan、随机/时间/顺序敏感函数和用户 limit/offset；外层统一稳定排序和限制行数，生成
+  可重放 receipt。没有将可覆盖的 storage/market 投影、核心 PostgreSQL 状态或交易路径接入 Lake。
+passed:
+  - "Lake unit / contract 与 DuckDB PIT/replay/failure suite — 18 passed"
+  - "clean .env.example root: Lake, CLI, documentation and master-plan contracts — 51 passed"
+  - "ruff check affected Lake/DuckDB code and tests"
+  - "mypy affected Lake/DuckDB modules"
+  - "git diff --check"
+global_gate_pending:
+  command: >-
+    clean .env.example project root + umask 022; uv run --offline --no-sync pytest -q -k
+    'not test_active_env_declaration_keys_match_the_example_without_reading_values'
+  result: "1762 passed, 4 known unrelated failures, 1 deselected"
+  unrelated_blockers:
+    - "ignored legacy platform/data_platform package remnants"
+    - "deploy cleanup test's brittle ownership expectation"
+    - "host lacks pg_dump, pg_restore, and psql for the restore drill"
+    - "release transaction test assumes Path.iterdir() lexical ordering"
+```
+
+---
+
+## DEV-WP06 — SQLite Local-tools Manifest Index
+
+**Status:** DONE
+
+**Dependencies:** DEV-WP05.
+
+**Goal:** 为本地工具提供显式、隔离、非权威的 SQLite Parquet Lake manifest 索引，便于离线发现已验证的历史制品，
+且不让 SQLite 成为核心 PostgreSQL、Alembic、研究输入校验或交易状态的替代品。
+
+**Acceptance:**
+
+- SQLite 仅保存可重建的 Lake manifest 索引，不保存订单、成交、持仓、策略状态、风险、审批、对账或审计事实；
+- 路径固定为 tool-owned `<storage_dir>/local-tools/`，不读取或复用 `NORTHSTAR_DATABASE_URL`，不参与 Alembic、
+  `init-db` 或核心 PostgreSQL integration fixture；
+- CLI 可显式 rebuild/list，实际使用 Lake 时仍逐文件重验 manifest 与 Parquet hash，索引缺失、并发或损坏绝不影响
+  PostgreSQL 或 DuckDB 的正确性；
+- 文件隔离、并发、损坏隔离/恢复、CLI、架构约束、unit / failure 测试和文档在同一 Work Package 完成。
+
+**Implementation and verification:**
+
+```yaml
+implementation_completed_at: 2026-08-25
+commit: null
+notes: >-
+  在 <storage_dir>/local-tools/lake-manifest-index.sqlite3 实现一个只用 Python 标准库 sqlite3 的 tool-owned index。
+  rebuild 扫描每个 Lake 版本并逐份调用 Lake verify，只有全部验证成功才在 BEGIN IMMEDIATE transaction 中追加新的
+  generation；list 只显示最新 generation，绝不把索引作为 Lake 验证或 DuckDB 输入。文件路径、祖先目录、所有权和
+  权限均受限，SQLite busy timeout 处理并发；二进制损坏或不兼容 schema 时，只有显式 rebuild 可以隔离固定 index
+  及其 sidecar 为 .corrupt-<timestamp> 后重建，绝不触碰 Lake、PostgreSQL、Alembic 或交易状态。
+passed:
+  - "SQLite Local-tools unit / contract suite：隔离、验证失败保留旧 generation、并发、文件/路径安全、损坏与不兼容 schema 恢复"
+  - "clean .env.example root CLI smoke：local-tools lake-index rebuild / list"
+  - "Lake、DuckDB、SQLite、CLI、documentation、master-plan focused suite：101 passed"
+  - "just env-bootstrap；ruff check .；mypy baseline；dependency policy；uv lock --check；git diff --check"
+global_gate_result:
+  command: >-
+    clean .env.example project root + umask 022; uv run --offline --no-sync pytest -q -k
+    'not test_active_env_declaration_keys_match_the_example_without_reading_values'
+  result: "1772 passed, 4 known unrelated failures, 1 deselected"
+  unrelated_blockers:
+    - "ignored legacy data_platform package remnant"
+    - "deploy cleanup test's brittle ownership expectation"
+    - "host lacks pg_dump, pg_restore, and psql for the restore drill"
+    - "release transaction test assumes Path.iterdir() lexical ordering"
+```
+
+---
+
 ## DOC-WP01 — Documentation Consolidation & Architecture Specification
 
 **Status:** DONE
@@ -4046,6 +4355,56 @@ verification:
 
 ---
 
+## MAINT-WP01 — Legacy Residue & Documentation Reconciliation
+
+**Status:** DONE
+
+**Dependencies:** DOC-WP02.
+
+**Origin:** 用户要求清理项目遗留代码和文档。审计确认旧 `platform` / `data_platform` 源码已完成 clean
+breaking rename，但工作区仍有未跟踪的旧 build 输出与 Python bytecode；同时运行文档仍把已废弃配置和不存在的
+`just` 命令写为可用入口。
+
+**Goal:** 清理已确认无权威性的历史生成物，并使面向操作者的文档只描述当前运行契约；不删除仍被运行路径使用、
+但被明确标记为非权威的 mutable market projection 或历史审计证据。
+
+**Acceptance:**
+
+- 只删除已核验的 ignored build / bytecode 旧包残留，不使用无范围的 `git clean`，不触及 `.env`、storage、数据库、
+  credentials 或其他本地状态；
+- `northstar_quant.platform` / `northstar_quant.data_platform` 物理残留、import 和可发现 package 均不存在，既有
+  architecture guard 继续保留；
+- 已确认无调用方的旧 demo、孤立 helper/model 和无效运行时 settings 连同 `.env.example`、systemd/template、测试一并
+  删除；旧环境变量必须显式拒绝，不能静默忽略或作为 fallback；
+- 根 README 不再复制会漂移的实施进度，部署命令、`app.local.yaml` 语义与实际 `justfile` / runtime fail-closed 行为一致；
+- 历史计划记录继续作为审计证据保留，文档契约、architecture、Ruff、mypy baseline 与完整 pytest 同步验证。
+
+**Completion:**
+
+```yaml
+completed_at: 2026-08-25
+commit: null
+notes:
+  - "仅将已核验的 ignored 旧 build / bytecode 目录移至系统回收站；未触及 .env、storage、数据库、credentials 或其他本地状态。"
+  - "删除无调用方的 demo、helper、孤立 TradePlan model 与 canonical dispatcher；保留仍被当前运行路径使用的 mutable market projection、历史计划记录及架构占位目录。"
+  - "移除六项从未接线的 settings，并令旧环境变量与直接传参显式失败；同步 .env.example、Dashboard systemd template、CLI 与测试。"
+  - "修复两项原有测试脆弱性（目录枚举顺序、抽取脚本时的函数覆盖），并为 SQLite Local-tools bootstrap 锁竞争加入有界重试，不重试 generation 写入事务。"
+  - "修正文档入口、部署命令、已废弃 app.local.yaml 语义，以及 Linux restore drill 的 PostgreSQL 客户端前提。"
+verification:
+  - "just env-bootstrap — PASS"
+  - "clean-root cleanup focused suite — 117 passed, 1 deselected"
+  - "selected deployment contracts — 2 passed, 58 deselected"
+  - "SQLite Local-tools unit suite — 9 passed；并发 rebuild 重复 10 次均通过"
+  - "release transaction unit suite — 12 passed"
+  - "release cleanup contract — 1 passed, 59 deselected"
+  - "clean-root full pytest — 1787 passed, 1 failed, 1 deselected"
+  - "ruff check . / mypy baseline / uv lock --check --offline / dependency policy / git diff --check — PASS"
+known_external_blocker:
+  - "当前 Linux 工作站缺少 pg_dump、pg_restore 与 psql；restore drill 明确失败，未改为 skip。CI 已安装匹配客户端。"
+```
+
+---
+
 ## DOC-WP07 — Unified Local Initialization Entry
 
 **Status:** DONE
@@ -4232,7 +4591,7 @@ Codex 永远不得：
 - 自动开启 live trading；
 - 自动填写真实 CTP 凭据；
 - 为通过测试删除 preflight/risk/kill-switch；
-- 用 SQLite 替代 PostgreSQL；
+- 用 SQLite 替代核心 PostgreSQL；
 - 伪造授权数据；
 - 用未来数据补历史数据；
 - 将 LLM 判断写成确定事实；
@@ -4349,7 +4708,7 @@ P8 → P9 → P10
 | Foundation | Security | DONE（统一密钥扫描、日志/导出脱敏、稳定审计 JSON 与服务/部署身份最小权限边界） |
 | Foundation | Deployment | DONE（唯一 Python 控制面、强制质量门禁、受限 SSH、互斥发布、健康回退） |
 | Foundation | Linux production layout | DONE（固定 FHS、root 控制祖先链、release 环境/systemd 快照与 mount-aware 特权遍历） |
-| Foundation | Backup/restore | DONE（六类受限 SHA-256 逻辑包、无覆盖发布、双重静默检查与隔离 PostgreSQL 恢复演练） |
+| Foundation | Backup/restore | DONE（五类受限 SHA-256 逻辑包、无覆盖发布、双重静默检查与隔离 PostgreSQL 恢复演练；模拟状态随 PostgreSQL dump 恢复） |
 | Foundation | Release | DONE（固定 root gate、canonical signed manifest、环境独立签名、受限 SSH stdin 提交、不可变事务审计与 migration 后人工恢复边界） |
 | Foundation | Hermetic PEP 517 bootstrap | DONE（精确 builder/source provenance、fresh staging venv、offline/no-sync 后续门禁、Windows/Linux release contract） |
 | AI | Typed research tool API | DONE（九项封闭 typed allowlist；新增只读质量 inspection，显式 injected research ports、PIT/证据链 fail-closed、无交易权限） |
@@ -4397,7 +4756,10 @@ next_task:
   status: BLOCKED
 ```
 
-DOC-WP07 已完成；P10-WP08 与 P10-WP09 仍由外部前提阻塞。
+MAINT-WP01 与 DOC-WP07 已完成。隔离示例配置下的完整 pytest 为 `1787 passed, 1 failed, 1 deselected`；唯一剩余失败是当前
+Linux 工作站缺少 `pg_dump`、`pg_restore` 与 `psql`，而 restore drill 必须保持强制执行，不能静默 skip。
+DEV-WP01 的实现与相关验收已完成；DEV-WP02 的规则、文档和相关契约已完成，仍须按各自状态和验收条件推进；
+P10-WP08 与 P10-WP09 仍由外部前提阻塞。
 在获得授权的外部条件前维持 `NO LIVE ACTION`。
 
 ---
@@ -4474,7 +4836,7 @@ DOC-WP07 已完成；P10-WP08 与 P10-WP09 仍由外部前提阻塞。
 | 2026-08-22 | P6-WP05：Security 完成；密钥扫描已进入 just check/CI，日志、CLI、报告、邮件和部署审计统一脱敏，邮件导出遇到机密失败关闭，部署身份与 systemd 服务权限均受限。 | DONE |
 | 2026-08-22 | P6-WP06：Cross-platform Deployment Control 完成；旧 Bash 本地控制面已移除，Python 统一编排制品、严格 SSH、Linux install/upgrade、迁移、切换后健康检查和自动回退，且没有质量门禁绕过路径。 | DONE |
 | 2026-08-22 | P6-WP07：Linux Production Layout 完成；固定 FHS、版本化 release 环境/systemd 快照、root 控制目录链、制品流式特权交接、有界 root 解压、root-only 部署锁、mount-aware 特权遍历和受限 shell/ops 入口均已验收。P6-WP08 Backup / Restore 已开始。 | DONE |
-| 2026-08-23 | P6-WP08：Backup / Restore 完成；六类 allowlisted PostgreSQL 逻辑包、完整树 SHA-256 校验、秘密拒绝与跨平台无覆盖发布已实现；维护创建在采集前/发布前二次确认服务静默，恢复演练仅限 loopback `northstar_test` 的 schema 事务回滚，已由 Docker PostgreSQL 和 Linux 发布原语演练验证。P6-WP09 Release Pipeline 已开始。 | DONE |
+| 2026-08-23 | P6-WP08：Backup / Restore 完成；当前五类 allowlisted PostgreSQL 逻辑包、完整树 SHA-256 校验、秘密拒绝与跨平台无覆盖发布已实现；模拟 broker state/transition 审计随 PostgreSQL dump 恢复，旧 `state.json` 不再归档；维护创建在采集前/发布前二次确认服务静默，恢复演练仅限 loopback `northstar_test` 的 schema 事务回滚，已由 Docker PostgreSQL 和 Linux 发布原语演练验证。P6-WP09 Release Pipeline 已开始。 | DONE |
 | 2026-08-23 | P6-WP09：Release Pipeline 完成；固定 root-owned release gate 仅接受 identity/submit，控制端以 SSH stdin 提交 canonical signed manifest、runtime/control bundle 和独立环境签名；root 在验证签名、大小、SHA-256、完整 archive 索引和固定入口后，才在 root-owned transaction 中执行控制代码。不可变生命周期记录 received→verified→staging→migration→health→cutover→promoted，迁移开始后失败仅允许人工恢复；未启用真实 broker、实盘或生产凭据。P6 100% 完成，P7-WP01 已开始。 | DONE |
 | 2026-08-23 | P7-WP01：Typed Tool API 完成；`application.agent_tools` 固定八项 research-only typed allowlist，显式注入只读 catalog / research workflow ports，对 version/hash、PIT `available_at`、feature/dataset 绑定、受控 backtest/validation evidence、可比性与 `RESEARCH_ONLY` card 输出均 fail-closed。模块不可达交易、风险、broker、实时配置、数据库、网络、进程或文件系统，所有响应明确不可交易。P7-WP02 已就绪。 | DONE |
 | 2026-08-23 | P7-WP02：Research Agent 完成；`application.research_agent` 仅依赖 Typed Tool API，使用 evidence-bound hypothesis / non-executable Feature proposal 驱动 event→dataset→feature→static experiment→trusted backtest→validation→RESEARCH_ONLY card 的七步链。所有请求固定 as-of，逐步复核身份与前驱关系，输出无敏感 hash trace；失败/未知副作用不重试，不能创建 feature/code/approval/target/order 或交易权限。P7-WP03 已就绪。 | DONE |
@@ -4501,6 +4863,9 @@ DOC-WP07 已完成；P10-WP08 与 P10-WP09 仍由外部前提阻塞。
 | 2026-08-23 | DOC-WP04：将六张领域类关系图归位到对应模块说明，将 application 图归位到系统拓扑的 composition-root 说明；删除脱离上下文的独立图章节并以文档契约固定位置。 | DONE |
 | 2026-08-23 | DOC-WP05：删除重复的领域语义总览，将 Commodity/Instrument/Contract 与 Fill/ClosedTrade 约束分别归入 Data 与 Trading/Execution；同步更新锚点、章节编号与文档契约。 | DONE |
 | 2026-08-23 | DOC-WP06：补齐运行模式数据流。paper、`ctp_sim` 与真实 CTP 各有一张 Mermaid flowchart，分别覆盖本地纸面闭环、受证据/审批/一次性授权约束的本地 CTP 语义模拟，以及连接前 fail-closed 的真实 CTP 拒绝路径；未启用账户、凭据、连接或实盘操作。 | DONE |
+| 2026-08-25 | DEV-WP01：用户确认开发数据库无需保留后，将历史 `0001`—`0010` Alembic 链压缩为唯一静态 `0001_current_schema_baseline`；保留完整 schema、约束与不可变审计触发器，不增加自动 reset、stamp、drop、truncate 或 downgrade。旧 revision 数据库仅能由操作者在仓库自动化之外手动重建；相关验收已通过，但完整 pytest 仍受四项既有仓库/主机问题阻塞。P10-WP08/P10-WP09 仍为外部阻塞。 | IN_PROGRESS |
+| 2026-08-25 | DEV-WP02：用户确定四层存储职责：交易与权威运行状态使用 PostgreSQL；大规模历史数据使用 Parquet；历史分析使用 DuckDB；SQLite 仅用于本地工具集。规则、文档和契约已完成；当前 JSON simulated broker state、YAML Contract Master、部分 Parquet 覆盖与 DuckDB adapter 分别进入 DEV-WP03—DEV-WP05，完整 pytest 仍有四项既有阻塞。 | VERIFY |
+| 2026-08-25 | MAINT-WP01：清理已核验旧包 build/bytecode 残留、孤立 demo/helper/model 与未接线 settings；文档、部署命令、已废弃配置语义和测试契约已同步。保留活动 mutable market projection、历史记录和数据库；SQLite Local-tools bootstrap 并发锁竞争已采用仅限无写入阶段的有界重试。隔离 full pytest 仅剩本机缺少 PostgreSQL restore 客户端这一强制环境前提。 | DONE |
 | 2026-08-26 | DOC-WP07：本地初始化入口收敛为 `just setup`，PostgreSQL/integration 初始化收敛为 `just setup-postgres`；README、开发/运行/脚本/测试文档、VS Code 任务和命令契约同步，底层分步入口保留用于 CI 与排障。 | DONE |
 
 > 所有重大架构变化、阶段调整、WP 删除/新增都必须记录在这里。

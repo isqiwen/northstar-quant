@@ -1,13 +1,18 @@
 """纸面券商适配器。"""
 
 from __future__ import annotations
-import json
+from contextlib import contextmanager
 from datetime import UTC, datetime
+from functools import wraps
+import math
+from threading import RLock
 from uuid import uuid4
+
+from sqlalchemy.orm import Session
 
 from northstar_quant.foundation.common.time import ensure_utc, utc_now
 from northstar_quant.foundation.common.order_status import is_final_order_status
-from northstar_quant.foundation.config.settings import get_settings
+from northstar_quant.foundation.config.settings import get_settings, normalize_simulator_account
 from northstar_quant.trading_execution.broker.broker_base import BrokerAdapter
 from northstar_quant.trading_execution.broker.contracts import BrokerCapabilities, BrokerConnectionState, BrokerIdentity, BrokerMode, BrokerStatus
 from northstar_quant.trading_execution.execution.models import (
@@ -19,10 +24,27 @@ from northstar_quant.trading_execution.execution.models import (
     PositionSnapshot,
 )
 from northstar_quant.trading_execution.execution.pricing import normalize_symbols
+from northstar_quant.trading_execution.broker.simulated_state import (
+    LockedSimulatedBrokerState,
+    PostgresSimulatedBrokerStateRepository,
+    SessionFactory,
+    SimulatedBrokerStateEvidence,
+)
+
+
+def _locked_state(method):
+    """Run one Paper broker operation inside its PostgreSQL state transaction."""
+
+    @wraps(method)
+    def wrapped(self, *args, **kwargs):
+        with self._state_transaction(action=method.__name__):
+            return method(self, *args, **kwargs)
+
+    return wrapped
 
 
 class PaperBrokerAdapter(BrokerAdapter):
-    """本地持久化纸面交易账户。
+    """PostgreSQL 持久化纸面交易账户。
 
     这个适配器不只是“接单 mock”，而是维护一个最小可用的仿真账户状态：
     - cash / positions / avg_cost
@@ -32,16 +54,78 @@ class PaperBrokerAdapter(BrokerAdapter):
     - sync_state 返回完整账户快照
     """
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        *,
+        account: str | None = None,
+        default_cash: float | None = None,
+        session_factory: SessionFactory | None = None,
+    ) -> None:
         self.settings = get_settings()
-        self.account = self.settings.paper_account
-        self.state_path = self.settings.paper_state_path
-        self.state_path.parent.mkdir(parents=True, exist_ok=True)
+        self.account = normalize_simulator_account(
+            str(self.settings.paper_account if account is None else account)
+        )
+        resolved_default_cash = float(
+            self.settings.default_cash if default_cash is None else default_cash
+        )
+        if not math.isfinite(resolved_default_cash) or resolved_default_cash <= 0:
+            raise ValueError("PAPER_DEFAULT_CASH_INVALID")
+        self.default_cash = resolved_default_cash
+        # One adapter instance can be shared by a durable submission path and
+        # lifecycle polling. Keep its caller-owned SQLAlchemy Session scoped to
+        # the invoking operation; a second thread must wait rather than reuse
+        # an uncommitted submission Session or observe its phantom snapshot.
+        self._state_lock = RLock()
+        self._state_session: Session | None = None
+        self._active_state: LockedSimulatedBrokerState | None = None
+        self._active_state_action: str | None = None
+        self._state_repository = PostgresSimulatedBrokerStateRepository(
+            broker="paper",
+            account=self.account,
+            schema_version=1,
+            state_factory=self._empty_state,
+            state_validator=self._validate_state,
+            session_factory=session_factory,
+        )
         self._state = self._load_state()
+
+    @contextmanager
+    def submission_transaction(self, session: Session):
+        """Bind durable paper submission to the caller's PostgreSQL transaction."""
+
+        if not isinstance(session, Session):
+            raise TypeError("PAPER_POSTGRESQL_SESSION_REQUIRED")
+        with self._state_lock:
+            if self._state_session is not None and self._state_session is not session:
+                raise RuntimeError("PAPER_STATE_SESSION_ALREADY_BOUND")
+            previous_session = self._state_session
+            self._state_session = session
+            try:
+                yield
+            finally:
+                self._state_session = previous_session
+
+    @contextmanager
+    def _state_transaction(self, *, action: str):
+        with self._state_lock:
+            if self._active_state is not None:
+                raise RuntimeError("PAPER_STATE_TRANSACTION_REENTRANT")
+            with self._state_repository.locked_state(session=self._state_session) as locked:
+                self._active_state = locked
+                self._active_state_action = action
+                self._state = locked.state
+                try:
+                    yield
+                finally:
+                    self._active_state = None
+                    self._active_state_action = None
 
     def _empty_state(self) -> dict:
         return {
-            "cash": float(self.settings.default_cash),
+            "version": 1,
+            "broker": "paper",
+            "account": self.account,
+            "cash": self.default_cash,
             "positions": {},
             "orders": {},
             "fills": [],
@@ -60,36 +144,59 @@ class PaperBrokerAdapter(BrokerAdapter):
             return None
         return ensure_utc(datetime.fromisoformat(value))
 
-    def _load_state(self) -> dict:
-        if not self.state_path.exists():
-            state = self._empty_state()
-            self._state = state
-            self._save_state()
-            return state
-
-        raw = self._load_matching_state()
-        state = self._empty_state()
-        state["cash"] = float(raw.get("cash", state["cash"]) or state["cash"])
-        state["positions"] = dict(raw.get("positions", {}) or {})
-        state["orders"] = dict(raw.get("orders", {}) or {})
-        state["fills"] = list(raw.get("fills", []) or [])
-        state["last_prices"] = {
-            str(symbol).strip().upper(): float(price)
-            for symbol, price in (raw.get("last_prices", {}) or {}).items()
-            if str(symbol).strip()
+    def _validate_state(self, payload: dict) -> None:
+        required = {
+            "version",
+            "broker",
+            "account",
+            "cash",
+            "positions",
+            "orders",
+            "fills",
+            "last_prices",
         }
-        return state
+        if not required.issubset(payload):
+            raise ValueError("PAPER_POSTGRESQL_STATE_FIELDS_MISSING")
+        if int(payload.get("version", 0)) != 1:
+            raise ValueError("PAPER_POSTGRESQL_STATE_VERSION_UNSUPPORTED")
+        if payload.get("broker") != "paper":
+            raise ValueError("PAPER_POSTGRESQL_STATE_BROKER_MISMATCH")
+        if str(payload.get("account") or "").strip() != self.account:
+            raise ValueError("PAPER_POSTGRESQL_STATE_ACCOUNT_MISMATCH")
+        if not math.isfinite(float(payload["cash"])):
+            raise ValueError("PAPER_POSTGRESQL_STATE_CASH_INVALID")
+        if (
+            not isinstance(payload["positions"], dict)
+            or not isinstance(payload["orders"], dict)
+            or not isinstance(payload["fills"], list)
+            or not isinstance(payload["last_prices"], dict)
+        ):
+            raise ValueError("PAPER_POSTGRESQL_STATE_SHAPE_INVALID")
+
+    def _load_state(self) -> dict:
+        with self._state_lock:
+            if self._active_state is not None:
+                return self._active_state.state
+            if self._state_session is not None:
+                return self._state_repository.read_state_in_session(self._state_session)
+            return self._state_repository.read_state()
+
+    def simulator_state_evidence(self) -> SimulatedBrokerStateEvidence:
+        """Return verified PostgreSQL state metadata without exposing payloads."""
+
+        with self._state_lock:
+            if self._active_state is not None:
+                raise RuntimeError("PAPER_STATE_EVIDENCE_REQUIRES_IDLE_ADAPTER")
+            return self._state_repository.current_evidence(session=self._state_session)
 
     def _save_state(self) -> None:
-        tmp_path = self.state_path.with_suffix(".tmp")
-        tmp_path.write_text(
-            json.dumps({**self._state, "account": self.account}, ensure_ascii=True, indent=2, sort_keys=True),
-            encoding="utf-8",
-        )
-        tmp_path.replace(self.state_path)
+        if self._active_state is None or self._active_state_action is None:
+            raise RuntimeError("PAPER_POSTGRESQL_STATE_TRANSACTION_REQUIRED")
+        self._active_state.persist(action=self._active_state_action)
 
     def _reload_state(self) -> None:
-        self._state = self._load_state()
+        with self._state_lock:
+            self._state = self._load_state()
 
     @staticmethod
     def _signed_qty(side: str, qty: float) -> float:
@@ -188,6 +295,7 @@ class PaperBrokerAdapter(BrokerAdapter):
         current_avg_cost = current_position.get("avg_cost")
         current_avg_cost = float(current_avg_cost) if current_avg_cost is not None else None
         new_qty = current_qty + signed_fill_qty
+        new_avg_cost: float | None
 
         self._state["cash"] -= signed_fill_qty * float(fill_price)
         self._set_last_price(symbol, fill_price)
@@ -235,6 +343,7 @@ class PaperBrokerAdapter(BrokerAdapter):
                 "side": str(order.get("side") or "").upper(),
                 "filled_at": self._dt_to_str(filled_at),
                 "account": self.account,
+                "order_ref": order.get("order_ref"),
                 "exec_id": f"paper-exec-{uuid4().hex}",
             }
         )
@@ -320,11 +429,12 @@ class PaperBrokerAdapter(BrokerAdapter):
                     filled_at=self._dt_from_str(fill.get("filled_at")),
                     account=str(fill.get("account") or self.account),
                     exec_id=str(fill.get("exec_id") or "") or None,
+                    order_ref=str(fill.get("order_ref") or "") or None,
                 )
             )
         return rows
 
-    def _account_values(self) -> dict[str, float]:
+    def _account_values(self) -> dict[str, float | str]:
         market_value_total = 0.0
         gross_position_value = 0.0
         for symbol, position in self._state["positions"].items():
@@ -348,6 +458,7 @@ class PaperBrokerAdapter(BrokerAdapter):
             "TotalCashValue": float(cash),
         }
 
+    @_locked_state
     def submit_order(self, order: OrderRequest) -> OrderResult:
         self._reload_state()
         side = str(order.side).strip().upper()
@@ -360,9 +471,38 @@ class PaperBrokerAdapter(BrokerAdapter):
             raise ValueError("限价单必须提供 limit_price")
 
         submitted_at = utc_now()
-        broker_order_id = f"paper-{uuid4().hex[:12]}"
         symbol = str(order.symbol).strip().upper()
         order_qty = abs(float(order.qty))
+        order_ref = str(order.order_ref or "").strip() or f"PAPER-{uuid4().hex[:20]}"
+        for existing in self._state["orders"].values():
+            if str(existing.get("order_ref") or "") != order_ref:
+                continue
+            expected = (
+                str(existing.get("symbol") or ""),
+                str(existing.get("side") or ""),
+                float(existing.get("qty", 0.0) or 0.0),
+                str(existing.get("order_type") or ""),
+                existing.get("limit_price"),
+            )
+            actual = (
+                symbol,
+                side,
+                order_qty,
+                order_type,
+                float(order.limit_price) if order.limit_price is not None else None,
+            )
+            if expected != actual:
+                raise RuntimeError("PAPER_IDEMPOTENCY_CONFLICT: order_ref 对应不同订单。")
+            return OrderResult(
+                accepted=True,
+                broker_order_id=str(existing["broker_order_id"]),
+                status=str(existing["status"]),
+                message="纸面柜台幂等命中，未重复报单。",
+                submitted_at=self._dt_from_str(existing.get("submitted_at")),
+                replayed=True,
+            )
+
+        broker_order_id = f"paper-{uuid4().hex[:12]}"
         reference_price = (
             float(order.reference_price)
             if order.reference_price is not None
@@ -372,6 +512,7 @@ class PaperBrokerAdapter(BrokerAdapter):
 
         self._state["orders"][broker_order_id] = {
             "broker_order_id": broker_order_id,
+            "order_ref": order_ref,
             "strategy_id": order.strategy_id,
             "symbol": symbol,
             "side": side,
@@ -404,6 +545,7 @@ class PaperBrokerAdapter(BrokerAdapter):
             submitted_at=submitted_at,
         )
 
+    @_locked_state
     def sync_state(self) -> BrokerStateSnapshot:
         self._reload_state()
         asof = utc_now()
@@ -418,6 +560,7 @@ class PaperBrokerAdapter(BrokerAdapter):
             asof=asof,
         )
 
+    @_locked_state
     def get_market_quotes(self, symbols: list[str]) -> list[MarketQuoteSnapshot]:
         self._reload_state()
         asof = utc_now()
@@ -433,11 +576,12 @@ class PaperBrokerAdapter(BrokerAdapter):
                     close=float(price),
                     market_price=float(price),
                     asof=asof,
-                    source="paper_state",
+                    source="paper_postgresql_state",
                 )
             )
         return quotes
 
+    @_locked_state
     def cancel_order(self, broker_order_id: str) -> bool:
         self._reload_state()
         order = self._state["orders"].get(str(broker_order_id))
@@ -448,6 +592,7 @@ class PaperBrokerAdapter(BrokerAdapter):
         self._save_state()
         return True
 
+    @_locked_state
     def get_order_status(self, broker_order_id: str) -> dict | None:
         """读取纸面账户中的完整订单状态，包括已经完成的订单。"""
 
@@ -457,6 +602,7 @@ class PaperBrokerAdapter(BrokerAdapter):
             return None
         return {
             "broker_order_id": str(order.get("broker_order_id") or broker_order_id),
+            "order_ref": order.get("order_ref"),
             "symbol": str(order.get("symbol") or ""),
             "side": str(order.get("side") or ""),
             "qty": float(order.get("qty", 0.0) or 0.0),
@@ -479,17 +625,3 @@ class PaperBrokerAdapter(BrokerAdapter):
 
     def get_name(self) -> str:
         return "paper"
-
-    def _require_matching_state_account(self, raw: dict) -> dict:
-        persisted_account = raw.get("account")
-        if persisted_account != self.account:
-            raise ValueError(
-                "PAPER_STATE_ACCOUNT_MISMATCH: "
-                f"状态文件属于账户 {persisted_account!r}，当前账户为 {self.account!r}。"
-            )
-        return raw
-
-    def _load_matching_state(self) -> dict:
-        return self._require_matching_state_account(
-            json.loads(self.state_path.read_text(encoding="utf-8"))
-        )

@@ -238,7 +238,6 @@ def test_candidate_provenance_to_guarded_ctp_sim_fill_and_reconciliation_e2e(
             "downloads_dir": tmp_path / "storage" / "downloads",
             "reports_dir": tmp_path / "reports",
             "log_dir": tmp_path / "logs",
-            "ctp_sim_state_path": tmp_path / "storage" / "ctp-sim-state.json",
             "ctp_sim_account": "ctp-sim-test",
             "default_cash": 100_000.0,
         }
@@ -248,6 +247,7 @@ def test_candidate_provenance_to_guarded_ctp_sim_fill_and_reconciliation_e2e(
     executor = create_test_ctp_sim_candidate_executor(
         settings_provider=lambda: settings,
         clock=lambda: checked_at,
+        session_factory=postgresql_session_factory,
     )
     broker = executor.create_broker()
     broker.connect()
@@ -346,7 +346,6 @@ def test_candidate_ctp_sim_batch_revalidates_each_leg_after_prior_fill(
             "downloads_dir": tmp_path / "storage" / "downloads",
             "reports_dir": tmp_path / "reports",
             "log_dir": tmp_path / "logs",
-            "ctp_sim_state_path": tmp_path / "storage" / "ctp-sim-multi-state.json",
             "ctp_sim_account": "ctp-sim-test",
             "default_cash": 100_000.0,
         }
@@ -356,6 +355,7 @@ def test_candidate_ctp_sim_batch_revalidates_each_leg_after_prior_fill(
     executor = create_test_ctp_sim_candidate_executor(
         settings_provider=lambda: settings,
         clock=lambda: checked_at,
+        session_factory=postgresql_session_factory,
     )
     broker = executor.create_broker()
     broker.connect()

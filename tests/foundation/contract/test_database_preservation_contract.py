@@ -45,11 +45,18 @@ DESTRUCTIVE_MIGRATION_SQL = re.compile(
 )
 _IMMUTABLE_TRUNCATE_GUARD_SQL = re.compile(
     r"\A\s*CREATE\s+TRIGGER\s+"
+    r"(?:"
     r"trg_research_agent_(?:audit_events|trace_entries)_reject_truncate\s+"
     r"BEFORE\s+TRUNCATE\s+ON\s+research_agent_run_"
     r"(?:audit_events|trace_entries)\s+FOR\s+EACH\s+STATEMENT\s+"
     r"EXECUTE\s+FUNCTION\s+"
-    r"northstar_reject_research_agent_run_audit_mutation\s*\(\s*\)\s*;\s*\Z",
+    r"northstar_reject_research_agent_run_audit_mutation"
+    r"|"
+    r"trg_simulated_broker_state_transition_reject_truncate\s+"
+    r"BEFORE\s+TRUNCATE\s+ON\s+simulated_broker_state_transition_records\s+"
+    r"FOR\s+EACH\s+STATEMENT\s+EXECUTE\s+FUNCTION\s+"
+    r"northstar_reject_simulated_broker_state_transition_mutation"
+    r")\s*\(\s*\)\s*;\s*\Z",
     re.IGNORECASE | re.DOTALL,
 )
 DOCUMENTATION_TARGETS = (
@@ -76,12 +83,21 @@ def _automation_files() -> Iterator[Path]:
 
 def _module_function(module: ast.Module, name: str, path: Path) -> ast.FunctionDef:
     functions = [
-        node
-        for node in module.body
-        if isinstance(node, ast.FunctionDef) and node.name == name
+        node for node in module.body if isinstance(node, ast.FunctionDef) and node.name == name
     ]
     assert len(functions) == 1, f"{path.relative_to(PROJECT_ROOT)} 必须有且仅有一个 {name}()"
     return functions[0]
+
+
+def _migration_upgrade_functions(module: ast.Module, path: Path) -> list[ast.FunctionDef]:
+    functions = [
+        node
+        for node in module.body
+        if isinstance(node, ast.FunctionDef)
+        and (node.name == "upgrade" or node.name.startswith("_apply_"))
+    ]
+    assert functions, f"{path.relative_to(PROJECT_ROOT)} 缺少 upgrade()"
+    return functions
 
 
 def _statements_after_docstring(function: ast.FunctionDef) -> list[ast.stmt]:
@@ -161,8 +177,7 @@ def _destructive_migration_violations(
             and _IMMUTABLE_TRUNCATE_GUARD_SQL.fullmatch(sql) is None
         ):
             violations.append(
-                f"{path.relative_to(PROJECT_ROOT)}:{call.lineno}: "
-                f"{function.name}() 包含破坏性 SQL"
+                f"{path.relative_to(PROJECT_ROOT)}:{call.lineno}: {function.name}() 包含破坏性 SQL"
             )
     return violations
 
@@ -226,8 +241,8 @@ def test_migration_upgrade_functions_have_no_destructive_ddl_or_dml() -> None:
     violations: list[str] = []
     for path in sorted((PROJECT_ROOT / "alembic" / "versions").glob("*.py")):
         module = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-        upgrade = _module_function(module, "upgrade", path)
-        violations.extend(_destructive_migration_violations(upgrade, path=path))
+        for upgrade in _migration_upgrade_functions(module, path):
+            violations.extend(_destructive_migration_violations(upgrade, path=path))
 
     assert not violations, "\n".join(violations)
 

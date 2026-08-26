@@ -1,8 +1,12 @@
 # P10 Mature v1 Acceptance Evidence Register
 
-> 建立包：P10-WP01。最近更新：P10-WP07（2026-08-23）。
+> 建立包：P10-WP01。最近验收更新：P10-WP07（2026-08-23）；开发期 schema baseline 注记：2026-08-25。
 > 此登记表是 P10 checklist 的证据索引，不是生产准入、真实资金批准或数据授权。除非某一项明确
 > 标记为外部验收完成，所有证据都只能说明受控的 offline、paper 或 `ctp_sim` 边界。
+>
+> 2026-08-25：用户授权将开发期 Alembic 历史压缩为当前唯一
+> `0001_current_schema_baseline`。以下出现的 `0008`、`0009` 和 `0010` 是原验收时的历史 revision 标识，
+> 不再是当前仓库可升级的 migration 文件；它们表达的 schema/约束/触发器均已并入现行 baseline。
 
 ## 状态语义
 
@@ -22,10 +26,10 @@
   `36 passed`；P8 provenance/execution regression subset 为 `14 passed`；全量回归为
   `1564 passed, 23 skipped`；Ruff 与 mypy baseline 通过。
 - P10-WP05 完整门禁为 `-I -m pytest -q: 1682 passed, 23 skipped`；`ruff check .` 通过；mypy baseline
-  保持 `33` 个既有诊断且 ratchet 通过；Alembic 单一 head 为 `0008_portfolio_risk_approval`。这些是本地
+  保持 `33` 个既有诊断且 ratchet 通过；当时 Alembic 单一 head 为 `0008_portfolio_risk_approval`。这些是本地
   `ctp_sim` / PostgreSQL test evidence，不是 live CTP、真实账户或真实人工身份认证。
 - P10-WP06 完整门禁为 `-I -m pytest -q: 1709 passed, 23 skipped`；Ruff、mypy baseline（33 个既有诊断）
-  与 `git diff --check` 通过；Alembic 单一 head 为 `0010_agent_run_audit_hardening`。该证据来自隔离本地
+  与 `git diff --check` 通过；当时 Alembic 单一 head 为 `0010_agent_run_audit_hardening`。该证据来自隔离本地
   PostgreSQL 测试实例，不是生产部署、真实 CTP、真实账户或真实资金操作。
 - P10-WP03 focused E2E/failure/architecture suite：10 passed；`tests/research -q`：234 passed；Intelligence + fixture architecture：49 passed（隔离 P9 venv）。
 - 全量回归：`1553 passed, 23 skipped`；Ruff、mypy baseline、hermetic bootstrap、offline dependency policy、lock 与 secret gate 已通过。本表只记录已核验的受控证据。
@@ -79,7 +83,7 @@
 | PR10 Portfolio-wide exposure evidence | `VERIFIED_SIMULATION` | `portfolio_risk/portfolio/approval.py` reconstructs exposure only from `PortfolioCompositionEvidence`; `application/portfolio_risk_authority.py` binds exact CTP-sim snapshot/account/authority; `test_p10_portfolio_risk_approval_unit.py`、`test_p10_portfolio_risk_approval_golden.py` 和 `test_ctp_sim_candidate_execution.py` prove derived identity rather than caller-supplied aggregate. | The evidence is local simulation-only. Different composition, instrument, account, snapshot, hash or time fails closed before P8 receipt, intent or broker mutation. |
 | PR11 Portfolio-wide limits evidence | `VERIFIED_SIMULATION` | `portfolio_risk/limits/evaluator.py`、`portfolio_risk/portfolio/approval.py`、`foundation/config/trading_profile.py` derive profile-owned limit evidence and bind its policy hash; `test_portfolio_risk_approval_profile_config.py`、`test_p10_portfolio_risk_approval_failure.py` 与 candidate no-mutation tests cover incomplete/UNKNOWN/WARN/BLOCK. | No non-PASS result can create `ApprovedPortfolioTarget`, durable manual grant, P8 receipt, intent or mutation; this does not authorize real market/account risk. |
 | PR12 Portfolio-wide stress evidence | `VERIFIED_SIMULATION` | `portfolio_risk/risk/scenarios.py`、`portfolio_risk/portfolio/approval.py` and `ProfilePortfolioRiskApprovalConfig` require exactly seven typed scenarios; `test_stress_scenarios.py`、`test_p10_portfolio_risk_approval_unit.py`、`test_p10_portfolio_risk_approval_failure.py` cover deterministic result hashes and missing/duplicate/WARN/BLOCK refusal. | Every scenario is bound to the P3 review before P8; it is a local simulation stress model, not a production risk model or live approval. |
-| PR13 Account-scoped risk-state approval boundary | `VERIFIED_SIMULATION` | `application/portfolio_risk_authority.py` binds persisted reconciliation safety; `application/portfolio_risk_manual_approval.py` requires exact durable binding/record hashes; `foundation/db/models.py`、`repositories.py` and forward-only `0008_portfolio_risk_approval` persist append-only hash-only records; `test_portfolio_risk_manual_approval.py`、`test_portfolio_risk_manual_approval_repository.py`、`test_portfolio_risk_manual_approval_boundaries.py`、`test_ctp_sim_candidate_execution.py` cover expiry/tamper/scope/HALT/final-fence refusal. | The shipped production composition has no issuer. Private test composition issuance proves no human identity. A deployed authenticated human-approval issuer, dedicated DB writer role, and SELECT-only CTP-sim candidate reader role remain `BLOCKED_EXTERNAL`; no raw verifier receipt, real CTP or live order is present. |
+| PR13 Account-scoped risk-state approval boundary | `VERIFIED_SIMULATION` | `application/portfolio_risk_authority.py` binds persisted reconciliation safety; `application/portfolio_risk_manual_approval.py` requires exact durable binding/record hashes; `foundation/db/models.py`、`repositories.py` and current `0001_current_schema_baseline` persist append-only hash-only records（原验收 revision 为 `0008_portfolio_risk_approval`）；`test_portfolio_risk_manual_approval.py`、`test_portfolio_risk_manual_approval_repository.py`、`test_portfolio_risk_manual_approval_boundaries.py`、`test_ctp_sim_candidate_execution.py` cover expiry/tamper/scope/HALT/final-fence refusal. | The shipped production composition has no issuer. Private test composition issuance proves no human identity. A deployed authenticated human-approval issuer, dedicated DB writer role, and SELECT-only CTP-sim candidate reader role remain `BLOCKED_EXTERNAL`; no raw verifier receipt, real CTP or live order is present. |
 
 ## Trading / Execution
 
@@ -101,7 +105,7 @@
 | PL02 Windows/Linux deployment control | `VERIFIED_OFFLINE` | `scripts/deploy/deploy.py`、`scripts/README.md`、`docs/OPERATIONS.md`、cross-platform contracts。 | controller 可跨平台；Linux target 另见 PL03。 |
 | PL03 Linux production | `BLOCKED_EXTERNAL` | FHS/root-gate/systemd/release assets和 Docker validation 已存在。 | 需要真实 Linux host、root gate/signer、known_hosts、managed Python、production PostgreSQL 与人工批准；未满足前不可声称 production accepted。 |
 | PL04 health/logs | `VERIFIED_OFFLINE` | `application/health.py`、logger、operational snapshot、Prometheus metrics；`test_health_cli.py`、`test_logging.py`、`test_metrics.py`、`test_operational_snapshot.py`。 | fail-closed local evidence。 |
-| PL05 backup/restore | `PARTIAL` | `foundation/backup/bundle.py`、`restore_drill.py` 和 integration tests。 | 仅六类 local bundle + loopback `northstar_test` drill；缺 production restore、offsite/encryption/WAL/PITR/RPO/RTO。 |
+| PL05 backup/restore | `PARTIAL` | `foundation/backup/bundle.py`、`restore_drill.py` 和 integration tests。 | 仅五类 local bundle（模拟 broker state/审计随 PostgreSQL dump 恢复）+ loopback `northstar_test` drill；缺 production restore、offsite/encryption/WAL/PITR/RPO/RTO。 |
 | PL06 rollback | `SAFE_BOUNDARY` | deployment rollback contracts 与 `scripts/deploy/remote/linux/README.md`。 | 仅 pre-migration auto rollback；migration 后严格人工恢复，不执行 DB downgrade/autorestart。 |
 | PL07 CI | `HOSTED_EVIDENCE_PENDING` | `.github/workflows/ci.yml` 定义 Linux/Windows jobs。 | 最终 commit 的 hosted run 是外部状态，未取得前不可标记为已验收。 |
 
@@ -111,7 +115,7 @@
 |---|---|---|---|
 | A01 Agent 无生产交易越权 | `SAFE_BOUNDARY` | `application/agent_tools.py`、agent result `eligible_for_trading=False`、`test_agent_tool_api_boundaries.py`、agent contracts。 | 没有 portfolio/trading/live capability。 |
 | A02 AI conclusion 有 evidence | `VERIFIED_OFFLINE` | `research_agent.py` 与 intelligence/data-quality/ops agent evidence hashes；`docs/GOVERNANCE.md` 的限制和相应 tests。 | 只说明 constrained typed output，有证据不等于任意 LLM 结论为真。 |
-| A03 Research Agent 产物可追踪 | `VERIFIED_OFFLINE` | `application/research_agent_evidence_audit.py` 的独立 wrapper、`foundation/db/models.py` / `repositories.py`、前向 `0009_agent_run_audit` / `0010_agent_run_audit_hardening`；`test_research_agent_evidence_audit.py`、`test_research_agent_run_audit_repository.py`、architecture/contract tests 覆盖跨进程 reservation、hash chain、default-expiring session、unknown outcome、DB direct-insert 与 UPDATE/DELETE/TRUNCATE 拒绝。 | 仅隔离本地 PostgreSQL。始终 `RESEARCH_ONLY` / `eligible_for_trading=False`；不持久化 raw prompt 或 CoT，也不保存 query/Document/result/rationale/exception message/payload；不是 real CTP、实盘、生产部署或新 Agent capability。 |
+| A03 Research Agent 产物可追踪 | `VERIFIED_OFFLINE` | `application/research_agent_evidence_audit.py` 的独立 wrapper、`foundation/db/models.py` / `repositories.py`、当前 `0001_current_schema_baseline`（原验收 revision 为 `0009_agent_run_audit` / `0010_agent_run_audit_hardening`）；`test_research_agent_evidence_audit.py`、`test_research_agent_run_audit_repository.py`、architecture/contract tests 覆盖跨进程 reservation、hash chain、default-expiring session、unknown outcome、DB direct-insert 与 UPDATE/DELETE/TRUNCATE 拒绝。 | 仅隔离本地 PostgreSQL。始终 `RESEARCH_ONLY` / `eligible_for_trading=False`；不持久化 raw prompt 或 CoT，也不保存 query/Document/result/rationale/exception message/payload；不是 real CTP、实盘、生产部署或新 Agent capability。 |
 | A04 AI 无法绕过风险门禁 | `SAFE_BOUNDARY` | closed typed facade、architecture contracts、ops-agent restrictions 和 `docs/GOVERNANCE.md`。 | 无 Agent API 可 approve、enable-live、resume-risk、submit 或连接 broker。 |
 
 ## 后续依赖图

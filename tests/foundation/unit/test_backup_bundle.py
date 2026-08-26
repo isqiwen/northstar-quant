@@ -46,16 +46,6 @@ def _sources(root: Path) -> BackupBundleSources:
         '{"run_id":"run-1"}\n',
     )
     _write(reports_dir / "backtest" / "run-1" / "report.pdf", b"not-backed-up")
-    storage_dir = root / "storage"
-    _write(
-        storage_dir / "brokers" / "paper" / "paper-account" / "state.json",
-        '{"version":1,"positions":[]}\n',
-    )
-    _write(
-        storage_dir / "brokers" / "ctp_sim" / "ctp-sim-account" / "state.json",
-        '{"version":1,"positions":[]}\n',
-    )
-    _write(storage_dir / "brokers" / "ctp_sim" / "ctp-sim-account" / "state.lock", "ignored")
     metadata_dir = root / "metadata"
     _write(
         metadata_dir / "current-release.json",
@@ -68,7 +58,6 @@ def _sources(root: Path) -> BackupBundleSources:
         config_file=config_file,
         ontology_dir=ontology_dir,
         reports_dir=reports_dir,
-        storage_dir=storage_dir,
         release_metadata_dir=metadata_dir,
     )
 
@@ -94,6 +83,7 @@ def test_create_and_verify_backup_bundle_covers_only_allowlisted_assets(tmp_path
     assert verified == bundle
 
     manifest = json.loads((bundle.path / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["format_version"] == 2
     archive_paths = {entry["archive_path"] for entry in manifest["entries"]}
     assert archive_paths == {
         "config/app.yaml",
@@ -104,8 +94,6 @@ def test_create_and_verify_backup_bundle_covers_only_allowlisted_assets(tmp_path
         "release-metadata/current-release.json",
         "release-metadata/systemd/northstar-quant.service",
         "run-manifests/run-1/manifest.json",
-        "runtime-state/brokers/ctp_sim/ctp-sim-account/state.json",
-        "runtime-state/brokers/paper/paper-account/state.json",
     }
     assert manifest["categories"] == {
         "config": 1,
@@ -113,12 +101,35 @@ def test_create_and_verify_backup_bundle_covers_only_allowlisted_assets(tmp_path
         "postgresql": 1,
         "release_metadata": 3,
         "run_manifest": 1,
-        "runtime_state": 2,
     }
     serialized = json.dumps(manifest, ensure_ascii=False)
     assert str(tmp_path) not in serialized
     assert ".env" not in serialized
-    assert not (bundle.path / "runtime-state" / "brokers" / "ctp_sim" / "ctp-sim-account" / "state.lock").exists()
+    assert not (bundle.path / "runtime-state").exists()
+
+
+def test_legacy_simulated_broker_state_files_are_not_backup_inputs(tmp_path: Path):
+    sources = _sources(tmp_path)
+    _write(
+        tmp_path / "storage" / "brokers" / "paper" / "paper-account" / "state.json",
+        '{"legacy_note":"not-recoverable"}\n',
+    )
+    _write(
+        tmp_path / "storage" / "brokers" / "ctp_sim" / "ctp-sim-account" / "state.json",
+        '{"version":1,"positions":[]}\n',
+    )
+
+    output_parent = tmp_path / "backups"
+    output_parent.mkdir()
+    bundle = create_backup_bundle(
+        sources,
+        output_parent=output_parent,
+        bundle_id=_BUNDLE_ID,
+        now=_NOW,
+    )
+
+    manifest = json.loads((bundle.path / "manifest.json").read_text(encoding="utf-8"))
+    assert all(not str(entry["archive_path"]).startswith("runtime-state/") for entry in manifest["entries"])
 
 
 def test_bundle_target_is_never_overwritten(tmp_path: Path):
@@ -194,7 +205,6 @@ def test_secret_like_config_is_rejected_without_publishing_partial_bundle(tmp_pa
 @pytest.mark.parametrize(
     ("path", "content"),
     [
-        ("storage/brokers/paper/paper-account/state.json", '{"access_token":"not-for-backup"}\n'),
         ("metadata/current-release.json", '{"database_password":"not-for-backup"}\n'),
     ],
 )

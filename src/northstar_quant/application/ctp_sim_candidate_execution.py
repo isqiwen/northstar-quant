@@ -44,12 +44,13 @@ from northstar_quant.foundation.common.time import ensure_utc, utc_now
 from northstar_quant.foundation.config.settings import (
     Settings,
     load_settings,
-    normalize_local_state_account,
+    normalize_simulator_account,
 )
 from northstar_quant.foundation.config.trading_profile import (
     TradingProfile,
     load_trading_profile_uncached,
 )
+from northstar_quant.foundation.db.session import SessionLocal
 from northstar_quant.foundation.db.repositories import (
     acquire_reconciliation_safety_fence,
     find_execution_provenance_consumption,
@@ -147,13 +148,11 @@ def _assert_broker_matches_settings(
 ) -> None:
     """Bind a simulator instance to the current trusted execution settings."""
 
-    expected_account = normalize_local_state_account(settings.ctp_sim_account)
-    expected_state_path = Path(settings.ctp_sim_state_path).resolve()
+    expected_account = normalize_simulator_account(settings.ctp_sim_account)
     expected_mapping_path = Path(settings.ctp_sim_contract_mapping_path).resolve()
     if (
         broker.get_name() != "ctp_sim"
         or broker.get_account() != expected_account
-        or broker.state_path != expected_state_path
         or broker.mapping_path != expected_mapping_path
         or broker.default_cash != float(settings.default_cash)
     ):
@@ -578,7 +577,7 @@ class _CtpSimCandidateSubmissionGate:
     def assert_reconciliation_baseline(self, snapshot: BrokerStateSnapshot) -> None:
         """Reject external simulator drift before its lifecycle processor runs.
 
-        The CTP-sim adapter invokes this under its state-file lock, before it
+        The CTP-sim adapter invokes this under its PostgreSQL account lock, before it
         advances a known submitted order to a fill.  That makes a later
         reconciliation capable of accepting only the adapter's own transition,
         never an interleaved external state rewrite.
@@ -980,7 +979,7 @@ class _CtpSimCandidateSubmissionGate:
 
         expected, receipt, session = self._require_ready(order)
         # This transaction-scoped PostgreSQL fence is intentionally acquired
-        # while the simulator adapter holds its final file lock.  A concurrent
+        # while the simulator adapter holds its final PostgreSQL account lock. A concurrent
         # reconciliation HALT uses the same key and therefore cannot commit
         # between this persisted-NORMAL check and the simulator mutation.
         # It remains held until DurableBrokerAdapter commits the acknowledged
@@ -1037,10 +1036,10 @@ class _CtpSimCandidateSubmissionGate:
     ) -> None:
         """Advance from CTP-sim's already-locked post-mutation snapshot.
 
-        The simulator invokes this before releasing its file lock, while this
+        The simulator invokes this before releasing its PostgreSQL account lock, while this
         gate still owns the PostgreSQL reconciliation fence established by
         ``assert_reserved``.  Re-reading via ``sync_state`` here would acquire
-        file-after-database and could deadlock with another submit waiting on
+        account-lock-after-database and could deadlock with another submit waiting on
         that same fence.
         """
 
@@ -1583,7 +1582,12 @@ class CtpSimCandidateExecutionBundle:
 class CtpSimCandidateExecutor:
     """Derive guarded CTP-sim submissions from a full provenance request only."""
 
-    __slots__ = ("_clock", "_owner_token", "_settings_provider")
+    __slots__ = (
+        "_broker_session_factory",
+        "_clock",
+        "_owner_token",
+        "_settings_provider",
+    )
 
     def __init__(self) -> None:
         """Bind production-only runtime sources at construction time.
@@ -1597,6 +1601,7 @@ class CtpSimCandidateExecutor:
         self._settings_provider = load_settings
         self._clock = utc_now
         self._owner_token = object()
+        self._broker_session_factory: Callable[[], Session] = SessionLocal
 
     def create_broker(self) -> CtpSimBrokerAdapter:
         """Create an isolated simulator bound to a private final submission gate."""
@@ -1609,11 +1614,11 @@ class CtpSimCandidateExecutor:
             owner_token=self._owner_token,
         )
         return CtpSimBrokerAdapter(
-            state_path=settings.ctp_sim_state_path,
             mapping_path=settings.ctp_sim_contract_mapping_path,
             account=settings.ctp_sim_account,
             default_cash=settings.default_cash,
             submission_authority=_issue_ctp_sim_submission_authority(gate),
+            session_factory=self._broker_session_factory,
         )
 
     def _assert_owned_broker(

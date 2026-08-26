@@ -21,14 +21,16 @@ def test_ctp_sim_disconnect_recovery_reconciles_order_fill_and_position(
         downloads_dir=tmp_path / "storage" / "downloads",
         reports_dir=tmp_path / "reports",
         log_dir=tmp_path / "logs",
-        ctp_sim_state_path=tmp_path / "storage" / "ctp_sim_state.json",
         ctp_sim_account="ctp-sim-recovery",
         default_cash=1000000,
     )
     monkeypatch.setattr(ctp_sim_broker, "get_settings", lambda: settings)
     try:
         submission_authority = create_test_ctp_sim_submission_authority()
-        broker = CtpSimBrokerAdapter(submission_authority=submission_authority)
+        broker = CtpSimBrokerAdapter(
+            submission_authority=submission_authority,
+            session_factory=postgresql_session_factory,
+        )
         broker.connect()
         broker.seed_market_quotes({"RB2610": 3100.0})
         with postgresql_session_factory() as session:
@@ -64,6 +66,7 @@ def test_ctp_sim_disconnect_recovery_reconciles_order_fill_and_position(
 
         recovered = CtpSimBrokerAdapter(
             submission_authority=create_test_ctp_sim_submission_authority(),
+            session_factory=postgresql_session_factory,
         )
         recovered.connect()
         snapshot = recovered.sync_state()
@@ -119,14 +122,16 @@ def test_ctp_sim_cancel_pending_recovers_as_cancelled_without_a_fill(
         downloads_dir=tmp_path / "storage" / "downloads",
         reports_dir=tmp_path / "reports",
         log_dir=tmp_path / "logs",
-        ctp_sim_state_path=tmp_path / "storage" / "ctp_sim_state.json",
         ctp_sim_account="ctp-sim-cancel-recovery",
         default_cash=1000000,
     )
     monkeypatch.setattr(ctp_sim_broker, "get_settings", lambda: settings)
     try:
         submission_authority = create_test_ctp_sim_submission_authority()
-        broker = CtpSimBrokerAdapter(submission_authority=submission_authority)
+        broker = CtpSimBrokerAdapter(
+            submission_authority=submission_authority,
+            session_factory=postgresql_session_factory,
+        )
         broker.connect()
         broker.seed_market_quotes({"RB2610": 3100.0})
         with postgresql_session_factory() as session:
@@ -164,6 +169,7 @@ def test_ctp_sim_cancel_pending_recovers_as_cancelled_without_a_fill(
 
         recovered = CtpSimBrokerAdapter(
             submission_authority=create_test_ctp_sim_submission_authority(),
+            session_factory=postgresql_session_factory,
         )
         recovered.connect()
         snapshot = recovered.sync_state()

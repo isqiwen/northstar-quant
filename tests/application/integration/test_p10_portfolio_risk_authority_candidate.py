@@ -100,7 +100,6 @@ def _authority_bound_candidate(tmp_path, monkeypatch, postgresql_session_factory
             "downloads_dir": tmp_path / "storage" / "downloads",
             "reports_dir": tmp_path / "reports",
             "log_dir": tmp_path / "logs",
-            "ctp_sim_state_path": tmp_path / "storage" / "ctp-sim-state.json",
             "ctp_sim_account": "ctp-sim-test",
             "default_cash": 100_000.0,
         }
@@ -110,6 +109,7 @@ def _authority_bound_candidate(tmp_path, monkeypatch, postgresql_session_factory
     executor = create_test_ctp_sim_candidate_executor(
         settings_provider=lambda: settings,
         clock=lambda: now["value"],
+        session_factory=postgresql_session_factory,
     )
     broker = executor.create_broker()
     broker.connect()
@@ -257,14 +257,14 @@ def _two_order_request(
 def _assert_no_candidate_execution_side_effects(
     session,
     broker,
-    state_before: bytes,
+    state_before,
 ) -> None:
     """P5 may persist reconciliation facts; rejection mints no P8 intent."""
 
     assert session.scalar(select(ExecutionPlanRecord)) is None
     assert session.scalar(select(ExecutionProvenanceConsumptionRecord)) is None
     assert session.scalar(select(OrderRecord)) is None
-    assert broker.state_path.read_bytes() == state_before
+    assert broker.simulator_state_evidence() == state_before
     state = broker.read_state_snapshot()
     assert state.open_orders == []
     assert state.completed_orders == []
@@ -382,7 +382,7 @@ def test_candidate_refuses_untrusted_safety_or_authority_without_side_effects(
             _plan_persistence_sentinel,
         )
         monkeypatch.setattr(broker, "prepare_order", _order_assembly_sentinel)
-        state_before = broker.state_path.read_bytes()
+        state_before = broker.simulator_state_evidence()
         bundle = None
         with postgresql_session_factory() as session:
             with pytest.raises(CtpSimCandidateExecutionError, match=error_code):
@@ -495,7 +495,7 @@ def test_authority_bound_p3_block_cannot_reach_candidate_plan_intent_or_simulato
         )
         monkeypatch.setattr(broker, "prepare_order", _order_assembly_sentinel)
         monkeypatch.setattr(broker, "submit_order", _broker_submission_sentinel)
-        state_before = broker.state_path.read_bytes()
+        state_before = broker.simulator_state_evidence()
         bundle = None
         with postgresql_session_factory() as session:
             with pytest.raises(
@@ -555,9 +555,9 @@ def test_external_drift_after_first_candidate_leg_blocks_the_second_leg(
         assert len(bundle.orders) == 2
 
         external_broker = CtpSimBrokerAdapter(
-            state_path=broker.state_path,
             account=broker.get_account(),
             submission_authority=create_test_ctp_sim_submission_authority(),
+            session_factory=postgresql_session_factory,
         )
         external_broker.connect()
         external_order = external_broker.prepare_order(

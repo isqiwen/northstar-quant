@@ -9,7 +9,8 @@
 
 | 类别 | 事实来源 | 用途 |
 |---|---|---|
-| 应用设置 | `.env`、`configs/app.yaml`、`configs/app.local.yaml` | 本机私有运行参数与活动配置 |
+| 活动应用设置 | `.env`、`configs/app.yaml` | 本机私有运行参数与唯一活动配置 |
+| 已废弃的本地覆盖 | `configs/app.local.yaml` | 发现即拒绝启动；必须完整迁移至 `app.yaml` 后删除 |
 | 可跟踪模板 | `.env.example`、`configs/app.example.yaml` | 安全默认值，不能当作运行时配置 |
 | 画像 | `configs/profiles/` | offline、simulated、future live 的明确生命周期 |
 | 数据与准入 | `configs/data/sources.yaml`、`configs/research/admission/` | source、授权和研究资格 |
@@ -54,7 +55,7 @@ uv run --offline --no-sync northstar data cleanup --apply
 清理只可处理策略 allowlist 中已过期的下载缓存和临时文件；不能触及 reports、release、运行状态、数据库、备份或
 Docker volume。未知路径、符号链接、范围不清或未显式确认时应失败关闭。
 
-Northstar 是 PostgreSQL-only：
+Northstar 的核心运行数据库是 PostgreSQL：
 
 ```powershell
 just setup-postgres
@@ -64,7 +65,54 @@ just setup-postgres
 
 本地 PostgreSQL 使用独立数据卷；自动化不会使用 `down -v`、drop、truncate、delete 或 migration downgrade。
 仓库自动化绝不删除或清空数据库、表、schema 或 Docker 数据卷；数据库删除或清空只能由用户在仓库自动化之外手动执行。
-测试数据库仅可为隔离的 `northstar_test`。`init-db`/`db-migrate` 只能前进到 Alembic head。
+测试数据库仅可为隔离的 `northstar_test`。`init-db`/`setup-postgres` 只能前进到 Alembic head。
+
+SQLite 仅允许由 Local tools 作为独立的本地缓存、索引或 scratch storage 使用；它不配置为
+`NORTHSTAR_DATABASE_URL`，不参与 Alembic、`init-db`、核心 integration test，也不能保存订单、持仓、
+风险、审批、对账或审计的权威事实。
+
+大规模历史数据以受治理的 Parquet Lake 制品保存：tick、bars、factors、features 和可复现的 research/backtest
+输入或结果必须保留 manifest、逐文件内容 hash、lineage、逐行 PIT、license 与保留期语义。Lake 只能通过受验证的
+immutable `DatasetVersion` 物化；`storage/market`、下载缓存或任意本地 Parquet 都不能直接被当成 Lake 历史证据。
+
+DuckDB 已作为内存、只读历史分析 adapter 接入：它先逐文件验证 Lake manifest/hash/schema/partition，再把刚重验的
+Parquet 字节复制到私有 query snapshot，并固定过滤 `available_at <= as_of`。`northstar research lake-query` 只接受单条
+SELECT/WITH；物理计划只能扫描受控 `lake_data`，并禁止写入、扩展、外部 I/O、随机/时间/顺序敏感函数及用户自定义
+limit/offset。系统统一稳定排序、限制结果行数并返回可重放查询收据；它不保存当前交易状态，不直写 PostgreSQL 权威记录，
+也不绕过 Research、Risk 或 Execution 门禁。
+
+典型操作顺序如下。materialize 的输入 Parquet 必须与指定 `DatasetVersion` 中 artifact 的 canonical payload 完全一致；
+命令不会把普通文件“升级”为受治理数据。
+
+```powershell
+uv run --offline --no-sync northstar data lake materialize --input <verified-artifact.parquet> --dataset-version <dataset-version-sha256> --artifact-snapshot <snapshot-sha256> --kind bars --event-time-column date
+uv run --offline --no-sync northstar data lake verify --kind bars --dataset-id <dataset-id> --version <lake-version-sha256>
+uv run --offline --no-sync northstar research lake-query --kind bars --dataset-id <dataset-id> --version <lake-version-sha256> --as-of 2026-08-25T00:00:00+00:00 --sql-file <query.sql>
+```
+
+查询文件必须从 `lake_data` relation 读取；多行结果由系统在最外层稳定排序，不应在查询内使用 `LIMIT` 或 `OFFSET`。
+
+SQLite 已实际用于一个隔离的 Local-tools manifest index，固定路径为
+`<storage_dir>/local-tools/lake-manifest-index.sqlite3`。它只能保存可重建的 Lake discovery metadata，不能成为 Lake 验证、
+DuckDB 查询或核心 PostgreSQL 的 fallback，也绝不保存交易或风险权威事实。操作员可显式运行：
+
+```powershell
+uv run --offline --no-sync northstar local-tools lake-index rebuild
+uv run --offline --no-sync northstar local-tools lake-index list --kind bars --dataset-id <dataset-id>
+```
+
+`rebuild` 对每个发现到的 Lake version 重新验证 manifest 与 Parquet hash；任何失败都不会替换最新可用 index generation。
+索引文件并发访问使用 SQLite transaction/busy timeout；文件损坏或 schema 不兼容时，只有显式 `rebuild` 会将固定
+tool-owned 文件隔离为 `.corrupt-<timestamp>` 后重建，绝不触碰 Lake 文件、PostgreSQL、Alembic 或其他数据库。
+
+`paper` / `ctp_sim` 的可变模拟 broker state 已保存到 PostgreSQL 的账户隔离快照与不可变 transition 审计链；不会写入
+`state.json` 或 Local-tools SQLite。该 adapter-private 状态机不替代 PostgreSQL 中的 durable order、fill、position
+snapshot、risk、approval、reconciliation 与 audit 账本。当前 Contract Master / CTP mapping 仍为版本受控 YAML 配置，迁入
+PostgreSQL 的时间版本化合约权威库需要单独实现。
+
+当前开发期的 head 是唯一完整基线 `0001_current_schema_baseline`，历史 revision 不提供升级路径。若本地
+`alembic_version` 记录其他值，必须由操作者在仓库自动化之外手动重建本地数据库或数据卷，然后再执行
+`just setup-postgres` 或 `northstar init-db`。仓库自动化不会 drop、truncate、stamp、downgrade 或替你重建数据库。
 
 ## 3. 数据、日历与运行模式
 
@@ -129,8 +177,8 @@ workstation
 常用入口：
 
 ```powershell
-just deploy-prod
-just prod-health
+just deploy-prod /secure/operator/northstar-release-signing-key
+just ops-health
 ```
 
 部署控制器、脚本分工和环境变量参见[`scripts/README.md`](../scripts/README.md)，部署声明见
@@ -152,6 +200,8 @@ uv run --offline --no-sync northstar ops backup status
 
 受控维护脚本包括 `backup_bundle.py` 与 `restore_drill.py`。备份包必须有完整文件清单和 SHA-256，外部目录必须预先挂载、
 私有且不在 release、reports 或 storage 之内。采集前及最终发布前均需确认服务 inactive；脚本不能自动停止服务。
+备份包不复制 `paper` 或 `ctp_sim` 的 `state.json`：它们的当前快照与 transition 审计均属于 PostgreSQL，
+仅由 PostgreSQL 逻辑转储恢复。
 
 恢复演练只允许 loopback 隔离的 `northstar_test`，以 schema transaction rollback 证明恢复过程；它不是生产 restore。
 当前仍缺生产 DR policy、加密异地副本、WAL/PITR、RPO/RTO 目标和受控恢复演练，不能把本地 Docker 或 loopback evidence

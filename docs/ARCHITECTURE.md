@@ -65,6 +65,59 @@ src/northstar_quant/
 | `trading_execution` | `portfolio_risk`、`foundation` | 策略研究逻辑 |
 | `application` | 所有领域 | 反向成为领域依赖 |
 
+### 存储职责
+
+存储按数据的权威性和访问模式分工，而不是由某一种数据库包办：
+
+```mermaid
+flowchart TB
+    ctp[CTP]
+    ingestion[Data Ingestion]
+    postgres[(PostgreSQL<br/>合约、订单、成交、持仓、<br/>策略状态、风险状态)]
+    parquet[(Parquet<br/>tick、bars、factors、features、<br/>research、backtest)]
+    duckdb[DuckDB<br/>历史分析]
+    research[Strategy / Research]
+    execution[Execution / Risk]
+    local_tools[本地工具集]
+    sqlite[(SQLite<br/>tool-owned cache / index / scratch)]
+
+    ctp --> ingestion
+    ingestion --> postgres
+    ingestion --> parquet
+    parquet --> duckdb
+    postgres --> research
+    duckdb --> research
+    research --> execution
+    local_tools --> sqlite
+```
+
+- **PostgreSQL** 是核心交易和运行状态的唯一权威来源：合约、订单、成交、持仓、策略状态、风险、审批、对账和审计。
+  `NORTHSTAR_DATABASE_URL`、Alembic、core repository 与 PostgreSQL integration test 都在此边界内。
+- **Parquet** 是大规模、版本化历史数据制品格式。`data lake materialize` 只会把已验证的 immutable
+  `DatasetVersion` 中、与 canonical payload 完全一致的 tabular artifact 物化为不可覆盖的分区 Parquet；每个版本都保存
+  manifest、逐文件 hash、schema、lineage、冻结授权（合同、有效期、用途）和保留期审计事实，以及逐行 `available_at`
+  PIT 语义。Lake root 是服务用户私有目录，读取拒绝符号链接；可覆盖的 `storage/market` 当前投影不能直接进入历史 Lake。
+- **DuckDB** 只承担已验证 Parquet 上的历史查询、探索、研究与回测分析。`research lake-query` 使用内存 DuckDB，强制
+  `available_at <= as_of`：先把刚重验 hash 的分区复制为私有 query snapshot，再只暴露受控 `lake_data` relation。查询
+  只能是单条 SELECT/WITH，DuckDB physical plan 的所有 base scan 必须是 `lake_data`，外部访问、写入、随机/时间/顺序敏感
+  函数和用户自定义 limit/offset 均被拒绝；系统在最外层稳定排序和限制行数。每次都生成包含输入版本、manifest hash、参数、
+  as-of、引擎版本和结果 hash 的可回放收据。它不是 broker、订单或风险状态库；分析产物只有经过既有
+  Research → Portfolio/Risk → Execution 链才可能影响核心状态。
+- **SQLite** 只属于 Local tools 的独立缓存、索引或 scratch storage。它不使用核心数据库 URL，不参与 Alembic 或
+  `init-db`，也不保存任何交易/风险权威事实。当前已落地的 tool 是
+  `<storage_dir>/local-tools/lake-manifest-index.sqlite3`：`local-tools lake-index rebuild` 逐份验证 Lake 后追加一代
+  可重建 discovery metadata，`list` 只展示最新一代。DuckDB 与任何实际 Lake 消费路径都不读取或信任这个 index。
+
+这不是“真实 CTP 已接通”的声明。Parquet Lake、DuckDB 历史分析 adapter 与 SQLite Local-tools manifest index 均已实现并有
+独立测试；SQLite 仍只是隔离、非权威工具，不能借此绕过 core database 或交易门禁。
+
+`PaperBrokerAdapter` 与 `CtpSimBrokerAdapter` 的可变模拟柜台状态已保存于 PostgreSQL：每个 broker/account scope 有
+当前受控快照和不可变 hash-chained transition 审计链，且状态变更与 durable CTP-sim 提交确认可处于同一 PostgreSQL
+事务。它不写入 `state.json`，也不把 Local-tools SQLite 当 fallback；现有 durable order、fill、position snapshot、risk、
+approval、reconciliation 与 audit 账本仍是独立的 PostgreSQL 权威事实。当前 Contract Master 与 CTP mapping 仍为版本受控
+YAML 配置，尚未成为 PostgreSQL 的时间版本化合约权威库。完整历史 Parquet Lake 和 DuckDB 查询 adapter 已经落地，
+但现有可覆盖的 profile market 投影尚未自动迁入 Lake：它必须先经过 immutable `DatasetVersion` 入口验证。
+
 ### Application：跨领域 composition root
 
 ```mermaid
@@ -108,8 +161,9 @@ Application 只协调各领域已存在的契约：activation receipt、风险 a
 ### Foundation
 
 Foundation 提供类型、时间、订单身份与状态、Pydantic 配置、PostgreSQL session/models/repositories、消息、调度、
-可观测性、报告、安全、备份和部署基础。配置只接受 `NORTHSTAR_` 前缀，数据库 URL 必须是
-`postgresql+psycopg://`；SQLite 不属于支持路径。
+可观测性、报告、安全、备份和部署基础。核心 `NORTHSTAR_DATABASE_URL` 必须是
+`postgresql+psycopg://`，用于权威运行状态；完整的 PostgreSQL、Parquet、DuckDB 和 SQLite 职责见
+[存储职责](#存储职责)。
 
 数据库是保全边界：迁移只前进，自动化不会删除、清空或截断 database、schema、table 或 Docker volume。
 `init-db` 只执行 `alembic upgrade head`。模型、repository、Alembic migration、测试和文档必须一并变更。
@@ -148,6 +202,9 @@ Data 发布受治理的事实，而不是策略或交易行为：
 - Contract Master、product/instrument/contract、规则快照、品种池和交易日历；
 - 数据质量、版本、发布授权和 point-in-time（PIT）快照；
 - 标准化市场数据及其可用时点。
+
+大规模历史数据以受治理的 Parquet 制品发布；DuckDB 可在其上进行历史分析，但不能以分析结果直接替换 PIT、
+Research admission 或任何交易前事实。
 
 `Commodity` 是经济品种，`Instrument` 是可交易标的，`Contract` 是具体可交易合约；三者不互换，
 规则、日历与可用性必须按其正确层级绑定。
@@ -450,7 +507,7 @@ flowchart LR
         pollPaper["poll_orders_and_fills_once<br/>或下一次同步"]
     end
 
-    paperState[("paper state.json<br/>cash、positions、orders、fills、last_prices")]
+    paperState[("PostgreSQL simulated broker state<br/>paper current snapshot + immutable transitions<br/>cash、positions、orders、fills、last_prices")]
     executionRecords[("PostgreSQL<br/>plan、order intent、ledger、<br/>reconciliation safety state")]
     paperReconciliation["reconcile_broker_state<br/>reconciliation / ledger / settlement"]
     noPaperRisk["NO NEW RISK<br/>风险或 preflight 未通过"]
@@ -514,7 +571,7 @@ flowchart LR
         simSync["sync_state_checked<br/>推进 partial / fill / cancel"]
     end
 
-    simState[("ctp_sim state.json<br/>quotes、positions、orders、fills、<br/>balance、margin、trading day")]
+    simState[("PostgreSQL simulated broker state<br/>ctp_sim current snapshot + immutable transitions<br/>quotes、positions、orders、fills、balance、margin")]
     simRecords[("PostgreSQL 原子边界<br/>plan、durable order intent、<br/>provenance consumption、ledger、safety state")]
     simReconciliation["reconcile_broker_state<br/>所有 order_ref / fill 必须可解释"]
     noSimRisk["NO NEW RISK<br/>证据、审批、报价、账户或对账异常"]
@@ -611,9 +668,9 @@ enable-live、resume-risk、submit 或连接 broker。
 
 ## 6. 配置、运行与部署边界
 
-运行设置是显式、typed、validated 的：活动 `configs/app.yaml` 由示例生成，`configs/app.local.yaml` 和 `.env`
-是本地私有覆盖；tracked 示例永远保持 paper / live-disabled。画像、source、研究准入、Contract Master、instrument、
-calendar 和策略配置各有职责，不能以一个 YAML 暗中替代另一个。
+运行设置是显式、typed、validated 的：活动配置仅为 `configs/app.yaml` 与 `.env`，`configs/app.local.yaml`
+已经废弃，发现它即失败关闭并要求完整迁移至 `app.yaml`；tracked 示例永远保持 paper / live-disabled。画像、source、
+研究准入、Contract Master、instrument、calendar 和策略配置各有职责，不能以一个 YAML 暗中替代另一个。
 
 生产目标仅 Linux x86_64；Windows/Linux 均为开发和部署控制端。可信部署路径是：
 

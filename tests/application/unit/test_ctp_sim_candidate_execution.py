@@ -91,7 +91,6 @@ def _prepared_candidate(tmp_path, monkeypatch, postgresql_session_factory):
             "downloads_dir": tmp_path / "storage" / "downloads",
             "reports_dir": tmp_path / "reports",
             "log_dir": tmp_path / "logs",
-            "ctp_sim_state_path": tmp_path / "storage" / "ctp-sim-state.json",
             "ctp_sim_account": "ctp-sim-test",
             "default_cash": 100_000.0,
         }
@@ -101,6 +100,7 @@ def _prepared_candidate(tmp_path, monkeypatch, postgresql_session_factory):
     executor = create_test_ctp_sim_candidate_executor(
         settings_provider=lambda: settings,
         clock=lambda: now["value"],
+        session_factory=postgresql_session_factory,
     )
     broker = executor.create_broker()
     broker.connect()
@@ -301,7 +301,6 @@ def test_rejected_canonical_p3_evidence_cannot_reach_candidate_intent_or_broker_
             "downloads_dir": tmp_path / "storage" / "downloads",
             "reports_dir": tmp_path / "reports",
             "log_dir": tmp_path / "logs",
-            "ctp_sim_state_path": tmp_path / "storage" / "rejected-state.json",
             "ctp_sim_account": "ctp-sim-test",
             "default_cash": 100_000.0,
         }
@@ -311,6 +310,7 @@ def test_rejected_canonical_p3_evidence_cannot_reach_candidate_intent_or_broker_
     executor = create_test_ctp_sim_candidate_executor(
         settings_provider=lambda: settings,
         clock=lambda: now["value"],
+        session_factory=postgresql_session_factory,
     )
     broker = executor.create_broker()
     broker.connect()
@@ -335,7 +335,7 @@ def test_rejected_canonical_p3_evidence_cannot_reach_candidate_intent_or_broker_
             _intent_sentinel,
         )
         monkeypatch.setattr(broker, "prepare_order", _broker_sentinel)
-        state_before_prepare = broker.state_path.read_bytes()
+        state_before_prepare = broker.simulator_state_evidence()
         with postgresql_session_factory() as session:
             with pytest.raises(
                 CtpSimCandidateExecutionError,
@@ -350,7 +350,7 @@ def test_rejected_canonical_p3_evidence_cannot_reach_candidate_intent_or_broker_
                 )
         assert intent_attempted is False
         assert broker_operation_attempted is False
-        assert broker.state_path.read_bytes() == state_before_prepare
+        assert broker.simulator_state_evidence() == state_before_prepare
         state = broker.read_state_snapshot()
         assert state.open_orders == []
         assert state.completed_orders == []
@@ -379,7 +379,7 @@ def test_self_minted_p3_attestation_without_a_durable_grant_cannot_prepare(
             bundle.source_request,
             approval_id="self-minted-p3-approval",
         )
-        state_before = broker.state_path.read_bytes()
+        state_before = broker.simulator_state_evidence()
         preflight_called = False
         order_assembly_called = False
 
@@ -415,7 +415,7 @@ def test_self_minted_p3_attestation_without_a_durable_grant_cannot_prepare(
 
         assert preflight_called is False
         assert order_assembly_called is False
-        assert broker.state_path.read_bytes() == state_before
+        assert broker.simulator_state_evidence() == state_before
     finally:
         broker.disconnect()
 
@@ -437,7 +437,7 @@ def test_persisted_manual_grant_mismatch_cannot_prepare(
             bundle.source_request,
             rationale="forged rationale must not reuse the issued grant",
         )
-        state_before = broker.state_path.read_bytes()
+        state_before = broker.simulator_state_evidence()
         with postgresql_session_factory() as session:
             with pytest.raises(
                 CtpSimCandidateExecutionError,
@@ -452,7 +452,7 @@ def test_persisted_manual_grant_mismatch_cannot_prepare(
                 )
             _assert_no_candidate_execution_records(session)
 
-        assert broker.state_path.read_bytes() == state_before
+        assert broker.simulator_state_evidence() == state_before
     finally:
         broker.disconnect()
 
@@ -473,7 +473,7 @@ def test_expired_manual_approval_claim_cannot_prepare(
         review = bundle.source_request.portfolio_risk_approval_evidence.review
         now["value"] = review.approval_valid_until
         broker.seed_market_quotes({"RB2610": 3_100.0}, asof=now["value"])
-        state_before = broker.state_path.read_bytes()
+        state_before = broker.simulator_state_evidence()
         with postgresql_session_factory() as session:
             with pytest.raises(
                 CtpSimCandidateExecutionError,
@@ -488,7 +488,7 @@ def test_expired_manual_approval_claim_cannot_prepare(
                 )
             _assert_no_candidate_execution_records(session)
 
-        assert broker.state_path.read_bytes() == state_before
+        assert broker.simulator_state_evidence() == state_before
     finally:
         broker.disconnect()
 
@@ -614,9 +614,9 @@ def test_reconciliation_reads_simulator_state_and_halts_for_unexplained_order(
     )
     try:
         unexplained_broker = CtpSimBrokerAdapter(
-            state_path=broker.state_path,
             account=broker.get_account(),
             submission_authority=create_test_ctp_sim_submission_authority(),
+            session_factory=postgresql_session_factory,
         )
         unexplained_broker.connect()
         with postgresql_session_factory() as session:
@@ -748,7 +748,7 @@ def test_prepare_rejects_self_consistent_relaxed_profile_claim_before_broker_rea
             portfolio_risk_approval_evidence=relaxed_evidence,
         )
 
-        state_before = broker.state_path.read_bytes()
+        state_before = broker.simulator_state_evidence()
 
         def _unexpected_broker_read():
             raise AssertionError("profile mismatch must reject before broker access")
@@ -769,7 +769,7 @@ def test_prepare_rejects_self_consistent_relaxed_profile_claim_before_broker_rea
             assert session.scalar(select(ExecutionPlanRecord)) is None
             assert session.scalar(select(ExecutionProvenanceConsumptionRecord)) is None
             assert session.scalar(select(OrderRecord)) is None
-        assert broker.state_path.read_bytes() == state_before
+        assert broker.simulator_state_evidence() == state_before
     finally:
         broker.disconnect()
 
@@ -934,7 +934,6 @@ def test_prepare_samples_real_clock_after_state_and_quote_observations(
             "downloads_dir": tmp_path / "storage" / "downloads",
             "reports_dir": tmp_path / "reports",
             "log_dir": tmp_path / "logs",
-            "ctp_sim_state_path": tmp_path / "storage" / "real-clock-state.json",
             "ctp_sim_account": "ctp-sim-test",
             "default_cash": 100_000.0,
         }
@@ -942,6 +941,7 @@ def test_prepare_samples_real_clock_after_state_and_quote_observations(
     monkeypatch.setattr(ctp_sim_broker, "get_settings", lambda: settings)
     executor = create_test_ctp_sim_candidate_executor(
         settings_provider=lambda: settings,
+        session_factory=postgresql_session_factory,
     )
     broker = executor.create_broker()
     broker.connect()
@@ -1249,10 +1249,11 @@ def test_prepare_rejects_a_broker_owned_by_another_executor_before_state_read(
         postgresql_session_factory,
     )
     try:
-        state_before = broker.state_path.read_bytes()
+        state_before = broker.simulator_state_evidence()
         foreign_executor = create_test_ctp_sim_candidate_executor(
             settings_provider=lambda: bundle.prepared_request.settings,
             clock=lambda: now["value"],
+            session_factory=postgresql_session_factory,
         )
 
         def _unexpected_broker_read():
@@ -1274,7 +1275,7 @@ def test_prepare_rejects_a_broker_owned_by_another_executor_before_state_read(
             assert session.scalar(select(ExecutionPlanRecord)) is None
             assert session.scalar(select(ExecutionProvenanceConsumptionRecord)) is None
             assert session.scalar(select(OrderRecord)) is None
-        assert broker.state_path.read_bytes() == state_before
+        assert broker.simulator_state_evidence() == state_before
     finally:
         broker.disconnect()
 
@@ -1284,7 +1285,7 @@ def test_prepare_rechecks_its_broker_against_current_execution_settings(
     monkeypatch,
     postgresql_session_factory,
 ) -> None:
-    """A same-executor adapter cannot survive a trusted state-path drift."""
+    """A same-executor adapter cannot survive a trusted account-scope drift."""
 
     fixture = build_execution_provenance_fixture(tmp_path / "settings-binding")
     now = {"value": fixture.request.checked_at}
@@ -1297,7 +1298,6 @@ def test_prepare_rechecks_its_broker_against_current_execution_settings(
             "downloads_dir": tmp_path / "storage" / "downloads",
             "reports_dir": tmp_path / "reports",
             "log_dir": tmp_path / "logs",
-            "ctp_sim_state_path": tmp_path / "storage" / "bound-state.json",
             "ctp_sim_account": "ctp-sim-test",
             "default_cash": 100_000.0,
         }
@@ -1307,12 +1307,13 @@ def test_prepare_rechecks_its_broker_against_current_execution_settings(
     executor = create_test_ctp_sim_candidate_executor(
         settings_provider=lambda: current["settings"],
         clock=lambda: now["value"],
+        session_factory=postgresql_session_factory,
     )
     broker = executor.create_broker()
     try:
-        state_before = broker.state_path.read_bytes()
+        state_before = broker.simulator_state_evidence()
         current["settings"] = trusted.model_copy(
-            update={"ctp_sim_state_path": tmp_path / "storage" / "other-state.json"}
+            update={"ctp_sim_account": "ctp-sim-other"}
         )
 
         def _unexpected_broker_read():
@@ -1334,7 +1335,7 @@ def test_prepare_rechecks_its_broker_against_current_execution_settings(
             assert session.scalar(select(ExecutionPlanRecord)) is None
             assert session.scalar(select(ExecutionProvenanceConsumptionRecord)) is None
             assert session.scalar(select(OrderRecord)) is None
-        assert broker.state_path.read_bytes() == state_before
+        assert broker.simulator_state_evidence() == state_before
     finally:
         broker.disconnect()
 
@@ -1357,7 +1358,6 @@ def test_default_executor_reloads_uncached_settings_before_broker_access(
             "downloads_dir": tmp_path / "storage" / "downloads",
             "reports_dir": tmp_path / "reports",
             "log_dir": tmp_path / "logs",
-            "ctp_sim_state_path": tmp_path / "storage" / "uncached-state.json",
             "ctp_sim_account": "ctp-sim-test",
             "default_cash": 100_000.0,
         }
@@ -1372,10 +1372,11 @@ def test_default_executor_reloads_uncached_settings_before_broker_access(
     monkeypatch.setattr(ctp_sim_broker, "get_settings", lambda: trusted)
     executor = create_test_ctp_sim_candidate_executor(
         clock=lambda: now["value"],
+        session_factory=postgresql_session_factory,
     )
     broker = executor.create_broker()
     try:
-        state_before = broker.state_path.read_bytes()
+        state_before = broker.simulator_state_evidence()
         with postgresql_session_factory() as session:
             with pytest.raises(
                 CtpSimCandidateExecutionError,
@@ -1391,7 +1392,7 @@ def test_default_executor_reloads_uncached_settings_before_broker_access(
             assert session.scalar(select(ExecutionPlanRecord)) is None
             assert session.scalar(select(ExecutionProvenanceConsumptionRecord)) is None
             assert session.scalar(select(OrderRecord)) is None
-        assert broker.state_path.read_bytes() == state_before
+        assert broker.simulator_state_evidence() == state_before
     finally:
         broker.disconnect()
 
@@ -1419,7 +1420,7 @@ def test_prepare_refuses_an_active_profile_with_a_different_ctp_mapping(
             ),
         )
         request = replace(source, profile=alternate_profile)
-        state_before = broker.state_path.read_bytes()
+        state_before = broker.simulator_state_evidence()
         monkeypatch.setattr(
             candidate_execution,
             "load_trading_profile_uncached",
@@ -1445,7 +1446,7 @@ def test_prepare_refuses_an_active_profile_with_a_different_ctp_mapping(
             assert session.scalar(select(ExecutionPlanRecord)) is None
             assert session.scalar(select(ExecutionProvenanceConsumptionRecord)) is None
             assert session.scalar(select(OrderRecord)) is None
-        assert broker.state_path.read_bytes() == state_before
+        assert broker.simulator_state_evidence() == state_before
     finally:
         broker.disconnect()
 
@@ -1474,7 +1475,7 @@ def test_prepare_refuses_a_contract_mapping_rewrite_after_broker_creation(
                 *broker.registry.contracts[1:],
             ),
         )
-        state_before = broker.state_path.read_bytes()
+        state_before = broker.simulator_state_evidence()
         monkeypatch.setattr(
             candidate_execution,
             "load_ctp_contract_registry",
@@ -1500,7 +1501,7 @@ def test_prepare_refuses_a_contract_mapping_rewrite_after_broker_creation(
             assert session.scalar(select(ExecutionPlanRecord)) is None
             assert session.scalar(select(ExecutionProvenanceConsumptionRecord)) is None
             assert session.scalar(select(OrderRecord)) is None
-        assert broker.state_path.read_bytes() == state_before
+        assert broker.simulator_state_evidence() == state_before
     finally:
         broker.disconnect()
 
@@ -1620,7 +1621,7 @@ def test_final_fence_rechecks_receipt_after_waiting_past_its_horizon(
         postgresql_session_factory,
     )
     try:
-        state_before = broker.state_path.read_bytes()
+        state_before = broker.simulator_state_evidence()
         adapter_ready = Event()
         allow_adapter = Event()
         final_fence_attempted = Event()
@@ -1672,7 +1673,7 @@ def test_final_fence_rechecks_receipt_after_waiting_past_its_horizon(
         assert not worker.is_alive()
         assert len(submission_failures) == 1
         assert "CTP_SIM_CANDIDATE_RECEIPT_EXPIRED" in str(submission_failures[0])
-        assert broker.state_path.read_bytes() == state_before
+        assert broker.simulator_state_evidence() == state_before
         state = broker.read_state_snapshot()
         assert state.open_orders == []
         assert state.completed_orders == []
@@ -1691,7 +1692,7 @@ def test_final_fence_does_not_reacquire_the_simulator_lock_after_mutation(
     monkeypatch,
     postgresql_session_factory,
 ) -> None:
-    """The locked post-submit snapshot prevents the file/database ABBA cycle."""
+    """The locked post-submit snapshot prevents a state/fence ABBA cycle."""
 
     _now, _executor, broker, bundle = _prepared_candidate(
         tmp_path,
@@ -1700,7 +1701,8 @@ def test_final_fence_does_not_reacquire_the_simulator_lock_after_mutation(
     )
     try:
         original_submit = broker.submit_order
-        competing_file_lock_held = Event()
+        competing_submit_started = Event()
+        competing_guard_entered = Event()
         worker_failures: list[Exception] = []
         worker: Thread | None = None
 
@@ -1710,10 +1712,11 @@ def test_final_fence_does_not_reacquire_the_simulator_lock_after_mutation(
 
             def assert_reserved(self, order, *, snapshot, quotes) -> None:
                 del order, snapshot, quotes
-                # This runs inside the competing adapter's state-file lock.
-                # It intentionally waits on the same final account fence that
-                # the primary candidate currently owns.
-                competing_file_lock_held.set()
+                # This runs only after the competing adapter acquires its
+                # PostgreSQL state lock.  The primary candidate holds that
+                # same account scope through its durable acknowledgement, so
+                # it must not be reached before the primary submit returns.
+                competing_guard_entered.set()
                 with postgresql_session_factory() as session:
                     acquire_reconciliation_safety_fence(
                         session,
@@ -1727,34 +1730,39 @@ def test_final_fence_does_not_reacquire_the_simulator_lock_after_mutation(
                 del order, snapshot
 
         competing_broker = CtpSimBrokerAdapter(
-            state_path=broker.state_path,
             mapping_path=broker.mapping_path,
             account=broker.get_account(),
             default_cash=broker.default_cash,
             submission_authority=create_test_ctp_sim_submission_authority(
                 _CompetingSubmitGuard()
             ),
+            session_factory=postgresql_session_factory,
         )
         competing_broker.connect()
 
         def _competing_submit() -> None:
+            competing_submit_started.set()
             try:
                 competing_broker.submit_order(bundle.orders[0])
             except Exception as exc:  # Thread boundary; assert below.
                 worker_failures.append(exc)
 
-        def _submit_then_start_file_first_worker(order):
+        def _submit_then_start_state_first_worker(order):
             nonlocal worker
             result = original_submit(order)
             worker = Thread(
                 target=_competing_submit,
-                name="competing-file-before-final-fence",
+                name="competing-state-before-final-fence",
             )
             worker.start()
-            assert competing_file_lock_held.wait(timeout=5)
+            assert competing_submit_started.wait(timeout=5)
+            # The worker waits at the PostgreSQL simulator-state boundary;
+            # it cannot invert lock order by entering its guard/fence path
+            # while the primary candidate still owns the final transaction.
+            assert not competing_guard_entered.wait(timeout=0.2)
             return result
 
-        monkeypatch.setattr(broker, "submit_order", _submit_then_start_file_first_worker)
+        monkeypatch.setattr(broker, "submit_order", _submit_then_start_state_first_worker)
         with postgresql_session_factory() as session:
             results = bundle.submit(session)
 
@@ -1763,6 +1771,7 @@ def test_final_fence_does_not_reacquire_the_simulator_lock_after_mutation(
         worker.join(timeout=5)
         assert not worker.is_alive()
         assert worker_failures == []
+        assert competing_guard_entered.is_set()
     finally:
         if "competing_broker" in locals():
             competing_broker.disconnect()

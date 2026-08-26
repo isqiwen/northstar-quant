@@ -17,7 +17,7 @@ NORTHSTAR_LIVE_TRADING_ENABLED=false
 ```powershell
 just setup
 just check
-just test
+uv run --offline --no-sync pytest
 ```
 
 需要隔离 PostgreSQL 时：
@@ -30,6 +30,13 @@ just setup-postgres
 
 数据库自动化只前向迁移和复用已有数据。仓库自动化绝不删除或清空数据库、表、schema 或 Docker 数据卷；
 数据库删除或清空只能由用户在仓库自动化之外手动执行。
+
+存储职责：交易状态使用 PostgreSQL；大规模历史数据使用 Parquet；历史分析由 DuckDB 查询 Parquet；SQLite 只用于
+本地工具集的独立数据库。详见[架构设计](docs/ARCHITECTURE.md#存储职责)。
+
+当前仍处于开发期，`alembic/versions/` 只保留完整的
+`0001_current_schema_baseline`。旧 revision 不受支持；若本地数据库记录的是旧 revision，必须由操作者在
+仓库自动化之外手动重建后，再运行 `just setup-postgres` 或 `northstar init-db`。自动化不会 reset、stamp 或删除数据库。
 
 ## 文档
 
@@ -45,9 +52,9 @@ just setup-postgres
 
 ## 当前边界
 
-P10 已完成 7/9 个 Work Package（78%）。生产灾备与权威数据 onboarding 仍需要外部授权、主机、数据许可和制品证据；
-它们不会因本地 Docker、fixture 或 `ctp_sim` 成功而自动升级。详见
-[主实施计划](docs/planning/MASTER_IMPLEMENTATION_PLAN.md)。
+当前实施状态、完成度与外部阻塞只由[主实施计划](docs/planning/MASTER_IMPLEMENTATION_PLAN.md)维护；本 README
+不复制会随工作包变化的数字。生产灾备与权威数据 onboarding 仍需要外部授权、主机、数据许可和制品证据，它们不会因
+本地 Docker、fixture 或 `ctp_sim` 成功而自动升级。
 
 ## License
 

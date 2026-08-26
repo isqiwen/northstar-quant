@@ -61,13 +61,16 @@ def test_repository_is_exactly_idempotent_and_never_persists_raw_receipt(
         assert replay.id == row.id
         assert row.record_hash
         assert not hasattr(row, "verifier_receipt")
-        assert find_portfolio_risk_approval(
-            session,
-            approval_id="p10-repository-approval",
-            profile_id="cn_futures_daily_trend_simulated",
-            broker="ctp_sim",
-            account="ctp-sim-test",
-        ) == row
+        assert (
+            find_portfolio_risk_approval(
+                session,
+                approval_id="p10-repository-approval",
+                profile_id="cn_futures_daily_trend_simulated",
+                broker="ctp_sim",
+                account="ctp-sim-test",
+            )
+            == row
+        )
 
         with pytest.raises(RuntimeError, match="PORTFOLIO_RISK_APPROVAL_IDEMPOTENCY_CONFLICT"):
             record_portfolio_risk_approval(
@@ -80,16 +83,14 @@ def test_model_migration_and_repository_expose_only_a_verifier_receipt_hash() ->
     columns = {column.key for column in sqlalchemy_inspect(PortfolioRiskApprovalRecord).columns}
     parameters = set(inspect.signature(record_portfolio_risk_approval).parameters)
     migration = (
-        Path(__file__).parents[3]
-        / "alembic"
-        / "versions"
-        / "0008_portfolio_risk_approval.py"
+        Path(__file__).parents[3] / "alembic" / "versions" / "0001_current_schema_baseline.py"
     ).read_text(encoding="utf-8")
 
     assert "verifier_receipt_hash" in columns
     assert "verifier_receipt" not in columns
     assert "verifier_receipt_hash" in parameters
     assert "verifier_receipt" not in parameters
+    assert 'revision = "0001_current_schema_baseline"' in migration
     assert 'sa.Column("verifier_receipt",' not in migration
 
 

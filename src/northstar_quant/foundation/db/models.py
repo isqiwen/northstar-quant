@@ -9,6 +9,7 @@ from sqlalchemy import (
     CheckConstraint,
     Date,
     Float,
+    Index,
     Integer,
     String,
     Text,
@@ -19,6 +20,9 @@ from sqlalchemy.orm import Mapped, mapped_column
 from northstar_quant.foundation.common.time import utc_now
 from northstar_quant.foundation.db.base import Base
 from northstar_quant.foundation.db.types import UTCDateTime
+
+
+_SIMULATED_BROKER_STATE_HASH_PATTERN = r"^[0-9a-f]{64}$"
 
 
 class RunLog(Base):
@@ -911,7 +915,11 @@ class ReconciliationSafetyStateRecord(Base):
     account: Mapped[str | None] = mapped_column(String(64), index=True, default=None)
     state: Mapped[str] = mapped_column(String(32), index=True)
     reason: Mapped[str] = mapped_column(Text)
-    evidence_json: Mapped[str] = mapped_column(Text, default="{}")
+    evidence_json: Mapped[str] = mapped_column(
+        Text,
+        default="{}",
+        server_default="{}",
+    )
     predecessor_hash: Mapped[str | None] = mapped_column(String(64), default=None)
     state_hash: Mapped[str] = mapped_column(String(64))
     recovery_approver_id: Mapped[str | None] = mapped_column(
@@ -966,3 +974,119 @@ class BrokerSyncLog(Base):
     status: Mapped[str] = mapped_column(String(32), index=True)
     detail: Mapped[str | None] = mapped_column(Text, default=None)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utc_now)
+
+
+class SimulatedBrokerStateRecord(Base):
+    """Paper / CTP-sim 柜台的当前 PostgreSQL 状态。
+
+    该表保存的是模拟柜台状态机的当前受控快照，不替代订单、成交、持仓、账户和
+    对账账本的权威记录。每次变更必须同时写入不可变的
+    :class:`SimulatedBrokerStateTransitionRecord`，由 repository 在同一账户级事务中
+    校验 hash 链与 revision。
+    """
+
+    __tablename__ = "simulated_broker_state_records"
+    __table_args__ = (
+        UniqueConstraint(
+            "broker",
+            "account",
+            name="uq_simulated_broker_state_records_broker_account",
+        ),
+        CheckConstraint(
+            "broker IN ('paper', 'ctp_sim')",
+            name="ck_simulated_broker_state_records_broker",
+        ),
+        CheckConstraint(
+            "schema_version > 0",
+            name="ck_simulated_broker_state_records_schema_version",
+        ),
+        CheckConstraint(
+            "revision >= 0",
+            name="ck_simulated_broker_state_records_revision",
+        ),
+        CheckConstraint(
+            f"state_hash ~ '{_SIMULATED_BROKER_STATE_HASH_PATTERN}'",
+            name="ck_simulated_broker_state_records_state_hash",
+        ),
+        CheckConstraint(
+            f"last_transition_hash ~ '{_SIMULATED_BROKER_STATE_HASH_PATTERN}'",
+            name="ck_simulated_broker_state_records_last_transition_hash",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    broker: Mapped[str] = mapped_column(String(32), index=True)
+    account: Mapped[str] = mapped_column(String(64), index=True)
+    schema_version: Mapped[int] = mapped_column(Integer)
+    revision: Mapped[int] = mapped_column(Integer, default=0)
+    state_json: Mapped[str] = mapped_column(Text)
+    state_hash: Mapped[str] = mapped_column(String(64), index=True)
+    last_transition_hash: Mapped[str] = mapped_column(String(64), index=True)
+    initialized_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utc_now)
+
+
+class SimulatedBrokerStateTransitionRecord(Base):
+    """模拟柜台状态变更的不可变审计链。"""
+
+    __tablename__ = "simulated_broker_state_transition_records"
+    __table_args__ = (
+        UniqueConstraint(
+            "broker",
+            "account",
+            "revision",
+            name="uq_simulated_broker_state_transition_scope_revision",
+        ),
+        UniqueConstraint(
+            "transition_hash",
+            name="uq_simulated_broker_state_transition_hash",
+        ),
+        Index(
+            "ix_sim_broker_state_transition_predecessor_hash",
+            "predecessor_transition_hash",
+        ),
+        CheckConstraint(
+            "broker IN ('paper', 'ctp_sim')",
+            name="ck_simulated_broker_state_transition_broker",
+        ),
+        CheckConstraint(
+            "schema_version > 0",
+            name="ck_simulated_broker_state_transition_schema_version",
+        ),
+        CheckConstraint(
+            "revision >= 0",
+            name="ck_simulated_broker_state_transition_revision",
+        ),
+        CheckConstraint(
+            "action ~ '^[a-z][a-z0-9_]{0,63}$'",
+            name="ck_simulated_broker_state_transition_action",
+        ),
+        CheckConstraint(
+            f"state_hash ~ '{_SIMULATED_BROKER_STATE_HASH_PATTERN}'",
+            name="ck_simulated_broker_state_transition_state_hash",
+        ),
+        CheckConstraint(
+            "predecessor_transition_hash IS NULL OR "
+            f"predecessor_transition_hash ~ '{_SIMULATED_BROKER_STATE_HASH_PATTERN}'",
+            name="ck_simulated_broker_state_transition_predecessor_hash",
+        ),
+        CheckConstraint(
+            f"transition_hash ~ '{_SIMULATED_BROKER_STATE_HASH_PATTERN}'",
+            name="ck_simulated_broker_state_transition_hash_shape",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    broker: Mapped[str] = mapped_column(String(32), index=True)
+    account: Mapped[str] = mapped_column(String(64), index=True)
+    schema_version: Mapped[int] = mapped_column(Integer)
+    revision: Mapped[int] = mapped_column(Integer)
+    action: Mapped[str] = mapped_column(String(64), index=True)
+    state_json: Mapped[str] = mapped_column(Text)
+    state_hash: Mapped[str] = mapped_column(String(64), index=True)
+    predecessor_transition_hash: Mapped[str | None] = mapped_column(
+        String(64),
+        default=None,
+    )
+    transition_hash: Mapped[str] = mapped_column(String(64), index=True)
+    occurred_at: Mapped[datetime] = mapped_column(UTCDateTime(), index=True)

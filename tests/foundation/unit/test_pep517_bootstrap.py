@@ -224,6 +224,24 @@ def test_development_staging_path_is_a_fresh_sibling(tmp_path: Path) -> None:
     assert not staged.exists()
 
 
+@pytest.mark.parametrize("profile_name", ("development", "ci", "release"))
+def test_bootstrap_venv_is_relocatable_for_promotion_or_release_archive(
+    tmp_path: Path, profile_name: str
+) -> None:
+    commands: list[tuple[str, ...]] = []
+    requested_venv = None if profile_name == "development" else tmp_path / profile_name
+
+    bootstrap.bootstrap_environment(
+        project_root=PROJECT_ROOT,
+        profile_name=profile_name,
+        requested_venv=requested_venv,
+        run_command=lambda command, _root, _environment: commands.append(tuple(command)),
+    )
+
+    _, venv_command = commands
+    assert "--relocatable" in venv_command
+
+
 def test_development_promotion_keeps_existing_environment_on_switch_failure(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

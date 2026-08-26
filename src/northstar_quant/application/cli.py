@@ -5,10 +5,12 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import asdict
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Final, cast
 
 import click
+import polars as pl
 import typer
 from typer.completion import install_callback, show_callback
 from typer.core import TyperCommand, TyperGroup
@@ -40,6 +42,15 @@ from northstar_quant.data.artifacts.output_cleanup import (
     OutputCleanupSafetyError,
     cleanup_output_files,
 )
+from northstar_quant.data.lake import (
+    DatasetVersionLakeMaterializer,
+    LakeDatasetKind,
+    LakeDatasetReference,
+    LakeManifestLocalIndex,
+    LakeMaterializationRequest,
+    ParquetLakeStore,
+)
+from northstar_quant.research.analytics import DuckDBQueryRequest, HistoricalLakeDuckDB
 from northstar_quant.foundation.db.init_db import init_db
 from northstar_quant.application.scheduler import run_scheduler
 from northstar_quant.application.live_service import (
@@ -128,6 +139,9 @@ live_app = typer.Typer(help="实盘相关命令。", **_GROUP_KWARGS)
 report_app = typer.Typer(help="报告相关命令。", **_GROUP_KWARGS)
 dashboard_app = typer.Typer(help="Dashboard 相关命令。", **_GROUP_KWARGS)
 data_app = typer.Typer(help="数据下载与数据集管理命令。", **_GROUP_KWARGS)
+lake_app = typer.Typer(help="受治理的历史 Parquet Lake 命令。", **_GROUP_KWARGS)
+local_tools_app = typer.Typer(help="隔离、非权威的本地工具集命令。", **_GROUP_KWARGS)
+lake_index_app = typer.Typer(help="Parquet Lake SQLite manifest 索引命令。", **_GROUP_KWARGS)
 ops_app = typer.Typer(help="运维就绪检查命令。", **_GROUP_KWARGS)
 backup_app = typer.Typer(help="PostgreSQL 备份与恢复证据命令。", **_GROUP_KWARGS)
 
@@ -137,6 +151,9 @@ app.add_typer(live_app, name="live")
 app.add_typer(report_app, name="report")
 app.add_typer(dashboard_app, name="dashboard")
 app.add_typer(data_app, name="data")
+data_app.add_typer(lake_app, name="lake")
+app.add_typer(local_tools_app, name="local-tools")
+local_tools_app.add_typer(lake_index_app, name="lake-index")
 ops_app.add_typer(backup_app, name="backup")
 app.add_typer(ops_app, name="ops")
 
@@ -362,6 +379,128 @@ def data_cleanup_command(
     )
 
 
+@lake_app.command("materialize", **_COMMAND_KWARGS)
+def data_lake_materialize_command(
+    input_path: Path = typer.Option(
+        ...,
+        "--input",
+        help="与受验证 artifact canonical payload 完全一致的 Parquet 输入文件。",
+    ),
+    dataset_version: str = typer.Option(
+        ...,
+        "--dataset-version",
+        help="已验证的 immutable DatasetVersion SHA-256。",
+    ),
+    artifact_snapshot: str = typer.Option(
+        ...,
+        "--artifact-snapshot",
+        help="DatasetVersion 中待物化 tabular artifact 的 snapshot SHA-256。",
+    ),
+    kind: str = typer.Option(
+        ..., "--kind", help="tick、bars、factors、features、research 或 backtest。"
+    ),
+    event_time_column: str = typer.Option(
+        ...,
+        "--event-time-column",
+        help="输入 Parquet 中记录事实发生时间的列名。",
+    ),
+) -> None:
+    """把已验证 DatasetVersion 的一份 tabular artifact 物化为不可变分区 Parquet Lake。"""
+
+    if not input_path.is_file() or input_path.suffix.lower() != ".parquet":
+        raise typer.BadParameter("--input 必须是存在的 .parquet 文件")
+    try:
+        dataset_kind = LakeDatasetKind(kind)
+        frame = pl.read_parquet(input_path)
+        result = DatasetVersionLakeMaterializer.from_settings().materialize(
+            LakeMaterializationRequest(
+                dataset_version_hash=dataset_version,
+                artifact_snapshot_hash=artifact_snapshot,
+                kind=dataset_kind,
+                event_time_column=event_time_column,
+            ),
+            frame,
+        )
+    except (ValueError, RuntimeError, pl.exceptions.PolarsError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    _log_json(result.as_mapping(), command="data.lake.materialize", kind=dataset_kind.value)
+
+
+@lake_app.command("verify", **_COMMAND_KWARGS)
+def data_lake_verify_command(
+    kind: str = typer.Option(..., "--kind", help="Lake dataset kind。"),
+    dataset_id: str = typer.Option(..., "--dataset-id", help="Lake dataset ID。"),
+    version_hash: str = typer.Option(..., "--version", help="不可变 Lake version SHA-256。"),
+) -> None:
+    """逐文件校验 Lake manifest、Parquet hash、schema、分区与 PIT 字段。"""
+
+    try:
+        reference = LakeDatasetReference(
+            kind=LakeDatasetKind(kind),
+            dataset_id=dataset_id,
+            version_hash=version_hash,
+        )
+        verified = ParquetLakeStore.from_settings().verify(reference)
+    except (ValueError, RuntimeError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    _log_json(
+        {
+            "dataset_id": verified.manifest.dataset_id,
+            "kind": verified.manifest.kind.value,
+            "manifest_sha256": verified.manifest_sha256,
+            "partition_count": len(verified.parquet_paths),
+            "row_count": sum(partition.row_count for partition in verified.manifest.partitions),
+            "status": "verified",
+            "version_hash": verified.manifest.version_hash,
+        },
+        command="data.lake.verify",
+        kind=reference.kind.value,
+    )
+
+
+@lake_index_app.command("rebuild", **_COMMAND_KWARGS)
+def local_tools_lake_index_rebuild_command() -> None:
+    """显式重建非权威 SQLite Lake manifest 索引；不会修改 Lake 或核心数据库。"""
+
+    try:
+        index = LakeManifestLocalIndex.from_settings()
+        result = index.rebuild(ParquetLakeStore.from_settings())
+    except RuntimeError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    _log_json(
+        result.as_mapping(),
+        command="local-tools.lake-index.rebuild",
+        non_authoritative=True,
+    )
+
+
+@lake_index_app.command("list", **_COMMAND_KWARGS)
+def local_tools_lake_index_list_command(
+    kind: str | None = typer.Option(None, "--kind", help="可选 Lake dataset kind 过滤条件。"),
+    dataset_id: str | None = typer.Option(None, "--dataset-id", help="可选 Lake dataset ID 过滤条件。"),
+) -> None:
+    """列出最新 SQLite index generation；实际读取 Lake 时仍必须重新验证。"""
+
+    try:
+        dataset_kind = LakeDatasetKind(kind) if kind is not None else None
+        entries = LakeManifestLocalIndex.from_settings().list_entries(
+            kind=dataset_kind,
+            dataset_id=dataset_id,
+        )
+    except (ValueError, RuntimeError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    _log_json(
+        {
+            "entries": [entry.as_mapping() for entry in entries],
+            "non_authoritative": True,
+        },
+        command="local-tools.lake-index.list",
+        kind=dataset_kind.value if dataset_kind is not None else None,
+        entry_count=len(entries),
+        non_authoritative=True,
+    )
+
+
 @research_app.command("futures-trend", **_COMMAND_KWARGS)
 def research_futures_trend_command(
     profile: str | None = typer.Option(None, "--profile", "-p", help=_PROFILE_OPTION_HELP),
@@ -371,6 +510,66 @@ def research_futures_trend_command(
     resolved_profile = resolve_profile_id(profile)
     result = run_profile_backtest(profile_id=resolved_profile)
     _log_json(result, command="research.futures-trend", strategy="futures_trend", profile=resolved_profile)
+
+
+@research_app.command("lake-query", **_COMMAND_KWARGS)
+def research_lake_query_command(
+    kind: str = typer.Option(..., "--kind", help="Lake dataset kind。"),
+    dataset_id: str = typer.Option(..., "--dataset-id", help="Lake dataset ID。"),
+    version_hash: str = typer.Option(..., "--version", help="不可变 Lake version SHA-256。"),
+    as_of: str = typer.Option(
+        ...,
+        "--as-of",
+        help="必填 PIT 截止时间（ISO-8601，必须带时区）。",
+    ),
+    sql_file: Path = typer.Option(
+        ...,
+        "--sql-file",
+        help="单条 SELECT/WITH 查询文件；查询必须从受控 lake_data relation 读取。",
+    ),
+    parameter: list[str] = typer.Option(
+        [],
+        "--parameter",
+        help="可重复的 JSON 标量参数，对应 SQL 中的 ? 占位符。",
+    ),
+    maximum_rows: int = typer.Option(
+        1_000,
+        "--maximum-rows",
+        min=1,
+        max=10_000,
+        help="允许返回的最大行数，超过即失败而不截断。",
+    ),
+) -> None:
+    """仅对已验证 Lake Parquet 执行内存 DuckDB 历史分析；不会写入任何交易状态。"""
+
+    if not sql_file.is_file():
+        raise typer.BadParameter("--sql-file 必须是存在的查询文件")
+    try:
+        parsed_as_of = datetime.fromisoformat(as_of.replace("Z", "+00:00"))
+        parsed_parameters = tuple(json.loads(value) for value in parameter)
+        request = DuckDBQueryRequest(
+            reference=LakeDatasetReference(
+                kind=LakeDatasetKind(kind),
+                dataset_id=dataset_id,
+                version_hash=version_hash,
+            ),
+            sql=sql_file.read_text(encoding="utf-8"),
+            as_of=parsed_as_of,
+            parameters=parsed_parameters,
+            maximum_rows=maximum_rows,
+        )
+        result = HistoricalLakeDuckDB.from_settings().query(request)
+    except (OSError, ValueError, RuntimeError, json.JSONDecodeError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+    _log_json(
+        {
+            "receipt": result.receipt.as_mapping(),
+            "rows": result.frame.to_dicts(),
+        },
+        command="research.lake-query",
+        kind=request.reference.kind.value,
+        row_count=result.receipt.row_count,
+    )
 
 
 @research_app.command("assess", **_COMMAND_KWARGS)

@@ -32,8 +32,8 @@ def test_paper_order_reconcile_attribution_and_report_infrastructure(
     )
     monkeypatch.setattr(paper_broker, "get_settings", lambda: settings)
     try:
-        broker = PaperBrokerAdapter()
         testing_session = postgresql_session_factory
+        broker = PaperBrokerAdapter(session_factory=testing_session)
 
         with testing_session() as session:
             DurableBrokerAdapter(broker, session).submit_order(

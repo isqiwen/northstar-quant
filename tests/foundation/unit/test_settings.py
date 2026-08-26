@@ -10,6 +10,7 @@ from northstar_quant.foundation.config.environment_file import ActiveEnvironment
 from northstar_quant.foundation.config.settings import (
     ENV_DISABLED_FIELDS,
     LEGACY_RUNTIME_PATH_ENV_VARS,
+    RETIRED_UNUSED_SETTINGS_ENV_VARS,
     Settings,
     active_environment_file_keys,
     load_settings,
@@ -65,24 +66,35 @@ def test_database_defaults_to_postgresql_psycopg():
     assert settings.database_url.startswith("postgresql+psycopg://")
 
 
-def test_database_rejects_sqlite_url():
-    with pytest.raises(ValidationError, match="不再支持 SQLite"):
+def test_core_database_rejects_sqlite_url():
+    with pytest.raises(ValidationError, match="核心运行数据库"):
         Settings(
             _env_file=None,
             database_url="sqlite:///storage/northstar.db",
         )
 
 
-def test_dashboard_host_only_allows_ipv4_loopback():
-    settings = Settings(_env_file=None, dashboard_host=" 127.0.0.1 ")
+@pytest.mark.parametrize(
+    "field",
+    (
+        "dashboard_host",
+        "futures_trend_lookback_days",
+        "limit_chase_fallback_mode",
+        "limit_chase_max_steps",
+        "limit_chase_per_step_timeout_seconds",
+        "limit_chase_sleep_seconds",
+    ),
+)
+def test_removed_unwired_settings_are_rejected(field):
+    with pytest.raises(ValidationError, match="已移除未接线运行时配置"):
+        Settings(_env_file=None, **{field: "retired"})
 
-    assert settings.dashboard_host == "127.0.0.1"
 
+def test_removed_unwired_environment_settings_are_rejected(monkeypatch):
+    monkeypatch.setenv("NORTHSTAR_DASHBOARD_HOST", "127.0.0.1")
 
-@pytest.mark.parametrize("host", ["0.0.0.0", "::1", "localhost", "192.168.1.10"])
-def test_dashboard_host_rejects_non_ipv4_loopback_values(host):
-    with pytest.raises(ValidationError, match="NORTHSTAR_DASHBOARD_HOST"):
-        Settings(_env_file=None, dashboard_host=host)
+    with pytest.raises(ValueError, match="已移除未接线运行时环境变量"):
+        Settings(_env_file=None)
 
 
 def test_empty_optional_ntfy_environment_values_are_ignored(monkeypatch):
@@ -175,16 +187,22 @@ def test_runtime_paths_derive_from_storage_unless_explicit(tmp_path):
 
     assert derived.storage_dir == tmp_path / "runtime/storage"
     assert derived.downloads_dir == tmp_path / "runtime/storage/downloads"
+    assert derived.local_tools_dir == tmp_path / "runtime/storage/local-tools"
     assert derived.reports_dir == tmp_path / "runtime/reports"
     assert derived.log_dir == tmp_path / "runtime/logs"
-    assert derived.paper_state_path == (
-        tmp_path / "runtime/storage/brokers/paper/paper-research/state.json"
-    )
-    assert derived.ctp_sim_state_path == (
-        tmp_path / "runtime/storage/brokers/ctp_sim/ctp-sim-research/state.json"
-    )
+    assert "paper_state_path" not in Settings.model_fields
+    assert "ctp_sim_state_path" not in Settings.model_fields
+    assert not {
+        "dashboard_host",
+        "futures_trend_lookback_days",
+        "limit_chase_fallback_mode",
+        "limit_chase_max_steps",
+        "limit_chase_per_step_timeout_seconds",
+        "limit_chase_sleep_seconds",
+    } & set(Settings.model_fields)
     assert explicit.storage_dir == tmp_path / "test-runtime/storage"
     assert explicit.downloads_dir == tmp_path / "runtime/download-cache"
+    assert explicit.local_tools_dir == tmp_path / "test-runtime/storage/local-tools"
     assert explicit.reports_dir == tmp_path / "test-runtime/reports"
     assert explicit.log_dir == tmp_path / "test-runtime/logs"
 
@@ -282,9 +300,9 @@ def test_explicit_runtime_paths_do_not_bypass_active_config_validation(tmp_path)
 
 
 @pytest.mark.parametrize("field", ["paper_state_path", "ctp_sim_state_path"])
-def test_local_state_path_must_remain_inside_storage_dir(tmp_path, field):
+def test_retired_simulator_state_path_settings_are_rejected(tmp_path, field):
     _write_runtime_config(tmp_path, storage_dir="runtime/storage")
-    with pytest.raises(ValidationError, match="必须位于 runtime.storage_dir 内"):
+    with pytest.raises(ValidationError, match="已移除模拟柜台 JSON 状态配置"):
         Settings(
             _env_file=None,
             project_root=tmp_path,
@@ -293,8 +311,38 @@ def test_local_state_path_must_remain_inside_storage_dir(tmp_path, field):
         )
 
 
+@pytest.mark.parametrize(
+    "retired_key",
+    (
+        "NORTHSTAR_PAPER_STATE_PATH",
+        "NORTHSTAR_CTP_SIM_STATE_PATH",
+        *sorted(RETIRED_UNUSED_SETTINGS_ENV_VARS),
+    ),
+)
+def test_active_environment_file_rejects_retired_simulator_state_paths(
+    tmp_path,
+    monkeypatch,
+    retired_key,
+):
+    _write_runtime_config(tmp_path)
+    (tmp_path / ".env").write_text(
+        "\n".join(
+            [
+                *(f"{key}=" for key in sorted(active_environment_file_keys())),
+                f"{retired_key}=storage/legacy-state.json",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("NORTHSTAR_PROJECT_ROOT", str(tmp_path))
+
+    with pytest.raises(ActiveEnvironmentFileError, match=f"已废弃字段：{retired_key}"):
+        load_settings()
+
+
 @pytest.mark.parametrize("field", ["paper_account", "ctp_sim_account"])
 @pytest.mark.parametrize("account", ["../other-account", "paper/account", "paper account"])
 def test_local_state_account_rejects_path_like_or_ambiguous_identifiers(field, account):
-    with pytest.raises(ValidationError, match="本地 Paper/CTP 模拟账户"):
+    with pytest.raises(ValidationError, match="Paper/CTP 模拟账户"):
         Settings(_env_file=None, **{field: account})

@@ -6,6 +6,7 @@ from collections.abc import Mapping
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from hashlib import sha256
+import ast
 import inspect
 import json
 from pathlib import Path
@@ -322,14 +323,20 @@ def test_models_and_repository_have_only_hash_safe_audit_fields() -> None:
         "json",
     }
     forbidden_types = {"JSON", "JSONB", "Text"}
-    migration_directory = Path(__file__).parents[3] / "alembic" / "versions"
-    creation_migration = (migration_directory / "0009_agent_run_audit.py").read_text(
-        encoding="utf-8"
-    )
-    hardening_migration = (
-        migration_directory / "0010_agent_run_audit_hardening.py"
+    migration = (
+        Path(__file__).parents[3] / "alembic" / "versions" / "0001_current_schema_baseline.py"
     ).read_text(encoding="utf-8")
-    migration = "\n".join((creation_migration, hardening_migration))
+    migration_tree = ast.parse(migration)
+    audit_helpers = "\n".join(
+        ast.get_source_segment(migration, node) or ""
+        for node in migration_tree.body
+        if isinstance(node, ast.FunctionDef)
+        and node.name
+        in {
+            "_apply_research_agent_run_audit",
+            "_apply_research_agent_run_audit_hardening",
+        }
+    )
 
     assert not {
         name
@@ -345,19 +352,19 @@ def test_models_and_repository_have_only_hash_safe_audit_fields() -> None:
         for column in audit_columns
         if type(column.type).__name__ in forbidden_types
     }
-    assert "sa.Text" not in migration
-    assert "sa.JSON" not in migration
-    assert "prompt" not in migration.casefold()
-    assert "payload" not in migration.casefold()
-    assert "rationale" not in migration.casefold()
-    assert 'sa.Column("error"' not in migration
-    assert "down_revision = \"0008_portfolio_risk_approval\"" in creation_migration
-    assert "down_revision = \"0009_agent_run_audit\"" in hardening_migration
-    assert "ck_research_agent_audit_request_hash" in hardening_migration
-    assert "ck_research_agent_trace_tool_name" in hardening_migration
-    assert "ck_research_agent_audit_failure_code" in hardening_migration
-    assert "BEFORE TRUNCATE ON research_agent_run_audit_events" in hardening_migration
-    assert "BEFORE TRUNCATE ON research_agent_run_trace_entries" in hardening_migration
+    assert "sa.Text" not in audit_helpers
+    assert "sa.JSON" not in audit_helpers
+    assert "prompt" not in audit_helpers.casefold()
+    assert "payload" not in audit_helpers.casefold()
+    assert "rationale" not in audit_helpers.casefold()
+    assert 'sa.Column("error"' not in audit_helpers
+    assert 'revision = "0001_current_schema_baseline"' in migration
+    assert "down_revision = None" in migration
+    assert "ck_research_agent_audit_request_hash" in audit_helpers
+    assert "ck_research_agent_trace_tool_name" in audit_helpers
+    assert "ck_research_agent_audit_failure_code" in audit_helpers
+    assert "BEFORE TRUNCATE ON research_agent_run_audit_events" in audit_helpers
+    assert "BEFORE TRUNCATE ON research_agent_run_trace_entries" in audit_helpers
     assert "def downgrade" in migration
     assert "forward-only" in migration
     assert set(inspect.signature(admit_research_agent_run).parameters) == {

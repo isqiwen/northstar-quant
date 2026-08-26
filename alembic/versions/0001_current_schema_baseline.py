@@ -1,4 +1,9 @@
-"""创建 Northstar Quant 当前完整数据库结构。"""
+"""创建 Northstar Quant 当前开发期数据库基线。
+
+本仓库尚未保留需要逐版升级的数据库。此 migration 是完整、显式且可审计的
+PostgreSQL schema 快照；旧 revision 不再受支持，不能通过自动化回滚、stamp 或
+清库来转换。
+"""
 
 from __future__ import annotations
 
@@ -6,14 +11,726 @@ from alembic import op
 import northstar_quant.foundation.db.types
 import sqlalchemy as sa
 
-revision = "0001_initial_schema"
+revision = "0001_current_schema_baseline"
 down_revision = None
 branch_labels = None
 depends_on = None
 
 
+# Extension helpers are deliberately kept in this single migration rather than
+# importing ORM metadata. A migration must remain a stable schema snapshot even
+# when future models change.
+# BASELINE_EXTENSION_HELPERS_BEGIN
+def _apply_daily_targets_runtime_risk() -> None:
+    """增加目标快照幂等约束和实时风控表。"""
+
+    op.create_unique_constraint(
+        "uq_strategy_run_records_run_id",
+        "strategy_run_records",
+        ["run_id"],
+    )
+    op.create_table(
+        "runtime_risk_records",
+        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.Column("profile_id", sa.String(length=64), nullable=False),
+        sa.Column("broker", sa.String(length=32), nullable=False),
+        sa.Column("account", sa.String(length=64), nullable=True),
+        sa.Column("can_submit", sa.Boolean(), nullable=False),
+        sa.Column("blocking_failure_count", sa.Integer(), nullable=False),
+        sa.Column("warning_count", sa.Integer(), nullable=False),
+        sa.Column("checks_json", sa.Text(), nullable=False),
+        sa.Column(
+            "checked_at",
+            northstar_quant.foundation.db.types.UTCDateTime(),
+            nullable=False,
+        ),
+        sa.Column(
+            "created_at",
+            northstar_quant.foundation.db.types.UTCDateTime(),
+            nullable=False,
+        ),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    for column in (
+        "account",
+        "broker",
+        "can_submit",
+        "checked_at",
+        "created_at",
+        "profile_id",
+    ):
+        op.create_index(
+            op.f(f"ix_runtime_risk_records_{column}"),
+            "runtime_risk_records",
+            [column],
+            unique=False,
+        )
+
+
+def _apply_ctp_sim_execution_semantics() -> None:
+    """扩展执行、订单、成交和持仓快照。"""
+
+    for name, column_type in (
+        ("instrument_id", sa.String(length=32)),
+        ("exchange_id", sa.String(length=16)),
+        ("ctp_offset", sa.String(length=24)),
+        ("volume_multiple", sa.Integer()),
+        ("margin_rate", sa.Float()),
+        ("required_margin", sa.Float()),
+    ):
+        op.add_column(
+            "execution_plan_records",
+            sa.Column(name, column_type, nullable=True),
+        )
+
+    for name, column_type in (
+        ("ctp_offset", sa.String(length=24)),
+        ("volume_multiple", sa.Integer()),
+        ("margin_rate", sa.Float()),
+        ("required_margin", sa.Float()),
+    ):
+        op.add_column(
+            "order_records",
+            sa.Column(name, column_type, nullable=True),
+        )
+
+    op.add_column(
+        "fill_records",
+        sa.Column("ctp_offset", sa.String(length=24), nullable=True),
+    )
+
+    for name, column_type in (
+        ("instrument_id", sa.String(length=32)),
+        ("exchange_id", sa.String(length=16)),
+        ("long_today_qty", sa.Float()),
+        ("long_yesterday_qty", sa.Float()),
+        ("short_today_qty", sa.Float()),
+        ("short_yesterday_qty", sa.Float()),
+    ):
+        op.add_column(
+            "position_snapshot_records",
+            sa.Column(name, column_type, nullable=True),
+        )
+
+
+def _apply_position_risk_semantics() -> None:
+    for name in (
+        "long_frozen_qty",
+        "short_frozen_qty",
+        "long_closable_qty",
+        "short_closable_qty",
+        "margin",
+        "realized_pnl",
+        "unrealized_pnl",
+    ):
+        op.add_column(
+            "position_snapshot_records",
+            sa.Column(name, sa.Float(), nullable=True),
+        )
+
+
+def _apply_reconciliation_safety_state() -> None:
+    op.create_table(
+        "reconciliation_safety_state_records",
+        sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
+        sa.Column("profile_id", sa.String(length=64), nullable=False, index=True),
+        sa.Column("broker", sa.String(length=32), nullable=False, index=True),
+        sa.Column("account", sa.String(length=64), nullable=True, index=True),
+        sa.Column("state", sa.String(length=32), nullable=False, index=True),
+        sa.Column("reason", sa.Text(), nullable=False),
+        sa.Column("evidence_json", sa.Text(), nullable=False, server_default="{}"),
+        sa.Column("predecessor_hash", sa.String(length=64), nullable=True),
+        sa.Column("state_hash", sa.String(length=64), nullable=False),
+        sa.Column("recovery_approver_id", sa.String(length=128), nullable=True),
+        sa.Column("occurred_at", sa.DateTime(timezone=True), nullable=False, index=True),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, index=True),
+        sa.UniqueConstraint(
+            "state_hash",
+            name="uq_reconciliation_safety_state_records_state_hash",
+        ),
+    )
+
+
+def _apply_ledger_settlement_adjustments() -> None:
+    op.create_table(
+        "settlement_records",
+        sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
+        sa.Column("settlement_id", sa.String(length=128), nullable=False, index=True),
+        sa.Column("settlement_date", sa.Date(), nullable=False, index=True),
+        sa.Column("broker", sa.String(length=32), nullable=False, index=True),
+        sa.Column("account", sa.String(length=64), nullable=False, index=True),
+        sa.Column("profile_id", sa.String(length=64), nullable=True, index=True),
+        sa.Column("account_snapshot_id", sa.Integer(), nullable=True, index=True),
+        sa.Column("cash_balance", sa.Float(), nullable=True),
+        sa.Column("margin", sa.Float(), nullable=True),
+        sa.Column("realized_pnl", sa.Float(), nullable=True),
+        sa.Column("unrealized_pnl", sa.Float(), nullable=True),
+        sa.Column("fee", sa.Float(), nullable=True),
+        sa.Column("currency", sa.String(length=8), nullable=False),
+        sa.Column("evidence_json", sa.Text(), nullable=False),
+        sa.Column("settled_at", sa.DateTime(timezone=True), nullable=False, index=True),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+        sa.UniqueConstraint(
+            "broker",
+            "account",
+            "settlement_id",
+            name="uq_settlement_records_broker_account_settlement_id",
+        ),
+    )
+    op.create_table(
+        "ledger_adjustment_records",
+        sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
+        sa.Column("adjustment_id", sa.String(length=64), nullable=False, index=True),
+        sa.Column("broker", sa.String(length=32), nullable=False, index=True),
+        sa.Column("account", sa.String(length=64), nullable=False, index=True),
+        sa.Column("profile_id", sa.String(length=64), nullable=True, index=True),
+        sa.Column("amount", sa.Float(), nullable=False),
+        sa.Column("currency", sa.String(length=8), nullable=False),
+        sa.Column("reason", sa.Text(), nullable=False),
+        sa.Column("approver_id", sa.String(length=128), nullable=False, index=True),
+        sa.Column("evidence_json", sa.Text(), nullable=False),
+        sa.Column("occurred_at", sa.DateTime(timezone=True), nullable=False, index=True),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+        sa.UniqueConstraint("adjustment_id", name="uq_ledger_adjustment_records_adjustment_id"),
+    )
+
+
+def _apply_provenance_consumption() -> None:
+    op.create_table(
+        "execution_provenance_consumption_records",
+        sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
+        sa.Column("preflight_id", sa.String(length=128), nullable=False, index=True),
+        sa.Column("receipt_hash", sa.String(length=64), nullable=False, index=True),
+        sa.Column("plan_hash", sa.String(length=64), nullable=False, index=True),
+        sa.Column("order_hash", sa.String(length=64), nullable=False, index=True),
+        sa.Column("profile_id", sa.String(length=64), nullable=False, index=True),
+        sa.Column("broker", sa.String(length=32), nullable=False, index=True),
+        sa.Column("account", sa.String(length=64), nullable=False, index=True),
+        sa.Column("order_ref", sa.String(length=64), nullable=False, index=True),
+        sa.Column("checked_at", sa.DateTime(timezone=True), nullable=False, index=True),
+        sa.Column("valid_until", sa.DateTime(timezone=True), nullable=False, index=True),
+        sa.Column("consumed_at", sa.DateTime(timezone=True), nullable=False, index=True),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+        sa.UniqueConstraint(
+            "broker",
+            "account",
+            "plan_hash",
+            "order_hash",
+            name="uq_execution_provenance_consumption_plan_order",
+        ),
+    )
+
+
+def _apply_portfolio_risk_approval() -> None:
+    op.create_table(
+        "portfolio_risk_approval_records",
+        sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
+        sa.Column("approval_id", sa.String(length=128), nullable=False, index=True),
+        sa.Column("profile_id", sa.String(length=64), nullable=False, index=True),
+        sa.Column("broker", sa.String(length=32), nullable=False, index=True),
+        sa.Column("account", sa.String(length=64), nullable=False, index=True),
+        sa.Column("review_hash", sa.String(length=64), nullable=False, index=True),
+        sa.Column("evidence_hash", sa.String(length=64), nullable=False, index=True),
+        sa.Column("portfolio_target_hash", sa.String(length=64), nullable=False, index=True),
+        sa.Column("approved_target_hash", sa.String(length=64), nullable=False, index=True),
+        sa.Column("composition_hash", sa.String(length=64), nullable=False, index=True),
+        sa.Column(
+            "composition_evidence_hash",
+            sa.String(length=64),
+            nullable=False,
+            index=True,
+        ),
+        sa.Column("authority_hash", sa.String(length=64), nullable=False, index=True),
+        sa.Column("policy_hash", sa.String(length=64), nullable=False, index=True),
+        sa.Column(
+            "reconciliation_state_hash",
+            sa.String(length=64),
+            nullable=False,
+            index=True,
+        ),
+        sa.Column("binding_hash", sa.String(length=64), nullable=False, index=True),
+        sa.Column("attestation_hash", sa.String(length=64), nullable=False, index=True),
+        sa.Column("approver_id", sa.String(length=128), nullable=False, index=True),
+        sa.Column("verifier_id", sa.String(length=128), nullable=False, index=True),
+        sa.Column(
+            "verifier_receipt_hash",
+            sa.String(length=64),
+            nullable=False,
+            index=True,
+        ),
+        sa.Column("rationale", sa.Text(), nullable=False),
+        sa.Column(
+            "review_evaluated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            index=True,
+        ),
+        sa.Column("approved_at", sa.DateTime(timezone=True), nullable=False, index=True),
+        sa.Column("verified_at", sa.DateTime(timezone=True), nullable=False, index=True),
+        sa.Column("valid_until", sa.DateTime(timezone=True), nullable=False, index=True),
+        sa.Column("issued_at", sa.DateTime(timezone=True), nullable=False, index=True),
+        sa.Column("record_hash", sa.String(length=64), nullable=False, index=True),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, index=True),
+        sa.UniqueConstraint(
+            "approval_id",
+            name="uq_portfolio_risk_approval_records_approval_id",
+        ),
+        sa.UniqueConstraint(
+            "profile_id",
+            "broker",
+            "account",
+            "binding_hash",
+            name="uq_portfolio_risk_approval_records_scope_binding",
+        ),
+        sa.UniqueConstraint(
+            "record_hash",
+            name="uq_portfolio_risk_approval_records_record_hash",
+        ),
+    )
+
+
+def _apply_research_agent_run_audit() -> None:
+    op.create_table(
+        "research_agent_run_audit_events",
+        sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
+        sa.Column("run_id", sa.String(length=128), nullable=False, index=True),
+        sa.Column("event_kind", sa.String(length=16), nullable=False, index=True),
+        sa.Column("is_terminal", sa.Boolean(), nullable=False, index=True),
+        sa.Column("request_hash", sa.String(length=64), nullable=False, index=True),
+        sa.Column("result_hash", sa.String(length=64), nullable=True, index=True),
+        sa.Column("failure_code", sa.String(length=128), nullable=True, index=True),
+        sa.Column("trace_count", sa.Integer(), nullable=False),
+        sa.Column("trace_root_hash", sa.String(length=64), nullable=True, index=True),
+        sa.Column("trace_tail_hash", sa.String(length=64), nullable=True, index=True),
+        sa.Column("as_of", sa.DateTime(timezone=True), nullable=False, index=True),
+        sa.Column("occurred_at", sa.DateTime(timezone=True), nullable=False, index=True),
+        sa.Column(
+            "predecessor_record_hash",
+            sa.String(length=64),
+            nullable=True,
+            index=True,
+        ),
+        sa.Column("lifecycle", sa.String(length=32), nullable=False, index=True),
+        sa.Column(
+            "eligible_for_trading",
+            sa.Boolean(),
+            nullable=False,
+            index=True,
+        ),
+        sa.Column("record_hash", sa.String(length=64), nullable=False, index=True),
+        sa.UniqueConstraint(
+            "run_id",
+            "event_kind",
+            name="uq_research_agent_audit_run_kind",
+        ),
+        sa.UniqueConstraint(
+            "run_id",
+            "is_terminal",
+            name="uq_research_agent_audit_run_terminal",
+        ),
+        sa.UniqueConstraint(
+            "record_hash",
+            name="uq_research_agent_audit_record_hash",
+        ),
+        sa.CheckConstraint(
+            "event_kind IN ('ADMITTED', 'COMPLETED', 'FAILED')",
+            name="ck_research_agent_audit_event_kind",
+        ),
+        sa.CheckConstraint(
+            "lifecycle = 'RESEARCH_ONLY'",
+            name="ck_research_agent_audit_research_only",
+        ),
+        sa.CheckConstraint(
+            "eligible_for_trading = false",
+            name="ck_research_agent_audit_non_tradable",
+        ),
+        sa.CheckConstraint(
+            "trace_count >= 0",
+            name="ck_research_agent_audit_trace_count",
+        ),
+        sa.CheckConstraint(
+            "(event_kind = 'ADMITTED' AND is_terminal = false "
+            "AND result_hash IS NULL AND failure_code IS NULL "
+            "AND trace_count = 0 AND trace_root_hash IS NULL "
+            "AND trace_tail_hash IS NULL AND predecessor_record_hash IS NULL) "
+            "OR (event_kind = 'COMPLETED' AND is_terminal = true "
+            "AND result_hash IS NOT NULL AND failure_code IS NULL "
+            "AND trace_count > 0 AND trace_root_hash IS NOT NULL "
+            "AND trace_tail_hash IS NOT NULL AND predecessor_record_hash IS NOT NULL) "
+            "OR (event_kind = 'FAILED' AND is_terminal = true "
+            "AND result_hash IS NULL AND failure_code IS NOT NULL "
+            "AND trace_count = 0 AND trace_root_hash IS NULL "
+            "AND trace_tail_hash IS NULL AND predecessor_record_hash IS NOT NULL)",
+            name="ck_research_agent_audit_event_shape",
+        ),
+    )
+    op.create_table(
+        "research_agent_run_trace_entries",
+        sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
+        sa.Column("run_id", sa.String(length=128), nullable=False, index=True),
+        sa.Column("sequence", sa.Integer(), nullable=False),
+        sa.Column("tool_name", sa.String(length=64), nullable=False, index=True),
+        sa.Column("request_hash", sa.String(length=64), nullable=False, index=True),
+        sa.Column("response_hash", sa.String(length=64), nullable=False, index=True),
+        sa.Column(
+            "predecessor_trace_hash",
+            sa.String(length=64),
+            nullable=True,
+            index=True,
+        ),
+        sa.Column("trace_hash", sa.String(length=64), nullable=False, index=True),
+        sa.Column("recorded_at", sa.DateTime(timezone=True), nullable=False, index=True),
+        sa.Column("lifecycle", sa.String(length=32), nullable=False, index=True),
+        sa.Column(
+            "eligible_for_trading",
+            sa.Boolean(),
+            nullable=False,
+            index=True,
+        ),
+        sa.Column("record_hash", sa.String(length=64), nullable=False, index=True),
+        sa.UniqueConstraint(
+            "run_id",
+            "sequence",
+            name="uq_research_agent_trace_run_sequence",
+        ),
+        sa.UniqueConstraint(
+            "run_id",
+            "trace_hash",
+            name="uq_research_agent_trace_run_hash",
+        ),
+        sa.UniqueConstraint(
+            "record_hash",
+            name="uq_research_agent_trace_record_hash",
+        ),
+        sa.CheckConstraint(
+            "sequence > 0",
+            name="ck_research_agent_trace_positive_sequence",
+        ),
+        sa.CheckConstraint(
+            "lifecycle = 'RESEARCH_ONLY'",
+            name="ck_research_agent_trace_research_only",
+        ),
+        sa.CheckConstraint(
+            "eligible_for_trading = false",
+            name="ck_research_agent_trace_non_tradable",
+        ),
+    )
+    op.execute(
+        """
+        CREATE FUNCTION northstar_reject_research_agent_run_audit_mutation()
+        RETURNS trigger
+        LANGUAGE plpgsql
+        AS $$
+        BEGIN
+            RAISE EXCEPTION 'RESEARCH_AGENT_RUN_AUDIT_IMMUTABLE';
+            RETURN NULL;
+        END;
+        $$;
+        """
+    )
+    op.execute(
+        """
+        CREATE TRIGGER trg_research_agent_audit_events_immutable
+        BEFORE UPDATE OR DELETE ON research_agent_run_audit_events
+        FOR EACH ROW
+        EXECUTE FUNCTION northstar_reject_research_agent_run_audit_mutation();
+        """
+    )
+    op.execute(
+        """
+        CREATE TRIGGER trg_research_agent_trace_entries_immutable
+        BEFORE UPDATE OR DELETE ON research_agent_run_trace_entries
+        FOR EACH ROW
+        EXECUTE FUNCTION northstar_reject_research_agent_run_audit_mutation();
+        """
+    )
+
+
+_SHA256 = "^[0-9a-f]{64}$"
+_TRACE_TOOL_NAMES = (
+    "'search_events'",
+    "'search_datasets'",
+    "'get_feature'",
+    "'create_experiment'",
+    "'run_backtest'",
+    "'run_validation'",
+    "'generate_research_card'",
+)
+_FAILURE_CODES = ("'RESEARCH_AGENT_RESULT_INVALID'",)
+
+
+def _apply_research_agent_run_audit_hardening() -> None:
+    """Add non-destructive integrity checks and immutable TRUNCATE refusal."""
+
+    for constraint_name, condition in (
+        ("ck_research_agent_audit_request_hash", f"request_hash ~ '{_SHA256}'"),
+        (
+            "ck_research_agent_audit_result_hash",
+            f"result_hash IS NULL OR result_hash ~ '{_SHA256}'",
+        ),
+        (
+            "ck_research_agent_audit_trace_root_hash",
+            f"trace_root_hash IS NULL OR trace_root_hash ~ '{_SHA256}'",
+        ),
+        (
+            "ck_research_agent_audit_trace_tail_hash",
+            f"trace_tail_hash IS NULL OR trace_tail_hash ~ '{_SHA256}'",
+        ),
+        (
+            "ck_research_agent_audit_predecessor_record_hash",
+            f"predecessor_record_hash IS NULL OR predecessor_record_hash ~ '{_SHA256}'",
+        ),
+        (
+            "ck_research_agent_audit_record_hash_shape",
+            f"record_hash ~ '{_SHA256}'",
+        ),
+        (
+            "ck_research_agent_audit_failure_code",
+            f"failure_code IS NULL OR failure_code IN ({', '.join(_FAILURE_CODES)})",
+        ),
+    ):
+        op.create_check_constraint(
+            constraint_name,
+            "research_agent_run_audit_events",
+            condition,
+        )
+
+    for constraint_name, condition in (
+        (
+            "ck_research_agent_trace_tool_name",
+            f"tool_name IN ({', '.join(_TRACE_TOOL_NAMES)})",
+        ),
+        (
+            "ck_research_agent_trace_request_hash",
+            f"request_hash ~ '{_SHA256}'",
+        ),
+        (
+            "ck_research_agent_trace_response_hash",
+            f"response_hash ~ '{_SHA256}'",
+        ),
+        (
+            "ck_research_agent_trace_predecessor_hash",
+            f"predecessor_trace_hash IS NULL OR predecessor_trace_hash ~ '{_SHA256}'",
+        ),
+        (
+            "ck_research_agent_trace_hash_shape",
+            f"trace_hash ~ '{_SHA256}'",
+        ),
+        (
+            "ck_research_agent_trace_record_hash_shape",
+            f"record_hash ~ '{_SHA256}'",
+        ),
+    ):
+        op.create_check_constraint(
+            constraint_name,
+            "research_agent_run_trace_entries",
+            condition,
+        )
+
+    # ``Operations.execute`` also accepts a SQLAlchemy executable.  Keeping
+    # the trigger definition as ``sa.text`` makes the migration-preservation
+    # check distinguish declarative TRUNCATE refusal from destructive SQL.
+    op.execute(
+        sa.text(
+            """
+            CREATE TRIGGER trg_research_agent_audit_events_reject_truncate
+            BEFORE TRUNCATE ON research_agent_run_audit_events
+            FOR EACH STATEMENT
+            EXECUTE FUNCTION northstar_reject_research_agent_run_audit_mutation();
+            """
+        )
+    )
+    op.execute(
+        sa.text(
+            """
+            CREATE TRIGGER trg_research_agent_trace_entries_reject_truncate
+            BEFORE TRUNCATE ON research_agent_run_trace_entries
+            FOR EACH STATEMENT
+            EXECUTE FUNCTION northstar_reject_research_agent_run_audit_mutation();
+            """
+        )
+    )
+
+
+_SIMULATED_BROKER_STATE_SHA256 = "^[0-9a-f]{64}$"
+
+
+def _apply_simulated_broker_state_authority() -> None:
+    """Create PostgreSQL authority and immutable audit for paper/CTP-sim state."""
+
+    op.create_table(
+        "simulated_broker_state_records",
+        sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
+        sa.Column("broker", sa.String(length=32), nullable=False),
+        sa.Column("account", sa.String(length=64), nullable=False),
+        sa.Column("schema_version", sa.Integer(), nullable=False),
+        sa.Column("revision", sa.Integer(), nullable=False),
+        sa.Column("state_json", sa.Text(), nullable=False),
+        sa.Column("state_hash", sa.String(length=64), nullable=False),
+        sa.Column("last_transition_hash", sa.String(length=64), nullable=False),
+        sa.Column(
+            "initialized_at",
+            northstar_quant.foundation.db.types.UTCDateTime(),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            northstar_quant.foundation.db.types.UTCDateTime(),
+            nullable=False,
+        ),
+        sa.UniqueConstraint(
+            "broker",
+            "account",
+            name="uq_simulated_broker_state_records_broker_account",
+        ),
+        sa.CheckConstraint(
+            "broker IN ('paper', 'ctp_sim')",
+            name="ck_simulated_broker_state_records_broker",
+        ),
+        sa.CheckConstraint(
+            "schema_version > 0",
+            name="ck_simulated_broker_state_records_schema_version",
+        ),
+        sa.CheckConstraint(
+            "revision >= 0",
+            name="ck_simulated_broker_state_records_revision",
+        ),
+        sa.CheckConstraint(
+            f"state_hash ~ '{_SIMULATED_BROKER_STATE_SHA256}'",
+            name="ck_simulated_broker_state_records_state_hash",
+        ),
+        sa.CheckConstraint(
+            f"last_transition_hash ~ '{_SIMULATED_BROKER_STATE_SHA256}'",
+            name="ck_simulated_broker_state_records_last_transition_hash",
+        ),
+    )
+    for column in (
+        "account",
+        "broker",
+        "last_transition_hash",
+        "state_hash",
+    ):
+        op.create_index(
+            op.f(f"ix_simulated_broker_state_records_{column}"),
+            "simulated_broker_state_records",
+            [column],
+            unique=False,
+        )
+
+    op.create_table(
+        "simulated_broker_state_transition_records",
+        sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
+        sa.Column("broker", sa.String(length=32), nullable=False),
+        sa.Column("account", sa.String(length=64), nullable=False),
+        sa.Column("schema_version", sa.Integer(), nullable=False),
+        sa.Column("revision", sa.Integer(), nullable=False),
+        sa.Column("action", sa.String(length=64), nullable=False),
+        sa.Column("state_json", sa.Text(), nullable=False),
+        sa.Column("state_hash", sa.String(length=64), nullable=False),
+        sa.Column("predecessor_transition_hash", sa.String(length=64), nullable=True),
+        sa.Column("transition_hash", sa.String(length=64), nullable=False),
+        sa.Column(
+            "occurred_at",
+            northstar_quant.foundation.db.types.UTCDateTime(),
+            nullable=False,
+        ),
+        sa.UniqueConstraint(
+            "broker",
+            "account",
+            "revision",
+            name="uq_simulated_broker_state_transition_scope_revision",
+        ),
+        sa.UniqueConstraint(
+            "transition_hash",
+            name="uq_simulated_broker_state_transition_hash",
+        ),
+        sa.CheckConstraint(
+            "broker IN ('paper', 'ctp_sim')",
+            name="ck_simulated_broker_state_transition_broker",
+        ),
+        sa.CheckConstraint(
+            "schema_version > 0",
+            name="ck_simulated_broker_state_transition_schema_version",
+        ),
+        sa.CheckConstraint(
+            "revision >= 0",
+            name="ck_simulated_broker_state_transition_revision",
+        ),
+        sa.CheckConstraint(
+            "action ~ '^[a-z][a-z0-9_]{0,63}$'",
+            name="ck_simulated_broker_state_transition_action",
+        ),
+        sa.CheckConstraint(
+            f"state_hash ~ '{_SIMULATED_BROKER_STATE_SHA256}'",
+            name="ck_simulated_broker_state_transition_state_hash",
+        ),
+        sa.CheckConstraint(
+            "predecessor_transition_hash IS NULL OR "
+            f"predecessor_transition_hash ~ '{_SIMULATED_BROKER_STATE_SHA256}'",
+            name="ck_simulated_broker_state_transition_predecessor_hash",
+        ),
+        sa.CheckConstraint(
+            f"transition_hash ~ '{_SIMULATED_BROKER_STATE_SHA256}'",
+            name="ck_simulated_broker_state_transition_hash_shape",
+        ),
+    )
+    for column in (
+        "account",
+        "action",
+        "broker",
+        "occurred_at",
+        "state_hash",
+        "transition_hash",
+    ):
+        op.create_index(
+            op.f(f"ix_simulated_broker_state_transition_records_{column}"),
+            "simulated_broker_state_transition_records",
+            [column],
+            unique=False,
+        )
+    op.create_index(
+        "ix_sim_broker_state_transition_predecessor_hash",
+        "simulated_broker_state_transition_records",
+        ["predecessor_transition_hash"],
+        unique=False,
+    )
+
+    op.execute(
+        """
+        CREATE FUNCTION northstar_reject_simulated_broker_state_transition_mutation()
+        RETURNS trigger
+        LANGUAGE plpgsql
+        AS $$
+        BEGIN
+            RAISE EXCEPTION 'SIMULATED_BROKER_STATE_TRANSITION_IMMUTABLE';
+            RETURN NULL;
+        END;
+        $$;
+        """
+    )
+    op.execute(
+        """
+        CREATE TRIGGER trg_simulated_broker_state_transition_immutable
+        BEFORE UPDATE OR DELETE ON simulated_broker_state_transition_records
+        FOR EACH ROW
+        EXECUTE FUNCTION northstar_reject_simulated_broker_state_transition_mutation();
+        """
+    )
+    op.execute(
+        sa.text(
+            """
+            CREATE TRIGGER trg_simulated_broker_state_transition_reject_truncate
+            BEFORE TRUNCATE ON simulated_broker_state_transition_records
+            FOR EACH STATEMENT
+            EXECUTE FUNCTION northstar_reject_simulated_broker_state_transition_mutation();
+            """
+        )
+    )
+# BASELINE_EXTENSION_HELPERS_END
+
+
 def upgrade() -> None:
-    """创建当前 ORM 定义的全部表、索引和唯一约束。"""
+    """创建当前开发期 ORM schema、数据库约束和不可变审计触发器。"""
     op.create_table(
         "account_attribution_records",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
@@ -260,7 +977,9 @@ def upgrade() -> None:
         sa.Column("account", sa.String(length=64), nullable=True),
         sa.Column("reason", sa.Text(), nullable=True),
         sa.Column("status", sa.String(length=32), nullable=False),
-        sa.Column("requested_at", northstar_quant.foundation.db.types.UTCDateTime(), nullable=False),
+        sa.Column(
+            "requested_at", northstar_quant.foundation.db.types.UTCDateTime(), nullable=False
+        ),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(op.f("ix_cancel_records_account"), "cancel_records", ["account"], unique=False)
@@ -294,7 +1013,9 @@ def upgrade() -> None:
         sa.Column("owner_token", sa.String(length=64), nullable=False),
         sa.Column("fencing_token", sa.Integer(), nullable=False),
         sa.Column("acquired_at", northstar_quant.foundation.db.types.UTCDateTime(), nullable=False),
-        sa.Column("heartbeat_at", northstar_quant.foundation.db.types.UTCDateTime(), nullable=False),
+        sa.Column(
+            "heartbeat_at", northstar_quant.foundation.db.types.UTCDateTime(), nullable=False
+        ),
         sa.Column("expires_at", northstar_quant.foundation.db.types.UTCDateTime(), nullable=False),
         sa.PrimaryKeyConstraint("resource_key"),
     )
@@ -446,9 +1167,17 @@ def upgrade() -> None:
         sa.Column("lease_fencing_token", sa.Integer(), nullable=True),
         sa.Column("last_submission_error", sa.Text(), nullable=True),
         sa.Column("prepared_at", northstar_quant.foundation.db.types.UTCDateTime(), nullable=False),
-        sa.Column("submission_started_at", northstar_quant.foundation.db.types.UTCDateTime(), nullable=True),
+        sa.Column(
+            "submission_started_at",
+            northstar_quant.foundation.db.types.UTCDateTime(),
+            nullable=True,
+        ),
         sa.Column("submitted_at", northstar_quant.foundation.db.types.UTCDateTime(), nullable=True),
-        sa.Column("broker_acknowledged_at", northstar_quant.foundation.db.types.UTCDateTime(), nullable=True),
+        sa.Column(
+            "broker_acknowledged_at",
+            northstar_quant.foundation.db.types.UTCDateTime(),
+            nullable=True,
+        ),
         sa.Column("updated_at", northstar_quant.foundation.db.types.UTCDateTime(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint(
@@ -674,8 +1403,12 @@ def upgrade() -> None:
         sa.Column("selected_strategy_ids_json", sa.Text(), nullable=True),
         sa.Column("strategy_params_json", sa.Text(), nullable=True),
         sa.Column("risk_limits_json", sa.Text(), nullable=True),
-        sa.Column("market_data_asof", northstar_quant.foundation.db.types.UTCDateTime(), nullable=True),
-        sa.Column("signal_data_asof", northstar_quant.foundation.db.types.UTCDateTime(), nullable=True),
+        sa.Column(
+            "market_data_asof", northstar_quant.foundation.db.types.UTCDateTime(), nullable=True
+        ),
+        sa.Column(
+            "signal_data_asof", northstar_quant.foundation.db.types.UTCDateTime(), nullable=True
+        ),
         sa.Column("output_asof", northstar_quant.foundation.db.types.UTCDateTime(), nullable=True),
         sa.Column("snapshot_count", sa.Integer(), nullable=False),
         sa.Column("created_at", northstar_quant.foundation.db.types.UTCDateTime(), nullable=False),
@@ -795,7 +1528,9 @@ def upgrade() -> None:
         sa.Column("implementation_shortfall_bps", sa.Float(), nullable=True),
         sa.Column("order_semantic", sa.String(length=16), nullable=True),
         sa.Column("reason", sa.Text(), nullable=True),
-        sa.Column("attributed_at", northstar_quant.foundation.db.types.UTCDateTime(), nullable=False),
+        sa.Column(
+            "attributed_at", northstar_quant.foundation.db.types.UTCDateTime(), nullable=False
+        ),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(
@@ -946,6 +1681,17 @@ def upgrade() -> None:
         ["symbol"],
         unique=False,
     )
+    _apply_daily_targets_runtime_risk()
+    _apply_ctp_sim_execution_semantics()
+    _apply_position_risk_semantics()
+    _apply_reconciliation_safety_state()
+    _apply_ledger_settlement_adjustments()
+    _apply_provenance_consumption()
+    _apply_portfolio_risk_approval()
+    _apply_research_agent_run_audit()
+    _apply_research_agent_run_audit_hardening()
+    _apply_simulated_broker_state_authority()
+
     # ### end Alembic commands ###
 
 

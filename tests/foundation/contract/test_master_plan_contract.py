@@ -82,22 +82,56 @@ def test_master_plan_tracks_completed_wp_and_current_work() -> None:
     assert "| P9 | Hardening / Performance / Security | DONE | 100% |" in plan
     assert "| P10 | Mature v1 Acceptance | IN_PROGRESS | 78% |" in plan
     assert "P10 已完成 `7/9` 个 Work Package（78%）" in plan
-    assert "active_work_package: null" in plan
-    assert "id: P10-WP08" in plan
     assert (
-        "title: Platform Production / DR Acceptance\n"
-        "  status: BLOCKED"
+        "active_work_package:\n"
+        "  id: null\n"
+        "  title: null\n"
+        "  status: null"
     ) in plan
+    assert "id: P10-WP08" in plan
+    assert ("title: Platform Production / DR Acceptance\n  status: BLOCKED") in plan
+    assert "## DEV-WP01 — Development Alembic Baseline Consolidation" in plan
+    dev_wp01 = plan.split("## DEV-WP01", maxsplit=1)[1].split("## DOC-WP01", maxsplit=1)[0]
+    assert "**Status:** IN_PROGRESS" in dev_wp01
+    assert "0001_current_schema_baseline" in dev_wp01
+    assert "P10-WP08 `BLOCKED`" in dev_wp01
+    assert "1738 passed, 4 failed" in dev_wp01
+    dev_wp02 = plan.split("## DEV-WP02", maxsplit=1)[1].split("## DEV-WP03", maxsplit=1)[0]
+    assert "**Status:** VERIFY" in dev_wp02
+    assert "PostgreSQL / Parquet / DuckDB / SQLite" in dev_wp02
+    assert "1739 passed, 4 failed" in dev_wp02
+    assert "## DEV-WP03 — PostgreSQL Trading-State Authority" in plan
+    dev_wp03 = plan.split("## DEV-WP03", maxsplit=1)[1].split("## DEV-WP04", maxsplit=1)[0]
+    assert "**Status:** VERIFY" in dev_wp03
+    assert "不连接真实 CTP" in dev_wp03
+    assert "1744 passed, 4 failed, 1 deselected" in dev_wp03
+    assert "## DEV-WP04 — PostgreSQL Contract Authority" in plan
+    assert "## DEV-WP05 — Historical Parquet Lake & DuckDB Analytics" in plan
+    dev_wp05 = plan.split("## DEV-WP05", maxsplit=1)[1].split("## DEV-WP06", maxsplit=1)[0]
+    assert "**Status:** DONE" in dev_wp05
+    assert "DatasetVersion" in dev_wp05
+    assert "## DEV-WP06 — SQLite Local-tools Manifest Index" in plan
+    dev_wp06 = plan.split("## DEV-WP06", maxsplit=1)[1].split("## DOC-WP01", maxsplit=1)[0]
+    assert "**Status:** DONE" in dev_wp06
+    assert "Lake manifest" in dev_wp06
+    assert "1772 passed, 4 known unrelated failures, 1 deselected" in dev_wp06
     assert "## DOC-WP01 — Documentation Consolidation & Architecture Specification" in plan
-    assert "**Status:** DONE" in plan.split("## DOC-WP01", maxsplit=1)[1].split("# 20.", maxsplit=1)[0]
+    assert (
+        "**Status:** DONE" in plan.split("## DOC-WP01", maxsplit=1)[1].split("# 20.", maxsplit=1)[0]
+    )
     assert "## DOC-WP02 — Foundation / Data Module Rename" in plan
-    assert "**Status:** DONE" in plan.split("## DOC-WP02", maxsplit=1)[1].split(
-        "# 20.", maxsplit=1
-    )[0]
+    assert (
+        "**Status:** DONE" in plan.split("## DOC-WP02", maxsplit=1)[1].split("# 20.", maxsplit=1)[0]
+    )
+    maintenance = plan.split("## MAINT-WP01", maxsplit=1)[1].split("# 20.", maxsplit=1)[0]
+    assert "**Status:** DONE" in maintenance
+    assert "northstar_quant.platform" in maintenance
+    assert "1787 passed, 1 failed, 1 deselected" in maintenance
+    assert "pg_dump、pg_restore 与 psql" in maintenance
     assert "## DOC-WP03 — Module Class Relationship Diagrams" in plan
-    assert "**Status:** DONE" in plan.split("## DOC-WP03", maxsplit=1)[1].split(
-        "# 20.", maxsplit=1
-    )[0]
+    assert (
+        "**Status:** DONE" in plan.split("## DOC-WP03", maxsplit=1)[1].split("# 20.", maxsplit=1)[0]
+    )
     assert "## DOC-WP04 — Architecture Diagram Placement" in plan
     doc_wp04 = plan.split("## DOC-WP04", maxsplit=1)[1].split("# 20.", maxsplit=1)[0]
     assert "**Status:** DONE" in doc_wp04
@@ -144,9 +178,7 @@ def test_master_plan_tracks_completed_wp_and_current_work() -> None:
     assert "inspect_dataset_quality" in wp04_p7
     assert "DIAGNOSTIC_ONLY" in wp04_p7
     assert "P7 data-quality focused suite — 92 passed" in wp04_p7
-    wp05_p7 = plan.split("## P7-WP05 — Ops Agent", maxsplit=1)[1].split(
-        "# 17. P8", maxsplit=1
-    )[0]
+    wp05_p7 = plan.split("## P7-WP05 — Ops Agent", maxsplit=1)[1].split("# 17. P8", maxsplit=1)[0]
     assert "**Status:** DONE" in wp05_p7
     assert "TypedOpsToolApi" in wp05_p7
     assert "P7 ops focused suite — 49 passed" in wp05_p7
@@ -162,24 +194,20 @@ def test_master_plan_tracks_completed_wp_and_current_work() -> None:
     assert "CandidateAcceptanceVerifier" in wp01_p8
     assert "CANDIDATE_EVIDENCE_ONLY" in wp01_p8
     assert "245 passed, 7 skipped" in wp01_p8
-    wp02_p8 = p8.split("## P8-WP02 — Intelligence-to-Research Feature Projection", maxsplit=1)[1].split(
-        "## P8-WP03", maxsplit=1
-    )[0]
+    wp02_p8 = p8.split("## P8-WP02 — Intelligence-to-Research Feature Projection", maxsplit=1)[
+        1
+    ].split("## P8-WP03", maxsplit=1)[0]
     assert "**Status:** DONE" in wp02_p8
     assert "intelligence_feature_projection_v3" in wp02_p8
     assert "1402 passed, 21 skipped" in wp02_p8
-    wp03_p8 = p8.split("## P8-WP03", maxsplit=1)[1].split(
-        "## P8-WP04", maxsplit=1
-    )[0]
+    wp03_p8 = p8.split("## P8-WP03", maxsplit=1)[1].split("## P8-WP04", maxsplit=1)[0]
     assert "**Status:** DONE" in wp03_p8
     assert "ResearchStrategyTargetActivator" in wp03_p8
     assert "HumanStrategyTargetActivationApproval" in wp03_p8
     assert "RESEARCH_TO_PORTFOLIO_RISK" in wp03_p8
     assert "decision_time_safe=false" in wp03_p8
     assert "eligible_for_trading=false" in wp03_p8
-    wp04_p8 = p8.split("## P8-WP04", maxsplit=1)[1].split(
-        "## P8-WP05", maxsplit=1
-    )[0]
+    wp04_p8 = p8.split("## P8-WP04", maxsplit=1)[1].split("## P8-WP05", maxsplit=1)[0]
     assert "**Status:** DONE" in wp04_p8
     assert "ExecutionProvenancePreflight" in wp04_p8
     assert "eligible_for_ctp_sim=false" in wp04_p8
@@ -205,26 +233,26 @@ def test_master_plan_tracks_completed_wp_and_current_work() -> None:
     p10 = plan.split("# 19. P10 — Mature v1 总验收", maxsplit=1)[1].split(
         "# 20. Codex Work Package 标准模板", maxsplit=1
     )[0]
-    wp01_p10 = p10.split("## P10-WP01 — Mature v1 Acceptance Evidence Baseline", maxsplit=1)[1].split(
-        "## Data", maxsplit=1
-    )[0]
+    wp01_p10 = p10.split("## P10-WP01 — Mature v1 Acceptance Evidence Baseline", maxsplit=1)[
+        1
+    ].split("## Data", maxsplit=1)[0]
     assert "**Status:** DONE" in wp01_p10
     assert "48 项 P10 evidence register" in wp01_p10
-    wp02_p10 = p10.split("## P10-WP02 — Six-Commodity Intelligence Evidence Corpus", maxsplit=1)[1].split(
-        "## P10-WP03", maxsplit=1
-    )[0]
+    wp02_p10 = p10.split("## P10-WP02 — Six-Commodity Intelligence Evidence Corpus", maxsplit=1)[
+        1
+    ].split("## P10-WP03", maxsplit=1)[0]
     assert "**Status:** DONE" in wp02_p10
     assert "fixture-only" in wp02_p10
     assert "Feature-definition handoff" in wp02_p10
-    wp03_p10 = p10.split("## P10-WP03 — Intelligence Feature Research Backtest Evidence", maxsplit=1)[
-        1
-    ].split("## P10-WP04", maxsplit=1)[0]
+    wp03_p10 = p10.split(
+        "## P10-WP03 — Intelligence Feature Research Backtest Evidence", maxsplit=1
+    )[1].split("## P10-WP04", maxsplit=1)[0]
     assert "**Status:** DONE" in wp03_p10
     assert "FIXTURE_ONLY_INTELLIGENCE_REPLAY" in wp03_p10
     assert "synthetic outcome" in wp03_p10
-    wp04_p10 = p10.split("## P10-WP04 — Canonical Multi-Strategy Portfolio Composition", maxsplit=1)[
-        1
-    ].split("## P10-WP05", maxsplit=1)[0]
+    wp04_p10 = p10.split(
+        "## P10-WP04 — Canonical Multi-Strategy Portfolio Composition", maxsplit=1
+    )[1].split("## P10-WP05", maxsplit=1)[0]
     assert "**Status:** DONE" in wp04_p10
     assert "CanonicalPortfolioComposer" in wp04_p10
     assert "PortfolioTarget v2" in wp04_p10
@@ -241,9 +269,9 @@ def test_master_plan_tracks_completed_wp_and_current_work() -> None:
     )[0]
     assert "**Status:** DONE" in wp06_p10
     assert "0010_agent_run_audit_hardening" in wp06_p10
-    wp07_p10 = p10.split("## P10-WP07 — Trading Acceptance Evidence Closure", maxsplit=1)[
-        1
-    ].split("## P10-WP08", maxsplit=1)[0]
+    wp07_p10 = p10.split("## P10-WP07 — Trading Acceptance Evidence Closure", maxsplit=1)[1].split(
+        "## P10-WP08", maxsplit=1
+    )[0]
     assert "**Status:** DONE" in wp07_p10
     assert "P10_TRADING_FAILURE_MATRIX.md" in wp07_p10
     assert "broker.submit_order" in wp07_p10
@@ -256,17 +284,15 @@ def test_master_plan_tracks_completed_wp_and_current_work() -> None:
         "## P6-WP03", maxsplit=1
     )[0]
     assert "**Status:** DONE" in wp02_p6
-    wp03_p6 = plan.split("## P6-WP03 — Scheduling", maxsplit=1)[1].split(
-        "## P6-WP04", maxsplit=1
-    )[0]
+    wp03_p6 = plan.split("## P6-WP03 — Scheduling", maxsplit=1)[1].split("## P6-WP04", maxsplit=1)[
+        0
+    ]
     assert "**Status:** DONE" in wp03_p6
     wp04_p6 = plan.split("## P6-WP04 — Observability", maxsplit=1)[1].split(
         "## P6-WP05", maxsplit=1
     )[0]
     assert "**Status:** DONE" in wp04_p6
-    wp05_p6 = plan.split("## P6-WP05 — Security", maxsplit=1)[1].split(
-        "## P6-WP06", maxsplit=1
-    )[0]
+    wp05_p6 = plan.split("## P6-WP05 — Security", maxsplit=1)[1].split("## P6-WP06", maxsplit=1)[0]
     assert "**Status:** DONE" in wp05_p6
     wp06_p6 = plan.split("## P6-WP06 — Cross-platform Deployment Control", maxsplit=1)[1].split(
         "## P6-WP07", maxsplit=1
@@ -323,9 +349,7 @@ def test_master_plan_tracks_completed_wp_and_current_work() -> None:
     )[0]
     assert "**Status:** DONE" in wp06_p2
     assert "Monte Carlo" in wp06_p2
-    wp07_p2 = plan.split("## P2-WP07", maxsplit=1)[1].split(
-        "## P2-WP08", maxsplit=1
-    )[0]
+    wp07_p2 = plan.split("## P2-WP07", maxsplit=1)[1].split("## P2-WP08", maxsplit=1)[0]
     assert "**Status:** DONE" in wp07_p2
     assert "named human approval" in wp07_p2
     wp08_p2 = plan.split("## P2-WP08", maxsplit=1)[1].split("## P2-WP09", maxsplit=1)[0]

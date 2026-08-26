@@ -45,7 +45,7 @@ _DEFAULT_RUNTIME_DATABASE_URL = (
 
 
 def _configure_safe_test_runtime_settings() -> None:
-    """避免本地遗留 SQLite .env 在测试收集阶段阻断不访问数据库的测试。"""
+    """避免 Local tools 的 SQLite 配置被误作核心 URL 而阻断测试收集。"""
 
     if os.getenv("NORTHSTAR_DATABASE_URL") is not None:
         return
@@ -58,8 +58,8 @@ def _configure_safe_test_runtime_settings() -> None:
     ):
         return
 
-    # 仅为 pytest 进程提供语法正确的安全默认值；数据库测试仍会连接独立的
-    # northstar_test，并在 PostgreSQL 不可用时按真实依赖失败，绝不回退 SQLite。
+    # 仅为 pytest 进程提供语法正确的核心数据库默认值；数据库测试仍会连接独立的
+    # northstar_test，并在 PostgreSQL 不可用时按真实依赖失败，绝不回退到 Local tools SQLite。
     os.environ["NORTHSTAR_DATABASE_URL"] = _DEFAULT_RUNTIME_DATABASE_URL
 
 

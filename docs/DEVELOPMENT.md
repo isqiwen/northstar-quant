@@ -19,7 +19,7 @@ Windows x86_64 和 Linux x86_64 均为 Tier 1 开发平台。生产目标仅为 
 ```powershell
 just setup
 just check
-just test
+uv run --offline --no-sync pytest
 ```
 
 `setup` 是默认的一键本地初始化入口：它先通过 `env-bootstrap` materialize 已审计依赖，再创建或迁移本地
@@ -41,8 +41,50 @@ just setup-postgres
 
 需要定位具体阶段时，可改用 `just db-up` 与 `just db-migrate` 分步执行。
 
+Linux 上的完整 `pytest` 包含真实 PostgreSQL restore drill；在运行前，`PATH` 必须能找到与本机 PostgreSQL
+服务端 major 兼容的 `pg_dump`、`pg_restore` 和 `psql`。`just dev-postgres` 只启动 Docker PostgreSQL，不会安装这些
+宿主机客户端；缺少它们时完整套件会明确失败，不能把 restore drill 静默跳过。Windows 工作站不执行该 Linux-only drill。
+
 数据库自动化只复用既有数据并执行前向迁移，绝不会清空数据库、表、schema 或 Docker volume。测试数据库必须是隔离的
 `northstar_test`；具体连接与备份边界见[运行手册](OPERATIONS.md)。
+
+存储职责固定为：交易状态使用 PostgreSQL，大规模历史数据使用受治理的 Parquet，历史研究/回测分析使用 DuckDB 查询
+Parquet，本地工具集才可使用独立 SQLite。DuckDB 或 SQLite 不得替代 PostgreSQL integration test、交易前事实或风险状态；
+所有 Parquet 输入仍须通过版本、hash、lineage 和 PIT 校验。
+
+### 历史 Parquet Lake 与 DuckDB
+
+历史 Lake 与当前可覆盖的 `storage/market` 投影刻意分离。先通过受控 Source → ArtifactStore → `DatasetVersion`
+链完成授权、质量和血缘验证；只有与该 artifact canonical payload 完全一致的 Parquet，才可以物化到 Lake：
+
+```powershell
+uv run --offline --no-sync northstar data lake materialize --input <verified-artifact.parquet> --dataset-version <dataset-version-sha256> --artifact-snapshot <snapshot-sha256> --kind bars --event-time-column date
+```
+
+物化结果会返回 immutable Lake version。使用 `northstar data lake verify` 重新计算 manifest、文件 hash、schema、分区和
+`available_at`；再用 `northstar research lake-query --as-of <ISO-8601-with-timezone> --sql-file <query.sql>` 执行分析。
+DuckDB 在内存中运行、只暴露已经通过 `available_at <= as_of` 过滤的 `lake_data` relation；它会重新验证 Parquet 字节后
+创建本次查询专用 snapshot，并检查物理计划没有读取其他 relation。查询必须是单条 SELECT/WITH，不能使用外部 I/O、写入、
+随机/时间/顺序敏感函数或用户自定义 `LIMIT`/`OFFSET`；系统统一稳定排序并限制结果行数。每次输出都有可回放 receipt，查询
+或 receipt 本身不构成策略、风险批准或订单。
+
+### SQLite Local-tools Lake 索引
+
+SQLite 不是核心数据库的 fallback。唯一已实现的本地工具库位于 `<storage_dir>/local-tools/`，保存可从 Lake 重新构建的
+manifest discovery metadata；它没有订单、成交、持仓、策略状态、风险、审批、对账或审计事实。显式操作如下：
+
+```powershell
+uv run --offline --no-sync northstar local-tools lake-index rebuild
+uv run --offline --no-sync northstar local-tools lake-index list --kind bars
+```
+
+`rebuild` 先逐份调用 Lake verify，再以并发安全的 SQLite transaction 追加新的 index generation；SQLite 损坏或 schema
+不兼容时，只会隔离固定的 tool-owned 文件并在显式 rebuild 中重建。`list` 不是验证，也不会被 DuckDB 或 PostgreSQL
+自动读取。
+
+当前开发期只有一个完整的 Alembic 基线 `0001_current_schema_baseline`，不支持从历史 revision 升级。若本地开发库的
+`alembic_version` 不是该基线，操作者必须在仓库自动化之外手动重建它，然后才可运行 `just setup-postgres` 或
+`northstar init-db`；不要添加 `stamp`、drop、truncate 或自动重建脚本来绕过这个边界。
 
 ## 3. 创建研究画像
 
@@ -119,7 +161,7 @@ Feature → Experiment → Backtest → Validation → OOS / Stress → Research
 - 注释解释量化假设、时间语义、单位、失败关闭条件和不可变性，而不重复代码语法；
 - 不新增 compatibility alias、legacy adapter、deprecated fallback 或旧 CLI 参数。项目未发布，调用方、测试、配置、
   文档与 migration 应在同一变更中迁移；
-- 改动共享模型、配置、数据库、execution 或 risk 时，完成前运行完整 `just test`；
+- 改动共享模型、配置、数据库、execution 或 risk 时，完成前运行完整 `uv run --offline --no-sync pytest`；
 - 修改架构或运行边界时，同步更新相应的规范文档和 [主实施计划](planning/MASTER_IMPLEMENTATION_PLAN.md)。
 
 ## 7. 排查顺序

@@ -114,7 +114,7 @@ def _assert_service_is_inactive() -> None:
         raise MaintenanceBackupError("查询固定 Northstar systemd 服务状态超时。") from exc
     if result.returncode != 0 or result.stdout.strip() != "inactive":
         raise MaintenanceBackupError(
-            "固定 northstar-quant.service 未确认处于 inactive；拒绝复制运行状态。"
+            "固定 northstar-quant.service 未确认处于 inactive；拒绝创建一致性恢复包。"
         )
 
 
@@ -205,7 +205,6 @@ def _create(args: argparse.Namespace) -> dict[str, object]:
                 config_file=config_file,
                 ontology_dir=ontology_dir,
                 reports_dir=settings.reports_dir,
-                storage_dir=settings.storage_dir,
                 release_metadata_dir=metadata_dir,
             ),
             output_parent=output_parent,
