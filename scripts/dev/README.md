@@ -7,6 +7,8 @@
 just dev-check
 just dev-bootstrap
 just dev-bootstrap-docker
+just setup
+just setup-postgres
 just dev-setup
 just dev-postgres
 ```
@@ -42,8 +44,9 @@ bootstrap 不自动安装 Python、接受 Docker Desktop 许可、配置 WSL、�
 若和本工具的预期状态完全一致，会复用并只补齐缺失软件包。source 已写入、keyring 尚未写入的中断状态
 可以恢复；未知 keyring、符号链接或不同的系统源一律失败关闭，不会覆盖。
 
-`just dev-setup` 在 `.env` 与 `configs/app.yaml` 已符合目标状态时不改写它们、不生成新密码，也不会额外
-创建 `.env` 备份。`just dev-postgres` 始终使用固定 Compose 项目 `northstar-quant`，重复执行只复用本地
+`just setup` 和底层 `just dev-setup` 在 `.env` 与 `configs/app.yaml` 已符合目标状态时不改写它们、不生成新密码，
+也不会额外创建 `.env` 备份。`just setup-postgres` 和底层 `just dev-postgres` 始终使用固定 Compose 项目
+`northstar-quant`，重复执行只复用本地
 容器、卷、数据库和 Alembic head。若检测到保留的数据卷但 `.env` 缺少 `POSTGRES_PASSWORD`，流程会停止；
 请恢复原密码。如确需删除或清空，只有用户可在仓库自动化之外手动操作数据库或卷；初始化器绝不会
 删除卷或猜测密码。
@@ -53,10 +56,11 @@ bootstrap 不自动安装 Python、接受 Docker Desktop 许可、配置 WSL、�
 
 ## 项目初始化
 
-先运行 `just env-bootstrap`，它在全新 `.venv` 中仅 materialize 已审计的锁定构建输入；后续
-`dev-setup` 显式创建本地活动配置、生成不回显的本地数据库密码并固定安全交易开关；
-`dev-postgres` 才会启动 Docker PostgreSQL 并运行迁移。两者都会保持 `paper`、禁用实盘和 kill switch，绝不会下载
-市场数据、启动 scheduler 或提交订单。已有疑似生产、非 paper、live、kill-switch 或外部数据库 `.env`
+日常本机初始化使用 `just setup`。它会先运行 `env-bootstrap`，在全新 `.venv` 中仅 materialize 已审计的锁定构建输入，
+再创建本地活动配置、生成不回显的本地数据库密码并固定安全交易开关；不会启动 Docker。
+需要 PostgreSQL/integration 时使用 `just setup-postgres`，它才会启动 Docker PostgreSQL 并运行迁移。
+两者都会保持 `paper`、禁用实盘和 kill switch，绝不会下载市场数据、启动 scheduler 或提交订单。
+已有疑似生产、非 paper、live、kill-switch 或外部数据库 `.env`
 会被拒绝覆盖；确认它只是本地开发文件后，才可手动追加
 `--confirm-reset-local-dev-config YES`。
 

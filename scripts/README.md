@@ -27,9 +27,12 @@ scripts/deploy/gate_release.sh      # 仅从 root-owned 控制 bundle 执行
 | `just dev-bootstrap` | Windows / Linux | 仅预览 uv、just、Git 的系统安装计划；不执行安装。 |
 | `just dev-bootstrap-docker` | Windows / Linux | 仅预览 Docker + Compose v2 安装计划；不启动 Docker。 |
 | `just env-bootstrap` | Windows / Linux | 先在同级 fresh staging venv 中从受审计的锁定构建输入离线 materialize 依赖，完整验证后才切换 `.venv`；唯一获准 source-only 包逐字节验证后离线构建。 |
-| `just dev-setup` | Windows / Linux | 先执行 `env-bootstrap`，再创建/迁移本地安全配置；不启动 Docker。 |
-| `just dev-postgres` | Windows / Linux（有 Docker） | 显式启动并复用本地 PostgreSQL，创建隔离测试库且只升级至 Alembic head。 |
-| `just test-unit` / `just test-backtest` / `just test-cli` | Windows / Linux | 跨平台开发验证。 |
+| `just setup` | Windows / Linux | 默认一键本地初始化：先执行 `env-bootstrap`，再创建/迁移本地安全配置；不启动 Docker。 |
+| `just setup-postgres` | Windows / Linux（有 Docker） | 显式一键初始化本地 PostgreSQL，创建隔离测试库且只升级至 Alembic head。 |
+| `just dev-setup` / `just dev-postgres` | Windows / Linux | 底层分步入口，分别对应无 Docker 配置初始化和 PostgreSQL 初始化。 |
+| `just db-up` / `just db-migrate` | Windows / Linux（有 Docker） | 数据库排障用分步入口：先启动/复用本地 PostgreSQL，再单独前向迁移。 |
+| `just test-unit` / `just test-backtest` / `just test-cli` / `just test` | Windows / Linux | 跨平台开发验证；`test` 为完整 pytest。 |
+| `just lint` / `just typecheck` / `just check` | Windows / Linux | 静态质量门禁；`check` 同时执行依赖策略、lock、secret、Ruff 和 mypy baseline。 |
 | `just candidate-acceptance` | Linux CI / 已配置隔离 PostgreSQL 的工作站 | P8 固定候选证据矩阵已有三条独立真实 seam：P4→P1→P2 的 Intelligence→Research 静态 research-only 投影、PASS/具名 `CANDIDATE` Card 经独立人工 activation receipt 到 P3 `StrategyTarget` v2，以及 P8-WP05 opaque-authority `Portfolio/Risk→ctp_sim` 闭环。最后一条只使用原始 provenance request、隔离 PostgreSQL 一次性 consumption + durable intent、模拟 fill 和直接 simulator reconciliation；receipt 及 matrix eligibility 仍恒为 false。仅重放受控 offline / paper / `ctp_sim` 测试；任何 live、production 或真实 broker 配置都会失败关闭，且不部署、恢复或提交订单。 |
 | `just deploy-prod <signing_key>` | Windows / Linux | 显式构建并签名发布到 Linux 目标；默认 `SERVICE_MODE=health`。 |
 | `just ops-health` / `ops-logs` / `ops-diagnose` / `ops-backup` | Windows / Linux | 通过 SSH 读取 Linux 目标状态。 |

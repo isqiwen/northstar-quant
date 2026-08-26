@@ -112,6 +112,11 @@ def test_master_plan_tracks_completed_wp_and_current_work() -> None:
     assert "分别包含 `paper`、`ctp_sim` 与真实 CTP fail-closed 的完整流图" in doc_wp06
     assert "CTP_REAL_FRONT_DISABLED" in doc_wp06
     assert "未启用 real CTP、账户、凭据或实盘操作" in doc_wp06
+    assert "## DOC-WP07 — Unified Local Initialization Entry" in plan
+    doc_wp07 = plan.split("## DOC-WP07", maxsplit=1)[1].split("# 20.", maxsplit=1)[0]
+    assert "**Status:** DONE" in doc_wp07
+    assert "`just setup`" in doc_wp07
+    assert "`just setup-postgres`" in doc_wp07
     assert "P10-WP08 与 P10-WP09 均需外部前提" in plan
     wp01_p7 = plan.split("## P7-WP01 — Typed Tool API", maxsplit=1)[1].split(
         "## P7-WP02", maxsplit=1

@@ -70,11 +70,11 @@
     },
     {
       "label": "开发：初始化安全配置与依赖",
-      "detail": "通过 just 创建或校验本地 paper 开发配置，不启动 Docker。",
+      "detail": "通过 just 一键 materialize 依赖并创建或校验本地 paper 开发配置，不启动 Docker。",
       "type": "process",
       "command": "just",
       "args": [
-        "dev-setup"
+        "setup"
       ],
       "problemMatcher": []
     },
@@ -84,7 +84,7 @@
       "type": "process",
       "command": "just",
       "args": [
-        "dev-postgres"
+        "setup-postgres"
       ],
       "problemMatcher": []
     },

@@ -19,12 +19,12 @@
 首次本机设置使用：
 
 ```powershell
-just env-bootstrap
-uv run --offline --no-sync python scripts/dev/setup.py --initialize-config
+just setup
 ```
 
-只有明确传入 `--with-postgres --migrate` 才会将 Docker PostgreSQL 纳入本机设置。初始化不会下载市场数据、启动 scheduler
-或调用真实交易；它不会覆盖已有疑似生产、非-paper、live、kill-switch 或外部数据库配置。需要重置本地开发配置时，
+只有明确运行 `just setup-postgres`，或在底层 Python 入口传入 `--with-postgres --migrate`，才会将 Docker PostgreSQL
+纳入本机设置。初始化不会下载市场数据、启动 scheduler 或调用真实交易；它不会覆盖已有疑似生产、非-paper、live、
+kill-switch 或外部数据库配置。需要重置本地开发配置时，
 操作者必须显式使用 `--confirm-reset-local-dev-config YES`。
 
 安全默认值必须保持：
@@ -57,9 +57,10 @@ Docker volume。未知路径、符号链接、范围不清或未显式确认时�
 Northstar 是 PostgreSQL-only：
 
 ```powershell
-just db-up
-just db-migrate
+just setup-postgres
 ```
+
+需要分步排查 Docker 或 Alembic 时，使用 `just db-up` 与 `just db-migrate`。
 
 本地 PostgreSQL 使用独立数据卷；自动化不会使用 `down -v`、drop、truncate、delete 或 migration downgrade。
 仓库自动化绝不删除或清空数据库、表、schema 或 Docker 数据卷；数据库删除或清空只能由用户在仓库自动化之外手动执行。

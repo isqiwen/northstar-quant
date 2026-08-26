@@ -15,8 +15,7 @@ NORTHSTAR_LIVE_TRADING_ENABLED=false
 ## 快速开始
 
 ```powershell
-just env-bootstrap
-just dev-setup
+just setup
 just check
 just test
 ```
@@ -24,9 +23,10 @@ just test
 需要隔离 PostgreSQL 时：
 
 ```powershell
-just db-up
-just db-migrate
+just setup-postgres
 ```
+
+需要分步排查时仍可使用底层入口：`just env-bootstrap`、`just dev-setup`、`just db-up`、`just db-migrate`。
 
 数据库自动化只前向迁移和复用已有数据。仓库自动化绝不删除或清空数据库、表、schema 或 Docker 数据卷；
 数据库删除或清空只能由用户在仓库自动化之外手动执行。

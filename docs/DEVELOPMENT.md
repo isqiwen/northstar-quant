@@ -17,13 +17,13 @@ Windows x86_64 和 Linux x86_64 均为 Tier 1 开发平台。生产目标仅为 
 在仓库根目录执行：
 
 ```powershell
-just env-bootstrap
-just dev-setup
+just setup
 just check
 just test
 ```
 
-`env-bootstrap` 是唯一显式的本地依赖同步边界。之后所有 `uv run` 命令必须使用
+`setup` 是默认的一键本地初始化入口：它先通过 `env-bootstrap` materialize 已审计依赖，再创建或迁移本地
+paper 安全配置，且不启动 Docker。`env-bootstrap` 仍是唯一显式的本地依赖同步边界；之后所有 `uv run` 命令必须使用
 `--offline --no-sync`，避免命令隐式下载或 materialize 依赖：
 
 ```powershell
@@ -36,9 +36,10 @@ uv run --offline --no-sync python scripts/ci/check_mypy_baseline.py check
 只在确实需要本地 PostgreSQL 或 integration 测试时才启动 Docker：
 
 ```powershell
-just db-up
-just db-migrate
+just setup-postgres
 ```
+
+需要定位具体阶段时，可改用 `just db-up` 与 `just db-migrate` 分步执行。
 
 数据库自动化只复用既有数据并执行前向迁移，绝不会清空数据库、表、schema 或 Docker volume。测试数据库必须是隔离的
 `northstar_test`；具体连接与备份边界见[运行手册](OPERATIONS.md)。

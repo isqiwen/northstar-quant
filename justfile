@@ -29,12 +29,23 @@ dev-bootstrap:
 dev-bootstrap-docker:
     python scripts/dev/setup.py --bootstrap-tools --install-docker
 
+# 默认的一键本地初始化：依赖、活动配置与 paper 安全默认值；不启动 Docker。
+setup: dev-setup
+
+# 需要 PostgreSQL/integration 时的显式一键初始化；只复用本机 Docker 并前向迁移。
+setup-postgres: dev-postgres
+
 dev-setup: env-bootstrap
     uv run --offline --no-sync python scripts/dev/setup.py --initialize-config
 
 # 显式启动并复用本地 PostgreSQL；只升级至 Alembic head，绝不删除/清空数据库、表、schema 或 Docker 卷。
 dev-postgres: env-bootstrap
     uv run --offline --no-sync python scripts/dev/setup.py --initialize-config --with-postgres --migrate
+
+db-up: env-bootstrap
+    uv run --offline --no-sync python scripts/dev/setup.py --initialize-config --with-postgres
+
+db-migrate: dev-postgres
 
 test-unit:
     uv run --offline --no-sync pytest tests/data/unit tests/intelligence/unit tests/research/unit tests/portfolio_risk/unit tests/trading_execution/unit tests/foundation/unit -q
@@ -44,6 +55,15 @@ test-backtest:
 
 test-cli:
     uv run --offline --no-sync pytest tests/foundation/contract/test_cli_help.py -q
+
+test:
+    uv run --offline --no-sync pytest
+
+lint:
+    uv run --offline --no-sync ruff check .
+
+typecheck:
+    uv run --offline --no-sync python scripts/ci/check_mypy_baseline.py check
 
 check:
     python scripts/ci/check_dependency_policy.py

@@ -269,6 +269,8 @@ def test_user_facing_uv_run_commands_cannot_implicitly_materialize_dependencies(
 def test_root_readme_links_to_control_plane_without_a_stale_roadmap() -> None:
     readme = _read(README_PATH)
 
+    assert "just setup" in readme
+    assert "just setup-postgres" in readme
     assert "[主实施计划](docs/planning/MASTER_IMPLEMENTATION_PLAN.md)" in readme
     assert "P10 已完成 7/9 个 Work Package（78%）" in readme
     assert "唯一实施进度事实来源" in _read(PLANNING_INDEX_PATH)

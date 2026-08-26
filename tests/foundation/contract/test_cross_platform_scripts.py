@@ -118,10 +118,18 @@ def test_justfile_is_thin_cross_platform_command_router() -> None:
         "dev-check:",
         "dev-bootstrap:",
         "dev-bootstrap-docker:",
+        "setup:",
+        "setup-postgres:",
         "dev-setup:",
+        "dev-postgres:",
+        "db-up:",
+        "db-migrate:",
         "test-unit:",
         "test-backtest:",
         "test-cli:",
+        "test:",
+        "lint:",
+        "typecheck:",
         "candidate-acceptance:",
         "deploy-prod signing_key inventory='deploy.env':",
         "ops-health inventory='deploy.env':",
@@ -153,8 +161,8 @@ def test_vscode_workspace_uses_cross_platform_and_explicitly_confirmed_tasks() -
 
     for label, recipe in (
         ("开发：环境检查", "dev-check"),
-        ("开发：初始化安全配置与依赖", "dev-setup"),
-        ("数据库：初始化 PostgreSQL 并迁移（显式）", "dev-postgres"),
+        ("开发：初始化安全配置与依赖", "setup"),
+        ("数据库：初始化 PostgreSQL 并迁移（显式）", "setup-postgres"),
         ("测试：领域单元测试", "test-unit"),
         ("测试：回测研究测试", "test-backtest"),
         ("测试：CLI 契约测试", "test-cli"),
@@ -202,6 +210,7 @@ def test_justfile_is_parseable_when_just_is_available() -> None:
 
     assert result.returncode == 0, result.stdout + result.stderr
     assert "dev-bootstrap" in result.stdout
+    assert "setup" in result.stdout
 
 
 def test_tier_one_ci_installs_and_exercises_just() -> None:

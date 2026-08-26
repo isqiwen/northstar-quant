@@ -82,7 +82,7 @@ next_task:
 blocked_work_packages: [P10-WP08, P10-WP09]
 ```
 
-P10 已完成 `7/9` 个 Work Package（78%）；其余 P10-WP08 与 P10-WP09 均需外部前提。用户授权的跨阶段文档工作包 `DOC-WP06` 已完成；它不改变 P10 的验收计数或外部阻塞状态。
+P10 已完成 `7/9` 个 Work Package（78%）；其余 P10-WP08 与 P10-WP09 均需外部前提。用户授权的跨阶段文档工作包 `DOC-WP07` 已完成；它不改变 P10 的验收计数或外部阻塞状态。
 
 ---
 
@@ -621,14 +621,21 @@ completion:
 已提供的统一命令：
 
 ```text
+just setup
+just setup-postgres
 just dev-check
 just dev-bootstrap
 just dev-bootstrap-docker
 just dev-setup
 just dev-postgres
+just db-up
+just db-migrate
 just test-unit
 just test-backtest
 just test-cli
+just test
+just lint
+just typecheck
 just candidate-acceptance
 just check
 just deploy-prod
@@ -4039,6 +4046,52 @@ verification:
 
 ---
 
+## DOC-WP07 — Unified Local Initialization Entry
+
+**Status:** DONE
+
+**Origin:** 用户指出项目初始化步骤过多，要求收敛成一个默认入口。
+
+**Goal:** 将日常本地初始化收敛为 `just setup`，并为需要 PostgreSQL 的场景提供同样明确的一键入口
+`just setup-postgres`；底层步骤继续保留给 CI、排障和需要显式阶段控制的操作者。
+
+**Scope:**
+
+- 在 `justfile` 增加 `setup`、`setup-postgres`、`db-up`、`db-migrate`、`test`、`lint`、`typecheck`；
+- README、开发/运行/脚本/测试文档优先展示 `just setup` 与 `just setup-postgres`；
+- VS Code 任务改用统一入口；
+- 更新跨平台脚本与文档契约测试；
+- 不修改数据库 schema、迁移、broker、生产部署或交易安全门禁。
+
+**Acceptance:**
+
+- 新用户日常初始化只需执行 `just setup`；
+- 需要本地 PostgreSQL 时只需执行 `just setup-postgres`，且仍然显式选择 Docker/PostgreSQL；
+- 底层命令仍可用于分步排查，且不会引入隐式依赖下载、实盘启用、生产配置或数据删除；
+- `just --list`、文档/脚本契约和可用的静态安全校验通过。
+
+**Completion:**
+
+```yaml
+completed_at: 2026-08-26
+commit: null
+notes: >-
+  本地初始化入口收敛为 just setup；PostgreSQL/integration 初始化收敛为 just setup-postgres。
+  README、DEVELOPMENT、OPERATIONS、scripts/tests 文档、VS Code 任务和 contract tests 已同步；
+  旧的 env-bootstrap/dev-setup/dev-postgres/db-up/db-migrate 保留为底层显式入口。
+verification:
+  - "just --list: passed"
+  - "git diff --check: passed"
+  - "python -m py_compile scripts/dev/setup.py tests/foundation/contract/test_cross_platform_scripts.py tests/foundation/contract/test_documentation_contracts.py tests/foundation/contract/test_master_plan_contract.py: passed"
+  - "python -m json.tool .vscode/tasks.json: passed"
+  - "python scripts/dev/setup.py --bootstrap-tools: passed preview-only"
+  - "python scripts/ci/check_dependency_policy.py: passed"
+  - "python scripts/ci/check_secrets.py: passed"
+  - "uv run --offline --no-sync pytest ... / ruff / mypy baseline: not run; uv is not installed in this workstation PATH"
+```
+
+---
+
 # 20. Codex Work Package 标准模板
 
 ```yaml
@@ -4344,7 +4397,7 @@ next_task:
   status: BLOCKED
 ```
 
-DOC-WP06 已完成；P10-WP08 与 P10-WP09 仍由外部前提阻塞。
+DOC-WP07 已完成；P10-WP08 与 P10-WP09 仍由外部前提阻塞。
 在获得授权的外部条件前维持 `NO LIVE ACTION`。
 
 ---
@@ -4448,5 +4501,6 @@ DOC-WP06 已完成；P10-WP08 与 P10-WP09 仍由外部前提阻塞。
 | 2026-08-23 | DOC-WP04：将六张领域类关系图归位到对应模块说明，将 application 图归位到系统拓扑的 composition-root 说明；删除脱离上下文的独立图章节并以文档契约固定位置。 | DONE |
 | 2026-08-23 | DOC-WP05：删除重复的领域语义总览，将 Commodity/Instrument/Contract 与 Fill/ClosedTrade 约束分别归入 Data 与 Trading/Execution；同步更新锚点、章节编号与文档契约。 | DONE |
 | 2026-08-23 | DOC-WP06：补齐运行模式数据流。paper、`ctp_sim` 与真实 CTP 各有一张 Mermaid flowchart，分别覆盖本地纸面闭环、受证据/审批/一次性授权约束的本地 CTP 语义模拟，以及连接前 fail-closed 的真实 CTP 拒绝路径；未启用账户、凭据、连接或实盘操作。 | DONE |
+| 2026-08-26 | DOC-WP07：本地初始化入口收敛为 `just setup`，PostgreSQL/integration 初始化收敛为 `just setup-postgres`；README、开发/运行/脚本/测试文档、VS Code 任务和命令契约同步，底层分步入口保留用于 CI 与排障。 | DONE |
 
 > 所有重大架构变化、阶段调整、WP 删除/新增都必须记录在这里。

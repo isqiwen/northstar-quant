@@ -46,9 +46,8 @@ Windows 与 Linux 使用相同的命令面：
 
 ```bash
 just dev-bootstrap   # 仅预览 uv、just、Git 安装计划；不执行安装
-just env-bootstrap   # 唯一允许 materialize 锁定依赖的边界
-just dev-setup       # 创建/迁移唯一活动配置
-just dev-postgres    # 仅在需要 PostgreSQL/integration 时启动本地数据库并迁移
+just setup           # 一键 materialize 依赖并创建/迁移唯一活动配置
+just setup-postgres  # 仅在需要 PostgreSQL/integration 时启动本地数据库并迁移
 ```
 
 Python 3.11+ 需要预先安装。没有 `uv` 或 `just` 时，先用
@@ -56,7 +55,7 @@ Python 3.11+ 需要预先安装。没有 `uv` 或 `just` 时，先用
 `--install-docker`。两者默认不安装、不启动 Docker；实际执行必须显式提供
 `--apply --confirm-tool-install YES`，Docker 还需 `--confirm-docker-install YES`。
 
-`dev-setup` 不会启动 Docker；`dev-postgres` 才会启动并复用本地 Docker PostgreSQL，并确保
+`setup` 不会启动 Docker；`setup-postgres` 才会启动并复用本地 Docker PostgreSQL，并确保
 `northstar` 与 `northstar_test` 存在且只升级到 Alembic head。两者都强制 `paper`、禁用 live，不会下载
 市场数据或提交订单；仓库自动化绝不删除或清空数据库、表、schema 或 Docker 数据卷。
 没有安装 `just` 时，先运行 `python scripts/ci/bootstrap_pep517.py --profile development`，再使用
