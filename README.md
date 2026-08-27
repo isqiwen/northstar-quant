@@ -60,9 +60,7 @@ staging venv；只有替换无法安全恢复时才保留该目录供诊断，VS
 - [开发与研究工作流](docs/DEVELOPMENT.md)：本地设置、画像、策略、回测和质量门禁；
 - [运行、配置与部署手册](docs/OPERATIONS.md)：配置、运行模式、报告、部署、备份与故障处理；
 - [数据、研究、AI 与安全治理](docs/GOVERNANCE.md)：数据授权、研究准入、AI 权限、审计和人工控制；
-- [主实施计划](docs/planning/MASTER_IMPLEMENTATION_PLAN.md)：唯一实施进度事实来源；
-- [P10 验收证据](docs/planning/P10_MATURE_V1_ACCEPTANCE_EVIDENCE.md) 与
-  [交易故障矩阵](docs/planning/P10_TRADING_FAILURE_MATRIX.md)：已验证能力和外部阻塞的受控记录。
+- [主实施计划](docs/planning/MASTER_IMPLEMENTATION_PLAN.md)：当前工作、下一项和外部阻塞的唯一事实来源。
 
 ## 当前边界
 

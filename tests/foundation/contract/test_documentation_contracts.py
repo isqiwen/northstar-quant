@@ -17,7 +17,6 @@ ARCHITECTURE_PATH = DOCS_DIR / "ARCHITECTURE.md"
 DEVELOPMENT_PATH = DOCS_DIR / "DEVELOPMENT.md"
 OPERATIONS_PATH = DOCS_DIR / "OPERATIONS.md"
 GOVERNANCE_PATH = DOCS_DIR / "GOVERNANCE.md"
-PLANNING_INDEX_PATH = DOCS_DIR / "planning" / "README.md"
 MASTER_PLAN_PATH = DOCS_DIR / "planning" / "MASTER_IMPLEMENTATION_PLAN.md"
 AGENTS_PATH = PROJECT_ROOT / "AGENTS.md"
 LOCAL_LINK_PATTERN = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
@@ -41,6 +40,10 @@ RETIRED_DOCUMENTS = (
     "09_研究准入政策与数据治理.md",
     "10_AI研究工具边界.md",
     "platform_security_audit.md",
+)
+RETIRED_PLANNING_DOCUMENTS = (
+    "P10_MATURE_V1_ACCEPTANCE_EVIDENCE.md",
+    "P10_TRADING_FAILURE_MATRIX.md",
 )
 
 
@@ -75,7 +78,7 @@ def test_docs_index_is_the_only_canonical_navigation() -> None:
     for filename in CANONICAL_DOCUMENTS:
         assert (DOCS_DIR / filename).is_file()
         assert f"]({filename})" in docs_index
-    assert "](planning/README.md)" in docs_index
+    assert "](planning/MASTER_IMPLEMENTATION_PLAN.md)" in docs_index
     for filename in RETIRED_DOCUMENTS:
         assert not (DOCS_DIR / filename).exists()
 
@@ -90,7 +93,7 @@ def test_consolidated_documents_have_single_responsibility() -> None:
     assert "开发环境、代码约定、第一条研究路径" in development
     assert "运行、配置、报告、部署和数据保全" in operations
     assert "数据授权、研究准入、AI 权限、安全审计和人工控制" in governance
-    assert "唯一实施进度事实来源" in _read(PLANNING_INDEX_PATH)
+    assert "唯一实施进度事实来源" in _read(MASTER_PLAN_PATH)
     assert MASTER_PLAN_PATH.is_file()
 
 
@@ -244,6 +247,20 @@ def test_retired_document_names_have_no_remaining_references() -> None:
     assert not remnants, "已收敛文档仍被引用：\n" + "\n".join(remnants)
 
 
+def test_retired_planning_documents_are_not_retained_or_referenced() -> None:
+    remnants: list[str] = []
+    planning_dir = DOCS_DIR / "planning"
+
+    assert not (planning_dir / "README.md").exists()
+    for filename in RETIRED_PLANNING_DOCUMENTS:
+        assert not (planning_dir / filename).exists()
+        for markdown_path in _markdown_files():
+            if filename in _read(markdown_path):
+                remnants.append(f"{markdown_path.relative_to(PROJECT_ROOT)} -> {filename}")
+
+    assert not remnants, "已完成规划文档仍被引用：\n" + "\n".join(remnants)
+
+
 def test_user_facing_repository_uv_run_commands_cannot_implicitly_materialize_dependencies() -> None:
     documentation_paths = (
         README_PATH,
@@ -301,8 +318,8 @@ def test_root_readme_links_to_control_plane_without_a_stale_roadmap() -> None:
     assert "[主实施计划](docs/planning/MASTER_IMPLEMENTATION_PLAN.md)" in readme
     assert "P10 已完成" not in readme
     assert "不复制会随工作包变化的数字" in readme
-    assert "唯一实施进度事实来源" in _read(PLANNING_INDEX_PATH)
-    assert "DOC-WP01" in _read(MASTER_PLAN_PATH)
+    assert "唯一实施进度事实来源" in _read(MASTER_PLAN_PATH)
+    assert "active_phase: P10" in _read(MASTER_PLAN_PATH)
 
 
 def test_operations_documentation_matches_current_just_and_configuration_contracts() -> None:

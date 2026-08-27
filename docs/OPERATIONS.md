@@ -229,5 +229,4 @@ python scripts/dev/run_uv.py run --offline --no-sync northstar ops backup status
 reconnect、timeout、network partition、DB 不可用、身份不一致、过期事实、保证金/价格限制和 rollover 都必须失败关闭。
 
 unknown order、对账差异或未解释 fill 会进入 sticky `HALT`。自动化不得恢复 HALT、不得取消真实订单、不得增加仓位。
-收集只读诊断后，由获得权限的人按照 [P10 Trading Failure Matrix](planning/P10_TRADING_FAILURE_MATRIX.md) 和外部操作流程
-人工处置。
+收集只读诊断后，由获得权限的人按照外部操作流程人工处置。
