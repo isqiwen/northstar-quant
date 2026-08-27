@@ -75,9 +75,9 @@ Codex 每次进入仓库必须：
 ```yaml
 active_phase: P10
 active_work_package:
-  id: null
-  title: null
-  status: null
+  id: MAINT-WP02
+  title: Native Linux PostgreSQL Development / Docker Removal
+  status: VERIFY
 next_task:
   id: P10-WP08
   title: Platform Production / DR Acceptance
@@ -86,8 +86,10 @@ blocked_work_packages: [P10-WP08, P10-WP09]
 ```
 
 P10 已完成 `7/9` 个 Work Package（78%）；P10-WP08 与 P10-WP09 均需外部前提。用户授权的维护工作包
-`MAINT-WP01` 已完成旧包生成残留、失实运行文档和已确认死代码的清理；跨阶段文档工作包 `DOC-WP07`
-已完成本地初始化入口收敛。二者都不改变 P10 的验收计数或外部阻塞状态。
+`MAINT-WP01` 已完成旧包生成残留、失实运行文档和已确认死代码的清理；`MAINT-WP02` 已退役 Docker/Compose 初始化、
+安装与 socket 访问路径，并按用户决定移除 GitHub Actions CI 支持。按用户的新决定，高层 Linux 初始化现默认安装/启用
+原生 PostgreSQL，同时保持既有角色、数据库与数据目录不可覆盖；实际 host 初始化与完整集成复检仍处于 VERIFY。
+该维护不改变 P10 的验收计数、外部阻塞状态或任何交易安全边界。
 
 ---
 
@@ -390,7 +392,6 @@ northstar-quant/
 │   ├── maintenance/
 │   └── tools/
 ├── infra/
-│   ├── compose/
 │   ├── systemd/
 │   ├── ansible/
 │   ├── monitoring/
@@ -504,19 +505,19 @@ tests/
 ## 每个普通 WP 的最低门禁
 
 ```bash
-just env-bootstrap
-uv run --offline --no-sync pytest <focused tests>
-uv run --offline --no-sync ruff check .
-uv run --offline --no-sync python scripts/ci/check_mypy_baseline.py check
+python scripts/dev/run_just.py env-bootstrap
+python scripts/dev/run_uv.py run --offline --no-sync pytest <focused tests>
+python scripts/dev/run_uv.py run --offline --no-sync ruff check .
+python scripts/dev/run_uv.py run --offline --no-sync python scripts/ci/check_mypy_baseline.py check
 ```
 
 涉及公共模块、DB、config、execution、live：
 
 ```bash
-just env-bootstrap
-uv run --offline --no-sync pytest
-uv run --offline --no-sync ruff check .
-uv run --offline --no-sync python scripts/ci/check_mypy_baseline.py check
+python scripts/dev/run_just.py env-bootstrap
+python scripts/dev/run_uv.py run --offline --no-sync pytest
+python scripts/dev/run_uv.py run --offline --no-sync ruff check .
+python scripts/dev/run_uv.py run --offline --no-sync python scripts/ci/check_mypy_baseline.py check
 ```
 
 不得通过以下方式让测试变绿：
@@ -567,7 +568,7 @@ uv run --offline --no-sync python scripts/ci/check_mypy_baseline.py check
 验收：
 
 ```bash
-just env-bootstrap
+python scripts/dev/run_just.py env-bootstrap
 uv run --offline --no-sync pytest tests/foundation/contract tests/architecture
 uv run --offline --no-sync ruff check .
 ```
@@ -626,25 +627,24 @@ completion:
 已提供的统一命令：
 
 ```text
-just setup
-just setup-postgres
-just dev-check
-just dev-bootstrap
-just dev-bootstrap-docker
-just dev-setup
-just dev-postgres
-just db-up
-just db-migrate
-just test-unit
-just test-backtest
-just test-cli
-just test
-just lint
-just typecheck
-just candidate-acceptance
-just check
-just deploy-prod
-just ops-health
+python scripts/dev/setup.py --initialize-workstation
+python scripts/dev/run_just.py setup
+python scripts/dev/run_just.py dev-check
+python scripts/dev/run_just.py dev-bootstrap
+python scripts/dev/run_just.py dev-setup
+python scripts/dev/run_just.py dev-postgres
+python scripts/dev/run_just.py db-up
+python scripts/dev/run_just.py db-migrate
+python scripts/dev/run_just.py test-unit
+python scripts/dev/run_just.py test-backtest
+python scripts/dev/run_just.py test-cli
+python scripts/dev/run_just.py test
+python scripts/dev/run_just.py lint
+python scripts/dev/run_just.py typecheck
+python scripts/dev/run_just.py candidate-acceptance
+python scripts/dev/run_just.py check
+python scripts/dev/run_just.py deploy-prod
+python scripts/dev/run_just.py ops-health
 ```
 
 完成记录：
@@ -654,7 +654,7 @@ status: DONE
 completion:
   completed_at: 2026-08-19
   commit: null
-  notes: scripts 与 infra 按职责分层；Just 成为 Windows/Linux 工作站统一命令面，Python 负责跨平台控制面，Linux shell 仅在生产目标端执行。开发工具 bootstrap 默认只展示安装计划，Docker 与系统安装均需显式双确认。
+  notes: scripts 与 infra 按职责分层；Just 成为 Windows/Linux 工作站统一命令面，Python 负责跨平台控制面，Linux shell 仅在生产目标端执行。开发工具 bootstrap 默认只展示 Git、仓库本地 uv 与 just 的安装计划，系统安装均需显式确认。
   verification:
     - just --list
     - bash -n scripts/deploy/install-release.sh scripts/deploy/remote/linux/*.sh scripts/ops/remote/linux/*.sh
@@ -672,9 +672,9 @@ completion:
 
 本回合完成：
 
-- [x] 缺失工具检测、Windows/Linux 安装计划与 Docker APT 已验证状态的重复执行/中断恢复
+- [x] 缺失工具检测与 Windows/Linux 安装计划的重复执行/中断恢复
 - [x] `.env` schema、paper 本地值与 `configs/app.yaml` 的无额外改写初始化
-- [x] 固定本地 Compose 项目、清理继承环境、保留卷缺少密码时 fail-closed、数据库创建竞争收敛
+- [x] 清理继承环境、本机 PostgreSQL 认证预检、数据库创建竞争收敛
 - [x] 平台 unit / contract 覆盖正常重跑、半完成恢复和冲突拒绝
 
 定义并测试：
@@ -690,7 +690,7 @@ Production:
 Deployment control:
   Windows / Linux
 
-CI:
+Local quality verification:
   Linux full
   Windows compatibility
 ```
@@ -702,7 +702,7 @@ status: DONE
 completion:
   completed_at: 2026-08-19
   commit: null
-  notes: 开发工具 bootstrap、活动配置初始化和本地 PostgreSQL 初始化均具备重复执行与中断恢复语义；未知、冲突、非本地 Docker 目标和保留卷密码缺失均失败关闭。数据库自动化只允许创建、复用与前向迁移，禁止删除、清空或回滚。
+  notes: 开发工具 bootstrap、活动配置初始化和本机 PostgreSQL 初始化均具备重复执行与中断恢复语义；未知、冲突、非 loopback 目标、认证失败或创建权限不足均失败关闭。数据库自动化只允许创建、复用与前向迁移，禁止删除、清空或回滚。
   verification:
     - pytest P0-WP04 平台 unit / 跨平台脚本 / 环境 schema / 数据库保全契约：67 passed, 1 skipped（未创建本地活动配置）
     - ruff check . --no-cache
@@ -1218,7 +1218,7 @@ completion:
   residual_boundary:
     - weight_return 是连续研究序列收益近似，不含订单、成交、保证金或换月；futures_daily 是实际合约逐日状态机，只含目标/模拟成交事件；futures_intraday_replay 才含分钟级订单生命周期和部分成交。三者的订单、成交、成本和数量不得横向等价比较。
     - 当前 legacy 数据与 P1 STATIC_AS_OF_VIEW_NOT_DECISION_REPLAY 都不是逐决策 PIT replay；P2-WP04 明确拒绝将其写成候选策略准入。P2-WP05 的 Guard 与 P2-WP06 的验证报告仍不会提升该路径；之后仍需 P2-WP07 的人工 Research Decision。
-    - RunManifest v4 保存数据、目标、代码和输出 checksum，不写入裸行情、路径、凭据、数据库记录或交易对象；没有 Docker、数据库迁移、券商或订单提交改动。
+    - RunManifest v4 保存数据、目标、代码和输出 checksum，不写入裸行情、路径、凭据、数据库记录或交易对象；没有本机数据库迁移、券商或订单提交改动。
 ```
 
 ## P2-WP05 — Lookahead Guard
@@ -2570,7 +2570,7 @@ completion:
 链：
 
 ```text
-just deploy-prod
+python scripts/dev/run_just.py deploy-prod
 → Python orchestrator
 → build/package
 → SSH/SCP
@@ -2637,7 +2637,7 @@ completion:
     was added.
   verification:
     - "P6-WP08 focused unit/contract/architecture tests — 95 passed, 8 skipped"
-    - "Docker PostgreSQL 17 isolated restore drill — pg_dump -> pg_restore --schema -> psql ROLLBACK PASS"
+    - "isolated PostgreSQL 17 restore drill — pg_dump -> pg_restore --schema -> psql ROLLBACK PASS"
     - "Linux container no-replace publication probe — PASS"
     - "uv run pytest -q — 1082 passed, 21 skipped"
     - "uv run ruff check ."
@@ -3073,7 +3073,7 @@ P8 的首个工作包建立跨 P1—P7 的可复验集成候选验收，而不�
   Research→Order 因果闭环；
 - `scripts/ci/check_integrated_candidate.py` 固定重放 P1/P4/P2/P3/P5、P6、P7 的安全证据路径。它在调用 pytest
   前拒绝 live、production、未知环境和非 `paper` / `ctp_sim` broker；没有 shell、SSH、部署、恢复、网络或
-  控制面能力。`just candidate-acceptance` 已加入 Linux CI。
+  控制面能力。`just candidate-acceptance` 已纳入 Linux 本地质量门禁。
 
 完成记录：
 
@@ -3086,7 +3086,7 @@ completion:
     交付可复验但不授予交易权限的候选证据矩阵。它在初始状态故意把四条领域连接维持为 BLOCKED，
     防止将独立的 P1—P7 验收测试伪装成生产研究到订单闭环。
   verification:
-    - pytest P8 evaluator / E2E / architecture / contract / CI-runner / just-contract focused suite: 75 passed
+    - pytest P8 evaluator / E2E / architecture / contract / local-runner / just-contract focused suite: 75 passed
     - python scripts/ci/check_integrated_candidate.py: 245 passed, 7 skipped
     - pytest full suite: 1335 passed, 21 skipped
     - ruff check .；mypy baseline check；secret scan；git diff --check：通过
@@ -3325,10 +3325,10 @@ benchmarks/
 - 为 `pyproject.toml` / `uv.lock` 建立 deterministic dependency policy：项目/锁文件不一致、未 allowlist registry、
   direct URL/VCS/path/editable source、缺少 SHA-256 artifact hash 或无效 artifact metadata 必须拒绝；输出仅含
   name/version/source/lock digest 的稳定 inventory，绝不联网或打印机密；
-- 将标准库 policy gate、`uv lock --check --offline` 与 secret scan 以该顺序接入 `just check` 和 Windows/Linux CI，
+- 将标准库 policy gate、`uv lock --check --offline` 与 secret scan 以该顺序接入 `just check` 和 Windows/Linux 本地质量门禁，
   并确保它们均先于 `uv sync`；
 - 收紧 `check_secrets.py`：扫描 tracked test 文本；`secret-scan: allow` 只能用于带理由、canonical path 的 disposable
-  test/CI fixture，source/config/deploy/docs 中一律不接受豁免；未知二进制、非 UTF-8、不可读文件与符号链接均失败关闭；
+  test fixture，source/config/deploy/docs 中一律不接受豁免；未知二进制、非 UTF-8、不可读文件与符号链接均失败关闭；
 - 为正常和所有拒绝路径提供 unit/contract tests，更新 security audit、脚本说明和主计划。
 
 验收标准：
@@ -3403,9 +3403,9 @@ completion:
   verification:
     - "P9 focused bootstrap/policy/contract/deployment suite: 128 passed, 3 skipped"
     - "full pytest: 1528 passed, 23 skipped"
-    - "just check in a fresh external P9 CI venv: passed (policy -> offline lock -> secret scan -> Ruff -> mypy baseline)"
+    - "repository-local just check in a fresh external P9 CI venv: passed (policy -> offline lock -> secret scan -> Ruff -> mypy baseline)"
     - "Windows fresh release bootstrap: staged install/import plus final offline --inexact wheel check passed"
-    - "Linux Docker read-only release bootstrap: HERMETIC_PEP517_BOOTSTRAP_OK; bash -n install-release.sh passed"
+    - "Linux read-only release bootstrap: HERMETIC_PEP517_BOOTSTRAP_OK; bash -n install-release.sh passed"
 ```
 
 ---
@@ -3446,7 +3446,7 @@ completion:
   commit: null
   notes: >-
     新增 48 项 P10 evidence register，以 VERIFIED_OFFLINE, VERIFIED_SIMULATION,
-    SAFE_BOUNDARY, PARTIAL, INCOMPLETE, BLOCKED_EXTERNAL 和 HOSTED_EVIDENCE_PENDING
+    SAFE_BOUNDARY, PARTIAL, INCOMPLETE 和 BLOCKED_EXTERNAL
     明确区分代码证据、模拟边界与外部条件。同步修复 P5-WP08、Risk Stress 和 Trading Ledger 的
     陈旧主计划状态；将 P10 的重复 Portfolio/Risk 清单收敛为真正缺失的组合级验收工作。
   verification:
@@ -3512,7 +3512,7 @@ completion:
 - [x] health/logs（`VERIFIED_OFFLINE`）
 - [ ] backup/restore：local bundle + isolated drill 已验证；production DR/PITR 仍缺失（P10-WP08）
 - [x] pre-migration safe rollback / post-migration manual recovery（`SAFE_BOUNDARY`）
-- [ ] hosted CI final-commit evidence（`HOSTED_EVIDENCE_PENDING`）
+- [x] GitHub Actions CI 不作为支持面；本地质量门禁仍须由操作者执行（MAINT-WP02）
 
 ## AI
 
@@ -3783,9 +3783,9 @@ completion:
 
 **Status:** BLOCKED
 
-依赖：P10-WP01。需要经授权 Linux production host、root/signer/known_hosts、hosted CI evidence、
-生产 DR policy 与受控恢复演练。未提供这些外部前提时维持 `NO LIVE ACTION`，不将本地 Docker 或
-loopback drill 升级为生产验收。
+依赖：P10-WP01。需要经授权 Linux production host、root/signer/known_hosts、生产 DR policy 与受控恢复演练。
+未提供这些外部前提时维持 `NO LIVE ACTION`，不将本地 loopback drill
+升级为生产验收。
 
 ## P10-WP09 — Authoritative Data & Source Onboarding
 
@@ -4391,7 +4391,7 @@ notes:
   - "修复两项原有测试脆弱性（目录枚举顺序、抽取脚本时的函数覆盖），并为 SQLite Local-tools bootstrap 锁竞争加入有界重试，不重试 generation 写入事务。"
   - "修正文档入口、部署命令、已废弃 app.local.yaml 语义，以及 Linux restore drill 的 PostgreSQL 客户端前提。"
 verification:
-  - "just env-bootstrap — PASS"
+  - "repository-local env-bootstrap recipe — PASS"
   - "clean-root cleanup focused suite — 117 passed, 1 deselected"
   - "selected deployment contracts — 2 passed, 58 deselected"
   - "SQLite Local-tools unit suite — 9 passed；并发 rebuild 重复 10 次均通过"
@@ -4405,29 +4405,87 @@ known_external_blocker:
 
 ---
 
+## MAINT-WP02 — Native Linux PostgreSQL Development / Docker Removal
+
+**Status:** VERIFY
+
+**Dependencies:** DOC-WP08 implementation baseline.
+
+**Origin:** 用户明确要求 Linux 开发不保留 Docker 作为后备方案，直接移除其开发 PostgreSQL 路径；随后明确 GitHub CI
+也不需要支持，并进一步确认工作站初始化无需额外 opt-in、应默认安装 PostgreSQL。
+
+**Goal:** 以绑定 `127.0.0.1:5432` 的原生 PostgreSQL 服务替代 Docker/Compose；高层 Ubuntu/Debian 工作站初始化默认安装
+发行版服务、启用默认 unit，并且只在缺失时创建最小本地 `northstar` 角色。已有角色、凭据、认证规则、数据库与数据目录
+绝不覆盖、删除或重置；移除 GitHub Actions workflow，不将 hosted CI 作为仓库支持面。
+
+**Scope:**
+
+- 删除本地 Docker/Compose PostgreSQL 资产、安装计划、daemon/context/socket 用户组流程、VS Code 推荐项和开发命令；
+- 仅 `setup.py --initialize-workstation` 在 Ubuntu/Debian 默认执行 `apt-get install postgresql postgresql-client` 与
+  `systemctl enable --now postgresql`；Windows、其他 Linux、非 5432 端口和低层 `dev-postgres` 继续只检查并失败关闭；
+- 高层入口只在 `northstar` 角色不存在时以本机 `postgres` OS 身份创建最小 `LOGIN CREATEDB` 角色；空密码仅为这个 fresh case
+  生成并写入未跟踪 `.env`，已有角色密码绝不 ALTER 或覆盖；随后只创建缺失的 `northstar`/`northstar_test`，并执行 Alembic
+  forward migration；
+- 删除 `.github` 下的 GitHub Actions CI workflow 与其专属契约；保留 `scripts/ci/` 中可由操作者本地运行的质量检查；
+- 同步配置模板、开发文档、测试、数据库保全声明与本主计划；
+- 不删除或修改独立、production-only 的私有 ntfy 运维工作流；它不是 Linux 开发数据库的 fallback。
+
+**Acceptance:**
+
+- 日常开发和工作站初始化均没有 Docker/Compose/container PostgreSQL 依赖或安装入口；
+- 高层 Ubuntu/Debian 入口在客户端缺失或默认服务未就绪时自动安装/启用 PostgreSQL；其他平台或非默认端口不会猜测服务配置；
+- 本机服务、客户端工具、loopback 地址、认证、创建权限或数据库状态未知时，迁移前失败关闭；
+- 自动化绝不停止、重置或删除 PostgreSQL 服务、角色、数据库、schema 或数据目录；已有 `northstar` 角色密码、认证规则与
+  服务配置绝不覆盖；
+- Docker 开发目录及其所有调用方、契约和文档均已删除或迁移；
+- 仓库不包含 GitHub Actions CI workflow 或 hosted-run 验收依赖；本地质量门禁保持可显式运行；
+- 聚焦单元/契约、Ruff、mypy baseline、完整可用 pytest 与差异检查通过；当前主机缺少原生 PostgreSQL 时，高层入口按受限计划
+  安装/启用或在权限、发行版、认证/角色冲突时失败关闭。
+
+**Implementation and verification:**
+
+```yaml
+implementation_completed_at: 2026-08-27
+commit: null
+notes: >-
+  已删除开发 Compose 资产、Docker 安装/daemon/socket 路径、VS Code 容器推荐项、开发命令和 GitHub Actions CI workflow；
+  当前用户决定取代此前“操作者预装/仅验证”约束：高层 Ubuntu/Debian 初始化将默认安装/启用原生 PostgreSQL，并仅为缺失的
+  northstar 角色生成本地凭据。低层诊断/迁移入口保持无系统安装权限；不得把 Docker 或 GitHub CI 作为兼容路径、可选回退或隐藏依赖保留。
+verification:
+  - "native PostgreSQL default-install, fresh-role, scripts, docs, plan and preservation contracts: 156 passed"
+  - "ruff check . / mypy baseline / dependency policy / secret scan / git diff --check: passed"
+  - "setup.py --help contains no Docker option; --bootstrap-tools remains preview-only"
+  - "umask 0002 backup fixture regression: 16 passed; test-unit now includes application and passed 1201 tests"
+  - "2026-08-27 full pytest: 1843 passed; check_env confirmed native PostgreSQL clients and 127.0.0.1:5432"
+pending:
+  - "缺少客户端或服务的 Ubuntu/Debian 首次自动安装路径仍仅由 mock/contract 验证；不得为了覆盖它覆盖、停止、重置或删除既有 PostgreSQL 服务、角色、数据库或数据目录。"
+```
+
+---
+
 ## DOC-WP07 — Unified Local Initialization Entry
 
 **Status:** DONE
 
 **Origin:** 用户指出项目初始化步骤过多，要求收敛成一个默认入口。
 
-**Goal:** 将日常本地初始化收敛为 `just setup`，并为需要 PostgreSQL 的场景提供同样明确的一键入口
-`just setup-postgres`；底层步骤继续保留给 CI、排障和需要显式阶段控制的操作者。
+**Goal:** 将日常本地初始化收敛为 `python scripts/dev/setup.py --initialize-workstation`；该唯一高层入口验证并复用
+操作者管理的本机 PostgreSQL，随后前向迁移，底层步骤继续保留给 CI、排障和需要显式阶段控制的操作者。
 
 **Scope:**
 
-- 在 `justfile` 增加 `setup`、`setup-postgres`、`db-up`、`db-migrate`、`test`、`lint`、`typecheck`；
-- README、开发/运行/脚本/测试文档优先展示 `just setup` 与 `just setup-postgres`；
+- 在 `justfile` 增加 `setup`、`db-up`、`db-migrate`、`test`、`lint`、`typecheck`；
+- README、开发/运行/脚本/测试文档优先展示首次 Python 入口与 `run_just.py setup`；
 - VS Code 任务改用统一入口；
 - 更新跨平台脚本与文档契约测试；
 - 不修改数据库 schema、迁移、broker、生产部署或交易安全门禁。
 
 **Acceptance:**
 
-- 新用户日常初始化只需执行 `just setup`；
-- 需要本地 PostgreSQL 时只需执行 `just setup-postgres`，且仍然显式选择 Docker/PostgreSQL；
+- 新用户日常初始化只需执行 `python scripts/dev/setup.py --initialize-workstation`；
+- 该入口只在原生 loopback PostgreSQL 已由操作者准备、客户端工具可用且认证成功时复用它并前向迁移；
 - 底层命令仍可用于分步排查，且不会引入隐式依赖下载、实盘启用、生产配置或数据删除；
-- `just --list`、文档/脚本契约和可用的静态安全校验通过。
+- `run_just.py --list`、文档/脚本契约和可用的静态安全校验通过。
 
 **Completion:**
 
@@ -4435,18 +4493,103 @@ known_external_blocker:
 completed_at: 2026-08-26
 commit: null
 notes: >-
-  本地初始化入口收敛为 just setup；PostgreSQL/integration 初始化收敛为 just setup-postgres。
+  本地初始化入口收敛为 Python setup.py --initialize-workstation，并由 run_just.py setup 提供已安装工具后的同一完整路径；
+  后续 MAINT-WP02 将数据库前提收敛为操作者管理的原生 loopback PostgreSQL。
   README、DEVELOPMENT、OPERATIONS、scripts/tests 文档、VS Code 任务和 contract tests 已同步；
-  旧的 env-bootstrap/dev-setup/dev-postgres/db-up/db-migrate 保留为底层显式入口。
+  env-bootstrap/dev-setup/dev-postgres/db-up/db-migrate 保留为底层显式入口。
 verification:
-  - "just --list: passed"
+  - "host just --list parses the justfile default: passed"
   - "git diff --check: passed"
   - "python -m py_compile scripts/dev/setup.py tests/foundation/contract/test_cross_platform_scripts.py tests/foundation/contract/test_documentation_contracts.py tests/foundation/contract/test_master_plan_contract.py: passed"
   - "python -m json.tool .vscode/tasks.json: passed"
   - "python scripts/dev/setup.py --bootstrap-tools: passed preview-only"
   - "python scripts/ci/check_dependency_policy.py: passed"
   - "python scripts/ci/check_secrets.py: passed"
-  - "uv run --offline --no-sync pytest ... / ruff / mypy baseline: not run; uv is not installed in this workstation PATH"
+  - "post-DOC-WP08 focused scripts/docs suite, Ruff and mypy baseline: passed; actual PostgreSQL initialization awaits a reachable native service"
+```
+
+---
+
+## DOC-WP08 — VS Code Daily Task Surface
+
+**Status:** VERIFY
+
+**Dependencies:** DOC-WP07.
+
+**Origin:** 用户指出 `.vscode/tasks.json` 将装机、日常开发、局部测试和部署预览平铺在同一层，要求收敛为
+清晰的开发者日常入口。
+
+**Goal:** 将 VS Code 工作区任务限定为四个高频、安全、跨平台的开发入口；保留精细测试、系统工具 bootstrap
+和部署预览的受控终端入口，但不再将它们作为日常任务平铺展示。
+
+**Scope:**
+
+- 仅保留开发初始化、完整测试、质量检查和环境诊断四个 VS Code 任务；
+- 将完整 `test` recipe 设为 VS Code 的默认测试任务；
+- 保留 `test-unit`、`test-backtest`、`test-cli`、bootstrap 与部署预览的显式终端路径；
+- 为 dry-run 发布预览提供 `deploy-preview` recipe，不添加 `--apply`、SSH 或真实交易动作；
+- 高层 Ubuntu/Debian 初始化默认安装/启用绑定 `127.0.0.1:5432` 的 PostgreSQL；低层入口只验证、复用和前向迁移，
+  且绝不覆盖既有角色凭据、认证规则或服务配置；
+- 同步 VS Code 契约、开发/运行文档和本主计划；
+- 不修改数据库 schema、迁移、broker、生产部署行为或交易安全门禁。
+
+**Acceptance:**
+
+- `.vscode/tasks.json` 只包含约定顺序的四个日常任务；初始化仅用 Python 首次入口引导仓库本地工具，并在 Ubuntu/Debian 上默认安装/启用
+  PostgreSQL 后完成前向迁移；其余任务均通过 `run_just.py` 执行；
+- 默认 Test Task 运行完整 `test` recipe，默认 Build Task 运行 `check` recipe；
+- 安装系统工具、局部测试和部署预览仍有文档化的显式入口；
+- `deploy-preview` recipe 强制 dry-run；
+- 相关 contract、JSON、Ruff、mypy baseline 和可用的 focused pytest 门禁通过。
+
+**Implementation and verification:**
+
+```yaml
+implementation_completed_at: 2026-08-26
+notes: >-
+  VS Code 仅保留开发初始化、完整测试、质量检查与环境诊断四个任务；统一初始化已包含 PostgreSQL 与前向迁移，
+  并通过 scripts/dev/setup.py --initialize-workstation 在仓库本地 just/uv 缺失时展示计划并取得精确确认；uv 及其
+  pipx bootstrap 模块、虚拟环境、缓存、状态和 bin/uv 均隔离到未跟踪的仓库 .northstar/，使用 base Python 的
+  pip --target 而非受 PEP 668 管理的 site-packages；just 使用固定版本的官方 Windows/Linux x86_64 发布包，先校验
+  SHA-256 再只提取 bin/just 或 bin/just.exe；不执行 pipx ensurepath、不修改 PATH，也不要求重启终端。首次入口会在同一次
+  调用中重新检查并继续初始化，只有刚安装的宿主机工具在当前进程仍不可见时才提示重新打开终端。
+  project_tools/run_uv/run_just 分别解析已验证的 .northstar/bin/uv 与 .northstar/bin/just；本地质量门禁、VS Code、development
+  PEP 517 bootstrap 与本地部署质量门禁均以固定路径调用；release 保留其 root-managed uv 边界。development `.venv` 在完整输入状态
+  匹配且离线 inventory/lock 健康检查通过时复用；锁文件、项目声明、Python、uv 或 bootstrap/policy 代码变化，状态损坏或显式 refresh
+  时才创建 fresh staging venv；原子替换前的普通失败会清理本次 staging，只有无法安全恢复的提升失败才保留诊断目录。development wheel cache 固定于 `.northstar/cache/uv`，唯一 source-only artifact 位于
+  `.northstar/cache/source-artifacts`，每次复用前重新校验大小与 SHA-256；`env-bootstrap-refresh` 显式重建但不复用旧 `.venv`。
+  VS Code Explorer 与文件监听均隐藏 `.venv`、`.northstar`、新的 `.venv.bootstrap-*`/`.venv.previous-*` 及旧双点命名残留。
+  Git 与 Python 仍是宿主机前置工具。默认 Test/Build Task 分别运行本地 test/check recipe；系统工具 bootstrap、局部测试与发布预览
+  继续保留在受控终端入口；deploy-preview 显式固定 --dry-run。此前“PostgreSQL 由操作者预装”的约束已由 MAINT-WP02 的用户决定取代：
+  高层 Ubuntu/Debian 初始化会安装/启用默认 loopback 服务，以 `pg_isready`/`psql` 重新验证，并且只在 `northstar` 角色缺失时创建它及本地密码。已有角色、密码、认证规则、
+  服务配置、数据库、schema 与数据目录绝不覆盖、停止、重置或删除；低层入口仍只验证、复用并前向迁移。
+passed:
+  - "python -m json.tool .vscode/tasks.json"
+  - "python -m json.tool .vscode/settings.json"
+  - "host just --list parses the justfile default through just_executable()"
+  - "python scripts/dev/run_just.py --list fails closed while .northstar/bin/just is absent"
+  - "python scripts/dev/bootstrap_just.py --help"
+  - "python -m py_compile affected scripts and tests"
+  - "python scripts/ci/check_dependency_policy.py"
+  - "python scripts/ci/check_secrets.py"
+  - "non-interactive first-run bootstrap renders the local uv/just plan and exits 2 without installing or invoking just"
+  - "repository-local uv plan renders pip --target plus python -m pipx, contains neither --break-system-packages nor ensurepath, and does not create .northstar"
+  - "repository-local just plan pins official assets; manual tar/zip extraction, digest-mismatch cleanup and unsafe archive-path rejection passed without network access"
+  - "repository-local resolvers accept executables inside .northstar and reject escaping symbolic links"
+  - "run_uv, run_just and dev-check fail closed when their corresponding .northstar/bin launcher is absent"
+  - "manual unit-equivalent first-run recheck delegates to .northstar/bin/just dev-postgres in the same invocation; only a still-unavailable newly installed host tool exits 2 with a targeted terminal-reopen message"
+  - "standard initialization now provisions missing Ubuntu/Debian PostgreSQL client/service before migration, then rechecks loopback"
+  - "existing role/password, non-loopback target, non-default port, unsupported platform or failed authentication remain fail-closed without overwrite"
+  - "low-level bootstrap/dev-postgres and Windows paths never invoke the Linux PostgreSQL service manager"
+  - "development bootstrap first materialized a state marker and repository cache; a second run reused the verified .venv in 0.35s"
+  - "explicit development --refresh rebuilt in 2.6s from .northstar cache without a network download on this cache-hit workstation; source artifact cache hit was reverified"
+  - "failed pre-promotion staging venv is removed; VS Code hides active/cache/staging/previous generated directories"
+  - "focused development-tool, PEP 517 cache and documentation contracts — 127 passed"
+  - "ruff check ."
+  - "mypy baseline check"
+  - "git diff --check"
+pending:
+  - "2026-08-27 当前主机已具原生 PostgreSQL 客户端和可验证的 loopback 服务，完整 pytest 已通过；缺少服务时的自动安装分支继续由 mock/contract 验证，且不得覆盖既有 PostgreSQL 状态。"
 ```
 
 ---
@@ -4499,10 +4642,10 @@ acceptance:
   - ...
 
 verification_commands:
-  - just env-bootstrap
-  - uv run --offline --no-sync pytest ...
-  - uv run --offline --no-sync ruff check .
-  - uv run --offline --no-sync python scripts/ci/check_mypy_baseline.py check
+  - python scripts/dev/run_just.py env-bootstrap
+  - python scripts/dev/run_uv.py run --offline --no-sync pytest ...
+  - python scripts/dev/run_uv.py run --offline --no-sync ruff check .
+  - python scripts/dev/run_uv.py run --offline --no-sync python scripts/ci/check_mypy_baseline.py check
 
 documentation:
   - ...
@@ -4710,7 +4853,7 @@ P8 → P9 → P10
 | Foundation | Linux production layout | DONE（固定 FHS、root 控制祖先链、release 环境/systemd 快照与 mount-aware 特权遍历） |
 | Foundation | Backup/restore | DONE（五类受限 SHA-256 逻辑包、无覆盖发布、双重静默检查与隔离 PostgreSQL 恢复演练；模拟状态随 PostgreSQL dump 恢复） |
 | Foundation | Release | DONE（固定 root gate、canonical signed manifest、环境独立签名、受限 SSH stdin 提交、不可变事务审计与 migration 后人工恢复边界） |
-| Foundation | Hermetic PEP 517 bootstrap | DONE（精确 builder/source provenance、fresh staging venv、offline/no-sync 后续门禁、Windows/Linux release contract） |
+| Foundation | Hermetic PEP 517 bootstrap | DONE（精确 builder/source provenance、development state-matched reuse、fresh staging venv、仓库本地 verified cache、offline/no-sync 后续门禁、Windows/Linux release contract） |
 | AI | Typed research tool API | DONE（九项封闭 typed allowlist；新增只读质量 inspection，显式 injected research ports、PIT/证据链 fail-closed、无交易权限） |
 | AI | Research agent | DONE（单一 typed-tool capability、证据绑定七步链、静态实验语义、无敏感 hash trace；独立 PostgreSQL append-only/hash-only audit 保留跨进程 `run_id` reservation、终态和有序 trace，始终 `RESEARCH_ONLY`、不可交易） |
 | AI | Intelligence agent | DONE（唯一 search_events typed capability、授权 source/document/span citation、精确 Event identity、严格历史 analogue、evidence-bound Event→mechanism→commodity impact、PIT fail-closed、无交易权限） |
@@ -4756,8 +4899,14 @@ next_task:
   status: BLOCKED
 ```
 
-MAINT-WP01 与 DOC-WP07 已完成。隔离示例配置下的完整 pytest 为 `1787 passed, 1 failed, 1 deselected`；唯一剩余失败是当前
-Linux 工作站缺少 `pg_dump`、`pg_restore` 与 `psql`，而 restore drill 必须保持强制执行，不能静默 skip。
+MAINT-WP01 与 DOC-WP07 已完成。DOC-WP08 与 MAINT-WP02 均处于 `VERIFY`：首次 `uv` 安装使用
+PEP 668-safe 的 `pip --target` + `pipx`，将 bootstrap 模块、uv venv、缓存、状态和可执行文件全部隔离到仓库
+`.northstar/`；固定版本 `just` 下载官方 Windows/Linux x86_64 发布包、校验 SHA-256 后写入同一 `.northstar/bin`。
+项目入口固定解析这些路径，不修改 `PATH` 或要求重启终端。按用户当前决定，高层 Ubuntu/Debian `setup` 在客户端缺失或默认服务未就绪时
+默认安装 `postgresql`/`postgresql-client` 并启用服务；只在 `northstar` 角色不存在时创建它，空密码只写入未跟踪 `.env`。既有角色、
+密码、认证规则、服务配置、数据库、schema 与数据目录不覆盖、不停止、不重置、不删除；非默认端口、其他平台和低层命令仍失败关闭。
+当前 Linux 工作站已具 PostgreSQL 客户端与可验证的 loopback 服务，且完整 pytest 于 2026-08-27 通过（1843 passed）；
+缺少服务时的自动安装分支仍不得通过覆盖既有 PostgreSQL 状态来演练。
 DEV-WP01 的实现与相关验收已完成；DEV-WP02 的规则、文档和相关契约已完成，仍须按各自状态和验收条件推进；
 P10-WP08 与 P10-WP09 仍由外部前提阻塞。
 在获得授权的外部条件前维持 `NO LIVE ACTION`。
@@ -4836,7 +4985,7 @@ P10-WP08 与 P10-WP09 仍由外部前提阻塞。
 | 2026-08-22 | P6-WP05：Security 完成；密钥扫描已进入 just check/CI，日志、CLI、报告、邮件和部署审计统一脱敏，邮件导出遇到机密失败关闭，部署身份与 systemd 服务权限均受限。 | DONE |
 | 2026-08-22 | P6-WP06：Cross-platform Deployment Control 完成；旧 Bash 本地控制面已移除，Python 统一编排制品、严格 SSH、Linux install/upgrade、迁移、切换后健康检查和自动回退，且没有质量门禁绕过路径。 | DONE |
 | 2026-08-22 | P6-WP07：Linux Production Layout 完成；固定 FHS、版本化 release 环境/systemd 快照、root 控制目录链、制品流式特权交接、有界 root 解压、root-only 部署锁、mount-aware 特权遍历和受限 shell/ops 入口均已验收。P6-WP08 Backup / Restore 已开始。 | DONE |
-| 2026-08-23 | P6-WP08：Backup / Restore 完成；当前五类 allowlisted PostgreSQL 逻辑包、完整树 SHA-256 校验、秘密拒绝与跨平台无覆盖发布已实现；模拟 broker state/transition 审计随 PostgreSQL dump 恢复，旧 `state.json` 不再归档；维护创建在采集前/发布前二次确认服务静默，恢复演练仅限 loopback `northstar_test` 的 schema 事务回滚，已由 Docker PostgreSQL 和 Linux 发布原语演练验证。P6-WP09 Release Pipeline 已开始。 | DONE |
+| 2026-08-23 | P6-WP08：Backup / Restore 完成；当前五类 allowlisted PostgreSQL 逻辑包、完整树 SHA-256 校验、秘密拒绝与跨平台无覆盖发布已实现；模拟 broker state/transition 审计随 PostgreSQL dump 恢复，旧 `state.json` 不再归档；维护创建在采集前/发布前二次确认服务静默，恢复演练仅限 loopback `northstar_test` 的 schema 事务回滚，并由隔离 PostgreSQL 与 Linux 发布原语演练验证。P6-WP09 Release Pipeline 已开始。 | DONE |
 | 2026-08-23 | P6-WP09：Release Pipeline 完成；固定 root-owned release gate 仅接受 identity/submit，控制端以 SSH stdin 提交 canonical signed manifest、runtime/control bundle 和独立环境签名；root 在验证签名、大小、SHA-256、完整 archive 索引和固定入口后，才在 root-owned transaction 中执行控制代码。不可变生命周期记录 received→verified→staging→migration→health→cutover→promoted，迁移开始后失败仅允许人工恢复；未启用真实 broker、实盘或生产凭据。P6 100% 完成，P7-WP01 已开始。 | DONE |
 | 2026-08-23 | P7-WP01：Typed Tool API 完成；`application.agent_tools` 固定八项 research-only typed allowlist，显式注入只读 catalog / research workflow ports，对 version/hash、PIT `available_at`、feature/dataset 绑定、受控 backtest/validation evidence、可比性与 `RESEARCH_ONLY` card 输出均 fail-closed。模块不可达交易、风险、broker、实时配置、数据库、网络、进程或文件系统，所有响应明确不可交易。P7-WP02 已就绪。 | DONE |
 | 2026-08-23 | P7-WP02：Research Agent 完成；`application.research_agent` 仅依赖 Typed Tool API，使用 evidence-bound hypothesis / non-executable Feature proposal 驱动 event→dataset→feature→static experiment→trusted backtest→validation→RESEARCH_ONLY card 的七步链。所有请求固定 as-of，逐步复核身份与前驱关系，输出无敏感 hash trace；失败/未知副作用不重试，不能创建 feature/code/approval/target/order 或交易权限。P7-WP03 已就绪。 | DONE |
@@ -4866,6 +5015,9 @@ P10-WP08 与 P10-WP09 仍由外部前提阻塞。
 | 2026-08-25 | DEV-WP01：用户确认开发数据库无需保留后，将历史 `0001`—`0010` Alembic 链压缩为唯一静态 `0001_current_schema_baseline`；保留完整 schema、约束与不可变审计触发器，不增加自动 reset、stamp、drop、truncate 或 downgrade。旧 revision 数据库仅能由操作者在仓库自动化之外手动重建；相关验收已通过，但完整 pytest 仍受四项既有仓库/主机问题阻塞。P10-WP08/P10-WP09 仍为外部阻塞。 | IN_PROGRESS |
 | 2026-08-25 | DEV-WP02：用户确定四层存储职责：交易与权威运行状态使用 PostgreSQL；大规模历史数据使用 Parquet；历史分析使用 DuckDB；SQLite 仅用于本地工具集。规则、文档和契约已完成；当前 JSON simulated broker state、YAML Contract Master、部分 Parquet 覆盖与 DuckDB adapter 分别进入 DEV-WP03—DEV-WP05，完整 pytest 仍有四项既有阻塞。 | VERIFY |
 | 2026-08-25 | MAINT-WP01：清理已核验旧包 build/bytecode 残留、孤立 demo/helper/model 与未接线 settings；文档、部署命令、已废弃配置语义和测试契约已同步。保留活动 mutable market projection、历史记录和数据库；SQLite Local-tools bootstrap 并发锁竞争已采用仅限无写入阶段的有界重试。隔离 full pytest 仅剩本机缺少 PostgreSQL restore 客户端这一强制环境前提。 | DONE |
-| 2026-08-26 | DOC-WP07：本地初始化入口收敛为 `just setup`，PostgreSQL/integration 初始化收敛为 `just setup-postgres`；README、开发/运行/脚本/测试文档、VS Code 任务和命令契约同步，底层分步入口保留用于 CI 与排障。 | DONE |
+| 2026-08-26 | DOC-WP07：本地初始化入口收敛为 `python scripts/dev/setup.py --initialize-workstation` 和已安装工具后的 `python scripts/dev/run_just.py setup`；该完整路径始终准备 PostgreSQL 并前向迁移。README、开发/运行/脚本/测试文档与底层分步入口同步。 | DONE |
+| 2026-08-26 | DOC-WP08：VS Code 任务收敛为四个日常入口，默认 Test/Build Task 分别通过 `run_just.py` 运行完整测试与质量检查；首次入口将 uv 的 pipx bootstrap 模块、环境、缓存、状态和可执行文件隔离到未跟踪的 `.northstar/`，并将固定版本 `just` 的官方 Windows/Linux x86_64 发布包经 SHA-256 校验后写入 `.northstar/bin/`，所有项目调用均使用固定路径、不修改 `PATH` 或要求重启终端。`env-bootstrap` 会以完整输入状态和离线健康检查复用 `.venv`，在原子提升前失败时自动清理本次 staging venv，并将 wheel 与逐字节验证的 source artifact 缓存于 `.northstar/cache/`；仅无法安全恢复的提升失败保留诊断目录，VS Code Explorer/文件监听均隐藏它们。原生 PostgreSQL 运行前提及其验证由后续 MAINT-WP02 收敛；实际初始化和完整 pytest 仍待具备该外部前提的环境复检。 | VERIFY |
+| 2026-08-27 | MAINT-WP02：移除 Linux 开发 Docker/Compose PostgreSQL 路径和本地资产，并按用户决定删除 GitHub Actions CI workflow；随后将高层 Ubuntu/Debian 初始化改为默认安装 `postgresql`/`postgresql-client`、启用默认服务，并仅为缺失的 `northstar` 角色生成本地凭据。既有角色、密码、认证规则、数据库与数据目录不覆盖、不重置、不删除；本地质量门禁仍可显式执行。聚焦契约与静态门禁通过；当前主机未实际运行该安装路径，完整集成复检保持 VERIFY。 | VERIFY |
+| 2026-08-27 | MAINT-WP02 verification：备份 unit fixture 显式创建私有输入/输出目录，不再依赖主机 `umask`；保留对 group/other 可写目录的 fail-closed 覆盖。`test-unit`、VS Code、setup 的 unit 入口及 pytest marker 均纳入 application；`umask 0002` 下 unit 1201 passed，完整 pytest 1843 passed。 | VERIFY |
 
 > 所有重大架构变化、阶段调整、WP 删除/新增都必须记录在这里。

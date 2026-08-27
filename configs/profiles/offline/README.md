@@ -17,7 +17,7 @@ cn_futures_intraday_replay_offline.yaml      # 分钟执行专项回放
 
 数据来自 `akshare` 提供的新浪主力连续合约接口。画像在
 `data.download.options.vendor_symbols` 中显式声明内部研究 symbol 与上游代码的映射；
-运行 `uv run --offline --no-sync northstar data download --profile cn_futures_daily_trend_offline` 会自动下载并写入
+运行 `python scripts/dev/run_uv.py run --offline --no-sync northstar data download --profile cn_futures_daily_trend_offline` 会自动下载并写入
 `storage/downloads/akshare/` 与 `storage/market/`。公开接口可能限流或修订历史数据，因此每次
 研究都应保留生成的 manifest，并且不得将这份数据用于实盘下单或结算。
 
@@ -33,10 +33,10 @@ cn_futures_intraday_replay_offline.yaml      # 分钟执行专项回放
 新建后先运行：
 
 ```bash
-uv run --offline --no-sync northstar data profiles
-uv run --offline --no-sync northstar data download --profile <你的期货画像_offline>
-uv run --offline --no-sync northstar data validate --profile <你的期货画像_offline>
-uv run --offline --no-sync northstar backtest run portfolio --profile <你的期货画像_offline>
+python scripts/dev/run_uv.py run --offline --no-sync northstar data profiles
+python scripts/dev/run_uv.py run --offline --no-sync northstar data download --profile <你的期货画像_offline>
+python scripts/dev/run_uv.py run --offline --no-sync northstar data validate --profile <你的期货画像_offline>
+python scripts/dev/run_uv.py run --offline --no-sync northstar backtest run portfolio --profile <你的期货画像_offline>
 ```
 
 如果画像使用新策略，必须使用唯一的 `dataset_id` 与 `data.path`，并在 `data.source_id`、

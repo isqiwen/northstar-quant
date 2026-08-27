@@ -17,6 +17,7 @@ from tests.helpers.paths import PROJECT_ROOT
 
 _DOMAIN_TEST_ROOTS = frozenset(
     {
+        "application",
         "data",
         "intelligence",
         "research",

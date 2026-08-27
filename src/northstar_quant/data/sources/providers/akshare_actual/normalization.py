@@ -45,7 +45,7 @@ def fetch_exchange_daily(exchange: str, start: date, end: date) -> Any:
     try:
         import akshare as ak  # type: ignore[import-untyped]
     except ImportError as exc:
-        raise RuntimeError("未安装 AKShare，请先执行 `uv sync`") from exc
+        raise RuntimeError("未安装 AKShare，请先执行 `just env-bootstrap`") from exc
 
     try:
         return ak.get_futures_daily(
@@ -63,7 +63,7 @@ def fetch_jin10_rules(rule_date: date) -> Any:
     try:
         import akshare as ak  # type: ignore[import-untyped]
     except ImportError as exc:
-        raise RuntimeError("未安装 AKShare，请先执行 `uv sync`") from exc
+        raise RuntimeError("未安装 AKShare，请先执行 `just env-bootstrap`") from exc
 
     try:
         return ak.futures_comm_js(date=rule_date.strftime("%Y%m%d"))

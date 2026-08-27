@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """检查跨平台开发工作站的必要条件。
 
-本脚本只读取本地状态，不会创建 `.env`、启动 Docker、运行迁移或触发任何交易命令。
+本脚本只读取本地状态，不会创建 `.env`、启动或停止 PostgreSQL、运行迁移或触发任何交易命令。
 Windows 和 Linux 都可通过 ``python scripts/dev/check_env.py`` 调用；该只读检查不需要项目依赖。
 """
 
@@ -9,27 +9,47 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 from pathlib import Path
 import platform
 import shutil
 import subprocess
 import sys
-from typing import TypedDict
+from typing import NotRequired, TypedDict
+
+try:  # 支持直接脚本入口与包内导入。
+    from .project_tools import (
+        ProjectToolError,
+        repository_just_executable,
+        repository_uv_executable,
+    )
+except ImportError:  # pragma: no cover - 直接脚本入口会走此分支。
+    from project_tools import ProjectToolError, repository_just_executable, repository_uv_executable
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 MINIMUM_PYTHON = (3, 11)
+LOCAL_POSTGRES_HOST = "127.0.0.1"
+DEFAULT_POSTGRES_PORT = 5432
 
 
 class CheckResult(TypedDict):
     name: str
     status: str
     message: str
+    code: NotRequired[str]
 
 
-def _result(name: str, status: str, message: str) -> CheckResult:
-    return {"name": name, "status": status, "message": message}
+def _result(
+    name: str,
+    status: str,
+    message: str,
+    *,
+    code: str | None = None,
+) -> CheckResult:
+    result: CheckResult = {"name": name, "status": status, "message": message}
+    if code is not None:
+        result["code"] = code
+    return result
 
 
 def _optional_status(required: bool) -> str:
@@ -59,73 +79,87 @@ def _check_command(command: str, label: str, *, required: bool) -> CheckResult:
     return _result(label, status, message)
 
 
-def _check_docker_compose(*, require_docker: bool) -> CheckResult:
-    if not shutil.which("docker"):
+def _check_repository_uv(*, required: bool) -> CheckResult:
+    try:
+        executable = repository_uv_executable()
+    except ProjectToolError as error:
+        return _result("uv", _optional_status(required), str(error))
+    return _result("uv", "ok", f"已找到仓库本地可执行文件：{executable}。")
+
+
+def _check_repository_just(*, required: bool) -> CheckResult:
+    try:
+        executable = repository_just_executable()
+    except ProjectToolError as error:
+        return _result("just", _optional_status(required), str(error))
+    return _result("just", "ok", f"已找到仓库本地可执行文件：{executable}。")
+
+
+def _configured_postgres_port() -> int | None:
+    """读取本地活动配置中的端口；不读取或输出任何秘密字段。"""
+
+    path = PROJECT_ROOT / ".env"
+    if not path.is_file():
+        return DEFAULT_POSTGRES_PORT
+    try:
+        for raw_line in path.read_text(encoding="utf-8").splitlines():
+            line = raw_line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            if key.strip() != "POSTGRES_PORT":
+                continue
+            port = int(value.strip().strip("\"'"))
+            return port if 1 <= port <= 65535 else None
+    except (OSError, UnicodeError, ValueError):
+        return None
+    return DEFAULT_POSTGRES_PORT
+
+
+def _check_local_postgres_service(*, required: bool) -> CheckResult:
+    """确认已运行的 native PostgreSQL 只在固定 loopback 目标上可达。"""
+
+    port = _configured_postgres_port()
+    if port is None:
         return _result(
-            "Docker Compose v2",
-            _optional_status(require_docker),
-            "未检查：Docker 命令不存在。",
+            "本机 PostgreSQL",
+            _optional_status(required),
+            ".env 中的 POSTGRES_PORT 无效；已拒绝猜测服务目标。",
         )
-    result = _command_result(["docker", "compose", "version"])
-    if result is not None and result.returncode == 0:
-        return _result("Docker Compose v2", "ok", "docker compose v2 可用。")
-    return _result(
-        "Docker Compose v2",
-        _optional_status(require_docker),
-        "未找到 docker compose v2；本地 PostgreSQL 与集成测试不可用。",
-    )
-
-
-def _local_docker_context() -> tuple[bool, str]:
-    """只接受 Unix socket 或 Windows named pipe，避免检查时访问远程 daemon。"""
-
-    if os.getenv("DOCKER_HOST"):
-        return False, "检测到 DOCKER_HOST；开发工作站只允许本机 Docker daemon。"
-    if not shutil.which("docker"):
-        return False, "未检查：Docker 命令不存在。"
-    context = _command_result(["docker", "context", "show"])
-    if context is None or context.returncode != 0 or not context.stdout.strip():
-        return False, "无法确认 Docker context。"
-    endpoint = _command_result(
+    if not shutil.which("pg_isready"):
+        return _result(
+            "本机 PostgreSQL",
+            _optional_status(required),
+            "未检查：缺少 pg_isready。",
+        )
+    result = _command_result(
         [
-            "docker",
-            "context",
-            "inspect",
-            context.stdout.strip(),
-            "--format",
-            "{{ .Endpoints.docker.Host }}",
+            "pg_isready",
+            "--host",
+            LOCAL_POSTGRES_HOST,
+            "--port",
+            str(port),
+            "--dbname",
+            "postgres",
         ]
     )
-    host = endpoint.stdout.strip() if endpoint is not None else ""
-    if endpoint is None or endpoint.returncode != 0:
-        return False, "无法读取 Docker context 终端地址。"
-    if host.startswith(("unix://", "npipe:")):
-        return True, "本机 Docker context 已确认。"
-    return False, "Docker context 不是本机 Unix socket 或 Windows named pipe。"
-
-
-def _check_docker_daemon(*, require_docker: bool) -> CheckResult:
-    is_local, message = _local_docker_context()
-    if not is_local:
-        return _result(
-            "Docker daemon",
-            _optional_status(require_docker),
-            message,
-        )
-    result = _command_result(["docker", "info", "--format", "{{.ServerVersion}}"])
     if result is not None and result.returncode == 0:
-        return _result("Docker daemon", "ok", "本地 Docker daemon 可达。")
+        return _result(
+            "本机 PostgreSQL",
+            "ok",
+            f"已运行并可通过 {LOCAL_POSTGRES_HOST}:{port} 访问。",
+        )
     return _result(
-        "Docker daemon",
-        _optional_status(require_docker),
-        "Docker daemon 不可达；检查 Docker Desktop/服务状态和本地 context。",
+        "本机 PostgreSQL",
+        _optional_status(required),
+        f"无法通过 {LOCAL_POSTGRES_HOST}:{port} 访问；请由操作者启动本机 PostgreSQL 服务后重试。",
     )
 
 
 def check_environment(
     *,
     require_config: bool,
-    require_docker: bool,
+    require_postgres: bool = False,
     require_just: bool = False,
     require_uv: bool = True,
     require_git: bool = False,
@@ -161,12 +195,15 @@ def check_environment(
 
     results.extend(
         (
-            _check_command("uv", "uv", required=require_uv),
-            _check_command("just", "just", required=require_just),
+            _check_repository_uv(required=require_uv),
+            _check_repository_just(required=require_just),
             _check_command("git", "Git", required=require_git),
-            _check_command("docker", "Docker", required=require_docker),
-            _check_docker_compose(require_docker=require_docker),
-            _check_docker_daemon(require_docker=require_docker),
+            _check_command("pg_isready", "pg_isready", required=require_postgres),
+            _check_command("psql", "psql", required=require_postgres),
+            _check_command("createdb", "createdb", required=require_postgres),
+            _check_command("pg_dump", "pg_dump", required=require_postgres),
+            _check_command("pg_restore", "pg_restore", required=require_postgres),
+            _check_local_postgres_service(required=require_postgres),
             _check_command("ssh", "SSH", required=require_deploy_tools),
             _check_command("ssh-keygen", "OpenSSH ssh-keygen", required=require_deploy_tools),
         )
@@ -183,7 +220,7 @@ def check_environment(
                 _result(
                     label,
                     "error",
-                    "文件不存在；请运行 just dev-setup，或直接运行 "
+                    "文件不存在；请运行 python scripts/dev/setup.py --initialize-workstation，或在已完成依赖同步后直接运行 "
                     "python scripts/dev/setup.py --initialize-config。",
                 )
             )
@@ -201,9 +238,9 @@ def _parse_args() -> argparse.Namespace:
         help="将缺少 .env 或 configs/app.yaml 视为错误。",
     )
     parser.add_argument(
-        "--require-docker",
+        "--require-postgres",
         action="store_true",
-        help="将缺少 Docker 视为错误。",
+        help="将缺少原生 PostgreSQL 客户端或本机 loopback 服务视为错误。",
     )
     parser.add_argument(
         "--require-just",
@@ -224,7 +261,7 @@ def main() -> int:
     args = _parse_args()
     results = check_environment(
         require_config=args.require_config,
-        require_docker=args.require_docker,
+        require_postgres=args.require_postgres,
         require_just=args.require_just,
         require_git=args.require_git,
         require_deploy_tools=args.require_deploy_tools,

@@ -579,7 +579,7 @@ def research_assess_command(
     require_pass: bool = typer.Option(
         False,
         "--require-pass",
-        help="准入不是 PASS 时以非零状态退出，适用于人工审批或 CI 门禁。",
+        help="准入不是 PASS 时以非零状态退出，适用于人工审批或本地质量门禁。",
     ),
 ) -> None:
     """运行同一回测工作流，并只输出候选策略研究准入结论。"""
@@ -603,7 +603,7 @@ def research_assess_command(
         strategy=strategy,
         profile=resolved_profile,
     )
-    # 审批脚本和 CI 需要可捕获的结构化输出；日志并不等同于 CLI 标准输出。
+    # 审批脚本和本地质量门禁需要可捕获的结构化输出；日志并不等同于 CLI 标准输出。
     typer.echo(
         json.dumps(
             {"run_id": run.run_id, "admission": admission},

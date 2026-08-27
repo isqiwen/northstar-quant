@@ -20,13 +20,25 @@
 首次本机设置使用：
 
 ```powershell
-just setup
+python scripts/dev/setup.py --initialize-workstation
 ```
 
-只有明确运行 `just setup-postgres`，或在底层 Python 入口传入 `--with-postgres --migrate`，才会将 Docker PostgreSQL
-纳入本机设置。初始化不会下载市场数据、启动 scheduler 或调用真实交易；它不会覆盖已有疑似生产、非-paper、live、
+缺少仓库本地 `uv`、`just` 或宿主机 Git 时，该入口先展示安装计划，且只能在操作者输入 `YES` 后执行工具安装。`uv`、`just`、其
+pipx 环境、缓存和状态位于未跟踪的仓库目录 `.northstar/`；后续项目命令用固定路径调用它们，不修改 `PATH`，也不需要重启终端。
+安装完成后同一入口会立即继续；仅当刚安装的宿主机工具在当前进程仍不可见时，才提示重新打开终端后再次运行。
+
+Ubuntu/Debian 的 `python scripts/dev/setup.py --initialize-workstation` 默认以 `sudo` 安装本机 PostgreSQL 和客户端，随后执行
+`systemctl enable --now postgresql`。它只接受默认的 loopback `127.0.0.1:5432`，不会改写 PostgreSQL 服务配置、认证规则或数据目录。
+若本机 `northstar` 角色不存在，首次入口才创建最小 `LOGIN CREATEDB` 角色；空 `POSTGRES_PASSWORD` 会生成随机值并仅写入未跟踪的 `.env`。
+已有角色、密码、认证规则和数据库不会被覆盖，已有角色必须在 `.env` 中提供匹配密码。Windows、非 Ubuntu/Debian Linux、非默认端口和低层
+`dev-postgres` 命令仍要求操作者预先准备本机 PostgreSQL 与凭据。服务、认证、数据库创建权限或工具版本无法确认时，初始化和集成测试失败关闭。
+
+标准初始化验证并复用本机 PostgreSQL，创建/复用 `northstar` 与隔离的 `northstar_test`，并只执行前向迁移。初始化不会下载市场数据、启动 scheduler 或调用真实交易；它不会覆盖已有疑似生产、非-paper、live、
 kill-switch 或外部数据库配置。需要重置本地开发配置时，
 操作者必须显式使用 `--confirm-reset-local-dev-config YES`。
+
+`pg_isready` 不通过、客户端工具缺失、连接非 loopback、认证失败或 Alembic 状态未知时，初始化会失败关闭；
+不会先 materialize 开发依赖或猜测数据库状态。
 
 安全默认值必须保持：
 
@@ -46,26 +58,27 @@ NORTHSTAR_LIVE_TRADING_ENABLED=false
 
 ```powershell
 # 只列出候选，不删除。
-uv run --offline --no-sync northstar data cleanup
+python scripts/dev/run_uv.py run --offline --no-sync northstar data cleanup
 
 # 只有 YAML 策略已启用且操作者显式确认时才执行受限清理。
-uv run --offline --no-sync northstar data cleanup --apply
+python scripts/dev/run_uv.py run --offline --no-sync northstar data cleanup --apply
 ```
 
-清理只可处理策略 allowlist 中已过期的下载缓存和临时文件；不能触及 reports、release、运行状态、数据库、备份或
-Docker volume。未知路径、符号链接、范围不清或未显式确认时应失败关闭。
+清理只可处理策略 allowlist 中已过期的下载缓存和临时文件；不能触及 reports、release、运行状态、数据库或备份。
+未知路径、符号链接、范围不清或未显式确认时应失败关闭。
 
 Northstar 的核心运行数据库是 PostgreSQL：
 
 ```powershell
-just setup-postgres
+python scripts/dev/run_just.py setup
 ```
 
-需要分步排查 Docker 或 Alembic 时，使用 `just db-up` 与 `just db-migrate`。
+需要分步排查本机 PostgreSQL 或 Alembic 时，使用 `python scripts/dev/run_just.py db-up` 与 `python scripts/dev/run_just.py db-migrate`。
 
-本地 PostgreSQL 使用独立数据卷；自动化不会使用 `down -v`、drop、truncate、delete 或 migration downgrade。
-仓库自动化绝不删除或清空数据库、表、schema 或 Docker 数据卷；数据库删除或清空只能由用户在仓库自动化之外手动执行。
-测试数据库仅可为隔离的 `northstar_test`。`init-db`/`setup-postgres` 只能前进到 Alembic head。
+高层初始化只安装/启用默认 Ubuntu/Debian 服务并创建缺失的本地开发角色；低层 `dev-postgres` 仍只验证和复用服务。
+自动化不会使用 drop、truncate、delete 或 migration downgrade，也不会停止、重置或删除 PostgreSQL 服务、角色、数据库、schema 或数据目录。
+仓库自动化绝不删除或清空数据库、表、schema 或本机 PostgreSQL 数据目录。数据库删除或清空只能由用户在仓库自动化之外手动执行。
+测试数据库仅可为隔离的 `northstar_test`。`init-db`/`setup` 只能前进到 Alembic head。
 
 SQLite 仅允许由 Local tools 作为独立的本地缓存、索引或 scratch storage 使用；它不配置为
 `NORTHSTAR_DATABASE_URL`，不参与 Alembic、`init-db`、核心 integration test，也不能保存订单、持仓、
@@ -85,9 +98,9 @@ limit/offset。系统统一稳定排序、限制结果行数并返回可重放�
 命令不会把普通文件“升级”为受治理数据。
 
 ```powershell
-uv run --offline --no-sync northstar data lake materialize --input <verified-artifact.parquet> --dataset-version <dataset-version-sha256> --artifact-snapshot <snapshot-sha256> --kind bars --event-time-column date
-uv run --offline --no-sync northstar data lake verify --kind bars --dataset-id <dataset-id> --version <lake-version-sha256>
-uv run --offline --no-sync northstar research lake-query --kind bars --dataset-id <dataset-id> --version <lake-version-sha256> --as-of 2026-08-25T00:00:00+00:00 --sql-file <query.sql>
+python scripts/dev/run_uv.py run --offline --no-sync northstar data lake materialize --input <verified-artifact.parquet> --dataset-version <dataset-version-sha256> --artifact-snapshot <snapshot-sha256> --kind bars --event-time-column date
+python scripts/dev/run_uv.py run --offline --no-sync northstar data lake verify --kind bars --dataset-id <dataset-id> --version <lake-version-sha256>
+python scripts/dev/run_uv.py run --offline --no-sync northstar research lake-query --kind bars --dataset-id <dataset-id> --version <lake-version-sha256> --as-of 2026-08-25T00:00:00+00:00 --sql-file <query.sql>
 ```
 
 查询文件必须从 `lake_data` relation 读取；多行结果由系统在最外层稳定排序，不应在查询内使用 `LIMIT` 或 `OFFSET`。
@@ -97,8 +110,8 @@ SQLite 已实际用于一个隔离的 Local-tools manifest index，固定路径�
 DuckDB 查询或核心 PostgreSQL 的 fallback，也绝不保存交易或风险权威事实。操作员可显式运行：
 
 ```powershell
-uv run --offline --no-sync northstar local-tools lake-index rebuild
-uv run --offline --no-sync northstar local-tools lake-index list --kind bars --dataset-id <dataset-id>
+python scripts/dev/run_uv.py run --offline --no-sync northstar local-tools lake-index rebuild
+python scripts/dev/run_uv.py run --offline --no-sync northstar local-tools lake-index list --kind bars --dataset-id <dataset-id>
 ```
 
 `rebuild` 对每个发现到的 Lake version 重新验证 manifest 与 Parquet hash；任何失败都不会替换最新可用 index generation。
@@ -111,8 +124,8 @@ snapshot、risk、approval、reconciliation 与 audit 账本。当前 Contract M
 PostgreSQL 的时间版本化合约权威库需要单独实现。
 
 当前开发期的 head 是唯一完整基线 `0001_current_schema_baseline`，历史 revision 不提供升级路径。若本地
-`alembic_version` 记录其他值，必须由操作者在仓库自动化之外手动重建本地数据库或数据卷，然后再执行
-`just setup-postgres` 或 `northstar init-db`。仓库自动化不会 drop、truncate、stamp、downgrade 或替你重建数据库。
+`alembic_version` 记录其他值，必须由操作者在仓库自动化之外手动重建本地数据库，然后再执行
+`python scripts/dev/run_just.py setup` 或 `northstar init-db`。仓库自动化不会 drop、truncate、stamp、downgrade 或替你重建数据库。
 
 ## 3. 数据、日历与运行模式
 
@@ -138,11 +151,11 @@ PostgreSQL 的时间版本化合约权威库需要单独实现。
 可用的只读/预演命令示例：
 
 ```powershell
-uv run --offline --no-sync northstar live signal --profile cn_futures_daily_trend_simulated
-uv run --offline --no-sync northstar live sync
-uv run --offline --no-sync northstar live risk-check --profile cn_futures_daily_trend_simulated
-uv run --offline --no-sync northstar live preflight --profile cn_futures_daily_trend_simulated
-uv run --offline --no-sync northstar live preview-rebalance --profile cn_futures_daily_trend_simulated
+python scripts/dev/run_uv.py run --offline --no-sync northstar live signal --profile cn_futures_daily_trend_simulated
+python scripts/dev/run_uv.py run --offline --no-sync northstar live sync
+python scripts/dev/run_uv.py run --offline --no-sync northstar live risk-check --profile cn_futures_daily_trend_simulated
+python scripts/dev/run_uv.py run --offline --no-sync northstar live preflight --profile cn_futures_daily_trend_simulated
+python scripts/dev/run_uv.py run --offline --no-sync northstar live preview-rebalance --profile cn_futures_daily_trend_simulated
 ```
 
 ### Real account / CTP
@@ -177,9 +190,12 @@ workstation
 常用入口：
 
 ```powershell
-just deploy-prod /secure/operator/northstar-release-signing-key
-just ops-health
+python scripts/dev/run_just.py deploy-preview
+python scripts/dev/run_just.py deploy-prod /secure/operator/northstar-release-signing-key
+python scripts/dev/run_just.py ops-health
 ```
+
+`deploy-preview` recipe 强制本地 dry-run：它可以构建和验证本地制品，但不会使用 SSH 或执行 Linux 目标操作。
 
 部署控制器、脚本分工和环境变量参见[`scripts/README.md`](../scripts/README.md)，部署声明见
 [`infra/README.md`](../infra/README.md)。release gate 先验证签名 authority、manifest、control/runtime bundle、
@@ -195,7 +211,7 @@ health、logs、diagnose 和 backup status 是只读操作；服务默认不会�
 删除备份。查看证据：
 
 ```powershell
-uv run --offline --no-sync northstar ops backup status
+python scripts/dev/run_uv.py run --offline --no-sync northstar ops backup status
 ```
 
 受控维护脚本包括 `backup_bundle.py` 与 `restore_drill.py`。备份包必须有完整文件清单和 SHA-256，外部目录必须预先挂载、
@@ -204,7 +220,7 @@ uv run --offline --no-sync northstar ops backup status
 仅由 PostgreSQL 逻辑转储恢复。
 
 恢复演练只允许 loopback 隔离的 `northstar_test`，以 schema transaction rollback 证明恢复过程；它不是生产 restore。
-当前仍缺生产 DR policy、加密异地副本、WAL/PITR、RPO/RTO 目标和受控恢复演练，不能把本地 Docker 或 loopback evidence
+当前仍缺生产 DR policy、加密异地副本、WAL/PITR、RPO/RTO 目标和受控恢复演练，不能把本地开发或 loopback evidence
 升级为 production DR 结论。
 
 ## 7. 故障与人工恢复

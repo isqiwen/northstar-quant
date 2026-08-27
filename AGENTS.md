@@ -524,7 +524,7 @@ mapping 仍是版本受控配置；将合约权威事实迁入 PostgreSQL 需要
 
 不得只改 ORM 而不迁移数据库。
 
-数据库保全是强制安全边界：仓库自动化绝不删除或清空数据库、表、schema 或 Docker 数据卷。
+数据库保全是强制安全边界：仓库自动化绝不删除或清空数据库、表、schema 或本机 PostgreSQL 数据目录。
 数据库删除或清空只能由用户在仓库自动化之外手动执行。`init-db` 只能执行
 `alembic upgrade head`；未来迁移的 `upgrade()` 不得包含破坏性 DDL/DML。
 
@@ -580,16 +580,18 @@ NORTHSTAR_
 当前主要质量门禁：
 
 ```bash
-just env-bootstrap
-uv run --offline --no-sync pytest
-uv run --offline --no-sync ruff check .
-uv run --offline --no-sync python scripts/ci/check_mypy_baseline.py check
+python scripts/dev/run_just.py env-bootstrap
+python scripts/dev/run_uv.py run --offline --no-sync pytest
+python scripts/dev/run_uv.py run --offline --no-sync ruff check .
+python scripts/dev/run_uv.py run --offline --no-sync python scripts/ci/check_mypy_baseline.py check
 ```
+
+GitHub Actions 或其他 hosted CI 不是本仓库支持的验证入口；上述质量门禁必须由具备相应前提的本地工作站显式执行。
 
 Codex 应先运行 focused tests：
 
 ```bash
-uv run --offline --no-sync pytest <affected tests>
+python scripts/dev/run_uv.py run --offline --no-sync pytest <affected tests>
 ```
 
 如果修改涉及：
@@ -605,7 +607,7 @@ uv run --offline --no-sync pytest <affected tests>
 则完成前必须运行完整：
 
 ```bash
-uv run --offline --no-sync pytest
+python scripts/dev/run_uv.py run --offline --no-sync pytest
 ```
 
 测试分类：
@@ -707,7 +709,6 @@ scripts/
 
 ```text
 infra/
-├── compose/
 ├── systemd/
 ├── ansible/
 ├── monitoring/
@@ -771,21 +772,21 @@ Linux production
 
 # 21. justfile Rules
 
-`just` 是统一的人类操作入口。
+`justfile` 是统一的人类操作面；调用必须经由仓库本地的 `python scripts/dev/run_just.py`，不得依赖宿主机 `PATH`。
 
 优先提供：
 
 ```text
-just env-bootstrap
-just dev-setup
-just dev-postgres
-just check
-just test-unit
-just test-backtest
-just test-cli
-just candidate-acceptance
-just deploy-prod <signing-key>
-just ops-health
+python scripts/dev/run_just.py env-bootstrap
+python scripts/dev/run_just.py setup
+python scripts/dev/run_just.py dev-postgres
+python scripts/dev/run_just.py check
+python scripts/dev/run_just.py test-unit
+python scripts/dev/run_just.py test-backtest
+python scripts/dev/run_just.py test-cli
+python scripts/dev/run_just.py candidate-acceptance
+python scripts/dev/run_just.py deploy-prod <signing-key>
+python scripts/dev/run_just.py ops-health
 ```
 
 `justfile` 负责组合命令。

@@ -47,7 +47,7 @@ def _run_hook(
     store: ReleaseTransactionStore,
     *arguments: str,
 ) -> dict[str, object]:
-    """Exercise the CLI without requiring Linux root in Windows CI."""
+    """Exercise the CLI without requiring Linux root on Windows."""
 
     monkeypatch.setattr(hook, "_store", lambda _root: store)
     monkeypatch.setattr(hook.sys, "argv", ["release_transaction_hook.py", *arguments])

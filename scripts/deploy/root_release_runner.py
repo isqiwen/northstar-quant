@@ -31,7 +31,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, BinaryIO, Final, Iterator, Mapping, NoReturn, Sequence
 
-try:  # Importing this root-only module must remain possible on Windows CI.
+try:  # Importing this root-only module must remain possible on Windows.
     import fcntl
 except ImportError:  # pragma: no cover - exercised only outside Linux.
     fcntl = None  # type: ignore[assignment]

@@ -165,7 +165,7 @@ Foundation 提供类型、时间、订单身份与状态、Pydantic 配置、Pos
 `postgresql+psycopg://`，用于权威运行状态；完整的 PostgreSQL、Parquet、DuckDB 和 SQLite 职责见
 [存储职责](#存储职责)。
 
-数据库是保全边界：迁移只前进，自动化不会删除、清空或截断 database、schema、table 或 Docker volume。
+数据库是保全边界：迁移只前进，自动化不会删除、清空或截断 database、schema 或 table。
 `init-db` 只执行 `alembic upgrade head`。模型、repository、Alembic migration、测试和文档必须一并变更。
 
 #### 核心类型关系图

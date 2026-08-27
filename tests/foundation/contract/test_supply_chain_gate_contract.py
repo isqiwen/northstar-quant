@@ -8,9 +8,8 @@ from tests.helpers.paths import PROJECT_ROOT
 
 
 JUSTFILE = PROJECT_ROOT / "justfile"
-CI_WORKFLOW = PROJECT_ROOT / ".github" / "workflows" / "ci.yml"
 SECURITY_POLICY = PROJECT_ROOT / "docs" / "GOVERNANCE.md"
-LOCAL_POSTGRES_COMPOSE = PROJECT_ROOT / "infra" / "docker" / "compose.yaml"
+ENV_TEMPLATE = PROJECT_ROOT / ".env.example"
 
 
 def _just_recipe(justfile: str, name: str) -> str:
@@ -19,20 +18,11 @@ def _just_recipe(justfile: str, name: str) -> str:
     return match.group(0)
 
 
-def _ci_job(workflow: str, name: str) -> str:
-    match = re.search(
-        rf"(?ms)^  {re.escape(name)}:\n(.*?)(?=^  [A-Za-z0-9_-]+:\n|\Z)",
-        workflow,
-    )
-    assert match is not None, f"missing CI job: {name}"
-    return match.group(0)
-
-
 def test_just_check_runs_locked_offline_policy_and_secret_gates() -> None:
     check = _just_recipe(JUSTFILE.read_text(encoding="utf-8"), "check")
 
     policy_check = check.index("python scripts/ci/check_dependency_policy.py")
-    lock_check = check.index("uv lock --check --offline")
+    lock_check = check.index("python scripts/dev/run_uv.py lock --check --offline")
     assert policy_check < lock_check
     assert "python scripts/ci/check_dependency_policy.py" in check
     assert "python scripts/ci/check_secrets.py" in check
@@ -43,7 +33,7 @@ def test_just_bootstrap_is_the_only_explicit_local_sync_boundary() -> None:
     bootstrap = _just_recipe(justfile, "env-bootstrap")
 
     policy_check = bootstrap.index("python scripts/ci/check_dependency_policy.py")
-    lock_check = bootstrap.index("uv lock --check --offline")
+    lock_check = bootstrap.index("python scripts/dev/run_uv.py lock --check --offline")
     secret_check = bootstrap.index("python scripts/ci/check_secrets.py")
     runner = bootstrap.index("python scripts/ci/bootstrap_pep517.py --profile development")
 
@@ -52,27 +42,17 @@ def test_just_bootstrap_is_the_only_explicit_local_sync_boundary() -> None:
     assert "uv run python scripts/dev/check_env.py" not in justfile
     for raw_line in justfile.splitlines():
         line = raw_line.strip()
-        if line.startswith("uv run "):
-            assert line.startswith("uv run --offline --no-sync ")
+        if line.startswith("python scripts/dev/run_uv.py run "):
+            assert line.startswith("python scripts/dev/run_uv.py run --offline --no-sync ")
 
-
-def test_each_tier_one_ci_job_validates_lock_and_policy_before_hermetic_bootstrap() -> None:
-    workflow = CI_WORKFLOW.read_text(encoding="utf-8")
-
-    for job_name in ("linux-platform", "windows-workstation"):
-        job = _ci_job(workflow, job_name)
-        policy_check = job.index("python scripts/ci/check_dependency_policy.py")
-        lock_check = job.index("uv lock --check --offline")
-        secret_check = job.index("python scripts/ci/check_secrets.py")
-        bootstrap = job.index("python scripts/ci/bootstrap_pep517.py --profile ci")
-        general_check = job.index("just check")
-
-        assert policy_check < lock_check < secret_check < bootstrap < general_check
-        assert "uv sync" not in job
-        for raw_line in job.splitlines():
-            line = raw_line.strip()
-            if line.startswith("run: uv run ") or line.startswith("uv run "):
-                assert "uv run --offline --no-sync " in line
+    refresh = _just_recipe(justfile, "env-bootstrap-refresh")
+    refresh_policy = refresh.index("python scripts/ci/check_dependency_policy.py")
+    refresh_lock = refresh.index("python scripts/dev/run_uv.py lock --check --offline")
+    refresh_scan = refresh.index("python scripts/ci/check_secrets.py")
+    refresh_runner = refresh.index(
+        "python scripts/ci/bootstrap_pep517.py --profile development --refresh"
+    )
+    assert refresh_policy < refresh_lock < refresh_scan < refresh_runner
 
 
 def test_security_policy_scopes_offline_supply_chain_and_credential_allowances() -> None:
@@ -82,14 +62,16 @@ def test_security_policy_scopes_offline_supply_chain_and_credential_allowances()
     assert "CVE" in policy
     assert "不是" in policy
     assert "secret-scan: allow; reason: ..." in policy
-    assert "test/CI fixture" in policy
+    assert "test fixture" in policy
     for disallowed_scope in ("业务源代码", "配置", "部署", "文档", "生产清单"):
         assert disallowed_scope in policy
 
 
-def test_secret_scan_hardening_does_not_weaken_local_postgres_password_requirement() -> None:
-    compose = LOCAL_POSTGRES_COMPOSE.read_text(encoding="utf-8")
+def test_secret_scan_hardening_keeps_generated_native_postgres_credentials_untracked() -> None:
+    environment_template = ENV_TEMPLATE.read_text(encoding="utf-8")
 
-    assert (
-        "POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}" in compose  # secret-scan: allow; reason: disposable test fixture
-    )
+    assert "POSTGRES_PASSWORD=" in environment_template
+    assert "本机 northstar 角色密码" in environment_template
+    assert "空密码会生成并仅写入未跟踪 .env" in environment_template
+    assert "已存在的角色、密码、认证规则、服务配置或数据不会被覆盖" in environment_template
+    assert not (PROJECT_ROOT / "infra" / "docker" / "compose.yaml").exists()

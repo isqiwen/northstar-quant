@@ -68,7 +68,7 @@ class DependencyPolicyError(ValueError):
 
 @dataclass(frozen=True, order=True)
 class DependencyInventoryEntry:
-    """One reviewed third-party lock entry, safe to include in CI output."""
+    """One reviewed third-party lock entry, safe to include in quality-gate output."""
 
     name: str
     version: str
@@ -821,7 +821,7 @@ def evaluate_dependency_policy(
     """Fail closed unless the local project and lock satisfy the policy.
 
     No package manager command is launched here: callers can safely use it in an
-    offline CI preflight before installing anything.
+    offline quality-gate preflight before installing anything.
     """
 
     pyproject, _ = _read_toml(pyproject_path, label="pyproject.toml")

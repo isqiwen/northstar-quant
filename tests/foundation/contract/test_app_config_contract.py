@@ -25,9 +25,8 @@ def test_example_and_active_app_config_have_identical_complete_schema() -> None:
 
     assert example_path.is_file()
     assert active_path.is_file(), (
-        "缺少唯一活动配置 configs/app.yaml；请先运行 just dev-setup 或 "
-        "python scripts/ci/bootstrap_pep517.py --profile development 后运行 "
-        "uv run --offline --no-sync python scripts/dev/setup.py --initialize-config，或从 "
+        "缺少唯一活动配置 configs/app.yaml；请先运行 python scripts/dev/setup.py --initialize-workstation，或在已完成依赖同步后直接运行 "
+        "python scripts/dev/setup.py --initialize-config，或从 "
         "configs/app.example.yaml 复制创建。"
     )
 

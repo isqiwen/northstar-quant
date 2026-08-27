@@ -11,6 +11,7 @@ ENV/
 .python-version
 
 # Tooling cache
+.northstar/
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/

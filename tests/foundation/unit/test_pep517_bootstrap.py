@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 
@@ -110,8 +112,10 @@ def test_sanitized_environment_removes_ambient_resolver_and_python_inputs(
     managed_environment = bootstrap.sanitized_environment(
         venv=tmp_path / "venv",
         managed_python_dir=tmp_path / "managed-python",
+        uv_cache_dir=tmp_path / "cache" / "uv",
     )
     assert managed_environment["UV_PYTHON_INSTALL_DIR"] == str(tmp_path / "managed-python")
+    assert managed_environment["UV_CACHE_DIR"] == str(tmp_path / "cache" / "uv")
 
 
 def test_direct_isolated_script_entrypoint_loads_its_exact_sibling_policy() -> None:
@@ -132,11 +136,16 @@ def test_direct_isolated_script_entrypoint_loads_its_exact_sibling_policy() -> N
     assert "--managed-python-dir" in result.stdout
 
 
+def test_bootstrap_exposes_only_development_and_release_profiles() -> None:
+    assert tuple(sorted(bootstrap._PROFILES)) == ("development", "release")
+    assert bootstrap._parse_args(()).profile == "development"
+
+
 def test_managed_python_directory_is_rejected_outside_release_profile(tmp_path: Path) -> None:
     with pytest.raises(bootstrap.BootstrapError, match="only valid for release"):
         bootstrap._managed_python_install_dir(
             tmp_path,
-            profile=bootstrap._PROFILES["ci"],
+            profile=bootstrap._PROFILES["development"],
         )
 
 
@@ -220,16 +229,64 @@ def test_development_staging_path_is_a_fresh_sibling(tmp_path: Path) -> None:
     staged = bootstrap._development_staging_venv(root=tmp_path, destination=destination)
 
     assert staged.parent == tmp_path
+    assert staged.name.startswith(".venv.bootstrap-")
     assert staged != destination
     assert not staged.exists()
 
 
-@pytest.mark.parametrize("profile_name", ("development", "ci", "release"))
+def test_development_bootstrap_requires_repository_local_uv(tmp_path: Path) -> None:
+    profile = bootstrap._PROFILES["development"]
+
+    with pytest.raises(bootstrap.BootstrapError, match="repository-local uv"):
+        bootstrap._uv_executable(root=tmp_path, profile=profile)
+
+    executable_name = "uv.exe" if bootstrap.os.name == "nt" else "uv"
+    executable = tmp_path / ".northstar" / "bin" / executable_name
+    executable.parent.mkdir(parents=True)
+    executable.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    executable.chmod(0o755)
+
+    assert bootstrap._uv_executable(root=tmp_path, profile=profile) == str(executable)
+
+
+def test_release_bootstrap_keeps_its_separate_managed_uv_lookup(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setattr(
+        bootstrap.shutil,
+        "which",
+        lambda name: "/usr/local/bin/uv" if name == "uv" else None,
+    )
+
+    assert (
+        bootstrap._uv_executable(root=tmp_path, profile=bootstrap._PROFILES["release"])
+        == "/usr/local/bin/uv"
+    )
+
+
+@pytest.mark.skipif(bootstrap.os.name == "nt", reason="Windows symlink permissions vary by runner")
+def test_repository_bootstrap_uv_rejects_an_external_symlink(tmp_path: Path) -> None:
+    launcher = tmp_path / ".northstar" / "bin" / "uv"
+    outside = tmp_path / "outside-uv"
+    launcher.parent.mkdir(parents=True)
+    outside.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    outside.chmod(0o755)
+    launcher.symlink_to(outside)
+
+    with pytest.raises(bootstrap.BootstrapError, match="escapes"):
+        bootstrap._repository_uv_executable(tmp_path)
+
+
+@pytest.mark.parametrize("profile_name", ("development", "release"))
 def test_bootstrap_venv_is_relocatable_for_promotion_or_release_archive(
-    tmp_path: Path, profile_name: str
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    profile_name: str,
 ) -> None:
     commands: list[tuple[str, ...]] = []
     requested_venv = None if profile_name == "development" else tmp_path / profile_name
+    monkeypatch.setattr(bootstrap, "_uv_executable", lambda **_: "uv")
 
     bootstrap.bootstrap_environment(
         project_root=PROJECT_ROOT,
@@ -265,7 +322,43 @@ def test_development_promotion_keeps_existing_environment_on_switch_failure(
         bootstrap._promote_development_venv(staged=staged, destination=destination)
 
     assert sentinel.read_text(encoding="utf-8") == "existing environment"
-    assert staged.is_dir()
+    assert not staged.exists()
+
+
+def test_development_bootstrap_removes_an_unpromoted_stage_after_failure(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "project"
+    root.mkdir()
+    for filename in ("pyproject.toml", "uv.lock"):
+        shutil.copy2(PROJECT_ROOT / filename, root / filename)
+    (root / ".northstar").mkdir()
+    staged = root / ".venv.bootstrap-failed"
+    monkeypatch.setattr(bootstrap, "_uv_executable", lambda **_: "uv")
+    monkeypatch.setattr(
+        bootstrap,
+        "_development_staging_venv",
+        lambda **_: staged,
+    )
+
+    def fail_after_creating_venv(
+        command: tuple[str, ...],
+        _root: Path,
+        _environment: dict[str, str],
+    ) -> None:
+        if command[1] == "venv":
+            staged.mkdir()
+            raise bootstrap.BootstrapError("forced staging failure")
+
+    with pytest.raises(bootstrap.BootstrapError, match="forced staging failure"):
+        bootstrap.bootstrap_environment(
+            project_root=root,
+            profile_name="development",
+            run_command=fail_after_creating_venv,
+        )
+
+    assert not staged.exists()
 
 
 def test_verified_source_materializer_streams_and_checks_exact_artifact(
@@ -317,18 +410,143 @@ def test_verified_source_materializer_rejects_redirect_or_hash_drift(
     assert not list(tmp_path.iterdir())
 
 
-def test_ci_venv_refuses_to_reuse_an_existing_environment(tmp_path: Path) -> None:
+def test_verified_source_cache_reuses_and_rechecks_the_exact_artifact(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    payload = b"reviewed source archive"
+    artifact = _source_artifact(payload)
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    calls = 0
+
+    def opener(*_: object) -> _Opener:
+        nonlocal calls
+        calls += 1
+        return _Opener(_Response(payload=payload, url=artifact.url))
+
+    monkeypatch.setattr(bootstrap, "build_opener", opener)
+
+    first = bootstrap._cache_verified_source(artifact, cache_directory=cache)
+    second = bootstrap._cache_verified_source(artifact, cache_directory=cache)
+
+    assert first == second
+    assert first.read_bytes() == payload
+    assert calls == 1
+
+    first.write_bytes(b"corrupted")
+    refreshed = bootstrap._cache_verified_source(artifact, cache_directory=cache)
+
+    assert refreshed == first
+    assert refreshed.read_bytes() == payload
+    assert calls == 2
+
+
+@pytest.mark.skipif(os.name == "nt", reason="requires POSIX symlink semantics")
+def test_verified_source_cache_rejects_a_symbolic_link(
+    tmp_path: Path,
+) -> None:
+    artifact = _source_artifact(b"reviewed source archive")
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    outside = tmp_path / "outside.tar.gz"
+    outside.write_bytes(b"untrusted")
+    bootstrap._source_cache_path(artifact, cache_directory=cache).symlink_to(outside)
+
+    with pytest.raises(bootstrap.BootstrapError, match="regular file"):
+        bootstrap._cache_verified_source(artifact, cache_directory=cache)
+
+
+def test_development_bootstrap_state_round_trips_through_a_regular_marker(tmp_path: Path) -> None:
+    venv = tmp_path / ".venv"
+    venv.mkdir()
+    state: dict[str, object] = {
+        "schema": bootstrap.DEVELOPMENT_BOOTSTRAP_STATE_SCHEMA,
+        "profile": "development",
+        "inputs": {"lock_sha256": "a" * 64},
+    }
+
+    bootstrap._write_development_bootstrap_state(venv, state)
+
+    marker = venv / bootstrap.DEVELOPMENT_BOOTSTRAP_STATE_FILENAME
+    assert json.loads(marker.read_text(encoding="utf-8")) == state
+    assert bootstrap._read_development_bootstrap_state(venv) == state
+    if os.name != "nt":
+        assert marker.stat().st_mode & 0o077 == 0
+
+
+def test_repository_dependency_cache_is_created_under_dot_northstar(tmp_path: Path) -> None:
+    root = tmp_path / "project"
+    (root / ".northstar").mkdir(parents=True)
+
+    cache = bootstrap._repository_dependency_cache(root)
+
+    assert cache.uv == root / ".northstar" / "cache" / "uv"
+    assert cache.source_artifacts == root / ".northstar" / "cache" / "source-artifacts"
+    assert cache.uv.is_dir()
+    assert cache.source_artifacts.is_dir()
+
+
+@pytest.mark.skipif(os.name == "nt", reason="requires POSIX symlink semantics")
+def test_repository_dependency_cache_rejects_a_symbolic_link(tmp_path: Path) -> None:
     root = tmp_path / "project"
     root.mkdir()
-    venv = root / ".venv"
-    venv.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (root / ".northstar").symlink_to(outside, target_is_directory=True)
 
-    with pytest.raises(bootstrap.BootstrapError, match="nonexistent fresh"):
-        bootstrap._prepare_venv_path(
-            root=root,
-            venv=venv,
-            profile=bootstrap._PROFILES["ci"],
-        )
+    with pytest.raises(bootstrap.BootstrapError, match="regular directory"):
+        bootstrap._repository_dependency_cache(root)
+
+
+def test_development_environment_reuse_requires_a_matching_state_and_health_check(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    venv = tmp_path / ".venv"
+    venv.mkdir()
+    state: dict[str, object] = {
+        "schema": bootstrap.DEVELOPMENT_BOOTSTRAP_STATE_SCHEMA,
+        "profile": "development",
+        "inputs": {"lock_sha256": "a" * 64},
+    }
+    bootstrap._write_development_bootstrap_state(venv, state)
+    report = dependency_policy.DependencyPolicyReport(
+        inventory=(),
+        source_build_artifacts=(),
+        inventory_digest="b" * 64,
+        lock_digest="a" * 64,
+    )
+    calls: list[str] = []
+    monkeypatch.setattr(bootstrap, "_venv_python", lambda **_: venv / "bin" / "python")
+    monkeypatch.setattr(
+        bootstrap,
+        "_validate_stage_inventory",
+        lambda **_: calls.append("inventory"),
+    )
+    monkeypatch.setattr(
+        bootstrap,
+        "_check_final_environment",
+        lambda **_: calls.append("lock"),
+    )
+
+    assert bootstrap._can_reuse_development_environment(
+        destination=venv,
+        expected_state=state,
+        uv="uv",
+        root=tmp_path,
+        environment={"UV_PROJECT_ENVIRONMENT": str(venv)},
+        report=report,
+    )
+    assert calls == ["inventory", "lock"]
+
+    assert not bootstrap._can_reuse_development_environment(
+        destination=venv,
+        expected_state={**state, "schema": 999},
+        uv="uv",
+        root=tmp_path,
+        environment={"UV_PROJECT_ENVIRONMENT": str(venv)},
+        report=report,
+    )
+    assert calls == ["inventory", "lock"]
 
 
 def test_wheel_stage_and_offline_source_install_have_closed_arguments(
@@ -347,9 +565,10 @@ def test_wheel_stage_and_offline_source_install_have_closed_arguments(
         uv="uv",
         root=tmp_path,
         environment=environment,
-        profile=bootstrap._PROFILES["ci"],
+        profile=bootstrap._PROFILES["development"],
         source_artifacts=(artifact,),
         link_mode=None,
+        cache_enabled=True,
     )
     bootstrap._install_offline_source(
         uv="uv",
@@ -365,10 +584,44 @@ def test_wheel_stage_and_offline_source_install_have_closed_arguments(
     assert "--no-sources" in wheel_stage
     assert "--no-install-project" in wheel_stage
     assert "--no-build" in wheel_stage
+    assert "--no-cache" not in wheel_stage
     assert wheel_stage.count("--no-install-package") == 1
     assert wheel_stage[wheel_stage.index("--no-install-package") + 1] == "jsonpath"
     for required in ("--offline", "--no-index", "--no-deps", "--no-build-isolation", "--no-cache"):
         assert required in source_install
+
+
+def test_wheel_stage_keeps_release_bootstrap_cacheless(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    commands: list[tuple[str, ...]] = []
+    monkeypatch.setattr(
+        bootstrap,
+        "_run",
+        lambda command, **_: commands.append(tuple(command)),
+    )
+
+    bootstrap._stage_wheel_only_dependencies(
+        uv="uv",
+        root=tmp_path,
+        environment={"UV_PROJECT_ENVIRONMENT": str(tmp_path / "venv")},
+        profile=bootstrap._PROFILES["release"],
+        source_artifacts=(),
+        link_mode=None,
+        cache_enabled=False,
+    )
+
+    assert "--no-cache" in commands[0]
+
+
+def test_refresh_is_rejected_outside_development_profile(tmp_path: Path) -> None:
+    with pytest.raises(bootstrap.BootstrapError, match="only valid for development"):
+        bootstrap.bootstrap_environment(
+            project_root=tmp_path,
+            profile_name="release",
+            requested_venv=tmp_path / "venv",
+            refresh=True,
+        )
 
 
 def test_final_consistency_check_only_rechecks_the_wheel_stage(

@@ -1,6 +1,6 @@
 # 基础设施
 
-这里保存可审阅的部署声明和运维模板，不保存环境状态。Docker 卷、Terraform state、Kubernetes
+这里保存可审阅的部署声明和运维模板，不保存环境状态。运行时容器卷、Terraform state、Kubernetes
 Secret、监控运行数据、数据库转储、行情下载、账户快照和任何凭据均不得提交。
 
 这些声明的目标平台是 Linux 生产服务器。Windows 与 Linux 开发机通过 `just` 和 Python 控制面

@@ -32,7 +32,6 @@ _ALLOW_DIRECTIVE_PATTERN = re.compile(
 )
 _ALLOW_REASON_PATTERN = re.compile(r"(?is)^;\s*reason\s*:\s*(?P<reason>.+?)\s*$")
 _DISPOSABLE_FIXTURE_PREFIXES = ("tests/", "scripts/ci/fixtures/")
-_DISPOSABLE_CI_FIXTURES = frozenset({".github/workflows/ci.yml"})
 _BINARY_MAGIC_PREFIXES = (
     b"%PDF-",
     b"\x89PNG\r\n\x1a\n",
@@ -199,9 +198,7 @@ def _normalize_relative_path(relative_path: Path | str | None) -> str:
 
 def _is_disposable_fixture_path(relative_path: Path | str | None) -> bool:
     normalized = _normalize_relative_path(relative_path)
-    return normalized in _DISPOSABLE_CI_FIXTURES or normalized.startswith(
-        _DISPOSABLE_FIXTURE_PREFIXES
-    )
+    return normalized.startswith(_DISPOSABLE_FIXTURE_PREFIXES)
 
 
 def _is_binary_blob(path: Path) -> bool:
@@ -246,7 +243,7 @@ def find_secret_lines(
     non-secret fixtures may remain readable, but concrete key-value credentials,
     DSNs, private keys and common cloud/chat tokens fail the repository gate.
     An allow directive is fail-closed unless it has a reason and appears in a
-    disposable test or CI fixture path.
+    disposable test fixture path.
     """
 
     findings: list[int] = []

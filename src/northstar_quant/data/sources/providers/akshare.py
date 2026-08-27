@@ -53,7 +53,7 @@ def _fetch_main_continuous_history(vendor_symbol: str, start_date: str, end_date
         import akshare as ak
     except ImportError as exc:
         raise RuntimeError(
-            "未安装 AKShare，无法自动下载国内期货数据。请执行 `uv sync --extra data`。"
+            "未安装 AKShare，无法自动下载国内期货数据。请先执行 `just env-bootstrap`。"
         ) from exc
 
     try:

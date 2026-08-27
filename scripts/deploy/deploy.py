@@ -10,8 +10,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -89,6 +91,39 @@ def _default_project_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
 
+def _project_uv_executable(*, project_root: Path) -> str:
+    """Resolve the verified workstation uv path without consulting PATH."""
+
+    tool_root = project_root / ".northstar"
+    try:
+        metadata = tool_root.lstat()
+    except FileNotFoundError:
+        raise DeployError("未找到仓库本地 uv；请先运行开发初始化。") from None
+    except OSError as error:
+        raise DeployError("无法检查仓库本地 uv 目录。") from error
+    if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISDIR(metadata.st_mode):
+        raise DeployError("仓库本地 uv 目录不安全。")
+
+    resolved_root = tool_root.resolve(strict=True)
+    names = ("uv.exe", "uv") if os.name == "nt" else ("uv", "uv.exe")
+    for name in names:
+        candidate = tool_root / "bin" / name
+        try:
+            resolved = candidate.resolve(strict=True)
+        except FileNotFoundError:
+            continue
+        except OSError as error:
+            raise DeployError("无法解析仓库本地 uv。") from error
+        try:
+            resolved.relative_to(resolved_root)
+        except ValueError as error:
+            raise DeployError("仓库本地 uv 不能指向 .northstar 外部。") from error
+        if not resolved.is_file() or (os.name != "nt" and not os.access(resolved, os.X_OK)):
+            raise DeployError("仓库本地 uv 不可执行。")
+        return str(candidate)
+    raise DeployError("未找到仓库本地 uv；请先运行开发初始化。")
+
+
 def _resolve_from_project(project_root: Path, path: Path) -> Path:
     return path.resolve() if path.is_absolute() else (project_root / path).resolve()
 
@@ -117,9 +152,7 @@ def _print_audit(*, action: str, outcome: str, subject: str, **details: object) 
 def _run_quality_gates(*, project_root: Path) -> None:
     """实际部署前运行不可跳过的本地质量门禁。"""
 
-    uv = shutil.which("uv")
-    if uv is None:
-        raise DeployError("实际部署需要 uv。")
+    uv = _project_uv_executable(project_root=project_root)
     quality_gates = (
         ("离线依赖策略", (sys.executable, "scripts/ci/check_dependency_policy.py")),
         ("离线 lock 检查", (uv, "lock", "--check", "--offline")),
@@ -137,10 +170,8 @@ def _run_quality_gates(*, project_root: Path) -> None:
             raise DeployError(f"{name} 未通过，拒绝继续部署。")
 
 
-def _local_uv_version() -> str:
-    uv = shutil.which("uv")
-    if uv is None:
-        raise DeployError("未找到 uv。")
+def _local_uv_version(*, project_root: Path) -> str:
+    uv = _project_uv_executable(project_root=project_root)
     result = subprocess.run([uv, "--version"], check=False, capture_output=True, text=True)
     match = _UV_VERSION_PATTERN.fullmatch(result.stdout.strip())
     if result.returncode != 0 or match is None:
@@ -303,7 +334,7 @@ def _deploy_to_linux(
         inventory=inventory,
         setup_server=args.setup_server,
         confirm_live_deploy=args.confirm_live_deploy,
-        uv_version=_local_uv_version(),
+        uv_version=_local_uv_version(project_root=project_root),
     )
     with tempfile.TemporaryDirectory(prefix="northstar-release-control-") as temporary_dir:
         control = build_control_artifact(

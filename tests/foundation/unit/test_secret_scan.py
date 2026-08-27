@@ -117,7 +117,7 @@ def test_secret_scan_allows_reasoned_directive_only_in_disposable_fixture_paths(
     source = _allow_line("fixture-secret-value")
 
     assert find_secret_lines(source, relative_path="tests/unit/test_fixture.py") == []
-    assert find_secret_lines(source, relative_path=".github/workflows/ci.yml") == []
+    assert find_secret_lines(source, relative_path="scripts/ci/fixtures/test_fixture.py") == []
     assert find_secret_lines(source) == [1]
 
 
@@ -128,10 +128,11 @@ def test_secret_scan_allows_reasoned_directive_only_in_disposable_fixture_paths(
         "configs/app.yaml",
         "scripts/deploy/release.py",
         "docs/security.md",
+        ".github/workflows/ci.yml",
         ".github/workflows/deploy.yml",
     ),
 )
-def test_secret_scan_rejects_directives_outside_disposable_test_or_ci_fixtures(
+def test_secret_scan_rejects_directives_outside_disposable_fixture_paths(
     relative_path: str,
 ):
     assert find_secret_lines(_allow_line("fixture-secret-value"), relative_path=relative_path) == [1]

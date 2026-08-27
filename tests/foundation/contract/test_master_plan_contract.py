@@ -84,9 +84,9 @@ def test_master_plan_tracks_completed_wp_and_current_work() -> None:
     assert "P10 已完成 `7/9` 个 Work Package（78%）" in plan
     assert (
         "active_work_package:\n"
-        "  id: null\n"
-        "  title: null\n"
-        "  status: null"
+        "  id: MAINT-WP02\n"
+        "  title: Native Linux PostgreSQL Development / Docker Removal\n"
+        "  status: VERIFY"
     ) in plan
     assert "id: P10-WP08" in plan
     assert ("title: Platform Production / DR Acceptance\n  status: BLOCKED") in plan
@@ -149,8 +149,35 @@ def test_master_plan_tracks_completed_wp_and_current_work() -> None:
     assert "## DOC-WP07 — Unified Local Initialization Entry" in plan
     doc_wp07 = plan.split("## DOC-WP07", maxsplit=1)[1].split("# 20.", maxsplit=1)[0]
     assert "**Status:** DONE" in doc_wp07
-    assert "`just setup`" in doc_wp07
-    assert "`just setup-postgres`" in doc_wp07
+    assert "`python scripts/dev/setup.py --initialize-workstation`" in doc_wp07
+    assert "## DOC-WP08 — VS Code Daily Task Surface" in plan
+    doc_wp08 = plan.split("## DOC-WP08", maxsplit=1)[1].split("# 20.", maxsplit=1)[0]
+    assert "**Status:** VERIFY" in doc_wp08
+    assert "四个日常任务" in doc_wp08
+    assert "统一初始化已包含 PostgreSQL 与前向迁移" in doc_wp08
+    assert "`run_just.py`" in doc_wp08
+    assert "--initialize-workstation" in doc_wp08
+    assert ".northstar/" in doc_wp08
+    assert "env-bootstrap-refresh" in doc_wp08
+    assert ".northstar/cache/uv" in doc_wp08
+    assert "run_uv" in doc_wp08
+    assert "run_just" in doc_wp08
+    assert "原生 PostgreSQL" in doc_wp08
+    assert "loopback" in doc_wp08
+    assert "pg_isready" in doc_wp08
+    assert "psql" in doc_wp08
+    assert "默认安装/启用" in doc_wp08
+    assert "Docker Unix socket" not in doc_wp08
+    assert "`docker` 组" not in doc_wp08
+    maintenance_native = plan.split("## MAINT-WP02", maxsplit=1)[1].split(
+        "## DOC-WP07", maxsplit=1
+    )[0]
+    assert "**Status:** VERIFY" in maintenance_native
+    assert "Native Linux PostgreSQL Development / Docker Removal" in maintenance_native
+    assert "Docker/Compose" in maintenance_native
+    assert "northstar`/`northstar_test" in maintenance_native
+    assert "默认安装 PostgreSQL" in maintenance_native
+    assert "不删除或修改独立、production-only 的私有 ntfy" in maintenance_native
     assert "P10-WP08 与 P10-WP09 均需外部前提" in plan
     wp01_p7 = plan.split("## P7-WP01 — Typed Tool API", maxsplit=1)[1].split(
         "## P7-WP02", maxsplit=1

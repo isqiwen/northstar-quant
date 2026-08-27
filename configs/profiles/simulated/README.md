@@ -17,16 +17,16 @@
 export NORTHSTAR_BROKER=ctp_sim
 export NORTHSTAR_DEFAULT_PROFILE_ID=cn_futures_daily_trend_simulated
 
-uv run --offline --no-sync northstar data download \
+python scripts/dev/run_uv.py run --offline --no-sync northstar data download \
   --profile cn_futures_daily_trend_simulated
-uv run --offline --no-sync northstar live signal \
+python scripts/dev/run_uv.py run --offline --no-sync northstar live signal \
   --profile cn_futures_daily_trend_simulated
-uv run --offline --no-sync northstar live sync
-uv run --offline --no-sync northstar live risk-check \
+python scripts/dev/run_uv.py run --offline --no-sync northstar live sync
+python scripts/dev/run_uv.py run --offline --no-sync northstar live risk-check \
   --profile cn_futures_daily_trend_simulated
-uv run --offline --no-sync northstar live preflight \
+python scripts/dev/run_uv.py run --offline --no-sync northstar live preflight \
   --profile cn_futures_daily_trend_simulated
-uv run --offline --no-sync northstar live preview-rebalance \
+python scripts/dev/run_uv.py run --offline --no-sync northstar live preview-rebalance \
   --profile cn_futures_daily_trend_simulated
 ```
 

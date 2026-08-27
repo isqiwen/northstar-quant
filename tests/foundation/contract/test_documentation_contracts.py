@@ -244,34 +244,60 @@ def test_retired_document_names_have_no_remaining_references() -> None:
     assert not remnants, "已收敛文档仍被引用：\n" + "\n".join(remnants)
 
 
-def test_user_facing_uv_run_commands_cannot_implicitly_materialize_dependencies() -> None:
+def test_user_facing_repository_uv_run_commands_cannot_implicitly_materialize_dependencies() -> None:
     documentation_paths = (
         README_PATH,
         PROJECT_ROOT / "AGENTS.md",
         *_markdown_files(),
         *(path for path in (PROJECT_ROOT / "configs" / "profiles").rglob("README.md")),
         PROJECT_ROOT / "tests" / "README.md",
-        PROJECT_ROOT / "infra" / "docker" / "README.md",
     )
     violations: list[str] = []
     for path in dict.fromkeys(documentation_paths):
         for line_number, raw_line in enumerate(_read(path).splitlines(), start=1):
             command = raw_line.strip()
-            if command.startswith("uv run ") and not command.startswith(
-                "uv run --offline --no-sync "
+            if command.startswith("python scripts/dev/run_uv.py run ") and not command.startswith(
+                "python scripts/dev/run_uv.py run --offline --no-sync "
             ):
                 violations.append(f"{path.relative_to(PROJECT_ROOT)}:{line_number}: {command}")
 
-    assert not violations, "用户文档包含会隐式 materialize 依赖的 uv run 命令：\n" + "\n".join(
-        violations
+    assert not violations, "用户文档包含会隐式 materialize 依赖的仓库 uv 命令：\n" + "\n".join(violations)
+
+
+def test_user_facing_just_commands_use_the_repository_local_runner() -> None:
+    documentation_paths = (
+        README_PATH,
+        PROJECT_ROOT / "AGENTS.md",
+        *_markdown_files(),
+        *(path for path in (PROJECT_ROOT / "configs" / "profiles").rglob("README.md")),
+        PROJECT_ROOT / "tests" / "README.md",
     )
+    violations: list[str] = []
+    for path in dict.fromkeys(documentation_paths):
+        for line_number, raw_line in enumerate(_read(path).splitlines(), start=1):
+            command = raw_line.strip()
+            if re.match(r"^just(?:\s|$)", command):
+                violations.append(f"{path.relative_to(PROJECT_ROOT)}:{line_number}: {command}")
+
+    assert not violations, "用户文档包含依赖宿主机 PATH 的 just 命令：\n" + "\n".join(violations)
 
 
 def test_root_readme_links_to_control_plane_without_a_stale_roadmap() -> None:
     readme = _read(README_PATH)
 
-    assert "just setup" in readme
-    assert "just setup-postgres" in readme
+    assert "python scripts/dev/setup.py --initialize-workstation" in readme
+    assert "python scripts/dev/run_just.py setup" in readme
+    assert "python scripts/dev/run_just.py env-bootstrap-refresh" in readme
+    assert ".northstar/cache/uv" in readme
+    assert "本机 PostgreSQL" in readme
+    assert "pg_isready" in readme
+    assert "psql" in readme
+    assert "systemctl enable --now postgresql" in readme
+    assert "已有角色、密码、认证规则、服务配置或数据不会被改写" in readme
+    assert "不会停止、重置或删除 PostgreSQL 服务或数据" in readme
+    assert "Docker Unix socket" not in readme
+    assert "setup-postgres" not in readme
+    assert "python scripts/dev/run_just.py test" in readme
     assert "[主实施计划](docs/planning/MASTER_IMPLEMENTATION_PLAN.md)" in readme
     assert "P10 已完成" not in readme
     assert "不复制会随工作包变化的数字" in readme
@@ -284,9 +310,11 @@ def test_operations_documentation_matches_current_just_and_configuration_contrac
     architecture = _read(ARCHITECTURE_PATH)
     justfile = _read(PROJECT_ROOT / "justfile")
 
-    assert "just deploy-prod /secure/operator/northstar-release-signing-key" in operations
-    assert "just ops-health" in operations
+    assert "python scripts/dev/run_just.py deploy-preview" in operations
+    assert "python scripts/dev/run_just.py deploy-prod /secure/operator/northstar-release-signing-key" in operations
+    assert "python scripts/dev/run_just.py ops-health" in operations
     assert "just prod-health" not in operations
+    assert "deploy-preview inventory='deploy.env':" in justfile
     assert "deploy-prod signing_key inventory='deploy.env':" in justfile
     assert "ops-health inventory='deploy.env':" in justfile
     for document in (operations, architecture):
@@ -301,8 +329,17 @@ def test_development_documentation_states_the_linux_restore_client_requirement()
     assert "pg_dump" in development
     assert "pg_restore" in development
     assert "psql" in development
-    assert "just dev-postgres` 只启动 Docker PostgreSQL，不会安装这些" in development
+    assert "`dev-postgres` recipe 只验证和复用" in development
+    assert "本机 PostgreSQL" in development
+    assert "默认安装发行版" in development
+    assert "只有高层 `--initialize-workstation`" in development
+    assert "不会安装或启动它" in development
+    assert "Docker PostgreSQL" not in development
     assert "不能把 restore drill 静默跳过" in development
+    assert "--initialize-workstation" in development
+    assert "输入 `YES`" in development
+    assert "PEP 668" in development
+    assert "--confirm-docker-install YES" not in development
 
 
 def test_configuration_documentation_matches_safe_runtime_defaults() -> None:
@@ -504,4 +541,7 @@ def test_development_python_example_is_parseable_and_describes_flat_targets() ->
     for index, source in enumerate(python_blocks, start=1):
         ast.parse(source, filename=f"{DEVELOPMENT_PATH.name}:python-block-{index}")
     assert "target_weight: 0.0" in development
-    assert "uv run --offline --no-sync northstar backtest run portfolio" in development
+    assert (
+        "python scripts/dev/run_uv.py run --offline --no-sync northstar backtest run portfolio"
+        in development
+    )

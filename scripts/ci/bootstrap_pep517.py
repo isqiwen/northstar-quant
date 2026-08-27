@@ -1,9 +1,17 @@
 #!/usr/bin/env python3
-"""Materialize Northstar's reviewed PEP 517 inputs in a fresh virtualenv.
+"""Materialize Northstar's reviewed PEP 517 inputs into a verified virtualenv.
 
 This is intentionally a standard-library-only entry point.  It is the single
-place allowed to download dependencies for local development, CI, and the
-Linux release installer.  All later ``uv run`` calls must use ``--no-sync``.
+place allowed to download dependencies for local development and the Linux
+release installer.  All later development uv calls use the verified
+repository-local launcher with ``--no-sync``; release keeps its root-managed
+uv boundary.
+
+Development first checks whether ``.venv`` still matches its complete bootstrap
+input state and passes offline inventory/lock checks.  A mismatch, missing state
+or explicit refresh creates a fresh sibling venv and atomically promotes it only
+after validation.  Release always uses a fresh venv.  Development wheel caches
+and verified source artifacts remain under repository ``.northstar``.
 
 The normal locked sync refuses every source build.  The sole reviewed
 source-only dependency is then downloaded directly from the artifact recorded
@@ -22,8 +30,10 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import platform
 import secrets
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -63,6 +73,9 @@ else:  # pragma: no cover - exercised through direct ``python -I`` invocation
 
 
 PROJECT_VENV_NAME: Final = ".venv"
+DEVELOPMENT_BOOTSTRAP_STATE_FILENAME: Final = ".northstar-pep517-bootstrap.json"
+DEVELOPMENT_BOOTSTRAP_STATE_SCHEMA: Final = 1
+MAX_DEVELOPMENT_BOOTSTRAP_STATE_BYTES: Final = 16 * 1024
 BUILD_BOOTSTRAP_GROUP: Final = dependency_policy.BUILD_BOOTSTRAP_GROUP
 BUILD_BOOTSTRAP_VERSIONS: Final = dependency_policy.BUILD_BOOTSTRAP_VERSIONS
 _SAFE_ENVIRONMENT_NAMES: Final = frozenset(
@@ -100,11 +113,18 @@ class BootstrapProfile:
     editable_project: bool
 
 
+@dataclass(frozen=True)
+class RepositoryDependencyCache:
+    """Repository-owned cache paths used only by development bootstrap."""
+
+    uv: Path
+    source_artifacts: Path
+
+
 _PROFILES: Final = {
     "development": BootstrapProfile(
         name="development", extras=("dev",), no_dev=False, editable_project=True
     ),
-    "ci": BootstrapProfile(name="ci", extras=("dev",), no_dev=False, editable_project=True),
     "release": BootstrapProfile(name="release", extras=(), no_dev=True, editable_project=False),
 }
 
@@ -162,14 +182,6 @@ def _prepare_venv_path(*, root: Path, venv: Path, profile: BootstrapProfile) -> 
             raise BootstrapError("repository .venv is not a directory")
         return
 
-    if profile.name == "ci":
-        if venv.exists():
-            raise BootstrapError("CI bootstrap requires a nonexistent fresh virtual environment")
-        parent = venv.parent
-        if not parent.is_dir() or parent.is_symlink():
-            raise BootstrapError("CI virtual environment parent is not a regular directory")
-        return
-
     if venv.exists():
         raise BootstrapError("release bootstrap requires a nonexistent fresh virtual environment")
     parent = venv.parent
@@ -181,8 +193,11 @@ def _prepare_venv_path(*, root: Path, venv: Path, profile: BootstrapProfile) -> 
 def _unique_sibling_path(*, destination: Path, label: str) -> Path:
     """Return an unused same-volume sibling without creating or replacing it."""
 
+    name = destination.name.removeprefix(".")
+    if not name:
+        raise BootstrapError("virtual environment destination has no usable name")
     for _ in range(32):
-        candidate = destination.parent / f".{destination.name}.{label}-{secrets.token_hex(12)}"
+        candidate = destination.parent / f".{name}.{label}-{secrets.token_hex(12)}"
         if not candidate.exists() and not candidate.is_symlink():
             return candidate
     raise BootstrapError("cannot allocate a fresh sibling virtual environment path")
@@ -192,6 +207,49 @@ def _development_staging_venv(*, root: Path, destination: Path) -> Path:
     if destination.parent != root:
         raise BootstrapError("development staging virtual environment escaped project root")
     return _unique_sibling_path(destination=destination, label="bootstrap")
+
+
+def _cleanup_failed_development_staging_venv(*, staged: Path, destination: Path) -> bool:
+    """Best-effort cleanup of an unpromoted staging venv without touching ``.venv``."""
+
+    if staged == destination or staged.parent != destination.parent:
+        print(
+            f"HERMETIC_PEP517_BOOTSTRAP_WARNING refusing to remove invalid staging path {staged}",
+            file=sys.stderr,
+        )
+        return False
+    try:
+        metadata = staged.lstat()
+    except FileNotFoundError:
+        return True
+    except OSError:
+        print(
+            f"HERMETIC_PEP517_BOOTSTRAP_WARNING failed staging environment retained at {staged}",
+            file=sys.stderr,
+        )
+        return False
+    if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISDIR(metadata.st_mode):
+        print(
+            f"HERMETIC_PEP517_BOOTSTRAP_WARNING refusing to remove unsafe staging path {staged}",
+            file=sys.stderr,
+        )
+        return False
+    getuid = getattr(os, "getuid", None)
+    if getuid is not None and metadata.st_uid != getuid():
+        print(
+            f"HERMETIC_PEP517_BOOTSTRAP_WARNING refusing to remove foreign-owned staging path {staged}",
+            file=sys.stderr,
+        )
+        return False
+    try:
+        shutil.rmtree(staged)
+    except OSError:
+        print(
+            f"HERMETIC_PEP517_BOOTSTRAP_WARNING failed staging environment retained at {staged}",
+            file=sys.stderr,
+        )
+        return False
+    return True
 
 
 def _promote_development_venv(*, staged: Path, destination: Path) -> None:
@@ -206,8 +264,9 @@ def _promote_development_venv(*, staged: Path, destination: Path) -> None:
         raise BootstrapError("development virtual environment promotion boundary is invalid")
 
     previous: Path | None = None
+    had_destination = destination.exists()
     try:
-        if destination.exists():
+        if had_destination:
             previous = _unique_sibling_path(destination=destination, label="previous")
             destination.rename(previous)
         staged.rename(destination)
@@ -220,9 +279,19 @@ def _promote_development_venv(*, staged: Path, destination: Path) -> None:
                     "development virtual environment promotion failed and original environment "
                     f"could not be restored; staged environment retained at {staged}"
                 ) from restore_exc
+        staging_discarded = _cleanup_failed_development_staging_venv(
+            staged=staged,
+            destination=destination,
+        )
+        staging_status = "discarded" if staging_discarded else f"retained at {staged}"
+        preservation = (
+            "existing environment was preserved"
+            if had_destination and destination.exists()
+            else "no existing environment was replaced"
+        )
         raise BootstrapError(
             "development virtual environment is in use or cannot be atomically promoted; "
-            f"existing environment was preserved and staged environment retained at {staged}"
+            f"{preservation}; failed staging environment was {staging_status}"
         ) from exc
 
     if previous is not None:
@@ -233,6 +302,65 @@ def _promote_development_venv(*, staged: Path, destination: Path) -> None:
                 f"HERMETIC_PEP517_BOOTSTRAP_WARNING previous environment retained at {previous}",
                 file=sys.stderr,
             )
+
+
+def _ensure_repository_cache_directory(
+    path: Path,
+    *,
+    label: str,
+    create: bool,
+) -> None:
+    """Accept only a current-user, non-symlink cache directory."""
+
+    try:
+        metadata = path.lstat()
+    except FileNotFoundError:
+        if not create:
+            raise BootstrapError(f"{label} is unavailable") from None
+        try:
+            path.mkdir(mode=0o700)
+            metadata = path.lstat()
+        except OSError as exc:
+            raise BootstrapError(f"{label} cannot be created") from exc
+    except OSError as exc:
+        raise BootstrapError(f"{label} cannot be inspected") from exc
+    if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISDIR(metadata.st_mode):
+        raise BootstrapError(f"{label} must be a regular directory")
+    getuid = getattr(os, "getuid", None)
+    if getuid is not None and metadata.st_uid != getuid():
+        raise BootstrapError(f"{label} is not owned by the current user")
+    if not os.access(path, os.R_OK | os.W_OK | os.X_OK):
+        raise BootstrapError(f"{label} is not writable")
+
+
+def _repository_dependency_cache(root: Path) -> RepositoryDependencyCache:
+    """Prepare the only repository-local locations permitted for cached inputs."""
+
+    tool_root = root / ".northstar"
+    _ensure_repository_cache_directory(
+        tool_root,
+        label="repository tool directory",
+        create=False,
+    )
+    cache_root = tool_root / "cache"
+    _ensure_repository_cache_directory(
+        cache_root,
+        label="repository cache directory",
+        create=True,
+    )
+    uv_cache = cache_root / "uv"
+    _ensure_repository_cache_directory(
+        uv_cache,
+        label="repository uv cache directory",
+        create=True,
+    )
+    source_cache = cache_root / "source-artifacts"
+    _ensure_repository_cache_directory(
+        source_cache,
+        label="repository source artifact cache directory",
+        create=True,
+    )
+    return RepositoryDependencyCache(uv=uv_cache, source_artifacts=source_cache)
 
 
 def _managed_python_install_dir(
@@ -303,7 +431,10 @@ def _managed_python_request(
 
 
 def sanitized_environment(
-    *, venv: Path, managed_python_dir: Path | None = None
+    *,
+    venv: Path,
+    managed_python_dir: Path | None = None,
+    uv_cache_dir: Path | None = None,
 ) -> dict[str, str]:
     """Use a minimal OS environment for every resolver and build subprocess."""
 
@@ -322,14 +453,239 @@ def sanitized_environment(
     result["UV_PROJECT_ENVIRONMENT"] = str(venv)
     if managed_python_dir is not None:
         result["UV_PYTHON_INSTALL_DIR"] = str(managed_python_dir)
+    if uv_cache_dir is not None:
+        result["UV_CACHE_DIR"] = str(uv_cache_dir)
     return result
 
 
-def _uv_executable() -> str:
+def _release_uv_executable() -> str:
     executable = shutil.which("uv")
     if executable is None:
         raise BootstrapError("uv is required for the hermetic PEP 517 bootstrap")
     return executable
+
+
+def _repository_uv_executable(root: Path) -> str:
+    """Resolve the verified development uv path without consulting PATH."""
+
+    tool_root = root / ".northstar"
+    try:
+        metadata = tool_root.lstat()
+    except FileNotFoundError:
+        raise BootstrapError("repository-local uv is required for development bootstrap") from None
+    except OSError as error:
+        raise BootstrapError("repository-local uv directory cannot be inspected") from error
+    if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISDIR(metadata.st_mode):
+        raise BootstrapError("repository-local uv directory is unsafe")
+
+    resolved_root = tool_root.resolve(strict=True)
+    names = ("uv.exe", "uv") if os.name == "nt" else ("uv", "uv.exe")
+    for name in names:
+        candidate = tool_root / "bin" / name
+        try:
+            resolved = candidate.resolve(strict=True)
+        except FileNotFoundError:
+            continue
+        except OSError as error:
+            raise BootstrapError("repository-local uv cannot be resolved") from error
+        try:
+            resolved.relative_to(resolved_root)
+        except ValueError as error:
+            raise BootstrapError("repository-local uv escapes the tool directory") from error
+        if not resolved.is_file() or (os.name != "nt" and not os.access(resolved, os.X_OK)):
+            raise BootstrapError("repository-local uv is not executable")
+        return str(candidate)
+    raise BootstrapError("repository-local uv is required for development bootstrap")
+
+
+def _uv_executable(*, root: Path, profile: BootstrapProfile) -> str:
+    if profile.name == "release":
+        return _release_uv_executable()
+    return _repository_uv_executable(root)
+
+
+def _sha256_regular_file(path: Path, *, label: str) -> str:
+    """Hash one declared bootstrap input without following symbolic links."""
+
+    try:
+        metadata = path.lstat()
+    except OSError as exc:
+        raise BootstrapError(f"{label} cannot be inspected") from exc
+    if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISREG(metadata.st_mode):
+        raise BootstrapError(f"{label} must be a regular file")
+    digest = hashlib.sha256()
+    try:
+        with path.open("rb") as handle:
+            while chunk := handle.read(_DOWNLOAD_CHUNK_BYTES):
+                digest.update(chunk)
+    except OSError as exc:
+        raise BootstrapError(f"{label} cannot be read") from exc
+    return digest.hexdigest()
+
+
+def _uv_version(*, uv: str, root: Path, environment: Mapping[str, str]) -> str:
+    """Record the local uv release as a development-environment input."""
+
+    try:
+        result = subprocess.run(
+            [uv, "--version"],
+            cwd=root,
+            env=dict(environment),
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except (OSError, subprocess.CalledProcessError) as exc:
+        raise BootstrapError("repository-local uv version cannot be determined") from exc
+    version = result.stdout.strip()
+    if not version or "\n" in version or len(version) > 256:
+        raise BootstrapError("repository-local uv version output is invalid")
+    return version
+
+
+def _development_bootstrap_state(
+    *,
+    root: Path,
+    report: dependency_policy.DependencyPolicyReport,
+    python_request: str | None,
+    uv: str,
+    environment: Mapping[str, str],
+) -> dict[str, object]:
+    """Build the complete, secret-free input state for a reusable dev venv."""
+
+    runner = Path(__file__)
+    policy = runner.with_name("check_dependency_policy.py")
+    try:
+        resolved_uv = str(Path(uv).resolve(strict=True))
+    except OSError as exc:
+        raise BootstrapError("repository-local uv cannot be resolved for bootstrap state") from exc
+    try:
+        bootstrap_python = str(Path(sys.executable).resolve(strict=True))
+    except OSError as exc:
+        raise BootstrapError("bootstrap Python cannot be resolved for bootstrap state") from exc
+    return {
+        "schema": DEVELOPMENT_BOOTSTRAP_STATE_SCHEMA,
+        "profile": "development",
+        "inputs": {
+            "inventory_sha256": report.inventory_digest,
+            "lock_sha256": report.lock_digest,
+            "pyproject_sha256": _sha256_regular_file(
+                root / "pyproject.toml", label="project manifest"
+            ),
+            "runner_sha256": _sha256_regular_file(runner, label="bootstrap runner"),
+            "policy_sha256": _sha256_regular_file(policy, label="dependency policy"),
+            "bootstrap_python": bootstrap_python,
+            "bootstrap_python_implementation": sys.implementation.name,
+            "bootstrap_python_version": ".".join(str(item) for item in sys.version_info[:3]),
+            "bootstrap_python_cache_tag": sys.implementation.cache_tag or "",
+            "python_request": python_request or "",
+            "platform": sys.platform,
+            "machine": platform.machine().lower(),
+            "uv": resolved_uv,
+            "uv_version": _uv_version(uv=uv, root=root, environment=environment),
+        },
+    }
+
+
+def _development_bootstrap_state_path(venv: Path) -> Path:
+    return venv / DEVELOPMENT_BOOTSTRAP_STATE_FILENAME
+
+
+def _read_development_bootstrap_state(venv: Path) -> dict[str, object] | None:
+    """Read a small regular-file marker, treating any malformed marker as stale."""
+
+    path = _development_bootstrap_state_path(venv)
+    try:
+        metadata = path.lstat()
+    except FileNotFoundError:
+        return None
+    except OSError:
+        return None
+    if (
+        stat.S_ISLNK(metadata.st_mode)
+        or not stat.S_ISREG(metadata.st_mode)
+        or metadata.st_size > MAX_DEVELOPMENT_BOOTSTRAP_STATE_BYTES
+    ):
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def _write_development_bootstrap_state(venv: Path, state: Mapping[str, object]) -> None:
+    """Write the successful development input state before atomic venv promotion."""
+
+    destination = _development_bootstrap_state_path(venv)
+    try:
+        metadata = destination.lstat()
+    except FileNotFoundError:
+        metadata = None
+    except OSError as exc:
+        raise BootstrapError("development bootstrap state cannot be inspected") from exc
+    if metadata is not None and (
+        stat.S_ISLNK(metadata.st_mode) or not stat.S_ISREG(metadata.st_mode)
+    ):
+        raise BootstrapError("development bootstrap state path is unsafe")
+    temporary: Path | None = None
+    try:
+        descriptor, temporary_name = tempfile.mkstemp(
+            prefix=".northstar-pep517-state-",
+            suffix=".tmp",
+            dir=venv,
+            text=True,
+        )
+        temporary = Path(temporary_name)
+        with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as handle:
+            json.dump(state, handle, sort_keys=True, separators=(",", ":"))
+            handle.write("\n")
+        os.chmod(temporary, 0o600)
+        os.replace(temporary, destination)
+    except OSError as exc:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
+        raise BootstrapError("development bootstrap state cannot be written") from exc
+
+
+def _can_reuse_development_environment(
+    *,
+    destination: Path,
+    expected_state: Mapping[str, object],
+    uv: str,
+    root: Path,
+    environment: Mapping[str, str],
+    report: dependency_policy.DependencyPolicyReport,
+) -> bool:
+    """Reuse only a state-matched venv that still passes offline health checks."""
+
+    if destination.is_symlink() or _read_development_bootstrap_state(destination) != expected_state:
+        return False
+    try:
+        python = _venv_python(
+            venv=destination,
+            environment=environment,
+            expected_managed_root=None,
+        )
+        _validate_stage_inventory(
+            python=python,
+            root=root,
+            venv=destination,
+            environment=environment,
+            report=report,
+            allow_project=True,
+        )
+        _check_final_environment(
+            uv=uv,
+            root=root,
+            environment=environment,
+            profile=_PROFILES["development"],
+            source_artifacts=report.source_build_artifacts,
+        )
+    except BootstrapError:
+        return False
+    print("HERMETIC_PEP517_BOOTSTRAP_REUSED profile=development")
+    return True
 
 
 def _venv_configuration(venv: Path) -> dict[str, str]:
@@ -502,9 +858,15 @@ def _validate_stage_inventory(
         raise BootstrapError("fresh virtual environment contains an unreviewed distribution")
     if not allow_project and "northstar-quant" in installed:
         raise BootstrapError("project must not be installed before offline source installation")
+    if allow_project and "northstar-quant" not in installed:
+        raise BootstrapError("fresh virtual environment is missing the local project")
     for name, version in BUILD_BOOTSTRAP_VERSIONS.items():
         if installed.get(name) != version:
             raise BootstrapError("fresh virtual environment lacks the exact locked build bootstrap")
+    if allow_project:
+        for artifact in report.source_build_artifacts:
+            if installed.get(artifact.name) != artifact.version:
+                raise BootstrapError("fresh virtual environment lacks the exact locked source package")
 
 
 def _artifact_filename(artifact: dependency_policy.SourceBuildArtifact) -> str:
@@ -559,6 +921,94 @@ def _download_verified_source(
     return output
 
 
+def _source_cache_path(
+    artifact: dependency_policy.SourceBuildArtifact,
+    *,
+    cache_directory: Path,
+) -> Path:
+    digest = artifact.sha256.removeprefix("sha256:")
+    if len(digest) != 64 or any(character not in "0123456789abcdef" for character in digest):
+        raise BootstrapError("approved source-build artifact hash is invalid")
+    return cache_directory / f"{artifact.name}-{artifact.version}-{digest}.tar.gz"
+
+
+def _source_file_matches(
+    path: Path,
+    *,
+    artifact: dependency_policy.SourceBuildArtifact,
+    label: str,
+) -> bool:
+    """Verify a cache entry by size and digest without following links."""
+
+    try:
+        metadata = path.lstat()
+    except FileNotFoundError:
+        return False
+    except OSError as exc:
+        raise BootstrapError(f"{label} cannot be inspected") from exc
+    if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISREG(metadata.st_mode):
+        raise BootstrapError(f"{label} must be a regular file")
+    if metadata.st_size != artifact.size:
+        return False
+    digest = hashlib.sha256()
+    try:
+        with path.open("rb") as handle:
+            while chunk := handle.read(_DOWNLOAD_CHUNK_BYTES):
+                digest.update(chunk)
+    except OSError as exc:
+        raise BootstrapError(f"{label} cannot be read") from exc
+    return f"sha256:{digest.hexdigest()}" == artifact.sha256
+
+
+def _cache_verified_source(
+    artifact: dependency_policy.SourceBuildArtifact,
+    *,
+    cache_directory: Path,
+) -> Path:
+    """Download an approved source artifact once, then verify every reuse."""
+
+    cached = _source_cache_path(artifact, cache_directory=cache_directory)
+    if _source_file_matches(cached, artifact=artifact, label="source artifact cache entry"):
+        print(f"HERMETIC_PEP517_SOURCE_CACHE_HIT package={artifact.name}")
+        return cached
+    try:
+        with tempfile.TemporaryDirectory(prefix=".source-artifact-", dir=cache_directory) as name:
+            temporary_directory = Path(name)
+            downloaded = _download_verified_source(artifact, destination=temporary_directory)
+            if not _source_file_matches(
+                downloaded,
+                artifact=artifact,
+                label="downloaded source artifact",
+            ):
+                raise BootstrapError("downloaded source artifact did not pass verification")
+            os.replace(downloaded, cached)
+    except OSError as exc:
+        raise BootstrapError("source artifact cache cannot be updated") from exc
+    if not _source_file_matches(cached, artifact=artifact, label="source artifact cache entry"):
+        raise BootstrapError("source artifact cache entry did not pass verification")
+    print(f"HERMETIC_PEP517_SOURCE_CACHE_MISS package={artifact.name}")
+    return cached
+
+
+def _copy_cached_verified_source(
+    artifact: dependency_policy.SourceBuildArtifact,
+    *,
+    cache_directory: Path,
+    destination: Path,
+) -> Path:
+    """Copy a reverified cache input into the private source-build directory."""
+
+    cached = _cache_verified_source(artifact, cache_directory=cache_directory)
+    output = destination / _artifact_filename(artifact)
+    try:
+        shutil.copyfile(cached, output)
+    except OSError as exc:
+        raise BootstrapError("verified source artifact cannot be copied into private scratch") from exc
+    if not _source_file_matches(output, artifact=artifact, label="private source artifact"):
+        raise BootstrapError("private source artifact did not pass verification")
+    return output
+
+
 def _stage_wheel_only_dependencies(
     *,
     uv: str,
@@ -567,6 +1017,7 @@ def _stage_wheel_only_dependencies(
     profile: BootstrapProfile,
     source_artifacts: Sequence[dependency_policy.SourceBuildArtifact],
     link_mode: str | None,
+    cache_enabled: bool,
 ) -> None:
     command = [
         uv,
@@ -578,10 +1029,11 @@ def _stage_wheel_only_dependencies(
         "--no-sources",
         "--no-install-project",
         "--no-build",
-        "--no-cache",
         "--group",
         BUILD_BOOTSTRAP_GROUP,
     ]
+    if not cache_enabled:
+        command.append("--no-cache")
     if profile.no_dev:
         command.append("--no-dev")
     if not profile.editable_project:
@@ -702,9 +1154,10 @@ def bootstrap_environment(
     link_mode: str | None = None,
     python_request: str | None = None,
     managed_python_dir: Path | None = None,
+    refresh: bool = False,
     run_command: Callable[[Sequence[str], Path, Mapping[str, str]], None] | None = None,
 ) -> None:
-    """Build a fresh trusted venv, or fail before any project/source build.
+    """Reuse a verified development venv or build a fresh trusted environment.
 
     ``run_command`` is an intentionally narrow test seam.  Production calls
     retain the real subprocess implementation above.
@@ -714,24 +1167,55 @@ def bootstrap_environment(
         profile = _PROFILES[profile_name]
     except KeyError as exc:
         raise BootstrapError("unknown hermetic bootstrap profile") from exc
+    if refresh and profile.name != "development":
+        raise BootstrapError("refresh is only valid for development bootstrap")
     root = _project_root(project_root)
     report = dependency_policy.evaluate_dependency_policy(root / "pyproject.toml", root / "uv.lock")
     source_artifacts = report.source_build_artifacts
     destination_venv = _resolve_venv_path(root=root, requested=requested_venv, profile=profile)
     _prepare_venv_path(root=root, venv=destination_venv, profile=profile)
+    managed_python = _managed_python_install_dir(managed_python_dir, profile=profile)
+    trusted_python_request = _managed_python_request(
+        python_request,
+        managed_python_dir=managed_python,
+        target_venv=destination_venv,
+    )
+    uv = _uv_executable(root=root, profile=profile)
+    dependency_cache = _repository_dependency_cache(root) if profile.name == "development" else None
+    if profile.name == "development" and run_command is None:
+        reuse_environment = sanitized_environment(
+            venv=destination_venv,
+            managed_python_dir=managed_python,
+            uv_cache_dir=dependency_cache.uv if dependency_cache is not None else None,
+        )
+        expected_state = _development_bootstrap_state(
+            root=root,
+            report=report,
+            python_request=trusted_python_request,
+            uv=uv,
+            environment=reuse_environment,
+        )
+        if not refresh and _can_reuse_development_environment(
+            destination=destination_venv,
+            expected_state=expected_state,
+            uv=uv,
+            root=root,
+            environment=reuse_environment,
+            report=report,
+        ):
+            return
+    else:
+        expected_state = None
     venv = (
         _development_staging_venv(root=root, destination=destination_venv)
         if profile.name == "development"
         else destination_venv
     )
-    managed_python = _managed_python_install_dir(managed_python_dir, profile=profile)
-    trusted_python_request = _managed_python_request(
-        python_request,
+    environment = sanitized_environment(
+        venv=venv,
         managed_python_dir=managed_python,
-        target_venv=venv,
+        uv_cache_dir=dependency_cache.uv if dependency_cache is not None else None,
     )
-    environment = sanitized_environment(venv=venv, managed_python_dir=managed_python)
-    uv = _uv_executable()
 
     def invoke(command: Sequence[str]) -> None:
         if run_command is None:
@@ -765,75 +1249,97 @@ def bootstrap_environment(
     if trusted_python_request is not None:
         venv_command.extend(("--python", trusted_python_request))
     venv_command.append(str(venv))
-    invoke(venv_command)
-
-    if run_command is not None:
-        return
-
-    python = _venv_python(
-        venv=venv,
-        environment=environment,
-        expected_managed_root=managed_python,
-    )
-    _stage_wheel_only_dependencies(
-        uv=uv,
-        root=root,
-        environment=environment,
-        profile=profile,
-        source_artifacts=source_artifacts,
-        link_mode=link_mode,
-    )
-    _validate_stage_inventory(
-        python=python,
-        root=root,
-        venv=venv,
-        environment=environment,
-        report=report,
-        allow_project=False,
-    )
+    build_completed = False
     try:
-        with tempfile.TemporaryDirectory(prefix=".northstar-pep517-", dir=venv) as temporary_name:
-            temporary_directory = Path(temporary_name)
-            for artifact in source_artifacts:
-                source_path = _download_verified_source(artifact, destination=temporary_directory)
+        invoke(venv_command)
+
+        if run_command is not None:
+            return
+
+        python = _venv_python(
+            venv=venv,
+            environment=environment,
+            expected_managed_root=managed_python,
+        )
+        _stage_wheel_only_dependencies(
+            uv=uv,
+            root=root,
+            environment=environment,
+            profile=profile,
+            source_artifacts=source_artifacts,
+            link_mode=link_mode,
+            cache_enabled=dependency_cache is not None,
+        )
+        _validate_stage_inventory(
+            python=python,
+            root=root,
+            venv=venv,
+            environment=environment,
+            report=report,
+            allow_project=False,
+        )
+        try:
+            with tempfile.TemporaryDirectory(prefix=".northstar-pep517-", dir=venv) as temporary_name:
+                temporary_directory = Path(temporary_name)
+                for artifact in source_artifacts:
+                    source_path = (
+                        _copy_cached_verified_source(
+                            artifact,
+                            cache_directory=dependency_cache.source_artifacts,
+                            destination=temporary_directory,
+                        )
+                        if dependency_cache is not None
+                        else _download_verified_source(artifact, destination=temporary_directory)
+                    )
+                    _install_offline_source(
+                        uv=uv,
+                        root=root,
+                        python=python,
+                        environment=environment,
+                        source_path=source_path,
+                        editable=False,
+                    )
+                project_source = (
+                    root
+                    if profile.editable_project
+                    else _copy_noneditable_project_source(root=root, destination=temporary_directory)
+                )
                 _install_offline_source(
                     uv=uv,
                     root=root,
                     python=python,
                     environment=environment,
-                    source_path=source_path,
-                    editable=False,
+                    source_path=project_source,
+                    editable=profile.editable_project,
                 )
-            project_source = (
-                root
-                if profile.editable_project
-                else _copy_noneditable_project_source(root=root, destination=temporary_directory)
+        except OSError as exc:
+            raise BootstrapError("cannot create private source-build scratch directory") from exc
+        _validate_stage_inventory(
+            python=python,
+            root=root,
+            venv=venv,
+            environment=environment,
+            report=report,
+            allow_project=True,
+        )
+        _check_final_environment(
+            uv=uv,
+            root=root,
+            environment=environment,
+            profile=profile,
+            source_artifacts=source_artifacts,
+        )
+        if profile.name == "development":
+            if expected_state is None:
+                raise BootstrapError("development bootstrap state is unavailable")
+            _write_development_bootstrap_state(venv, expected_state)
+        build_completed = True
+    finally:
+        if profile.name == "development" and not build_completed:
+            _cleanup_failed_development_staging_venv(
+                staged=venv,
+                destination=destination_venv,
             )
-            _install_offline_source(
-                uv=uv,
-                root=root,
-                python=python,
-                environment=environment,
-                source_path=project_source,
-                editable=profile.editable_project,
-            )
-    except OSError as exc:
-        raise BootstrapError("cannot create private source-build scratch directory") from exc
-    _validate_stage_inventory(
-        python=python,
-        root=root,
-        venv=venv,
-        environment=environment,
-        report=report,
-        allow_project=True,
-    )
-    _check_final_environment(
-        uv=uv,
-        root=root,
-        environment=environment,
-        profile=profile,
-        source_artifacts=source_artifacts,
-    )
     if profile.name == "development":
         _promote_development_venv(staged=venv, destination=destination_venv)
 
@@ -846,6 +1352,11 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
     parser.add_argument("--link-mode", choices=("clone", "copy", "hardlink", "symlink"))
     parser.add_argument("--python", dest="python_request")
     parser.add_argument("--managed-python-dir", type=Path)
+    parser.add_argument(
+        "--refresh",
+        action="store_true",
+        help="force a fresh development venv while reusing verified repository cache entries",
+    )
     return parser.parse_args(argv)
 
 
@@ -859,6 +1370,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             link_mode=args.link_mode,
             python_request=args.python_request,
             managed_python_dir=args.managed_python_dir,
+            refresh=args.refresh,
         )
     except (BootstrapError, dependency_policy.DependencyPolicyError) as exc:
         print(f"HERMETIC_PEP517_BOOTSTRAP_FAILED: {exc}", file=sys.stderr)

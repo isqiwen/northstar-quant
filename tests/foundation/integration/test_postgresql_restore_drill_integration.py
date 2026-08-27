@@ -16,7 +16,7 @@ from tests.helpers.postgresql import postgresql_test_url
 @pytest.mark.integration
 @pytest.mark.skipif(
     os.name == "nt",
-    reason="Windows workstation CI does not run the PostgreSQL CLI restore drill",
+    reason="Windows workstations do not run the PostgreSQL CLI restore drill",
 )
 def test_real_pg_dump_and_pg_restore_drill_rolls_back_to_preserved_source(
     tmp_path: Path,
@@ -31,7 +31,7 @@ def test_real_pg_dump_and_pg_restore_drill_rolls_back_to_preserved_source(
         for name in ("pg_dump", "pg_restore", "psql")
         if shutil.which(name, path=search_path) is None
     ]
-    assert not missing, "Linux CI must provide restore-drill clients: " + ", ".join(missing)
+    assert not missing, "Linux restore-drill environment must provide clients: " + ", ".join(missing)
 
     database_url = postgresql_test_url(tmp_path)
     workspace = tmp_path / "restore-drills"

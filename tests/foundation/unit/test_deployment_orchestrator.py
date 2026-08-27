@@ -76,8 +76,13 @@ def test_remote_command_requires_strict_host_verification_and_timeout(monkeypatc
 
 def test_apply_quality_gates_are_complete_and_not_configurable(monkeypatch, tmp_path: Path) -> None:
     commands: list[tuple[str, ...]] = []
+    local_uv = "/safe/.northstar/bin/uv"
 
-    monkeypatch.setattr(deploy.shutil, "which", lambda name: "uv" if name == "uv" else None)
+    monkeypatch.setattr(
+        deploy,
+        "_project_uv_executable",
+        lambda **_: local_uv,
+    )
 
     def fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[bytes]:
         commands.append(tuple(command))
@@ -89,11 +94,11 @@ def test_apply_quality_gates_are_complete_and_not_configurable(monkeypatch, tmp_
 
     assert commands == [
         (sys.executable, "scripts/ci/check_dependency_policy.py"),
-        ("uv", "lock", "--check", "--offline"),
+        (local_uv, "lock", "--check", "--offline"),
         (sys.executable, "scripts/ci/check_secrets.py"),
-        ("uv", "run", "--offline", "--no-sync", "ruff", "check", "."),
+        (local_uv, "run", "--offline", "--no-sync", "ruff", "check", "."),
         (
-            "uv",
+            local_uv,
             "run",
             "--offline",
             "--no-sync",
@@ -101,7 +106,7 @@ def test_apply_quality_gates_are_complete_and_not_configurable(monkeypatch, tmp_
             "scripts/ci/check_mypy_baseline.py",
             "check",
         ),
-        ("uv", "run", "--offline", "--no-sync", "pytest"),
+        (local_uv, "run", "--offline", "--no-sync", "pytest"),
     ]
     parser = deploy._build_parser()
     for bypass in ("--allow-dirty", "--skip-ruff", "--skip-tests", "--keep-remote-staging"):
@@ -269,7 +274,7 @@ def test_deploy_to_linux_submits_signed_gate_request_without_remote_staging(
     submission_calls: list[dict[str, object]] = []
 
     monkeypatch.setattr(deploy.shutil, "which", lambda name: "ssh" if name == "ssh" else None)
-    monkeypatch.setattr(deploy, "_local_uv_version", lambda: "0.9.0")
+    monkeypatch.setattr(deploy, "_local_uv_version", lambda **_: "0.9.0")
     monkeypatch.setattr(
         deploy,
         "_assert_linux_target",

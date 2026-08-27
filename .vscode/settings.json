@@ -7,6 +7,7 @@
   "python.testing.pytestEnabled": true,
   "python.testing.unittestEnabled": false,
   "python.testing.pytestArgs": [
+    "tests/application/unit",
     "tests/data/unit",
     "tests/intelligence/unit",
     "tests/research/unit",
@@ -22,6 +23,12 @@
     }
   },
   "files.exclude": {
+    "**/.northstar": true,
+    "**/.venv": true,
+    "**/.venv.bootstrap-*": true,
+    "**/.venv.previous-*": true,
+    "**/..venv.bootstrap-*": true,
+    "**/..venv.previous-*": true,
     "**/__pycache__": true,
     "**/.mypy_cache": true,
     "**/.pytest_cache": true,
@@ -33,7 +40,12 @@
     "**/storage": true
   },
   "files.watcherExclude": {
+    "**/.northstar/**": true,
     "**/.venv/**": true,
+    "**/.venv.bootstrap-*/**": true,
+    "**/.venv.previous-*/**": true,
+    "**/..venv.bootstrap-*/**": true,
+    "**/..venv.previous-*/**": true,
     "**/reports/**": true,
     "**/storage/**": true
   },

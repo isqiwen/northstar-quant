@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -14,6 +13,7 @@ from tests.helpers.paths import PROJECT_ROOT
 
 
 PYTHON_ENTRYPOINTS = (
+    "scripts/dev/bootstrap_just.py",
     "scripts/dev/check_env.py",
     "scripts/dev/setup.py",
     "scripts/deploy/inventory.py",
@@ -26,6 +26,15 @@ PYTHON_ENTRYPOINTS = (
     "scripts/ops/diagnose.py",
     "scripts/maintenance/backup_bundle.py",
     "scripts/maintenance/restore_drill.py",
+)
+DOMAIN_UNIT_TEST_PATHS = (
+    "tests/application/unit",
+    "tests/data/unit",
+    "tests/intelligence/unit",
+    "tests/research/unit",
+    "tests/portfolio_risk/unit",
+    "tests/trading_execution/unit",
+    "tests/foundation/unit",
 )
 
 
@@ -55,23 +64,26 @@ def test_workstation_check_is_read_only_and_reports_optional_tools() -> None:
         "uv",
         "just",
         "Git",
-        "Docker",
-        "Docker Compose v2",
-        "Docker daemon",
+        "pg_isready",
+        "psql",
+        "createdb",
+        "pg_dump",
+        "pg_restore",
+        "本机 PostgreSQL",
         "SSH",
         "OpenSSH ssh-keygen",
     }
 
 
 def test_tool_bootstrap_default_is_a_non_installing_preview() -> None:
-    """默认路径可以在 CI/工作站执行，但不得调用系统安装器。"""
+    """默认路径可在本地质量门禁或工作站执行，但不得调用系统安装器。"""
 
     result = _run_python(PROJECT_ROOT / "scripts/dev/setup.py", "--bootstrap-tools")
 
     assert result.returncode == 0, result.stdout + result.stderr
     output = result.stdout + result.stderr
     assert "开始安装：" not in output
-    assert "未执行任何系统安装" in output or "默认只展示" in output
+    assert "未执行任何安装命令" in output or "默认只展示" in output
 
 
 def test_tool_bootstrap_keeps_explicit_confirmation_and_no_shell_contract() -> None:
@@ -80,20 +92,30 @@ def test_tool_bootstrap_keeps_explicit_confirmation_and_no_shell_contract() -> N
 
     for option in (
         '"--bootstrap-tools"',
-        '"--install-docker"',
         '"--apply"',
         '"--confirm-tool-install"',
-        '"--confirm-docker-install"',
-        'args.confirm_tool_install != "YES"',
-        'args.confirm_docker_install != "YES"',
+        'tool_confirmation != "YES"',
     ):
         assert option in setup
     assert setup.index("if not args.apply") < setup.index("execute_install_plan(steps)")
     assert "shell=True" not in setup
     assert "shell=True" not in planner
-    assert '("usermod"' not in planner
-    assert '("systemctl"' not in planner
+    assert "docker" not in setup.casefold()
+    assert "docker" not in planner.casefold()
+    assert "build_native_postgresql_plan" in setup
+    assert "build_native_postgresql_plan" in planner
+    assert '("sudo", "systemctl", "enable", "--now", "postgresql")' in planner
+    assert "--install-postgres" not in setup
+    assert setup.index("_ensure_native_postgresql_for_workstation") < setup.index(
+        "readiness = check_environment"
+    )
     assert "curl |" not in planner
+    assert '"--target"' in planner
+    assert 'python_executable, "-m", "pipx", "install", "--force", "uv"' in planner
+    assert '"PIPX_BIN_DIR": str(project_tool_root / "bin")' in planner
+    assert "JUST_BOOTSTRAP_SCRIPT" in planner
+    assert "ensurepath" not in planner
+    assert "--break-system-packages" not in planner
 
 
 def test_ops_dry_run_never_requires_ssh_or_linux_target(tmp_path: Path) -> None:
@@ -117,9 +139,7 @@ def test_justfile_is_thin_cross_platform_command_router() -> None:
     for recipe in (
         "dev-check:",
         "dev-bootstrap:",
-        "dev-bootstrap-docker:",
         "setup:",
-        "setup-postgres:",
         "dev-setup:",
         "dev-postgres:",
         "db-up:",
@@ -131,109 +151,137 @@ def test_justfile_is_thin_cross_platform_command_router() -> None:
         "lint:",
         "typecheck:",
         "candidate-acceptance:",
+        "deploy-preview inventory='deploy.env':",
         "deploy-prod signing_key inventory='deploy.env':",
         "ops-health inventory='deploy.env':",
         "ops-backup inventory='deploy.env':",
     ):
         assert recipe in justfile
+    assert "just_executable()" in justfile
     assert "systemctl" not in justfile
-    assert "docker compose" not in justfile
+    assert "docker" not in justfile.casefold()
 
 
-def test_vscode_workspace_uses_cross_platform_and_explicitly_confirmed_tasks() -> None:
-    """工作区任务不能绕过 just、安全确认或 Windows 路径兼容性。"""
+def test_vscode_workspace_exposes_only_cross_platform_daily_tasks() -> None:
+    """工作区只展示日常入口；首次工具 bootstrap 是受控的 Python 例外。"""
 
     workspace = PROJECT_ROOT / ".vscode"
     tasks = json.loads((workspace / "tasks.json").read_text(encoding="utf-8"))
     settings = json.loads((workspace / "settings.json").read_text(encoding="utf-8"))
+    daily_tasks = (
+        ("开发：初始化", "python", ["scripts/dev/setup.py", "--initialize-workstation"]),
+        ("测试：全部", "python", ["scripts/dev/run_just.py", "test"]),
+        ("质量：检查", "python", ["scripts/dev/run_just.py", "check"]),
+        ("开发：环境诊断", "python", ["scripts/dev/run_just.py", "dev-check"]),
+    )
+    assert [task["label"] for task in tasks["tasks"]] == [task[0] for task in daily_tasks]
     tasks_by_label = {task["label"]: task for task in tasks["tasks"]}
 
     assert tasks["options"] == {"cwd": "${workspaceFolder}"}
+    assert "inputs" not in tasks
     assert "python.defaultInterpreterPath" not in settings
-    assert settings["python.testing.pytestArgs"] == [
-        "tests/data/unit",
-        "tests/intelligence/unit",
-        "tests/research/unit",
-        "tests/portfolio_risk/unit",
-        "tests/trading_execution/unit",
-        "tests/foundation/unit",
-    ]
+    assert settings["python.testing.pytestArgs"] == list(DOMAIN_UNIT_TEST_PATHS)
 
-    for label, recipe in (
-        ("开发：环境检查", "dev-check"),
-        ("开发：初始化安全配置与依赖", "setup"),
-        ("数据库：初始化 PostgreSQL 并迁移（显式）", "setup-postgres"),
-        ("测试：领域单元测试", "test-unit"),
-        ("测试：回测研究测试", "test-backtest"),
-        ("测试：CLI 契约测试", "test-cli"),
-        ("质量：Ruff 与 mypy 基线", "check"),
-    ):
+    for label, command, arguments in daily_tasks:
         task = tasks_by_label[label]
         assert task["type"] == "process"
-        assert task["command"] == "just"
-        assert task["args"] == [recipe]
+        assert task["command"] == command
+        assert task["args"] == arguments
 
-    tool_install = tasks_by_label["开发：安装基础工具（需确认）"]
-    assert tool_install["args"][-1] == "${input:confirmToolInstall}"
-    assert "YES" not in tool_install["args"]
+    assert tasks_by_label["测试：全部"]["group"] == {"kind": "test", "isDefault": True}
+    assert tasks_by_label["质量：检查"]["group"] == {"kind": "build", "isDefault": True}
 
-    docker_install = tasks_by_label["开发：安装 Docker（需双重确认）"]
-    assert docker_install["args"][-3:] == [
-        "${input:confirmToolInstall}",
-        "--confirm-docker-install",
-        "${input:confirmDockerInstall}",
-    ]
-    assert "YES" not in docker_install["args"]
-
-    deploy_preview = tasks_by_label["部署：预览 Linux 发布（不连接服务器）"]
-    assert deploy_preview["type"] == "process"
-    assert deploy_preview["command"] == "uv"
-    assert "--apply" not in deploy_preview["args"]
-    assert "--dry-run" in deploy_preview["args"]
+    justfile = (PROJECT_ROOT / "justfile").read_text(encoding="utf-8")
+    assert (
+        "dev-check:\n"
+        "    python scripts/dev/check_env.py --require-config --require-postgres --require-just --require-git"
+        in justfile
+    )
+    assert "setup:\n    python scripts/dev/setup.py --initialize-workstation" in justfile
+    expected_unit_recipe = (
+        "test-unit:\n"
+        "    python scripts/dev/run_uv.py run --offline --no-sync pytest "
+        + " ".join(DOMAIN_UNIT_TEST_PATHS)
+        + " -q"
+    )
+    assert expected_unit_recipe in justfile
+    setup = (PROJECT_ROOT / "scripts/dev/setup.py").read_text(encoding="utf-8")
+    expected_setup_unit_paths = "\n".join(
+        f'                "{path}",' for path in DOMAIN_UNIT_TEST_PATHS
+    )
+    assert expected_setup_unit_paths in setup
+    assert "setup-postgres:" not in justfile
+    assert (
+        "dev-postgres:\n"
+        "    python scripts/dev/check_env.py --require-postgres\n"
+        "    python scripts/dev/run_just.py env-bootstrap"
+        in justfile
+    )
+    assert (
+        "db-up:\n"
+        "    python scripts/dev/check_env.py --require-postgres\n"
+        "    python scripts/dev/run_just.py env-bootstrap"
+        in justfile
+    )
+    deploy_preview = justfile.split("deploy-preview inventory='deploy.env':", maxsplit=1)[1].split(
+        "\n\n# 默认部署命令", maxsplit=1
+    )[0]
+    assert "--dry-run" in deploy_preview
+    assert "--apply" not in deploy_preview
     assert "scripts/setup_dev.sh" not in (workspace / "tasks.json").read_text(encoding="utf-8")
+    assert settings["files.exclude"]["**/.northstar"] is True
+    assert settings["files.exclude"]["**/.venv"] is True
+    assert settings["files.exclude"]["**/.venv.bootstrap-*"] is True
+    assert settings["files.exclude"]["**/.venv.previous-*"] is True
+    assert settings["files.exclude"]["**/..venv.bootstrap-*"] is True
+    assert settings["files.watcherExclude"]["**/.venv.bootstrap-*/**"] is True
+    assert settings["files.watcherExclude"]["**/.northstar/**"] is True
 
 
-def test_justfile_is_parseable_when_just_is_available() -> None:
-    executable = shutil.which("just")
-    if executable is None:
-        pytest.skip("当前工作站未安装 just；bootstrap 契约不触发安装。")
-
+def test_application_unit_tests_receive_the_unit_marker() -> None:
     result = subprocess.run(
-        [executable, "--list"],
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "--collect-only",
+            "-q",
+            "-m",
+            "unit",
+            "tests/application/unit/test_agent_tools.py",
+        ],
         cwd=PROJECT_ROOT,
         check=False,
         capture_output=True,
         text=True,
-        encoding="utf-8",
-        errors="strict",
     )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "test_agent_tools.py" in result.stdout
+
+
+def test_justfile_is_parseable_when_repository_local_just_is_available() -> None:
+    executable_name = "just.exe" if sys.platform == "win32" else "just"
+    if not (PROJECT_ROOT / ".northstar" / "bin" / executable_name).is_file():
+        pytest.skip("当前工作站尚未安装仓库本地 just；bootstrap 契约不触发安装。")
+
+    result = _run_python(PROJECT_ROOT / "scripts/dev/run_just.py", "--list")
 
     assert result.returncode == 0, result.stdout + result.stderr
     assert "dev-bootstrap" in result.stdout
     assert "setup" in result.stdout
 
 
-def test_tier_one_ci_installs_and_exercises_just() -> None:
-    workflow = (PROJECT_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+def test_repository_does_not_declare_a_github_actions_workflow() -> None:
+    """本地质量门禁不依赖或维护 GitHub Actions workflow。"""
 
-    assert workflow.count("uses: extractions/setup-just@v3") == 2
-    assert workflow.count("just --list") == 2
-    assert "runs-on: ubuntu-24.04" in workflow
-    assert "image: postgres:16" in workflow
-    assert "postgresql-client-16" in workflow
-    for command in (
-        "just dev-check",
-        "just test-unit",
-        "just test-backtest",
-        "just test-cli",
-        "just candidate-acceptance",
-        "just check",
-        "command -v pg_dump",
-        "command -v pg_restore",
-        "command -v psql",
-        "SHOW server_version_num",
-    ):
-        assert command in workflow
+    workflows = PROJECT_ROOT / ".github" / "workflows"
+    assert not tuple(
+        path
+        for pattern in ("*.yml", "*.yaml")
+        for path in workflows.glob(pattern)
+        if path.is_file()
+    )
 
 
 def test_deploy_control_plane_does_not_require_local_bash_or_git_bash() -> None:

@@ -96,7 +96,7 @@ def test_env_example_lists_all_supported_runtime_settings() -> None:
 
 def test_active_env_declaration_keys_match_the_example_without_reading_values() -> None:
     if not ACTIVE_ENV_PATH.is_file():
-        pytest.skip("本机未创建 .env；CI 不应依赖未跟踪的本地密钥文件")
+        pytest.skip("本机未创建 .env；自动化测试不应依赖未跟踪的本地密钥文件")
 
     # 两侧仅使用等号左侧键名；失败信息也只会显示 Counter 的键名与出现次数。
     assert _declaration_key_counts(ACTIVE_ENV_PATH) == _declaration_key_counts(

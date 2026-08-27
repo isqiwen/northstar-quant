@@ -72,8 +72,8 @@ def postgresql_test_url(key: str | Path) -> str:
 
     # PostgreSQL may parallelize large catalog-reflection queries after the test
     # database has accumulated many intentionally preserved isolated schemas.
-    # Parallel workers allocate dynamic shared-memory segments in Docker's
-    # /dev/shm; constrain only this disposable test connection rather than
+    # Parallel workers allocate dynamic shared-memory segments on the native
+    # PostgreSQL host; constrain only this disposable test connection rather than
     # changing cluster-wide production-like settings or deleting test data.
     isolated_url = _base_test_url().update_query_dict(
         {

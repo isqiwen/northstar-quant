@@ -18,7 +18,6 @@
 | `PARTIAL` | 基础组件存在，但 P10 所需的跨组件/运营级验收证据尚不完整。 |
 | `INCOMPLETE` | 可离线实现的功能或 golden/contract 证据缺失，应由后续 WP 完成。 |
 | `BLOCKED_EXTERNAL` | 需要数据 license、权威制品、账户、凭据、生产主机或人工批准；未满足时必须 `NO NEW RISK`。 |
-| `HOSTED_EVIDENCE_PENDING` | 工作流/部署资产已在仓库中，但最终外部运行结果尚未由受控环境提供。 |
 
 ## 审计基线
 
@@ -103,11 +102,11 @@
 |---|---|---|---|
 | PL01 Windows/Linux 开发 | `VERIFIED_OFFLINE` | `scripts/dev/check_env.py`、`scripts/dev/setup.py`；`test_cross_platform_scripts.py`、`test_dev_tool_bootstrap.py`；`scripts/dev/README.md`。 | Linux 工具 bootstrap 仅支持 Ubuntu/Debian，其他系统失败关闭。 |
 | PL02 Windows/Linux deployment control | `VERIFIED_OFFLINE` | `scripts/deploy/deploy.py`、`scripts/README.md`、`docs/OPERATIONS.md`、cross-platform contracts。 | controller 可跨平台；Linux target 另见 PL03。 |
-| PL03 Linux production | `BLOCKED_EXTERNAL` | FHS/root-gate/systemd/release assets和 Docker validation 已存在。 | 需要真实 Linux host、root gate/signer、known_hosts、managed Python、production PostgreSQL 与人工批准；未满足前不可声称 production accepted。 |
+| PL03 Linux production | `BLOCKED_EXTERNAL` | FHS/root-gate/systemd/release assets 和原生 PostgreSQL validation 已存在。 | 需要真实 Linux host、root gate/signer、known_hosts、managed Python、production PostgreSQL 与人工批准；未满足前不可声称 production accepted。 |
 | PL04 health/logs | `VERIFIED_OFFLINE` | `application/health.py`、logger、operational snapshot、Prometheus metrics；`test_health_cli.py`、`test_logging.py`、`test_metrics.py`、`test_operational_snapshot.py`。 | fail-closed local evidence。 |
 | PL05 backup/restore | `PARTIAL` | `foundation/backup/bundle.py`、`restore_drill.py` 和 integration tests。 | 仅五类 local bundle（模拟 broker state/审计随 PostgreSQL dump 恢复）+ loopback `northstar_test` drill；缺 production restore、offsite/encryption/WAL/PITR/RPO/RTO。 |
 | PL06 rollback | `SAFE_BOUNDARY` | deployment rollback contracts 与 `scripts/deploy/remote/linux/README.md`。 | 仅 pre-migration auto rollback；migration 后严格人工恢复，不执行 DB downgrade/autorestart。 |
-| PL07 CI | `HOSTED_EVIDENCE_PENDING` | `.github/workflows/ci.yml` 定义 Linux/Windows jobs。 | 最终 commit 的 hosted run 是外部状态，未取得前不可标记为已验收。 |
+| PL07 本地质量门禁 | `PARTIAL` | `python scripts/dev/run_just.py check`、完整 pytest、Ruff、mypy baseline 与 `scripts/ci/` 下的仓库本地检查器。 | 不支持 GitHub Actions 或 hosted workflow；完整 PostgreSQL 路径必须在已配置本机服务的工作站显式执行。 |
 
 ## AI
 
@@ -128,7 +127,7 @@
 | P10-WP05 Portfolio-Wide Risk Evidence & Approval Gate | `DONE` | PR04–PR08、PR10–PR13 与 portfolio-level BLOCK exit 已 `VERIFIED_SIMULATION`：canonical P3 derivation、hash-bound account state、hash-only durable manual record 和 P8 final-fence `ctp_sim` enforcement。 | P10-WP04；仍不连接真实 CTP。认证人工批准 issuer 与 DB least-privilege roles 是 `BLOCKED_EXTERNAL`，不得被 private test issuer 取代。 |
 | P10-WP06 Durable Agent Evidence Audit | `DONE` | A03 的 append-only/hash-only durable audit，`0009`/`0010` 前向 PostgreSQL migrations 与完整本地门禁。 | P10-WP01；只验证本地 PostgreSQL，绝不授予 Agent 或交易权限。 |
 | P10-WP07 Trading Acceptance Evidence Closure | `DONE` | T05 的 `P10_TRADING_FAILURE_MATRIX.md`、direct P3 `BLOCK` no-mutation contract 和 local failure suite。 | P10-WP05；没有真实 CTP 连接、真实账户或实盘操作。 |
-| P10-WP08 Platform Production/DR Acceptance | `BLOCKED_EXTERNAL` | PL03、PL05、PL07。 | production host/credentials/hosted CI/DR policy；保持 no live action。 |
+| P10-WP08 Platform Production/DR Acceptance | `BLOCKED_EXTERNAL` | PL03、PL05 与 PL07 的本地质量门禁证据。 | production host/credentials/DR policy；保持 no live action。 |
 | P10-WP09 Authoritative Data & Source Onboarding | `BLOCKED_EXTERNAL` | D01 和真实 production PIT/source evidence。 | data license、权威 contract/calendar/rule artifacts；保持 `NO NEW RISK`。 |
 
 ## Non-escalation rule

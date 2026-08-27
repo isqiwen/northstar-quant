@@ -6,6 +6,9 @@
 ```text
 tests/
 ├── architecture/          依赖方向、循环、分层与公开 API 边界
+├── application/           跨领域 composition root
+│   ├── unit/
+│   └── integration/
 ├── data/
 │   ├── unit/
 │   ├── integration/
@@ -45,29 +48,30 @@ tests/
 Windows 与 Linux 使用相同的命令面：
 
 ```bash
-just dev-bootstrap   # 仅预览 uv、just、Git 安装计划；不执行安装
-just setup           # 一键 materialize 依赖并创建/迁移唯一活动配置
-just setup-postgres  # 仅在需要 PostgreSQL/integration 时启动本地数据库并迁移
+python scripts/dev/setup.py --bootstrap-tools  # 仅预览 uv、just、Git 安装计划；不执行安装
+python scripts/dev/setup.py --initialize-workstation  # 一键 materialize 依赖、创建安全配置、默认安装/验证本机 PostgreSQL 并迁移
 ```
 
-Python 3.11+ 需要预先安装。没有 `uv` 或 `just` 时，先用
-`python scripts/dev/setup.py --bootstrap-tools` 预览工具计划；Docker 仅在确有数据库需求时加上
-`--install-docker`。两者默认不安装、不启动 Docker；实际执行必须显式提供
-`--apply --confirm-tool-install YES`，Docker 还需 `--confirm-docker-install YES`。
+Python 3.11+ 需要预先安装。没有仓库本地 `uv` 或 `just` 时，先用
+`python scripts/dev/setup.py --bootstrap-tools` 预览 Git、uv 与 just 的工具计划。实际执行必须显式提供
+`--apply --confirm-tool-install YES`。
 
-`setup` 不会启动 Docker；`setup-postgres` 才会启动并复用本地 Docker PostgreSQL，并确保
-`northstar` 与 `northstar_test` 存在且只升级到 Alembic head。两者都强制 `paper`、禁用 live，不会下载
-市场数据或提交订单；仓库自动化绝不删除或清空数据库、表、schema 或 Docker 数据卷。
+Ubuntu/Debian 的高层初始化默认安装 `postgresql`/`postgresql-client` 并启用默认本机服务，提供 `pg_isready`、`psql`、
+`createdb`、`pg_dump` 与 `pg_restore`。如果 `northstar` 角色不存在，空 `.env` 密码会生成并仅写入本地文件；已有角色、密码或
+认证规则不会覆盖，须填写匹配的 loopback `northstar` 角色密码。`setup` 仅创建/复用 `northstar` 与 `northstar_test` 并升级到
+Alembic head；它强制 `paper`、禁用 live，不会下载
+市场数据或提交订单；仓库自动化绝不删除或清空数据库、表、schema 或本机 PostgreSQL 数据目录。
 当前开发期仅支持完整基线 `0001_current_schema_baseline`；带有旧 revision 的本地库必须由操作者在仓库自动化之外手动重建，
 测试或开发脚本不会 reset、stamp 或清理它。
-没有安装 `just` 时，先运行 `python scripts/ci/bootstrap_pep517.py --profile development`，再使用
-`uv run --offline --no-sync python scripts/dev/setup.py --initialize-config`，并按需加入
+首次机器先运行 `python scripts/dev/setup.py --initialize-workstation`；它安装仓库本地工具后会继续创建配置。需要分步排查时，
+使用 `python scripts/dev/run_just.py env-bootstrap`，再使用
+`python scripts/dev/run_uv.py run --offline --no-sync python scripts/dev/setup.py --initialize-config`，并按需加入
 `--with-postgres --migrate`。
 
 ## 手动命令
 
-运行 PostgreSQL integration 或完整 pytest 前，确保 Docker 已启动，`.env` 中的 `POSTGRES_PASSWORD`
-非空，并存在完整的活动应用配置 `configs/app.yaml`。开发初始化入口会自动创建它；若只运行手动命令且
+运行 PostgreSQL integration 或完整 pytest 前，确保本机 PostgreSQL 已启动、客户端工具可用，`.env` 中的 `POSTGRES_PASSWORD`
+与既有 loopback `northstar` 角色匹配，并存在完整的活动应用配置 `configs/app.yaml`。高层开发初始化入口会自动创建它；若只运行手动命令且
 该文件缺失，先执行：
 
 ```powershell
@@ -80,34 +84,37 @@ Git Bash/Linux 使用 `cp configs/app.example.yaml configs/app.yaml`。示例文
 
 ```powershell
 # 全量测试
-uv run --offline --no-sync pytest
+python scripts/dev/run_uv.py run --offline --no-sync pytest
+
+# 全部领域 unit 测试（含 application composition root）
+python scripts/dev/run_just.py test-unit
 
 # 按通用验证类型运行
-uv run --offline --no-sync pytest -m unit
-uv run --offline --no-sync pytest -m integration
-uv run --offline --no-sync pytest -m contract
-uv run --offline --no-sync pytest -m e2e
+python scripts/dev/run_uv.py run --offline --no-sync pytest -m unit
+python scripts/dev/run_uv.py run --offline --no-sync pytest -m integration
+python scripts/dev/run_uv.py run --offline --no-sync pytest -m contract
+python scripts/dev/run_uv.py run --offline --no-sync pytest -m e2e
 
 # 按领域或专项类型运行
-uv run --offline --no-sync pytest tests/research
-uv run --offline --no-sync pytest -m regression
-uv run --offline --no-sync pytest -m statistical
-uv run --offline --no-sync pytest -m scenario
-uv run --offline --no-sync pytest -m simulation
-uv run --offline --no-sync pytest -m failure
+python scripts/dev/run_uv.py run --offline --no-sync pytest tests/research
+python scripts/dev/run_uv.py run --offline --no-sync pytest -m regression
+python scripts/dev/run_uv.py run --offline --no-sync pytest -m statistical
+python scripts/dev/run_uv.py run --offline --no-sync pytest -m scenario
+python scripts/dev/run_uv.py run --offline --no-sync pytest -m simulation
+python scripts/dev/run_uv.py run --offline --no-sync pytest -m failure
 
 # 聚焦单文件或单个用例
-uv run --offline --no-sync pytest tests/research/unit/test_futures_daily_backtest.py -q
-uv run --offline --no-sync pytest tests/research/integration/test_backtest_run_workflow.py::test_actual_daily_backtest_run_writes_one_auditable_report_artifact -q
+python scripts/dev/run_uv.py run --offline --no-sync pytest tests/research/unit/test_futures_daily_backtest.py -q
+python scripts/dev/run_uv.py run --offline --no-sync pytest tests/research/integration/test_backtest_run_workflow.py::test_actual_daily_backtest_run_writes_one_auditable_report_artifact -q
 
 # 静态质量门禁
-uv run --offline --no-sync ruff check .
-uv run --offline --no-sync python scripts/ci/check_mypy_baseline.py check
+python scripts/dev/run_uv.py run --offline --no-sync ruff check .
+python scripts/dev/run_uv.py run --offline --no-sync python scripts/ci/check_mypy_baseline.py check
 ```
 
-Windows 工作站的日常 unit、backtest、CLI 与开发脚本测试不依赖 Bash、Docker 服务或 systemd。
-Linux CI 额外运行完整 pytest、部署 shell 契约和 PostgreSQL integration；这是 Linux 生产目标职责，
-不是 Windows 开发机职责。
+Windows 工作站的日常 unit、backtest、CLI 与开发脚本测试不依赖 Bash、本机 PostgreSQL 服务或 systemd。
+具备原生 PostgreSQL 与客户端工具的 Linux 工作站额外运行完整 pytest、部署 shell 契约和 PostgreSQL integration；
+这是 Linux 生产目标职责，不是 Windows 开发机职责。
 
 ## 编写测试
 

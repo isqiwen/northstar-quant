@@ -86,13 +86,13 @@ Event 也绝不直接生成 BUY/SELL。
 secret-scan: allow; reason: ...
 ```
 
-例外只能是无害的 `test/CI fixture`，且不能扩大到业务源代码、配置、部署、文档或生产清单。脱敏无法确认时，
+例外只能是无害的 test fixture，且不能扩大到业务源代码、配置、部署、文档或生产清单。脱敏无法确认时，
 导出和投递必须拒绝。
 
 ### 离线依赖供应链
 
 依赖政策、lock 校验、secret 扫描和 hermetic PEP 517 bootstrap 必须在 quality gate 的早期执行。运行期不访问网络来
-获得依赖；CVE 或漏洞信息的缺失也不意味着依赖安全。由锁定 artifact、hash provenance 和 CI 证据共同决定是否可引入。
+获得依赖；CVE 或漏洞信息的缺失也不意味着依赖安全。由锁定 artifact、hash provenance 和本地质量门禁证据共同决定是否可引入。
 
 ### 审计与最小权限
 

@@ -2,7 +2,6 @@
   "recommendations": [
     "ms-python.python",
     "charliermarsh.ruff",
-    "ms-azuretools.vscode-containers",
     "openai.chatgpt"
   ]
 }

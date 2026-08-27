@@ -18,7 +18,6 @@ AUTOMATION_TARGETS = (
     PROJECT_ROOT / "scripts" / "deploy",
     PROJECT_ROOT / "scripts" / "maintenance",
     PROJECT_ROOT / "scripts" / "ops",
-    PROJECT_ROOT / "infra" / "docker" / "compose.yaml",
 )
 AUTOMATION_SUFFIXES = frozenset({".json", ".py", ".ps1", ".sh", ".sql"})
 DESTRUCTIVE_COMMAND_PATTERNS = (
@@ -65,7 +64,7 @@ DOCUMENTATION_TARGETS = (
     PROJECT_ROOT / "docs" / "OPERATIONS.md",
     PROJECT_ROOT / "scripts" / "README.md",
 )
-PRESERVATION_STATEMENT = "仓库自动化绝不删除或清空数据库、表、schema 或 Docker 数据卷"
+PRESERVATION_STATEMENT = "仓库自动化绝不删除或清空数据库、表、schema 或本机 PostgreSQL 数据目录。"
 MANUAL_ONLY_STATEMENT = "数据库删除或清空只能由用户在仓库自动化之外手动执行"
 
 
@@ -206,6 +205,10 @@ def test_database_preservation_policy_is_visible_in_operator_documents() -> None
         normalized_source = re.sub(r"\s+", "", source)
         assert re.sub(r"\s+", "", PRESERVATION_STATEMENT) in normalized_source, relative_path
         assert re.sub(r"\s+", "", MANUAL_ONLY_STATEMENT) in normalized_source, relative_path
+
+
+def test_native_postgresql_development_has_no_compose_asset() -> None:
+    assert not (PROJECT_ROOT / "infra" / "docker" / "compose.yaml").exists()
 
 
 def test_init_db_only_requests_alembic_upgrade_to_head() -> None:

@@ -15,7 +15,7 @@
 
 - [测试说明](../tests/README.md)：测试层级、隔离 PostgreSQL 和质量命令；
 - [脚本说明](../scripts/README.md)：`just`、跨平台控制面和 Linux 目标端脚本；
-- [基础设施说明](../infra/README.md)：部署声明、Docker、systemd、monitoring 与 backup 资产；
+- [基础设施说明](../infra/README.md)：部署声明、systemd、monitoring 与 backup 资产；
 - [offline 画像](../configs/profiles/offline/README.md)、[simulated 画像](../configs/profiles/simulated/README.md)、
   [live 画像](../configs/profiles/live/README.md)：各生命周期画像的专用约束；
 - [期货品种卡](../configs/instruments/products/README.md)：静态合约规格与动态规则的边界。

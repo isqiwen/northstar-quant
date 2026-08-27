@@ -97,22 +97,19 @@ def test_python_deploy_entrypoint_is_the_only_local_control_plane() -> None:
 def test_repository_script_and_infrastructure_layout_is_explicit() -> None:
     """仓库级运行脚本与基础设施模板必须使用唯一的新路径。"""
 
-    compose_file = ROOT_DIR / "infra" / "docker" / "compose.yaml"
     db_initializer = ROOT_DIR / "scripts" / "db" / "01_create_test_database.sql"
 
-    assert compose_file.is_file()
-    assert db_initializer.is_file()
+    assert not (ROOT_DIR / "infra" / "docker" / "compose.yaml").exists()
+    assert not db_initializer.exists()
     assert not (ROOT_DIR / "compose.yaml").exists()
     assert not (ROOT_DIR / "scripts" / "postgres").exists()
     assert not (ROOT_DIR / "scripts" / "deploy" / "systemd").exists()
     assert not (ROOT_DIR / "scripts" / "check_mypy_baseline.py").exists()
-    assert "../../scripts/db/01_create_test_database.sql" in compose_file.read_text(
-        encoding="utf-8"
-    )
-    assert '"127.0.0.1:${POSTGRES_PORT:-5432}:5432"' in compose_file.read_text(encoding="utf-8")
     setup_script = (ROOT_DIR / "scripts" / "dev" / "setup.py").read_text(encoding="utf-8")
-    assert 'COMPOSE_FILE = PROJECT_ROOT / "infra" / "docker" / "compose.yaml"' in setup_script
-    assert '"--project-directory"' in setup_script
+    assert 'LOCAL_DATABASE_HOST = "127.0.0.1"' in setup_script
+    assert "_prepare_native_postgres" in setup_script
+    assert "docker compose" not in setup_script
+    assert "COMPOSE_FILE" not in setup_script
     assert not (ROOT_DIR / "scripts" / "setup_dev.sh").exists()
     assert not (ROOT_DIR / "scripts" / "setup_dev.ps1").exists()
 

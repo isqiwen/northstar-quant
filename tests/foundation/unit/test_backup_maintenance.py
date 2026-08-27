@@ -27,6 +27,21 @@ def _write(path: Path, content: str) -> Path:
     return path
 
 
+def _private_directory(path: Path) -> Path:
+    """创建不依赖调用进程 umask 的私有目录。"""
+
+    path.mkdir(parents=True, exist_ok=True, mode=0o700)
+    if os.name == "posix":
+        path.chmod(0o700)
+    return path
+
+
+def _private_output_parent(root: Path, name: str) -> Path:
+    """创建不依赖调用进程 umask 的私有备份输出目录。"""
+
+    return _private_directory(root / name)
+
+
 def test_release_metadata_snapshot_is_secret_free_and_contains_identity(tmp_path: Path):
     release = tmp_path / "release-20260823"
     _write(release / "DEPLOY_ARTIFACT_META.txt", "revision=abc123\n")
@@ -51,8 +66,7 @@ def test_release_metadata_snapshot_is_secret_free_and_contains_identity(tmp_path
 def test_backup_parent_must_not_overlap_any_input(tmp_path: Path):
     source = tmp_path / "source"
     source.mkdir()
-    output_parent = source / "backups"
-    output_parent.mkdir()
+    output_parent = _private_output_parent(source, "backups")
 
     with pytest.raises(backup_maintenance.MaintenanceBackupError, match="不能与任何备份输入目录重叠"):
         backup_maintenance._assert_external_output_parent(output_parent, (source,))
@@ -62,8 +76,7 @@ def test_backup_parent_must_not_overlap_any_input(tmp_path: Path):
 def test_backup_parent_must_be_private_before_staging_a_database_dump(tmp_path: Path):
     source = tmp_path / "source"
     source.mkdir()
-    output_parent = tmp_path / "backup-output"
-    output_parent.mkdir()
+    output_parent = _private_output_parent(tmp_path, "backup-output")
     output_parent.chmod(0o777)
 
     with pytest.raises(backup_maintenance.MaintenanceBackupError, match="group 或 other 写入"):
@@ -94,15 +107,16 @@ def test_explicit_create_orchestrates_all_five_backup_categories_without_reading
 ):
     release = tmp_path / "release-20260823"
     _write(release / "configs" / "app.yaml", "runtime:\n  storage_dir: /state\n")
-    _write(release / "ontology" / "events.yaml", "version: v1\n")
+    ontology_dir = _private_directory(release / "ontology")
+    _write(ontology_dir / "events.yaml", "version: v1\n")
     _write(release / "DEPLOY_ARTIFACT_META.txt", "revision=abc123\n")
     _write(release / ".northstar" / "systemd" / "northstar-quant.service", "[Service]\n")
-    reports = tmp_path / "reports"
-    _write(reports / "backtest" / "run-1" / "manifest.json", '{"run":"one"}\n')
+    reports = _private_directory(tmp_path / "reports")
+    backtest_dir = _private_directory(reports / "backtest")
+    _write(backtest_dir / "run-1" / "manifest.json", '{"run":"one"}\n')
     storage = tmp_path / "storage"
     _write(storage / "brokers" / "paper" / "paper-account" / "state.json", '{"version":1}\n')
-    output_parent = tmp_path / "backup-output"
-    output_parent.mkdir()
+    output_parent = _private_output_parent(tmp_path, "backup-output")
     monkeypatch.setattr(backup_maintenance, "_release_root", lambda: release)
     inactive_checks: list[str] = []
     monkeypatch.setattr(

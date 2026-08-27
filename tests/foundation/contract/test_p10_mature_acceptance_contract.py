@@ -34,7 +34,6 @@ def test_p10_evidence_register_covers_every_acceptance_item() -> None:
         "PARTIAL",
         "INCOMPLETE",
         "BLOCKED_EXTERNAL",
-        "HOSTED_EVIDENCE_PENDING",
     ):
         assert f"`{status}`" in register
 
@@ -143,9 +142,9 @@ def test_p10_master_plan_links_evidence_and_tracks_only_ready_offline_work() -> 
     assert "P10 已完成 `7/9` 个 Work Package（78%）" in plan
     assert (
         "active_work_package:\n"
-        "  id: null\n"
-        "  title: null\n"
-        "  status: null"
+        "  id: MAINT-WP02\n"
+        "  title: Native Linux PostgreSQL Development / Docker Removal\n"
+        "  status: VERIFY"
     ) in plan
     assert "id: P10-WP08" in plan
     assert ("title: Platform Production / DR Acceptance\n  status: BLOCKED") in plan
@@ -189,6 +188,12 @@ def test_p10_master_plan_links_evidence_and_tracks_only_ready_offline_work() -> 
     i06 = next(line for line in register.splitlines() if line.startswith("| I06 "))
     assert "fixture-only synthetic alignment replay" in i06
     assert "P3 activation" in i06
+    pl07 = next(line for line in register.splitlines() if line.startswith("| PL07 "))
+    assert "本地质量门禁" in pl07
+    assert "`PARTIAL`" in pl07
+    assert "run_just.py check" in pl07
+    assert "scripts/ci/" in pl07
+    assert "不支持 GitHub Actions 或 hosted workflow" in pl07
 
 
 def test_p10_reconciles_stale_completion_matrix_entries() -> None:

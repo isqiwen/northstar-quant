@@ -2,17 +2,17 @@
 
 这些 Python 入口可从 Windows 或 Linux 开发机通过 SSH 调用 Linux 生产目标；目标由同一份
 非机密 `deploy.env` 清单定义。它们不读取或复制本地 `.env`，也不在 Windows 上要求 systemd、
-Docker 服务或 Linux 权限。
+本机服务或 Linux 权限。
 
 ```bash
-just ops-health
-just ops-logs
-just ops-diagnose
-just ops-backup
+python scripts/dev/run_just.py ops-health
+python scripts/dev/run_just.py ops-logs
+python scripts/dev/run_just.py ops-diagnose
+python scripts/dev/run_just.py ops-backup
 ```
 
-先运行 `just env-bootstrap` 后，对应的直接命令为
-`uv run --offline --no-sync python scripts/ops/health.py`、`logs.py`、`diagnose.py` 与
+先运行 `python scripts/dev/run_just.py env-bootstrap` 后，对应的直接命令为
+`python scripts/dev/run_uv.py run --offline --no-sync python scripts/ops/health.py`、`logs.py`、`diagnose.py` 与
 `backup.py`。四者都支持 `--inventory deploy.env` 和 `--dry-run`。实际远程调用需要工作站的
 OpenSSH 客户端，以及目标主机为部署用户配置的非交互 `sudo`。
 

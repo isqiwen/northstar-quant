@@ -13,7 +13,7 @@ from pathlib import Path
 import re
 
 
-# 这五项不属于 Settings，但它们是开发 Docker、隔离测试与 Python 缓存的
+# 这五项不属于 Settings，但它们是本机 PostgreSQL、隔离测试与 Python 缓存的
 # 固定辅助设置。它们和所有可注入的 Settings 字段共同构成完整 .env schema。
 ENVIRONMENT_FILE_AUXILIARY_KEYS = frozenset(
     {

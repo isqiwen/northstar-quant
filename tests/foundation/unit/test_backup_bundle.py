@@ -31,22 +31,32 @@ def _write(path: Path, content: str | bytes) -> Path:
     return path
 
 
+def _private_directory(path: Path) -> Path:
+    """创建不依赖调用进程 umask 的私有目录。"""
+
+    path.mkdir(parents=True, exist_ok=True, mode=0o700)
+    if os.name == "posix":
+        path.chmod(0o700)
+    return path
+
+
 def _sources(root: Path) -> BackupBundleSources:
     database_dump = _write(root / "database.dump", b"PGDMP\x01\x00\x00\x00")
     config_file = _write(
         root / "release" / "configs" / "app.yaml",
         "runtime:\n  storage_dir: /var/lib/northstar/storage\n",
     )
-    ontology_dir = root / "release" / "ontology"
+    ontology_dir = _private_directory(root / "release" / "ontology")
     _write(ontology_dir / "commodities.yaml", "version: v1\n")
     _write(ontology_dir / "nested" / "events.yaml", "version: v1\n")
-    reports_dir = root / "reports"
+    reports_dir = _private_directory(root / "reports")
+    backtest_dir = _private_directory(reports_dir / "backtest")
     _write(
-        reports_dir / "backtest" / "run-1" / "manifest.json",
+        backtest_dir / "run-1" / "manifest.json",
         '{"run_id":"run-1"}\n',
     )
-    _write(reports_dir / "backtest" / "run-1" / "report.pdf", b"not-backed-up")
-    metadata_dir = root / "metadata"
+    _write(backtest_dir / "run-1" / "report.pdf", b"not-backed-up")
+    metadata_dir = _private_directory(root / "metadata")
     _write(
         metadata_dir / "current-release.json",
         '{"release_id":"release-20260822","artifact_sha256":"' + "a" * 64 + '"}\n',
@@ -62,10 +72,15 @@ def _sources(root: Path) -> BackupBundleSources:
     )
 
 
+def _private_output_parent(root: Path) -> Path:
+    """创建不依赖调用进程 umask 的私有备份输出目录。"""
+
+    return _private_directory(root / "backups")
+
+
 def _create(root: Path):
     root.mkdir(parents=True, exist_ok=True)
-    output_parent = root / "backups"
-    output_parent.mkdir()
+    output_parent = _private_output_parent(root)
     return create_backup_bundle(
         _sources(root),
         output_parent=output_parent,
@@ -108,6 +123,17 @@ def test_create_and_verify_backup_bundle_covers_only_allowlisted_assets(tmp_path
     assert not (bundle.path / "runtime-state").exists()
 
 
+@pytest.mark.skipif(os.name != "posix", reason="umask 仅在 POSIX 上影响目录权限")
+def test_backup_fixture_is_independent_of_a_group_writable_umask(tmp_path: Path):
+    previous_umask = os.umask(0o002)
+    try:
+        bundle = _create(tmp_path)
+    finally:
+        os.umask(previous_umask)
+
+    assert verify_backup_bundle(bundle.path) == bundle
+
+
 def test_legacy_simulated_broker_state_files_are_not_backup_inputs(tmp_path: Path):
     sources = _sources(tmp_path)
     _write(
@@ -119,8 +145,7 @@ def test_legacy_simulated_broker_state_files_are_not_backup_inputs(tmp_path: Pat
         '{"version":1,"positions":[]}\n',
     )
 
-    output_parent = tmp_path / "backups"
-    output_parent.mkdir()
+    output_parent = _private_output_parent(tmp_path)
     bundle = create_backup_bundle(
         sources,
         output_parent=output_parent,
@@ -164,8 +189,7 @@ def test_publish_primitive_never_replaces_a_late_existing_target(tmp_path: Path)
 
 def test_failed_pre_publish_check_never_leaves_a_bundle(tmp_path: Path):
     sources = _sources(tmp_path)
-    output_parent = tmp_path / "backups"
-    output_parent.mkdir()
+    output_parent = _private_output_parent(tmp_path)
     checks: list[str] = []
 
     def reject_publication() -> None:
@@ -188,8 +212,7 @@ def test_failed_pre_publish_check_never_leaves_a_bundle(tmp_path: Path):
 def test_secret_like_config_is_rejected_without_publishing_partial_bundle(tmp_path: Path):
     sources = _sources(tmp_path)
     sources.config_file.write_text("database_password: not-for-backup\n", encoding="utf-8")  # secret-scan: allow; reason: disposable test fixture
-    output_parent = tmp_path / "backups"
-    output_parent.mkdir()
+    output_parent = _private_output_parent(tmp_path)
 
     with pytest.raises(BackupBundleError, match="疑似包含秘密"):
         create_backup_bundle(
@@ -215,8 +238,7 @@ def test_json_secret_like_assets_are_rejected_without_publishing_partial_bundle(
 ):
     sources = _sources(tmp_path)
     _write(tmp_path / path, content)
-    output_parent = tmp_path / "backups"
-    output_parent.mkdir()
+    output_parent = _private_output_parent(tmp_path)
 
     with pytest.raises(BackupBundleError, match="疑似包含秘密"):
         create_backup_bundle(
@@ -260,8 +282,7 @@ def test_symlinked_input_is_rejected(tmp_path: Path):
         link.symlink_to(outside)
     except OSError:
         pytest.skip("当前文件系统不允许创建符号链接。")
-    output_parent = tmp_path / "backups"
-    output_parent.mkdir()
+    output_parent = _private_output_parent(tmp_path)
 
     with pytest.raises(BackupBundleError, match="符号链接"):
         create_backup_bundle(
@@ -275,8 +296,7 @@ def test_symlinked_input_is_rejected(tmp_path: Path):
 @pytest.mark.skipif(os.name != "posix", reason="POSIX 权限位只在 Linux/macOS 上可验证")
 def test_group_or_other_writable_output_parent_is_rejected(tmp_path: Path):
     sources = _sources(tmp_path)
-    output_parent = tmp_path / "backups"
-    output_parent.mkdir()
+    output_parent = _private_output_parent(tmp_path)
     output_parent.chmod(0o777)
 
     with pytest.raises(BackupBundleError, match="group 或 other 写入"):

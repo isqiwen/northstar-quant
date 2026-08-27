@@ -259,7 +259,11 @@ def test_environment_file_temporary_names_are_ignored() -> None:
     gitignore = (PROJECT_ROOT / ".gitignore").read_text(encoding="utf-8")
 
     assert 'prefix=f"{path.name}.tmp."' in sync_script
-    assert "secrets.token_hex" in setup_script
+    assert "secrets.token_hex(32)" in setup_script
+    assert "_write_generated_local_postgres_password" in setup_script
+    assert "POSTGRES_PASSWORD 必须先在 .env 中设置" in setup_script
+    assert "绝不把 SQL 或密码置入 argv/日志" in setup_script
+    assert "不会生成覆盖它的密码" in setup_script
     assert ".env.*" in gitignore
     assert "..env.*.tmp" in gitignore
     assert "configs/.app.yaml.tmp.*" in gitignore

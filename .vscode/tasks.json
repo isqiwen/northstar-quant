@@ -5,96 +5,24 @@
   },
   "tasks": [
     {
-      "label": "开发：环境检查",
-      "detail": "只读检查 Python、uv、just、Docker、OpenSSH 等工作站依赖。",
-      "type": "process",
-      "command": "just",
-      "args": [
-        "dev-check"
-      ],
-      "problemMatcher": []
-    },
-    {
-      "label": "开发：工具安装计划（不修改系统）",
-      "detail": "在尚未安装 just 时可直接运行；只展示 uv、just、Git 的安装计划。",
+      "label": "开发：初始化",
+      "detail": "首次自动引导缺失的开发工具（需在终端确认），随后通过 just materialize 依赖、创建或校验本地 paper 配置、验证并复用已运行的原生 PostgreSQL，并只升级至 Alembic head。",
       "type": "process",
       "command": "python",
       "args": [
         "scripts/dev/setup.py",
-        "--bootstrap-tools"
+        "--initialize-workstation"
       ],
       "problemMatcher": []
     },
     {
-      "label": "开发：Docker 安装计划（不修改系统）",
-      "detail": "只展示 Docker Desktop/Engine 与 Compose v2 的安装计划。",
+      "label": "测试：全部",
+      "detail": "运行完整 pytest；标准开发初始化已准备本地 PostgreSQL 与前向迁移。",
       "type": "process",
       "command": "python",
       "args": [
-        "scripts/dev/setup.py",
-        "--bootstrap-tools",
-        "--install-docker"
-      ],
-      "problemMatcher": []
-    },
-    {
-      "label": "开发：安装基础工具（需确认）",
-      "detail": "安装 uv、just、Git 前必须在输入框中精确输入 YES。",
-      "type": "process",
-      "command": "python",
-      "args": [
-        "scripts/dev/setup.py",
-        "--bootstrap-tools",
-        "--apply",
-        "--confirm-tool-install",
-        "${input:confirmToolInstall}"
-      ],
-      "problemMatcher": []
-    },
-    {
-      "label": "开发：安装 Docker（需双重确认）",
-      "detail": "安装 Docker Desktop/Engine 与 Compose v2；需要两次精确 YES 确认。",
-      "type": "process",
-      "command": "python",
-      "args": [
-        "scripts/dev/setup.py",
-        "--bootstrap-tools",
-        "--install-docker",
-        "--apply",
-        "--confirm-tool-install",
-        "${input:confirmToolInstall}",
-        "--confirm-docker-install",
-        "${input:confirmDockerInstall}"
-      ],
-      "problemMatcher": []
-    },
-    {
-      "label": "开发：初始化安全配置与依赖",
-      "detail": "通过 just 一键 materialize 依赖并创建或校验本地 paper 开发配置，不启动 Docker。",
-      "type": "process",
-      "command": "just",
-      "args": [
-        "setup"
-      ],
-      "problemMatcher": []
-    },
-    {
-      "label": "数据库：初始化 PostgreSQL 并迁移（显式）",
-      "detail": "通过 just 启动并复用仅绑定本机的开发 PostgreSQL；只升级至 Alembic head，绝不删除或清空数据库、表、schema 或卷。",
-      "type": "process",
-      "command": "just",
-      "args": [
-        "setup-postgres"
-      ],
-      "problemMatcher": []
-    },
-    {
-      "label": "测试：领域单元测试",
-      "detail": "先运行“开发：初始化安全配置与依赖”；适用于 Windows 和 Linux 开发机，不依赖 PostgreSQL。",
-      "type": "process",
-      "command": "just",
-      "args": [
-        "test-unit"
+        "scripts/dev/run_just.py",
+        "test"
       ],
       "group": {
         "kind": "test",
@@ -103,33 +31,12 @@
       "problemMatcher": []
     },
     {
-      "label": "测试：回测研究测试",
-      "detail": "运行 Research 域的回测相关测试。",
+      "label": "质量：检查",
+      "detail": "通过仓库本地 just 运行静态检查；不会执行部署或交易。",
       "type": "process",
-      "command": "just",
+      "command": "python",
       "args": [
-        "test-backtest"
-      ],
-      "group": "test",
-      "problemMatcher": []
-    },
-    {
-      "label": "测试：CLI 契约测试",
-      "detail": "验证跨平台 CLI 帮助与公开入口。",
-      "type": "process",
-      "command": "just",
-      "args": [
-        "test-cli"
-      ],
-      "group": "test",
-      "problemMatcher": []
-    },
-    {
-      "label": "质量：Ruff 与 mypy 基线",
-      "detail": "通过 just 运行静态检查；不会执行部署或交易。",
-      "type": "process",
-      "command": "just",
-      "args": [
+        "scripts/dev/run_just.py",
         "check"
       ],
       "group": {
@@ -139,35 +46,15 @@
       "problemMatcher": []
     },
     {
-      "label": "部署：预览 Linux 发布（不连接服务器）",
-      "detail": "默认 dry-run；读取 deploy.env 并构建本地制品，不会使用 SSH 或执行远端操作。",
+      "label": "开发：环境诊断",
+      "detail": "只读检查 Python、uv、just、原生 PostgreSQL、OpenSSH 等工作站依赖。",
       "type": "process",
-      "command": "uv",
+      "command": "python",
       "args": [
-        "run",
-        "--offline",
-        "--no-sync",
-        "python",
-        "scripts/deploy/deploy.py",
-        "--inventory",
-        "deploy.env",
-        "--dry-run"
+        "scripts/dev/run_just.py",
+        "dev-check"
       ],
       "problemMatcher": []
-    }
-  ],
-  "inputs": [
-    {
-      "id": "confirmToolInstall",
-      "type": "promptString",
-      "description": "确认安装系统级基础开发工具，请精确输入 YES",
-      "password": false
-    },
-    {
-      "id": "confirmDockerInstall",
-      "type": "promptString",
-      "description": "确认安装 Docker Desktop/Engine，请精确输入 YES",
-      "password": false
     }
   ]
 }
