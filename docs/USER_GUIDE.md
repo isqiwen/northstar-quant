@@ -15,6 +15,18 @@
 - 分清“回测结果”“研究准入”“模拟柜台”和“真实下单”这几件完全不同的事；
 - 在遇到安全阻断时知道该如何解释，而不是绕过它。
 
+## 首次学习路线
+
+如果目标只是完成第一条安全的本地研究，请按这个顺序阅读和操作：
+
+1. 先读第 1 节，理解当前能力边界和 `NO NEW RISK`；
+2. 跟随第 3 节完成工作站初始化；
+3. 跟随第 4 节完成连续合约日线趋势研究；
+4. 在第 6 节阅读报告和本地 Dashboard；
+5. 第 7 节 Lake 与第 8 节 ctp_sim 是后续专题，完成首个回测后再学习即可。
+
+本指南是线性课程。初始化、运行配置、部署或治理细节若与专题文档存在差异，始终以本节下方列出的专题权威为准。
+
 本指南把现有的专题文档串成一条学习路线。需要精确定义、配置字段或运维步骤时，请回到对应的规范文档：
 
 | 主题 | 规范文档 |
@@ -443,7 +455,8 @@ python scripts/dev/run_uv.py run --offline --no-sync northstar live preflight --
 python scripts/dev/run_uv.py run --offline --no-sync northstar live preview-rebalance --profile cn_futures_daily_trend_simulated
 ~~~
 
-每一步都会要求相应的事实存在且新鲜，例如数据、Contract Authority、账户、持仓、风险和对账状态。因此干净环境里出现阻断是正常的学习结果。
+每一步都会要求相应的事实存在且新鲜，例如数据、PostgreSQL Contract Authority（实际合约、CTP 映射和动态规则）、
+Calendar ArtifactSnapshot、账户、持仓、风险和对账状态。因此干净环境里出现阻断是正常的学习结果。
 
 当前内置模拟画像不是订单演练入口。常规 <code>northstar live execute</code> 会先以 <code>P8_CTP_SIM_CANDIDATE_GATE_REQUIRED</code> 拒绝进入 <code>ctp_sim</code> 提交路径；即使经专用 candidate 路径到达最终日历校验，也会因 <code>futures.calendar_artifact_snapshot_hashes</code> 为空而以 <code>TRADING_CALENDAR_ARTIFACT_REQUIRED</code> 失败关闭。两种情况都不会写入仿真订单。不要用工作日、<code>XSHG</code> 或测试 fixture 替代中国商品期货的夜盘/休市事实。
 

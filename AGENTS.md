@@ -511,8 +511,9 @@ SQLite Local tools 必须：
 
 `paper` 与 `ctp_sim` 的可变模拟柜台状态必须保存为 PostgreSQL 中按 broker/account 隔离的当前快照与不可变 transition
 审计链；不得写入 `state.json`、SQLite 或其他文件 fallback。该 adapter-private 状态机不替代同样位于 PostgreSQL 的
-durable order、fill、position snapshot、risk、approval、reconciliation 与 audit 账本。当前 YAML Contract Master / CTP
-mapping 仍是版本受控配置；将合约权威事实迁入 PostgreSQL 需要独立迁移、时间版本化与验收。
+durable order、fill、position snapshot、risk、approval、reconciliation 与 audit 账本。Contract Master 与 CTP mapping
+必须保存为 PostgreSQL 中追加式、不可变、按时间版本化的权威发布；研究、preflight 与执行只能按决策时点重放其绑定的
+publication。静态 YAML 品种卡、画像或日历材料只能提供研究/配置参考，不能作为当前可交易合约、动态规则或运行时日历的 fallback。
 
 数据库 schema 修改必须同步：
 

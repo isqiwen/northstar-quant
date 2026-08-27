@@ -20,6 +20,12 @@ NORTHSTAR_LIVE_TRADING_ENABLED=false
 市场数据、合约映射、日历、账户、持仓、未完成订单、风险、券商、报价新鲜度、保证金或数据授权任一状态未知时，
 默认结论是 **NO NEW RISK**。系统不会用猜测、旧值或“估算可用”替代证据。
 
+## 阅读导航
+
+第一次阅读时，先看第 1 节的安全原则、第 2 节的依赖方向和第 4 节的跨领域证据流；随后按你将修改的领域进入第 3 节。
+需要操作步骤时转到[开发与研究工作流](DEVELOPMENT.md)，需要运行/部署边界时转到[运行手册](OPERATIONS.md)，需要授权、
+研究升级或人工权限时转到[治理与安全](GOVERNANCE.md)。本文解释“为什么与边界是什么”，不重复维护操作配方。
+
 ## 2. 系统拓扑与依赖规则
 
 ```mermaid
@@ -219,8 +225,9 @@ available_time <= simulation_time
 
 修订后的数据不能覆盖历史状态；时间语义不明即标记 `UNKNOWN` 或失败关闭。
 
-`Trading Calendar` 也是订单前事实，而不是工作日猜测。当前仓库配置中仅有 `test_only` 日历材料，
-没有可运行的授权日历制品；任何将来可执行画像必须显式绑定
+`Trading Calendar` 也是订单前事实，而不是工作日猜测。`configs/calendars/` 不保存也不加载运行时日历；
+`tests/golden/trading_calendar/` 中的材料仅为 `test_only` fixture。当前仓库没有可运行的授权日历制品；
+任何将来可执行画像必须显式绑定
 `futures.calendar_artifact_snapshot_hashes`。缺失时将以
 `TRADING_CALENDAR_ARTIFACT_REQUIRED` 拒绝新订单。
 

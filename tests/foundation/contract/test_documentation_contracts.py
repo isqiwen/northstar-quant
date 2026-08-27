@@ -87,6 +87,20 @@ def test_docs_index_is_the_only_canonical_navigation() -> None:
         assert not (DOCS_DIR / filename).exists()
 
 
+def test_docs_index_separates_learning_routes_from_topical_authority() -> None:
+    docs_index = _read(DOCS_INDEX_PATH)
+
+    for required in (
+        "## 推荐阅读路线",
+        "## 按问题查阅（专题权威）",
+        "项目控制面，不是新手入门必读材料",
+        "## 维护时先更新哪份文档",
+        "工作站初始化、质量门禁、测试或 migration",
+        "不在指南或根 README 复制进度",
+    ):
+        assert required in docs_index
+
+
 def test_consolidated_documents_have_single_responsibility() -> None:
     architecture = _read(ARCHITECTURE_PATH)
     development = _read(DEVELOPMENT_PATH)
@@ -317,6 +331,9 @@ def test_user_facing_just_commands_use_the_repository_local_runner() -> None:
 
 def test_root_readme_links_to_control_plane_without_a_stale_roadmap() -> None:
     readme = _read(README_PATH)
+    documentation_section = readme.split("## 文档\n", maxsplit=1)[1].split(
+        "## 当前边界\n", maxsplit=1
+    )[0]
 
     assert "python scripts/dev/setup.py --initialize-workstation" in readme
     assert "python scripts/dev/run_just.py setup" in readme
@@ -336,6 +353,16 @@ def test_root_readme_links_to_control_plane_without_a_stale_roadmap() -> None:
     assert "不复制会随工作包变化的数字" in readme
     assert "唯一实施进度事实来源" in _read(MASTER_PLAN_PATH)
     assert "active_phase: P10" in _read(MASTER_PLAN_PATH)
+    assert "[文档导航](docs/README.md)" in documentation_section
+    assert "[使用者入门指南](docs/USER_GUIDE.md)" in documentation_section
+    assert "[开发者指南](docs/DEVELOPER_GUIDE.md)" in documentation_section
+    for duplicated_topical_link in (
+        "[架构设计](docs/ARCHITECTURE.md)",
+        "[开发与研究工作流](docs/DEVELOPMENT.md)",
+        "[运行、配置与部署手册](docs/OPERATIONS.md)",
+        "[数据、研究、AI 与安全治理](docs/GOVERNANCE.md)",
+    ):
+        assert duplicated_topical_link not in documentation_section
 
 
 def test_operations_documentation_matches_current_just_and_configuration_contracts() -> None:
@@ -456,6 +483,29 @@ def test_calendar_docs_keep_runtime_sources_fail_closed() -> None:
     assert "TRADING_CALENDAR_ARTIFACT_REQUIRED" in simulated
     assert calendar_readme.is_file()
     assert "没有可运行的日历制品" in _read(calendar_readme)
+
+
+def test_runtime_contract_authority_is_not_replaced_by_project_yaml() -> None:
+    operations = _read(OPERATIONS_PATH)
+    agent_rules = _read(AGENTS_PATH)
+    config_facts = operations.split("## 1. 配置事实来源\n", maxsplit=1)[1].split(
+        "## 2. 运行目录与数据保全\n", maxsplit=1
+    )[0]
+
+    assert (
+        "| 合约/日历/规则 | `configs/instruments/`、`configs/calendars/` | "
+        "Contract Master 与订单前事实 |"
+    ) not in config_facts
+    for required in (
+        "PostgreSQL Contract Authority",
+        "futures.contract_authority_id",
+        "futures.calendar_artifact_snapshot_hashes",
+        "静态品种卡与品种池",
+        "不提供运行时 YAML",
+    ):
+        assert required in config_facts
+    assert "当前 YAML Contract Master / CTP" not in agent_rules
+    assert "按时间版本化的权威发布" in agent_rules
 
 
 def test_architecture_preserves_non_trading_submission_boundary() -> None:

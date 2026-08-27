@@ -17,8 +17,8 @@ pending_owner_approval
 UNKNOWN
 ```
 
-它们不能被解释为模拟交易授权、真实 CTP 授权或真实资金授权。未获得商业合同、source authorization、权威合约/日历/规则
-制品与 production PIT 证据前，任何数据不得提升为生产可用，也不得推动新增风险。
+它们不能被解释为模拟交易授权、真实 CTP 授权或真实资金授权。未获得商业合同、source authorization、PostgreSQL
+Contract Authority 发布、Calendar ArtifactSnapshot 与 production PIT 证据前，任何数据不得提升为生产可用，也不得推动新增风险。
 
 每份数据制品应保留：source identity、授权事实、接收时间、内容 hash、schema、质量评估、版本、lineage、
 `available_time` 与适用的 `event_time` / `source_time` / `published_time`。修订只能新增版本，不能覆盖过去的可见状态。

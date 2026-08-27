@@ -55,15 +55,14 @@ staging venv；只有替换无法安全恢复时才保留该目录供诊断，VS
 
 ## 文档
 
-[文档导航](docs/README.md) 是唯一入口：
+完整的文档分流和专题权威请从[文档导航](docs/README.md)开始。
+
+第一次接触本项目：
 
 - [使用者入门指南](docs/USER_GUIDE.md)：第一次运行项目、完成首个离线研究、阅读报告，并理解安全边界；
 - [开发者指南](docs/DEVELOPER_GUIDE.md)：第一次参与代码开发时的环境、架构、测试、数据与 migration 学习路径；
-- [架构设计](docs/ARCHITECTURE.md)：领域边界、证据流、执行链和非升级边界；
-- [开发与研究工作流](docs/DEVELOPMENT.md)：本地设置、画像、策略、回测和质量门禁；
-- [运行、配置与部署手册](docs/OPERATIONS.md)：配置、运行模式、报告、部署、备份与故障处理；
-- [数据、研究、AI 与安全治理](docs/GOVERNANCE.md)：数据授权、研究准入、AI 权限、审计和人工控制；
-- [主实施计划](docs/planning/MASTER_IMPLEMENTATION_PLAN.md)：当前工作、下一项和外部阻塞的唯一事实来源。
+
+其余专题参考和项目控制面不在这里重复列出，以文档导航为准。
 
 ## 当前边界
 

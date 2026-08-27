@@ -1,7 +1,17 @@
 # 文档导航
 
-这是 Northstar Quant 的唯一文档入口。每个主题只保留一个规范权威；根 README 只提供项目入口，
+这是 Northstar Quant 的唯一完整文档入口。每个主题只保留一个规范权威；根 README 只提供项目入口，
 不重复配置、回测、执行或运维细节。两份入门指南负责把专题文档组织成学习路线，不取代其中的规范事实。
+
+## 推荐阅读路线
+
+| 你是谁 / 想做什么 | 推荐顺序 | 什么时候停下来 |
+|---|---|---|
+| 第一次使用项目做本地研究 | [使用者入门指南](USER_GUIDE.md) → [开发与研究工作流](DEVELOPMENT.md) → 按需阅读运行/治理专题 | 完成首个离线研究后，Lake 与 ctp_sim 都可后续再学。 |
+| 第一次参与代码开发 | [开发者指南](DEVELOPER_GUIDE.md) → [架构设计](ARCHITECTURE.md) → [开发与研究工作流](DEVELOPMENT.md) → [测试说明](../tests/README.md) | 在改动前再按所属领域进入专题文档。 |
+| 查看项目进度或外部阻塞 | [主实施计划](planning/MASTER_IMPLEMENTATION_PLAN.md) | 它是项目控制面，不是新手入门必读材料。 |
+
+## 按问题查阅（专题权威）
 
 | 你要解决的问题 | 阅读文档 | 权威范围 |
 |---|---|---|
@@ -20,11 +30,22 @@
 - [基础设施说明](../infra/README.md)：部署声明、systemd、monitoring 与 backup 资产；
 - [offline 画像](../configs/profiles/offline/README.md)、[simulated 画像](../configs/profiles/simulated/README.md)、
   [live 画像](../configs/profiles/live/README.md)：各生命周期画像的专用约束；
-- [期货品种卡](../configs/instruments/products/README.md)：静态合约规格与动态规则的边界。
+- [期货品种卡](../configs/instruments/products/README.md)：静态合约规格与动态规则的边界；
+- [日历制品说明](../configs/calendars/README.md)：日历 YAML 不是运行时信任根。
+
+## 维护时先更新哪份文档
+
+| 变化内容 | 先更新的专题权威 | 两份入门指南的处理 |
+|---|---|---|
+| 工作站初始化、质量门禁、测试或 migration | [开发与研究工作流](DEVELOPMENT.md) | 仅在学习路径或首条命令发生变化时同步。 |
+| 运行配置、运行模式、部署、备份或恢复 | [运行、配置与部署手册](OPERATIONS.md) | 保留入口与预期结果，链接到规范操作。 |
+| 模块依赖、领域语义、证据/执行链 | [架构设计](ARCHITECTURE.md) | 只更新对新手理解有影响的概述。 |
+| 数据授权、研究准入、AI 或人工权限 | [数据、研究、AI 与安全治理](GOVERNANCE.md) | 保留安全提示，不复制易变政策细节。 |
+| 工作包状态、完成度或外部阻塞 | [主实施计划](planning/MASTER_IMPLEMENTATION_PLAN.md) | 不在指南或根 README 复制进度。 |
 
 ## 维护规则
 
-1. 修改功能时同步更新其唯一权威文档；不要创建“补充说明”“新版说明”或兼容跳转页。
+1. 修改功能时先同步更新上表中的唯一权威文档；仅当学习路径受影响时再更新入门指南。不要创建“补充说明”“新版说明”或兼容跳转页。
 2. 当前事实、设计目标、验收证据与历史记录必须分开表述；未授权的外部能力不能写成已可运行。
 3. 所有仓库内 Markdown 链接必须可解析；文档契约测试会阻止失效链接和关键安全语义漂移。
 4. 项目仍在研发中，不为旧文档路径、旧接口或旧配置保留兼容层；同一变更必须迁移全部仓库调用方。

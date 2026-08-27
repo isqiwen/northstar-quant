@@ -1,7 +1,8 @@
 # 运行、配置与部署手册
 
 本文是 Northstar Quant 的运行、配置、报告、部署和数据保全操作权威。第一次使用项目可先按
-[使用者入门指南](USER_GUIDE.md)完成安全的离线研究路径，再回到本文查阅运行规范。它不授予真实交易权限；架构与执行边界见
+[使用者入门指南](USER_GUIDE.md)完成安全的离线研究路径；工作站初始化、质量门禁和 migration 的规范操作以
+[开发与研究工作流](DEVELOPMENT.md#2-初始化与质量门禁)为准。它不授予真实交易权限；架构与执行边界见
 [架构设计](ARCHITECTURE.md)，数据/AI/安全治理见[治理与安全](GOVERNANCE.md)。
 
 ## 1. 配置事实来源
@@ -15,31 +16,14 @@
 | 可跟踪模板 | `.env.example`、`configs/app.example.yaml` | 安全默认值，不能当作运行时配置 |
 | 画像 | `configs/profiles/` | offline、simulated、future live 的明确生命周期 |
 | 数据与准入 | `configs/data/sources.yaml`、`configs/research/admission/` | source、授权和研究资格 |
-| 合约/日历/规则 | `configs/instruments/`、`configs/calendars/` | Contract Master 与订单前事实 |
+| 静态品种卡与品种池 | `configs/instruments/`、`configs/futures/` | 相对稳定的研究规格、品种池和显式路径；不能作为当前实际合约、CTP 映射或动态规则的 fallback |
+| 运行时合约、CTP 映射与动态规则 | 画像的 `futures.contract_authority_id` 绑定的 PostgreSQL Contract Authority | 按 `available_time` 重放追加式、不可变的 Contract Master 与 CTP registry publication，并绑定来源证据 |
+| 运行时交易日历 | 不可变 Artifact Store + `futures.calendar_artifact_snapshot_hashes` | 经验证的 normalized Calendar `ArtifactSnapshot`；`configs/calendars/` 不提供运行时 YAML |
 | 运维策略 | `configs/maintenance/` | 输出保留和备份就绪证据 |
 
-首次本机设置使用：
-
-```powershell
-python scripts/dev/setup.py --initialize-workstation
-```
-
-缺少仓库本地 `uv`、`just` 或宿主机 Git 时，该入口先展示安装计划，且只能在操作者输入 `YES` 后执行工具安装。`uv`、`just`、其
-pipx 环境、缓存和状态位于未跟踪的仓库目录 `.northstar/`；后续项目命令用固定路径调用它们，不修改 `PATH`，也不需要重启终端。
-安装完成后同一入口会立即继续；仅当刚安装的宿主机工具在当前进程仍不可见时，才提示重新打开终端后再次运行。
-
-Ubuntu/Debian 的 `python scripts/dev/setup.py --initialize-workstation` 默认以 `sudo` 安装本机 PostgreSQL 和客户端，随后执行
-`systemctl enable --now postgresql`。它只接受默认的 loopback `127.0.0.1:5432`，不会改写 PostgreSQL 服务配置、认证规则或数据目录。
-若本机 `northstar` 角色不存在，首次入口才创建最小 `LOGIN CREATEDB` 角色；空 `POSTGRES_PASSWORD` 会生成随机值并仅写入未跟踪的 `.env`。
-已有角色、密码、认证规则和数据库不会被覆盖，已有角色必须在 `.env` 中提供匹配密码。Windows、非 Ubuntu/Debian Linux、非默认端口和低层
-`dev-postgres` 命令仍要求操作者预先准备本机 PostgreSQL 与凭据。服务、认证、数据库创建权限或工具版本无法确认时，初始化和集成测试失败关闭。
-
-标准初始化验证并复用本机 PostgreSQL，创建/复用 `northstar` 与隔离的 `northstar_test`，并只执行前向迁移。初始化不会下载市场数据、启动 scheduler 或调用真实交易；它不会覆盖已有疑似生产、非-paper、live、
-kill-switch 或外部数据库配置。需要重置本地开发配置时，
-操作者必须显式使用 `--confirm-reset-local-dev-config YES`。
-
-`pg_isready` 不通过、客户端工具缺失、连接非 loopback、认证失败或 Alembic 状态未知时，初始化会失败关闭；
-不会先 materialize 开发依赖或猜测数据库状态。
+首次工作站设置、仓库本地 `uv` / `just`、本机 PostgreSQL 与前向 migration 的完整步骤只在
+[开发与研究工作流](DEVELOPMENT.md#2-初始化与质量门禁)维护。其入口是
+`python scripts/dev/setup.py --initialize-workstation`；本手册假设该步骤已经完成，不重复维护安装细节。
 
 安全默认值必须保持：
 
@@ -134,11 +118,15 @@ snapshot、risk、approval、reconciliation 与 audit 账本。Contract Master /
 ### 数据与日历
 
 `configs/data/sources.yaml` 描述 source 事实，但 source 能否用于研究或生产还取决于授权、artifact、质量和准入状态。
-市场数据、Contract Master、规则和 Calendar 都必须作为可追溯的 `ArtifactSnapshot` 使用。
+市场数据通过受授权、质量合格且可重放的 `ArtifactSnapshot` / `DatasetVersion` 使用。实际合约、CTP 映射以及动态保证金、
+费率、涨跌停、限仓和交易时段等规则，由 PostgreSQL Contract Authority 的不可变 Contract Master / CTP registry
+publication 按 `available_time` 重放；每份 publication 都绑定来源证据。交易日历则单独由经过验证的 normalized Calendar
+`ArtifactSnapshot` 提供。三者不得互相替代，也不得从项目 YAML fallback。
 
 真正可执行的品种画像必须将经授权 normalized calendar payload 的 hash 显式写入
-`futures.calendar_artifact_snapshot_hashes`。当前项目日历配置没有 runtime Calendar Artifact，不能以工作日、`XSHG`
-或测试 fixture 替代商品期货夜盘/休市事实；因此提交路径会以 `TRADING_CALENDAR_ARTIFACT_REQUIRED` 拒绝。
+`futures.calendar_artifact_snapshot_hashes`。当前仓库没有 runtime Calendar Artifact，`configs/calendars/` 不会被运行时读取。
+不能以工作日、`XSHG` 或测试 fixture 替代商品期货夜盘/休市事实；因此提交路径会以
+`TRADING_CALENDAR_ARTIFACT_REQUIRED` 拒绝。
 
 ### Offline
 
