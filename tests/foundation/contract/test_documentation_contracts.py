@@ -13,6 +13,8 @@ from tests.helpers.paths import PROJECT_ROOT
 README_PATH = PROJECT_ROOT / "README.md"
 DOCS_DIR = PROJECT_ROOT / "docs"
 DOCS_INDEX_PATH = DOCS_DIR / "README.md"
+USER_GUIDE_PATH = DOCS_DIR / "USER_GUIDE.md"
+DEVELOPER_GUIDE_PATH = DOCS_DIR / "DEVELOPER_GUIDE.md"
 ARCHITECTURE_PATH = DOCS_DIR / "ARCHITECTURE.md"
 DEVELOPMENT_PATH = DOCS_DIR / "DEVELOPMENT.md"
 OPERATIONS_PATH = DOCS_DIR / "OPERATIONS.md"
@@ -22,6 +24,8 @@ AGENTS_PATH = PROJECT_ROOT / "AGENTS.md"
 LOCAL_LINK_PATTERN = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
 
 CANONICAL_DOCUMENTS = (
+    "USER_GUIDE.md",
+    "DEVELOPER_GUIDE.md",
     "ARCHITECTURE.md",
     "DEVELOPMENT.md",
     "OPERATIONS.md",
@@ -95,6 +99,18 @@ def test_consolidated_documents_have_single_responsibility() -> None:
     assert "数据授权、研究准入、AI 权限、安全审计和人工控制" in governance
     assert "唯一实施进度事实来源" in _read(MASTER_PLAN_PATH)
     assert MASTER_PLAN_PATH.is_file()
+
+
+def test_onboarding_guides_describe_their_audience_and_safety_boundary() -> None:
+    user_guide = _read(USER_GUIDE_PATH)
+    developer_guide = _read(DEVELOPER_GUIDE_PATH)
+
+    assert "# Northstar Quant 使用者入门指南" in user_guide
+    assert "NORTHSTAR_LIVE_TRADING_ENABLED=false" in user_guide
+    assert "没有真实 CTP 连接、真实账户或真实资金交易能力" in user_guide
+    assert "# Northstar Quant 开发者指南" in developer_guide
+    assert "NORTHSTAR_TEST_DATABASE_URL" in developer_guide
+    assert "0001_current_schema_baseline.py" in developer_guide
 
 
 def test_architecture_document_excludes_planning_and_acceptance_status() -> None:

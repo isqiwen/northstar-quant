@@ -57,6 +57,8 @@ staging venv；只有替换无法安全恢复时才保留该目录供诊断，VS
 
 [文档导航](docs/README.md) 是唯一入口：
 
+- [使用者入门指南](docs/USER_GUIDE.md)：第一次运行项目、完成首个离线研究、阅读报告，并理解安全边界；
+- [开发者指南](docs/DEVELOPER_GUIDE.md)：第一次参与代码开发时的环境、架构、测试、数据与 migration 学习路径；
 - [架构设计](docs/ARCHITECTURE.md)：领域边界、证据流、执行链和非升级边界；
 - [开发与研究工作流](docs/DEVELOPMENT.md)：本地设置、画像、策略、回测和质量门禁；
 - [运行、配置与部署手册](docs/OPERATIONS.md)：配置、运行模式、报告、部署、备份与故障处理；
