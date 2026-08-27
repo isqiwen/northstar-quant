@@ -23,6 +23,7 @@ from northstar_quant.foundation.db.types import UTCDateTime
 
 
 _SIMULATED_BROKER_STATE_HASH_PATTERN = r"^[0-9a-f]{64}$"
+_CONTRACT_AUTHORITY_HASH_PATTERN = r"^[0-9a-f]{64}$"
 
 
 class RunLog(Base):
@@ -1090,3 +1091,170 @@ class SimulatedBrokerStateTransitionRecord(Base):
     )
     transition_hash: Mapped[str] = mapped_column(String(64), index=True)
     occurred_at: Mapped[datetime] = mapped_column(UTCDateTime(), index=True)
+
+
+class ContractMasterPublicationRecord(Base):
+    """Append-only Contract Master authority publication.
+
+    The payload is a strict, canonical serialization of the typed data-domain
+    aggregate.  PostgreSQL stores the immutable release fact; reconstruction,
+    domain validation, and point-in-time selection stay in the Data domain.
+    """
+
+    __tablename__ = "contract_master_publication_records"
+    __table_args__ = (
+        UniqueConstraint(
+            "authority_id",
+            "publication_id",
+            name="uq_contract_master_publication_authority_publication",
+        ),
+        UniqueConstraint(
+            "authority_id",
+            "available_at",
+            name="uq_contract_master_publication_authority_available_at",
+        ),
+        UniqueConstraint(
+            "publication_hash",
+            name="uq_contract_master_publication_hash",
+        ),
+        CheckConstraint(
+            "schema_version > 0",
+            name="ck_contract_master_publication_schema_version",
+        ),
+        CheckConstraint(
+            "available_at >= observed_at",
+            name="ck_contract_master_publication_time_order",
+        ),
+        CheckConstraint(
+            "quality_status = 'pass'",
+            name="ck_contract_master_publication_quality_pass",
+        ),
+        CheckConstraint(
+            f"source_artifact_hash ~ '{_CONTRACT_AUTHORITY_HASH_PATTERN}'",
+            name="ck_contract_master_publication_source_hash",
+        ),
+        CheckConstraint(
+            f"master_fingerprint ~ '{_CONTRACT_AUTHORITY_HASH_PATTERN}'",
+            name="ck_contract_master_publication_master_fingerprint",
+        ),
+        CheckConstraint(
+            f"content_hash ~ '{_CONTRACT_AUTHORITY_HASH_PATTERN}'",
+            name="ck_contract_master_publication_content_hash",
+        ),
+        CheckConstraint(
+            f"publication_hash ~ '{_CONTRACT_AUTHORITY_HASH_PATTERN}'",
+            name="ck_contract_master_publication_publication_hash_shape",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    authority_id: Mapped[str] = mapped_column(String(128), index=True)
+    publication_id: Mapped[str] = mapped_column(String(128), index=True)
+    schema_version: Mapped[int] = mapped_column(Integer)
+    master_id: Mapped[str] = mapped_column(String(128), index=True)
+    master_version: Mapped[str] = mapped_column(String(128))
+    observed_at: Mapped[datetime] = mapped_column(UTCDateTime(), index=True)
+    available_at: Mapped[datetime] = mapped_column(UTCDateTime(), index=True)
+    source_artifact_hash: Mapped[str] = mapped_column(String(64), index=True)
+    source_authority: Mapped[str] = mapped_column(String(256))
+    quality_status: Mapped[str] = mapped_column(String(16), default="pass")
+    master_fingerprint: Mapped[str] = mapped_column(String(64), index=True)
+    content_hash: Mapped[str] = mapped_column(String(64), index=True)
+    publication_hash: Mapped[str] = mapped_column(String(64), index=True)
+    payload_json: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utc_now)
+
+
+class CtpContractRegistryPublicationRecord(Base):
+    """Append-only broker registry publication bound to one Master release."""
+
+    __tablename__ = "ctp_contract_registry_publication_records"
+    __table_args__ = (
+        UniqueConstraint(
+            "authority_id",
+            "publication_id",
+            "broker",
+            name="uq_ctp_registry_publication_authority_publication_broker",
+        ),
+        UniqueConstraint(
+            "authority_id",
+            "broker",
+            "available_at",
+            name="uq_ctp_registry_publication_authority_broker_available_at",
+        ),
+        UniqueConstraint(
+            "publication_hash",
+            name="uq_ctp_registry_publication_hash",
+        ),
+        CheckConstraint(
+            "broker IN ('ctp', 'ctp_sim')",
+            name="ck_ctp_registry_publication_broker",
+        ),
+        CheckConstraint(
+            "schema_version > 0",
+            name="ck_ctp_registry_publication_schema_version",
+        ),
+        CheckConstraint(
+            "available_at >= observed_at",
+            name="ck_ctp_registry_publication_time_order",
+        ),
+        CheckConstraint(
+            "effective_until IS NULL OR effective_until > effective_from",
+            name="ck_ctp_registry_publication_effective_window",
+        ),
+        CheckConstraint(
+            "quality_status = 'pass'",
+            name="ck_ctp_registry_publication_quality_pass",
+        ),
+        CheckConstraint(
+            f"master_publication_hash ~ '{_CONTRACT_AUTHORITY_HASH_PATTERN}'",
+            name="ck_ctp_registry_publication_master_hash",
+        ),
+        CheckConstraint(
+            f"source_artifact_hash ~ '{_CONTRACT_AUTHORITY_HASH_PATTERN}'",
+            name="ck_ctp_registry_publication_source_hash",
+        ),
+        CheckConstraint(
+            f"registry_fingerprint ~ '{_CONTRACT_AUTHORITY_HASH_PATTERN}'",
+            name="ck_ctp_registry_publication_registry_fingerprint",
+        ),
+        CheckConstraint(
+            f"content_hash ~ '{_CONTRACT_AUTHORITY_HASH_PATTERN}'",
+            name="ck_ctp_registry_publication_content_hash",
+        ),
+        CheckConstraint(
+            f"publication_hash ~ '{_CONTRACT_AUTHORITY_HASH_PATTERN}'",
+            name="ck_ctp_registry_publication_publication_hash_shape",
+        ),
+        Index(
+            "ix_ctp_registry_publication_master_hash",
+            "master_publication_hash",
+        ),
+        Index(
+            "ix_ctp_registry_publication_source_hash",
+            "source_artifact_hash",
+        ),
+        Index(
+            "ix_ctp_registry_publication_fingerprint",
+            "registry_fingerprint",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    authority_id: Mapped[str] = mapped_column(String(128), index=True)
+    publication_id: Mapped[str] = mapped_column(String(128), index=True)
+    broker: Mapped[str] = mapped_column(String(32), index=True)
+    schema_version: Mapped[int] = mapped_column(Integer)
+    master_publication_hash: Mapped[str] = mapped_column(String(64))
+    observed_at: Mapped[datetime] = mapped_column(UTCDateTime(), index=True)
+    available_at: Mapped[datetime] = mapped_column(UTCDateTime(), index=True)
+    effective_from: Mapped[datetime] = mapped_column(UTCDateTime(), index=True)
+    effective_until: Mapped[datetime | None] = mapped_column(UTCDateTime(), default=None)
+    source_artifact_hash: Mapped[str] = mapped_column(String(64))
+    source_authority: Mapped[str] = mapped_column(String(256))
+    quality_status: Mapped[str] = mapped_column(String(16), default="pass")
+    registry_fingerprint: Mapped[str] = mapped_column(String(64))
+    content_hash: Mapped[str] = mapped_column(String(64), index=True)
+    publication_hash: Mapped[str] = mapped_column(String(64), index=True)
+    payload_json: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utc_now)

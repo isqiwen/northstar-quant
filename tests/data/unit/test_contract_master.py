@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import replace
 from datetime import UTC, date, datetime, time, timedelta
 import hashlib
+import json
 
 import pytest
 
@@ -26,8 +27,10 @@ from northstar_quant.data.contracts.contract_master import (
     RuleQualityStatus,
 )
 from northstar_quant.data.artifacts.fingerprints import canonical_json_sha256
-from northstar_quant.data.contracts.contract_master_loader import load_contract_master
-from tests.helpers.paths import PROJECT_ROOT
+from northstar_quant.data.contracts.postgresql_contract_authority import (
+    ContractAuthorityError,
+    ContractMasterPublication,
+)
 
 
 UTC_TIME = datetime(2026, 7, 1, 8, tzinfo=UTC)
@@ -120,61 +123,59 @@ def test_contract_master_keeps_continuous_research_series_out_of_execution() -> 
         master.require_execution_contract(resolution)
 
 
-def test_repository_static_contract_master_has_no_implicit_execution_contracts() -> None:
-    master = load_contract_master(PROJECT_ROOT / "configs" / "instruments" / "contract_master.yaml")
-
-    assert master.master_id == "CN_FUTURES"
-    assert len(master.commodities) == 8
-    assert len(master.continuous_series) == 8
-    assert master.contracts == ()
-    assert master.resolve_for_execution(
-        "RB_CONT", decision_at=UTC_TIME
-    ).status is ContractResolutionStatus.CONTINUOUS_RESEARCH_ONLY
-    assert master.resolve_for_execution(
-        "RB2610", decision_at=UTC_TIME
-    ).status is ContractResolutionStatus.UNKNOWN
-
-
-def test_static_contract_master_rejects_rule_snapshots_and_unknown_fields(tmp_path) -> None:
-    path = tmp_path / "master.yaml"
-    path.write_text(
-        """version: 1
-master_id: fixture
-commodities:
-  - {commodity_id: REBAR, name: 螺纹钢}
-exchanges:
-  - {exchange_id: SHFE, name: 上海期货交易所, market: CN, timezone_name: Asia/Shanghai}
-instruments:
-  - {instrument_id: SHFE.RB, commodity_id: REBAR, exchange_id: SHFE, product_code: RB}
-continuous_series:
-  - {series_id: SHFE.RB.CONT, instrument_id: SHFE.RB, symbol: RB_CONT}
-contracts:
-  - {contract_id: SHFE.RB.2610, instrument_id: SHFE.RB, symbol: RB2610, listed_on: 2025-10-01, expires_on: 2026-10-30}
-rule_snapshots:
-  - untrusted_static_rule: true
-""",
-        encoding="utf-8",
+def test_contract_master_publication_binds_typed_master_to_source_evidence() -> None:
+    master = _master(snapshots=(_snapshot(),))
+    publication = ContractMasterPublication(
+        authority_id="cn_futures_ctp_sim",
+        publication_id="master-20260701",
+        observed_at=UTC_TIME,
+        available_at=UTC_TIME + timedelta(minutes=5),
+        source_artifact_hash=_hash("exchange-source-20260701"),
+        source_authority="exchange_daily_notice",
+        master=master,
     )
 
-    with pytest.raises(ContractMasterError, match="不得声明 rule_snapshots"):
-        load_contract_master(path)
+    payload = json.loads(publication.payload_json)
 
-    path.write_text(
-        path.read_text(encoding="utf-8").replace(
-            "rule_snapshots:\n  - untrusted_static_rule: true",
-            "rule_snapshots: []",
-        ),
-        encoding="utf-8",
-    )
-    master = load_contract_master(path)
+    assert publication.master is master
+    assert publication.content_hash == canonical_json_sha256(payload)
+    assert publication.publication_hash == ContractMasterPublication(
+        authority_id="cn_futures_ctp_sim",
+        publication_id="master-20260701",
+        observed_at=UTC_TIME,
+        available_at=UTC_TIME + timedelta(minutes=5),
+        source_artifact_hash=_hash("exchange-source-20260701"),
+        source_authority="exchange_daily_notice",
+        master=master,
+    ).publication_hash
+    assert payload["contracts"][0]["symbol"] == "RB2610"
+    assert payload["rule_snapshots"][0]["snapshot_hash"] == _snapshot().snapshot_hash
 
-    assert master.resolve_for_execution(
-        "RB2610", decision_at=UTC_TIME + timedelta(hours=1)
-    ).status is ContractResolutionStatus.RULES_UNKNOWN
 
-    path.write_text(path.read_text(encoding="utf-8").replace("master_id: fixture", "master_id: fixture\nunknown: true"), encoding="utf-8")
-    with pytest.raises(ContractMasterError, match="未知字段"):
-        load_contract_master(path)
+def test_contract_master_publication_rejects_invalid_time_or_source_evidence() -> None:
+    master = _master(snapshots=(_snapshot(),))
+
+    with pytest.raises(ContractAuthorityError, match="available_at cannot precede observed_at"):
+        ContractMasterPublication(
+            authority_id="cn_futures_ctp_sim",
+            publication_id="master-invalid-time",
+            observed_at=UTC_TIME,
+            available_at=UTC_TIME - timedelta(seconds=1),
+            source_artifact_hash=_hash("exchange-source-20260701"),
+            source_authority="exchange_daily_notice",
+            master=master,
+        )
+
+    with pytest.raises(ContractAuthorityError, match="SHA-256"):
+        ContractMasterPublication(
+            authority_id="cn_futures_ctp_sim",
+            publication_id="master-invalid-source",
+            observed_at=UTC_TIME,
+            available_at=UTC_TIME,
+            source_artifact_hash="not-a-hash",
+            source_authority="exchange_daily_notice",
+            master=master,
+        )
 
 
 def test_unknown_contract_mapping_fails_closed_with_auditable_status() -> None:

@@ -16,7 +16,7 @@ lifecycle:
   line_id: cn_futures_intraday_replay_research
 futures:
   contract_spec_path: configs/instruments/products
-  ctp_contract_mapping_path: configs/instruments/ctp.yaml
+  contract_authority_id: cn_futures
   symbols_are_continuous: false
   execution_allowed: false
 execution:

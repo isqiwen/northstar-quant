@@ -49,8 +49,9 @@ staging venv；只有替换无法安全恢复时才保留该目录供诊断，VS
 本地工具集的独立数据库。详见[架构设计](docs/ARCHITECTURE.md#存储职责)。
 
 当前仍处于开发期，`alembic/versions/` 只保留完整的
-`0001_current_schema_baseline`。旧 revision 不受支持；若本地数据库记录的是旧 revision，必须由操作者在
-仓库自动化之外手动重建后，再运行 `python scripts/dev/run_just.py setup` 或 `northstar init-db`。自动化不会 reset、stamp 或删除数据库。
+`0001_current_schema_baseline`。旧基线不受支持：即使 revision 名称相同，只要本地 schema 早于当前完整基线，
+也必须由操作者在仓库自动化之外手动重建后，再运行 `python scripts/dev/run_just.py setup` 或 `northstar init-db`。
+自动化不会 reset、stamp 或删除数据库。
 
 ## 文档
 

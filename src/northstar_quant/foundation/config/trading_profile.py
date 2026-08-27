@@ -227,7 +227,7 @@ class ProfileFuturesConfig:
     """期货画像的合约主数据与研究/执行边界。"""
 
     contract_spec_path: str = ""  # 相对项目根目录的期货合约规格文件路径。
-    ctp_contract_mapping_path: str = ""  # 连续合约到 CTP 具体合约的显式映射文件。
+    contract_authority_id: str = ""  # PostgreSQL Contract Authority 的稳定身份。
     calendar_artifact_snapshot_hashes: dict[str, str] = field(default_factory=dict)  # 按交易所绑定的不可变日历制品快照；空值不能放行订单。
     symbols_are_continuous: bool = True  # 行情 symbol 是否为连续合约；连续合约不能直接下单。
     execution_allowed: bool = False  # 仅实际可交易合约、完整规格和券商适配完成后才可设为 true。
@@ -480,10 +480,13 @@ class PortfolioRiskTaxonomyEntry:
 
 @dataclass(frozen=True, slots=True)
 class CtpSimPortfolioRiskExecutionRule:
-    """Simulator-only execution limits owned by the selected risk policy."""
+    """Simulator-only position limit owned by the selected risk policy.
+
+    Margin, fee, tick, multiplier and trading eligibility are Contract
+    Authority facts and must never be duplicated in a profile YAML file.
+    """
 
     product_id: str
-    margin_rate: float
     max_position_lots: int
 
     def __post_init__(self) -> None:
@@ -493,14 +496,6 @@ class CtpSimPortfolioRiskExecutionRule:
             _normalized_product_id(
                 self.product_id,
                 field_name="portfolio_risk_approval.ctp_sim_execution_rules product_id",
-            ),
-        )
-        object.__setattr__(
-            self,
-            "margin_rate",
-            _positive_fraction(
-                self.margin_rate,
-                field_name="portfolio_risk_approval.ctp_sim_execution_rules.margin_rate",
             ),
         )
         if (
@@ -516,7 +511,6 @@ class CtpSimPortfolioRiskExecutionRule:
     def as_mapping(self) -> dict[str, object]:
         return {
             "product_id": self.product_id,
-            "margin_rate": self.margin_rate,
             "max_position_lots": self.max_position_lots,
         }
 
@@ -1162,8 +1156,8 @@ def _load_trading_profile(
             raise ValueError("配置字段 futures 必须是对象")
         futures_config = ProfileFuturesConfig(
             contract_spec_path=str(futures_raw.get("contract_spec_path", "")).strip(),
-            ctp_contract_mapping_path=str(
-                futures_raw.get("ctp_contract_mapping_path", "")
+            contract_authority_id=str(
+                futures_raw.get("contract_authority_id", "")
             ).strip(),
             calendar_artifact_snapshot_hashes=_parse_string_mapping(
                 futures_raw.get("calendar_artifact_snapshot_hashes", {}),
@@ -1183,16 +1177,16 @@ def _load_trading_profile(
         if (
             futures_config is None
             or not futures_config.contract_spec_path
-            or not futures_config.ctp_contract_mapping_path
+            or not futures_config.contract_authority_id
         ):
             raise ValueError(
                 "期货画像必须配置 futures.contract_spec_path 和 "
-                "futures.ctp_contract_mapping_path"
+                "futures.contract_authority_id"
             )
         if futures_config.symbols_are_continuous and futures_config.execution_allowed:
             raise ValueError("连续合约只能用于研究，不能设置 futures.execution_allowed=true")
-        if futures_config.execution_allowed and not futures_config.ctp_contract_mapping_path:
-            raise ValueError("可执行期货画像必须配置 futures.ctp_contract_mapping_path")
+        if futures_config.execution_allowed and not futures_config.contract_authority_id:
+            raise ValueError("可执行期货画像必须配置 futures.contract_authority_id")
     elif futures_config is not None:
         raise ValueError("只有 FUTURES 画像可以配置 futures")
     lifecycle_config = ProfileLifecycleConfig(
@@ -1561,12 +1555,11 @@ def _parse_portfolio_risk_approval_config(
         _require_exact_config_fields(
             item,
             field_name=field_name,
-            required=frozenset({"margin_rate", "max_position_lots"}),
+            required=frozenset({"max_position_lots"}),
         )
         rules.append(
             CtpSimPortfolioRiskExecutionRule(
                 product_id=product_id,
-                margin_rate=item["margin_rate"],
                 max_position_lots=item["max_position_lots"],
             )
         )

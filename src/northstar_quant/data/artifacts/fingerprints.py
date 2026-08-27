@@ -7,57 +7,30 @@ SHA-256 仍由 ``storage`` 负责计算。
 
 from __future__ import annotations
 
-import hashlib
-import json
-import re
 from collections.abc import Iterable, Mapping
 from typing import Any
 
-
-_SHA256_PATTERN = re.compile(r"[0-9a-f]{64}\Z")
-
-
-class FingerprintError(ValueError):
-    """制品身份输入不完整或不具有稳定语义。"""
-
-
-def content_sha256(payload: bytes, *, field_name: str = "payload") -> str:
-    """计算不可变字节内容的 SHA-256。
-
-    该函数只处理已经在调用方明确规范化过的字节序列；它不会读取文件、当前时间或运行环境。
-    """
-
-    if not isinstance(payload, bytes):
-        raise FingerprintError(f"{field_name} 必须是 bytes")
-    return hashlib.sha256(payload).hexdigest()
+from northstar_quant.foundation.common.fingerprints import (
+    FingerprintError,
+    canonical_json_sha256,
+    content_sha256,
+    require_sha256,
+)
 
 
-def require_sha256(value: str, *, field_name: str = "content_hash") -> str:
-    """验证并返回规范的小写 SHA-256 十六进制摘要。"""
-
-    if not isinstance(value, str) or _SHA256_PATTERN.fullmatch(value) is None:
-        raise FingerprintError(f"{field_name} 必须是 64 位小写 SHA-256 十六进制摘要")
-    return value
-
-
-def canonical_json_sha256(payload: object) -> str:
-    """计算 JSON 语义确定的 SHA-256。
-
-    字典键按 Unicode 排序，空白被移除，且拒绝 NaN/Infinity 与不可 JSON 序列化对象。调用方
-    必须先把表格行序等业务语义规范化；本函数不会猜测行序是否应当排序。
-    """
-
-    try:
-        encoded = json.dumps(
-            payload,
-            ensure_ascii=False,
-            sort_keys=True,
-            separators=(",", ":"),
-            allow_nan=False,
-        ).encode("utf-8")
-    except (TypeError, ValueError) as exc:
-        raise FingerprintError("制品身份输入必须是有限、可 JSON 序列化的值") from exc
-    return hashlib.sha256(encoded).hexdigest()
+__all__ = [
+    "FingerprintError",
+    "artifact_snapshot_hash",
+    "canonical_json_sha256",
+    "content_sha256",
+    "dataset_version_hash",
+    "derived_identity_hash",
+    "lineage_hash",
+    "normalization_binding_hash",
+    "normalization_identity_hash",
+    "require_sha256",
+    "snapshot_lineage_hash",
+]
 
 
 def normalization_identity_hash(

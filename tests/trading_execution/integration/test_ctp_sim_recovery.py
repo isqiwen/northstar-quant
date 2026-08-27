@@ -8,6 +8,15 @@ from northstar_quant.trading_execution.execution.models import OrderRequest
 from northstar_quant.trading_execution.orders.durable_submission import DurableBrokerAdapter
 from northstar_quant.trading_execution.reconciliation.reconciliation import reconcile_broker_state
 from tests.helpers.ctp_sim_submission import create_test_ctp_sim_submission_authority
+from tests.helpers.contract_authority import build_test_futures_contract_authority
+
+
+def _contract_authority_kwargs() -> dict[str, object]:
+    authority = build_test_futures_contract_authority()
+    return {
+        "registry": authority.registry,
+        "registry_publication_hash": authority.registry_publication.publication_hash,
+    }
 
 
 def test_ctp_sim_disconnect_recovery_reconciles_order_fill_and_position(
@@ -28,6 +37,7 @@ def test_ctp_sim_disconnect_recovery_reconciles_order_fill_and_position(
     try:
         submission_authority = create_test_ctp_sim_submission_authority()
         broker = CtpSimBrokerAdapter(
+            **_contract_authority_kwargs(),
             submission_authority=submission_authority,
             session_factory=postgresql_session_factory,
         )
@@ -65,6 +75,7 @@ def test_ctp_sim_disconnect_recovery_reconciles_order_fill_and_position(
         broker.disconnect()
 
         recovered = CtpSimBrokerAdapter(
+            **_contract_authority_kwargs(),
             submission_authority=create_test_ctp_sim_submission_authority(),
             session_factory=postgresql_session_factory,
         )
@@ -129,6 +140,7 @@ def test_ctp_sim_cancel_pending_recovers_as_cancelled_without_a_fill(
     try:
         submission_authority = create_test_ctp_sim_submission_authority()
         broker = CtpSimBrokerAdapter(
+            **_contract_authority_kwargs(),
             submission_authority=submission_authority,
             session_factory=postgresql_session_factory,
         )
@@ -168,6 +180,7 @@ def test_ctp_sim_cancel_pending_recovers_as_cancelled_without_a_fill(
         broker.disconnect()
 
         recovered = CtpSimBrokerAdapter(
+            **_contract_authority_kwargs(),
             submission_authority=create_test_ctp_sim_submission_authority(),
             session_factory=postgresql_session_factory,
         )

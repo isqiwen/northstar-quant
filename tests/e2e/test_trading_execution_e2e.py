@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from datetime import datetime
 
 from sqlalchemy import select
 
@@ -10,6 +11,7 @@ import northstar_quant.trading_execution.broker.ctp_sim_broker as ctp_sim_broker
 from northstar_quant.application.execution_provenance_preflight import (
     ExecutionContractRuleEvidence,
 )
+from northstar_quant.application.contract_authority import FuturesContractAuthority
 from northstar_quant.application.portfolio_risk_authority import (
     PortfolioRiskAuthorityResolver,
     ReconciliationSafetyStateEvidence,
@@ -45,9 +47,24 @@ from tests.helpers.execution_provenance import build_execution_provenance_fixtur
 from tests.helpers.ctp_sim_candidate_execution import (
     create_test_ctp_sim_candidate_executor,
 )
+from tests.helpers.contract_authority import build_test_futures_contract_authority
 from tests.helpers.manual_risk_approval import (
     create_test_portfolio_risk_approval_issuer,
 )
+
+
+def _resolve_test_contract_authority(
+    authority_id: str,
+    broker: str,
+    decision_at: datetime,
+) -> FuturesContractAuthority:
+    """Provide explicit immutable contract facts for the simulator test seam."""
+
+    return build_test_futures_contract_authority(
+        authority_id=authority_id,
+        broker=broker,
+        decision_at=decision_at,
+    )
 
 
 def _persisted_normal_safety_state(
@@ -123,7 +140,7 @@ def _two_order_candidate_request(
         expires_at=base_proposal.expires_at,
         positions=(
             TargetPosition("RB2610", 0.1),
-            TargetPosition("SA609", 0.1),
+            TargetPosition("SA2609", 0.1),
         ),
     )
     activation_request = replace(
@@ -160,6 +177,7 @@ def _two_order_candidate_request(
         reconciliation_safety_state=reconciliation_safety_state,
         composition=composition_evidence,
         evaluated_at=composition_request.effective_at,
+        contract_authority=fixture.contract_authority,
     )
     gate = PortfolioRiskApprovalGate()
     review = gate.review(authority.review_request)
@@ -205,7 +223,7 @@ def _two_order_candidate_request(
         quotes=(
             fixture.request.quotes[0],
             MarketQuoteSnapshot(
-                symbol="SA609",
+                symbol="SA2609",
                 bid=1399.0,
                 ask=1401.0,
                 last=1400.0,
@@ -247,9 +265,13 @@ def test_candidate_provenance_to_guarded_ctp_sim_fill_and_reconciliation_e2e(
     executor = create_test_ctp_sim_candidate_executor(
         settings_provider=lambda: settings,
         clock=lambda: checked_at,
+        contract_authority_resolver=_resolve_test_contract_authority,
         session_factory=postgresql_session_factory,
     )
-    broker = executor.create_broker()
+    broker = executor.create_broker(
+        profile=bootstrap.profile,
+        decision_at=bootstrap.request.market_snapshot_at,
+    )
     broker.connect()
     try:
         broker.seed_market_quotes({"RB2610": 3_100.0}, asof=checked_at)
@@ -355,13 +377,17 @@ def test_candidate_ctp_sim_batch_revalidates_each_leg_after_prior_fill(
     executor = create_test_ctp_sim_candidate_executor(
         settings_provider=lambda: settings,
         clock=lambda: checked_at,
+        contract_authority_resolver=_resolve_test_contract_authority,
         session_factory=postgresql_session_factory,
     )
-    broker = executor.create_broker()
+    broker = executor.create_broker(
+        profile=bootstrap.profile,
+        decision_at=bootstrap.request.market_snapshot_at,
+    )
     broker.connect()
     try:
         broker.seed_market_quotes(
-            {"RB2610": 3_100.0, "SA609": 1_400.0},
+            {"RB2610": 3_100.0, "SA2609": 1_400.0},
             asof=checked_at,
         )
         with postgresql_session_factory() as session:

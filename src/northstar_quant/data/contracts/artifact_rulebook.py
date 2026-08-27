@@ -1,7 +1,7 @@
 """不可变制品化的期货 Contract RuleBook 历史重放。
 
-静态 ``contract_master.yaml`` 只保存稳定分类，不能作为历史合约、保证金、手续费或交易
-规则的事实来源。本模块只读取已经由 P1 ``DataSourcePublisher`` 写入的 immutable
+静态品种卡只保存稳定分类，不能作为历史合约、保证金、手续费或交易规则的事实来源。
+本模块只读取已经由 P1 ``DataSourcePublisher`` 写入的 immutable
 ``DatasetVersion``，并在调用方给出的 ``decision_at`` 选择一份唯一、可见且有效的规则。
 
 它是研究历史证据边界，不是 live Contract Master publisher：所有重建出的

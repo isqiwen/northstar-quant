@@ -23,6 +23,7 @@ PATH = PACKAGE_ROOT / "application" / "ctp_sim_candidate_execution.py"
 TOOL_API_MODULE = "northstar_quant.application.agent_tools"
 
 _ALLOWED_INTERNAL_PREFIXES = (
+    "northstar_quant.application.contract_authority",
     "northstar_quant.application.execution_provenance_preflight",
     "northstar_quant.application.portfolio_risk_authority",
     "northstar_quant.application.portfolio_risk_manual_approval",
@@ -155,6 +156,17 @@ def test_candidate_executor_uses_only_the_ctp_sim_submission_chain() -> None:
         "candidate CTP-sim execution cannot open external network/process/deployment "
         f"capabilities: {forbidden}"
     )
+    legacy_mapping_markers = (
+        "ctp_sim_contract_mapping_path",
+        "ctp_contract_mapping_path",
+        "load_ctp_contract_registry",
+        "mapping_path=",
+    )
+    retained = [item for item in legacy_mapping_markers if item in PATH.read_text(encoding="utf-8")]
+    assert not retained, (
+        "candidate CTP-sim execution must resolve the PostgreSQL Contract Authority "
+        f"instead of legacy YAML mapping paths: {retained}"
+    )
 
 
 def test_candidate_executor_cannot_reach_live_ctp_or_ai_control_surfaces() -> None:
@@ -199,6 +211,40 @@ def test_candidate_executor_is_the_only_production_authority_issuer() -> None:
     assert not violations, (
         "only the P8 candidate composition boundary may issue a CTP-sim submission "
         f"authority: {violations}"
+    )
+
+
+def test_candidate_submission_capability_keeps_its_private_owner_token() -> None:
+    """The capability escape hatch cannot be an unguarded source-level API."""
+
+    guard_path = (
+        PACKAGE_ROOT
+        / "trading_execution"
+        / "orders"
+        / "ctp_sim_submission_guard.py"
+    )
+    guard_source = guard_path.read_text(encoding="utf-8")
+    candidate_source = PATH.read_text(encoding="utf-8")
+    owner_label = "_".join(("owner", "token"))
+    required_guard_markers = (
+        f"__composition_{owner_label}",
+        "def _guard_for_composition(",
+        f"{owner_label}: object",
+        f"{owner_label} is not self.__composition_{owner_label}",
+        f"composition_{owner_label}: object",
+    )
+    required_candidate_markers = (
+        f"composition_{owner_label}=self._{owner_label}",
+        f"authority._guard_for_composition({owner_label}=self._{owner_label})",
+        f"gate.configure(\n            {owner_label}=self._{owner_label},",
+    )
+    missing_guard = [item for item in required_guard_markers if item not in guard_source]
+    missing_candidate = [
+        item for item in required_candidate_markers if item not in candidate_source
+    ]
+    assert not missing_guard and not missing_candidate, (
+        "P8 final CTP-sim authority composition must retain the executor-private "
+        f"composition binding; guard={missing_guard}, candidate={missing_candidate}"
     )
 
 

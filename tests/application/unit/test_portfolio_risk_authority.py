@@ -59,6 +59,7 @@ def _resolve(
         ),
         composition=fixture.composition_evidence,
         evaluated_at=fixture.request.checked_at,
+        contract_authority=fixture.contract_authority,
     )
 
 

@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from datetime import datetime
 
 import pytest
 from sqlalchemy import select
 
 import northstar_quant.application.ctp_sim_candidate_execution as candidate_execution
 import northstar_quant.trading_execution.broker.ctp_sim_broker as ctp_sim_broker
+from northstar_quant.application.contract_authority import FuturesContractAuthority
 from northstar_quant.application.ctp_sim_candidate_execution import (
     CtpSimCandidateExecutionError,
 )
@@ -55,10 +57,23 @@ from tests.helpers.ctp_sim_submission import create_test_ctp_sim_submission_auth
 from tests.helpers.ctp_sim_candidate_execution import (
     create_test_ctp_sim_candidate_executor,
 )
+from tests.helpers.contract_authority import build_test_futures_contract_authority
 from tests.helpers.execution_provenance import build_execution_provenance_fixture
 from tests.helpers.manual_risk_approval import (
     create_test_portfolio_risk_approval_issuer,
 )
+
+
+def _resolve_test_contract_authority(
+    authority_id: str,
+    broker: str,
+    decision_at: datetime,
+) -> FuturesContractAuthority:
+    return build_test_futures_contract_authority(
+        authority_id=authority_id,
+        broker=broker,
+        decision_at=decision_at,
+    )
 
 
 def _with_persisted_manual_risk_approval(
@@ -109,9 +124,13 @@ def _authority_bound_candidate(tmp_path, monkeypatch, postgresql_session_factory
     executor = create_test_ctp_sim_candidate_executor(
         settings_provider=lambda: settings,
         clock=lambda: now["value"],
+        contract_authority_resolver=_resolve_test_contract_authority,
         session_factory=postgresql_session_factory,
     )
-    broker = executor.create_broker()
+    broker = executor.create_broker(
+        profile=bootstrap.profile,
+        decision_at=bootstrap.request.market_snapshot_at,
+    )
     broker.connect()
     broker.seed_market_quotes({"RB2610": 3_100.0}, asof=now["value"])
     snapshot = broker.read_state_snapshot()
@@ -135,6 +154,7 @@ def _authority_bound_candidate(tmp_path, monkeypatch, postgresql_session_factory
         tmp_path / "authority-bound",
         broker_state=snapshot,
         reconciliation_safety_state=safety,
+        reviewed_at=now["value"],
     )
     return executor, broker, fixture, snapshot, safety
 
@@ -158,7 +178,7 @@ def _two_order_request(
         expires_at=base_proposal.expires_at,
         positions=(
             TargetPosition("RB2610", 0.1),
-            TargetPosition("SA609", 0.1),
+            TargetPosition("SA2609", 0.1),
         ),
     )
     activation_request = replace(
@@ -195,6 +215,7 @@ def _two_order_request(
         reconciliation_safety_state=reconciliation_safety_state,
         composition=composition,
         evaluated_at=composition_request.effective_at,
+        contract_authority=fixture.contract_authority,
     )
     risk_gate = PortfolioRiskApprovalGate()
     review = risk_gate.review(authority.review_request)
@@ -240,7 +261,7 @@ def _two_order_request(
         quotes=(
             fixture.request.quotes[0],
             MarketQuoteSnapshot(
-                symbol="SA609",
+                symbol="SA2609",
                 bid=1399.0,
                 ask=1401.0,
                 last=1400.0,
@@ -353,6 +374,7 @@ def test_candidate_refuses_untrusted_safety_or_authority_without_side_effects(
                 reconciliation_safety_state=safety,
                 composition=fixture.composition_evidence,
                 evaluated_at=fixture.request.checked_at,
+                contract_authority=fixture.contract_authority,
             )
             rejected_request = replace(
                 fixture.request,
@@ -430,6 +452,7 @@ def test_authority_bound_p3_block_cannot_reach_candidate_plan_intent_or_simulato
             reconciliation_safety_state=safety,
             composition=fixture.composition_evidence,
             evaluated_at=fixture.request.checked_at,
+            contract_authority=fixture.contract_authority,
         )
         risk_gate = PortfolioRiskApprovalGate()
         review = risk_gate.review(strict_authority.review_request)
@@ -532,7 +555,7 @@ def test_external_drift_after_first_candidate_leg_blocks_the_second_leg(
     )
     external_broker = None
     try:
-        broker.seed_market_quotes({"SA609": 1_400.0}, asof=fixture.request.checked_at)
+        broker.seed_market_quotes({"SA2609": 1_400.0}, asof=fixture.request.checked_at)
         snapshot = broker.read_state_snapshot()
         request = _two_order_request(
             fixture,
@@ -555,6 +578,8 @@ def test_external_drift_after_first_candidate_leg_blocks_the_second_leg(
         assert len(bundle.orders) == 2
 
         external_broker = CtpSimBrokerAdapter(
+            registry=broker.registry,
+            registry_publication_hash=broker.registry_publication_hash,
             account=broker.get_account(),
             submission_authority=create_test_ctp_sim_submission_authority(),
             session_factory=postgresql_session_factory,

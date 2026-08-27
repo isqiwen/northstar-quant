@@ -302,7 +302,7 @@ lifecycle:
   role: research
 futures:
   contract_spec_path: configs/futures/test.yaml
-  ctp_contract_mapping_path: configs/instruments/test.yaml
+  contract_authority_id: cn_futures
   calendar_artifact_snapshot_hashes:
     SHFE: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
   symbols_are_continuous: true

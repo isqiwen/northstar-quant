@@ -18,14 +18,18 @@ from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from hashlib import sha256
 import math
-from pathlib import Path
 from uuid import uuid4
 
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import SQLAlchemyError
 
+from northstar_quant.application.contract_authority import (
+    FuturesContractAuthority,
+    FuturesContractAuthorityError,
+    resolve_futures_contract_authority,
+)
 from northstar_quant.application.execution_provenance_preflight import (
     ExecutionOrderCommitment,
-    ExecutionProvenanceEnvironment,
     ExecutionProvenancePreflight,
     ExecutionProvenancePreflightError,
     ExecutionProvenancePreflightReceipt,
@@ -35,6 +39,7 @@ from northstar_quant.application.portfolio_risk_manual_approval import (
     require_persisted_portfolio_risk_approval,
 )
 from northstar_quant.application.portfolio_risk_authority import (
+    ContractAuthorityView,
     PortfolioRiskAuthorityError,
     ReconciliationSafetyStateEvidence,
 )
@@ -67,10 +72,6 @@ from northstar_quant.trading_execution.broker.ctp_sim_broker import (
     CtpSimBrokerAdapter,
     CtpSimPreSyncCheckRejected,
     CtpSimPreSyncGuardRefusal,
-)
-from northstar_quant.trading_execution.broker.ctp_contract_mapping import (
-    CtpContractMappingError,
-    load_ctp_contract_registry,
 )
 from northstar_quant.trading_execution.execution.models import (
     BrokerStateSnapshot,
@@ -106,6 +107,125 @@ class CtpSimCandidateExecutionError(
     PermissionError,
 ):
     """Raised when the candidate-only CTP-sim submission boundary refuses risk."""
+
+
+ContractAuthorityResolver = Callable[
+    [str, str, datetime],
+    FuturesContractAuthority,
+]
+
+
+def _resolve_contract_authority(
+    authority_id: str,
+    broker: str,
+    decision_at: datetime,
+) -> FuturesContractAuthority:
+    """Resolve the current PostgreSQL authority at one explicit PIT instant."""
+
+    return resolve_futures_contract_authority(
+        authority_id,
+        broker=broker,
+        decision_at=decision_at,
+    )
+
+
+def _resolve_profile_contract_authority(
+    *,
+    profile: TradingProfile,
+    decision_at: datetime,
+    resolver: ContractAuthorityResolver,
+) -> FuturesContractAuthority:
+    """Load and validate the only contract authority a CTP-sim profile may use."""
+
+    futures = profile.futures
+    if futures is None or not futures.contract_authority_id:
+        raise CtpSimCandidateExecutionError(
+            "CTP_SIM_CANDIDATE_CONTRACT_AUTHORITY_MISMATCH"
+        )
+    try:
+        normalized_decision_at = ensure_utc(decision_at)
+        authority = resolver(
+            futures.contract_authority_id,
+            "ctp_sim",
+            normalized_decision_at,
+        )
+    except (
+        FuturesContractAuthorityError,
+        SQLAlchemyError,
+        TypeError,
+        ValueError,
+    ) as exc:
+        raise CtpSimCandidateExecutionError(
+            "CTP_SIM_CANDIDATE_CONTRACT_AUTHORITY_UNAVAILABLE"
+        ) from exc
+    if (
+        type(authority) is not FuturesContractAuthority
+        or authority.authority_id != futures.contract_authority_id
+        or authority.decision_at != normalized_decision_at
+        or authority.registry.broker != "ctp_sim"
+    ):
+        raise CtpSimCandidateExecutionError(
+            "CTP_SIM_CANDIDATE_CONTRACT_AUTHORITY_MISMATCH"
+        )
+    return authority
+
+
+def _assert_contract_authority_matches_request(
+    *,
+    authority: FuturesContractAuthority,
+    request: ExecutionProvenanceRequest,
+) -> None:
+    """Reject a stale or replaced authority before it can authorize an order."""
+
+    try:
+        expected = ContractAuthorityView.from_replayed_authority(authority)
+    except PortfolioRiskAuthorityError as exc:
+        raise CtpSimCandidateExecutionError(
+            "CTP_SIM_CANDIDATE_CONTRACT_AUTHORITY_CHANGED"
+        ) from exc
+    if request.contract_authority != expected:
+        raise CtpSimCandidateExecutionError(
+            "CTP_SIM_CANDIDATE_CONTRACT_AUTHORITY_CHANGED"
+        )
+
+
+def _assert_contract_authority_publications_unchanged(
+    *,
+    prepared_authority: FuturesContractAuthority,
+    current_authority: FuturesContractAuthority,
+) -> None:
+    """Require final authority resolution to retain the prepared release binding.
+
+    ``authority_hash`` deliberately contains its decision timestamp, so it must
+    not be compared across the historical preparation replay and a real-time
+    final gate.  The Master and registry publication hashes (and their binding)
+    are the immutable facts that must remain identical instead.
+    """
+
+    prepared_master_hash = prepared_authority.master_publication.publication_hash
+    prepared_registry_hash = prepared_authority.registry_publication.publication_hash
+    current_master_hash = current_authority.master_publication.publication_hash
+    current_registry_hash = current_authority.registry_publication.publication_hash
+    if (
+        current_authority.authority_id != prepared_authority.authority_id
+        or current_master_hash != prepared_master_hash
+        or current_registry_hash != prepared_registry_hash
+        or (
+            prepared_authority.registry_publication.master_publication_hash
+            != prepared_master_hash
+        )
+        or (
+            current_authority.registry_publication.master_publication_hash
+            != current_master_hash
+        )
+        or (
+            current_authority.registry_publication.master_publication_hash
+            != prepared_master_hash
+        )
+    ):
+        raise CtpSimCandidateExecutionError(
+            "CTP_SIM_CANDIDATE_CONTRACT_AUTHORITY_CHANGED"
+        )
 
 
 def _load_active_profile(
@@ -145,44 +265,35 @@ def _assert_broker_matches_settings(
     broker: CtpSimBrokerAdapter,
     settings: Settings,
     profile: TradingProfile,
+    contract_authority: FuturesContractAuthority,
 ) -> None:
     """Bind a simulator instance to the current trusted execution settings."""
 
     expected_account = normalize_simulator_account(settings.ctp_sim_account)
-    expected_mapping_path = Path(settings.ctp_sim_contract_mapping_path).resolve()
     if (
         broker.get_name() != "ctp_sim"
         or broker.get_account() != expected_account
-        or broker.mapping_path != expected_mapping_path
         or broker.default_cash != float(settings.default_cash)
     ):
         raise CtpSimCandidateExecutionError(
             "CTP_SIM_CANDIDATE_BROKER_BINDING_MISMATCH"
         )
     futures = profile.futures
-    if futures is None or not futures.ctp_contract_mapping_path:
+    if (
+        futures is None
+        or futures.contract_authority_id != contract_authority.authority_id
+        or contract_authority.registry.broker != "ctp_sim"
+    ):
         raise CtpSimCandidateExecutionError(
-            "CTP_SIM_CANDIDATE_CONTRACT_MAPPING_MISMATCH"
+            "CTP_SIM_CANDIDATE_CONTRACT_AUTHORITY_MISMATCH"
         )
-    profile_mapping_path = Path(futures.ctp_contract_mapping_path)
-    if not profile_mapping_path.is_absolute():
-        profile_mapping_path = settings.project_root / profile_mapping_path
-    if profile_mapping_path.resolve() != expected_mapping_path:
+    if (
+        broker.registry != contract_authority.registry
+        or broker.registry_publication_hash
+        != contract_authority.registry_publication.publication_hash
+    ):
         raise CtpSimCandidateExecutionError(
-            "CTP_SIM_CANDIDATE_CONTRACT_MAPPING_MISMATCH"
-        )
-    try:
-        expected_registry = load_ctp_contract_registry(
-            expected_mapping_path,
-            expected_broker="ctp_sim",
-        )
-    except (CtpContractMappingError, OSError, ValueError) as exc:
-        raise CtpSimCandidateExecutionError(
-            "CTP_SIM_CANDIDATE_CONTRACT_MAPPING_MISMATCH"
-        ) from exc
-    if broker.registry != expected_registry:
-        raise CtpSimCandidateExecutionError(
-            "CTP_SIM_CANDIDATE_CONTRACT_MAPPING_MISMATCH"
+            "CTP_SIM_CANDIDATE_CONTRACT_AUTHORITY_MISMATCH"
         )
 
 
@@ -458,7 +569,11 @@ def _assert_same_commitment(
     expected: ExecutionOrderCommitment,
     actual: ExecutionOrderCommitment,
 ) -> None:
-    if expected.order_hash != actual.order_hash:
+    if (
+        type(expected) is not ExecutionOrderCommitment
+        or type(actual) is not ExecutionOrderCommitment
+        or expected != actual
+    ):
         raise CtpSimCandidateExecutionError(
             "CTP_SIM_CANDIDATE_COMMITMENT_CHANGED: final provenance replay produced a different order"
         )
@@ -491,6 +606,7 @@ class _CtpSimCandidateSubmissionGate:
     __slots__ = (
         "_broker",
         "_clock",
+        "_contract_authority_resolver",
         "_expected_by_ref",
         "_manual_approval_binding_hash",
         "_manual_approval_record_hash",
@@ -511,10 +627,12 @@ class _CtpSimCandidateSubmissionGate:
         *,
         settings_provider: Callable[[], Settings],
         clock: Callable[[], datetime],
+        contract_authority_resolver: ContractAuthorityResolver,
         owner_token: object,
     ) -> None:
         self._settings_provider = settings_provider
         self._clock = clock
+        self._contract_authority_resolver = contract_authority_resolver
         self._owner_token = owner_token
         self._broker: CtpSimBrokerAdapter | None = None
         self._source_request: ExecutionProvenanceRequest | None = None
@@ -537,6 +655,7 @@ class _CtpSimCandidateSubmissionGate:
     def configure(
         self,
         *,
+        owner_token: object,
         broker: CtpSimBrokerAdapter,
         source_request: ExecutionProvenanceRequest,
         prepared_request: ExecutionProvenanceRequest,
@@ -544,13 +663,31 @@ class _CtpSimCandidateSubmissionGate:
         expected_orders: tuple[_ExpectedCandidateOrder, ...],
         manual_approval: object,
     ) -> None:
+        if not self.is_owned_by(owner_token):
+            raise CtpSimCandidateExecutionError("CTP_SIM_CANDIDATE_FOREIGN_BROKER")
         if self._session is not None:
             raise CtpSimCandidateExecutionError("CTP_SIM_CANDIDATE_GATE_ALREADY_BOUND")
-        if not expected_orders:
+        if (
+            type(broker) is not CtpSimBrokerAdapter
+            or type(source_request) is not ExecutionProvenanceRequest
+            or type(prepared_request) is not ExecutionProvenanceRequest
+            or type(receipt) is not ExecutionProvenancePreflightReceipt
+            or not isinstance(expected_orders, tuple)
+            or not expected_orders
+            or not all(type(item) is _ExpectedCandidateOrder for item in expected_orders)
+        ):
             raise CtpSimCandidateExecutionError("CTP_SIM_CANDIDATE_PLAN_EMPTY")
+        authority = broker.submission_authority
+        if authority is None or not authority.is_bound_to(self):
+            raise CtpSimCandidateExecutionError("CTP_SIM_CANDIDATE_GUARD_BINDING_LOST")
         refs = {item.order_ref for item in expected_orders}
         if len(refs) != len(expected_orders):
             raise CtpSimCandidateExecutionError("CTP_SIM_CANDIDATE_ORDER_REF_DUPLICATED")
+        self._assert_complete_prepared_receipt(
+            prepared_request=prepared_request,
+            receipt=receipt,
+            expected_orders=expected_orders,
+        )
         self._broker = broker
         self._source_request = source_request
         self._prepared_request = prepared_request
@@ -565,6 +702,125 @@ class _CtpSimCandidateSubmissionGate:
         )
         self._prepared_quote_semantics = _quote_semantics(prepared_request.quotes)
         self._reserved_order_hashes = set()
+
+    @staticmethod
+    def _evaluate_prepared_request(
+        request: ExecutionProvenanceRequest,
+    ) -> tuple[
+        ExecutionProvenancePreflightReceipt,
+        tuple[RebalanceOrderPlan, ...],
+    ]:
+        """Replay the exact prepared input before trusting an opaque receipt."""
+
+        try:
+            evaluation = ExecutionProvenancePreflight()._evaluate(request)
+        except ExecutionProvenancePreflightError as exc:
+            raise CtpSimCandidateExecutionError(
+                "CTP_SIM_CANDIDATE_RECEIPT_REPLAY_FAILED"
+            ) from exc
+        return evaluation.receipt, evaluation.execution_plan.orders
+
+    def _assert_complete_prepared_receipt(
+        self,
+        *,
+        prepared_request: ExecutionProvenanceRequest,
+        receipt: ExecutionProvenancePreflightReceipt,
+        expected_orders: tuple[_ExpectedCandidateOrder, ...],
+    ) -> None:
+        """Bind every configured receipt and commitment to a fresh exact replay."""
+
+        replayed_receipt, replayed_orders = self._evaluate_prepared_request(
+            prepared_request
+        )
+        if replayed_receipt != receipt:
+            raise CtpSimCandidateExecutionError(
+                "CTP_SIM_CANDIDATE_RECEIPT_REPLAY_CHANGED"
+            )
+        receipt_commitments = {
+            item.order_hash: item for item in receipt.order_commitments
+        }
+        plan_commitments: dict[str, ExecutionOrderCommitment] = {}
+        for plan in replayed_orders:
+            commitment = _commitment_for_plan(plan)
+            if commitment.order_hash in plan_commitments:
+                raise CtpSimCandidateExecutionError(
+                    "CTP_SIM_CANDIDATE_REPLAYED_COMMITMENT_DUPLICATED"
+                )
+            plan_commitments[commitment.order_hash] = commitment
+        expected_hashes = {item.commitment.order_hash for item in expected_orders}
+        if (
+            len(expected_hashes) != len(expected_orders)
+            or expected_hashes != set(receipt_commitments)
+            or expected_hashes != set(plan_commitments)
+        ):
+            raise CtpSimCandidateExecutionError(
+                "CTP_SIM_CANDIDATE_COMMITMENT_COVERAGE_MISMATCH"
+            )
+        for item in expected_orders:
+            receipt_commitment = receipt_commitments[item.commitment.order_hash]
+            plan_commitment = plan_commitments[item.commitment.order_hash]
+            _assert_same_commitment(item.commitment, receipt_commitment)
+            _assert_same_commitment(item.commitment, plan_commitment)
+            if (
+                item.durable_plan_id
+                != _durable_plan_id(
+                    plan_hash=receipt.plan_hash,
+                    order_hash=item.commitment.order_hash,
+                )
+                or item.order_ref != build_order_ref(item.durable_plan_id, 1)
+            ):
+                raise CtpSimCandidateExecutionError(
+                    "CTP_SIM_CANDIDATE_COMMITMENT_BINDING_CHANGED"
+                )
+
+    def _assert_configured_receipt_complete(self) -> None:
+        """Recheck the full stored receipt before every live revalidation."""
+
+        if self._prepared_request is None or self._receipt is None:
+            raise CtpSimCandidateExecutionError("CTP_SIM_CANDIDATE_GATE_NOT_CONFIGURED")
+        self._assert_complete_prepared_receipt(
+            prepared_request=self._prepared_request,
+            receipt=self._receipt,
+            expected_orders=tuple(self._expected_by_ref.values()),
+        )
+
+    @staticmethod
+    def _stable_receipt_identity(
+        receipt: ExecutionProvenancePreflightReceipt,
+    ) -> tuple[object, ...]:
+        """Return all receipt facts that cannot vary in a fresh runtime replay.
+
+        ``checked_at``, ``valid_until``, runtime risk, preflight diagnostics, and
+        the resulting receipt hash deliberately refresh at the final gate.  The
+        configured receipt itself is separately replayed exactly above, so this
+        identity can require every remaining authorization and commitment fact
+        to stay unchanged without treating elapsed wall-clock time as a bypass.
+        """
+
+        return (
+            receipt.preflight_id,
+            receipt.environment,
+            receipt.profile_id,
+            receipt.plan_id,
+            receipt.activation_hashes,
+            receipt.portfolio_target_hash,
+            receipt.approved_target_hash,
+            receipt.composition_evidence_hash,
+            receipt.portfolio_risk_approval_evidence_hash,
+            receipt.risk_evidence_hash,
+            receipt.data_evidence_hash,
+            receipt.account_snapshot_hash,
+            receipt.portfolio_risk_authority_hash,
+            receipt.portfolio_risk_policy_hash,
+            receipt.contract_authority_hash,
+            receipt.broker_state_hash,
+            receipt.reconciliation_state_hash,
+            receipt.account_attribution_hash,
+            receipt.quote_evidence_hash,
+            receipt.contract_rule_evidence_hash,
+            receipt.plan_hash,
+            receipt.order_commitments,
+        )
 
     def bind_session(self, session: Session) -> None:
         if self._session is not None and self._session is not session:
@@ -629,10 +885,29 @@ class _CtpSimCandidateSubmissionGate:
             settings=settings,
             claimed_profile=self._prepared_request.profile,
         )
+        prepared_authority = _resolve_profile_contract_authority(
+            profile=active_profile,
+            decision_at=self._prepared_request.market_snapshot_at,
+            resolver=self._contract_authority_resolver,
+        )
+        _assert_contract_authority_matches_request(
+            authority=prepared_authority,
+            request=self._prepared_request,
+        )
+        current_authority = _resolve_profile_contract_authority(
+            profile=active_profile,
+            decision_at=_clock_now(self._clock),
+            resolver=self._contract_authority_resolver,
+        )
+        _assert_contract_authority_publications_unchanged(
+            prepared_authority=prepared_authority,
+            current_authority=current_authority,
+        )
         _assert_broker_matches_settings(
             broker=self._broker,
             settings=settings,
             profile=active_profile,
+            contract_authority=current_authority,
         )
         return settings
 
@@ -645,6 +920,10 @@ class _CtpSimCandidateSubmissionGate:
         receipt = self._receipt
         session = self._session
         if receipt is None or session is None or self._broker is None:
+            raise CtpSimCandidateExecutionError("CTP_SIM_CANDIDATE_GATE_NOT_CONFIGURED")
+        self._assert_configured_receipt_complete()
+        receipt = self._receipt
+        if receipt is None:
             raise CtpSimCandidateExecutionError("CTP_SIM_CANDIDATE_GATE_NOT_CONFIGURED")
         authority = self._broker.submission_authority
         if authority is None or not authority.is_bound_to(self):
@@ -741,6 +1020,7 @@ class _CtpSimCandidateSubmissionGate:
             or self._receipt is None
         ):
             raise CtpSimCandidateExecutionError("CTP_SIM_CANDIDATE_GATE_NOT_CONFIGURED")
+        self._assert_configured_receipt_complete()
         live_snapshot = self._broker.read_state_snapshot()
         if _snapshot_semantics(live_snapshot) != self._authorized_snapshot_semantics:
             raise CtpSimCandidateExecutionError(
@@ -783,31 +1063,8 @@ class _CtpSimCandidateSubmissionGate:
             raise CtpSimCandidateExecutionError(str(exc)) from exc
         receipt = evaluation.receipt
         original = self._receipt
-        if (
-            receipt.environment is not ExecutionProvenanceEnvironment.CTP_SIM
-            or receipt.profile_id != original.profile_id
-            or receipt.plan_id != original.plan_id
-            or receipt.activation_hashes != original.activation_hashes
-            or receipt.portfolio_target_hash != original.portfolio_target_hash
-            or receipt.approved_target_hash != original.approved_target_hash
-            or receipt.composition_evidence_hash != original.composition_evidence_hash
-            or (
-                receipt.portfolio_risk_approval_evidence_hash
-                != original.portfolio_risk_approval_evidence_hash
-            )
-            or receipt.risk_evidence_hash != original.risk_evidence_hash
-            or receipt.data_evidence_hash != original.data_evidence_hash
-            or (
-                receipt.portfolio_risk_authority_hash
-                != original.portfolio_risk_authority_hash
-            )
-            or receipt.portfolio_risk_policy_hash != original.portfolio_risk_policy_hash
-            or receipt.broker_state_hash != original.broker_state_hash
-            or (
-                receipt.reconciliation_state_hash
-                != original.reconciliation_state_hash
-            )
-            or receipt.contract_rule_evidence_hash != original.contract_rule_evidence_hash
+        if self._stable_receipt_identity(receipt) != self._stable_receipt_identity(
+            original
         ):
             raise CtpSimCandidateExecutionError(
                 "CTP_SIM_CANDIDATE_PROVENANCE_REPLAY_CHANGED"
@@ -821,6 +1078,15 @@ class _CtpSimCandidateSubmissionGate:
                     "CTP_SIM_CANDIDATE_REPLAYED_COMMITMENT_DUPLICATED"
                 )
             replayed_plan_commitments[commitment.order_hash] = commitment
+        if set(replayed_plan_commitments) != set(by_hash):
+            raise CtpSimCandidateExecutionError(
+                "CTP_SIM_CANDIDATE_COMMITMENT_COVERAGE_MISMATCH"
+            )
+        for order_hash, receipt_commitment in by_hash.items():
+            _assert_same_commitment(
+                receipt_commitment,
+                replayed_plan_commitments[order_hash],
+            )
         replayed = by_hash.get(expected.commitment.order_hash)
         plan_commitment = replayed_plan_commitments.get(expected.commitment.order_hash)
         if replayed is None or plan_commitment is None:
@@ -1585,6 +1851,7 @@ class CtpSimCandidateExecutor:
     __slots__ = (
         "_broker_session_factory",
         "_clock",
+        "_contract_authority_resolver",
         "_owner_token",
         "_settings_provider",
     )
@@ -1600,24 +1867,46 @@ class CtpSimCandidateExecutor:
 
         self._settings_provider = load_settings
         self._clock = utc_now
+        self._contract_authority_resolver = _resolve_contract_authority
         self._owner_token = object()
         self._broker_session_factory: Callable[[], Session] = SessionLocal
 
-    def create_broker(self) -> CtpSimBrokerAdapter:
+    def create_broker(
+        self,
+        *,
+        profile: TradingProfile,
+        decision_at: datetime,
+    ) -> CtpSimBrokerAdapter:
         """Create an isolated simulator bound to a private final submission gate."""
 
         settings = self._settings_provider()
         _require_safe_ctp_sim_settings(settings)
+        active_profile = _load_active_profile(
+            settings=settings,
+            claimed_profile=profile,
+        )
+        contract_authority = _resolve_profile_contract_authority(
+            profile=active_profile,
+            decision_at=decision_at,
+            resolver=self._contract_authority_resolver,
+        )
         gate = _CtpSimCandidateSubmissionGate(
             settings_provider=self._settings_provider,
             clock=self._clock,
+            contract_authority_resolver=self._contract_authority_resolver,
             owner_token=self._owner_token,
         )
         return CtpSimBrokerAdapter(
-            mapping_path=settings.ctp_sim_contract_mapping_path,
+            registry=contract_authority.registry,
+            registry_publication_hash=(
+                contract_authority.registry_publication.publication_hash
+            ),
             account=settings.ctp_sim_account,
             default_cash=settings.default_cash,
-            submission_authority=_issue_ctp_sim_submission_authority(gate),
+            submission_authority=_issue_ctp_sim_submission_authority(
+                gate,
+                composition_owner_token=self._owner_token,
+            ),
             session_factory=self._broker_session_factory,
         )
 
@@ -1628,6 +1917,7 @@ class CtpSimCandidateExecutor:
         gate: _CtpSimCandidateSubmissionGate,
         settings: Settings,
         profile: TradingProfile,
+        contract_authority: FuturesContractAuthority,
     ) -> None:
         if not gate.is_owned_by(self._owner_token):
             raise CtpSimCandidateExecutionError("CTP_SIM_CANDIDATE_FOREIGN_BROKER")
@@ -1635,6 +1925,7 @@ class CtpSimCandidateExecutor:
             broker=broker,
             settings=settings,
             profile=profile,
+            contract_authority=contract_authority,
         )
 
     def _prepare(
@@ -1661,20 +1952,37 @@ class CtpSimCandidateExecutor:
         authority = broker.submission_authority
         if authority is None:
             raise CtpSimCandidateExecutionError("CTP_SIM_CANDIDATE_GUARD_REQUIRED")
-        gate = authority._guard_for_composition()
+        try:
+            gate = authority._guard_for_composition(owner_token=self._owner_token)
+        except PermissionError as exc:
+            raise CtpSimCandidateExecutionError(
+                "CTP_SIM_CANDIDATE_FOREIGN_BROKER"
+            ) from exc
         if not isinstance(gate, _CtpSimCandidateSubmissionGate):
             raise CtpSimCandidateExecutionError("CTP_SIM_CANDIDATE_GUARD_REQUIRED")
+        if not gate.is_owned_by(self._owner_token):
+            raise CtpSimCandidateExecutionError("CTP_SIM_CANDIDATE_FOREIGN_BROKER")
         settings = self._settings_provider()
         _require_safe_ctp_sim_settings(settings)
         active_profile = _load_active_profile(
             settings=settings,
             claimed_profile=request.profile,
         )
+        contract_authority = _resolve_profile_contract_authority(
+            profile=active_profile,
+            decision_at=request.market_snapshot_at,
+            resolver=self._contract_authority_resolver,
+        )
+        _assert_contract_authority_matches_request(
+            authority=contract_authority,
+            request=request,
+        )
         self._assert_owned_broker(
             broker=broker,
             gate=gate,
             settings=settings,
             profile=active_profile,
+            contract_authority=contract_authority,
         )
         request = replace(request, profile=active_profile)
         snapshot = broker.read_state_snapshot()
@@ -1772,6 +2080,7 @@ class CtpSimCandidateExecutor:
         if len(expected) != len(commitments):
             raise CtpSimCandidateExecutionError("CTP_SIM_CANDIDATE_COMMITMENT_COVERAGE_MISMATCH")
         gate.configure(
+            owner_token=self._owner_token,
             broker=broker,
             source_request=request,
             prepared_request=prepared_request,

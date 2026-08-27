@@ -19,12 +19,20 @@ PUBLIC_CONTRACT_MASTER_TYPES = frozenset(
         "Contract",
         "ContractRuleSnapshot",
         "ContractResolution",
+        "ContractMasterPublication",
     }
 )
 MASTER_SOURCE = (
     PROJECT_ROOT / "src" / "northstar_quant" / "data" / "contracts" / "contract_master.py"
 )
-STATIC_MASTER = PROJECT_ROOT / "configs" / "instruments" / "contract_master.yaml"
+AUTHORITY_SOURCE = (
+    PROJECT_ROOT
+    / "src"
+    / "northstar_quant"
+    / "data"
+    / "contracts"
+    / "postgresql_contract_authority.py"
+)
 EXECUTION_SYMBOL_BOUNDARIES = (
     PROJECT_ROOT
     / "src"
@@ -66,15 +74,16 @@ def test_contract_master_is_broker_neutral_and_does_not_read_current_time() -> N
     assert "utc_now" not in source
 
 
-def test_repository_master_carries_no_static_execution_rule_snapshot() -> None:
-    """防止把产品卡或研究配置里的过期规则伪装成可下单规则。"""
+def test_contract_master_authority_has_no_yaml_or_path_fallback() -> None:
+    """执行规则只能来自带 PIT 与来源证据的 PostgreSQL 发布记录。"""
 
-    source = STATIC_MASTER.read_text(encoding="utf-8")
+    source = AUTHORITY_SOURCE.read_text(encoding="utf-8")
 
-    assert "rule_snapshots: []" in source
-    assert "contracts: []" in source
-    assert "source_artifact_hash" in source
-    assert "available_at" in source
+    assert "contract_master_loader" not in source
+    assert "yaml" not in source.lower()
+    assert "pathlib" not in source
+    assert "configs/" not in source
+    assert "load_contract_master_publication_at" in source
 
 
 def test_execution_entrypoints_never_resolve_continuous_series_to_broker_identity() -> None:

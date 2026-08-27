@@ -313,7 +313,10 @@ def test_rejects_p5_contract_margin_rules_that_drift_from_the_replayed_p3_review
         rule=FuturesExecutionRule(margin_rate=0.2, max_position_lots=100),
     )
 
-    with pytest.raises(ExecutionProvenancePreflightError, match="PORTFOLIO_RISK_MARGIN_RULE_MISMATCH"):
+    with pytest.raises(
+        ExecutionProvenancePreflightError,
+        match="CONTRACT_AUTHORITY_RULE_EVIDENCE_MISMATCH",
+    ):
         ExecutionProvenancePreflight().verify(
             replace(request, contract_rules=(mismatched_rule,))
         )

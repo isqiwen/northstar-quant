@@ -120,12 +120,13 @@ tool-owned 文件隔离为 `.corrupt-<timestamp>` 后重建，绝不触碰 Lake 
 
 `paper` / `ctp_sim` 的可变模拟 broker state 已保存到 PostgreSQL 的账户隔离快照与不可变 transition 审计链；不会写入
 `state.json` 或 Local-tools SQLite。该 adapter-private 状态机不替代 PostgreSQL 中的 durable order、fill、position
-snapshot、risk、approval、reconciliation 与 audit 账本。当前 Contract Master / CTP mapping 仍为版本受控 YAML 配置，迁入
-PostgreSQL 的时间版本化合约权威库需要单独实现。
+snapshot、risk、approval、reconciliation 与 audit 账本。Contract Master / CTP mapping 作为 PostgreSQL 的追加式
+时间版本化发布记录保存，研究、preflight 与执行必须按 `available_time` 重放同一份权威事实；静态品种卡不能作为
+保证金、费率或当前可交易合约的 fallback。
 
 当前开发期的 head 是唯一完整基线 `0001_current_schema_baseline`，历史 revision 不提供升级路径。若本地
-`alembic_version` 记录其他值，必须由操作者在仓库自动化之外手动重建本地数据库，然后再执行
-`python scripts/dev/run_just.py setup` 或 `northstar init-db`。仓库自动化不会 drop、truncate、stamp、downgrade 或替你重建数据库。
+`alembic_version` 记录其他值，或 revision 名称相同但 schema 早于当前完整基线，必须由操作者在仓库自动化之外手动重建本地数据库，
+然后再执行 `python scripts/dev/run_just.py setup` 或 `northstar init-db`。仓库自动化不会 drop、truncate、stamp、downgrade 或替你重建数据库。
 
 ## 3. 数据、日历与运行模式
 

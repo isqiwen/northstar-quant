@@ -115,7 +115,8 @@ flowchart TB
 当前受控快照和不可变 hash-chained transition 审计链，且状态变更与 durable CTP-sim 提交确认可处于同一 PostgreSQL
 事务。它不写入 `state.json`，也不把 Local-tools SQLite 当 fallback；现有 durable order、fill、position snapshot、risk、
 approval、reconciliation 与 audit 账本仍是独立的 PostgreSQL 权威事实。当前 Contract Master 与 CTP mapping 仍为版本受控
-YAML 配置，尚未成为 PostgreSQL 的时间版本化合约权威库。完整历史 Parquet Lake 和 DuckDB 查询 adapter 已经落地，
+PostgreSQL 发布记录：每个 publication 保存来源、内容 hash、observed/available/effective 时间，并只允许追加；
+研究、preflight、执行和 CTP-sim 都按决策时点重放同一份事实。完整历史 Parquet Lake 和 DuckDB 查询 adapter 已经落地，
 但现有可覆盖的 profile market 投影尚未自动迁入 Lake：它必须先经过 immutable `DatasetVersion` 入口验证。
 
 ### Application：跨领域 composition root
@@ -607,8 +608,9 @@ flowchart LR
 `ExecutionProvenancePreflight` 的 receipt 仅是证据，不能授权提交；`CtpSimCandidateExecutor` 自行重放请求，
 再由私有 authority、fresh quotes、正常对账状态、执行租约和一次性 consumption 共同约束 `ctp_sim` 副作用。
 当前默认运行环境没有可用的人工批准签发器，因此上图的正向提交支路只有在已提供经验证批准的隔离 composition
-中可达；缺少任一证据时立即 `NO NEW RISK`。`PaperBrokerAdapter` 与 `CtpSimBrokerAdapter` 都只写本地状态文件，
-绝不连接期货公司前置。
+中可达；缺少任一证据时立即 NO NEW RISK。PaperBrokerAdapter 与 CtpSimBrokerAdapter 的 adapter-private
+模拟柜台状态均保存于按 broker/account 隔离的 PostgreSQL 快照与不可变 transition 审计链，不写入本地状态文件或
+SQLite fallback；两者均绝不连接期货公司前置。
 
 ### 真实 CTP / 实盘：当前可达的数据流以拒绝结束
 
@@ -670,7 +672,8 @@ enable-live、resume-risk、submit 或连接 broker。
 
 运行设置是显式、typed、validated 的：活动配置仅为 `configs/app.yaml` 与 `.env`，`configs/app.local.yaml`
 已经废弃，发现它即失败关闭并要求完整迁移至 `app.yaml`；tracked 示例永远保持 paper / live-disabled。画像、source、
-研究准入、Contract Master、instrument、calendar 和策略配置各有职责，不能以一个 YAML 暗中替代另一个。
+研究准入、PostgreSQL Contract Authority、instrument、calendar 和策略配置各有职责，不能以一个 YAML 暗中替代另一个，
+也不能以静态配置替代按 `available_time` 重放的权威事实。
 
 生产目标仅 Linux x86_64；Windows/Linux 均为开发和部署控制端。可信部署路径是：
 

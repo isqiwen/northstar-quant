@@ -21,7 +21,9 @@ from northstar_quant.application.execution_provenance_preflight import (
     ExecutionProvenanceEnvironment,
     ExecutionProvenanceRequest,
 )
+from northstar_quant.application.contract_authority import FuturesContractAuthority
 from northstar_quant.application.portfolio_risk_authority import (
+    ContractAuthorityView,
     PortfolioRiskAuthorityResolver,
     ReconciliationSafetyStateEvidence,
 )
@@ -55,6 +57,7 @@ from northstar_quant.trading_execution.execution.models import (
     MarketQuoteSnapshot,
 )
 from tests.helpers.research_candidate import ResearchCandidateChain, build_research_candidate_chain
+from tests.helpers.contract_authority import build_test_futures_contract_authority
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,6 +73,7 @@ class ExecutionProvenanceFixture:
     portfolio_risk_approval_evidence: PortfolioRiskApprovalEvidence
     profile: TradingProfile
     settings: Settings
+    contract_authority: FuturesContractAuthority
 
 
 def _hash(value: str) -> str:
@@ -122,6 +126,7 @@ def build_execution_provenance_fixture(
     root: Path,
     *,
     broker_state: BrokerStateSnapshot | None = None,
+    contract_authority: FuturesContractAuthority | None = None,
     reconciliation_safety_state: ReconciliationSafetyStateEvidence | None = None,
     reviewed_at: datetime | None = None,
 ) -> ExecutionProvenanceFixture:
@@ -201,12 +206,25 @@ def build_execution_provenance_fixture(
             state_snapshot=normal_safety_snapshot,
             reconciliation_state_hash=normal_safety_snapshot.state_hash,
         )
+    if contract_authority is None:
+        contract_authority = build_test_futures_contract_authority(
+            decision_at=reviewed_at,
+            authority_id=profile.futures.contract_authority_id,
+        )
+    elif (
+        type(contract_authority) is not FuturesContractAuthority
+        or contract_authority.decision_at != reviewed_at
+    ):
+        raise ValueError("contract_authority must bind the reviewed_at decision time")
     authority = PortfolioRiskAuthorityResolver().resolve(
         profile=profile,
         broker_state=snapshot,
         reconciliation_safety_state=reconciliation_safety_state,
         composition=composition_evidence,
         evaluated_at=reviewed_at,
+        contract_authority=ContractAuthorityView.from_replayed_authority(
+            contract_authority
+        ),
     )
     risk_gate = PortfolioRiskApprovalGate()
     review = risk_gate.review(authority.review_request)
@@ -232,6 +250,13 @@ def build_execution_provenance_fixture(
         source="ctp_sim_market_data",
     )
     authority_rule = authority.execution_rules[0]
+    resolution = contract_authority.master.resolve_for_execution(
+        authority_rule.symbol,
+        decision_at=reviewed_at,
+    )
+    _contract, master_rule = contract_authority.master.require_execution_contract(
+        resolution
+    )
     rule = ExecutionContractRuleEvidence(
         symbol=authority_rule.symbol,
         instrument_id=authority_rule.instrument_id,
@@ -241,8 +266,8 @@ def build_execution_provenance_fixture(
             margin_rate=authority_rule.margin_rate,
             max_position_lots=authority_rule.max_position_lots,
         ),
-        available_at=generated_at,
-        effective_at=first_request.target_proposal.effective_at,
+        available_at=master_rule.available_at,
+        effective_at=master_rule.effective_from,
         expires_at=first_request.target_proposal.expires_at,
     )
     data_evidence = ExecutionDataEvidence(
@@ -259,6 +284,7 @@ def build_execution_provenance_fixture(
         environment=ExecutionProvenanceEnvironment.CTP_SIM,
         profile=profile,
         settings=settings,
+        contract_authority=contract_authority,
         activation_requests=activation_requests,
         activation_receipts=activation_receipts,
         portfolio_risk_approval_request=approval_request,
@@ -288,6 +314,7 @@ def build_execution_provenance_fixture(
         portfolio_risk_approval_evidence=approval_evidence,
         profile=profile,
         settings=settings,
+        contract_authority=contract_authority,
     )
 
 

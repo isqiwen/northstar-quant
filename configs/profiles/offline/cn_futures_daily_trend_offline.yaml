@@ -36,8 +36,8 @@ lifecycle:
 futures:
   # 连续合约规格文件，包含交易所、乘数、最小变动价位与不可交易标记。
   contract_spec_path: configs/futures/cn_commodity_research.yaml
-  # 连续序列到 CTP 实际合约的显式映射；当前为空，因而必须拒绝执行。
-  ctp_contract_mapping_path: configs/instruments/ctp.yaml
+  # 研究也绑定 PostgreSQL Contract Authority；未发布时只能失败关闭。
+  contract_authority_id: cn_futures
   # true 表示行情 symbol 是连续序列；连续序列绝不可直接作为 CTP 合约下单。
   symbols_are_continuous: true
   # 研究画像必须为 false；实际执行需要生产角色、实际合约和完整 CTP 适配器。

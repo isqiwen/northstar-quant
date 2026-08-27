@@ -17,7 +17,11 @@ from northstar_quant.foundation.common.order_identity import (
 )
 from northstar_quant.foundation.common.time import ensure_utc, utc_now
 from northstar_quant.foundation.config.settings import get_settings, load_settings
-from northstar_quant.trading_execution.broker.ctp_contract_mapping import load_ctp_contract_registry
+from northstar_quant.application.contract_authority import (
+    FuturesContractAuthority,
+    FuturesContractAuthorityError,
+    resolve_futures_contract_authority,
+)
 from northstar_quant.foundation.config.trading_profile import (
     ensure_broker_profile,
     load_trading_profile,
@@ -143,12 +147,74 @@ def _pipeline_output_asof(pipeline) -> str:
     return str(isoformat() if callable(isoformat) else value)
 
 
-def _pick_broker():
+def _contract_authority_for_profile(
+    profile,
+    *,
+    broker_name: str,
+    decision_at,
+) -> FuturesContractAuthority:
+    futures = getattr(profile, "futures", None)
+    authority_id = str(
+        getattr(futures, "contract_authority_id", "") or ""
+    ).strip()
+    if not authority_id:
+        raise PermissionError("CONTRACT_AUTHORITY_ID_REQUIRED")
+    try:
+        return resolve_futures_contract_authority(
+            authority_id,
+            broker=broker_name,
+            decision_at=ensure_utc(decision_at),
+        )
+    except FuturesContractAuthorityError as exc:
+        raise PermissionError("CONTRACT_AUTHORITY_UNAVAILABLE: NO NEW RISK") from exc
+
+
+def _contract_authority_for_broker_state(
+    profile,
+    broker,
+    state: BrokerStateSnapshot,
+) -> FuturesContractAuthority | None:
+    """Bind one futures decision to the exact authority visible at broker-state time."""
+
+    if profile.asset_type != AssetType.FUTURES:
+        return None
+    authority = _contract_authority_for_profile(
+        profile,
+        broker_name=broker.get_name(),
+        decision_at=state.asof or utc_now(),
+    )
+    adapter_registry_publication_hash = str(
+        getattr(broker, "registry_publication_hash", "") or ""
+    ).strip()
+    if (
+        adapter_registry_publication_hash
+        and adapter_registry_publication_hash
+        != authority.registry_publication.publication_hash
+    ):
+        raise PermissionError(
+            "CONTRACT_AUTHORITY_CHANGED: adapter registry differs from the "
+            "broker-state point-in-time registry publication; re-run preflight."
+        )
+    return authority
+
+
+def _pick_broker(*, profile=None, decision_at=None):
     settings = get_settings()
     if settings.broker == "paper":
         return PaperBrokerAdapter(session_factory=SessionLocal)
     if settings.broker == "ctp_sim":
-        return CtpSimBrokerAdapter(session_factory=SessionLocal)
+        if profile is None:
+            raise PermissionError("CTP_SIM_CONTRACT_AUTHORITY_PROFILE_REQUIRED")
+        authority = _contract_authority_for_profile(
+            profile,
+            broker_name="ctp_sim",
+            decision_at=decision_at or utc_now(),
+        )
+        return CtpSimBrokerAdapter(
+            registry=authority.registry,
+            registry_publication_hash=authority.registry_publication.publication_hash,
+            session_factory=SessionLocal,
+        )
     if settings.broker == "ctp":
         raise NotImplementedError(
             "CTP_EXECUTION_ADAPTER_REQUIRED: 已配置 CTP 合约映射，"
@@ -460,6 +526,7 @@ def _collect_execution_symbols(
     state,
     *,
     broker_name: str,
+    contract_authority: FuturesContractAuthority | None = None,
 ) -> list[str]:
     output_symbols = output["symbol"].to_list() if "symbol" in output.columns else []
     if profile.asset_type == AssetType.FUTURES:
@@ -471,10 +538,12 @@ def _collect_execution_symbols(
                 "FUTURES_CONTINUOUS_CONTRACT_FORBIDDEN: 连续研究序列不能进入实盘服务；"
                 "必须先在授权的 Contract Master 组合边界解析为具体月份合约。"
             )
-        registry = load_ctp_contract_registry(
-            futures.ctp_contract_mapping_path,
-            expected_broker=broker_name,
+        authority = contract_authority or _contract_authority_for_profile(
+            profile,
+            broker_name=broker_name,
+            decision_at=state.asof or utc_now(),
         )
+        registry = authority.registry
         output_symbols = [
             registry.resolve_data_symbol(str(symbol)).data_symbol
             for symbol in output_symbols
@@ -485,41 +554,32 @@ def _collect_execution_symbols(
 
 
 def _latest_futures_execution_rules(
-    market_df: pl.DataFrame,
+    _market_df: pl.DataFrame,
     profile,
     *,
     broker_name: str,
+    contract_authority: FuturesContractAuthority | None,
 ) -> dict[str, FuturesExecutionRule]:
     """提取映射内具体合约的最新保证金率和限仓快照。"""
 
     if profile.asset_type != AssetType.FUTURES:
         return {}
-    futures = profile.futures
-    if futures is None:
-        raise ValueError("期货画像缺少 futures 配置。")
-    required_columns = {"symbol", "margin_rate"}
-    if not required_columns.issubset(market_df.columns):
-        missing = ", ".join(sorted(required_columns - set(market_df.columns)))
-        raise ValueError(f"FUTURES_DYNAMIC_RULE_REQUIRED: 行情缺少字段 {missing}。")
-    registry = load_ctp_contract_registry(
-        futures.ctp_contract_mapping_path,
-        expected_broker=broker_name,
-    )
-    time_columns = [
-        column for column in ("timestamp", "date") if column in market_df.columns
-    ]
-    latest = market_df.sort(time_columns) if time_columns else market_df
+    if contract_authority is None:
+        raise PermissionError("CTP_CONTRACT_AUTHORITY_REQUIRED: NO NEW RISK")
+    if contract_authority.registry.broker != broker_name:
+        raise ValueError("CTP_CONTRACT_AUTHORITY_BROKER_MISMATCH")
+    registry = contract_authority.registry
     rules: dict[str, FuturesExecutionRule] = {}
-    for row in latest.group_by("symbol").tail(1).to_dicts():
-        symbol = str(row.get("symbol") or "").strip().upper()
-        try:
-            mapping = registry.resolve_data_symbol(symbol)
-        except ValueError:
-            continue
-        max_lots = row.get("max_position_lots")
-        rules[mapping.data_symbol] = FuturesExecutionRule(
-            margin_rate=float(row["margin_rate"]),
-            max_position_lots=int(max_lots) if max_lots is not None else None,
+    for mapping in registry.contracts:
+        enabled = mapping.require_trading_enabled()
+        resolution = contract_authority.master.resolve_for_execution(
+            enabled.data_symbol,
+            decision_at=contract_authority.decision_at,
+        )
+        _contract, rule = contract_authority.master.require_execution_contract(resolution)
+        rules[enabled.data_symbol] = FuturesExecutionRule(
+            margin_rate=rule.initial_margin_rate,
+            max_position_lots=None,
         )
     return rules
 
@@ -631,15 +691,17 @@ def run_live_preflight(profile_id: str | None = None) -> dict:
     valuation_prices = _latest_valuation_price_map(raw_market_df)
     target_snapshot = load_latest_daily_targets(profile)
     pipeline = target_snapshot.bundle
-    broker = _pick_broker()
+    broker = _pick_broker(profile=profile)
     broker.connect()
     try:
         state = broker.sync_state()
+        contract_authority = _contract_authority_for_broker_state(profile, broker, state)
         execution_symbols = _collect_execution_symbols(
             profile,
             pipeline.frame,
             state,
             broker_name=broker.get_name(),
+            contract_authority=contract_authority,
         )
         (
             execution_reference_prices,
@@ -843,7 +905,7 @@ def run_shadow_once(profile_id: str | None = None) -> dict:
     signal_market_df = load_profile_signal_data(profile)
     valuation_prices = _latest_valuation_price_map(raw_market_df)
 
-    broker = _pick_broker()
+    broker = _pick_broker(profile=profile)
     broker.connect()
     try:
         pipeline = run_profile_strategy_pipeline(signal_market_df, profile, latest_only=True)
@@ -867,6 +929,11 @@ def run_shadow_once(profile_id: str | None = None) -> dict:
                 signal_data_frame=signal_market_df,
             )
             state = broker.sync_state()
+            contract_authority = _contract_authority_for_broker_state(
+                profile,
+                broker,
+                state,
+            )
             account = str(
                 state.account
                 or broker.get_account()
@@ -885,6 +952,7 @@ def run_shadow_once(profile_id: str | None = None) -> dict:
                 pipeline.frame,
                 state,
                 broker_name=broker.get_name(),
+                contract_authority=contract_authority,
             )
             (
                 execution_reference_prices,
@@ -942,6 +1010,12 @@ def run_shadow_once(profile_id: str | None = None) -> dict:
                         raw_market_df,
                         profile,
                         broker_name=broker.get_name(),
+                        contract_authority=contract_authority,
+                    ),
+                    contract_registry=(
+                        contract_authority.registry
+                        if contract_authority is not None
+                        else None
                     ),
                 )
                 batch_id = f"shadow-batch-{uuid4().hex[:12]}"
@@ -1023,7 +1097,7 @@ def execute_latest_targets_once(profile_id: str | None = None) -> list[str]:
     limits = build_profile_risk_limits(profile)
     run_id = f"live-run-{uuid4().hex}"
 
-    broker = _pick_broker()
+    broker = _pick_broker(profile=profile)
     account_getter = getattr(broker, "get_account", None)
     account = str(
         (account_getter() if callable(account_getter) else None)
@@ -1069,6 +1143,11 @@ def execute_latest_targets_once(profile_id: str | None = None) -> list[str]:
         broker.connect()
         with SessionLocal() as session:
             state = broker.sync_state()
+            contract_authority = _contract_authority_for_broker_state(
+                profile,
+                broker,
+                state,
+            )
             sync_result = reconcile_broker_state(
                 session,
                 broker,
@@ -1081,6 +1160,7 @@ def execute_latest_targets_once(profile_id: str | None = None) -> list[str]:
                 pipeline.frame,
                 state,
                 broker_name=broker.get_name(),
+                contract_authority=contract_authority,
             )
             (
                 execution_reference_prices,
@@ -1199,6 +1279,12 @@ def execute_latest_targets_once(profile_id: str | None = None) -> list[str]:
                     raw_market_df,
                     profile,
                     broker_name=broker.get_name(),
+                    contract_authority=contract_authority,
+                ),
+                contract_registry=(
+                    contract_authority.registry
+                    if contract_authority is not None
+                    else None
                 ),
             )
             batch_id = build_execution_batch_id(
@@ -1403,7 +1489,7 @@ def sync_broker_once(profile_id: str | None = None) -> dict:
     profile = _load_broker_profile(profile_id, context="live.sync")
     sync_logger = logger.bind(command="live.sync", profile=profile.profile_id)
     sync_logger.info("开始执行券商状态同步")
-    broker = _pick_broker()
+    broker = _pick_broker(profile=profile)
     broker.connect()
     try:
         with SessionLocal() as session:
@@ -1426,10 +1512,11 @@ def run_runtime_risk_monitor_once(profile_id: str | None = None) -> dict[str, ob
         command="live.risk-check",
         profile=profile.profile_id,
     )
-    broker = _pick_broker()
+    broker = _pick_broker(profile=profile)
     broker.connect()
     try:
         state = broker.sync_state()
+        contract_authority = _contract_authority_for_broker_state(profile, broker, state)
         raw_market_df = load_profile_market_data(profile)
         valuation_prices = _latest_valuation_price_map(raw_market_df)
         account = str(
@@ -1453,6 +1540,7 @@ def run_runtime_risk_monitor_once(profile_id: str | None = None) -> dict[str, ob
             target_frame,
             state,
             broker_name=broker.get_name(),
+            contract_authority=contract_authority,
         )
         _, _, quotes = _resolve_execution_reference_prices(
             broker,
@@ -1513,15 +1601,17 @@ def preview_rebalance(profile_id: str | None = None) -> list[dict]:
     raw_market_df = load_profile_market_data(profile)
     valuation_prices = _latest_valuation_price_map(raw_market_df)
     pipeline = load_latest_daily_targets(profile).bundle
-    broker = _pick_broker()
+    broker = _pick_broker(profile=profile)
     broker.connect()
     try:
         state = broker.sync_state()
+        contract_authority = _contract_authority_for_broker_state(profile, broker, state)
         execution_symbols = _collect_execution_symbols(
             profile,
             pipeline.frame,
             state,
             broker_name=broker.get_name(),
+            contract_authority=contract_authority,
         )
         (
             execution_reference_prices,
@@ -1550,6 +1640,12 @@ def preview_rebalance(profile_id: str | None = None) -> list[dict]:
                 raw_market_df,
                 profile,
                 broker_name=broker.get_name(),
+                contract_authority=contract_authority,
+            ),
+            contract_registry=(
+                contract_authority.registry
+                if contract_authority is not None
+                else None
             ),
         )
         preview_logger.bind(
@@ -1629,7 +1725,7 @@ def poll_orders_and_fills_once(profile_id: str | None = None) -> dict:
     profile = _load_broker_profile(profile_id, context="live.poll")
     poll_logger = logger.bind(command="live.poll", profile=profile.profile_id)
     poll_logger.info("开始轮询订单状态与成交")
-    broker = _pick_broker()
+    broker = _pick_broker(profile=profile)
     broker.connect()
     try:
         with SessionLocal() as session:
@@ -1689,7 +1785,8 @@ def cancel_stale_orders_once() -> dict:
     cancel_logger = logger.bind(command="live.cancel-stale")
     cancel_logger.info("开始执行超时订单撤单")
     settings = get_settings()
-    broker = _pick_broker()
+    profile = _load_broker_profile(None, context="live.cancel-stale")
+    broker = _pick_broker(profile=profile)
     account = str(broker.get_account() or "").strip()
     if not account:
         raise RuntimeError("撤单前无法确定券商账户，已停止操作。")

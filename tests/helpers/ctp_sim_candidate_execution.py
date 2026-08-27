@@ -6,6 +6,7 @@ from collections.abc import Callable
 from datetime import datetime
 
 from northstar_quant.application.ctp_sim_candidate_execution import (
+    ContractAuthorityResolver,
     CtpSimCandidateExecutor,
 )
 from northstar_quant.foundation.config.settings import Settings
@@ -16,6 +17,7 @@ def create_test_ctp_sim_candidate_executor(
     *,
     settings_provider: Callable[[], Settings] | None = None,
     clock: Callable[[], datetime] | None = None,
+    contract_authority_resolver: ContractAuthorityResolver | None = None,
     session_factory: SessionFactory | None = None,
 ) -> CtpSimCandidateExecutor:
     """Inject deterministic runtime facts only from test composition code.
@@ -31,6 +33,12 @@ def create_test_ctp_sim_candidate_executor(
         object.__setattr__(executor, "_settings_provider", settings_provider)
     if clock is not None:
         object.__setattr__(executor, "_clock", clock)
+    if contract_authority_resolver is not None:
+        object.__setattr__(
+            executor,
+            "_contract_authority_resolver",
+            contract_authority_resolver,
+        )
     if session_factory is not None:
         object.__setattr__(executor, "_broker_session_factory", session_factory)
     return executor

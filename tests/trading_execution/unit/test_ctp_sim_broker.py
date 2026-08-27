@@ -17,6 +17,15 @@ from northstar_quant.trading_execution.execution.models import (
     OrderRequest,
 )
 from tests.helpers.ctp_sim_submission import create_test_ctp_sim_submission_authority
+from tests.helpers.contract_authority import build_test_futures_contract_authority
+
+
+def _contract_authority_kwargs() -> dict[str, object]:
+    authority = build_test_futures_contract_authority()
+    return {
+        "registry": authority.registry,
+        "registry_publication_hash": authority.registry_publication.publication_hash,
+    }
 
 
 def _broker(
@@ -37,6 +46,7 @@ def _broker(
     )
     monkeypatch.setattr(ctp_sim_broker, "get_settings", lambda: settings)
     broker = CtpSimBrokerAdapter(
+        **_contract_authority_kwargs(),
         submission_authority=create_test_ctp_sim_submission_authority(),
         session_factory=session_factory,
     )
@@ -382,7 +392,10 @@ def test_ctp_sim_rejects_raw_submission_without_final_guard_without_mutating_sta
     )
     monkeypatch.setattr(ctp_sim_broker, "get_settings", lambda: settings)
     try:
-        broker = CtpSimBrokerAdapter(session_factory=postgresql_session_factory)
+        broker = CtpSimBrokerAdapter(
+            **_contract_authority_kwargs(),
+            session_factory=postgresql_session_factory,
+        )
         broker.connect()
         broker.seed_market_quotes({"RB2610": 3100.0})
         state_before = broker._state_repository.read_state()
@@ -441,6 +454,7 @@ def test_ctp_sim_rejects_a_structural_noop_object_as_submission_authority(
             match="CTP_SIM_SUBMISSION_AUTHORITY_INVALID",
         ):
             CtpSimBrokerAdapter(
+                **_contract_authority_kwargs(),
                 submission_authority=ForgedAuthority(),  # type: ignore[arg-type]
                 session_factory=postgresql_session_factory,
             )
@@ -464,10 +478,14 @@ def test_ctp_sim_account_override_uses_an_independent_postgresql_state_scope(
     monkeypatch.setattr(ctp_sim_broker, "get_settings", lambda: settings)
     try:
         overridden = CtpSimBrokerAdapter(
+            **_contract_authority_kwargs(),
             account="ctp-sim-override",
             session_factory=postgresql_session_factory,
         )
-        configured = CtpSimBrokerAdapter(session_factory=postgresql_session_factory)
+        configured = CtpSimBrokerAdapter(
+            **_contract_authority_kwargs(),
+            session_factory=postgresql_session_factory,
+        )
         overridden.connect()
         configured.connect()
         overridden.seed_market_quotes({"RB2610": 3100.0})
@@ -515,7 +533,10 @@ def test_ctp_sim_broker_status_never_allows_risk_before_explicit_connect(
     )
     monkeypatch.setattr(ctp_sim_broker, "get_settings", lambda: settings)
     try:
-        broker = CtpSimBrokerAdapter(session_factory=postgresql_session_factory)
+        broker = CtpSimBrokerAdapter(
+            **_contract_authority_kwargs(),
+            session_factory=postgresql_session_factory,
+        )
         assert broker.broker_status().connection_state is BrokerConnectionState.DISCONNECTED
         assert broker.broker_status().permits_new_risk is False
         broker.connect()

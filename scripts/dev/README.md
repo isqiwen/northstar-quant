@@ -75,8 +75,8 @@ staging/previous 目录，并排除它们的文件监听。
 自动化之外手动执行；`dev-postgres` recipe 仅验证/复用已有本地服务并执行非破坏性的 Alembic 升级。
 
 开发期迁移已压缩为唯一完整基线 `0001_current_schema_baseline`，不支持旧 revision 的就地升级。若已保留的本地数据库记录了
-其他 `alembic_version`，`dev-postgres` 会失败关闭；操作者必须在仓库自动化之外手动重建该本地开发数据库，随后再运行
-`python scripts/dev/run_just.py dev-postgres`。脚本绝不会自动 reset、stamp、drop、truncate 或删除数据库。
+其他 `alembic_version`，或 revision 名称相同但 schema 早于当前完整基线，`dev-postgres` 会失败关闭；操作者必须在仓库自动化之外
+手动重建该本地开发数据库，随后再运行 `python scripts/dev/run_just.py dev-postgres`。脚本绝不会自动 reset、stamp、drop、truncate 或删除数据库。
 
 ## 项目初始化
 

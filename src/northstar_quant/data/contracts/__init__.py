@@ -17,6 +17,11 @@ from northstar_quant.data.contracts.contract_master import (
     ListingState,
     RuleQualityStatus,
 )
+from northstar_quant.data.contracts.postgresql_contract_authority import (
+    ContractAuthorityError,
+    ContractMasterPublication,
+    PostgresContractMasterPublicationRepository,
+)
 from northstar_quant.data.contracts.data_domain import (
     ArtifactKind,
     ArtifactMetadata,
@@ -47,9 +52,11 @@ __all__ = [
     "DerivedArtifact",
     "Commodity",
     "Contract",
+    "ContractAuthorityError",
     "ContractFeeSchedule",
     "ContractMaster",
     "ContractMasterError",
+    "ContractMasterPublication",
     "ContractResolution",
     "ContractResolutionStatus",
     "ContractRuleSnapshot",
@@ -61,6 +68,7 @@ __all__ = [
     "ListingState",
     "LicenseMetadata",
     "NormalizedArtifact",
+    "PostgresContractMasterPublicationRepository",
     "QualityStatus",
     "RawArtifact",
     "RuleQualityStatus",

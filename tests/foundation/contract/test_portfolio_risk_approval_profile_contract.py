@@ -125,6 +125,12 @@ def test_simulated_profile_exposes_one_complete_profile_owned_p3_policy() -> Non
             "portfolio_risk_approval.taxonomy and ctp_sim_execution_rules must cover",
         ),
         (
+            lambda raw: _approval(raw)["ctp_sim_execution_rules"]["rb"].__setitem__(
+                "margin_rate", 0.1
+            ),
+            "portfolio_risk_approval.ctp_sim_execution_rules.rb has an invalid field set",
+        ),
+        (
             lambda raw: _approval(raw).pop("manual_approval_verifier_id"),
             "portfolio_risk_approval has an invalid field set",
         ),
@@ -148,6 +154,7 @@ def test_simulated_profile_exposes_one_complete_profile_owned_p3_policy() -> Non
         "unknown-scenario-kind",
         "non-positive-shock",
         "taxonomy-rule-product-drift",
+        "profile-margin-rate-forbidden",
         "missing-manual-verifier",
         "empty-authorized-approvers",
         "duplicate-authorized-approvers",

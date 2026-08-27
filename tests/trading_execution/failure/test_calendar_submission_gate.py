@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import UTC, date, datetime, time
+from datetime import UTC, date, datetime, time, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 from zoneinfo import ZoneInfo
@@ -11,6 +11,10 @@ from zoneinfo import ZoneInfo
 import pytest
 
 from northstar_quant.application import calendar_gate, live_service
+from northstar_quant.application.contract_authority import (
+    FuturesContractAuthority,
+    FuturesContractAuthorityError,
+)
 from northstar_quant.application.calendar_gate import (
     CalendarGateError,
     assert_execution_contract_admissible,
@@ -45,7 +49,15 @@ from northstar_quant.data.contracts import (
     QualityStatus,
     RuleQualityStatus,
 )
+from northstar_quant.data.contracts.postgresql_contract_authority import (
+    ContractMasterPublication,
+)
 from northstar_quant.foundation.common.enums import AssetType
+from northstar_quant.trading_execution.broker.ctp_contract_mapping import (
+    CtpContractMapping,
+    CtpContractRegistry,
+    CtpContractRegistryPublication,
+)
 from northstar_quant.trading_execution.broker.broker_base import BrokerAdapter
 from northstar_quant.trading_execution.execution.models import OrderRequest, OrderResult
 from northstar_quant.trading_execution.execution.router import OrderRouter
@@ -68,26 +80,10 @@ def _calendar_service() -> CalendarService:
 
 
 def _profile(tmp_path: Path) -> SimpleNamespace:
-    mapping_path = tmp_path / "ctp_sim.yaml"
-    mapping_path.write_text(
-        """
-version: 1
-broker: ctp_sim
-contracts:
-  - continuous_symbol: RB_CONT
-    data_symbol: RB2610
-    instrument_id: rb2610
-    exchange_id: SHFE
-    product_id: rb
-    volume_multiple: 10
-    price_tick: 1
-    trading_enabled: true
-""".strip(),
-        encoding="utf-8",
-    )
+    del tmp_path
     return SimpleNamespace(
         timezone="Asia/Shanghai",
-        futures=SimpleNamespace(ctp_contract_mapping_path=str(mapping_path)),
+        futures=SimpleNamespace(contract_authority_id="calendar-test-authority"),
     )
 
 
@@ -372,10 +368,64 @@ def _execution_master(
     )
 
 
+def _contract_authority(
+    master: ContractMaster,
+    *,
+    at: datetime,
+) -> FuturesContractAuthority:
+    """Inject a typed PostgreSQL-style authority without a YAML fallback."""
+
+    decision_at = at.astimezone(UTC)
+    observed_at = decision_at - timedelta(days=1)
+    master_publication = ContractMasterPublication(
+        authority_id="calendar-test-authority",
+        publication_id=f"calendar-master-{master.fingerprint[:12]}",
+        observed_at=observed_at,
+        available_at=observed_at,
+        source_artifact_hash="e" * 64,
+        source_authority="calendar-contract-authority-test",
+        master=master,
+    )
+    registry = CtpContractRegistry(
+        version=1,
+        broker="ctp_sim",
+        contracts=(
+            CtpContractMapping(
+                continuous_symbol="RB_CONT",
+                data_symbol="RB2610",
+                instrument_id="rb2610",
+                exchange_id="SHFE",
+                product_id="rb",
+                volume_multiple=10,
+                price_tick=1.0,
+                trading_enabled=True,
+            ),
+        ),
+    )
+    registry_publication = CtpContractRegistryPublication(
+        authority_id=master_publication.authority_id,
+        publication_id=f"calendar-registry-{master.fingerprint[:12]}",
+        master_publication_hash=master_publication.publication_hash,
+        observed_at=observed_at,
+        available_at=observed_at,
+        effective_from=observed_at,
+        effective_until=None,
+        source_artifact_hash="f" * 64,
+        source_authority="calendar-ctp-registry-test",
+        registry=registry,
+    )
+    return FuturesContractAuthority(
+        decision_at=decision_at,
+        master_publication=master_publication,
+        registry_publication=registry_publication,
+    )
+
+
 def test_closed_holiday_calendar_blocks_after_prepare_and_before_broker_submit(tmp_path: Path) -> None:
     profile = _profile(tmp_path)
     broker = _PreparedContractBroker()
-    rules = _execution_master().rule_snapshots[0]
+    master = _execution_master()
+    rules = master.rule_snapshots[0]
     observed: list[OrderRequest] = []
 
     def guard(order: OrderRequest) -> None:
@@ -387,6 +437,10 @@ def test_closed_holiday_calendar_blocks_after_prepare_and_before_broker_submit(t
             calendar_service=_calendar_service(),
             contract_rule_snapshot=rules,
             at=_local(2026, 2, 20, 10),
+            contract_authority=_contract_authority(
+                master,
+                at=_local(2026, 2, 20, 10),
+            ),
         )
 
     router = OrderRouter(
@@ -407,7 +461,8 @@ def test_closed_holiday_calendar_blocks_after_prepare_and_before_broker_submit(t
 def test_explicit_night_session_allows_final_actual_contract_identity(tmp_path: Path) -> None:
     profile = _profile(tmp_path)
     broker = _PreparedContractBroker()
-    rules = _execution_master().rule_snapshots[0]
+    master = _execution_master()
+    rules = master.rule_snapshots[0]
 
     def guard(order: OrderRequest) -> None:
         decision = assert_order_calendar_open(
@@ -417,6 +472,10 @@ def test_explicit_night_session_allows_final_actual_contract_identity(tmp_path: 
             calendar_service=_calendar_service(),
             contract_rule_snapshot=rules,
             at=_local(2026, 1, 4, 21, 15),
+            contract_authority=_contract_authority(
+                master,
+                at=_local(2026, 1, 4, 21, 15),
+            ),
         )
         assert decision.session is not None
         assert decision.session.session_id == "NIGHT"
@@ -441,7 +500,7 @@ def test_actual_contract_rule_session_can_narrow_an_open_product_calendar_sessio
     """实际月份合约临时缩短交易时段时，较宽的品种日历不能单独放行。"""
 
     profile = _profile(tmp_path)
-    rules = _execution_master(
+    master = _execution_master(
         sessions=(
             ContractTradingSession(
                 session_id="DAY",
@@ -449,7 +508,8 @@ def test_actual_contract_rule_session_can_narrow_an_open_product_calendar_sessio
                 closes_at=time(10),
             ),
         )
-    ).rule_snapshots[0]
+    )
+    rules = master.rule_snapshots[0]
 
     with pytest.raises(CalendarGateError, match="TRADING_CONTRACT_SESSION_BLOCKED"):
         assert_order_calendar_open(
@@ -459,6 +519,10 @@ def test_actual_contract_rule_session_can_narrow_an_open_product_calendar_sessio
             calendar_service=_calendar_service(),
             contract_rule_snapshot=rules,
             at=_local(2026, 1, 5, 14),
+            contract_authority=_contract_authority(
+                master,
+                at=_local(2026, 1, 5, 14),
+            ),
         )
 
 
@@ -466,12 +530,13 @@ def test_contract_master_gate_accepts_only_current_actual_contract_with_pass_rul
     tmp_path: Path,
 ) -> None:
     profile = _profile(tmp_path)
+    at = _local(2026, 1, 5, 10)
     contract, rules = assert_execution_contract_admissible(
         profile=profile,
         broker_name="ctp_sim",
         order=replace(_order(), instrument_id="rb2610", exchange_id="SHFE"),
-        at=_local(2026, 1, 5, 10),
-        contract_master=_execution_master(),
+        at=at,
+        contract_authority=_contract_authority(_execution_master(), at=at),
     )
 
     assert contract.symbol == "RB2610"
@@ -492,20 +557,15 @@ def test_contract_master_gate_blocks_expiry_delivery_and_unknown_rules(
     tmp_path: Path,
     master: ContractMaster,
 ) -> None:
-    profile = _profile(tmp_path)
+    del tmp_path
 
-    with pytest.raises(CalendarGateError, match="TRADING_CONTRACT_MASTER_BLOCKED"):
-        assert_execution_contract_admissible(
-            profile=profile,
-            broker_name="ctp_sim",
-            order=replace(_order(), instrument_id="rb2610", exchange_id="SHFE"),
-            at=_local(2026, 1, 5, 10),
-            contract_master=master,
-        )
+    with pytest.raises(FuturesContractAuthorityError):
+        _contract_authority(master, at=_local(2026, 1, 5, 10))
 
 
 def test_missing_final_actual_contract_identity_never_guesses_product(tmp_path: Path) -> None:
     profile = _profile(tmp_path)
+    master = _execution_master()
 
     with pytest.raises(CalendarGateError, match="CONTRACT_IDENTITY_REQUIRED"):
         assert_order_calendar_open(
@@ -515,6 +575,10 @@ def test_missing_final_actual_contract_identity_never_guesses_product(tmp_path: 
             calendar_service=_calendar_service(),
             contract_rule_snapshot=_execution_master().rule_snapshots[0],
             at=_local(2026, 1, 4, 21, 15),
+            contract_authority=_contract_authority(
+                master,
+                at=_local(2026, 1, 4, 21, 15),
+            ),
         )
 
 
@@ -692,6 +756,10 @@ def test_scheduler_day_gate_requires_each_enabled_product_to_have_a_declared_ses
         profile=profile,
         broker_name="ctp_sim",
         at=_local(2026, 1, 5, 10),
+        contract_authority=_contract_authority(
+            _execution_master(),
+            at=_local(2026, 1, 5, 10),
+        ),
     )
 
     assert len(decisions) == 1
@@ -714,6 +782,10 @@ def test_execution_session_guard_allows_friday_night_when_calendar_attributes_it
         profile=profile,
         broker_name="ctp_sim",
         at=_local(2026, 1, 2, 21, 15),
+        contract_authority=_contract_authority(
+            _execution_master(),
+            at=_local(2026, 1, 2, 21, 15),
+        ),
     )
 
     assert len(decisions) == 1

@@ -28,18 +28,18 @@
 ~~~yaml
 active_phase: P10
 active_work_package:
-  id: MAINT-WP02
-  title: Native Linux PostgreSQL Development / Docker Removal
-  status: VERIFY
+  id: P10-WP08
+  title: Platform Production / DR Acceptance
+  status: BLOCKED
 next_task:
   id: P10-WP08
   title: Platform Production / DR Acceptance
   status: BLOCKED
-blocked_work_packages: [P10-WP08, P10-WP09]
+blocked_work_packages: [P10-WP08, P10-WP09, MAINT-WP02]
 ~~~
 
-P10-WP08 和 P10-WP09 缺少外部前提。不得以本地 loopback、offline、paper 或 ctp_sim 结果替代这些前提，
-也不得为了绕过阻塞而改变 next task。
+所有剩余工作包均缺少外部前提。不得以本地 loopback、offline、paper 或 ctp_sim 结果替代这些前提，
+也不得将任一项标记为 READY 或 DONE 来绕过阻塞。
 
 ## 3. 全局安全与质量边界
 
@@ -103,75 +103,11 @@ python scripts/dev/run_uv.py run --offline --no-sync python scripts/ci/check_myp
 **Fail-closed boundary:** 外部前提不足时保持 NO NEW RISK；fixture、synthetic data 或 ctp_sim
 不得伪造数据授权。
 
-### DEV-WP01 — Development Alembic Baseline Consolidation
-
-**Status:** IN_PROGRESS
-
-**Goal:** 保持单个显式 PostgreSQL 当前 schema baseline，同时不为旧开发数据库维护兼容迁移链。
-
-**Acceptance:**
-
-- alembic/versions 只保留无 parent 的 0001_current_schema_baseline，baseline 是静态 schema，
-  不调用 ORM metadata；
-- fresh isolated PostgreSQL 可 upgrade head、重复升级并通过 alembic check；
-- baseline 保留当前 ORM schema、ResearchAgent audit check constraints 以及拒绝 UPDATE、DELETE、TRUNCATE
-  的不可变审计触发器；
-- 仓库自动化只执行 upgrade head，不增加 reset、drop、truncate、stamp 或 downgrade；
-- 旧 revision 的本地库只能由操作者在仓库自动化之外手动重建；
-- 不改变领域语义、broker、账户、真实 CTP 或 live trading 能力。
-
-### DEV-WP02 — Four-Tier Storage Boundary
-
-**Status:** VERIFY
-
-**Goal:** 固化四层存储职责，不让任何非权威存储越过核心边界。
-
-**Acceptance:**
-
-- PostgreSQL 是交易、风险、审批、对账、审计和核心运行状态的唯一权威来源；
-- Parquet 保存受治理的历史 tick、bars、factors、features、research 与 backtest 制品，并保留版本、
-  manifest、hash、lineage、PIT、license 与 retention；
-- DuckDB 只读查询受治理的 Parquet，用于可重放历史分析，不得直写核心状态；
-- SQLite 仅用于显式、隔离的 local tools，不得成为核心 PostgreSQL 不可用时的 fallback，也不得保存订单、
-  成交、持仓、策略状态、风险、审批、对账或审计事实；
-- 不削弱 PostgreSQL integration、preflight、风险门禁或数据库保全。
-
-### DEV-WP03 — PostgreSQL Trading-State Authority
-
-**Status:** VERIFY
-
-**Dependencies:** DEV-WP02。
-
-**Acceptance:**
-
-- PaperBrokerAdapter 与 CtpSimBrokerAdapter 不以 state.json 作为订单、成交、持仓、资金或状态机的权威来源；
-- broker snapshot、durable intent、ledger、risk 与 reconciliation 保持相同 broker/account scope 的可解释性、
-  幂等性与失败关闭；
-- schema、repository、Alembic、配置、文档和 unit / PostgreSQL integration / candidate E2E 测试同步；
-- 不连接真实 CTP、不使用真实账户、不执行实盘操作；
-- 旧开发数据库仍只能由操作者在仓库自动化之外手动重建。
-
-### DEV-WP04 — PostgreSQL Contract Authority
-
-**Status:** TODO
-
-**Dependencies:** DEV-WP02。
-
-**Goal:** 将 Contract Master 与 CTP mapping 迁入具有时间版本、来源证据和 PIT 语义的 PostgreSQL 权威边界。
-
-**Acceptance:**
-
-- 合约、品种、instrument、mapping、费用、保证金和交易规则可按 available_time 重放；
-- 旧 YAML 配置路径与新 PostgreSQL 路径不形成双写、兼容 shim 或静默 fallback，所有调用方在同一 breaking
-  change 中迁移；
-- migration、repository、PIT、preflight、execution integration 测试和文档同步完成；
-- 历史研究、preflight 和订单放行不使用未来合约、规则或 mapping。
-
 ### MAINT-WP02 — Native Linux PostgreSQL Development / Docker Removal
 
-**Status:** VERIFY
+**Status:** BLOCKED
 
-**Dependencies:** DOC-WP08 implementation baseline。
+**Dependencies:** 无待办开发依赖；仍需外部首次安装验证环境。
 
 **Goal:** Linux 开发只使用绑定 127.0.0.1:5432 的原生 PostgreSQL，移除 Docker/Compose 与 hosted CI 依赖，
 同时绝不损害现有 PostgreSQL 数据或配置。
@@ -187,22 +123,11 @@ python scripts/dev/run_uv.py run --offline --no-sync python scripts/ci/check_myp
   认证规则或服务配置；
 - 仅在 northstar 角色缺失时才可由本机 postgres OS 身份创建最小角色；已有角色绝不 ALTER 或覆盖；
 - 仓库不保留 GitHub Actions workflow 或 hosted-run 验收依赖，本地质量门禁仍可显式运行；
-- 缺少客户端或服务的 Ubuntu/Debian 首次自动安装分支完成实际受控验证；在此之前只以 mock/contract 结果保持 VERIFY。
+- 缺少客户端或服务的 Ubuntu/Debian 首次自动安装分支完成实际受控验证。
 
-### DOC-WP08 — VS Code Daily Task Surface
-
-**Status:** VERIFY
-
-**Dependencies:** 工作站初始化与本地工具入口可用。
-
-**Acceptance:**
-
-- .vscode/tasks.json 仅保留按约定顺序的四个安全日常任务：开发初始化、完整测试、质量检查和环境诊断；
-- 默认 Test Task 运行完整 test recipe，默认 Build Task 运行 check recipe；
-- test-unit、test-backtest、test-cli、bootstrap 和 deploy-preview 保留受控终端入口；
-- deploy-preview 始终为 dry-run，不添加 apply、SSH 或真实交易动作；
-- 高层 Ubuntu/Debian 初始化可受限安装/启用 loopback PostgreSQL，低层入口仅验证、复用和前向迁移；
-- 不改变数据库 schema、broker、生产部署行为或交易安全门禁。
+**External prerequisite:** 需要一台经授权、可丢弃、未安装 PostgreSQL/client 的 Ubuntu/Debian 主机或 VM，
+由操作者在其上执行高层初始化并确认包安装、systemd、loopback、客户端、最小角色、两个数据库和 forward migration。
+不得以 Docker、hosted CI 或卸载/停止当前主机 PostgreSQL 替代该验证。
 
 ## 5. 状态更新
 

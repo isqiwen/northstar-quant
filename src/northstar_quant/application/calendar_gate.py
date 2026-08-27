@@ -11,6 +11,11 @@ from datetime import UTC, date, datetime
 from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from northstar_quant.application.contract_authority import (
+    FuturesContractAuthority,
+    FuturesContractAuthorityError,
+    resolve_futures_contract_authority,
+)
 from northstar_quant.data.artifacts.immutable_store import (
     ArtifactStore,
     ArtifactStoreError,
@@ -30,11 +35,9 @@ from northstar_quant.data.calendars import (
 from northstar_quant.data.contracts import ArtifactKind, QualityStatus
 from northstar_quant.data.contracts.contract_master import (
     Contract,
-    ContractMaster,
     ContractMasterError,
     ContractRuleSnapshot,
 )
-from northstar_quant.data.contracts.contract_master_loader import load_contract_master
 from northstar_quant.foundation.config.data_sources import (
     DataSourceConfigError,
     data_source_config_sha256,
@@ -44,7 +47,6 @@ from northstar_quant.foundation.config.settings import get_settings
 from northstar_quant.trading_execution.broker.ctp_contract_mapping import (
     CtpContractMapping,
     CtpContractMappingError,
-    load_ctp_contract_registry,
 )
 from northstar_quant.trading_execution.execution.models import OrderRequest
 
@@ -147,6 +149,7 @@ def assert_order_calendar_open(
     calendar_service: CalendarService,
     contract_rule_snapshot: ContractRuleSnapshot,
     at: datetime | None = None,
+    contract_authority: FuturesContractAuthority | None = None,
 ) -> CalendarDecision:
     """确认最终实际订单处于品种日历与实际合约规则的明确交集会话。
 
@@ -169,6 +172,8 @@ def assert_order_calendar_open(
         profile=profile,
         broker_name=broker_name,
         order=order,
+        decision_at=market_at,
+        contract_authority=contract_authority,
     )
     decision = calendar_service.resolve_market_session(
         exchange_id,
@@ -196,7 +201,7 @@ def assert_execution_contract_admissible(
     broker_name: str,
     order: OrderRequest,
     at: datetime | None = None,
-    contract_master: ContractMaster | None = None,
+    contract_authority: FuturesContractAuthority | None = None,
 ) -> tuple[Contract, ContractRuleSnapshot]:
     """在实际订单提交前重验 Contract Master 的挂牌、到期和交割门禁。
 
@@ -211,9 +216,17 @@ def assert_execution_contract_admissible(
         profile=profile,
         broker_name=broker_name,
         order=order,
+        decision_at=market_at,
+        contract_authority=contract_authority,
     )
     try:
-        master = contract_master or load_contract_master()
+        authority = _authority_for_profile(
+            profile=profile,
+            broker_name=broker_name,
+            decision_at=market_at,
+            contract_authority=contract_authority,
+        )
+        master = authority.master
         resolution = master.resolve_for_execution(
             mapping.data_symbol,
             decision_at=market_at,
@@ -296,6 +309,7 @@ def assert_profile_calendar_trading_day(
     profile: TradingProfile,
     broker_name: str,
     at: datetime | None = None,
+    contract_authority: FuturesContractAuthority | None = None,
 ) -> tuple[CalendarDecision, ...]:
     """确认调度画像中的每个已启用实际品种都有已知交易日。
 
@@ -308,6 +322,7 @@ def assert_profile_calendar_trading_day(
         profile=profile,
         broker_name=broker_name,
         at=at,
+        contract_authority=contract_authority,
     )
     decisions = tuple(
         calendar_service.is_trading_day(
@@ -333,6 +348,7 @@ def assert_profile_calendar_market_session(
     profile: TradingProfile,
     broker_name: str,
     at: datetime | None = None,
+    contract_authority: FuturesContractAuthority | None = None,
 ) -> tuple[CalendarDecision, ...]:
     """确认调度当前绝对时点处于所有已启用品种的明确交易会话。
 
@@ -345,6 +361,7 @@ def assert_profile_calendar_market_session(
         profile=profile,
         broker_name=broker_name,
         at=at,
+        contract_authority=contract_authority,
     )
     decisions = tuple(
         calendar_service.resolve_market_session(
@@ -371,6 +388,7 @@ def is_profile_last_trading_day(
     broker_name: str,
     period: str,
     at: datetime | None = None,
+    contract_authority: FuturesContractAuthority | None = None,
 ) -> bool:
     """判断是否为日历快照可证明的当月或当年最后交易日。
 
@@ -384,6 +402,7 @@ def is_profile_last_trading_day(
         profile=profile,
         broker_name=broker_name,
         at=at,
+        contract_authority=contract_authority,
     )
     current_decisions = tuple(
         calendar_service.is_trading_day(
@@ -426,6 +445,8 @@ def _stable_calendar_instrument_identity(
     profile: TradingProfile,
     broker_name: str,
     order: OrderRequest,
+    decision_at: datetime,
+    contract_authority: FuturesContractAuthority | None,
 ) -> tuple[str, str]:
     """以已启用的 CTP 实际合约映射取得稳定品种身份。
 
@@ -437,6 +458,8 @@ def _stable_calendar_instrument_identity(
         profile=profile,
         broker_name=broker_name,
         order=order,
+        decision_at=decision_at,
+        contract_authority=contract_authority,
     )
     return mapping.exchange_id, f"{mapping.exchange_id}.{mapping.product_id.upper()}"
 
@@ -446,6 +469,8 @@ def _resolved_order_ctp_mapping(
     profile: TradingProfile,
     broker_name: str,
     order: OrderRequest,
+    decision_at: datetime,
+    contract_authority: FuturesContractAuthority | None,
 ) -> CtpContractMapping:
     """返回与最终订单逐字段匹配的、已启用 CTP 实际月份映射。"""
 
@@ -457,11 +482,14 @@ def _resolved_order_ctp_mapping(
             "instrument_id 或 exchange_id。"
         )
     try:
-        mapping = _load_profile_ctp_registry(
+        authority = _authority_for_profile(
             profile=profile,
             broker_name=broker_name,
-        ).resolve_ctp_identity(instrument_id, exchange_id)
-    except (CtpContractMappingError, OSError, ValueError) as exc:
+            decision_at=decision_at,
+            contract_authority=contract_authority,
+        )
+        mapping = authority.registry.resolve_ctp_identity(instrument_id, exchange_id)
+    except (CtpContractMappingError, FuturesContractAuthorityError, ValueError) as exc:
         raise CalendarGateError(
             "TRADING_CALENDAR_CONTRACT_IDENTITY_UNRESOLVED: 无法验证实际合约到稳定品种的映射。"
         ) from exc
@@ -480,6 +508,7 @@ def _profile_calendar_context(
     profile: TradingProfile,
     broker_name: str,
     at: datetime | None,
+    contract_authority: FuturesContractAuthority | None,
 ) -> tuple[CalendarService, tuple[tuple[str, str], ...], datetime, date]:
     """构造调度日级判断所需的服务、稳定品种和画像本地日期。"""
 
@@ -492,7 +521,13 @@ def _profile_calendar_context(
             "TRADING_CALENDAR_TIMEZONE_INVALID: 画像缺少有效 IANA 时区。"
         ) from exc
 
-    registry = _load_profile_ctp_registry(profile=profile, broker_name=broker_name)
+    authority = _authority_for_profile(
+        profile=profile,
+        broker_name=broker_name,
+        decision_at=market_at,
+        contract_authority=contract_authority,
+    )
+    registry = authority.registry
     stable_instruments: set[tuple[str, str]] = set()
     try:
         for mapping in registry.contracts:
@@ -519,21 +554,43 @@ def _profile_calendar_context(
     )
 
 
-def _load_profile_ctp_registry(*, profile: TradingProfile, broker_name: str):
-    futures = getattr(profile, "futures", None)
-    mapping_path = str(getattr(futures, "ctp_contract_mapping_path", "") or "").strip()
-    if not mapping_path:
-        raise CalendarGateError(
-            "TRADING_CALENDAR_CONTRACT_IDENTITY_REQUIRED: 画像缺少 CTP 实际合约映射。"
-        )
+def _authority_for_profile(
+    *,
+    profile: TradingProfile,
+    broker_name: str,
+    decision_at: datetime,
+    contract_authority: FuturesContractAuthority | None,
+) -> FuturesContractAuthority:
+    """Use one injected replay or resolve the profile's PostgreSQL authority."""
+
+    normalized_broker = str(broker_name).strip().lower()
     try:
-        return load_ctp_contract_registry(
-            mapping_path,
-            expected_broker=str(broker_name).strip().lower(),
-        )
-    except (CtpContractMappingError, OSError, ValueError) as exc:
+        if contract_authority is None:
+            futures = getattr(profile, "futures", None)
+            authority_id = str(
+                getattr(futures, "contract_authority_id", "") or ""
+            ).strip()
+            if not authority_id:
+                raise FuturesContractAuthorityError("CONTRACT_AUTHORITY_ID_REQUIRED")
+            authority = resolve_futures_contract_authority(
+                authority_id,
+                broker=normalized_broker,
+                decision_at=decision_at,
+            )
+        else:
+            authority = contract_authority
+        if (
+            authority.decision_at != decision_at
+            or authority.registry.broker != normalized_broker
+            or authority.authority_id
+            != str(getattr(profile.futures, "contract_authority_id", "") or "").strip()
+        ):
+            raise FuturesContractAuthorityError("CONTRACT_AUTHORITY_PROFILE_MISMATCH")
+        return authority
+    except FuturesContractAuthorityError as exc:
         raise CalendarGateError(
-            "TRADING_CALENDAR_CONTRACT_IDENTITY_UNRESOLVED: 无法读取已验证的 CTP 实际合约映射。"
+            "TRADING_CALENDAR_CONTRACT_AUTHORITY_UNRESOLVED: "
+            "无法重放当前时点 PostgreSQL 合约权威事实。"
         ) from exc
 
 

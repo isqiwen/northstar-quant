@@ -161,4 +161,5 @@ def test_first_failed_reconciliation_mints_only_genesis_halt_and_no_normal_autho
             reconciliation_safety_state=safety,
             composition=fixture.composition_evidence,
             evaluated_at=fixture.request.checked_at,
+            contract_authority=fixture.contract_authority,
         )

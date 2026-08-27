@@ -25,7 +25,6 @@ from northstar_quant.foundation.common.time import ensure_utc
 from northstar_quant.trading_execution.broker.ctp_contract_mapping import (
     CtpContractMapping,
     CtpContractRegistry,
-    load_ctp_contract_registry,
 )
 from northstar_quant.foundation.config.trading_profile import TradingProfile
 from northstar_quant.trading_execution.execution.models import (
@@ -248,6 +247,7 @@ def build_execution_plan(
     equity: float | None = None,
     broker_name: str | None = None,
     futures_rules: dict[str, FuturesExecutionRule] | None = None,
+    contract_registry: CtpContractRegistry | None = None,
 ) -> list[RebalanceOrderPlan]:
     """按交易画像和输出类型构建“计划”，而不是提交订单。
 
@@ -267,10 +267,14 @@ def build_execution_plan(
             raise ValueError(
                 "CTP_BROKER_REQUIRED: 期货执行计划必须明确使用 ctp_sim 或 ctp。"
             )
-        registry = load_ctp_contract_registry(
-            futures.ctp_contract_mapping_path,
-            expected_broker=normalized_broker,
-        )
+        if type(contract_registry) is not CtpContractRegistry:
+            raise ValueError(
+                "CTP_CONTRACT_AUTHORITY_REQUIRED: "
+                "期货订单计划必须显式注入 PostgreSQL 重放的 CTP registry。"
+            )
+        registry = contract_registry
+        if registry.broker != normalized_broker:
+            raise ValueError("CTP_CONTRACT_AUTHORITY_BROKER_MISMATCH")
         if output_type != StrategyOutputType.TARGET_WEIGHT:
             raise ValueError("期货日线执行当前只接受 target_weight 输出。")
         if any(_is_working_order(row) for row in broker_state.open_orders):

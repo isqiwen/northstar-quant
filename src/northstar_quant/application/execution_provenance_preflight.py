@@ -29,6 +29,7 @@ from northstar_quant.application.research_strategy_activation import (
     ResearchStrategyTargetActivator,
 )
 from northstar_quant.application.portfolio_risk_authority import (
+    ContractAuthorityView,
     PortfolioRiskApprovalAuthority,
     PortfolioRiskAuthorityError,
     PortfolioRiskAuthorityResolver,
@@ -50,7 +51,6 @@ from northstar_quant.portfolio_risk.portfolio.approval import (
 )
 from northstar_quant.trading_execution.broker.ctp_contract_mapping import (
     CtpContractRegistry,
-    load_ctp_contract_registry,
 )
 from northstar_quant.trading_execution.execution import (
     ExecutionPlan,
@@ -377,6 +377,7 @@ class ExecutionProvenanceRequest:
     environment: ExecutionProvenanceEnvironment
     profile: TradingProfile
     settings: Settings
+    contract_authority: ContractAuthorityView
     activation_requests: tuple[ResearchStrategyActivationRequest, ...]
     activation_receipts: tuple[ResearchStrategyActivationReceipt, ...]
     portfolio_risk_approval_request: PortfolioRiskApprovalRequest
@@ -401,6 +402,14 @@ class ExecutionProvenanceRequest:
             raise ExecutionProvenancePreflightError("profile must be a TradingProfile")
         if type(self.settings) is not Settings:
             raise ExecutionProvenancePreflightError("settings must be a Settings instance")
+        try:
+            contract_authority = ContractAuthorityView.from_replayed_authority(
+                self.contract_authority
+            )
+        except PortfolioRiskAuthorityError as exc:
+            raise ExecutionProvenancePreflightError(
+                "contract_authority must be a verified replay authority"
+            ) from exc
         if not isinstance(self.activation_requests, tuple) or not self.activation_requests or not all(
             type(item) is ResearchStrategyActivationRequest for item in self.activation_requests
         ):
@@ -461,7 +470,18 @@ class ExecutionProvenanceRequest:
             raise ExecutionProvenancePreflightError(
                 "market snapshot, plan creation, and preflight check must be time ordered"
             )
+        if contract_authority.decision_at != market_snapshot_at:
+            raise ExecutionProvenancePreflightError(
+                "CONTRACT_AUTHORITY_DECISION_TIME_MISMATCH"
+            )
+        if contract_authority.authority_id != str(
+            getattr(self.profile.futures, "contract_authority_id", "")
+        ):
+            raise ExecutionProvenancePreflightError(
+                "CONTRACT_AUTHORITY_PROFILE_BINDING_MISMATCH"
+            )
         object.__setattr__(self, "preflight_id", preflight_id)
+        object.__setattr__(self, "contract_authority", contract_authority)
         object.__setattr__(self, "plan_id", plan_id)
         object.__setattr__(self, "market_snapshot_at", market_snapshot_at)
         object.__setattr__(self, "plan_created_at", plan_created_at)
@@ -563,6 +583,7 @@ class ExecutionProvenancePreflightReceipt:
     account_snapshot_hash: str
     portfolio_risk_authority_hash: str
     portfolio_risk_policy_hash: str
+    contract_authority_hash: str
     broker_state_hash: str
     reconciliation_state_hash: str
     account_attribution_hash: str
@@ -600,6 +621,7 @@ class ExecutionProvenancePreflightReceipt:
             "account_snapshot_hash",
             "portfolio_risk_authority_hash",
             "portfolio_risk_policy_hash",
+            "contract_authority_hash",
             "broker_state_hash",
             "reconciliation_state_hash",
             "account_attribution_hash",
@@ -637,6 +659,7 @@ class ExecutionProvenancePreflightReceipt:
             "account_snapshot_hash": self.account_snapshot_hash,
             "portfolio_risk_authority_hash": self.portfolio_risk_authority_hash,
             "portfolio_risk_policy_hash": self.portfolio_risk_policy_hash,
+            "contract_authority_hash": self.contract_authority_hash,
             "broker_state_hash": self.broker_state_hash,
             "reconciliation_state_hash": self.reconciliation_state_hash,
             "account_attribution_hash": self.account_attribution_hash,
@@ -678,6 +701,7 @@ class ExecutionProvenancePreflightReceipt:
             "account_snapshot_hash": self.account_snapshot_hash,
             "portfolio_risk_authority_hash": self.portfolio_risk_authority_hash,
             "portfolio_risk_policy_hash": self.portfolio_risk_policy_hash,
+            "contract_authority_hash": self.contract_authority_hash,
             "broker_state_hash": self.broker_state_hash,
             "reconciliation_state_hash": self.reconciliation_state_hash,
             "account_attribution_hash": self.account_attribution_hash,
@@ -893,6 +917,7 @@ def _replay_portfolio_risk_approval(
             reconciliation_safety_state=request.reconciliation_safety_state,
             composition=claimed_request.review_request.composition,
             evaluated_at=claimed_request.review_request.evaluated_at,
+            contract_authority=request.contract_authority,
         )
     except PortfolioRiskAuthorityError as exc:
         raise ExecutionProvenancePreflightError(str(exc)) from exc
@@ -903,6 +928,10 @@ def _replay_portfolio_risk_approval(
     if authority.broker_state_hash != trusted_broker_state_hash(request.account_snapshot):
         raise ExecutionProvenancePreflightError(
             "PORTFOLIO_RISK_AUTHORITY_BROKER_STATE_MISMATCH"
+        )
+    if authority.contract_authority_hash != request.contract_authority.authority_hash:
+        raise ExecutionProvenancePreflightError(
+            "PORTFOLIO_RISK_AUTHORITY_CONTRACT_AUTHORITY_MISMATCH"
         )
     if (
         authority.reconciliation_state_hash
@@ -1049,6 +1078,31 @@ def _validate_runtime_data(
             or mapping.volume_multiple != rule.volume_multiple
         ):
             raise ExecutionProvenancePreflightError("CONTRACT_MAPPING_MISMATCH")
+        try:
+            resolution = request.contract_authority.master.resolve_for_execution(
+                rule.symbol,
+                decision_at=request.market_snapshot_at,
+            )
+            _contract, authority_rule = request.contract_authority.master.require_execution_contract(
+                resolution
+            )
+        except ValueError as exc:
+            raise ExecutionProvenancePreflightError(
+                "CONTRACT_AUTHORITY_RULE_UNRESOLVED"
+            ) from exc
+        if (
+            rule.available_at != authority_rule.available_at
+            or rule.effective_at != authority_rule.effective_from
+            or not math.isclose(
+                rule.rule.margin_rate,
+                authority_rule.initial_margin_rate,
+                rel_tol=0,
+                abs_tol=1e-12,
+            )
+        ):
+            raise ExecutionProvenancePreflightError(
+                "CONTRACT_AUTHORITY_RULE_EVIDENCE_MISMATCH"
+            )
         rule_by_symbol[rule.symbol] = rule
     expected_symbols = tuple(
         sorted(position.instrument_id.upper() for position in portfolio_target.positions)
@@ -1238,6 +1292,7 @@ def _plan_hash(
     account_snapshot_hash: str,
     portfolio_risk_authority_hash: str,
     portfolio_risk_policy_hash: str,
+    contract_authority_hash: str,
     broker_state_hash: str,
     reconciliation_state_hash: str,
     contract_rule_evidence_hash: str,
@@ -1253,6 +1308,7 @@ def _plan_hash(
             "account_snapshot_hash": account_snapshot_hash,
             "portfolio_risk_authority_hash": portfolio_risk_authority_hash,
             "portfolio_risk_policy_hash": portfolio_risk_policy_hash,
+            "contract_authority_hash": contract_authority_hash,
             "broker_state_hash": broker_state_hash,
             "reconciliation_state_hash": reconciliation_state_hash,
             "market_snapshot_at": request.market_snapshot_at.isoformat(),
@@ -1290,13 +1346,9 @@ class ExecutionProvenancePreflight:
         portfolio_risk = _replay_portfolio_risk_approval(request, receipts)
         portfolio_target = portfolio_risk.portfolio_target
         approved_target = portfolio_risk.approved_target
-        futures = request.profile.futures
-        if futures is None:  # Kept explicit for type narrowing and fail-closed behavior.
-            raise ExecutionProvenancePreflightError("PROFILE_REFUSED")
-        registry = load_ctp_contract_registry(
-            futures.ctp_contract_mapping_path,
-            expected_broker=ExecutionProvenanceEnvironment.CTP_SIM.value,
-        )
+        registry = request.contract_authority.registry
+        if registry.broker != ExecutionProvenanceEnvironment.CTP_SIM.value:
+            raise ExecutionProvenancePreflightError("CONTRACT_AUTHORITY_BROKER_MISMATCH")
         quote_by_symbol, rule_by_symbol = _validate_runtime_data(
             request,
             registry,
@@ -1327,6 +1379,7 @@ class ExecutionProvenancePreflight:
             created_at=request.plan_created_at,
             broker_name=ExecutionProvenanceEnvironment.CTP_SIM.value,
             futures_rules=futures_rules,
+            contract_registry=registry,
             equity=equity,
         )
         runtime_risk = assess_runtime_risk(
@@ -1432,6 +1485,7 @@ class ExecutionProvenancePreflight:
             account_snapshot_hash=account_snapshot_hash,
             portfolio_risk_authority_hash=portfolio_risk.authority.authority_hash,
             portfolio_risk_policy_hash=portfolio_risk.authority.policy_hash,
+            contract_authority_hash=request.contract_authority.authority_hash,
             broker_state_hash=broker_state_hash,
             reconciliation_state_hash=portfolio_risk.authority.reconciliation_state_hash,
             account_attribution_hash=request.account_attribution.evidence_hash,
@@ -1447,6 +1501,7 @@ class ExecutionProvenancePreflight:
                 account_snapshot_hash=account_snapshot_hash,
                 portfolio_risk_authority_hash=portfolio_risk.authority.authority_hash,
                 portfolio_risk_policy_hash=portfolio_risk.authority.policy_hash,
+                contract_authority_hash=request.contract_authority.authority_hash,
                 broker_state_hash=broker_state_hash,
                 reconciliation_state_hash=portfolio_risk.authority.reconciliation_state_hash,
                 contract_rule_evidence_hash=contract_rule_evidence_hash,

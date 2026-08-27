@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 import math
 import re
-from typing import NoReturn
+from typing import Any, NoReturn, cast
 
 from northstar_quant.data.artifacts.fingerprints import canonical_json_sha256
 from northstar_quant.foundation.config.trading_profile import (
@@ -35,12 +35,12 @@ from northstar_quant.portfolio_risk.risk import RiskState, RiskStateSnapshot, Sc
 from northstar_quant.trading_execution.broker.ctp_contract_mapping import (
     CtpContractMappingError,
     CtpContractRegistry,
-    load_ctp_contract_registry,
 )
 from northstar_quant.trading_execution.execution.models import BrokerStateSnapshot
 
 
 __all__ = [
+    "ContractAuthorityView",
     "PortfolioRiskApprovalAuthority",
     "PortfolioRiskAuthorityError",
     "PortfolioRiskAuthorityExecutionRule",
@@ -78,6 +78,137 @@ def _time(value: object, *, code: str) -> datetime:
     if not isinstance(value, datetime) or value.tzinfo is None or value.utcoffset() is None:
         _refuse(code)
     return value.astimezone(UTC)
+
+
+@dataclass(frozen=True, slots=True)
+class ContractAuthorityView:
+    """Database-free replay view consumed by P3 and P8 evidence gates.
+
+    The PostgreSQL resolver remains in the application composition root. This
+    narrow value verifies the publication binding and decision-scoped hash
+    before passing only typed, immutable replay facts into non-submitting P3/P8
+    code, so those gates cannot reach database capability through imports.
+    """
+
+    authority_id: str
+    decision_at: datetime
+    authority_hash: str
+    master_publication_hash: str
+    registry_publication_hash: str
+    registry: CtpContractRegistry
+    master: Any
+
+    def __post_init__(self) -> None:
+        authority_id = _identifier(
+            self.authority_id,
+            code="PORTFOLIO_RISK_AUTHORITY_CONTRACT_AUTHORITY_REQUIRED",
+        )
+        decision_at = _time(
+            self.decision_at,
+            code="PORTFOLIO_RISK_AUTHORITY_CONTRACT_AUTHORITY_REQUIRED",
+        )
+        master_publication_hash = _hash(
+            self.master_publication_hash,
+            code="PORTFOLIO_RISK_AUTHORITY_CONTRACT_AUTHORITY_REQUIRED",
+        )
+        registry_publication_hash = _hash(
+            self.registry_publication_hash,
+            code="PORTFOLIO_RISK_AUTHORITY_CONTRACT_AUTHORITY_REQUIRED",
+        )
+        if type(self.registry) is not CtpContractRegistry:
+            _refuse("PORTFOLIO_RISK_AUTHORITY_CONTRACT_AUTHORITY_REQUIRED")
+        if not callable(getattr(self.master, "resolve_for_execution", None)) or not callable(
+            getattr(self.master, "require_execution_contract", None)
+        ):
+            _refuse("PORTFOLIO_RISK_AUTHORITY_CONTRACT_AUTHORITY_REQUIRED")
+        expected_hash = canonical_json_sha256(
+            {
+                "decision_at": decision_at.isoformat(),
+                "format": "northstar.futures-contract-authority.v1",
+                "master_publication_hash": master_publication_hash,
+                "registry_publication_hash": registry_publication_hash,
+            }
+        )
+        if self.authority_hash != expected_hash:
+            _refuse("PORTFOLIO_RISK_AUTHORITY_CONTRACT_AUTHORITY_TAMPERED")
+        object.__setattr__(self, "authority_id", authority_id)
+        object.__setattr__(self, "decision_at", decision_at)
+        object.__setattr__(self, "authority_hash", expected_hash)
+        object.__setattr__(self, "master_publication_hash", master_publication_hash)
+        object.__setattr__(self, "registry_publication_hash", registry_publication_hash)
+
+    @classmethod
+    def from_replayed_authority(cls, value: object) -> "ContractAuthorityView":
+        """Narrow a resolved authority object without importing its DB adapter."""
+
+        if type(value) is cls:
+            return value
+        master_publication = getattr(value, "master_publication", None)
+        registry_publication = getattr(value, "registry_publication", None)
+        master = getattr(value, "master", None)
+        registry = getattr(value, "registry", None)
+        if (
+            master_publication is None
+            or registry_publication is None
+            or master is None
+            or registry is None
+        ):
+            _refuse("PORTFOLIO_RISK_AUTHORITY_CONTRACT_AUTHORITY_REQUIRED")
+        authority_id = getattr(value, "authority_id", None)
+        decision_at = getattr(value, "decision_at", None)
+        authority_hash = getattr(value, "authority_hash", None)
+        master_publication_hash = getattr(master_publication, "publication_hash", None)
+        registry_publication_hash = getattr(registry_publication, "publication_hash", None)
+        if (
+            getattr(master_publication, "authority_id", None) != authority_id
+            or getattr(registry_publication, "authority_id", None) != authority_id
+            or getattr(registry_publication, "master_publication_hash", None)
+            != master_publication_hash
+            or getattr(master_publication, "master", None) is not master
+            or getattr(registry_publication, "registry", None) is not registry
+        ):
+            _refuse("PORTFOLIO_RISK_AUTHORITY_CONTRACT_AUTHORITY_TAMPERED")
+        normalized_decision_at = _time(
+            decision_at,
+            code="PORTFOLIO_RISK_AUTHORITY_CONTRACT_AUTHORITY_TAMPERED",
+        )
+        master_available_at = _time(
+            getattr(master_publication, "available_at", None),
+            code="PORTFOLIO_RISK_AUTHORITY_CONTRACT_AUTHORITY_TAMPERED",
+        )
+        registry_available_at = _time(
+            getattr(registry_publication, "available_at", None),
+            code="PORTFOLIO_RISK_AUTHORITY_CONTRACT_AUTHORITY_TAMPERED",
+        )
+        registry_effective_from = _time(
+            getattr(registry_publication, "effective_from", None),
+            code="PORTFOLIO_RISK_AUTHORITY_CONTRACT_AUTHORITY_TAMPERED",
+        )
+        registry_effective_until = getattr(registry_publication, "effective_until", None)
+        if registry_effective_until is not None:
+            registry_effective_until = _time(
+                registry_effective_until,
+                code="PORTFOLIO_RISK_AUTHORITY_CONTRACT_AUTHORITY_TAMPERED",
+            )
+        if (
+            master_available_at > normalized_decision_at
+            or registry_available_at > normalized_decision_at
+            or registry_effective_from > normalized_decision_at
+            or (
+                registry_effective_until is not None
+                and registry_effective_until <= normalized_decision_at
+            )
+        ):
+            _refuse("PORTFOLIO_RISK_AUTHORITY_CONTRACT_AUTHORITY_TAMPERED")
+        return cls(
+            authority_id=cast(str, authority_id),
+            decision_at=normalized_decision_at,
+            authority_hash=cast(str, authority_hash),
+            master_publication_hash=cast(str, master_publication_hash),
+            registry_publication_hash=cast(str, registry_publication_hash),
+            registry=cast(CtpContractRegistry, registry),
+            master=master,
+        )
 
 
 def _canonical_value(value: object) -> object:
@@ -337,6 +468,7 @@ class PortfolioRiskApprovalAuthority:
     authority_id: str
     config_hash: str
     policy_hash: str
+    contract_authority_hash: str
     broker_state_hash: str
     reconciliation_state_hash: str
     review_request: PortfolioRiskReviewRequest
@@ -356,6 +488,7 @@ class PortfolioRiskApprovalAuthority:
         for name in (
             "config_hash",
             "policy_hash",
+            "contract_authority_hash",
             "broker_state_hash",
             "reconciliation_state_hash",
         ):
@@ -408,6 +541,7 @@ class PortfolioRiskApprovalAuthority:
             "authority_id": self.authority_id,
             "config_hash": self.config_hash,
             "policy_hash": self.policy_hash,
+            "contract_authority_hash": self.contract_authority_hash,
             "broker_state_hash": self.broker_state_hash,
             "reconciliation_state_hash": self.reconciliation_state_hash,
             "review_request": self.review_request.as_mapping(),
@@ -484,22 +618,6 @@ def _policy_from_config(
         ) from exc
 
 
-def _load_registry(profile: TradingProfile) -> CtpContractRegistry:
-    futures = profile.futures
-    if futures is None:
-        _refuse("PORTFOLIO_RISK_AUTHORITY_FUTURES_CONFIG_MISSING")
-    assert futures is not None
-    try:
-        return load_ctp_contract_registry(
-            futures.ctp_contract_mapping_path,
-            expected_broker="ctp_sim",
-        )
-    except CtpContractMappingError as exc:
-        raise PortfolioRiskAuthorityError(
-            "PORTFOLIO_RISK_AUTHORITY_CONTRACT_REGISTRY_INVALID"
-        ) from exc
-
-
 class PortfolioRiskAuthorityResolver:
     """Derive a trusted P3 review request from profile + P5 source evidence."""
 
@@ -513,6 +631,7 @@ class PortfolioRiskAuthorityResolver:
         reconciliation_safety_state: ReconciliationSafetyStateEvidence,
         composition: PortfolioCompositionEvidence,
         evaluated_at: datetime,
+        contract_authority: object,
     ) -> PortfolioRiskApprovalAuthority:
         if type(profile) is not TradingProfile:
             _refuse("PORTFOLIO_RISK_AUTHORITY_PROFILE_REQUIRED")
@@ -522,6 +641,11 @@ class PortfolioRiskAuthorityResolver:
             _refuse("PORTFOLIO_RISK_AUTHORITY_RECONCILIATION_REQUIRED")
         if type(composition) is not PortfolioCompositionEvidence:
             _refuse("PORTFOLIO_RISK_AUTHORITY_COMPOSITION_REQUIRED")
+        contract_authority = ContractAuthorityView.from_replayed_authority(
+            contract_authority
+        )
+        if contract_authority.registry.broker != "ctp_sim":
+            _refuse("PORTFOLIO_RISK_AUTHORITY_CONTRACT_AUTHORITY_BROKER_MISMATCH")
         evaluated_at = _time(
             evaluated_at,
             code="PORTFOLIO_RISK_AUTHORITY_EVALUATED_AT_INVALID",
@@ -545,6 +669,13 @@ class PortfolioRiskAuthorityResolver:
             broker_state.asof,
             code="PORTFOLIO_RISK_AUTHORITY_BROKER_STATE_TIME_INVALID",
         )
+        futures = profile.futures
+        if (
+            futures is None
+            or futures.contract_authority_id != contract_authority.authority_id
+            or contract_authority.decision_at != snapshot_at
+        ):
+            _refuse("PORTFOLIO_RISK_AUTHORITY_CONTRACT_AUTHORITY_MISMATCH")
         maximum_age = timedelta(seconds=config.max_input_age_seconds)
         if snapshot_at > evaluated_at:
             _refuse("PORTFOLIO_RISK_AUTHORITY_BROKER_STATE_FUTURE")
@@ -588,7 +719,7 @@ class PortfolioRiskAuthorityResolver:
 
         authority_id = f"p8:{profile.profile_id}:{config.config_hash}"
         policy = _policy_from_config(config=config, authority_id=authority_id)
-        registry = _load_registry(profile)
+        registry = contract_authority.registry
         source_expires_at = snapshot_at + maximum_age
         instruments: list[PortfolioRiskInstrumentSnapshot] = []
         execution_rules: list[PortfolioRiskAuthorityExecutionRule] = []
@@ -601,7 +732,19 @@ class PortfolioRiskAuthorityResolver:
                 ).upper()
                 mapping = registry.resolve_data_symbol(symbol)
                 taxonomy = config.taxonomy_for(mapping.product_id)
-                rule = config.ctp_sim_execution_rule_for(mapping.product_id)
+                position_limit = config.ctp_sim_execution_rule_for(mapping.product_id)
+                resolution = contract_authority.master.resolve_for_execution(
+                    symbol,
+                    decision_at=snapshot_at,
+                )
+                _contract, authority_rule = contract_authority.master.require_execution_contract(
+                    resolution
+                )
+                rule_expires_at = (
+                    min(source_expires_at, authority_rule.effective_until)
+                    if authority_rule.effective_until is not None
+                    else source_expires_at
+                )
                 instruments.append(
                     PortfolioRiskInstrumentSnapshot(
                         instrument_id=position.instrument_id,
@@ -609,10 +752,10 @@ class PortfolioRiskAuthorityResolver:
                         sector_id=taxonomy.sector_id,
                         exchange_id=mapping.exchange_id,
                         correlation_cluster_id=taxonomy.correlation_cluster_id,
-                        margin_fraction=rule.margin_rate,
-                        observed_at=snapshot_at,
-                        available_at=snapshot_at,
-                        expires_at=source_expires_at,
+                        margin_fraction=authority_rule.initial_margin_rate,
+                        observed_at=authority_rule.observed_at,
+                        available_at=authority_rule.available_at,
+                        expires_at=rule_expires_at,
                     )
                 )
                 execution_rules.append(
@@ -622,11 +765,16 @@ class PortfolioRiskAuthorityResolver:
                         product_id=mapping.product_id,
                         exchange_id=mapping.exchange_id,
                         volume_multiple=mapping.volume_multiple,
-                        margin_rate=rule.margin_rate,
-                        max_position_lots=rule.max_position_lots,
+                        margin_rate=authority_rule.initial_margin_rate,
+                        max_position_lots=position_limit.max_position_lots,
                     )
                 )
-        except (CtpContractMappingError, KeyError, TypeError, ValueError) as exc:
+        except (
+            CtpContractMappingError,
+            KeyError,
+            TypeError,
+            ValueError,
+        ) as exc:
             raise PortfolioRiskAuthorityError(
                 "PORTFOLIO_RISK_AUTHORITY_CONTRACT_CONFIG_MISMATCH"
             ) from exc
@@ -664,6 +812,7 @@ class PortfolioRiskAuthorityResolver:
             authority_id=authority_id,
             config_hash=config.config_hash,
             policy_hash=policy.policy_hash,
+            contract_authority_hash=contract_authority.authority_hash,
             broker_state_hash=broker_state_hash(broker_state),
             reconciliation_state_hash=safety.reconciliation_state_hash,
             review_request=review_request,

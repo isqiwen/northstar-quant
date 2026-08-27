@@ -25,6 +25,7 @@ from northstar_quant.application.candidate_acceptance import (
     CandidateSeam,
     CandidateSeamEvidence,
 )
+from northstar_quant.application.contract_authority import FuturesContractAuthority
 from northstar_quant.application.portfolio_risk_authority import (
     ReconciliationSafetyStateEvidence,
 )
@@ -58,6 +59,7 @@ from tests.helpers.execution_provenance import build_execution_provenance_fixtur
 from tests.helpers.ctp_sim_candidate_execution import (
     create_test_ctp_sim_candidate_executor,
 )
+from tests.helpers.contract_authority import build_test_futures_contract_authority
 from tests.helpers.manual_risk_approval import (
     create_test_portfolio_risk_approval_issuer,
 )
@@ -82,6 +84,20 @@ _SEAM_ENDPOINTS = {
         CandidateEvidenceLane.EXECUTION_SIMULATION,
     ),
 }
+
+
+def _resolve_test_contract_authority(
+    authority_id: str,
+    broker: str,
+    decision_at: datetime,
+) -> FuturesContractAuthority:
+    """Provide explicit immutable contract facts for the simulator test seam."""
+
+    return build_test_futures_contract_authority(
+        authority_id=authority_id,
+        broker=broker,
+        decision_at=decision_at,
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -541,9 +557,13 @@ def test_guarded_ctp_sim_execution_verifies_only_the_portfolio_to_execution_seam
     executor = create_test_ctp_sim_candidate_executor(
         settings_provider=lambda: settings,
         clock=lambda: checked_at,
+        contract_authority_resolver=_resolve_test_contract_authority,
         session_factory=postgresql_session_factory,
     )
-    broker = executor.create_broker()
+    broker = executor.create_broker(
+        profile=bootstrap.profile,
+        decision_at=bootstrap.request.market_snapshot_at,
+    )
     broker.connect()
     try:
         broker.seed_market_quotes({"RB2610": 3_100.0}, asof=checked_at)

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import timedelta
+from datetime import datetime, timedelta
 from threading import Event, Thread, current_thread
 
 import pytest
@@ -13,6 +13,10 @@ from sqlalchemy.exc import OperationalError
 import northstar_quant.application.ctp_sim_candidate_execution as candidate_execution
 import northstar_quant.trading_execution.broker.ctp_sim_broker as ctp_sim_broker
 import northstar_quant.trading_execution.reconciliation.reconciliation as reconciliation_module
+from northstar_quant.application.contract_authority import (
+    FuturesContractAuthority,
+    FuturesContractAuthorityError,
+)
 from northstar_quant.application.ctp_sim_candidate_execution import (
     CtpSimCandidateExecutionError,
 )
@@ -48,10 +52,47 @@ from tests.helpers.ctp_sim_submission import create_test_ctp_sim_submission_auth
 from tests.helpers.ctp_sim_candidate_execution import (
     create_test_ctp_sim_candidate_executor,
 )
+from tests.helpers.contract_authority import build_test_futures_contract_authority
 from tests.helpers.execution_provenance import build_execution_provenance_fixture
 from tests.helpers.manual_risk_approval import (
     create_test_portfolio_risk_approval_issuer,
 )
+
+
+def _resolve_test_contract_authority(
+    authority_id: str,
+    broker: str,
+    decision_at: datetime,
+) -> FuturesContractAuthority:
+    return build_test_futures_contract_authority(
+        authority_id=authority_id,
+        broker=broker,
+        decision_at=decision_at,
+    )
+
+
+def _stable_test_contract_authority_resolver(
+    authority: FuturesContractAuthority,
+):
+    """Replay one published Master/registry pair at changing decision times."""
+
+    def _resolve(
+        authority_id: str,
+        broker: str,
+        decision_at: datetime,
+    ) -> FuturesContractAuthority:
+        if (
+            authority_id != authority.authority_id
+            or broker != authority.registry.broker
+        ):
+            raise ValueError("unexpected test contract authority binding")
+        return FuturesContractAuthority(
+            decision_at=decision_at,
+            master_publication=authority.master_publication,
+            registry_publication=authority.registry_publication,
+        )
+
+    return _resolve
 
 
 def _with_persisted_manual_risk_approval(
@@ -81,6 +122,9 @@ def _with_persisted_manual_risk_approval(
 
 def _prepared_candidate(tmp_path, monkeypatch, postgresql_session_factory):
     bootstrap = build_execution_provenance_fixture(tmp_path / "bootstrap")
+    resolver = _stable_test_contract_authority_resolver(
+        bootstrap.contract_authority
+    )
     now = {"value": bootstrap.request.checked_at}
     settings = bootstrap.settings.model_copy(
         update={
@@ -100,9 +144,13 @@ def _prepared_candidate(tmp_path, monkeypatch, postgresql_session_factory):
     executor = create_test_ctp_sim_candidate_executor(
         settings_provider=lambda: settings,
         clock=lambda: now["value"],
+        contract_authority_resolver=resolver,
         session_factory=postgresql_session_factory,
     )
-    broker = executor.create_broker()
+    broker = executor.create_broker(
+        profile=bootstrap.profile,
+        decision_at=bootstrap.request.market_snapshot_at,
+    )
     broker.connect()
     broker.seed_market_quotes({"RB2610": 3_100.0}, asof=now["value"])
     snapshot = broker.read_state_snapshot()
@@ -126,6 +174,7 @@ def _prepared_candidate(tmp_path, monkeypatch, postgresql_session_factory):
         tmp_path / "authority-bound",
         broker_state=snapshot,
         reconciliation_safety_state=safety,
+        reviewed_at=now["value"],
     )
     with postgresql_session_factory() as session:
         approved_request = _with_persisted_manual_risk_approval(
@@ -310,9 +359,13 @@ def test_rejected_canonical_p3_evidence_cannot_reach_candidate_intent_or_broker_
     executor = create_test_ctp_sim_candidate_executor(
         settings_provider=lambda: settings,
         clock=lambda: now["value"],
+        contract_authority_resolver=_resolve_test_contract_authority,
         session_factory=postgresql_session_factory,
     )
-    broker = executor.create_broker()
+    broker = executor.create_broker(
+        profile=fixture.profile,
+        decision_at=fixture.request.market_snapshot_at,
+    )
     broker.connect()
     try:
         broker.seed_market_quotes({"RB2610": 3_100.0}, asof=now["value"])
@@ -614,6 +667,8 @@ def test_reconciliation_reads_simulator_state_and_halts_for_unexplained_order(
     )
     try:
         unexplained_broker = CtpSimBrokerAdapter(
+            registry=broker.registry,
+            registry_publication_hash=broker.registry_publication_hash,
             account=broker.get_account(),
             submission_authority=create_test_ctp_sim_submission_authority(),
             session_factory=postgresql_session_factory,
@@ -728,6 +783,7 @@ def test_prepare_rejects_self_consistent_relaxed_profile_claim_before_broker_rea
             reconciliation_safety_state=source.reconciliation_safety_state,
             composition=source.portfolio_risk_approval_request.review_request.composition,
             evaluated_at=source.checked_at,
+            contract_authority=source.contract_authority,
         )
         risk_gate = PortfolioRiskApprovalGate()
         relaxed_review = risk_gate.review(relaxed_authority.review_request)
@@ -887,6 +943,19 @@ def test_clean_reconciliation_after_old_normal_allows_fresh_attestation(
             reconciliation_safety_state=safety,
             reviewed_at=now["value"],
         )
+        # A new authoritative Master/registry release must construct a newly
+        # bound simulator adapter before it can be used for fresh risk.
+        broker.disconnect()
+        object.__setattr__(
+            executor,
+            "_contract_authority_resolver",
+            _resolve_test_contract_authority,
+        )
+        broker = executor.create_broker(
+            profile=fixture.profile,
+            decision_at=fixture.request.market_snapshot_at,
+        )
+        broker.connect()
         with postgresql_session_factory() as session:
             approved_request = _with_persisted_manual_risk_approval(
                 session,
@@ -941,9 +1010,13 @@ def test_prepare_samples_real_clock_after_state_and_quote_observations(
     monkeypatch.setattr(ctp_sim_broker, "get_settings", lambda: settings)
     executor = create_test_ctp_sim_candidate_executor(
         settings_provider=lambda: settings,
+        contract_authority_resolver=_resolve_test_contract_authority,
         session_factory=postgresql_session_factory,
     )
-    broker = executor.create_broker()
+    broker = executor.create_broker(
+        profile=bootstrap.profile,
+        decision_at=bootstrap.request.market_snapshot_at,
+    )
     broker.connect()
     try:
         broker.seed_market_quotes({"RB2610": 3_100.0}, asof=utc_now())
@@ -971,6 +1044,12 @@ def test_prepare_samples_real_clock_after_state_and_quote_observations(
             reconciliation_safety_state=safety,
             reviewed_at=snapshot.asof,
         )
+        broker.disconnect()
+        broker = executor.create_broker(
+            profile=fixture.profile,
+            decision_at=fixture.request.market_snapshot_at,
+        )
+        broker.connect()
         with postgresql_session_factory() as session:
             approved_request = _with_persisted_manual_risk_approval(
                 session,
@@ -1307,9 +1386,13 @@ def test_prepare_rechecks_its_broker_against_current_execution_settings(
     executor = create_test_ctp_sim_candidate_executor(
         settings_provider=lambda: current["settings"],
         clock=lambda: now["value"],
+        contract_authority_resolver=_resolve_test_contract_authority,
         session_factory=postgresql_session_factory,
     )
-    broker = executor.create_broker()
+    broker = executor.create_broker(
+        profile=fixture.profile,
+        decision_at=fixture.request.market_snapshot_at,
+    )
     try:
         state_before = broker.simulator_state_evidence()
         current["settings"] = trusted.model_copy(
@@ -1372,9 +1455,13 @@ def test_default_executor_reloads_uncached_settings_before_broker_access(
     monkeypatch.setattr(ctp_sim_broker, "get_settings", lambda: trusted)
     executor = create_test_ctp_sim_candidate_executor(
         clock=lambda: now["value"],
+        contract_authority_resolver=_resolve_test_contract_authority,
         session_factory=postgresql_session_factory,
     )
-    broker = executor.create_broker()
+    broker = executor.create_broker(
+        profile=fixture.profile,
+        decision_at=fixture.request.market_snapshot_at,
+    )
     try:
         state_before = broker.simulator_state_evidence()
         with postgresql_session_factory() as session:
@@ -1397,12 +1484,12 @@ def test_default_executor_reloads_uncached_settings_before_broker_access(
         broker.disconnect()
 
 
-def test_prepare_refuses_an_active_profile_with_a_different_ctp_mapping(
+def test_create_broker_refuses_profile_with_an_unresolved_contract_authority(
     tmp_path,
     monkeypatch,
     postgresql_session_factory,
 ) -> None:
-    """Profile futures mapping is an execution identity, not caller metadata."""
+    """A profile authority ID must resolve to the exact typed authority."""
 
     _now, executor, broker, bundle = _prepared_candidate(
         tmp_path,
@@ -1416,11 +1503,15 @@ def test_prepare_refuses_an_active_profile_with_a_different_ctp_mapping(
             source.profile,
             futures=replace(
                 source.profile.futures,
-                ctp_contract_mapping_path=str(tmp_path / "alternate-ctp-sim.yaml"),
+                contract_authority_id="cn_futures_ctp_sim_rewritten",
             ),
         )
-        request = replace(source, profile=alternate_profile)
         state_before = broker.simulator_state_evidence()
+        object.__setattr__(
+            executor,
+            "_contract_authority_resolver",
+            lambda *_args, **_kwargs: source.contract_authority,
+        )
         monkeypatch.setattr(
             candidate_execution,
             "load_trading_profile_uncached",
@@ -1428,20 +1519,61 @@ def test_prepare_refuses_an_active_profile_with_a_different_ctp_mapping(
         )
 
         def _unexpected_broker_read():
-            raise AssertionError("mapping mismatch must reject before broker access")
+            raise AssertionError("authority mismatch must reject before broker access")
+
+        monkeypatch.setattr(broker, "read_state_snapshot", _unexpected_broker_read)
+        with pytest.raises(
+            CtpSimCandidateExecutionError,
+            match="CTP_SIM_CANDIDATE_CONTRACT_AUTHORITY_MISMATCH",
+        ):
+            executor.create_broker(
+                profile=alternate_profile,
+                decision_at=source.market_snapshot_at,
+            )
+        assert broker.simulator_state_evidence() == state_before
+    finally:
+        broker.disconnect()
+
+
+def test_prepare_refuses_contract_authority_rewrite_after_broker_creation(
+    tmp_path,
+    monkeypatch,
+    postgresql_session_factory,
+) -> None:
+    """A fresh PostgreSQL authority replay cannot silently change a broker binding."""
+
+    _now, executor, broker, bundle = _prepared_candidate(
+        tmp_path,
+        monkeypatch,
+        postgresql_session_factory,
+    )
+    try:
+        rewritten = build_test_futures_contract_authority(
+            decision_at=bundle.source_request.market_snapshot_at,
+            enabled_symbols=("CU2609", "TA2609", "SA2609", "SC2609"),
+        )
+        state_before = broker.simulator_state_evidence()
+        object.__setattr__(
+            executor,
+            "_contract_authority_resolver",
+            lambda *_args, **_kwargs: rewritten,
+        )
+
+        def _unexpected_broker_read():
+            raise AssertionError("authority rewrite must reject before broker access")
 
         monkeypatch.setattr(broker, "read_state_snapshot", _unexpected_broker_read)
         with postgresql_session_factory() as session:
             with pytest.raises(
                 CtpSimCandidateExecutionError,
-                match="CTP_SIM_CANDIDATE_CONTRACT_MAPPING_MISMATCH",
+                match="CTP_SIM_CANDIDATE_CONTRACT_AUTHORITY_CHANGED",
             ):
                 executor.prepare(
-                    request,
+                    bundle.source_request,
                     session=session,
                     broker=broker,
-                    run_id="ctp-sim-candidate-profile-mapping-run",
-                    batch_id="ctp-sim-candidate-profile-mapping-batch",
+                    run_id="ctp-sim-candidate-authority-rewrite-run",
+                    batch_id="ctp-sim-candidate-authority-rewrite-batch",
                 )
             assert session.scalar(select(ExecutionPlanRecord)) is None
             assert session.scalar(select(ExecutionProvenanceConsumptionRecord)) is None
@@ -1451,12 +1583,113 @@ def test_prepare_refuses_an_active_profile_with_a_different_ctp_mapping(
         broker.disconnect()
 
 
-def test_prepare_refuses_a_contract_mapping_rewrite_after_broker_creation(
+def test_submit_refuses_contract_authority_published_after_prepare(
     tmp_path,
     monkeypatch,
     postgresql_session_factory,
 ) -> None:
-    """The candidate gate reloads the mapping rather than trusting adapter cache."""
+    """A release visible only at final decision time cannot reuse a prepared gate."""
+
+    now, _executor, broker, bundle = _prepared_candidate(
+        tmp_path,
+        monkeypatch,
+        postgresql_session_factory,
+    )
+    try:
+        historical_at = bundle.source_request.market_snapshot_at
+        current_at = historical_at + timedelta(seconds=1)
+        historical = bundle._gate._contract_authority_resolver(
+            bundle.source_request.contract_authority.authority_id,
+            "ctp_sim",
+            historical_at,
+        )
+        published_after_prepare = build_test_futures_contract_authority(
+            decision_at=current_at,
+            publication_id="test-contract-master-v2",
+            registry_publication_id="test-ctp-registry-v2",
+            enabled_symbols=("CU2609", "TA2609", "SA2609", "SC2609"),
+        )
+        now["value"] = current_at
+        object.__setattr__(
+            bundle._gate,
+            "_contract_authority_resolver",
+            lambda _authority_id, _broker, decision_at: (
+                historical
+                if decision_at == historical_at
+                else published_after_prepare
+            ),
+        )
+        with postgresql_session_factory() as session:
+            with pytest.raises(
+                CtpSimCandidateExecutionError,
+                match="CTP_SIM_CANDIDATE_CONTRACT_AUTHORITY_CHANGED",
+            ):
+                bundle.submit(session)
+            _assert_no_candidate_execution_records(session)
+        state = broker.read_state_snapshot()
+        assert state.open_orders == []
+        assert state.completed_orders == []
+        assert state.fills == []
+    finally:
+        broker.disconnect()
+
+
+def test_submit_refuses_unavailable_current_contract_authority(
+    tmp_path,
+    monkeypatch,
+    postgresql_session_factory,
+) -> None:
+    """A final database-authority outage is a no-new-risk condition."""
+
+    now, _executor, broker, bundle = _prepared_candidate(
+        tmp_path,
+        monkeypatch,
+        postgresql_session_factory,
+    )
+    try:
+        historical_at = bundle.source_request.market_snapshot_at
+        historical = bundle._gate._contract_authority_resolver(
+            bundle.source_request.contract_authority.authority_id,
+            "ctp_sim",
+            historical_at,
+        )
+        now["value"] = historical_at + timedelta(seconds=1)
+
+        def _unavailable_after_prepare(
+            _authority_id: str,
+            _broker: str,
+            decision_at: datetime,
+        ) -> FuturesContractAuthority:
+            if decision_at == historical_at:
+                return historical
+            raise FuturesContractAuthorityError("CONTRACT_AUTHORITY_UNAVAILABLE")
+
+        object.__setattr__(
+            bundle._gate,
+            "_contract_authority_resolver",
+            _unavailable_after_prepare,
+        )
+        with postgresql_session_factory() as session:
+            with pytest.raises(
+                CtpSimCandidateExecutionError,
+                match="CTP_SIM_CANDIDATE_CONTRACT_AUTHORITY_UNAVAILABLE",
+            ):
+                bundle.submit(session)
+            _assert_no_candidate_execution_records(session)
+        state = broker.read_state_snapshot()
+        assert state.open_orders == []
+        assert state.completed_orders == []
+        assert state.fills == []
+    finally:
+        broker.disconnect()
+
+
+def test_submission_authority_private_composition_requires_executor_owner_token(
+    tmp_path,
+    monkeypatch,
+    postgresql_session_factory,
+) -> None:
+    """A caller cannot extract or reconfigure the final gate with a forged token."""
 
     _now, executor, broker, bundle = _prepared_candidate(
         tmp_path,
@@ -1464,44 +1697,105 @@ def test_prepare_refuses_a_contract_mapping_rewrite_after_broker_creation(
         postgresql_session_factory,
     )
     try:
-        assert broker.registry.contracts
-        rewritten = replace(
-            broker.registry,
-            contracts=(
-                replace(
-                    broker.registry.contracts[0],
-                    price_tick=broker.registry.contracts[0].price_tick + 1.0,
-                ),
-                *broker.registry.contracts[1:],
-            ),
-        )
-        state_before = broker.simulator_state_evidence()
-        monkeypatch.setattr(
-            candidate_execution,
-            "load_ctp_contract_registry",
-            lambda *_args, **_kwargs: rewritten,
-        )
+        authority = broker.submission_authority
+        assert authority is not None
+        with pytest.raises(
+            PermissionError,
+            match="CTP_SIM_SUBMISSION_AUTHORITY_COMPOSITION_OWNER_REQUIRED",
+        ):
+            authority._guard_for_composition(owner_token=object())
+        assert authority._guard_for_composition(
+            owner_token=executor._owner_token
+        ) is bundle._gate
+        with pytest.raises(
+            CtpSimCandidateExecutionError,
+            match="CTP_SIM_CANDIDATE_FOREIGN_BROKER",
+        ):
+            bundle._gate.configure(
+                owner_token=object(),
+                broker=broker,
+                source_request=bundle.source_request,
+                prepared_request=bundle.prepared_request,
+                receipt=bundle.receipt,
+                expected_orders=tuple(bundle._gate._expected_by_ref.values()),
+                manual_approval=object(),
+            )
+    finally:
+        broker.disconnect()
 
-        def _unexpected_broker_read():
-            raise AssertionError("mapping rewrite must reject before broker access")
 
-        monkeypatch.setattr(broker, "read_state_snapshot", _unexpected_broker_read)
+def test_submit_refuses_tampered_configured_receipt(
+    tmp_path,
+    monkeypatch,
+    postgresql_session_factory,
+) -> None:
+    """Every final check replays the full stored receipt before consuming it."""
+
+    _now, _executor, broker, bundle = _prepared_candidate(
+        tmp_path,
+        monkeypatch,
+        postgresql_session_factory,
+    )
+    try:
+        object.__setattr__(
+            bundle._gate,
+            "_receipt",
+            replace(bundle.receipt, plan_hash="f" * 64),
+        )
         with postgresql_session_factory() as session:
             with pytest.raises(
                 CtpSimCandidateExecutionError,
-                match="CTP_SIM_CANDIDATE_CONTRACT_MAPPING_MISMATCH",
+                match="CTP_SIM_CANDIDATE_RECEIPT_REPLAY_CHANGED",
             ):
-                executor.prepare(
-                    bundle.source_request,
-                    session=session,
-                    broker=broker,
-                    run_id="ctp-sim-candidate-mapping-rewrite-run",
-                    batch_id="ctp-sim-candidate-mapping-rewrite-batch",
+                bundle.submit(session)
+            _assert_no_candidate_execution_records(session)
+        state = broker.read_state_snapshot()
+        assert state.open_orders == []
+        assert state.completed_orders == []
+        assert state.fills == []
+    finally:
+        broker.disconnect()
+
+
+def test_submit_refuses_tampered_configured_commitment(
+    tmp_path,
+    monkeypatch,
+    postgresql_session_factory,
+) -> None:
+    """A forged commitment cannot be rebound to an otherwise valid receipt."""
+
+    _now, _executor, broker, bundle = _prepared_candidate(
+        tmp_path,
+        monkeypatch,
+        postgresql_session_factory,
+    )
+    try:
+        order_ref, expected = next(iter(bundle._gate._expected_by_ref.items()))
+        forged_commitment = replace(
+            expected.commitment,
+            qty=expected.commitment.qty + 1,
+        )
+        object.__setattr__(
+            bundle._gate,
+            "_expected_by_ref",
+            {
+                order_ref: replace(
+                    expected,
+                    commitment=forged_commitment,
                 )
-            assert session.scalar(select(ExecutionPlanRecord)) is None
-            assert session.scalar(select(ExecutionProvenanceConsumptionRecord)) is None
-            assert session.scalar(select(OrderRecord)) is None
-        assert broker.simulator_state_evidence() == state_before
+            },
+        )
+        with postgresql_session_factory() as session:
+            with pytest.raises(
+                CtpSimCandidateExecutionError,
+                match="CTP_SIM_CANDIDATE_COMMITMENT_COVERAGE_MISMATCH",
+            ):
+                bundle.submit(session)
+            _assert_no_candidate_execution_records(session)
+        state = broker.read_state_snapshot()
+        assert state.open_orders == []
+        assert state.completed_orders == []
+        assert state.fills == []
     finally:
         broker.disconnect()
 
@@ -1730,7 +2024,8 @@ def test_final_fence_does_not_reacquire_the_simulator_lock_after_mutation(
                 del order, snapshot
 
         competing_broker = CtpSimBrokerAdapter(
-            mapping_path=broker.mapping_path,
+            registry=broker.registry,
+            registry_publication_hash=broker.registry_publication_hash,
             account=broker.get_account(),
             default_cash=broker.default_cash,
             submission_authority=create_test_ctp_sim_submission_authority(

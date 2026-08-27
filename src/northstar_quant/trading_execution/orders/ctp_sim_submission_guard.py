@@ -68,28 +68,38 @@ class CtpSimSubmissionAuthority:
     runtime route.
     """
 
-    __slots__ = ("__guard",)
+    __slots__ = ("__composition_owner_token", "__guard")
 
     def __init__(
         self,
         guard: CtpSimSubmissionGuard,
         *,
+        _composition_owner_token: object | None = None,
         _issuer: object | None = None,
     ) -> None:
         if _issuer is not _AUTHORITY_ISSUER:
             raise PermissionError(
                 "CTP_SIM_SUBMISSION_AUTHORITY_ISSUER_REQUIRED"
             )
+        if _composition_owner_token is None:
+            raise PermissionError(
+                "CTP_SIM_SUBMISSION_AUTHORITY_COMPOSITION_OWNER_REQUIRED"
+            )
         if not isinstance(guard, CtpSimSubmissionGuard):
             raise TypeError("CTP_SIM_SUBMISSION_GUARD_INVALID")
         self.__guard = guard
+        self.__composition_owner_token = _composition_owner_token
 
     def is_bound_to(self, guard: object) -> bool:
         """Return whether this capability is bound to the exact private gate."""
 
         return self.__guard is guard
 
-    def _guard_for_composition(self) -> CtpSimSubmissionGuard:
+    def _guard_for_composition(
+        self,
+        *,
+        owner_token: object,
+    ) -> CtpSimSubmissionGuard:
         """Return the bound guard only to the application composition root.
 
         This deliberately private escape hatch is needed because the executor
@@ -98,6 +108,10 @@ class CtpSimSubmissionAuthority:
         restrict its production use to that composition module.
         """
 
+        if owner_token is not self.__composition_owner_token:
+            raise PermissionError(
+                "CTP_SIM_SUBMISSION_AUTHORITY_COMPOSITION_OWNER_REQUIRED"
+            )
         return self.__guard
 
     def reserve(self, order: OrderRequest) -> None:
@@ -123,10 +137,16 @@ class CtpSimSubmissionAuthority:
 
 def _issue_ctp_sim_submission_authority(
     guard: CtpSimSubmissionGuard,
+    *,
+    composition_owner_token: object,
 ) -> CtpSimSubmissionAuthority:
     """Issue the non-public authority used by the candidate composition root."""
 
-    return CtpSimSubmissionAuthority(guard, _issuer=_AUTHORITY_ISSUER)
+    return CtpSimSubmissionAuthority(
+        guard,
+        _composition_owner_token=composition_owner_token,
+        _issuer=_AUTHORITY_ISSUER,
+    )
 
 
 __all__ = ["CtpSimSubmissionGuard"]

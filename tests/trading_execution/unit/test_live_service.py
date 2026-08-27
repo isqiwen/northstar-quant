@@ -92,7 +92,7 @@ def test_latest_valuation_price_is_selected_by_market_date():
 def test_live_service_rejects_continuous_research_symbol_before_ctp_lookup():
     profile = SimpleNamespace(
         asset_type=AssetType.FUTURES,
-        futures=SimpleNamespace(ctp_contract_mapping_path="unused.yaml"),
+        futures=SimpleNamespace(contract_authority_id="test-contract-authority"),
     )
 
     with pytest.raises(ValueError, match="FUTURES_CONTINUOUS_CONTRACT_FORBIDDEN"):
@@ -165,7 +165,7 @@ def test_sync_broker_once_keeps_ctp_sim_non_submit_path_available(monkeypatch):
         "_load_broker_profile",
         lambda *_args, **_kwargs: SimpleNamespace(profile_id="ctp-sim-profile"),
     )
-    monkeypatch.setattr(live_service, "_pick_broker", lambda: broker)
+    monkeypatch.setattr(live_service, "_pick_broker", lambda **_kwargs: broker)
     monkeypatch.setattr(live_service, "SessionLocal", _Session)
     monkeypatch.setattr(
         live_service,

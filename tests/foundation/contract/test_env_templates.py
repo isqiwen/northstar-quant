@@ -64,7 +64,7 @@ def _assert_template_lists_each_setting_once() -> dict[str, list[str]]:
     declaration_counts = _declaration_key_counts(ENV_TEMPLATE_PATH)
     expected = _settings_environment_keys() | ENVIRONMENT_FILE_AUXILIARY_KEYS
 
-    assert len(expected) == 72
+    assert len(expected) == 70
     assert set(declaration_counts) == expected
     for key in expected:
         assert declaration_counts[key] == 1, f".env.example 重复声明 {key}"

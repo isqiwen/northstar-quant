@@ -16,6 +16,9 @@ from northstar_quant.trading_execution.execution.models import (
     FuturesExecutionRule,
     RebalanceOrderPlan,
 )
+from northstar_quant.trading_execution.broker.ctp_contract_mapping import (
+    CtpContractRegistry,
+)
 
 
 class ExecutionPlanError(ValueError):
@@ -73,6 +76,7 @@ def build_approved_execution_plan(
     created_at: datetime,
     broker_name: str,
     futures_rules: dict[str, FuturesExecutionRule],
+    contract_registry: CtpContractRegistry | None = None,
     equity: float | None = None,
 ) -> ExecutionPlan:
     """Bind the existing planner to a risk-approved target and immutable inputs."""
@@ -102,6 +106,7 @@ def build_approved_execution_plan(
         equity=equity,
         broker_name=broker_name,
         futures_rules=futures_rules,
+        contract_registry=contract_registry,
     )
     return ExecutionPlan(
         plan_id=plan_id,

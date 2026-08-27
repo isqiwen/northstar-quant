@@ -129,8 +129,8 @@ python scripts/dev/run_uv.py run --offline --no-sync northstar local-tools lake-
 自动读取。
 
 当前开发期只有一个完整的 Alembic 基线 `0001_current_schema_baseline`，不支持从历史 revision 升级。若本地开发库的
-`alembic_version` 不是该基线，操作者必须在仓库自动化之外手动重建它，然后才可运行 `python scripts/dev/run_just.py setup` 或
-`northstar init-db`；不要添加 `stamp`、drop、truncate 或自动重建脚本来绕过这个边界。
+`alembic_version` 不是该基线，或 revision 名称相同但 schema 早于当前完整基线，操作者必须在仓库自动化之外手动重建它，
+然后才可运行 `python scripts/dev/run_just.py setup` 或 `northstar init-db`；不要添加 `stamp`、drop、truncate 或自动重建脚本来绕过这个边界。
 
 ## 3. 创建研究画像
 

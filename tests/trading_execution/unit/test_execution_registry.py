@@ -19,6 +19,7 @@ from northstar_quant.trading_execution.execution.registry import (
     build_execution_plan,
     project_broker_state_positions,
 )
+from tests.helpers.contract_authority import build_test_futures_contract_authority
 
 
 def test_rebalance_tolerance_filters_only_provably_small_weight_changes():
@@ -115,6 +116,9 @@ def test_futures_planner_uses_actual_contract_and_splits_shfe_reversal():
                 max_position_lots=100,
             )
         },
+        contract_registry=build_test_futures_contract_authority(
+            decision_at=state_asof
+        ).registry,
     )
 
     assert [
@@ -154,6 +158,9 @@ def test_futures_planner_fails_closed_without_position_buckets():
             futures_rules={
                 "RB2610": FuturesExecutionRule(margin_rate=0.1)
             },
+            contract_registry=build_test_futures_contract_authority(
+                decision_at=state_asof
+            ).registry,
         )
 
 
@@ -176,4 +183,7 @@ def test_futures_planner_rejects_continuous_research_signal_before_ctp_mapping()
             equity=100_000.0,
             broker_name="ctp_sim",
             futures_rules={"RB2610": FuturesExecutionRule(margin_rate=0.1)},
+            contract_registry=build_test_futures_contract_authority(
+                decision_at=state_asof
+            ).registry,
         )

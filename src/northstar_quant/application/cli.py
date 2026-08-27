@@ -169,6 +169,18 @@ def _log_json(payload: object, level: int = logging.INFO, **context: object) -> 
     )
 
 
+def _emit_json(payload: object, level: int = logging.INFO, **context: object) -> None:
+    """记录审计日志并把命令结果写入 CLI 标准输出。
+
+    命令的用户可见结果不能依赖 logging handler：运行时可以显式关闭控制台
+    日志，测试隔离也会替换 handler。审计日志仍保留在 ``_log_json``，而
+    ``typer.echo`` 保证调用方总能从标准输出取得结果。
+    """
+
+    _log_json(payload, level=level, **context)
+    typer.echo(json.dumps(redact(payload), ensure_ascii=False, indent=2, default=str))
+
+
 @app.callback(invoke_without_command=True, **_CALLBACK_KWARGS)
 def main(
     ctx: typer.Context,
@@ -255,14 +267,14 @@ def backup_status_command(
 def data_profiles_command() -> None:
     """列出当前可用的交易画像与路径规划。"""
 
-    _log_json(list_profile_data_summaries(), command="data.profiles")
+    _emit_json(list_profile_data_summaries(), command="data.profiles")
 
 
 @data_app.command("providers", **_COMMAND_KWARGS)
 def data_providers_command() -> None:
     """列出当前已注册的技术数据 adapter（不代表数据授权）。"""
 
-    _log_json(
+    _emit_json(
         {
             "providers": list_data_providers(),
             "note": "adapter 可用不等于供应商合同、用途或候选研究准入已获授权。",
@@ -275,7 +287,7 @@ def data_providers_command() -> None:
 def data_sources_command() -> None:
     """列出配置化数据源、授权状态和候选研究资格。"""
 
-    _log_json({"sources": list_data_source_summaries()}, command="data.sources")
+    _emit_json({"sources": list_data_source_summaries()}, command="data.sources")
 
 
 @data_app.command("download", **_COMMAND_KWARGS)

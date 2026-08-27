@@ -45,9 +45,9 @@ def test_master_plan_tracks_only_current_work_packages_and_statuses() -> None:
     assert "active_phase: P10" in plan
     assert (
         "active_work_package:\n"
-        "  id: MAINT-WP02\n"
-        "  title: Native Linux PostgreSQL Development / Docker Removal\n"
-        "  status: VERIFY"
+        "  id: P10-WP08\n"
+        "  title: Platform Production / DR Acceptance\n"
+        "  status: BLOCKED"
     ) in plan
     assert (
         "next_task:\n"
@@ -55,17 +55,12 @@ def test_master_plan_tracks_only_current_work_packages_and_statuses() -> None:
         "  title: Platform Production / DR Acceptance\n"
         "  status: BLOCKED"
     ) in plan
-    assert "blocked_work_packages: [P10-WP08, P10-WP09]" in plan
+    assert "blocked_work_packages: [P10-WP08, P10-WP09, MAINT-WP02]" in plan
 
     expected_sections = {
         "### P10-WP08 — Platform Production / DR Acceptance": "BLOCKED",
         "### P10-WP09 — Authoritative Data & Source Onboarding": "BLOCKED",
-        "### DEV-WP01 — Development Alembic Baseline Consolidation": "IN_PROGRESS",
-        "### DEV-WP02 — Four-Tier Storage Boundary": "VERIFY",
-        "### DEV-WP03 — PostgreSQL Trading-State Authority": "VERIFY",
-        "### DEV-WP04 — PostgreSQL Contract Authority": "TODO",
-        "### MAINT-WP02 — Native Linux PostgreSQL Development / Docker Removal": "VERIFY",
-        "### DOC-WP08 — VS Code Daily Task Surface": "VERIFY",
+        "### MAINT-WP02 — Native Linux PostgreSQL Development / Docker Removal": "BLOCKED",
     }
     for heading, status in expected_sections.items():
         section = _section(plan, heading)
@@ -81,8 +76,6 @@ def test_master_plan_preserves_unfinished_safety_boundaries() -> None:
         "NORTHSTAR_LIVE_TRADING_ENABLED=false",
         "NO LIVE ACTION",
         "NO NEW RISK",
-        "0001_current_schema_baseline",
-        "state.json",
         "available_time",
         "Docker/Compose",
         "不得自动恢复 HALT",
@@ -97,11 +90,15 @@ def test_completed_planning_history_and_evidence_are_not_retained() -> None:
     for retired_text in (
         "P10_MATURE_V1_ACCEPTANCE_EVIDENCE.md",
         "P10_TRADING_FAILURE_MATRIX.md",
-        "## P0-WP01",
-        "## P10-WP01",
-        "## DEV-WP05",
-        "## DOC-WP01",
-        "## MAINT-WP01",
+        "### P0-WP01",
+        "### P10-WP01",
+        "### DEV-WP01",
+        "### DEV-WP02",
+        "### DEV-WP03",
+        "### DEV-WP04",
+        "### DEV-WP05",
+        "### DOC-WP01",
+        "### MAINT-WP01",
         "**Status:** DONE",
     ):
         assert retired_text not in plan

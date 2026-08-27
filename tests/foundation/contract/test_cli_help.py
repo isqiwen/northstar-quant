@@ -70,6 +70,28 @@ def test_data_help_exposes_local_import_and_actual_daily_provider():
     assert "procurement_pending" in sources_result.output
 
 
+def test_data_listing_commands_write_results_when_logging_has_no_console(monkeypatch):
+    """CLI results must not disappear when logging is intentionally silent."""
+
+    logged: list[tuple[object, dict[str, object]]] = []
+    monkeypatch.setattr(cli, "setup_logging", lambda: None)
+    monkeypatch.setattr(
+        cli,
+        "_log_json",
+        lambda payload, **context: logged.append((payload, context)),
+    )
+
+    providers_result = runner.invoke(app, ["data", "providers"])
+    sources_result = runner.invoke(app, ["data", "sources"])
+
+    assert providers_result.exit_code == 0, providers_result.output
+    assert "akshare_actual_daily" in providers_result.output
+    assert sources_result.exit_code == 0, sources_result.output
+    assert "wind_wds_server_v1" in sources_result.output
+    assert logged[0][1]["command"] == "data.providers"
+    assert logged[1][1]["command"] == "data.sources"
+
+
 def test_backtest_help_exposes_single_profile_driven_entrypoint():
     result = runner.invoke(app, ["backtest", "--help"])
 

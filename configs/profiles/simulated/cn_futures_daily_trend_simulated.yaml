@@ -17,7 +17,7 @@ lifecycle:
   line_id: cn_futures_daily_trend_sim
 futures:
   contract_spec_path: configs/instruments/products
-  ctp_contract_mapping_path: configs/instruments/ctp_sim.yaml
+  contract_authority_id: cn_futures_ctp_sim
   # 当前没有经授权的 runtime Calendar Snapshot，故 live execute 必须失败关闭。
   # 按交易所填写不可变 ArtifactSnapshot hash；本仓库当前没有已授权的运行时日历制品，故保持空映射并阻断提交。
   calendar_artifact_snapshot_hashes: {}
@@ -120,19 +120,14 @@ portfolio_risk_approval:
       correlation_cluster_id: china-energy
   ctp_sim_execution_rules:
     rb:
-      margin_rate: 0.1
       max_position_lots: 100
     cu:
-      margin_rate: 0.1
       max_position_lots: 100
     ta:
-      margin_rate: 0.1
       max_position_lots: 100
     sa:
-      margin_rate: 0.1
       max_position_lots: 100
     sc:
-      margin_rate: 0.1
       max_position_lots: 100
 data:
   provider: akshare_actual_daily

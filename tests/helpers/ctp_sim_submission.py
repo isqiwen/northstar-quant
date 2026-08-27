@@ -50,7 +50,8 @@ def create_test_ctp_sim_submission_authority(
     """Issue an explicit test-only authority for lower-level simulator tests."""
 
     return _issue_ctp_sim_submission_authority(
-        _TestOnlyCtpSimSubmissionGuard() if guard is None else guard
+        _TestOnlyCtpSimSubmissionGuard() if guard is None else guard,
+        composition_owner_token=object(),
     )
 
 

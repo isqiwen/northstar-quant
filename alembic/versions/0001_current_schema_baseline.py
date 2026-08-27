@@ -726,6 +726,285 @@ def _apply_simulated_broker_state_authority() -> None:
             """
         )
     )
+
+
+def _apply_contract_authority_publications() -> None:
+    """Create append-only, point-in-time Contract Authority publications."""
+
+    op.create_table(
+        "contract_master_publication_records",
+        sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
+        sa.Column("authority_id", sa.String(length=128), nullable=False),
+        sa.Column("publication_id", sa.String(length=128), nullable=False),
+        sa.Column("schema_version", sa.Integer(), nullable=False),
+        sa.Column("master_id", sa.String(length=128), nullable=False),
+        sa.Column("master_version", sa.String(length=128), nullable=False),
+        sa.Column(
+            "observed_at",
+            northstar_quant.foundation.db.types.UTCDateTime(),
+            nullable=False,
+        ),
+        sa.Column(
+            "available_at",
+            northstar_quant.foundation.db.types.UTCDateTime(),
+            nullable=False,
+        ),
+        sa.Column("source_artifact_hash", sa.String(length=64), nullable=False),
+        sa.Column("source_authority", sa.String(length=256), nullable=False),
+        sa.Column("quality_status", sa.String(length=16), nullable=False),
+        sa.Column("master_fingerprint", sa.String(length=64), nullable=False),
+        sa.Column("content_hash", sa.String(length=64), nullable=False),
+        sa.Column("publication_hash", sa.String(length=64), nullable=False),
+        sa.Column("payload_json", sa.Text(), nullable=False),
+        sa.Column(
+            "created_at",
+            northstar_quant.foundation.db.types.UTCDateTime(),
+            nullable=False,
+        ),
+        sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint(
+            "authority_id",
+            "publication_id",
+            name="uq_contract_master_publication_authority_publication",
+        ),
+        sa.UniqueConstraint(
+            "authority_id",
+            "available_at",
+            name="uq_contract_master_publication_authority_available_at",
+        ),
+        sa.UniqueConstraint(
+            "publication_hash",
+            name="uq_contract_master_publication_hash",
+        ),
+        sa.CheckConstraint(
+            "schema_version > 0",
+            name="ck_contract_master_publication_schema_version",
+        ),
+        sa.CheckConstraint(
+            "available_at >= observed_at",
+            name="ck_contract_master_publication_time_order",
+        ),
+        sa.CheckConstraint(
+            "quality_status = 'pass'",
+            name="ck_contract_master_publication_quality_pass",
+        ),
+        sa.CheckConstraint(
+            "source_artifact_hash ~ '^[0-9a-f]{64}$'",
+            name="ck_contract_master_publication_source_hash",
+        ),
+        sa.CheckConstraint(
+            "master_fingerprint ~ '^[0-9a-f]{64}$'",
+            name="ck_contract_master_publication_master_fingerprint",
+        ),
+        sa.CheckConstraint(
+            "content_hash ~ '^[0-9a-f]{64}$'",
+            name="ck_contract_master_publication_content_hash",
+        ),
+        sa.CheckConstraint(
+            "publication_hash ~ '^[0-9a-f]{64}$'",
+            name="ck_contract_master_publication_publication_hash_shape",
+        ),
+    )
+    for column in (
+        "authority_id",
+        "publication_id",
+        "master_id",
+        "observed_at",
+        "available_at",
+        "source_artifact_hash",
+        "master_fingerprint",
+        "content_hash",
+        "publication_hash",
+    ):
+        op.create_index(
+            op.f(f"ix_contract_master_publication_records_{column}"),
+            "contract_master_publication_records",
+            [column],
+            unique=False,
+        )
+
+    op.create_table(
+        "ctp_contract_registry_publication_records",
+        sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
+        sa.Column("authority_id", sa.String(length=128), nullable=False),
+        sa.Column("publication_id", sa.String(length=128), nullable=False),
+        sa.Column("broker", sa.String(length=32), nullable=False),
+        sa.Column("schema_version", sa.Integer(), nullable=False),
+        sa.Column("master_publication_hash", sa.String(length=64), nullable=False),
+        sa.Column(
+            "observed_at",
+            northstar_quant.foundation.db.types.UTCDateTime(),
+            nullable=False,
+        ),
+        sa.Column(
+            "available_at",
+            northstar_quant.foundation.db.types.UTCDateTime(),
+            nullable=False,
+        ),
+        sa.Column(
+            "effective_from",
+            northstar_quant.foundation.db.types.UTCDateTime(),
+            nullable=False,
+        ),
+        sa.Column(
+            "effective_until",
+            northstar_quant.foundation.db.types.UTCDateTime(),
+            nullable=True,
+        ),
+        sa.Column("source_artifact_hash", sa.String(length=64), nullable=False),
+        sa.Column("source_authority", sa.String(length=256), nullable=False),
+        sa.Column("quality_status", sa.String(length=16), nullable=False),
+        sa.Column("registry_fingerprint", sa.String(length=64), nullable=False),
+        sa.Column("content_hash", sa.String(length=64), nullable=False),
+        sa.Column("publication_hash", sa.String(length=64), nullable=False),
+        sa.Column("payload_json", sa.Text(), nullable=False),
+        sa.Column(
+            "created_at",
+            northstar_quant.foundation.db.types.UTCDateTime(),
+            nullable=False,
+        ),
+        sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint(
+            "authority_id",
+            "publication_id",
+            "broker",
+            name="uq_ctp_registry_publication_authority_publication_broker",
+        ),
+        sa.UniqueConstraint(
+            "authority_id",
+            "broker",
+            "available_at",
+            name="uq_ctp_registry_publication_authority_broker_available_at",
+        ),
+        sa.UniqueConstraint(
+            "publication_hash",
+            name="uq_ctp_registry_publication_hash",
+        ),
+        sa.CheckConstraint(
+            "broker IN ('ctp', 'ctp_sim')",
+            name="ck_ctp_registry_publication_broker",
+        ),
+        sa.CheckConstraint(
+            "schema_version > 0",
+            name="ck_ctp_registry_publication_schema_version",
+        ),
+        sa.CheckConstraint(
+            "available_at >= observed_at",
+            name="ck_ctp_registry_publication_time_order",
+        ),
+        sa.CheckConstraint(
+            "effective_until IS NULL OR effective_until > effective_from",
+            name="ck_ctp_registry_publication_effective_window",
+        ),
+        sa.CheckConstraint(
+            "quality_status = 'pass'",
+            name="ck_ctp_registry_publication_quality_pass",
+        ),
+        sa.CheckConstraint(
+            "master_publication_hash ~ '^[0-9a-f]{64}$'",
+            name="ck_ctp_registry_publication_master_hash",
+        ),
+        sa.CheckConstraint(
+            "source_artifact_hash ~ '^[0-9a-f]{64}$'",
+            name="ck_ctp_registry_publication_source_hash",
+        ),
+        sa.CheckConstraint(
+            "registry_fingerprint ~ '^[0-9a-f]{64}$'",
+            name="ck_ctp_registry_publication_registry_fingerprint",
+        ),
+        sa.CheckConstraint(
+            "content_hash ~ '^[0-9a-f]{64}$'",
+            name="ck_ctp_registry_publication_content_hash",
+        ),
+        sa.CheckConstraint(
+            "publication_hash ~ '^[0-9a-f]{64}$'",
+            name="ck_ctp_registry_publication_publication_hash_shape",
+        ),
+    )
+    for column in (
+        "authority_id",
+        "publication_id",
+        "broker",
+        "observed_at",
+        "available_at",
+        "effective_from",
+        "content_hash",
+        "publication_hash",
+    ):
+        op.create_index(
+            op.f(f"ix_ctp_contract_registry_publication_records_{column}"),
+            "ctp_contract_registry_publication_records",
+            [column],
+            unique=False,
+        )
+    op.create_index(
+        "ix_ctp_registry_publication_master_hash",
+        "ctp_contract_registry_publication_records",
+        ["master_publication_hash"],
+        unique=False,
+    )
+    op.create_index(
+        "ix_ctp_registry_publication_source_hash",
+        "ctp_contract_registry_publication_records",
+        ["source_artifact_hash"],
+        unique=False,
+    )
+    op.create_index(
+        "ix_ctp_registry_publication_fingerprint",
+        "ctp_contract_registry_publication_records",
+        ["registry_fingerprint"],
+        unique=False,
+    )
+
+    op.execute(
+        """
+        CREATE FUNCTION northstar_reject_contract_authority_publication_mutation()
+        RETURNS trigger
+        LANGUAGE plpgsql
+        AS $$
+        BEGIN
+            RAISE EXCEPTION 'CONTRACT_AUTHORITY_PUBLICATION_IMMUTABLE';
+            RETURN NULL;
+        END;
+        $$;
+        """
+    )
+    op.execute(
+        """
+        CREATE TRIGGER trg_contract_master_publication_immutable
+        BEFORE UPDATE OR DELETE ON contract_master_publication_records
+        FOR EACH ROW
+        EXECUTE FUNCTION northstar_reject_contract_authority_publication_mutation();
+        """
+    )
+    op.execute(
+        sa.text(
+            """
+            CREATE TRIGGER trg_contract_master_publication_reject_truncate
+            BEFORE TRUNCATE ON contract_master_publication_records
+            FOR EACH STATEMENT
+            EXECUTE FUNCTION northstar_reject_contract_authority_publication_mutation();
+            """
+        )
+    )
+    op.execute(
+        """
+        CREATE TRIGGER trg_ctp_contract_registry_publication_immutable
+        BEFORE UPDATE OR DELETE ON ctp_contract_registry_publication_records
+        FOR EACH ROW
+        EXECUTE FUNCTION northstar_reject_contract_authority_publication_mutation();
+        """
+    )
+    op.execute(
+        sa.text(
+            """
+            CREATE TRIGGER trg_ctp_contract_registry_publication_reject_truncate
+            BEFORE TRUNCATE ON ctp_contract_registry_publication_records
+            FOR EACH STATEMENT
+            EXECUTE FUNCTION northstar_reject_contract_authority_publication_mutation();
+            """
+        )
+    )
 # BASELINE_EXTENSION_HELPERS_END
 
 
@@ -1691,6 +1970,7 @@ def upgrade() -> None:
     _apply_research_agent_run_audit()
     _apply_research_agent_run_audit_hardening()
     _apply_simulated_broker_state_authority()
+    _apply_contract_authority_publications()
 
     # ### end Alembic commands ###
 

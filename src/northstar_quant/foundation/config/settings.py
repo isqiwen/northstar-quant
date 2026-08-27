@@ -253,10 +253,6 @@ class Settings(BaseSettings):
     # ctp_sim 是隔离的 PostgreSQL-backed 语义仿真，不连接交易前置；真实 CTP
     # 适配器仍未实现。
     ctp_sim_account: str = Field(default="ctp-sim-account", min_length=1)
-    ctp_sim_contract_mapping_path: Path = Field(
-        default=Path("configs/instruments/ctp_sim.yaml")
-    )
-    ctp_contract_mapping_path: Path = Field(default=Path("configs/instruments/ctp.yaml"))
     order_timeout_seconds: int = Field(default=300, gt=0)
     limit_price_offset_bps: float = Field(default=15.0, ge=0)
     execution_lease_ttl_seconds: int = Field(default=120, ge=30, le=3600)
@@ -429,11 +425,7 @@ class Settings(BaseSettings):
         project_root = project_root.resolve()
         object.__setattr__(self, "project_root", project_root)
 
-        for field_name in (
-            "profile_config_dir",
-            "ctp_sim_contract_mapping_path",
-            "ctp_contract_mapping_path",
-        ):
+        for field_name in ("profile_config_dir",):
             value = Path(getattr(self, field_name))
             if not value.is_absolute():
                 value = project_root / value

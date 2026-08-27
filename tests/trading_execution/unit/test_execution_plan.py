@@ -12,6 +12,7 @@ from northstar_quant.trading_execution.execution.models import (
     RebalanceOrderPlan,
 )
 from tests.helpers.approved_portfolio_target import build_approved_portfolio_target_fixture
+from tests.helpers.contract_authority import build_test_futures_contract_authority
 
 
 def test_execution_plan_binds_approved_target_and_cannot_be_submitted():
@@ -55,6 +56,9 @@ def test_approved_target_is_bound_to_existing_futures_planner():
         created_at=now,
         broker_name="ctp_sim",
         futures_rules={"RB2610": FuturesExecutionRule(0.1)},
+        contract_registry=build_test_futures_contract_authority(
+            decision_at=now
+        ).registry,
         equity=100_000.0,
     )
 

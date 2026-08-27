@@ -11,20 +11,23 @@ from dataclasses import replace
 from datetime import UTC, date, datetime
 from functools import wraps
 import math
-from pathlib import Path
 from threading import RLock
 from collections.abc import Callable
 from typing import Any, cast
 
 from sqlalchemy.orm import Session
 
+from northstar_quant.foundation.common.fingerprints import (
+    FingerprintError,
+    require_sha256,
+)
 from northstar_quant.foundation.common.enums import CtpOffset
 from northstar_quant.foundation.common.order_identity import build_order_ref
 from northstar_quant.foundation.common.order_status import is_final_order_status
 from northstar_quant.foundation.common.time import ensure_utc, utc_now
 from northstar_quant.trading_execution.broker.ctp_contract_mapping import (
     CtpContractMapping,
-    load_ctp_contract_registry,
+    CtpContractRegistry,
 )
 from northstar_quant.foundation.config.settings import get_settings, normalize_simulator_account
 from northstar_quant.trading_execution.broker.broker_base import BrokerAdapter
@@ -86,7 +89,8 @@ class CtpSimBrokerAdapter(BrokerAdapter):
     def __init__(
         self,
         *,
-        mapping_path: str | Path | None = None,
+        registry: CtpContractRegistry,
+        registry_publication_hash: str,
         account: str | None = None,
         default_cash: float | None = None,
         submission_authority: CtpSimSubmissionAuthority | None = None,
@@ -96,13 +100,16 @@ class CtpSimBrokerAdapter(BrokerAdapter):
         self.account = normalize_simulator_account(
             str(settings.ctp_sim_account if account is None else account)
         )
-        self.mapping_path = Path(
-            mapping_path or settings.ctp_sim_contract_mapping_path
-        ).resolve()
-        self.registry = load_ctp_contract_registry(
-            self.mapping_path,
-            expected_broker="ctp_sim",
-        )
+        if type(registry) is not CtpContractRegistry or registry.broker != "ctp_sim":
+            raise ValueError("CTP_SIM_CONTRACT_REGISTRY_REQUIRED")
+        try:
+            self.registry_publication_hash = require_sha256(
+                registry_publication_hash,
+                field_name="registry_publication_hash",
+            )
+        except FingerprintError as exc:
+            raise ValueError("CTP_SIM_REGISTRY_PUBLICATION_HASH_INVALID") from exc
+        self.registry = registry
         resolved_default_cash = float(
             settings.default_cash if default_cash is None else default_cash
         )
