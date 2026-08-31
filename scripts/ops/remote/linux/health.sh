@@ -4,6 +4,15 @@ PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 export PATH
 set -euo pipefail
 
+case "$(uname -s):$(uname -m)" in
+  Linux:x86_64|Linux:amd64)
+    ;;
+  *)
+    printf '%s\n' '远程运维目标仅支持 Linux x86_64。' >&2
+    exit 1
+    ;;
+esac
+
 # 仅只读：展示 systemd 状态和应用 health 命令的输出，不启动服务或修改配置。
 if [ "$#" -ne 1 ]; then
   printf '%s\n' '用法：health.sh <systemd-service-name>' >&2

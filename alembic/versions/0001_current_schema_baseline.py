@@ -1005,6 +1005,666 @@ def _apply_contract_authority_publications() -> None:
             """
         )
     )
+_FACTOR_MINING_CAMPAIGN_SHA256 = "^[0-9a-f]{64}$"
+_FACTOR_MINING_CAMPAIGN_FAILURE_CODES = (
+    "'FACTOR_MINING_CAMPAIGN_ARTIFACT_REJECTED'",
+    "'FACTOR_MINING_CAMPAIGN_DATA_AUTHORIZATION_UNAVAILABLE'",
+    "'FACTOR_MINING_CAMPAIGN_INPUT_INVALID'",
+    "'FACTOR_MINING_CAMPAIGN_RESOURCE_LIMIT_EXCEEDED'",
+    "'FACTOR_MINING_CAMPAIGN_RESULT_INVALID'",
+    "'FACTOR_MINING_CAMPAIGN_WORKER_CANCELLED_CONFIRMED'",
+)
+_FACTOR_MINING_CAMPAIGN_EVENT_KINDS = (
+    "'RESERVED'",
+    "'RECEIPT_RECORDED'",
+    "'DISCOVERY_RECORDED'",
+    "'SELECTION_COMMITTED'",
+    "'OOS_RESERVED'",
+    "'OOS_RELEASED'",
+    "'RESULT_RECORDED'",
+    "'FAILED'",
+    "'REPLAY_AUTHORIZED'",
+)
+
+
+def _apply_factor_mining_campaign_ledger() -> None:
+    """Create the research-only, append-only local factor-mining ledger."""
+
+    op.create_table(
+        "factor_mining_campaign_records",
+        sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
+        sa.Column("campaign_id", sa.String(length=128), nullable=False),
+        sa.Column("campaign_hash", sa.String(length=64), nullable=False),
+        sa.Column("declaration_hash", sa.String(length=64), nullable=False),
+        sa.Column("declaration_snapshot_hash", sa.String(length=64), nullable=False),
+        sa.Column("decision_replay_plan_hash", sa.String(length=64), nullable=False),
+        sa.Column("dataset_version_set_hash", sa.String(length=64), nullable=False),
+        sa.Column("template_hash", sa.String(length=64), nullable=False),
+        sa.Column("search_budget_hash", sa.String(length=64), nullable=False),
+        sa.Column("selection_policy_hash", sa.String(length=64), nullable=False),
+        sa.Column("generator_id", sa.String(length=128), nullable=False),
+        sa.Column("generator_model_revision_hash", sa.String(length=64), nullable=False),
+        sa.Column("prompt_template_hash", sa.String(length=64), nullable=False),
+        sa.Column("source_authorization_hash", sa.String(length=64), nullable=False),
+        sa.Column("runner_resource_budget_hash", sa.String(length=64), nullable=False),
+        sa.Column("max_concurrent_runs", sa.Integer(), nullable=False),
+        sa.Column("code_revision_hash", sa.String(length=64), nullable=False),
+        sa.Column(
+            "selection_at",
+            northstar_quant.foundation.db.types.UTCDateTime(),
+            nullable=False,
+        ),
+        sa.Column(
+            "registered_at",
+            northstar_quant.foundation.db.types.UTCDateTime(),
+            nullable=False,
+        ),
+        sa.Column("lifecycle", sa.String(length=32), nullable=False),
+        sa.Column("eligible_for_trading", sa.Boolean(), nullable=False),
+        sa.Column("record_hash", sa.String(length=64), nullable=False),
+        sa.UniqueConstraint(
+            "campaign_id",
+            name="uq_factor_mining_campaign_records_campaign_id",
+        ),
+        sa.UniqueConstraint(
+            "campaign_hash",
+            name="uq_factor_mining_campaign_records_campaign_hash",
+        ),
+        sa.UniqueConstraint(
+            "record_hash",
+            name="uq_factor_mining_campaign_records_record_hash",
+        ),
+        sa.CheckConstraint(
+            "lifecycle = 'RESEARCH_ONLY'",
+            name="ck_factor_mining_campaign_records_research_only",
+        ),
+        sa.CheckConstraint(
+            "eligible_for_trading = false",
+            name="ck_factor_mining_campaign_records_non_tradable",
+        ),
+        sa.CheckConstraint(
+            "max_concurrent_runs BETWEEN 1 AND 16",
+            name="ck_factor_mining_campaign_records_max_concurrent_runs",
+        ),
+        sa.CheckConstraint(
+            f"campaign_hash ~ '{_FACTOR_MINING_CAMPAIGN_SHA256}'",
+            name="ck_factor_mining_campaign_records_campaign_hash",
+        ),
+        sa.CheckConstraint(
+            f"declaration_hash ~ '{_FACTOR_MINING_CAMPAIGN_SHA256}'",
+            name="ck_factor_mining_campaign_records_declaration_hash",
+        ),
+        sa.CheckConstraint(
+            "declaration_snapshot_hash ~ "
+            f"'{_FACTOR_MINING_CAMPAIGN_SHA256}'",
+            name="ck_factor_mining_campaign_records_declaration_snapshot",
+        ),
+        sa.CheckConstraint(
+            "decision_replay_plan_hash ~ "
+            f"'{_FACTOR_MINING_CAMPAIGN_SHA256}'",
+            name="ck_factor_mining_campaign_records_plan_hash",
+        ),
+        sa.CheckConstraint(
+            "dataset_version_set_hash ~ "
+            f"'{_FACTOR_MINING_CAMPAIGN_SHA256}'",
+            name="ck_factor_mining_campaign_records_dataset_set_hash",
+        ),
+        sa.CheckConstraint(
+            f"template_hash ~ '{_FACTOR_MINING_CAMPAIGN_SHA256}'",
+            name="ck_factor_mining_campaign_records_template_hash",
+        ),
+        sa.CheckConstraint(
+            f"search_budget_hash ~ '{_FACTOR_MINING_CAMPAIGN_SHA256}'",
+            name="ck_factor_mining_campaign_records_search_budget_hash",
+        ),
+        sa.CheckConstraint(
+            "selection_policy_hash ~ "
+            f"'{_FACTOR_MINING_CAMPAIGN_SHA256}'",
+            name="ck_factor_mining_campaign_records_selection_policy_hash",
+        ),
+        sa.CheckConstraint(
+            "generator_model_revision_hash ~ "
+            f"'{_FACTOR_MINING_CAMPAIGN_SHA256}'",
+            name="ck_factor_mining_campaign_records_generator_revision_hash",
+        ),
+        sa.CheckConstraint(
+            "prompt_template_hash ~ "
+            f"'{_FACTOR_MINING_CAMPAIGN_SHA256}'",
+            name="ck_factor_mining_campaign_records_prompt_hash",
+        ),
+        sa.CheckConstraint(
+            "source_authorization_hash ~ "
+            f"'{_FACTOR_MINING_CAMPAIGN_SHA256}'",
+            name="ck_factor_mining_campaign_records_authorization_hash",
+        ),
+        sa.CheckConstraint(
+            "runner_resource_budget_hash ~ "
+            f"'{_FACTOR_MINING_CAMPAIGN_SHA256}'",
+            name="ck_factor_mining_campaign_records_runner_budget_hash",
+        ),
+        sa.CheckConstraint(
+            "code_revision_hash ~ "
+            f"'{_FACTOR_MINING_CAMPAIGN_SHA256}'",
+            name="ck_factor_mining_campaign_records_code_revision_hash",
+        ),
+        sa.CheckConstraint(
+            f"record_hash ~ '{_FACTOR_MINING_CAMPAIGN_SHA256}'",
+            name="ck_factor_mining_campaign_records_record_hash_shape",
+        ),
+    )
+    for column in (
+        "campaign_id",
+        "campaign_hash",
+        "declaration_hash",
+        "declaration_snapshot_hash",
+        "decision_replay_plan_hash",
+        "dataset_version_set_hash",
+        "template_hash",
+        "search_budget_hash",
+        "selection_policy_hash",
+        "generator_id",
+        "generator_model_revision_hash",
+        "prompt_template_hash",
+        "source_authorization_hash",
+        "runner_resource_budget_hash",
+        "code_revision_hash",
+        "selection_at",
+        "registered_at",
+        "lifecycle",
+        "eligible_for_trading",
+        "record_hash",
+    ):
+        op.create_index(
+            op.f(f"ix_factor_mining_campaign_records_{column}"),
+            "factor_mining_campaign_records",
+            [column],
+            unique=False,
+        )
+
+    event_shape = (
+        "(event_kind = 'RESERVED' AND is_terminal = false "
+        "AND generation_receipt_hash IS NULL AND discovery_result_hash IS NULL "
+        "AND selection_commitment_hash IS NULL AND oos_release_hash IS NULL "
+        "AND bundle_snapshot_hash IS NULL AND manifest_snapshot_hash IS NULL "
+        "AND result_hash IS NULL AND failure_code IS NULL "
+        "AND ((replay_authorization_hash IS NULL AND predecessor_record_hash IS NULL) "
+        "OR (replay_authorization_hash IS NOT NULL AND predecessor_record_hash IS NOT NULL)) "
+        "AND active_concurrency_observed IS NOT NULL "
+        "AND candidate_count IS NULL AND selected_candidate_count IS NULL) "
+        "OR (event_kind = 'RECEIPT_RECORDED' AND is_terminal = false "
+        "AND generation_receipt_hash IS NOT NULL AND discovery_result_hash IS NULL "
+        "AND selection_commitment_hash IS NULL AND oos_release_hash IS NULL "
+        "AND bundle_snapshot_hash IS NULL AND manifest_snapshot_hash IS NULL "
+        "AND result_hash IS NULL AND failure_code IS NULL "
+        "AND predecessor_record_hash IS NOT NULL AND candidate_count > 0 "
+        "AND active_concurrency_observed IS NOT NULL "
+        "AND selected_candidate_count IS NULL) "
+        "OR (event_kind = 'DISCOVERY_RECORDED' AND is_terminal = false "
+        "AND generation_receipt_hash IS NOT NULL AND discovery_result_hash IS NOT NULL "
+        "AND selection_commitment_hash IS NULL AND oos_release_hash IS NULL "
+        "AND bundle_snapshot_hash IS NULL AND manifest_snapshot_hash IS NULL "
+        "AND result_hash IS NULL AND failure_code IS NULL "
+        "AND predecessor_record_hash IS NOT NULL AND candidate_count > 0 "
+        "AND active_concurrency_observed IS NOT NULL "
+        "AND selected_candidate_count IS NULL) "
+        "OR (event_kind = 'SELECTION_COMMITTED' AND is_terminal = false "
+        "AND generation_receipt_hash IS NOT NULL AND discovery_result_hash IS NOT NULL "
+        "AND selection_commitment_hash IS NOT NULL AND oos_release_hash IS NULL "
+        "AND bundle_snapshot_hash IS NULL AND manifest_snapshot_hash IS NULL "
+        "AND result_hash IS NULL AND failure_code IS NULL "
+        "AND predecessor_record_hash IS NOT NULL AND candidate_count > 0 "
+        "AND active_concurrency_observed IS NOT NULL "
+        "AND selected_candidate_count BETWEEN 0 AND candidate_count) "
+        "OR (event_kind = 'OOS_RESERVED' AND is_terminal = false "
+        "AND generation_receipt_hash IS NOT NULL AND discovery_result_hash IS NOT NULL "
+        "AND selection_commitment_hash IS NOT NULL AND oos_release_hash IS NULL "
+        "AND bundle_snapshot_hash IS NULL AND manifest_snapshot_hash IS NULL "
+        "AND result_hash IS NULL AND failure_code IS NULL "
+        "AND predecessor_record_hash IS NOT NULL AND candidate_count > 0 "
+        "AND active_concurrency_observed IS NOT NULL "
+        "AND selected_candidate_count BETWEEN 1 AND candidate_count) "
+        "OR (event_kind = 'OOS_RELEASED' AND is_terminal = false "
+        "AND generation_receipt_hash IS NOT NULL AND discovery_result_hash IS NOT NULL "
+        "AND selection_commitment_hash IS NOT NULL AND oos_release_hash IS NOT NULL "
+        "AND bundle_snapshot_hash IS NULL AND manifest_snapshot_hash IS NULL "
+        "AND result_hash IS NULL AND failure_code IS NULL "
+        "AND predecessor_record_hash IS NOT NULL AND candidate_count > 0 "
+        "AND active_concurrency_observed IS NOT NULL "
+        "AND selected_candidate_count BETWEEN 1 AND candidate_count) "
+        "OR (event_kind = 'RESULT_RECORDED' AND is_terminal = true "
+        "AND generation_receipt_hash IS NOT NULL AND discovery_result_hash IS NOT NULL "
+        "AND selection_commitment_hash IS NOT NULL "
+        "AND bundle_snapshot_hash IS NOT NULL AND manifest_snapshot_hash IS NOT NULL "
+        "AND result_hash IS NOT NULL AND failure_code IS NULL "
+        "AND resource_usage_hash IS NOT NULL AND predecessor_record_hash IS NOT NULL "
+        "AND candidate_count > 0 AND active_concurrency_observed IS NOT NULL "
+        "AND selected_candidate_count BETWEEN 0 AND candidate_count "
+        "AND ((selected_candidate_count = 0 AND oos_release_hash IS NULL) "
+        "OR (selected_candidate_count > 0 AND oos_release_hash IS NOT NULL)) "
+        "AND max_concurrency_observed IS NOT NULL AND cpu_milliseconds IS NOT NULL "
+        "AND peak_memory_bytes IS NOT NULL AND wall_clock_milliseconds IS NOT NULL "
+        "AND data_row_count IS NOT NULL AND artifact_byte_count IS NOT NULL) "
+        "OR (event_kind = 'FAILED' AND is_terminal = true "
+        "AND bundle_snapshot_hash IS NULL AND manifest_snapshot_hash IS NULL "
+        "AND result_hash IS NULL AND failure_code IS NOT NULL "
+        "AND predecessor_record_hash IS NOT NULL "
+        "AND active_concurrency_observed IS NOT NULL) "
+        "OR (event_kind = 'REPLAY_AUTHORIZED' AND is_terminal = true "
+        "AND bundle_snapshot_hash IS NULL AND manifest_snapshot_hash IS NULL "
+        "AND result_hash IS NULL AND failure_code IS NULL "
+        "AND resource_usage_hash IS NULL AND predecessor_record_hash IS NOT NULL "
+        "AND active_concurrency_observed IS NOT NULL)"
+    )
+    op.create_table(
+        "factor_mining_campaign_request_events",
+        sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
+        sa.Column("campaign_id", sa.String(length=128), nullable=False),
+        sa.Column("campaign_hash", sa.String(length=64), nullable=False),
+        sa.Column("campaign_record_hash", sa.String(length=64), nullable=False),
+        sa.Column("request_id", sa.String(length=128), nullable=False),
+        sa.Column("sequence", sa.Integer(), nullable=False),
+        sa.Column("event_kind", sa.String(length=32), nullable=False),
+        sa.Column("is_terminal", sa.Boolean(), nullable=False),
+        sa.Column("request_hash", sa.String(length=64), nullable=False),
+        sa.Column("request_actor_id", sa.String(length=128), nullable=False),
+        sa.Column("resource_budget_hash", sa.String(length=64), nullable=False),
+        sa.Column("source_authorization_hash", sa.String(length=64), nullable=False),
+        sa.Column("replay_authorization_hash", sa.String(length=64), nullable=True),
+        sa.Column("replay_authorization_id", sa.String(length=128), nullable=True),
+        sa.Column("replay_actor_id", sa.String(length=128), nullable=True),
+        sa.Column(
+            "replay_authorization_evidence_hash", sa.String(length=64), nullable=True
+        ),
+        sa.Column("generation_receipt_hash", sa.String(length=64), nullable=True),
+        sa.Column("discovery_result_hash", sa.String(length=64), nullable=True),
+        sa.Column("selection_commitment_hash", sa.String(length=64), nullable=True),
+        sa.Column("oos_release_hash", sa.String(length=64), nullable=True),
+        sa.Column("bundle_snapshot_hash", sa.String(length=64), nullable=True),
+        sa.Column("manifest_snapshot_hash", sa.String(length=64), nullable=True),
+        sa.Column("result_hash", sa.String(length=64), nullable=True),
+        sa.Column("resource_usage_hash", sa.String(length=64), nullable=True),
+        sa.Column("candidate_count", sa.BigInteger(), nullable=True),
+        sa.Column("selected_candidate_count", sa.BigInteger(), nullable=True),
+        sa.Column("active_concurrency_observed", sa.BigInteger(), nullable=False),
+        sa.Column("max_concurrency_observed", sa.BigInteger(), nullable=True),
+        sa.Column("cpu_milliseconds", sa.BigInteger(), nullable=True),
+        sa.Column("peak_memory_bytes", sa.BigInteger(), nullable=True),
+        sa.Column("wall_clock_milliseconds", sa.BigInteger(), nullable=True),
+        sa.Column("data_row_count", sa.BigInteger(), nullable=True),
+        sa.Column("artifact_byte_count", sa.BigInteger(), nullable=True),
+        sa.Column("failure_code", sa.String(length=128), nullable=True),
+        sa.Column(
+            "occurred_at",
+            northstar_quant.foundation.db.types.UTCDateTime(),
+            nullable=False,
+        ),
+        sa.Column("predecessor_record_hash", sa.String(length=64), nullable=True),
+        sa.Column("lifecycle", sa.String(length=32), nullable=False),
+        sa.Column("eligible_for_trading", sa.Boolean(), nullable=False),
+        sa.Column("record_hash", sa.String(length=64), nullable=False),
+        sa.UniqueConstraint(
+            "request_id",
+            "sequence",
+            name="uq_factor_mining_campaign_events_request_sequence",
+        ),
+        sa.UniqueConstraint(
+            "request_id",
+            "event_kind",
+            name="uq_factor_mining_campaign_events_request_kind",
+        ),
+        sa.UniqueConstraint(
+            "record_hash",
+            name="uq_factor_mining_campaign_events_record_hash",
+        ),
+        sa.CheckConstraint(
+            "sequence > 0",
+            name="ck_factor_mining_campaign_events_positive_sequence",
+        ),
+        sa.CheckConstraint(
+            f"event_kind IN ({', '.join(_FACTOR_MINING_CAMPAIGN_EVENT_KINDS)})",
+            name="ck_factor_mining_campaign_events_event_kind",
+        ),
+        sa.CheckConstraint(
+            "lifecycle = 'RESEARCH_ONLY'",
+            name="ck_factor_mining_campaign_events_research_only",
+        ),
+        sa.CheckConstraint(
+            "eligible_for_trading = false",
+            name="ck_factor_mining_campaign_events_non_tradable",
+        ),
+        sa.CheckConstraint(
+            "candidate_count IS NULL OR candidate_count >= 0",
+            name="ck_factor_mining_campaign_events_candidate_count",
+        ),
+        sa.CheckConstraint(
+            "selected_candidate_count IS NULL OR selected_candidate_count >= 0",
+            name="ck_factor_mining_campaign_events_selected_candidate_count",
+        ),
+        sa.CheckConstraint(
+            "active_concurrency_observed BETWEEN 1 AND 16",
+            name="ck_factor_mining_campaign_events_active_concurrency_observed",
+        ),
+        sa.CheckConstraint(
+            "max_concurrency_observed IS NULL OR max_concurrency_observed >= 0",
+            name="ck_factor_mining_campaign_events_concurrency_count",
+        ),
+        sa.CheckConstraint(
+            "cpu_milliseconds IS NULL OR cpu_milliseconds >= 0",
+            name="ck_factor_mining_campaign_events_cpu_milliseconds",
+        ),
+        sa.CheckConstraint(
+            "peak_memory_bytes IS NULL OR peak_memory_bytes >= 0",
+            name="ck_factor_mining_campaign_events_peak_memory_bytes",
+        ),
+        sa.CheckConstraint(
+            "wall_clock_milliseconds IS NULL OR wall_clock_milliseconds >= 0",
+            name="ck_factor_mining_campaign_events_wall_clock_milliseconds",
+        ),
+        sa.CheckConstraint(
+            "data_row_count IS NULL OR data_row_count >= 0",
+            name="ck_factor_mining_campaign_events_data_row_count",
+        ),
+        sa.CheckConstraint(
+            "artifact_byte_count IS NULL OR artifact_byte_count >= 0",
+            name="ck_factor_mining_campaign_events_artifact_byte_count",
+        ),
+        sa.CheckConstraint(
+            "(resource_usage_hash IS NULL "
+            "AND max_concurrency_observed IS NULL AND cpu_milliseconds IS NULL "
+            "AND peak_memory_bytes IS NULL AND wall_clock_milliseconds IS NULL "
+            "AND data_row_count IS NULL AND artifact_byte_count IS NULL) "
+            "OR (resource_usage_hash IS NOT NULL "
+            "AND max_concurrency_observed IS NOT NULL AND cpu_milliseconds IS NOT NULL "
+            "AND peak_memory_bytes IS NOT NULL AND wall_clock_milliseconds IS NOT NULL "
+            "AND data_row_count IS NOT NULL AND artifact_byte_count IS NOT NULL)",
+            name="ck_factor_mining_campaign_events_resource_usage_shape",
+        ),
+        sa.CheckConstraint(
+            f"campaign_hash ~ '{_FACTOR_MINING_CAMPAIGN_SHA256}'",
+            name="ck_factor_mining_campaign_events_campaign_hash",
+        ),
+        sa.CheckConstraint(
+            "campaign_record_hash ~ "
+            f"'{_FACTOR_MINING_CAMPAIGN_SHA256}'",
+            name="ck_factor_mining_campaign_events_campaign_record_hash",
+        ),
+        sa.CheckConstraint(
+            f"request_hash ~ '{_FACTOR_MINING_CAMPAIGN_SHA256}'",
+            name="ck_factor_mining_campaign_events_request_hash",
+        ),
+        sa.CheckConstraint(
+            "request_actor_id ~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$'",
+            name="ck_factor_mining_campaign_events_request_actor_id",
+        ),
+        sa.CheckConstraint(
+            "resource_budget_hash ~ "
+            f"'{_FACTOR_MINING_CAMPAIGN_SHA256}'",
+            name="ck_factor_mining_campaign_events_resource_budget_hash",
+        ),
+        sa.CheckConstraint(
+            "source_authorization_hash ~ "
+            f"'{_FACTOR_MINING_CAMPAIGN_SHA256}'",
+            name="ck_factor_mining_campaign_events_authorization_hash",
+        ),
+        sa.CheckConstraint(
+            "replay_authorization_hash IS NULL OR replay_authorization_hash ~ "
+            f"'{_FACTOR_MINING_CAMPAIGN_SHA256}'",
+            name="ck_factor_mining_campaign_events_replay_authorization_hash",
+        ),
+        sa.CheckConstraint(
+            "replay_authorization_evidence_hash IS NULL OR "
+            "replay_authorization_evidence_hash ~ "
+            f"'{_FACTOR_MINING_CAMPAIGN_SHA256}'",
+            name="ck_factor_mining_events_replay_auth_evidence_hash",
+        ),
+        sa.CheckConstraint(
+            "replay_authorization_id IS NULL OR "
+            "replay_authorization_id ~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$'",
+            name="ck_factor_mining_campaign_events_replay_authorization_id",
+        ),
+        sa.CheckConstraint(
+            "replay_actor_id IS NULL OR "
+            "replay_actor_id ~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$'",
+            name="ck_factor_mining_campaign_events_replay_actor_id",
+        ),
+        sa.CheckConstraint(
+            "generation_receipt_hash IS NULL OR generation_receipt_hash ~ "
+            f"'{_FACTOR_MINING_CAMPAIGN_SHA256}'",
+            name="ck_factor_mining_campaign_events_receipt_hash",
+        ),
+        sa.CheckConstraint(
+            "discovery_result_hash IS NULL OR discovery_result_hash ~ "
+            f"'{_FACTOR_MINING_CAMPAIGN_SHA256}'",
+            name="ck_factor_mining_campaign_events_discovery_hash",
+        ),
+        sa.CheckConstraint(
+            "selection_commitment_hash IS NULL OR selection_commitment_hash ~ "
+            f"'{_FACTOR_MINING_CAMPAIGN_SHA256}'",
+            name="ck_factor_mining_campaign_events_selection_hash",
+        ),
+        sa.CheckConstraint(
+            "oos_release_hash IS NULL OR oos_release_hash ~ "
+            f"'{_FACTOR_MINING_CAMPAIGN_SHA256}'",
+            name="ck_factor_mining_campaign_events_oos_hash",
+        ),
+        sa.CheckConstraint(
+            "bundle_snapshot_hash IS NULL OR bundle_snapshot_hash ~ "
+            f"'{_FACTOR_MINING_CAMPAIGN_SHA256}'",
+            name="ck_factor_mining_campaign_events_bundle_snapshot_hash",
+        ),
+        sa.CheckConstraint(
+            "manifest_snapshot_hash IS NULL OR manifest_snapshot_hash ~ "
+            f"'{_FACTOR_MINING_CAMPAIGN_SHA256}'",
+            name="ck_factor_mining_campaign_events_manifest_snapshot_hash",
+        ),
+        sa.CheckConstraint(
+            "result_hash IS NULL OR result_hash ~ "
+            f"'{_FACTOR_MINING_CAMPAIGN_SHA256}'",
+            name="ck_factor_mining_campaign_events_result_hash",
+        ),
+        sa.CheckConstraint(
+            "resource_usage_hash IS NULL OR resource_usage_hash ~ "
+            f"'{_FACTOR_MINING_CAMPAIGN_SHA256}'",
+            name="ck_factor_mining_campaign_events_resource_usage_hash",
+        ),
+        sa.CheckConstraint(
+            "predecessor_record_hash IS NULL OR predecessor_record_hash ~ "
+            f"'{_FACTOR_MINING_CAMPAIGN_SHA256}'",
+            name="ck_factor_mining_campaign_events_predecessor_hash",
+        ),
+        sa.CheckConstraint(
+            f"record_hash ~ '{_FACTOR_MINING_CAMPAIGN_SHA256}'",
+            name="ck_factor_mining_campaign_events_record_hash_shape",
+        ),
+        sa.CheckConstraint(
+            "failure_code IS NULL OR "
+            f"failure_code IN ({', '.join(_FACTOR_MINING_CAMPAIGN_FAILURE_CODES)})",
+            name="ck_factor_mining_campaign_events_failure_code",
+        ),
+        sa.CheckConstraint(
+            "(event_kind = 'REPLAY_AUTHORIZED' "
+            "AND replay_authorization_hash IS NOT NULL "
+            "AND replay_authorization_id IS NOT NULL AND replay_actor_id IS NOT NULL "
+            "AND replay_authorization_evidence_hash IS NOT NULL) "
+            "OR (event_kind <> 'REPLAY_AUTHORIZED' "
+            "AND replay_authorization_id IS NULL AND replay_actor_id IS NULL "
+            "AND replay_authorization_evidence_hash IS NULL)",
+            name="ck_factor_mining_campaign_events_replay_authorization_fields",
+        ),
+        sa.CheckConstraint(
+            event_shape,
+            name="ck_factor_mining_campaign_events_event_shape",
+        ),
+    )
+    for column in (
+        "campaign_id",
+        "campaign_hash",
+        "campaign_record_hash",
+        "request_id",
+        "event_kind",
+        "is_terminal",
+        "request_hash",
+        "request_actor_id",
+        "resource_budget_hash",
+        "replay_actor_id",
+        "discovery_result_hash",
+        "oos_release_hash",
+        "bundle_snapshot_hash",
+        "manifest_snapshot_hash",
+        "result_hash",
+        "resource_usage_hash",
+        "failure_code",
+        "occurred_at",
+        "lifecycle",
+        "eligible_for_trading",
+        "record_hash",
+    ):
+        op.create_index(
+            op.f(f"ix_factor_mining_campaign_request_events_{column}"),
+            "factor_mining_campaign_request_events",
+            [column],
+            unique=False,
+        )
+    op.create_index(
+        "ix_fm_campaign_events_source_authorization_hash",
+        "factor_mining_campaign_request_events",
+        ["source_authorization_hash"],
+        unique=False,
+    )
+    op.create_index(
+        "ix_fm_campaign_events_replay_authorization_hash",
+        "factor_mining_campaign_request_events",
+        ["replay_authorization_hash"],
+        unique=False,
+    )
+    op.create_index(
+        "ix_fm_campaign_events_replay_authorization_id",
+        "factor_mining_campaign_request_events",
+        ["replay_authorization_id"],
+        unique=False,
+    )
+    op.create_index(
+        "ix_fm_campaign_events_replay_authorization_evidence_hash",
+        "factor_mining_campaign_request_events",
+        ["replay_authorization_evidence_hash"],
+        unique=False,
+    )
+    op.create_index(
+        "ix_fm_campaign_events_generation_receipt_hash",
+        "factor_mining_campaign_request_events",
+        ["generation_receipt_hash"],
+        unique=False,
+    )
+    op.create_index(
+        "ix_fm_campaign_events_selection_commitment_hash",
+        "factor_mining_campaign_request_events",
+        ["selection_commitment_hash"],
+        unique=False,
+    )
+    op.create_index(
+        "ix_fm_campaign_events_active_concurrency_observed",
+        "factor_mining_campaign_request_events",
+        ["active_concurrency_observed"],
+        unique=False,
+    )
+    op.create_index(
+        "ix_fm_campaign_events_predecessor_record_hash",
+        "factor_mining_campaign_request_events",
+        ["predecessor_record_hash"],
+        unique=False,
+    )
+    op.create_index(
+        "uq_factor_mining_campaign_events_reservation_request_hash",
+        "factor_mining_campaign_request_events",
+        ["request_hash"],
+        unique=True,
+        postgresql_where=sa.text("event_kind = 'RESERVED'"),
+    )
+    op.create_index(
+        "uq_factor_mining_campaign_events_one_terminal",
+        "factor_mining_campaign_request_events",
+        ["request_id"],
+        unique=True,
+        postgresql_where=sa.text("is_terminal"),
+    )
+    op.create_index(
+        "uq_factor_mining_campaign_events_receipt_hash",
+        "factor_mining_campaign_request_events",
+        ["generation_receipt_hash"],
+        unique=True,
+        postgresql_where=sa.text("event_kind = 'RECEIPT_RECORDED'"),
+    )
+    op.create_index(
+        "uq_factor_mining_campaign_events_replay_authorization_id",
+        "factor_mining_campaign_request_events",
+        ["replay_authorization_id"],
+        unique=True,
+        postgresql_where=sa.text("event_kind = 'REPLAY_AUTHORIZED'"),
+    )
+    op.create_index(
+        "uq_factor_mining_campaign_events_replay_authorization_hash",
+        "factor_mining_campaign_request_events",
+        ["replay_authorization_hash"],
+        unique=True,
+        postgresql_where=sa.text("event_kind = 'REPLAY_AUTHORIZED'"),
+    )
+    op.create_index(
+        "uq_factor_mining_events_replay_auth_consumption",
+        "factor_mining_campaign_request_events",
+        ["replay_authorization_hash"],
+        unique=True,
+        postgresql_where=sa.text(
+            "event_kind = 'RESERVED' AND replay_authorization_hash IS NOT NULL"
+        ),
+    )
+
+    op.execute(
+        """
+        CREATE FUNCTION northstar_reject_factor_mining_campaign_ledger_mutation()
+        RETURNS trigger
+        LANGUAGE plpgsql
+        AS $$
+        BEGIN
+            RAISE EXCEPTION 'FACTOR_MINING_CAMPAIGN_LEDGER_IMMUTABLE';
+            RETURN NULL;
+        END;
+        $$;
+        """
+    )
+    op.execute(
+        """
+        CREATE TRIGGER trg_fm_campaign_records_immutable
+        BEFORE UPDATE OR DELETE ON factor_mining_campaign_records
+        FOR EACH ROW
+        EXECUTE FUNCTION northstar_reject_factor_mining_campaign_ledger_mutation();
+        """
+    )
+    op.execute(
+        """
+        CREATE TRIGGER trg_fm_campaign_records_reject_truncate
+        BEFORE TRUNCATE ON factor_mining_campaign_records
+        FOR EACH STATEMENT
+        EXECUTE FUNCTION northstar_reject_factor_mining_campaign_ledger_mutation();
+        """
+    )
+    op.execute(
+        """
+        CREATE TRIGGER trg_fm_campaign_events_immutable
+        BEFORE UPDATE OR DELETE ON factor_mining_campaign_request_events
+        FOR EACH ROW
+        EXECUTE FUNCTION northstar_reject_factor_mining_campaign_ledger_mutation();
+        """
+    )
+    op.execute(
+        """
+        CREATE TRIGGER trg_fm_campaign_events_reject_truncate
+        BEFORE TRUNCATE ON factor_mining_campaign_request_events
+        FOR EACH STATEMENT
+        EXECUTE FUNCTION northstar_reject_factor_mining_campaign_ledger_mutation();
+        """
+    )
+
+
 # BASELINE_EXTENSION_HELPERS_END
 
 
@@ -1969,6 +2629,7 @@ def upgrade() -> None:
     _apply_portfolio_risk_approval()
     _apply_research_agent_run_audit()
     _apply_research_agent_run_audit_hardening()
+    _apply_factor_mining_campaign_ledger()
     _apply_simulated_broker_state_authority()
     _apply_contract_authority_publications()
 

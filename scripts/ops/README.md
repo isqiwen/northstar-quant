@@ -1,8 +1,8 @@
 # 运维脚本
 
-这些 Python 入口可从 Windows 或 Linux 开发机通过 SSH 调用 Linux 生产目标；目标由同一份
-非机密 `deploy.env` 清单定义。它们不读取或复制本地 `.env`，也不在 Windows 上要求 systemd、
-本机服务或 Linux 权限。
+这些 Python 入口只能从 Linux x86_64 控制主机通过 SSH 调用 Linux x86_64 生产目标；目标由同一份
+非机密 `deploy.env` 清单定义。它们不读取或复制本地 `.env`，也不在控制主机上要求 systemd、
+本机服务或生产目标权限。
 
 ```bash
 python scripts/dev/run_just.py ops-health

@@ -72,10 +72,23 @@ def test_artifact_handoff_rejects_streams_above_the_fixed_limit(
 
 
 def test_artifact_handoff_fails_closed_without_linux_root(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(artifact_handoff.sys, "platform", "win32")
+    monkeypatch.setattr(artifact_handoff.platform, "system", lambda: "Windows")
+    monkeypatch.setattr(artifact_handoff.platform, "machine", lambda: "AMD64")
     monkeypatch.setattr(artifact_handoff.os, "geteuid", lambda: 0, raising=False)
 
-    with pytest.raises(artifact_handoff.ArtifactHandoffError, match="requires Linux root"):
+    with pytest.raises(artifact_handoff.ArtifactHandoffError, match="requires Linux x86_64 root"):
+        artifact_handoff.receive_from_standard_input(
+            release_id="release-20260822",
+            expected_sha256="a" * 64,
+        )
+
+
+def test_artifact_handoff_fails_closed_on_non_x86_linux(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(artifact_handoff.platform, "system", lambda: "Linux")
+    monkeypatch.setattr(artifact_handoff.platform, "machine", lambda: "aarch64")
+    monkeypatch.setattr(artifact_handoff.os, "geteuid", lambda: 0, raising=False)
+
+    with pytest.raises(artifact_handoff.ArtifactHandoffError, match="requires Linux x86_64 root"):
         artifact_handoff.receive_from_standard_input(
             release_id="release-20260822",
             expected_sha256="a" * 64,

@@ -60,6 +60,8 @@ build-bootstrap = [
 
 [project.scripts]
 northstar = "northstar_quant.application.cli:app"
+northstar-research = "northstar_quant.application.research_cli:app"
+northstar-factor-mining = "northstar_quant.application.factor_mining_campaign_cli:app"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

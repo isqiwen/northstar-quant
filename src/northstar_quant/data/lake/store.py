@@ -21,6 +21,7 @@ from northstar_quant.data.lake.models import (
     LakeManifest,
     LakePartition,
 )
+from northstar_quant.foundation.platform_support import require_linux_x86_64
 
 
 class LakeStoreError(RuntimeError):
@@ -50,6 +51,7 @@ class ParquetLakeStore:
     """固定于 ``<storage_dir>/lake`` 的不可变历史数据湖。"""
 
     def __init__(self, root: str | Path) -> None:
+        require_linux_x86_64()
         candidate = Path(root).expanduser()
         if not candidate.is_absolute() or ".." in candidate.parts:
             raise LakeStoreError("Lake root 必须是无 '..' 的绝对路径")
@@ -305,15 +307,13 @@ class ParquetLakeStore:
 
     def _read_regular_bytes(self, path: Path, label: str) -> bytes:
         self._assert_safe_directory_path(path.parent, f"{label} 父目录")
-        if os.name == "nt":
-            return _read_regular_bytes_windows(path, label)
-        directory_fd = self._open_posix_directory_fd(path.parent)
+        directory_fd = self._open_directory_fd(path.parent)
         try:
             return _read_regular_bytes_at(directory_fd, path.name, label)
         finally:
             os.close(directory_fd)
 
-    def _open_posix_directory_fd(self, path: Path) -> int:
+    def _open_directory_fd(self, path: Path) -> int:
         """从 Lake root 逐段以 ``O_NOFOLLOW`` 打开目录，防止中间路径被链接替换。"""
 
         try:
@@ -323,7 +323,7 @@ class ParquetLakeStore:
         root_state = _assert_private_directory(
             self._root, "Lake root", strict_permissions=True
         )
-        flags = os.O_RDONLY | os.O_DIRECTORY | getattr(os, "O_NOFOLLOW", 0)
+        flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
         try:
             directory_fd = os.open(self._root, flags)
         except OSError as exc:
@@ -405,37 +405,18 @@ def _assert_private_directory_state(
 ) -> None:
     if stat.S_ISLNK(state.st_mode) or not stat.S_ISDIR(state.st_mode):
         raise LakeStoreError(f"{label} 必须是普通目录，不能是符号链接")
-    if os.name != "nt":
-        if state.st_uid != os.getuid():
-            raise LakeStoreError(f"{label} 必须由当前服务用户拥有")
-        if strict_permissions and stat.S_IMODE(state.st_mode) & 0o077:
-            raise LakeStoreError(f"{label} 不得向 group 或 other 开放访问")
+    if state.st_uid != os.getuid():
+        raise LakeStoreError(f"{label} 必须由当前服务用户拥有")
+    if strict_permissions and stat.S_IMODE(state.st_mode) & 0o077:
+        raise LakeStoreError(f"{label} 不得向 group 或 other 开放访问")
 
 
 def _same_file(left: os.stat_result, right: os.stat_result) -> bool:
     return (left.st_dev, left.st_ino) == (right.st_dev, right.st_ino)
 
 
-def _read_regular_bytes_windows(path: Path, label: str) -> bytes:
-    """Windows fallback：前后检查 reparse point 与普通文件身份。"""
-
-    before = _lstat(path)
-    if before is None:
-        raise LakeIntegrityError(f"{label} 不存在：{path}")
-    if stat.S_ISLNK(before.st_mode) or not stat.S_ISREG(before.st_mode):
-        raise LakeIntegrityError(f"{label} 必须是普通文件，不能是符号链接")
-    try:
-        payload = path.read_bytes()
-    except OSError as exc:
-        raise LakeIntegrityError(f"无法读取 {label}") from exc
-    after = _lstat(path)
-    if after is None or not _same_file(before, after) or after.st_size != before.st_size:
-        raise LakeIntegrityError(f"{label} 在读取中发生变化")
-    return payload
-
-
 def _read_regular_bytes_at(directory_fd: int, filename: str, label: str) -> bytes:
-    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+    flags = os.O_RDONLY | os.O_NOFOLLOW
     try:
         descriptor = os.open(filename, flags, dir_fd=directory_fd)
     except FileNotFoundError as exc:

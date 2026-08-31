@@ -42,22 +42,13 @@ def test_agents_and_document_navigation_link_the_same_master_plan() -> None:
 def test_master_plan_tracks_only_current_work_packages_and_statuses() -> None:
     plan = _read_master_plan()
 
-    assert "active_phase: P10" in plan
-    assert (
-        "active_work_package:\n"
-        "  id: P10-WP08\n"
-        "  title: Platform Production / DR Acceptance\n"
-        "  status: BLOCKED"
-    ) in plan
-    assert (
-        "next_task:\n"
-        "  id: P10-WP08\n"
-        "  title: Platform Production / DR Acceptance\n"
-        "  status: BLOCKED"
-    ) in plan
+    assert "active_phase: P11" in plan
+    assert "active_work_package: null" in plan
+    assert "next_task: null" in plan
     assert "blocked_work_packages: [P10-WP08, P10-WP09, MAINT-WP02]" in plan
 
     expected_sections = {
+        "### P11-WP05 — Durable Local AI Mining Campaign Ledger & Bounded Runner": "DONE",
         "### P10-WP08 — Platform Production / DR Acceptance": "BLOCKED",
         "### P10-WP09 — Authoritative Data & Source Onboarding": "BLOCKED",
         "### MAINT-WP02 — Native Linux PostgreSQL Development / Docker Removal": "BLOCKED",
@@ -66,6 +57,13 @@ def test_master_plan_tracks_only_current_work_packages_and_statuses() -> None:
         section = _section(plan, heading)
         assert f"**Status:** {status}" in section
         assert "**Acceptance:**" in section
+    assert "completed_at: 2026-08-31" in _section(
+        plan,
+        "### P11-WP05 — Durable Local AI Mining Campaign Ledger & Bounded Runner",
+    )
+    assert "### P11-WP02 — Discovery Selection / OOS Release Protocol" not in plan
+    assert "### P11-WP03 — Local Research Run Bundle & CLI" not in plan
+    assert "### P11-WP04 — Canonical Price/Volume Factors & Robustness Study" not in plan
 
 
 def test_master_plan_preserves_unfinished_safety_boundaries() -> None:
@@ -99,6 +97,5 @@ def test_completed_planning_history_and_evidence_are_not_retained() -> None:
         "### DEV-WP05",
         "### DOC-WP01",
         "### MAINT-WP01",
-        "**Status:** DONE",
     ):
         assert retired_text not in plan

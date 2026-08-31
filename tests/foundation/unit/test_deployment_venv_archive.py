@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from io import BytesIO
-import os
 from pathlib import Path
 import stat
 import tarfile
@@ -80,11 +79,10 @@ def test_receive_venv_archive_materializes_a_root_side_copy(
 
     assert (target / "bin" / "northstar").read_bytes() == b"#!/bin/sh\nexit 0\n"
     assert (target / "pyvenv.cfg").read_text(encoding="utf-8") == "home = /trusted/python\n"
-    if os.name != "nt":
-        assert (target / "bin" / "northstar").stat().st_mode & 0o111
-        assert stat.S_IMODE(target.stat().st_mode) == 0o750
-        assert stat.S_IMODE((target / "bin").stat().st_mode) == 0o750
-        assert stat.S_IMODE((target / "pyvenv.cfg").stat().st_mode) == 0o640
+    assert (target / "bin" / "northstar").stat().st_mode & 0o111
+    assert stat.S_IMODE(target.stat().st_mode) == 0o750
+    assert stat.S_IMODE((target / "bin").stat().st_mode) == 0o750
+    assert stat.S_IMODE((target / "pyvenv.cfg").stat().st_mode) == 0o640
     assert not list(tmp_path.glob(".northstar-venv.*"))
 
 

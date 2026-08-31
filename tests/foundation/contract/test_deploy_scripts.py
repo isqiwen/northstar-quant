@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import re
 import shutil
 import subprocess
@@ -42,40 +41,26 @@ NTFY_DIR = DEPLOY_DIR / "ntfy"
 
 
 def _resolve_bash_executable() -> str:
-    """返回可实际执行的 Bash，避免 Windows 优先命中无发行版的 WSL 占位程序。"""
-
-    if os.name == "nt":
-        git_executable = shutil.which("git")
-        if git_executable:
-            git_bash = Path(git_executable).resolve().parent.parent / "bin" / "bash.exe"
-            if git_bash.is_file():
-                return str(git_bash)
+    """Return the Bash executable required by the Linux-only test contract."""
 
     bash_executable = shutil.which("bash")
     if bash_executable:
         return bash_executable
 
-    pytest.skip("部署脚本契约测试需要可执行的 Bash；请安装 Git Bash 或配置 WSL 发行版。")
+    pytest.skip("部署脚本契约测试需要 Linux x86_64 上可执行的 Bash。")
 
 
 BASH_EXECUTABLE = _resolve_bash_executable()
 
 
 def _bash_path(path: Path) -> str:
-    """将 Windows 路径转换为 Git Bash 可识别的挂载路径。"""
+    """Return one Linux path for a Bash contract invocation."""
 
-    if os.name != "nt":
-        return str(path)
-
-    resolved = path.resolve()
-    drive = resolved.drive.rstrip(":").lower()
-    if len(drive) != 1:
-        raise ValueError(f"无法转换为 Git Bash 路径：{resolved}")
-    return f"/{drive}{resolved.as_posix()[2:]}"
+    return str(path)
 
 
 def _run_bash(*args: str, **kwargs: object) -> subprocess.CompletedProcess[str]:
-    """以 UTF-8 捕获部署脚本输出，兼容 Linux Bash 与 Windows Git Bash。"""
+    """Capture Linux Bash deployment-script output as UTF-8."""
 
     return subprocess.run(
         [BASH_EXECUTABLE, *args],
@@ -88,7 +73,7 @@ def _run_bash(*args: str, **kwargs: object) -> subprocess.CompletedProcess[str]:
 def test_python_deploy_entrypoint_is_the_only_local_control_plane() -> None:
     control = (DEPLOY_DIR / "deploy.py").read_text(encoding="utf-8")
 
-    assert "跨平台部署入口" in control
+    assert "Linux x86_64 部署入口" in control
     assert not (ROOT_DIR / "scripts" / "deploy.sh").exists()
     assert not (DEPLOY_DIR / "deploy.sh").exists()
     assert not (DEPLOY_DIR / "build-artifact.sh").exists()
@@ -1171,10 +1156,6 @@ def test_release_venv_is_imported_through_a_root_side_validator() -> None:
     assert "O_NOFOLLOW" in receiver
 
 
-@pytest.mark.skipif(
-    os.name == "nt",
-    reason="Git Bash's Windows link emulation does not preserve Linux symlink semantics.",
-)
 def test_cleanup_preserves_a_published_release_snapshot_but_removes_an_unpublished_one(
     tmp_path: Path,
 ) -> None:
@@ -1254,10 +1235,6 @@ def test_cleanup_preserves_a_published_release_snapshot_but_removes_an_unpublish
     assert result.returncode == 0, result.stderr
 
 
-@pytest.mark.skipif(
-    os.name == "nt",
-    reason="Git Bash's Windows link emulation does not preserve Linux symlink semantics.",
-)
 def test_active_environment_pointer_is_only_the_dynamic_current_release_link(
     tmp_path: Path,
 ) -> None:
@@ -1973,9 +1950,8 @@ deploy_as_root() {
   shift
   case "${command_name}" in
     test)
-      # Git Bash represents directory links differently on some Windows
-      # filesystems.  Model an existing directory symlink at this one
-      # intermediate component so the contract is platform-independent.
+      # Model an existing directory symlink at this intermediate component
+      # without mutating an ancestor during this fail-closed contract test.
       case "${1:-}:${2:-}" in
         -e:"${SYMLINK_PARENT}"|-d:"${SYMLINK_PARENT}"|-L:"${SYMLINK_PARENT}")
           return 0
@@ -2004,8 +1980,8 @@ deploy_as_root() {
       esac
       ;;
     chown|chmod)
-      # Ownership is modeled by stat above; do not require Windows Git Bash
-      # to have a Unix root account for this contract test.
+      # Ownership is modeled by stat above; this contract does not alter the
+      # local test process ownership.
       return 0
       ;;
     *)
@@ -2552,8 +2528,7 @@ def _run_existing_ntfy_server_config_validator(
     assert function_match, "无法从 ntfy 部署脚本提取既有 server.yml 校验器"
 
     server_file = tmp_path / "server.yml"
-    # 生产服务器上的 YAML 使用 LF；Git Bash 对 Windows CRLF 的 read 保留 \r，
-    # 会掩盖校验器本身的策略行为。
+    # 生产服务器上的 YAML 使用 LF，避免行尾差异掩盖校验器本身的策略行为。
     server_file.write_bytes(server_config.encode("utf-8"))
     validator_script = tmp_path / "run-validator.sh"
     validator_script.write_text(

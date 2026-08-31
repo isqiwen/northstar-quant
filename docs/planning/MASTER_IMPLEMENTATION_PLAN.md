@@ -26,20 +26,15 @@
 ## 2. 当前状态
 
 ~~~yaml
-active_phase: P10
-active_work_package:
-  id: P10-WP08
-  title: Platform Production / DR Acceptance
-  status: BLOCKED
-next_task:
-  id: P10-WP08
-  title: Platform Production / DR Acceptance
-  status: BLOCKED
+active_phase: P11
+active_work_package: null
+next_task: null
 blocked_work_packages: [P10-WP08, P10-WP09, MAINT-WP02]
 ~~~
 
-所有剩余工作包均缺少外部前提。不得以本地 loopback、offline、paper 或 ctp_sim 结果替代这些前提，
-也不得将任一项标记为 READY 或 DONE 来绕过阻塞。
+按用户 2026-08-30 的决定，P11 是当前本地研究优先级。P10-WP08、P10-WP09 与 MAINT-WP02 保持 BLOCKED
+且暂缓。P11 的本地、synthetic 或用户已授权研究数据不得
+替代 production、数据 license、Contract Master 或真实 PIT/source evidence。
 
 ## 3. 全局安全与质量边界
 
@@ -64,6 +59,41 @@ python scripts/dev/run_uv.py run --offline --no-sync python scripts/ci/check_myp
 ~~~
 
 ## 4. 当前工作包
+
+### P11-WP05 — Durable Local AI Mining Campaign Ledger & Bounded Runner
+
+**Status:** DONE
+
+**Dependencies:** P11-WP02、P11-WP03。
+
+**Goal:** 为本地自动因子挖掘加入 PostgreSQL append-only campaign/request/receipt/result ledger、事务性 reservation
+和资源受限 research runner；它仍不是交易 scheduler。
+
+**Acceptance:**
+
+- campaign、request、receipt、selection commitment、OOS release、result 和失败状态具备 hash-linked、append-only 审计链；
+- 并发重复、重启、崩溃、超时和 partial failure 保持 unresolved，只有显式人工 replay authorization 才能继续；
+- runner 有 candidate、并发、CPU、内存、wall-clock、数据行数和 artifact 字节预算，取消语义失败关闭；
+- 不保存 raw prompt、raw response、chain-of-thought、secret 或交易状态，且不导入 broker/portfolio/execution；
+- schema、repository、baseline migration、integration/failure/e2e 测试、CLI 和完整本地质量门禁同步通过。
+
+**Fail-closed boundary:** PostgreSQL、reservation、audit、资源计量、数据授权或状态未知时，runner 不得生成新候选、
+释放 OOS 或启动新的回测。
+
+~~~yaml
+completion:
+  completed_at: 2026-08-31
+  commit: null
+  notes: >
+    PostgreSQL append-only/hash-linked campaign ledger, transactional reservation, bounded Linux worker guard,
+    replay verifier bridge, CLI, baseline schema, integration/failure/e2e coverage and local quality gates are complete.
+    The shipped replay verifier is intentionally unavailable: an external human-approval service and dedicated database
+    role remain required before a verifier may issue replay approvals against direct database writers.
+~~~
+
+**Phase progress:** P11 当前保留范围已完成（1/1）；没有可自动开始的后续本地工作包。
+
+## 5. 暂缓的外部工作包
 
 ### P10-WP08 — Platform Production / DR Acceptance
 
@@ -117,7 +147,7 @@ python scripts/dev/run_uv.py run --offline --no-sync python scripts/ci/check_myp
 - 日常开发和工作站初始化没有 Docker/Compose/container PostgreSQL 依赖、安装入口或兼容回退；
 - 只有 setup.py --initialize-workstation 的高层 Ubuntu/Debian 初始化入口可安装 postgresql 与
   postgresql-client、启用默认服务并执行前向迁移；
-- Windows、其他 Linux、非默认端口和低层入口只验证、复用或失败关闭，不猜测服务配置；
+- 非 Ubuntu/Debian Linux、非默认端口和低层入口只验证、复用或失败关闭，不猜测服务配置；
 - 客户端、loopback、认证、角色、权限或数据库状态未知时，在迁移前失败关闭；
 - 自动化绝不停止、重置或删除 PostgreSQL 服务、角色、数据库、schema 或数据目录，也不覆盖已有角色密码、
   认证规则或服务配置；
@@ -129,7 +159,7 @@ python scripts/dev/run_uv.py run --offline --no-sync python scripts/ci/check_myp
 由操作者在其上执行高层初始化并确认包安装、systemd、loopback、客户端、最小角色、两个数据库和 forward migration。
 不得以 Docker、hosted CI 或卸载/停止当前主机 PostgreSQL 替代该验证。
 
-## 5. 状态更新
+## 6. 状态更新
 
 完成任何工作包时，先满足其验收标准并运行相应质量门禁，再更新本文件的状态、active work package、
 next task 与 blocked work packages。不得重新创建已删除的完成态规划、证据或历史归档。

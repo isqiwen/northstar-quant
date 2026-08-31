@@ -40,7 +40,7 @@ def test_deployment_rejects_service_identity_even_when_host_uses_an_alias(monkey
         command = kwargs["command"]
         assert isinstance(command, str)
         calls.append(command)
-        stdout = "Linux\n" if command == "uname -s" else "northstar\n"
+        stdout = {"uname -s": "Linux\n", "uname -m": "x86_64\n"}.get(command, "northstar\n")
         return subprocess.CompletedProcess([], 0, stdout=stdout)
 
     monkeypatch.setattr(deploy, "_run_remote_command", fake_remote_command)
@@ -48,7 +48,7 @@ def test_deployment_rejects_service_identity_even_when_host_uses_an_alias(monkey
     with pytest.raises(deploy.DeployError):
         deploy._assert_linux_target(ssh="ssh", inventory=_inventory(deploy_host="production-alias"))
 
-    assert calls == ["uname -s", "id -un"]
+    assert calls == ["uname -s", "uname -m", "id -un"]
 
 
 def test_deployment_rejects_root_ssh_identity_before_invoking_the_gate(monkeypatch) -> None:
@@ -58,7 +58,7 @@ def test_deployment_rejects_root_ssh_identity_before_invoking_the_gate(monkeypat
         command = kwargs["command"]
         assert isinstance(command, str)
         calls.append(command)
-        stdout = "Linux\n" if command == "uname -s" else "root\n"
+        stdout = {"uname -s": "Linux\n", "uname -m": "x86_64\n"}.get(command, "root\n")
         return subprocess.CompletedProcess([], 0, stdout=stdout)
 
     monkeypatch.setattr(deploy, "_run_remote_command", fake_remote_command)
@@ -66,7 +66,25 @@ def test_deployment_rejects_root_ssh_identity_before_invoking_the_gate(monkeypat
     with pytest.raises(deploy.DeployError):
         deploy._assert_linux_target(ssh="ssh", inventory=_inventory())
 
-    assert calls == ["uname -s", "id -un"]
+    assert calls == ["uname -s", "uname -m", "id -un"]
+
+
+def test_deployment_rejects_non_x86_linux_before_reading_the_remote_identity(monkeypatch) -> None:
+    calls: list[str] = []
+
+    def fake_remote_command(**kwargs: object) -> subprocess.CompletedProcess[str]:
+        command = kwargs["command"]
+        assert isinstance(command, str)
+        calls.append(command)
+        stdout = {"uname -s": "Linux\n", "uname -m": "aarch64\n"}[command]
+        return subprocess.CompletedProcess([], 0, stdout=stdout)
+
+    monkeypatch.setattr(deploy, "_run_remote_command", fake_remote_command)
+
+    with pytest.raises(deploy.DeployError, match="Linux x86_64"):
+        deploy._assert_linux_target(ssh="ssh", inventory=_inventory())
+
+    assert calls == ["uname -s", "uname -m"]
 
 
 def test_deployment_requires_the_fixed_gate_identity_protocol_before_submission(monkeypatch) -> None:
@@ -79,6 +97,7 @@ def test_deployment_requires_the_fixed_gate_identity_protocol_before_submission(
         calls.append(command)
         stdout = {
             "uname -s": "Linux\n",
+            "uname -m": "x86_64\n",
             "id -un": "deployer\n",
             f"sudo -n {deploy.ROOT_RUNNER_PATH} identity": json.dumps(
                 {
@@ -99,6 +118,7 @@ def test_deployment_requires_the_fixed_gate_identity_protocol_before_submission(
     )
     assert calls == [
         "uname -s",
+        "uname -m",
         "id -un",
         f"sudo -n {deploy.ROOT_RUNNER_PATH} identity",
     ]
@@ -129,6 +149,7 @@ def test_deployment_fails_closed_when_gate_identity_response_is_not_exact(
         assert isinstance(command, str)
         stdout = {
             "uname -s": "Linux\n",
+            "uname -m": "x86_64\n",
             "id -un": "deployer\n",
             f"sudo -n {deploy.ROOT_RUNNER_PATH} identity": identity_payload,
         }[command]

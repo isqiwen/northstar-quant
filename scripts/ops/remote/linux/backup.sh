@@ -4,6 +4,15 @@ PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 export PATH
 set -euo pipefail
 
+case "$(uname -s):$(uname -m)" in
+  Linux:x86_64|Linux:amd64)
+    ;;
+  *)
+    printf '%s\n' '远程运维目标仅支持 Linux x86_64。' >&2
+    exit 1
+    ;;
+esac
+
 # 这里故意不是 pg_dump：备份创建和恢复必须留给独立、最小权限的运维系统。
 # 此脚本只读取应用已经记录的无秘密备份/恢复演练就绪证据。
 if [ "$#" -ne 2 ]; then

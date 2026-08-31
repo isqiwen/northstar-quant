@@ -127,6 +127,21 @@ _DESTRUCTIVE_SQL = re.compile(
     r"\b(?:drop\s+(?:database|schema|table|index|column)|truncate|delete\s+from)\b",
     re.IGNORECASE,
 )
+_IMMUTABLE_TRUNCATE_GUARD_SQL = re.compile(
+    r"\A\s*CREATE\s+TRIGGER\s+"
+    r"(?:"
+    r"trg_fm_campaign_records_reject_truncate\s+"
+    r"BEFORE\s+TRUNCATE\s+ON\s+factor_mining_campaign_records\s+"
+    r"FOR\s+EACH\s+STATEMENT\s+EXECUTE\s+FUNCTION\s+"
+    r"northstar_reject_factor_mining_campaign_ledger_mutation"
+    r"|"
+    r"trg_fm_campaign_events_reject_truncate\s+"
+    r"BEFORE\s+TRUNCATE\s+ON\s+factor_mining_campaign_request_events\s+"
+    r"FOR\s+EACH\s+STATEMENT\s+EXECUTE\s+FUNCTION\s+"
+    r"northstar_reject_factor_mining_campaign_ledger_mutation"
+    r")\s*\(\s*\)\s*;\s*\Z",
+    re.IGNORECASE | re.DOTALL,
+)
 
 
 def _migration_function(path: Path, name: str) -> ast.FunctionDef:
@@ -174,7 +189,10 @@ def test_migration_upgrades_are_forward_only_and_preserve_database_objects() -> 
                         violations.append(f"{path.name}: op.{operation}")
                     if operation == "execute":
                         for sql in _literal_sql_arguments(node):
-                            if _DESTRUCTIVE_SQL.search(sql):
+                            if (
+                                _DESTRUCTIVE_SQL.search(sql)
+                                and _IMMUTABLE_TRUNCATE_GUARD_SQL.fullmatch(sql) is None
+                            ):
                                 violations.append(f"{path.name}: destructive SQL in op.execute")
 
     assert not violations, "前向迁移不得删除或清空数据库对象：" + "; ".join(violations)

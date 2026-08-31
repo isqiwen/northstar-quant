@@ -16,6 +16,7 @@ from typing import Iterable, Literal
 
 from northstar_quant.foundation.config.output_retention import OutputRetentionPolicy
 from northstar_quant.foundation.config.settings import get_settings
+from northstar_quant.foundation.platform_support import require_linux_x86_64
 
 CleanupKind = Literal["download_cache", "temporary_file"]
 
@@ -80,6 +81,7 @@ def plan_output_cleanup(
     若 downloads 根与任一保护根重叠，直接拒绝，而不是猜测用户意图。
     """
 
+    require_linux_x86_64()
     root = _resolve_downloads_dir(downloads_dir)
     resolved_now = _normalize_now(now)
     root_text = str(root)
@@ -190,6 +192,7 @@ def cleanup_output_files(
 ) -> OutputCleanupResult:
     """执行或预览清理；没有 ``apply=True`` 时严格 dry-run。"""
 
+    require_linux_x86_64()
     plan = plan_output_cleanup(
         policy,
         downloads_dir=downloads_dir,
@@ -434,11 +437,6 @@ def _unlink_verified_file(
         root=root,
         protected_roots=protected_roots,
     )
-    if os.name == "nt":
-        # Windows 的 reparse point 已由 _safe_relative_path 拒绝；部署 ACL 必须确保下载根仅
-        # 对当前用户可写。此处没有可移植的 dir_fd unlink API，故保留最终一次身份校验。
-        path.unlink()
-        return
     try:
         relative = path.relative_to(root)
     except ValueError as exc:
@@ -469,7 +467,7 @@ def _unlink_verified_file(
 
 
 def _open_cleanup_directory_fd(root: Path, parts: tuple[str, ...]) -> int:
-    """逐段打开非链接的 POSIX 下载缓存目录。"""
+    """逐段打开非链接的下载缓存目录。"""
 
     try:
         root_state = root.lstat()
@@ -477,7 +475,7 @@ def _open_cleanup_directory_fd(root: Path, parts: tuple[str, ...]) -> int:
         raise OutputCleanupSafetyError(f"无法安全打开下载缓存根：{root}") from exc
     if not stat_module.S_ISDIR(root_state.st_mode) or stat_module.S_ISLNK(root_state.st_mode):
         raise OutputCleanupSafetyError(f"下载缓存根不是非链接目录，已拒绝：{root}")
-    flags = os.O_RDONLY | os.O_DIRECTORY | getattr(os, "O_NOFOLLOW", 0)
+    flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
     try:
         directory_fd = os.open(root, flags)
     except OSError as exc:

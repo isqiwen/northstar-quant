@@ -33,9 +33,7 @@ deploy_need_cmd id
 deploy_need_cmd stat
 deploy_configure_linux_layout
 
-if [ "$(uname -s)" != "Linux" ]; then
-  deploy_fail "生产运行时安装脚本只支持 Linux。"
-fi
+deploy_require_linux_x86_64
 if [ ! -r /etc/os-release ]; then
   deploy_fail "无法识别 Linux 发行版。"
 fi

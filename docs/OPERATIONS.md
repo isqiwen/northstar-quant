@@ -41,7 +41,7 @@ NORTHSTAR_LIVE_TRADING_ENABLED=false
 和临时 staging 目录。它们是生成物，不应版本控制。输出保留策略在
 `configs/maintenance/output_retention.yaml` 中：
 
-```powershell
+```bash
 # 只列出候选，不删除。
 python scripts/dev/run_uv.py run --offline --no-sync northstar data cleanup
 
@@ -54,7 +54,7 @@ python scripts/dev/run_uv.py run --offline --no-sync northstar data cleanup --ap
 
 Northstar 的核心运行数据库是 PostgreSQL：
 
-```powershell
+```bash
 python scripts/dev/run_just.py setup
 ```
 
@@ -82,7 +82,7 @@ limit/offset。系统统一稳定排序、限制结果行数并返回可重放�
 典型操作顺序如下。materialize 的输入 Parquet 必须与指定 `DatasetVersion` 中 artifact 的 canonical payload 完全一致；
 命令不会把普通文件“升级”为受治理数据。
 
-```powershell
+```bash
 python scripts/dev/run_uv.py run --offline --no-sync northstar data lake materialize --input <verified-artifact.parquet> --dataset-version <dataset-version-sha256> --artifact-snapshot <snapshot-sha256> --kind bars --event-time-column date
 python scripts/dev/run_uv.py run --offline --no-sync northstar data lake verify --kind bars --dataset-id <dataset-id> --version <lake-version-sha256>
 python scripts/dev/run_uv.py run --offline --no-sync northstar research lake-query --kind bars --dataset-id <dataset-id> --version <lake-version-sha256> --as-of 2026-08-25T00:00:00+00:00 --sql-file <query.sql>
@@ -94,7 +94,7 @@ SQLite 已实际用于一个隔离的 Local-tools manifest index，固定路径�
 `<storage_dir>/local-tools/lake-manifest-index.sqlite3`。它只能保存可重建的 Lake discovery metadata，不能成为 Lake 验证、
 DuckDB 查询或核心 PostgreSQL 的 fallback，也绝不保存交易或风险权威事实。操作员可显式运行：
 
-```powershell
+```bash
 python scripts/dev/run_uv.py run --offline --no-sync northstar local-tools lake-index rebuild
 python scripts/dev/run_uv.py run --offline --no-sync northstar local-tools lake-index list --kind bars --dataset-id <dataset-id>
 ```
@@ -140,7 +140,7 @@ publication 按 `available_time` 重放；每份 publication 都绑定来源证�
 
 可用的只读/预演命令示例：
 
-```powershell
+```bash
 python scripts/dev/run_uv.py run --offline --no-sync northstar live signal --profile cn_futures_daily_trend_simulated
 python scripts/dev/run_uv.py run --offline --no-sync northstar live sync
 python scripts/dev/run_uv.py run --offline --no-sync northstar live risk-check --profile cn_futures_daily_trend_simulated
@@ -167,7 +167,7 @@ production profile 时它必须拒绝启动。
 
 ## 5. Linux 部署边界
 
-生产运行目标是 Linux x86_64，控制端可为 Windows 或 Linux：
+开发、研究、部署控制和生产运行目标均为 Linux x86_64：
 
 ```text
 workstation
@@ -179,7 +179,7 @@ workstation
 
 常用入口：
 
-```powershell
+```bash
 python scripts/dev/run_just.py deploy-preview
 python scripts/dev/run_just.py deploy-prod /secure/operator/northstar-release-signing-key
 python scripts/dev/run_just.py ops-health
@@ -200,7 +200,7 @@ health、logs、diagnose 和 backup status 是只读操作；服务默认不会�
 `configs/maintenance/database_backup_readiness.yaml` 只保存无 secret 的就绪证据路径和时效要求；它不会创建、上传、恢复或
 删除备份。查看证据：
 
-```powershell
+```bash
 python scripts/dev/run_uv.py run --offline --no-sync northstar ops backup status
 ```
 

@@ -671,6 +671,29 @@ AI 只能经封闭、typed 的 `TypedResearchToolApi` 访问 research-only 工�
 broker、配置、数据库、网络、进程或文件系统。Research、Intelligence 与 Data Quality Agent 的输出均为 non-tradable；
 Ops Agent 只能读取单项 typed diagnostic snapshot。
 
+AI 自动因子挖掘是独立于静态 Research Agent 的 research-only 路径：`AIFactorMiningAgent` 只得到冻结、无原始市场
+数据的 campaign metadata，并通过唯一的 `FactorMiningToolApi` 提交结构化 feature/parameter 候选。可信的
+`FactorMiningCampaignRunner` 才能持有 `ArtifactStore`、`DecisionReplayPlan` 并调用 `FactorResearchPipeline`；
+可信 composition 在把 runner 绑定为 tool port 前验证 canonical feature/schema/input contract；runner 再验证 PIT 绑定、
+selection time、离散参数网格、成本、风险限制和 OOS folds，且 tool 回应必须完整覆盖 receipt 中的候选。AI 不能传入代码、SQL、DataFrame、`latest` selector、
+成本/OOS 修改或交易对象，不能收到 OOS 结果后自动扩展搜索。
+
+自动本地入口另由 `application/durable_factor_mining_campaign.py` 组成：它在任何 generator、PIT replay 或 artifact
+publication 前，先以 PostgreSQL 事务 reserve hash-bound campaign request；campaign root 还绑定 receipt-free declaration
+hash/snapshot，每条 request chain 绑定 initiating actor。discovery/selection 与 OOS reservation 会在实际 OOS release 前
+持久化；campaign/request/receipt/selection/OOS/result/resource/failure/replay facts 都是 append-only、hash-linked 的
+research-only audit。crash、timeout、cancellation、partial failure、restart 和写入不确定性保持 `UNRESOLVED`；只有经受信
+verifier 确认、精确绑定 external approval reference 与 unresolved request hash 的人工 replay authorization 才能创建新的
+request identity。CLI 不接收 caller 自报的 approver 或 evidence hash；默认 verifier 不可用即失败关闭。
+Foundation 的 replay-write DTO 与 writer 是该 verifier bridge 的私有实现，architecture test 禁止其他 application surface
+导入它们。未来接入外部人工授权服务时还必须为 verifier 配置独立 database role；任何拥有直接数据库写权限的主体不属于该
+进程内 capability 的信任模型。
+其 DB-free `factor_mining_worker_supervisor` 在 Linux 主线程内对同一 request 的生成、discovery、OOS 与发布阶段共享累计
+CPU/wall-clock deadline，并用不放宽既有宿主 cap 的 `RLIMIT_AS` 限制地址空间；守卫不可用、超时、取消或资源状态未知同样
+不会生成 terminal result。
+该路径没有 broker、portfolio/risk、execution 或 live scheduler dependency，也不会保存 raw prompt/response、chain-of-thought、
+secret 或交易状态。完整约束见[AI 自动因子挖掘与回测架构](research/AI_FACTOR_MINING_ARCHITECTURE.md)。
+
 `DurableResearchAgentRunner` 记录 hash-only 的 audit event 和 trace，用于可追溯性，但它不是 Agent tool，也不是控制路径。
 不得持久化 raw prompt、chain-of-thought、原始查询、文档、结果、rationale 或异常 payload。Agent 无权 approve、
 enable-live、resume-risk、submit 或连接 broker。
@@ -682,10 +705,10 @@ enable-live、resume-risk、submit 或连接 broker。
 研究准入、PostgreSQL Contract Authority、instrument、calendar 和策略配置各有职责，不能以一个 YAML 暗中替代另一个，
 也不能以静态配置替代按 `available_time` 重放的权威事实。
 
-生产目标仅 Linux x86_64；Windows/Linux 均为开发和部署控制端。可信部署路径是：
+开发、研究、部署控制和生产目标均仅支持 Linux x86_64。可信部署路径是：
 
 ```text
-Windows/Linux workstation
+Linux x86_64 workstation / control host
 → just / Python deployment controller
 → SSH stdin
 → Linux root-owned signed release gate

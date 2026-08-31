@@ -35,8 +35,7 @@ def _private_directory(path: Path) -> Path:
     """创建不依赖调用进程 umask 的私有目录。"""
 
     path.mkdir(parents=True, exist_ok=True, mode=0o700)
-    if os.name == "posix":
-        path.chmod(0o700)
+    path.chmod(0o700)
     return path
 
 
@@ -123,7 +122,6 @@ def test_create_and_verify_backup_bundle_covers_only_allowlisted_assets(tmp_path
     assert not (bundle.path / "runtime-state").exists()
 
 
-@pytest.mark.skipif(os.name != "posix", reason="umask 仅在 POSIX 上影响目录权限")
 def test_backup_fixture_is_independent_of_a_group_writable_umask(tmp_path: Path):
     previous_umask = os.umask(0o002)
     try:
@@ -293,7 +291,6 @@ def test_symlinked_input_is_rejected(tmp_path: Path):
         )
 
 
-@pytest.mark.skipif(os.name != "posix", reason="POSIX 权限位只在 Linux/macOS 上可验证")
 def test_group_or_other_writable_output_parent_is_rejected(tmp_path: Path):
     sources = _sources(tmp_path)
     output_parent = _private_output_parent(tmp_path)

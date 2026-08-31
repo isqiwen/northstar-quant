@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-import os
 import shutil
 import subprocess
-from pathlib import Path
 
 import pytest
 
@@ -16,15 +14,9 @@ RESTART_SCRIPT = PROJECT_ROOT / "scripts" / "deploy" / "remote" / "linux" / "res
 
 
 def _bash_executable() -> str:
-    if os.name == "nt":
-        git = shutil.which("git")
-        if git is not None:
-            candidate = Path(git).resolve().parent.parent / "bin" / "bash.exe"
-            if candidate.is_file():
-                return str(candidate)
     bash = shutil.which("bash")
     if bash is None:
-        pytest.skip("restart wrapper contract requires Bash")
+        pytest.skip("restart wrapper contract requires Linux x86_64 Bash")
     return bash
 
 

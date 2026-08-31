@@ -30,6 +30,10 @@ from northstar_quant.foundation.config.output_retention import (
 )
 from northstar_quant.foundation.config.settings import get_settings
 from northstar_quant.foundation.config.trading_profile import resolve_profile_id
+from northstar_quant.foundation.platform_support import (
+    PlatformSupportError,
+    require_linux_x86_64,
+)
 from northstar_quant.data.sources.downloader import (
     download_profile_data,
     import_profile_data,
@@ -199,6 +203,11 @@ def main(
 ) -> None:
     """CLI 启动时初始化日志。"""
 
+    try:
+        require_linux_x86_64()
+    except PlatformSupportError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1) from exc
     setup_logging()
     # Typer 的完成回调运行时接受 None，当前类型签名却把 param 标为必填；该参数不会被使用。
     completion_parameter = cast(click.Parameter, None)

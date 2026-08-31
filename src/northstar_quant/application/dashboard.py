@@ -36,6 +36,7 @@ from northstar_quant.foundation.db.repositories import (
 from northstar_quant.foundation.db.session import SessionLocal
 from northstar_quant.foundation.observability.logging.logger import get_logger
 from northstar_quant.foundation.observability.monitoring.report_catalog import list_recent_report_artifacts
+from northstar_quant.foundation.platform_support import require_linux_x86_64
 
 
 logger = get_logger(__name__)
@@ -44,6 +45,7 @@ logger = get_logger(__name__)
 def render_dashboard() -> None:
     """Render the local monitoring dashboard."""
 
+    require_linux_x86_64()
     settings = get_settings()
     st.set_page_config(page_title=f"{settings.app_name} Dashboard", layout="wide")
     st.title(f"{settings.app_name} \u5b9e\u76d8\u4e0e\u6570\u636e Dashboard")

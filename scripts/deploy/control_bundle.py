@@ -6,8 +6,8 @@ bundle, but may never execute it with privilege: the fixed root release gate
 verifies the signed release manifest, extracts this archive below a root-only
 transaction directory, and invokes only :data:`CONTROL_ENTRYPOINT` there.
 
-This module has no target-side side effects.  It is safe to use on Windows and
-Linux workstations while preparing a release.
+This module has no target-side side effects. It runs only on the supported
+Linux x86_64 deployment controller while preparing a release.
 """
 
 from __future__ import annotations
@@ -24,8 +24,10 @@ from typing import Final, Iterable
 
 try:  # Allow direct-script execution as well as package imports.
     from .archive_policy import archive_path_is_excluded
+    from .platform_support import PlatformSupportError, require_linux_x86_64
 except ImportError:  # pragma: no cover - direct-script invocation path.
     from archive_policy import archive_path_is_excluded
+    from platform_support import PlatformSupportError, require_linux_x86_64
 
 
 class ControlBundleError(ValueError):
@@ -36,6 +38,15 @@ CONTROL_BUNDLE_FORMAT: Final = "northstar-release-control-v1"
 CONTROL_ENTRYPOINT: Final = "scripts/deploy/gate_release.sh"
 _CONTROL_ROOT: Final = Path("scripts/deploy")
 _CONTROL_METADATA_PATH: Final = Path("DEPLOY_CONTROL_META.json")
+
+
+def _require_linux_x86_64_host() -> None:
+    """Reject unsupported controllers before creating a release bundle."""
+
+    try:
+        require_linux_x86_64()
+    except PlatformSupportError as exc:
+        raise ControlBundleError(str(exc)) from exc
 
 
 @dataclass(frozen=True)
@@ -118,6 +129,7 @@ def build_control_artifact(
 ) -> ControlArtifact:
     """Create a no-overwrite control bundle for a signed release request."""
 
+    _require_linux_x86_64_host()
     if not release_id or any(character not in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-" for character in release_id):
         raise ControlBundleError("release identifier is invalid for a control bundle")
     project_root = project_root.resolve()

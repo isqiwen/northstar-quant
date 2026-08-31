@@ -7,15 +7,18 @@ import subprocess
 import sys
 
 try:  # 支持直接脚本入口与包内导入。
+    from .platform_support import PlatformSupportError, require_linux_x86_64
     from .project_tools import PROJECT_ROOT, ProjectToolError, repository_just_executable
 except ImportError:  # pragma: no cover - 直接脚本入口会走此分支。
+    from platform_support import PlatformSupportError, require_linux_x86_64
     from project_tools import PROJECT_ROOT, ProjectToolError, repository_just_executable
 
 
 def main(arguments: list[str] | None = None) -> int:
     try:
+        require_linux_x86_64()
         executable = repository_just_executable()
-    except ProjectToolError as error:
+    except (PlatformSupportError, ProjectToolError) as error:
         print(f"无法启动仓库本地 just：{error}", file=sys.stderr)
         return 1
     try:

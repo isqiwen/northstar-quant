@@ -80,19 +80,12 @@ BUILD_BOOTSTRAP_GROUP: Final = dependency_policy.BUILD_BOOTSTRAP_GROUP
 BUILD_BOOTSTRAP_VERSIONS: Final = dependency_policy.BUILD_BOOTSTRAP_VERSIONS
 _SAFE_ENVIRONMENT_NAMES: Final = frozenset(
     {
-        "APPDATA",
-        "COMSPEC",
         "HOME",
         "LANG",
         "LC_ALL",
-        "LOCALAPPDATA",
-        "PATHEXT",
-        "SYSTEMROOT",
         "TEMP",
         "TMP",
         "TMPDIR",
-        "USERPROFILE",
-        "WINDIR",
     }
 )
 _DOWNLOAD_CHUNK_BYTES: Final = 64 * 1024
@@ -101,6 +94,19 @@ _DOWNLOAD_TIMEOUT_SECONDS: Final = 30
 
 class BootstrapError(RuntimeError):
     """Raised when a hermetic build boundary cannot be established."""
+
+
+def _require_linux_x86_64() -> None:
+    """Keep the isolated ``python -I`` bootstrap self-contained and fail closed."""
+
+    system = platform.system()
+    machine = platform.machine().strip().lower().replace("-", "_")
+    if system == "Linux" and machine in {"x86_64", "amd64"}:
+        return
+    raise BootstrapError(
+        "Northstar Quant only supports Linux x86_64; "
+        f"current host is {system or 'UNKNOWN'} {machine or 'UNKNOWN'}"
+    )
 
 
 @dataclass(frozen=True)
@@ -381,7 +387,7 @@ def _managed_python_install_dir(
         raise BootstrapError("managed Python directory cannot be resolved") from exc
     if not directory.is_dir():
         raise BootstrapError("managed Python directory is not a directory")
-    if os.name != "nt" and (metadata.st_uid != 0 or metadata.st_mode & 0o022):
+    if metadata.st_uid != 0 or metadata.st_mode & 0o022:
         raise BootstrapError("managed Python directory is not root-owned and non-writable")
     return directory
 
@@ -425,7 +431,7 @@ def _managed_python_request(
         or managed_python_dir not in executable.parents
     ):
         raise BootstrapError("managed Python executable is outside the approved directory")
-    if os.name != "nt" and (metadata.st_uid != 0 or metadata.st_mode & 0o022):
+    if metadata.st_uid != 0 or metadata.st_mode & 0o022:
         raise BootstrapError("managed Python executable is not root-owned and non-writable")
     return str(executable)
 
@@ -443,13 +449,7 @@ def sanitized_environment(
         value = os.environ.get(key)
         if value:
             result[key] = value
-    if os.name == "nt":
-        system_root = result.get("SYSTEMROOT") or result.get("WINDIR")
-        if not system_root:
-            raise BootstrapError("Windows bootstrap requires a system root")
-        result["PATH"] = os.pathsep.join((str(Path(system_root) / "System32"), system_root))
-    else:
-        result["PATH"] = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+    result["PATH"] = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
     result["UV_PROJECT_ENVIRONMENT"] = str(venv)
     if managed_python_dir is not None:
         result["UV_PYTHON_INSTALL_DIR"] = str(managed_python_dir)
@@ -479,23 +479,20 @@ def _repository_uv_executable(root: Path) -> str:
         raise BootstrapError("repository-local uv directory is unsafe")
 
     resolved_root = tool_root.resolve(strict=True)
-    names = ("uv.exe", "uv") if os.name == "nt" else ("uv", "uv.exe")
-    for name in names:
-        candidate = tool_root / "bin" / name
-        try:
-            resolved = candidate.resolve(strict=True)
-        except FileNotFoundError:
-            continue
-        except OSError as error:
-            raise BootstrapError("repository-local uv cannot be resolved") from error
-        try:
-            resolved.relative_to(resolved_root)
-        except ValueError as error:
-            raise BootstrapError("repository-local uv escapes the tool directory") from error
-        if not resolved.is_file() or (os.name != "nt" and not os.access(resolved, os.X_OK)):
-            raise BootstrapError("repository-local uv is not executable")
-        return str(candidate)
-    raise BootstrapError("repository-local uv is required for development bootstrap")
+    candidate = tool_root / "bin" / "uv"
+    try:
+        resolved = candidate.resolve(strict=True)
+    except FileNotFoundError:
+        raise BootstrapError("repository-local uv is required for development bootstrap") from None
+    except OSError as error:
+        raise BootstrapError("repository-local uv cannot be resolved") from error
+    try:
+        resolved.relative_to(resolved_root)
+    except ValueError as error:
+        raise BootstrapError("repository-local uv escapes the tool directory") from error
+    if not resolved.is_file() or not os.access(resolved, os.X_OK):
+        raise BootstrapError("repository-local uv is not executable")
+    return str(candidate)
 
 
 def _uv_executable(*, root: Path, profile: BootstrapProfile) -> str:
@@ -772,27 +769,22 @@ def _venv_python(
 ) -> Path:
     configuration = _venv_configuration(venv)
     _require_non_system_site_venv(venv)
-    candidates = (venv / "Scripts" / "python.exe", venv / "bin" / "python")
-    for candidate in candidates:
-        if candidate.is_symlink():
-            _validate_linked_linux_interpreter(
-                candidate,
-                configuration,
-                expected_managed_root=expected_managed_root,
-            )
-        elif candidate.is_file() and os.access(candidate, os.X_OK):
-            pass
-        else:
-            continue
-        _validate_venv_interpreter_identity(
-            candidate=candidate,
-            venv=venv,
-            environment=environment,
+    candidate = venv / "bin" / "python"
+    if candidate.is_symlink():
+        _validate_linked_linux_interpreter(
+            candidate,
+            configuration,
             expected_managed_root=expected_managed_root,
         )
-        if candidate.exists():
-            return candidate
-    raise BootstrapError("fresh virtual environment has no verified Python interpreter")
+    elif not candidate.is_file() or not os.access(candidate, os.X_OK):
+        raise BootstrapError("fresh virtual environment has no verified Python interpreter")
+    _validate_venv_interpreter_identity(
+        candidate=candidate,
+        venv=venv,
+        environment=environment,
+        expected_managed_root=expected_managed_root,
+    )
+    return candidate
 
 
 def _run(command: Sequence[str], *, root: Path, environment: Mapping[str, str]) -> None:
@@ -1163,6 +1155,7 @@ def bootstrap_environment(
     retain the real subprocess implementation above.
     """
 
+    _require_linux_x86_64()
     try:
         profile = _PROFILES[profile_name]
     except KeyError as exc:

@@ -1,6 +1,6 @@
-# 跨平台开发脚本
+# Linux x86_64 开发脚本
 
-`setup.py` 和 `check_env.py` 是 Windows 与 Linux 共用的开发工作站入口。工具已就绪后，请通过
+`setup.py` 和 `check_env.py` 是 Linux x86_64 开发工作站入口。工具已就绪后，请通过
 仓库根目录的 `run_just.py` 调用仓库本地 `just`：
 
 ```text
@@ -40,11 +40,11 @@ python scripts/dev/setup.py --bootstrap-tools
 python scripts/dev/setup.py --bootstrap-tools --apply --confirm-tool-install YES
 ```
 
-Windows 计划只使用 `winget` 安装 Git；Linux 仅正式支持 Ubuntu/Debian。`uv` 使用仓库 `.northstar/` 内由当前 Python 以
+开发、研究、部署控制和运行环境仅支持 Linux x86_64；受控工具安装仅支持 Ubuntu/Debian。`uv` 使用仓库 `.northstar/` 内由当前 Python 以
 `pip --target` 安装的 pipx：pipx 模块、虚拟环境、缓存、状态和 `bin/uv` 均留在该目录。项目通过
-`python scripts/dev/run_uv.py` 固定解析该路径；`just` 下载固定官方发布包、校验 SHA-256 并写入 `bin/just` 或 `bin/just.exe`，由
+`python scripts/dev/run_uv.py` 固定解析该路径；`just` 下载固定官方发布包、校验 SHA-256 并写入 `bin/just`，由
 `python scripts/dev/run_just.py` 固定解析。两者不修改当前用户 `PATH`，也不会绕过 PEP 668 系统 Python 保护。其他发行版会失败关闭而不执行命令。
-低层 `--bootstrap-tools` 不自动安装 Python、配置 WSL、创建数据库角色、启动服务或执行 `usermod`。`ssh`/`ssh-keygen` 只供部署控制面使用，
+低层 `--bootstrap-tools` 不自动安装 Python、创建数据库角色、启动服务或执行 `usermod`。`ssh`/`ssh-keygen` 只供部署控制面使用，
 环境检查会报告它们，但不会自动安装。
 
 标准初始化只接受 `.env` 中的 loopback PostgreSQL URL。新服务上若本机 `northstar` 角色不存在，首次入口才创建最小的

@@ -760,6 +760,7 @@ ntfy_apply_stack() {
   fi
 }
 
+deploy_require_linux_x86_64
 ntfy_require_root
 ntfy_validate_deployment_config
 deploy_assert_bool "UPLOAD_NTFY_BOOTSTRAP" "${UPLOAD_NTFY_BOOTSTRAP}"

@@ -1,6 +1,6 @@
 # Linux 签名发布控制层
 
-此目录是签名 control bundle 的源代码，不是部署 SSH 身份可直接执行的远端临时目录。Windows 与 Linux
+此目录是签名 control bundle 的源代码，不是部署 SSH 身份可直接执行的远端临时目录。Linux x86_64
 工作站通过 `scripts/deploy/deploy.py` 构建 runtime/control bundle、签署 canonical manifest，并把字节流
 提交给固定的 `/usr/local/libexec/northstar-quant/release-gate`。普通发布不能以 `ssh sudo`、`/tmp`、
 `/var/tmp` 或用户拥有的工作目录运行这里的任何脚本。

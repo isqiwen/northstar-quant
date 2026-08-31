@@ -21,6 +21,16 @@ import tarfile
 from pathlib import Path
 from typing import Final, NoReturn
 
+try:  # Allow direct-script execution as well as package imports.
+    from .platform_support import PlatformSupportError, require_linux_x86_64
+except ImportError:  # pragma: no cover - direct-script invocation path.
+    import sys
+
+    _DEPLOY_DIRECTORY = Path(__file__).resolve().parent
+    if str(_DEPLOY_DIRECTORY) not in sys.path:
+        sys.path.insert(0, str(_DEPLOY_DIRECTORY))
+    from platform_support import PlatformSupportError, require_linux_x86_64
+
 
 _CACHE_DIRECTORY_NAMES: Final = frozenset({"__pycache__", ".mypy_cache", ".pytest_cache"})
 _GENERATED_SUFFIXES: Final = frozenset({".pyc", ".pyo"})
@@ -82,6 +92,15 @@ class DeploymentArtifactPolicyError(ValueError):
     """A runtime deployment artifact is unsafe for root extraction."""
 
 
+def _require_linux_x86_64_host() -> None:
+    """Reject unsupported controllers before inspecting deployment archives."""
+
+    try:
+        require_linux_x86_64()
+    except PlatformSupportError as exc:
+        raise DeploymentArtifactPolicyError(str(exc)) from exc
+
+
 def archive_path_is_excluded(relative_path: Path, *, is_directory: bool) -> bool:
     """Return whether a relative path must stay out of a deployment archive.
 
@@ -135,10 +154,9 @@ def _artifact_policy_fail(message: str) -> NoReturn:
 def _normalize_artifact_member_name(name: str) -> str:
     """Return one unambiguous portable artifact path or fail closed.
 
-    GNU tar's extraction semantics are POSIX-oriented, while the controller
-    may create an archive from Windows.  Restricting names to a small ASCII
-    subset and rejecting redundant components keeps the root-side extraction
-    target independent of platform-specific path normalization.
+    GNU tar's extraction semantics are POSIX-oriented. Restricting names to a
+    small ASCII subset and rejecting redundant components keeps root-side
+    extraction independent of host-specific path normalization.
     """
 
     if not name or "\x00" in name or "\\" in name or name.startswith("/"):
@@ -241,6 +259,7 @@ def validate_deployment_artifact(archive_path: Path) -> None:
     root-owned candidate path.
     """
 
+    _require_linux_x86_64_host()
     seen_paths: set[str] = set()
     regular_paths: set[str] = set()
     descendant_prefixes: set[str] = set()

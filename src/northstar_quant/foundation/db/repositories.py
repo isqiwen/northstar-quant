@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from enum import Enum
 import json
 import math
 import re
@@ -29,6 +30,7 @@ from northstar_quant.foundation.common.order_status import (
 )
 from northstar_quant.foundation.common.time import ensure_utc, utc_now
 from northstar_quant.foundation.db.models import (
+    _FACTOR_MINING_CAMPAIGN_LEDGER_FAILURE_CODES,
     _RESEARCH_AGENT_FAILURE_CODES,
     _RESEARCH_AGENT_TRACE_TOOL_NAMES,
     AccountAttributionRecord,
@@ -39,6 +41,8 @@ from northstar_quant.foundation.db.models import (
     ExecutionLeaseRecord,
     ExecutionPlanRecord,
     ExecutionProvenanceConsumptionRecord,
+    FactorMiningCampaignRecord,
+    FactorMiningCampaignRequestEventRecord,
     FillRecord,
     LedgerAdjustmentRecord,
     OrderRecord,
@@ -3157,6 +3161,2366 @@ def read_research_agent_run_audit_trail(
     if not event_records:
         return None
     return event_records, trace_records
+
+
+_FACTOR_MINING_CAMPAIGN_IDENTIFIER_RE = re.compile(r"^[a-z][a-z0-9_]{0,127}$")
+_FACTOR_MINING_CAMPAIGN_SAFE_TOKEN_RE = re.compile(
+    r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+)
+_FACTOR_MINING_CAMPAIGN_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+_FACTOR_MINING_CAMPAIGN_LIFECYCLE = "RESEARCH_ONLY"
+_FACTOR_MINING_CAMPAIGN_FORBIDDEN_TOKENS = frozenset(
+    {"__import__", "compile", "eval", "exec", "latest", "open", "select", "shell"}
+)
+
+
+class FactorMiningCampaignLedgerError(RuntimeError):
+    """A durable factor-mining campaign ledger operation is unsafe."""
+
+
+class FactorMiningCampaignRequestEventKind(str, Enum):
+    """The finite append-only request transition vocabulary."""
+
+    RECEIPT_RECORDED = "RECEIPT_RECORDED"
+    DISCOVERY_RECORDED = "DISCOVERY_RECORDED"
+    SELECTION_COMMITTED = "SELECTION_COMMITTED"
+    OOS_RESERVED = "OOS_RESERVED"
+    OOS_RELEASED = "OOS_RELEASED"
+    RESULT_RECORDED = "RESULT_RECORDED"
+    FAILED = "FAILED"
+
+
+class FactorMiningCampaignFailureCode(str, Enum):
+    """A terminal failure is allowed only when this finite fact is proven."""
+
+    ARTIFACT_REJECTED = "FACTOR_MINING_CAMPAIGN_ARTIFACT_REJECTED"
+    DATA_AUTHORIZATION_UNAVAILABLE = (
+        "FACTOR_MINING_CAMPAIGN_DATA_AUTHORIZATION_UNAVAILABLE"
+    )
+    INPUT_INVALID = "FACTOR_MINING_CAMPAIGN_INPUT_INVALID"
+    RESOURCE_LIMIT_EXCEEDED = "FACTOR_MINING_CAMPAIGN_RESOURCE_LIMIT_EXCEEDED"
+    RESULT_INVALID = "FACTOR_MINING_CAMPAIGN_RESULT_INVALID"
+    WORKER_CANCELLED_CONFIRMED = "FACTOR_MINING_CAMPAIGN_WORKER_CANCELLED_CONFIRMED"
+
+
+def _factor_mining_campaign_identifier(value: object, *, field_name: str) -> str:
+    if not isinstance(value, str) or _FACTOR_MINING_CAMPAIGN_IDENTIFIER_RE.fullmatch(value) is None:
+        raise FactorMiningCampaignLedgerError(
+            f"FACTOR_MINING_CAMPAIGN_LEDGER_INVALID_{field_name.upper()}"
+        )
+    if value == "latest":
+        raise FactorMiningCampaignLedgerError(
+            f"FACTOR_MINING_CAMPAIGN_LEDGER_INVALID_{field_name.upper()}"
+        )
+    return value
+
+
+def _factor_mining_campaign_safe_token(value: object, *, field_name: str) -> str:
+    if (
+        not isinstance(value, str)
+        or value.strip() != value
+        or _FACTOR_MINING_CAMPAIGN_SAFE_TOKEN_RE.fullmatch(value) is None
+        or value.casefold() in _FACTOR_MINING_CAMPAIGN_FORBIDDEN_TOKENS
+    ):
+        raise FactorMiningCampaignLedgerError(
+            f"FACTOR_MINING_CAMPAIGN_LEDGER_INVALID_{field_name.upper()}"
+        )
+    return value
+
+
+def _factor_mining_campaign_hash(value: object, *, field_name: str) -> str:
+    if not isinstance(value, str) or _FACTOR_MINING_CAMPAIGN_SHA256_RE.fullmatch(value) is None:
+        raise FactorMiningCampaignLedgerError(
+            f"FACTOR_MINING_CAMPAIGN_LEDGER_INVALID_{field_name.upper()}"
+        )
+    return value
+
+
+def _factor_mining_campaign_optional_hash(
+    value: object | None,
+    *,
+    field_name: str,
+) -> str | None:
+    if value is None:
+        return None
+    return _factor_mining_campaign_hash(value, field_name=field_name)
+
+
+def _factor_mining_campaign_time(value: object, *, field_name: str) -> datetime:
+    if not isinstance(value, datetime) or value.tzinfo is None or value.utcoffset() is None:
+        raise FactorMiningCampaignLedgerError(
+            f"FACTOR_MINING_CAMPAIGN_LEDGER_INVALID_{field_name.upper()}"
+        )
+    return value.astimezone(UTC)
+
+
+def _factor_mining_campaign_optional_count(
+    value: object | None,
+    *,
+    field_name: str,
+) -> int | None:
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= 2**63 - 1:
+        raise FactorMiningCampaignLedgerError(
+            f"FACTOR_MINING_CAMPAIGN_LEDGER_INVALID_{field_name.upper()}"
+        )
+    return value
+
+
+def _factor_mining_campaign_max_concurrent_runs(value: object) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= 16:
+        raise FactorMiningCampaignLedgerError(
+            "FACTOR_MINING_CAMPAIGN_LEDGER_INVALID_MAX_CONCURRENT_RUNS"
+        )
+    return value
+
+
+def _factor_mining_campaign_hash_payload(payload: dict[str, object]) -> str:
+    encoded = json.dumps(
+        payload,
+        ensure_ascii=True,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+    return sha256(encoded).hexdigest()
+
+
+@dataclass(frozen=True, slots=True)
+class FactorMiningCampaignRegistration:
+    """Hash-only campaign declaration supplied by trusted application composition."""
+
+    campaign_id: str
+    campaign_hash: str
+    declaration_hash: str
+    declaration_snapshot_hash: str
+    decision_replay_plan_hash: str
+    dataset_version_set_hash: str
+    template_hash: str
+    search_budget_hash: str
+    selection_policy_hash: str
+    generator_id: str
+    generator_model_revision_hash: str
+    prompt_template_hash: str
+    source_authorization_hash: str
+    runner_resource_budget_hash: str
+    max_concurrent_runs: int
+    code_revision_hash: str
+    selection_at: datetime
+    registered_at: datetime
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "campaign_id",
+            _factor_mining_campaign_identifier(self.campaign_id, field_name="campaign_id"),
+        )
+        for field_name in (
+            "campaign_hash",
+            "declaration_hash",
+            "declaration_snapshot_hash",
+            "decision_replay_plan_hash",
+            "dataset_version_set_hash",
+            "template_hash",
+            "search_budget_hash",
+            "selection_policy_hash",
+            "generator_model_revision_hash",
+            "prompt_template_hash",
+            "source_authorization_hash",
+            "runner_resource_budget_hash",
+            "code_revision_hash",
+        ):
+            object.__setattr__(
+                self,
+                field_name,
+                _factor_mining_campaign_hash(
+                    getattr(self, field_name),
+                    field_name=field_name,
+                ),
+            )
+        object.__setattr__(
+            self,
+            "generator_id",
+            _factor_mining_campaign_safe_token(self.generator_id, field_name="generator_id"),
+        )
+        object.__setattr__(
+            self,
+            "max_concurrent_runs",
+            _factor_mining_campaign_max_concurrent_runs(self.max_concurrent_runs),
+        )
+        object.__setattr__(
+            self,
+            "selection_at",
+            _factor_mining_campaign_time(self.selection_at, field_name="selection_at"),
+        )
+        object.__setattr__(
+            self,
+            "registered_at",
+            _factor_mining_campaign_time(self.registered_at, field_name="registered_at"),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class FactorMiningCampaignRequestReservation:
+    """One non-idempotent request admission before generator or compute work."""
+
+    campaign_id: str
+    campaign_hash: str
+    request_id: str
+    request_hash: str
+    request_actor_id: str
+    source_authorization_hash: str
+    resource_budget_hash: str
+    reserved_at: datetime
+    replay_authorization_hash: str | None = None
+
+    def __post_init__(self) -> None:
+        for field_name in ("campaign_id", "request_id"):
+            object.__setattr__(
+                self,
+                field_name,
+                _factor_mining_campaign_identifier(
+                    getattr(self, field_name),
+                    field_name=field_name,
+                ),
+            )
+        for field_name in (
+            "campaign_hash",
+            "request_hash",
+            "source_authorization_hash",
+            "resource_budget_hash",
+        ):
+            object.__setattr__(
+                self,
+                field_name,
+                _factor_mining_campaign_hash(
+                    getattr(self, field_name),
+                    field_name=field_name,
+                ),
+            )
+        object.__setattr__(
+            self,
+            "request_actor_id",
+            _factor_mining_campaign_safe_token(
+                self.request_actor_id,
+                field_name="request_actor_id",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "replay_authorization_hash",
+            _factor_mining_campaign_optional_hash(
+                self.replay_authorization_hash,
+                field_name="replay_authorization_hash",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "reserved_at",
+            _factor_mining_campaign_time(self.reserved_at, field_name="reserved_at"),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class _FactorMiningCampaignReplayAuthorizationInput:
+    """Private verified authorization DTO for the sole replay-verifier bridge.
+
+    This is intentionally not a public Foundation approval interface. Only
+    the durable application's private, verifier-backed bridge may construct it
+    after validating the external approval's actor/request binding. The
+    repository independently recomputes ``authorization_hash`` from its stable
+    fields before appending the immutable fact.
+    """
+
+    authorization_id: str
+    actor_id: str
+    unresolved_request_hash: str
+    authorization_evidence_hash: str
+    authorized_at: datetime
+    authorization_hash: str = field(init=False)
+
+    def __post_init__(self) -> None:
+        authorization_id = _factor_mining_campaign_safe_token(
+            self.authorization_id,
+            field_name="authorization_id",
+        )
+        actor_id = _factor_mining_campaign_safe_token(self.actor_id, field_name="actor_id")
+        unresolved_request_hash = _factor_mining_campaign_hash(
+            self.unresolved_request_hash,
+            field_name="unresolved_request_hash",
+        )
+        authorization_evidence_hash = _factor_mining_campaign_hash(
+            self.authorization_evidence_hash,
+            field_name="authorization_evidence_hash",
+        )
+        authorization_hash = _factor_mining_campaign_hash_payload(
+            {
+                "actor_id": actor_id,
+                "authorization_evidence_hash": authorization_evidence_hash,
+                "authorization_id": authorization_id,
+                "format": "northstar.factor-mining-campaign-replay-authorization.v1",
+                "unresolved_request_hash": unresolved_request_hash,
+            }
+        )
+        object.__setattr__(self, "authorization_id", authorization_id)
+        object.__setattr__(self, "actor_id", actor_id)
+        object.__setattr__(self, "unresolved_request_hash", unresolved_request_hash)
+        object.__setattr__(self, "authorization_evidence_hash", authorization_evidence_hash)
+        object.__setattr__(
+            self,
+            "authorized_at",
+            _factor_mining_campaign_time(self.authorized_at, field_name="authorized_at"),
+        )
+        object.__setattr__(self, "authorization_hash", authorization_hash)
+
+
+@dataclass(frozen=True, slots=True)
+class FactorMiningCampaignResourceUsage:
+    """Complete bounded resource accounting for one terminal request outcome."""
+
+    resource_usage_hash: str
+    max_concurrency_observed: int
+    cpu_milliseconds: int
+    peak_memory_bytes: int
+    wall_clock_milliseconds: int
+    data_row_count: int
+    artifact_byte_count: int
+
+    def __post_init__(self) -> None:
+        resource_usage_hash = _factor_mining_campaign_hash(
+            self.resource_usage_hash,
+            field_name="resource_usage_hash",
+        )
+        normalized: dict[str, int] = {}
+        for field_name in (
+            "max_concurrency_observed",
+            "cpu_milliseconds",
+            "peak_memory_bytes",
+            "wall_clock_milliseconds",
+            "data_row_count",
+            "artifact_byte_count",
+        ):
+            value = _factor_mining_campaign_optional_count(
+                getattr(self, field_name),
+                field_name=field_name,
+            )
+            if value is None:  # pragma: no cover - fields are non-optional.
+                raise FactorMiningCampaignLedgerError(
+                    f"FACTOR_MINING_CAMPAIGN_LEDGER_INVALID_{field_name.upper()}"
+                )
+            normalized[field_name] = value
+            object.__setattr__(self, field_name, value)
+        expected_hash = _factor_mining_campaign_hash_payload(
+            {
+                "artifact_byte_count": normalized["artifact_byte_count"],
+                "cpu_milliseconds": normalized["cpu_milliseconds"],
+                "data_row_count": normalized["data_row_count"],
+                "format": "northstar.factor-mining-campaign-resource-usage.v1",
+                "max_concurrency_observed": normalized["max_concurrency_observed"],
+                "peak_memory_bytes": normalized["peak_memory_bytes"],
+                "wall_clock_milliseconds": normalized["wall_clock_milliseconds"],
+            }
+        )
+        if resource_usage_hash != expected_hash:
+            raise FactorMiningCampaignLedgerError(
+                "FACTOR_MINING_CAMPAIGN_LEDGER_RESOURCE_USAGE_HASH_MISMATCH"
+            )
+        object.__setattr__(self, "resource_usage_hash", resource_usage_hash)
+
+
+@dataclass(frozen=True, slots=True)
+class FactorMiningCampaignRequestEventAppend:
+    """The new facts for the next finite request transition.
+
+    Immutable facts from preceding stages are copied by the repository; callers
+    cannot replace a receipt, discovery, commitment, or release hash mid-chain.
+    """
+
+    request_id: str
+    event_kind: FactorMiningCampaignRequestEventKind
+    occurred_at: datetime
+    generation_receipt_hash: str | None = None
+    discovery_result_hash: str | None = None
+    selection_commitment_hash: str | None = None
+    oos_release_hash: str | None = None
+    bundle_snapshot_hash: str | None = None
+    manifest_snapshot_hash: str | None = None
+    result_hash: str | None = None
+    candidate_count: int | None = None
+    selected_candidate_count: int | None = None
+    failure_code: FactorMiningCampaignFailureCode | None = None
+    resource_usage: FactorMiningCampaignResourceUsage | None = None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "request_id",
+            _factor_mining_campaign_identifier(self.request_id, field_name="request_id"),
+        )
+        if type(self.event_kind) is not FactorMiningCampaignRequestEventKind:
+            raise FactorMiningCampaignLedgerError(
+                "FACTOR_MINING_CAMPAIGN_LEDGER_INVALID_EVENT_KIND"
+            )
+        object.__setattr__(
+            self,
+            "occurred_at",
+            _factor_mining_campaign_time(self.occurred_at, field_name="occurred_at"),
+        )
+        for field_name in (
+            "generation_receipt_hash",
+            "discovery_result_hash",
+            "selection_commitment_hash",
+            "oos_release_hash",
+            "bundle_snapshot_hash",
+            "manifest_snapshot_hash",
+            "result_hash",
+        ):
+            object.__setattr__(
+                self,
+                field_name,
+                _factor_mining_campaign_optional_hash(
+                    getattr(self, field_name),
+                    field_name=field_name,
+                ),
+            )
+        for field_name in ("candidate_count", "selected_candidate_count"):
+            object.__setattr__(
+                self,
+                field_name,
+                _factor_mining_campaign_optional_count(
+                    getattr(self, field_name),
+                    field_name=field_name,
+                ),
+            )
+        if self.failure_code is not None and type(self.failure_code) is not FactorMiningCampaignFailureCode:
+            raise FactorMiningCampaignLedgerError(
+                "FACTOR_MINING_CAMPAIGN_LEDGER_INVALID_FAILURE_CODE"
+            )
+        if self.resource_usage is not None and type(self.resource_usage) is not FactorMiningCampaignResourceUsage:
+            raise FactorMiningCampaignLedgerError(
+                "FACTOR_MINING_CAMPAIGN_LEDGER_INVALID_RESOURCE_USAGE"
+            )
+
+
+@dataclass(frozen=True, slots=True)
+class FactorMiningCampaignRegistrationReceipt:
+    """The durable hash-only receipt returned after campaign registration."""
+
+    campaign_id: str
+    campaign_hash: str
+    declaration_hash: str
+    declaration_snapshot_hash: str
+    record_hash: str
+    registered_at: datetime
+    max_concurrent_runs: int
+
+
+@dataclass(frozen=True, slots=True)
+class FactorMiningCampaignReplayAuthorizationReceipt:
+    """Verified immutable authorization result available to composition code."""
+
+    authorization_hash: str
+    unresolved_request_hash: str
+    authorization_record_hash: str
+    authorized_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class FactorMiningCampaignRequestEvent:
+    """A verified immutable event projection for application composition."""
+
+    campaign_id: str
+    campaign_hash: str
+    campaign_record_hash: str
+    request_id: str
+    sequence: int
+    event_kind: str
+    is_terminal: bool
+    request_hash: str
+    request_actor_id: str
+    resource_budget_hash: str
+    source_authorization_hash: str
+    replay_authorization_hash: str | None
+    replay_authorization_id: str | None
+    replay_actor_id: str | None
+    replay_authorization_evidence_hash: str | None
+    generation_receipt_hash: str | None
+    discovery_result_hash: str | None
+    selection_commitment_hash: str | None
+    oos_release_hash: str | None
+    bundle_snapshot_hash: str | None
+    manifest_snapshot_hash: str | None
+    result_hash: str | None
+    resource_usage_hash: str | None
+    candidate_count: int | None
+    selected_candidate_count: int | None
+    active_concurrency_observed: int
+    max_concurrency_observed: int | None
+    cpu_milliseconds: int | None
+    peak_memory_bytes: int | None
+    wall_clock_milliseconds: int | None
+    data_row_count: int | None
+    artifact_byte_count: int | None
+    failure_code: str | None
+    occurred_at: datetime
+    predecessor_record_hash: str | None
+    record_hash: str
+
+
+@dataclass(frozen=True, slots=True)
+class FactorMiningCampaignRequestLedger:
+    """A fully verified campaign root and one request's append-only event chain."""
+
+    campaign: FactorMiningCampaignRegistrationReceipt
+    events: tuple[FactorMiningCampaignRequestEvent, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class _FactorMiningCampaignRecordValues:
+    campaign_id: str
+    campaign_hash: str
+    declaration_hash: str
+    declaration_snapshot_hash: str
+    decision_replay_plan_hash: str
+    dataset_version_set_hash: str
+    template_hash: str
+    search_budget_hash: str
+    selection_policy_hash: str
+    generator_id: str
+    generator_model_revision_hash: str
+    prompt_template_hash: str
+    source_authorization_hash: str
+    runner_resource_budget_hash: str
+    max_concurrent_runs: int
+    code_revision_hash: str
+    selection_at: datetime
+    registered_at: datetime
+    lifecycle: str
+    eligible_for_trading: bool
+
+    def as_hash_payload(self) -> dict[str, object]:
+        return {
+            "campaign_hash": self.campaign_hash,
+            "campaign_id": self.campaign_id,
+            "code_revision_hash": self.code_revision_hash,
+            "declaration_hash": self.declaration_hash,
+            "declaration_snapshot_hash": self.declaration_snapshot_hash,
+            "dataset_version_set_hash": self.dataset_version_set_hash,
+            "decision_replay_plan_hash": self.decision_replay_plan_hash,
+            "eligible_for_trading": self.eligible_for_trading,
+            "format": "northstar.factor-mining-campaign-record.v1",
+            "generator_id": self.generator_id,
+            "generator_model_revision_hash": self.generator_model_revision_hash,
+            "lifecycle": self.lifecycle,
+            "max_concurrent_runs": self.max_concurrent_runs,
+            "prompt_template_hash": self.prompt_template_hash,
+            "registered_at": self.registered_at.isoformat(),
+            "runner_resource_budget_hash": self.runner_resource_budget_hash,
+            "search_budget_hash": self.search_budget_hash,
+            "selection_at": self.selection_at.isoformat(),
+            "selection_policy_hash": self.selection_policy_hash,
+            "source_authorization_hash": self.source_authorization_hash,
+            "template_hash": self.template_hash,
+        }
+
+    @property
+    def record_hash(self) -> str:
+        return _factor_mining_campaign_hash_payload(self.as_hash_payload())
+
+
+@dataclass(frozen=True, slots=True)
+class _FactorMiningCampaignRequestEventValues:
+    campaign_id: str
+    campaign_hash: str
+    campaign_record_hash: str
+    request_id: str
+    sequence: int
+    event_kind: str
+    is_terminal: bool
+    request_hash: str
+    request_actor_id: str
+    resource_budget_hash: str
+    source_authorization_hash: str
+    replay_authorization_hash: str | None
+    replay_authorization_id: str | None
+    replay_actor_id: str | None
+    replay_authorization_evidence_hash: str | None
+    generation_receipt_hash: str | None
+    discovery_result_hash: str | None
+    selection_commitment_hash: str | None
+    oos_release_hash: str | None
+    bundle_snapshot_hash: str | None
+    manifest_snapshot_hash: str | None
+    result_hash: str | None
+    resource_usage_hash: str | None
+    candidate_count: int | None
+    selected_candidate_count: int | None
+    active_concurrency_observed: int
+    max_concurrency_observed: int | None
+    cpu_milliseconds: int | None
+    peak_memory_bytes: int | None
+    wall_clock_milliseconds: int | None
+    data_row_count: int | None
+    artifact_byte_count: int | None
+    failure_code: str | None
+    occurred_at: datetime
+    predecessor_record_hash: str | None
+    lifecycle: str
+    eligible_for_trading: bool
+
+    def as_hash_payload(self) -> dict[str, object]:
+        return {
+            "artifact_byte_count": self.artifact_byte_count,
+            "active_concurrency_observed": self.active_concurrency_observed,
+            "bundle_snapshot_hash": self.bundle_snapshot_hash,
+            "campaign_hash": self.campaign_hash,
+            "campaign_id": self.campaign_id,
+            "campaign_record_hash": self.campaign_record_hash,
+            "candidate_count": self.candidate_count,
+            "cpu_milliseconds": self.cpu_milliseconds,
+            "data_row_count": self.data_row_count,
+            "discovery_result_hash": self.discovery_result_hash,
+            "eligible_for_trading": self.eligible_for_trading,
+            "event_kind": self.event_kind,
+            "failure_code": self.failure_code,
+            "format": "northstar.factor-mining-campaign-request-event.v1",
+            "generation_receipt_hash": self.generation_receipt_hash,
+            "is_terminal": self.is_terminal,
+            "lifecycle": self.lifecycle,
+            "manifest_snapshot_hash": self.manifest_snapshot_hash,
+            "max_concurrency_observed": self.max_concurrency_observed,
+            "occurred_at": self.occurred_at.isoformat(),
+            "oos_release_hash": self.oos_release_hash,
+            "peak_memory_bytes": self.peak_memory_bytes,
+            "predecessor_record_hash": self.predecessor_record_hash,
+            "replay_actor_id": self.replay_actor_id,
+            "replay_authorization_hash": self.replay_authorization_hash,
+            "replay_authorization_evidence_hash": self.replay_authorization_evidence_hash,
+            "replay_authorization_id": self.replay_authorization_id,
+            "request_hash": self.request_hash,
+            "request_actor_id": self.request_actor_id,
+            "request_id": self.request_id,
+            "resource_budget_hash": self.resource_budget_hash,
+            "resource_usage_hash": self.resource_usage_hash,
+            "result_hash": self.result_hash,
+            "selected_candidate_count": self.selected_candidate_count,
+            "selection_commitment_hash": self.selection_commitment_hash,
+            "sequence": self.sequence,
+            "source_authorization_hash": self.source_authorization_hash,
+            "wall_clock_milliseconds": self.wall_clock_milliseconds,
+        }
+
+    @property
+    def record_hash(self) -> str:
+        return _factor_mining_campaign_hash_payload(self.as_hash_payload())
+
+
+def _factor_mining_campaign_record_values(
+    *,
+    campaign_id: object,
+    campaign_hash: object,
+    declaration_hash: object,
+    declaration_snapshot_hash: object,
+    decision_replay_plan_hash: object,
+    dataset_version_set_hash: object,
+    template_hash: object,
+    search_budget_hash: object,
+    selection_policy_hash: object,
+    generator_id: object,
+    generator_model_revision_hash: object,
+    prompt_template_hash: object,
+    source_authorization_hash: object,
+    runner_resource_budget_hash: object,
+    max_concurrent_runs: object,
+    code_revision_hash: object,
+    selection_at: object,
+    registered_at: object,
+    lifecycle: object,
+    eligible_for_trading: object,
+) -> _FactorMiningCampaignRecordValues:
+    if lifecycle != _FACTOR_MINING_CAMPAIGN_LIFECYCLE or eligible_for_trading is not False:
+        raise FactorMiningCampaignLedgerError(
+            "FACTOR_MINING_CAMPAIGN_LEDGER_NOT_RESEARCH_ONLY"
+        )
+    return _FactorMiningCampaignRecordValues(
+        campaign_id=_factor_mining_campaign_identifier(campaign_id, field_name="campaign_id"),
+        campaign_hash=_factor_mining_campaign_hash(campaign_hash, field_name="campaign_hash"),
+        declaration_hash=_factor_mining_campaign_hash(
+            declaration_hash,
+            field_name="declaration_hash",
+        ),
+        declaration_snapshot_hash=_factor_mining_campaign_hash(
+            declaration_snapshot_hash,
+            field_name="declaration_snapshot_hash",
+        ),
+        decision_replay_plan_hash=_factor_mining_campaign_hash(
+            decision_replay_plan_hash,
+            field_name="decision_replay_plan_hash",
+        ),
+        dataset_version_set_hash=_factor_mining_campaign_hash(
+            dataset_version_set_hash,
+            field_name="dataset_version_set_hash",
+        ),
+        template_hash=_factor_mining_campaign_hash(template_hash, field_name="template_hash"),
+        search_budget_hash=_factor_mining_campaign_hash(
+            search_budget_hash,
+            field_name="search_budget_hash",
+        ),
+        selection_policy_hash=_factor_mining_campaign_hash(
+            selection_policy_hash,
+            field_name="selection_policy_hash",
+        ),
+        generator_id=_factor_mining_campaign_safe_token(generator_id, field_name="generator_id"),
+        generator_model_revision_hash=_factor_mining_campaign_hash(
+            generator_model_revision_hash,
+            field_name="generator_model_revision_hash",
+        ),
+        prompt_template_hash=_factor_mining_campaign_hash(
+            prompt_template_hash,
+            field_name="prompt_template_hash",
+        ),
+        source_authorization_hash=_factor_mining_campaign_hash(
+            source_authorization_hash,
+            field_name="source_authorization_hash",
+        ),
+        runner_resource_budget_hash=_factor_mining_campaign_hash(
+            runner_resource_budget_hash,
+            field_name="runner_resource_budget_hash",
+        ),
+        max_concurrent_runs=_factor_mining_campaign_max_concurrent_runs(
+            max_concurrent_runs
+        ),
+        code_revision_hash=_factor_mining_campaign_hash(
+            code_revision_hash,
+            field_name="code_revision_hash",
+        ),
+        selection_at=_factor_mining_campaign_time(selection_at, field_name="selection_at"),
+        registered_at=_factor_mining_campaign_time(registered_at, field_name="registered_at"),
+        lifecycle=_FACTOR_MINING_CAMPAIGN_LIFECYCLE,
+        eligible_for_trading=False,
+    )
+
+
+def _factor_mining_campaign_record_values_from_registration(
+    registration: FactorMiningCampaignRegistration,
+) -> _FactorMiningCampaignRecordValues:
+    return _factor_mining_campaign_record_values(
+        campaign_id=registration.campaign_id,
+        campaign_hash=registration.campaign_hash,
+        declaration_hash=registration.declaration_hash,
+        declaration_snapshot_hash=registration.declaration_snapshot_hash,
+        decision_replay_plan_hash=registration.decision_replay_plan_hash,
+        dataset_version_set_hash=registration.dataset_version_set_hash,
+        template_hash=registration.template_hash,
+        search_budget_hash=registration.search_budget_hash,
+        selection_policy_hash=registration.selection_policy_hash,
+        generator_id=registration.generator_id,
+        generator_model_revision_hash=registration.generator_model_revision_hash,
+        prompt_template_hash=registration.prompt_template_hash,
+        source_authorization_hash=registration.source_authorization_hash,
+        runner_resource_budget_hash=registration.runner_resource_budget_hash,
+        max_concurrent_runs=registration.max_concurrent_runs,
+        code_revision_hash=registration.code_revision_hash,
+        selection_at=registration.selection_at,
+        registered_at=registration.registered_at,
+        lifecycle=_FACTOR_MINING_CAMPAIGN_LIFECYCLE,
+        eligible_for_trading=False,
+    )
+
+
+def _factor_mining_campaign_record_values_from_record(
+    record: FactorMiningCampaignRecord,
+) -> _FactorMiningCampaignRecordValues:
+    values = _factor_mining_campaign_record_values(
+        campaign_id=record.campaign_id,
+        campaign_hash=record.campaign_hash,
+        declaration_hash=record.declaration_hash,
+        declaration_snapshot_hash=record.declaration_snapshot_hash,
+        decision_replay_plan_hash=record.decision_replay_plan_hash,
+        dataset_version_set_hash=record.dataset_version_set_hash,
+        template_hash=record.template_hash,
+        search_budget_hash=record.search_budget_hash,
+        selection_policy_hash=record.selection_policy_hash,
+        generator_id=record.generator_id,
+        generator_model_revision_hash=record.generator_model_revision_hash,
+        prompt_template_hash=record.prompt_template_hash,
+        source_authorization_hash=record.source_authorization_hash,
+        runner_resource_budget_hash=record.runner_resource_budget_hash,
+        max_concurrent_runs=record.max_concurrent_runs,
+        code_revision_hash=record.code_revision_hash,
+        selection_at=record.selection_at,
+        registered_at=record.registered_at,
+        lifecycle=record.lifecycle,
+        eligible_for_trading=record.eligible_for_trading,
+    )
+    if record.record_hash != values.record_hash:
+        raise FactorMiningCampaignLedgerError(
+            "FACTOR_MINING_CAMPAIGN_LEDGER_CAMPAIGN_RECORD_TAMPERED"
+        )
+    return values
+
+
+def _factor_mining_campaign_event_values(
+    *,
+    campaign_id: object,
+    campaign_hash: object,
+    campaign_record_hash: object,
+    request_id: object,
+    sequence: object,
+    event_kind: object,
+    is_terminal: object,
+    request_hash: object,
+    request_actor_id: object,
+    resource_budget_hash: object,
+    source_authorization_hash: object,
+    replay_authorization_hash: object | None,
+    replay_authorization_id: object | None,
+    replay_actor_id: object | None,
+    replay_authorization_evidence_hash: object | None,
+    generation_receipt_hash: object | None,
+    discovery_result_hash: object | None,
+    selection_commitment_hash: object | None,
+    oos_release_hash: object | None,
+    bundle_snapshot_hash: object | None,
+    manifest_snapshot_hash: object | None,
+    result_hash: object | None,
+    resource_usage_hash: object | None,
+    candidate_count: object | None,
+    selected_candidate_count: object | None,
+    active_concurrency_observed: object,
+    max_concurrency_observed: object | None,
+    cpu_milliseconds: object | None,
+    peak_memory_bytes: object | None,
+    wall_clock_milliseconds: object | None,
+    data_row_count: object | None,
+    artifact_byte_count: object | None,
+    failure_code: object | None,
+    occurred_at: object,
+    predecessor_record_hash: object | None,
+    lifecycle: object,
+    eligible_for_trading: object,
+) -> _FactorMiningCampaignRequestEventValues:
+    if isinstance(sequence, bool) or not isinstance(sequence, int) or sequence < 1:
+        raise FactorMiningCampaignLedgerError(
+            "FACTOR_MINING_CAMPAIGN_LEDGER_INVALID_SEQUENCE"
+        )
+    if not isinstance(event_kind, str) or event_kind not in {
+        "RESERVED",
+        "REPLAY_AUTHORIZED",
+        *(item.value for item in FactorMiningCampaignRequestEventKind),
+    }:
+        raise FactorMiningCampaignLedgerError(
+            "FACTOR_MINING_CAMPAIGN_LEDGER_INVALID_EVENT_KIND"
+        )
+    if type(is_terminal) is not bool or type(eligible_for_trading) is not bool:
+        raise FactorMiningCampaignLedgerError(
+            "FACTOR_MINING_CAMPAIGN_LEDGER_INVALID_BOOLEAN"
+        )
+    if lifecycle != _FACTOR_MINING_CAMPAIGN_LIFECYCLE or eligible_for_trading:
+        raise FactorMiningCampaignLedgerError(
+            "FACTOR_MINING_CAMPAIGN_LEDGER_NOT_RESEARCH_ONLY"
+        )
+    if failure_code is not None:
+        if not isinstance(failure_code, str) or failure_code not in _FACTOR_MINING_CAMPAIGN_LEDGER_FAILURE_CODES:
+            raise FactorMiningCampaignLedgerError(
+                "FACTOR_MINING_CAMPAIGN_LEDGER_INVALID_FAILURE_CODE"
+            )
+    values = _FactorMiningCampaignRequestEventValues(
+        campaign_id=_factor_mining_campaign_identifier(campaign_id, field_name="campaign_id"),
+        campaign_hash=_factor_mining_campaign_hash(campaign_hash, field_name="campaign_hash"),
+        campaign_record_hash=_factor_mining_campaign_hash(
+            campaign_record_hash,
+            field_name="campaign_record_hash",
+        ),
+        request_id=_factor_mining_campaign_identifier(request_id, field_name="request_id"),
+        sequence=sequence,
+        event_kind=event_kind,
+        is_terminal=is_terminal,
+        request_hash=_factor_mining_campaign_hash(request_hash, field_name="request_hash"),
+        request_actor_id=_factor_mining_campaign_safe_token(
+            request_actor_id,
+            field_name="request_actor_id",
+        ),
+        resource_budget_hash=_factor_mining_campaign_hash(
+            resource_budget_hash,
+            field_name="resource_budget_hash",
+        ),
+        source_authorization_hash=_factor_mining_campaign_hash(
+            source_authorization_hash,
+            field_name="source_authorization_hash",
+        ),
+        replay_authorization_hash=_factor_mining_campaign_optional_hash(
+            replay_authorization_hash,
+            field_name="replay_authorization_hash",
+        ),
+        replay_authorization_id=(
+            None
+            if replay_authorization_id is None
+            else _factor_mining_campaign_safe_token(
+                replay_authorization_id,
+                field_name="replay_authorization_id",
+            )
+        ),
+        replay_actor_id=(
+            None
+            if replay_actor_id is None
+            else _factor_mining_campaign_safe_token(
+                replay_actor_id,
+                field_name="replay_actor_id",
+            )
+        ),
+        replay_authorization_evidence_hash=_factor_mining_campaign_optional_hash(
+            replay_authorization_evidence_hash,
+            field_name="replay_authorization_evidence_hash",
+        ),
+        generation_receipt_hash=_factor_mining_campaign_optional_hash(
+            generation_receipt_hash,
+            field_name="generation_receipt_hash",
+        ),
+        discovery_result_hash=_factor_mining_campaign_optional_hash(
+            discovery_result_hash,
+            field_name="discovery_result_hash",
+        ),
+        selection_commitment_hash=_factor_mining_campaign_optional_hash(
+            selection_commitment_hash,
+            field_name="selection_commitment_hash",
+        ),
+        oos_release_hash=_factor_mining_campaign_optional_hash(
+            oos_release_hash,
+            field_name="oos_release_hash",
+        ),
+        bundle_snapshot_hash=_factor_mining_campaign_optional_hash(
+            bundle_snapshot_hash,
+            field_name="bundle_snapshot_hash",
+        ),
+        manifest_snapshot_hash=_factor_mining_campaign_optional_hash(
+            manifest_snapshot_hash,
+            field_name="manifest_snapshot_hash",
+        ),
+        result_hash=_factor_mining_campaign_optional_hash(result_hash, field_name="result_hash"),
+        resource_usage_hash=_factor_mining_campaign_optional_hash(
+            resource_usage_hash,
+            field_name="resource_usage_hash",
+        ),
+        candidate_count=_factor_mining_campaign_optional_count(
+            candidate_count,
+            field_name="candidate_count",
+        ),
+        selected_candidate_count=_factor_mining_campaign_optional_count(
+            selected_candidate_count,
+            field_name="selected_candidate_count",
+        ),
+        active_concurrency_observed=_factor_mining_campaign_max_concurrent_runs(
+            active_concurrency_observed
+        ),
+        max_concurrency_observed=_factor_mining_campaign_optional_count(
+            max_concurrency_observed,
+            field_name="max_concurrency_observed",
+        ),
+        cpu_milliseconds=_factor_mining_campaign_optional_count(
+            cpu_milliseconds,
+            field_name="cpu_milliseconds",
+        ),
+        peak_memory_bytes=_factor_mining_campaign_optional_count(
+            peak_memory_bytes,
+            field_name="peak_memory_bytes",
+        ),
+        wall_clock_milliseconds=_factor_mining_campaign_optional_count(
+            wall_clock_milliseconds,
+            field_name="wall_clock_milliseconds",
+        ),
+        data_row_count=_factor_mining_campaign_optional_count(
+            data_row_count,
+            field_name="data_row_count",
+        ),
+        artifact_byte_count=_factor_mining_campaign_optional_count(
+            artifact_byte_count,
+            field_name="artifact_byte_count",
+        ),
+        failure_code=failure_code,
+        occurred_at=_factor_mining_campaign_time(occurred_at, field_name="occurred_at"),
+        predecessor_record_hash=_factor_mining_campaign_optional_hash(
+            predecessor_record_hash,
+            field_name="predecessor_record_hash",
+        ),
+        lifecycle=_FACTOR_MINING_CAMPAIGN_LIFECYCLE,
+        eligible_for_trading=False,
+    )
+    _validate_factor_mining_campaign_event_shape(values)
+    return values
+
+
+def _factor_mining_campaign_event_values_from_record(
+    record: FactorMiningCampaignRequestEventRecord,
+) -> _FactorMiningCampaignRequestEventValues:
+    values = _factor_mining_campaign_event_values(
+        campaign_id=record.campaign_id,
+        campaign_hash=record.campaign_hash,
+        campaign_record_hash=record.campaign_record_hash,
+        request_id=record.request_id,
+        sequence=record.sequence,
+        event_kind=record.event_kind,
+        is_terminal=record.is_terminal,
+        request_hash=record.request_hash,
+        request_actor_id=record.request_actor_id,
+        resource_budget_hash=record.resource_budget_hash,
+        source_authorization_hash=record.source_authorization_hash,
+        replay_authorization_hash=record.replay_authorization_hash,
+        replay_authorization_id=record.replay_authorization_id,
+        replay_actor_id=record.replay_actor_id,
+        replay_authorization_evidence_hash=record.replay_authorization_evidence_hash,
+        generation_receipt_hash=record.generation_receipt_hash,
+        discovery_result_hash=record.discovery_result_hash,
+        selection_commitment_hash=record.selection_commitment_hash,
+        oos_release_hash=record.oos_release_hash,
+        bundle_snapshot_hash=record.bundle_snapshot_hash,
+        manifest_snapshot_hash=record.manifest_snapshot_hash,
+        result_hash=record.result_hash,
+        resource_usage_hash=record.resource_usage_hash,
+        candidate_count=record.candidate_count,
+        selected_candidate_count=record.selected_candidate_count,
+        active_concurrency_observed=record.active_concurrency_observed,
+        max_concurrency_observed=record.max_concurrency_observed,
+        cpu_milliseconds=record.cpu_milliseconds,
+        peak_memory_bytes=record.peak_memory_bytes,
+        wall_clock_milliseconds=record.wall_clock_milliseconds,
+        data_row_count=record.data_row_count,
+        artifact_byte_count=record.artifact_byte_count,
+        failure_code=record.failure_code,
+        occurred_at=record.occurred_at,
+        predecessor_record_hash=record.predecessor_record_hash,
+        lifecycle=record.lifecycle,
+        eligible_for_trading=record.eligible_for_trading,
+    )
+    if record.record_hash != values.record_hash:
+        raise FactorMiningCampaignLedgerError(
+            "FACTOR_MINING_CAMPAIGN_LEDGER_EVENT_RECORD_TAMPERED"
+        )
+    return values
+
+
+def _validate_factor_mining_campaign_resource_usage(
+    values: _FactorMiningCampaignRequestEventValues,
+) -> None:
+    metrics = (
+        values.max_concurrency_observed,
+        values.cpu_milliseconds,
+        values.peak_memory_bytes,
+        values.wall_clock_milliseconds,
+        values.data_row_count,
+        values.artifact_byte_count,
+    )
+    if values.resource_usage_hash is None:
+        if any(item is not None for item in metrics):
+            raise FactorMiningCampaignLedgerError(
+                "FACTOR_MINING_CAMPAIGN_LEDGER_RESOURCE_USAGE_INCOMPLETE"
+            )
+    elif any(item is None for item in metrics):
+        raise FactorMiningCampaignLedgerError(
+            "FACTOR_MINING_CAMPAIGN_LEDGER_RESOURCE_USAGE_INCOMPLETE"
+        )
+
+
+def _validate_factor_mining_campaign_event_shape(
+    values: _FactorMiningCampaignRequestEventValues,
+) -> None:
+    _validate_factor_mining_campaign_resource_usage(values)
+    if values.selected_candidate_count is not None and values.candidate_count is not None:
+        if values.selected_candidate_count > values.candidate_count:
+            raise FactorMiningCampaignLedgerError(
+                "FACTOR_MINING_CAMPAIGN_LEDGER_SELECTED_COUNT_INVALID"
+            )
+    kind = values.event_kind
+    no_result = (
+        values.bundle_snapshot_hash is None
+        and values.manifest_snapshot_hash is None
+        and values.result_hash is None
+    )
+    replay_authorization_metadata_absent = (
+        values.replay_authorization_id is None
+        and values.replay_actor_id is None
+        and values.replay_authorization_evidence_hash is None
+    )
+    if kind == "RESERVED":
+        valid = (
+            values.is_terminal is False
+            and values.sequence == 1
+            and (
+                (
+                    values.replay_authorization_hash is None
+                    and values.predecessor_record_hash is None
+                )
+                or (
+                    values.replay_authorization_hash is not None
+                    and values.predecessor_record_hash is not None
+                )
+            )
+            and values.generation_receipt_hash is None
+            and values.discovery_result_hash is None
+            and values.selection_commitment_hash is None
+            and values.oos_release_hash is None
+            and no_result
+            and values.failure_code is None
+            and values.candidate_count is None
+            and values.selected_candidate_count is None
+            and values.resource_usage_hash is None
+            and replay_authorization_metadata_absent
+        )
+    elif kind == "RECEIPT_RECORDED":
+        valid = (
+            values.is_terminal is False
+            and values.predecessor_record_hash is not None
+            and values.generation_receipt_hash is not None
+            and values.discovery_result_hash is None
+            and values.selection_commitment_hash is None
+            and values.oos_release_hash is None
+            and no_result
+            and values.failure_code is None
+            and values.candidate_count is not None
+            and values.candidate_count > 0
+            and values.selected_candidate_count is None
+            and values.resource_usage_hash is None
+            and replay_authorization_metadata_absent
+        )
+    elif kind == "DISCOVERY_RECORDED":
+        valid = (
+            values.is_terminal is False
+            and values.predecessor_record_hash is not None
+            and values.generation_receipt_hash is not None
+            and values.discovery_result_hash is not None
+            and values.selection_commitment_hash is None
+            and values.oos_release_hash is None
+            and no_result
+            and values.failure_code is None
+            and values.candidate_count is not None
+            and values.candidate_count > 0
+            and values.selected_candidate_count is None
+            and values.resource_usage_hash is None
+            and replay_authorization_metadata_absent
+        )
+    elif kind == "SELECTION_COMMITTED":
+        valid = (
+            values.is_terminal is False
+            and values.predecessor_record_hash is not None
+            and values.generation_receipt_hash is not None
+            and values.discovery_result_hash is not None
+            and values.selection_commitment_hash is not None
+            and values.oos_release_hash is None
+            and no_result
+            and values.failure_code is None
+            and values.candidate_count is not None
+            and values.candidate_count > 0
+            and values.selected_candidate_count is not None
+            and values.resource_usage_hash is None
+            and replay_authorization_metadata_absent
+        )
+    elif kind == "OOS_RESERVED":
+        valid = (
+            values.is_terminal is False
+            and values.predecessor_record_hash is not None
+            and values.generation_receipt_hash is not None
+            and values.discovery_result_hash is not None
+            and values.selection_commitment_hash is not None
+            and values.oos_release_hash is None
+            and no_result
+            and values.failure_code is None
+            and values.candidate_count is not None
+            and values.candidate_count > 0
+            and values.selected_candidate_count is not None
+            and values.selected_candidate_count > 0
+            and values.resource_usage_hash is None
+            and replay_authorization_metadata_absent
+        )
+    elif kind == "OOS_RELEASED":
+        valid = (
+            values.is_terminal is False
+            and values.predecessor_record_hash is not None
+            and values.generation_receipt_hash is not None
+            and values.discovery_result_hash is not None
+            and values.selection_commitment_hash is not None
+            and values.oos_release_hash is not None
+            and no_result
+            and values.failure_code is None
+            and values.candidate_count is not None
+            and values.candidate_count > 0
+            and values.selected_candidate_count is not None
+            and values.selected_candidate_count > 0
+            and values.resource_usage_hash is None
+            and replay_authorization_metadata_absent
+        )
+    elif kind == "RESULT_RECORDED":
+        valid = (
+            values.is_terminal is True
+            and values.predecessor_record_hash is not None
+            and values.generation_receipt_hash is not None
+            and values.discovery_result_hash is not None
+            and values.selection_commitment_hash is not None
+            and values.bundle_snapshot_hash is not None
+            and values.manifest_snapshot_hash is not None
+            and values.result_hash is not None
+            and values.failure_code is None
+            and values.resource_usage_hash is not None
+            and values.candidate_count is not None
+            and values.candidate_count > 0
+            and values.selected_candidate_count is not None
+            and (
+                (values.selected_candidate_count == 0 and values.oos_release_hash is None)
+                or (values.selected_candidate_count > 0 and values.oos_release_hash is not None)
+            )
+            and replay_authorization_metadata_absent
+        )
+    elif kind == "FAILED":
+        valid = (
+            values.is_terminal is True
+            and values.predecessor_record_hash is not None
+            and no_result
+            and values.failure_code is not None
+            and replay_authorization_metadata_absent
+        )
+    elif kind == "REPLAY_AUTHORIZED":
+        valid = (
+            values.is_terminal is True
+            and values.predecessor_record_hash is not None
+            and no_result
+            and values.failure_code is None
+            and values.resource_usage_hash is None
+            and values.replay_authorization_hash is not None
+            and values.replay_authorization_id is not None
+            and values.replay_actor_id is not None
+            and values.replay_authorization_evidence_hash is not None
+        )
+    else:  # pragma: no cover - event-kind normalization above is exhaustive.
+        valid = False
+    if not valid:
+        raise FactorMiningCampaignLedgerError(
+            "FACTOR_MINING_CAMPAIGN_LEDGER_INVALID_EVENT_SHAPE"
+        )
+
+
+def _factor_mining_campaign_registration_receipt(
+    values: _FactorMiningCampaignRecordValues,
+) -> FactorMiningCampaignRegistrationReceipt:
+    return FactorMiningCampaignRegistrationReceipt(
+        campaign_id=values.campaign_id,
+        campaign_hash=values.campaign_hash,
+        declaration_hash=values.declaration_hash,
+        declaration_snapshot_hash=values.declaration_snapshot_hash,
+        record_hash=values.record_hash,
+        registered_at=values.registered_at,
+        max_concurrent_runs=values.max_concurrent_runs,
+    )
+
+
+def _factor_mining_campaign_event_projection(
+    values: _FactorMiningCampaignRequestEventValues,
+) -> FactorMiningCampaignRequestEvent:
+    return FactorMiningCampaignRequestEvent(
+        campaign_id=values.campaign_id,
+        campaign_hash=values.campaign_hash,
+        campaign_record_hash=values.campaign_record_hash,
+        request_id=values.request_id,
+        sequence=values.sequence,
+        event_kind=values.event_kind,
+        is_terminal=values.is_terminal,
+        request_hash=values.request_hash,
+        request_actor_id=values.request_actor_id,
+        resource_budget_hash=values.resource_budget_hash,
+        source_authorization_hash=values.source_authorization_hash,
+        replay_authorization_hash=values.replay_authorization_hash,
+        replay_authorization_id=values.replay_authorization_id,
+        replay_actor_id=values.replay_actor_id,
+        replay_authorization_evidence_hash=values.replay_authorization_evidence_hash,
+        generation_receipt_hash=values.generation_receipt_hash,
+        discovery_result_hash=values.discovery_result_hash,
+        selection_commitment_hash=values.selection_commitment_hash,
+        oos_release_hash=values.oos_release_hash,
+        bundle_snapshot_hash=values.bundle_snapshot_hash,
+        manifest_snapshot_hash=values.manifest_snapshot_hash,
+        result_hash=values.result_hash,
+        resource_usage_hash=values.resource_usage_hash,
+        candidate_count=values.candidate_count,
+        selected_candidate_count=values.selected_candidate_count,
+        active_concurrency_observed=values.active_concurrency_observed,
+        max_concurrency_observed=values.max_concurrency_observed,
+        cpu_milliseconds=values.cpu_milliseconds,
+        peak_memory_bytes=values.peak_memory_bytes,
+        wall_clock_milliseconds=values.wall_clock_milliseconds,
+        data_row_count=values.data_row_count,
+        artifact_byte_count=values.artifact_byte_count,
+        failure_code=values.failure_code,
+        occurred_at=values.occurred_at,
+        predecessor_record_hash=values.predecessor_record_hash,
+        record_hash=values.record_hash,
+    )
+
+
+def _factor_mining_campaign_record_from_values(
+    values: _FactorMiningCampaignRecordValues,
+) -> FactorMiningCampaignRecord:
+    return FactorMiningCampaignRecord(
+        campaign_id=values.campaign_id,
+        campaign_hash=values.campaign_hash,
+        declaration_hash=values.declaration_hash,
+        declaration_snapshot_hash=values.declaration_snapshot_hash,
+        decision_replay_plan_hash=values.decision_replay_plan_hash,
+        dataset_version_set_hash=values.dataset_version_set_hash,
+        template_hash=values.template_hash,
+        search_budget_hash=values.search_budget_hash,
+        selection_policy_hash=values.selection_policy_hash,
+        generator_id=values.generator_id,
+        generator_model_revision_hash=values.generator_model_revision_hash,
+        prompt_template_hash=values.prompt_template_hash,
+        source_authorization_hash=values.source_authorization_hash,
+        runner_resource_budget_hash=values.runner_resource_budget_hash,
+        max_concurrent_runs=values.max_concurrent_runs,
+        code_revision_hash=values.code_revision_hash,
+        selection_at=values.selection_at,
+        registered_at=values.registered_at,
+        lifecycle=values.lifecycle,
+        eligible_for_trading=values.eligible_for_trading,
+        record_hash=values.record_hash,
+    )
+
+
+def _factor_mining_campaign_event_from_values(
+    values: _FactorMiningCampaignRequestEventValues,
+) -> FactorMiningCampaignRequestEventRecord:
+    return FactorMiningCampaignRequestEventRecord(
+        campaign_id=values.campaign_id,
+        campaign_hash=values.campaign_hash,
+        campaign_record_hash=values.campaign_record_hash,
+        request_id=values.request_id,
+        sequence=values.sequence,
+        event_kind=values.event_kind,
+        is_terminal=values.is_terminal,
+        request_hash=values.request_hash,
+        request_actor_id=values.request_actor_id,
+        resource_budget_hash=values.resource_budget_hash,
+        source_authorization_hash=values.source_authorization_hash,
+        replay_authorization_hash=values.replay_authorization_hash,
+        replay_authorization_id=values.replay_authorization_id,
+        replay_actor_id=values.replay_actor_id,
+        replay_authorization_evidence_hash=values.replay_authorization_evidence_hash,
+        generation_receipt_hash=values.generation_receipt_hash,
+        discovery_result_hash=values.discovery_result_hash,
+        selection_commitment_hash=values.selection_commitment_hash,
+        oos_release_hash=values.oos_release_hash,
+        bundle_snapshot_hash=values.bundle_snapshot_hash,
+        manifest_snapshot_hash=values.manifest_snapshot_hash,
+        result_hash=values.result_hash,
+        resource_usage_hash=values.resource_usage_hash,
+        candidate_count=values.candidate_count,
+        selected_candidate_count=values.selected_candidate_count,
+        active_concurrency_observed=values.active_concurrency_observed,
+        max_concurrency_observed=values.max_concurrency_observed,
+        cpu_milliseconds=values.cpu_milliseconds,
+        peak_memory_bytes=values.peak_memory_bytes,
+        wall_clock_milliseconds=values.wall_clock_milliseconds,
+        data_row_count=values.data_row_count,
+        artifact_byte_count=values.artifact_byte_count,
+        failure_code=values.failure_code,
+        occurred_at=values.occurred_at,
+        predecessor_record_hash=values.predecessor_record_hash,
+        lifecycle=values.lifecycle,
+        eligible_for_trading=values.eligible_for_trading,
+        record_hash=values.record_hash,
+    )
+
+
+def _require_clean_factor_mining_campaign_ledger_write_session(session: Session) -> None:
+    if session.in_transaction() or session.new or session.dirty or session.deleted:
+        raise FactorMiningCampaignLedgerError(
+            "FACTOR_MINING_CAMPAIGN_LEDGER_SESSION_MUST_BE_CLEAN"
+        )
+
+
+def _load_factor_mining_campaign_record(
+    session: Session,
+    *,
+    campaign_id: str,
+    lock: bool,
+) -> FactorMiningCampaignRecord | None:
+    statement = select(FactorMiningCampaignRecord).where(
+        FactorMiningCampaignRecord.campaign_id == campaign_id
+    )
+    if lock:
+        statement = statement.with_for_update()
+    return session.scalar(statement)
+
+
+def _load_factor_mining_campaign_request_event_records(
+    session: Session,
+    *,
+    request_id: str,
+    lock: bool,
+) -> tuple[FactorMiningCampaignRequestEventRecord, ...]:
+    statement = (
+        select(FactorMiningCampaignRequestEventRecord)
+        .where(FactorMiningCampaignRequestEventRecord.request_id == request_id)
+        .order_by(FactorMiningCampaignRequestEventRecord.sequence.asc())
+    )
+    if lock:
+        statement = statement.with_for_update()
+    return tuple(session.scalars(statement))
+
+
+def _load_factor_mining_campaign_reservation_by_request_hash(
+    session: Session,
+    *,
+    request_hash: str,
+    lock: bool,
+) -> FactorMiningCampaignRequestEventRecord | None:
+    statement = select(FactorMiningCampaignRequestEventRecord).where(
+        FactorMiningCampaignRequestEventRecord.request_hash == request_hash,
+        FactorMiningCampaignRequestEventRecord.event_kind == "RESERVED",
+    )
+    if lock:
+        statement = statement.with_for_update()
+    return session.scalar(statement)
+
+
+def _load_factor_mining_campaign_replay_authorization_event(
+    session: Session,
+    *,
+    authorization_hash: str,
+    lock: bool,
+) -> FactorMiningCampaignRequestEventRecord | None:
+    statement = select(FactorMiningCampaignRequestEventRecord).where(
+        FactorMiningCampaignRequestEventRecord.replay_authorization_hash
+        == authorization_hash,
+        FactorMiningCampaignRequestEventRecord.event_kind == "REPLAY_AUTHORIZED",
+    )
+    if lock:
+        statement = statement.with_for_update()
+    return session.scalar(statement)
+
+
+def _factor_mining_campaign_active_request_count(
+    session: Session,
+    *,
+    campaign_record_hash: str,
+) -> int:
+    latest_events = (
+        select(
+            FactorMiningCampaignRequestEventRecord.request_id.label("request_id"),
+            func.max(FactorMiningCampaignRequestEventRecord.sequence).label("sequence"),
+        )
+        .where(
+            FactorMiningCampaignRequestEventRecord.campaign_record_hash
+            == campaign_record_hash
+        )
+        .group_by(FactorMiningCampaignRequestEventRecord.request_id)
+        .subquery()
+    )
+    count = session.scalar(
+        select(func.count())
+        .select_from(FactorMiningCampaignRequestEventRecord)
+        .join(
+            latest_events,
+            (
+                FactorMiningCampaignRequestEventRecord.request_id
+                == latest_events.c.request_id
+            )
+            & (FactorMiningCampaignRequestEventRecord.sequence == latest_events.c.sequence),
+        )
+        .where(FactorMiningCampaignRequestEventRecord.is_terminal.is_(False))
+    )
+    return int(count or 0)
+
+
+def _factor_mining_campaign_next_event_kind(
+    previous: _FactorMiningCampaignRequestEventValues,
+) -> str:
+    if previous.is_terminal:
+        raise FactorMiningCampaignLedgerError(
+            "FACTOR_MINING_CAMPAIGN_LEDGER_TERMINAL_ALREADY_RECORDED"
+        )
+    if previous.event_kind == "RESERVED":
+        return FactorMiningCampaignRequestEventKind.RECEIPT_RECORDED.value
+    if previous.event_kind == FactorMiningCampaignRequestEventKind.RECEIPT_RECORDED.value:
+        return FactorMiningCampaignRequestEventKind.DISCOVERY_RECORDED.value
+    if previous.event_kind == FactorMiningCampaignRequestEventKind.DISCOVERY_RECORDED.value:
+        return FactorMiningCampaignRequestEventKind.SELECTION_COMMITTED.value
+    if previous.event_kind == FactorMiningCampaignRequestEventKind.SELECTION_COMMITTED.value:
+        if previous.selected_candidate_count is None:  # pragma: no cover - shape guards this.
+            raise FactorMiningCampaignLedgerError(
+                "FACTOR_MINING_CAMPAIGN_LEDGER_INVALID_EVENT_CHAIN"
+            )
+        if previous.selected_candidate_count == 0:
+            return FactorMiningCampaignRequestEventKind.RESULT_RECORDED.value
+        return FactorMiningCampaignRequestEventKind.OOS_RESERVED.value
+    if previous.event_kind == FactorMiningCampaignRequestEventKind.OOS_RESERVED.value:
+        return FactorMiningCampaignRequestEventKind.OOS_RELEASED.value
+    if previous.event_kind == FactorMiningCampaignRequestEventKind.OOS_RELEASED.value:
+        return FactorMiningCampaignRequestEventKind.RESULT_RECORDED.value
+    raise FactorMiningCampaignLedgerError("FACTOR_MINING_CAMPAIGN_LEDGER_INVALID_EVENT_CHAIN")
+
+
+def _validate_factor_mining_campaign_event_chain(
+    *,
+    campaign: _FactorMiningCampaignRecordValues,
+    records: Sequence[FactorMiningCampaignRequestEventRecord],
+) -> tuple[_FactorMiningCampaignRequestEventValues, ...]:
+    values = tuple(_factor_mining_campaign_event_values_from_record(record) for record in records)
+    if not values:
+        return ()
+    first = values[0]
+    if (
+        first.event_kind != "RESERVED"
+        or first.sequence != 1
+        or first.campaign_id != campaign.campaign_id
+        or first.campaign_hash != campaign.campaign_hash
+        or first.campaign_record_hash != campaign.record_hash
+        or first.source_authorization_hash != campaign.source_authorization_hash
+        or first.resource_budget_hash != campaign.runner_resource_budget_hash
+        or first.active_concurrency_observed > campaign.max_concurrent_runs
+    ):
+        raise FactorMiningCampaignLedgerError(
+            "FACTOR_MINING_CAMPAIGN_LEDGER_RESERVATION_CHAIN_INVALID"
+        )
+    if (
+        first.replay_authorization_hash is None
+        and first.predecessor_record_hash is not None
+    ) or (
+        first.replay_authorization_hash is not None
+        and first.predecessor_record_hash is None
+    ):
+        raise FactorMiningCampaignLedgerError(
+            "FACTOR_MINING_CAMPAIGN_LEDGER_RESERVATION_CHAIN_INVALID"
+        )
+    for sequence, current in enumerate(values, start=1):
+        if current.sequence != sequence:
+            raise FactorMiningCampaignLedgerError(
+                "FACTOR_MINING_CAMPAIGN_LEDGER_SEQUENCE_INVALID"
+            )
+        if (
+            current.campaign_id != first.campaign_id
+            or current.campaign_hash != first.campaign_hash
+            or current.campaign_record_hash != first.campaign_record_hash
+            or current.request_id != first.request_id
+            or current.request_hash != first.request_hash
+            or current.request_actor_id != first.request_actor_id
+            or current.resource_budget_hash != first.resource_budget_hash
+            or current.source_authorization_hash != first.source_authorization_hash
+            or current.active_concurrency_observed
+            != first.active_concurrency_observed
+            or (
+                current.event_kind != "REPLAY_AUTHORIZED"
+                and current.replay_authorization_hash != first.replay_authorization_hash
+            )
+        ):
+            raise FactorMiningCampaignLedgerError(
+                "FACTOR_MINING_CAMPAIGN_LEDGER_SCOPE_TAMPERED"
+            )
+        if sequence == 1:
+            continue
+        previous = values[sequence - 2]
+        if current.predecessor_record_hash != previous.record_hash:
+            raise FactorMiningCampaignLedgerError(
+                "FACTOR_MINING_CAMPAIGN_LEDGER_PREDECESSOR_INVALID"
+            )
+        if current.occurred_at < previous.occurred_at:
+            raise FactorMiningCampaignLedgerError(
+                "FACTOR_MINING_CAMPAIGN_LEDGER_TIME_INVALID"
+            )
+        if current.event_kind == "REPLAY_AUTHORIZED":
+            if current.replay_authorization_hash == first.replay_authorization_hash:
+                raise FactorMiningCampaignLedgerError(
+                    "FACTOR_MINING_CAMPAIGN_LEDGER_REPLAY_AUTHORIZATION_INVALID"
+                )
+            authorization = _FactorMiningCampaignReplayAuthorizationInput(
+                authorization_id=current.replay_authorization_id or "",
+                actor_id=current.replay_actor_id or "",
+                unresolved_request_hash=current.request_hash,
+                authorization_evidence_hash=(
+                    current.replay_authorization_evidence_hash or ""
+                ),
+                authorized_at=current.occurred_at,
+            )
+            if authorization.authorization_hash != current.replay_authorization_hash:
+                raise FactorMiningCampaignLedgerError(
+                    "FACTOR_MINING_CAMPAIGN_LEDGER_REPLAY_AUTHORIZATION_INVALID"
+                )
+        expected_kind = _factor_mining_campaign_next_event_kind(previous)
+        if current.event_kind not in (
+            expected_kind,
+            FactorMiningCampaignRequestEventKind.FAILED.value,
+            "REPLAY_AUTHORIZED",
+        ):
+            raise FactorMiningCampaignLedgerError(
+                "FACTOR_MINING_CAMPAIGN_LEDGER_EVENT_ORDER_INVALID"
+            )
+        for field_name in (
+            "generation_receipt_hash",
+            "discovery_result_hash",
+            "selection_commitment_hash",
+            "oos_release_hash",
+            "candidate_count",
+            "selected_candidate_count",
+        ):
+            previous_value = getattr(previous, field_name)
+            current_value = getattr(current, field_name)
+            if current.event_kind in (
+                FactorMiningCampaignRequestEventKind.FAILED.value,
+                "REPLAY_AUTHORIZED",
+            ):
+                if current_value != previous_value:
+                    raise FactorMiningCampaignLedgerError(
+                        "FACTOR_MINING_CAMPAIGN_LEDGER_STATE_TAMPERED"
+                    )
+                continue
+            introduced_by = {
+                "generation_receipt_hash": FactorMiningCampaignRequestEventKind.RECEIPT_RECORDED.value,
+                "discovery_result_hash": FactorMiningCampaignRequestEventKind.DISCOVERY_RECORDED.value,
+                "selection_commitment_hash": FactorMiningCampaignRequestEventKind.SELECTION_COMMITTED.value,
+                "oos_release_hash": FactorMiningCampaignRequestEventKind.OOS_RELEASED.value,
+                "candidate_count": FactorMiningCampaignRequestEventKind.RECEIPT_RECORDED.value,
+                "selected_candidate_count": FactorMiningCampaignRequestEventKind.SELECTION_COMMITTED.value,
+            }[field_name]
+            if current.event_kind == introduced_by:
+                if previous_value is not None or current_value is None:
+                    raise FactorMiningCampaignLedgerError(
+                        "FACTOR_MINING_CAMPAIGN_LEDGER_STATE_TAMPERED"
+                    )
+            elif current_value != previous_value:
+                raise FactorMiningCampaignLedgerError(
+                    "FACTOR_MINING_CAMPAIGN_LEDGER_STATE_TAMPERED"
+                )
+        if current.event_kind == FactorMiningCampaignRequestEventKind.RESULT_RECORDED.value:
+            if any(
+                current_value is not None
+                for current_value in (
+                    previous.bundle_snapshot_hash,
+                    previous.manifest_snapshot_hash,
+                    previous.result_hash,
+                    previous.resource_usage_hash,
+                )
+            ):
+                raise FactorMiningCampaignLedgerError(
+                    "FACTOR_MINING_CAMPAIGN_LEDGER_STATE_TAMPERED"
+                )
+        elif current.event_kind in (
+            FactorMiningCampaignRequestEventKind.FAILED.value,
+            "REPLAY_AUTHORIZED",
+        ):
+            if any(
+                current_value is not None
+                for current_value in (
+                    previous.bundle_snapshot_hash,
+                    previous.manifest_snapshot_hash,
+                    previous.result_hash,
+                )
+            ):
+                raise FactorMiningCampaignLedgerError(
+                    "FACTOR_MINING_CAMPAIGN_LEDGER_STATE_TAMPERED"
+                )
+    return values
+
+
+def _factor_mining_campaign_append_supplied_fields(
+    append: FactorMiningCampaignRequestEventAppend,
+) -> dict[str, object]:
+    return {
+        "generation_receipt_hash": append.generation_receipt_hash,
+        "discovery_result_hash": append.discovery_result_hash,
+        "selection_commitment_hash": append.selection_commitment_hash,
+        "oos_release_hash": append.oos_release_hash,
+        "bundle_snapshot_hash": append.bundle_snapshot_hash,
+        "manifest_snapshot_hash": append.manifest_snapshot_hash,
+        "result_hash": append.result_hash,
+        "candidate_count": append.candidate_count,
+        "selected_candidate_count": append.selected_candidate_count,
+        "failure_code": append.failure_code,
+        "resource_usage": append.resource_usage,
+    }
+
+
+def _factor_mining_campaign_require_append_fields(
+    append: FactorMiningCampaignRequestEventAppend,
+    *,
+    required: frozenset[str],
+    allowed: frozenset[str],
+) -> None:
+    supplied = {
+        field_name
+        for field_name, value in _factor_mining_campaign_append_supplied_fields(append).items()
+        if value is not None
+    }
+    if not required.issubset(supplied) or not supplied.issubset(allowed):
+        raise FactorMiningCampaignLedgerError(
+            "FACTOR_MINING_CAMPAIGN_LEDGER_APPEND_INPUT_INVALID"
+        )
+
+
+def _factor_mining_campaign_next_event_values(
+    *,
+    previous: _FactorMiningCampaignRequestEventValues,
+    append: FactorMiningCampaignRequestEventAppend,
+) -> _FactorMiningCampaignRequestEventValues:
+    expected_kind = _factor_mining_campaign_next_event_kind(previous)
+    event_kind = append.event_kind.value
+    if event_kind not in (expected_kind, FactorMiningCampaignRequestEventKind.FAILED.value):
+        raise FactorMiningCampaignLedgerError(
+            "FACTOR_MINING_CAMPAIGN_LEDGER_EVENT_ORDER_INVALID"
+        )
+    if append.occurred_at < previous.occurred_at:
+        raise FactorMiningCampaignLedgerError("FACTOR_MINING_CAMPAIGN_LEDGER_TIME_INVALID")
+
+    generation_receipt_hash = previous.generation_receipt_hash
+    discovery_result_hash = previous.discovery_result_hash
+    selection_commitment_hash = previous.selection_commitment_hash
+    oos_release_hash = previous.oos_release_hash
+    candidate_count = previous.candidate_count
+    selected_candidate_count = previous.selected_candidate_count
+    bundle_snapshot_hash: str | None = None
+    manifest_snapshot_hash: str | None = None
+    result_hash: str | None = None
+    resource_usage_hash: str | None = None
+    max_concurrency_observed: int | None = None
+    cpu_milliseconds: int | None = None
+    peak_memory_bytes: int | None = None
+    wall_clock_milliseconds: int | None = None
+    data_row_count: int | None = None
+    artifact_byte_count: int | None = None
+    failure_code: str | None = None
+
+    if event_kind == FactorMiningCampaignRequestEventKind.RECEIPT_RECORDED.value:
+        _factor_mining_campaign_require_append_fields(
+            append,
+            required=frozenset({"generation_receipt_hash", "candidate_count"}),
+            allowed=frozenset({"generation_receipt_hash", "candidate_count"}),
+        )
+        generation_receipt_hash = append.generation_receipt_hash
+        candidate_count = append.candidate_count
+    elif event_kind == FactorMiningCampaignRequestEventKind.DISCOVERY_RECORDED.value:
+        _factor_mining_campaign_require_append_fields(
+            append,
+            required=frozenset({"discovery_result_hash"}),
+            allowed=frozenset({"discovery_result_hash"}),
+        )
+        discovery_result_hash = append.discovery_result_hash
+    elif event_kind == FactorMiningCampaignRequestEventKind.SELECTION_COMMITTED.value:
+        _factor_mining_campaign_require_append_fields(
+            append,
+            required=frozenset({"selection_commitment_hash", "selected_candidate_count"}),
+            allowed=frozenset({"selection_commitment_hash", "selected_candidate_count"}),
+        )
+        selection_commitment_hash = append.selection_commitment_hash
+        selected_candidate_count = append.selected_candidate_count
+    elif event_kind == FactorMiningCampaignRequestEventKind.OOS_RESERVED.value:
+        _factor_mining_campaign_require_append_fields(
+            append,
+            required=frozenset(),
+            allowed=frozenset(),
+        )
+    elif event_kind == FactorMiningCampaignRequestEventKind.OOS_RELEASED.value:
+        _factor_mining_campaign_require_append_fields(
+            append,
+            required=frozenset({"oos_release_hash"}),
+            allowed=frozenset({"oos_release_hash"}),
+        )
+        oos_release_hash = append.oos_release_hash
+    elif event_kind == FactorMiningCampaignRequestEventKind.RESULT_RECORDED.value:
+        _factor_mining_campaign_require_append_fields(
+            append,
+            required=frozenset(
+                {
+                    "bundle_snapshot_hash",
+                    "manifest_snapshot_hash",
+                    "result_hash",
+                    "resource_usage",
+                }
+            ),
+            allowed=frozenset(
+                {
+                    "bundle_snapshot_hash",
+                    "manifest_snapshot_hash",
+                    "result_hash",
+                    "resource_usage",
+                }
+            ),
+        )
+        bundle_snapshot_hash = append.bundle_snapshot_hash
+        manifest_snapshot_hash = append.manifest_snapshot_hash
+        result_hash = append.result_hash
+    elif event_kind == FactorMiningCampaignRequestEventKind.FAILED.value:
+        _factor_mining_campaign_require_append_fields(
+            append,
+            required=frozenset({"failure_code"}),
+            allowed=frozenset({"failure_code", "resource_usage"}),
+        )
+        failure_code = append.failure_code.value if append.failure_code is not None else None
+    else:  # pragma: no cover - event-kind validation is performed by the input type.
+        raise FactorMiningCampaignLedgerError("FACTOR_MINING_CAMPAIGN_LEDGER_INVALID_EVENT_KIND")
+
+    if append.resource_usage is not None:
+        resource_usage_hash = append.resource_usage.resource_usage_hash
+        max_concurrency_observed = append.resource_usage.max_concurrency_observed
+        cpu_milliseconds = append.resource_usage.cpu_milliseconds
+        peak_memory_bytes = append.resource_usage.peak_memory_bytes
+        wall_clock_milliseconds = append.resource_usage.wall_clock_milliseconds
+        data_row_count = append.resource_usage.data_row_count
+        artifact_byte_count = append.resource_usage.artifact_byte_count
+
+    return _factor_mining_campaign_event_values(
+        campaign_id=previous.campaign_id,
+        campaign_hash=previous.campaign_hash,
+        campaign_record_hash=previous.campaign_record_hash,
+        request_id=previous.request_id,
+        sequence=previous.sequence + 1,
+        event_kind=event_kind,
+        is_terminal=event_kind
+        in {
+            FactorMiningCampaignRequestEventKind.RESULT_RECORDED.value,
+            FactorMiningCampaignRequestEventKind.FAILED.value,
+        },
+        request_hash=previous.request_hash,
+        request_actor_id=previous.request_actor_id,
+        resource_budget_hash=previous.resource_budget_hash,
+        source_authorization_hash=previous.source_authorization_hash,
+        replay_authorization_hash=previous.replay_authorization_hash,
+        replay_authorization_id=None,
+        replay_actor_id=None,
+        replay_authorization_evidence_hash=None,
+        generation_receipt_hash=generation_receipt_hash,
+        discovery_result_hash=discovery_result_hash,
+        selection_commitment_hash=selection_commitment_hash,
+        oos_release_hash=oos_release_hash,
+        bundle_snapshot_hash=bundle_snapshot_hash,
+        manifest_snapshot_hash=manifest_snapshot_hash,
+        result_hash=result_hash,
+        resource_usage_hash=resource_usage_hash,
+        candidate_count=candidate_count,
+        selected_candidate_count=selected_candidate_count,
+        active_concurrency_observed=previous.active_concurrency_observed,
+        max_concurrency_observed=max_concurrency_observed,
+        cpu_milliseconds=cpu_milliseconds,
+        peak_memory_bytes=peak_memory_bytes,
+        wall_clock_milliseconds=wall_clock_milliseconds,
+        data_row_count=data_row_count,
+        artifact_byte_count=artifact_byte_count,
+        failure_code=failure_code,
+        occurred_at=append.occurred_at,
+        predecessor_record_hash=previous.record_hash,
+        lifecycle=_FACTOR_MINING_CAMPAIGN_LIFECYCLE,
+        eligible_for_trading=False,
+    )
+
+
+def factor_mining_campaign_register(
+    session: Session,
+    *,
+    registration: FactorMiningCampaignRegistration,
+) -> FactorMiningCampaignRegistrationReceipt:
+    """Persist one campaign declaration, or reuse only an exact prior declaration.
+
+    Reusing the same immutable campaign root is safe because it neither starts a
+    generator nor reserves compute.  A different declaration under either the
+    same campaign ID or hash fails closed.
+    """
+
+    if type(registration) is not FactorMiningCampaignRegistration:
+        raise FactorMiningCampaignLedgerError(
+            "FACTOR_MINING_CAMPAIGN_LEDGER_REGISTRATION_INVALID"
+        )
+    values = _factor_mining_campaign_record_values_from_registration(registration)
+    _require_clean_factor_mining_campaign_ledger_write_session(session)
+    try:
+        with session.begin():
+            existing = _load_factor_mining_campaign_record(
+                session,
+                campaign_id=values.campaign_id,
+                lock=True,
+            )
+            if existing is not None:
+                existing_values = _factor_mining_campaign_record_values_from_record(existing)
+                if existing_values.as_hash_payload() != values.as_hash_payload():
+                    raise FactorMiningCampaignLedgerError(
+                        "FACTOR_MINING_CAMPAIGN_LEDGER_CAMPAIGN_ID_CONFLICT"
+                    )
+                return _factor_mining_campaign_registration_receipt(existing_values)
+            by_hash = session.scalar(
+                select(FactorMiningCampaignRecord)
+                .where(FactorMiningCampaignRecord.campaign_hash == values.campaign_hash)
+                .with_for_update()
+            )
+            if by_hash is not None:
+                raise FactorMiningCampaignLedgerError(
+                    "FACTOR_MINING_CAMPAIGN_LEDGER_CAMPAIGN_HASH_CONFLICT"
+                )
+            session.add(_factor_mining_campaign_record_from_values(values))
+            session.flush()
+    except FactorMiningCampaignLedgerError:
+        if session.in_transaction():
+            session.rollback()
+        raise
+    except IntegrityError as exc:
+        if session.in_transaction():
+            session.rollback()
+        raise FactorMiningCampaignLedgerError(
+            "FACTOR_MINING_CAMPAIGN_LEDGER_CAMPAIGN_REGISTRATION_CONFLICT"
+        ) from exc
+    return _factor_mining_campaign_registration_receipt(values)
+
+
+def factor_mining_campaign_read(
+    session: Session,
+    *,
+    campaign_id: str,
+) -> FactorMiningCampaignRegistrationReceipt | None:
+    """Read and hash-verify one immutable campaign declaration."""
+
+    normalized_campaign_id = _factor_mining_campaign_identifier(
+        campaign_id,
+        field_name="campaign_id",
+    )
+    record = _load_factor_mining_campaign_record(
+        session,
+        campaign_id=normalized_campaign_id,
+        lock=False,
+    )
+    if record is None:
+        return None
+    return _factor_mining_campaign_registration_receipt(
+        _factor_mining_campaign_record_values_from_record(record)
+    )
+
+
+def _factor_mining_campaign_authorize_replay(
+    session: Session,
+    *,
+    authorization: _FactorMiningCampaignReplayAuthorizationInput,
+) -> FactorMiningCampaignReplayAuthorizationReceipt:
+    """Append a verifier-bridged human replay authorization fact.
+
+    The name is private on purpose: normal Foundation/application callers have
+    no self-attestation API. The durable verifier bridge records approval on
+    the source request, which prevents that source from being resumed; a later
+    distinct reservation must atomically consume the returned authorization
+    hash before it can start generator or research work.
+    """
+
+    if type(authorization) is not _FactorMiningCampaignReplayAuthorizationInput:
+        raise FactorMiningCampaignLedgerError(
+            "FACTOR_MINING_CAMPAIGN_LEDGER_REPLAY_AUTHORIZATION_INPUT_INVALID"
+        )
+    _require_clean_factor_mining_campaign_ledger_write_session(session)
+    row_values: _FactorMiningCampaignRequestEventValues | None = None
+    try:
+        with session.begin():
+            source_reservation = _load_factor_mining_campaign_reservation_by_request_hash(
+                session,
+                request_hash=authorization.unresolved_request_hash,
+                lock=False,
+            )
+            if source_reservation is None:
+                raise FactorMiningCampaignLedgerError(
+                    "FACTOR_MINING_CAMPAIGN_LEDGER_REPLAY_SOURCE_MISSING"
+                )
+            campaign_record = session.scalar(
+                select(FactorMiningCampaignRecord)
+                .where(
+                    FactorMiningCampaignRecord.record_hash
+                    == source_reservation.campaign_record_hash
+                )
+                .with_for_update()
+            )
+            if campaign_record is None:
+                raise FactorMiningCampaignLedgerError(
+                    "FACTOR_MINING_CAMPAIGN_LEDGER_CAMPAIGN_MISSING"
+                )
+            campaign = _factor_mining_campaign_record_values_from_record(campaign_record)
+            source_records = _load_factor_mining_campaign_request_event_records(
+                session,
+                request_id=source_reservation.request_id,
+                lock=True,
+            )
+            source_values = _validate_factor_mining_campaign_event_chain(
+                campaign=campaign,
+                records=source_records,
+            )
+            if not source_values or source_values[0].request_hash != authorization.unresolved_request_hash:
+                raise FactorMiningCampaignLedgerError(
+                    "FACTOR_MINING_CAMPAIGN_LEDGER_REPLAY_SOURCE_INVALID"
+                )
+            previous = source_values[-1]
+            if previous.is_terminal:
+                raise FactorMiningCampaignLedgerError(
+                    "FACTOR_MINING_CAMPAIGN_LEDGER_REPLAY_SOURCE_NOT_UNRESOLVED"
+                )
+            if authorization.authorized_at < previous.occurred_at:
+                raise FactorMiningCampaignLedgerError(
+                    "FACTOR_MINING_CAMPAIGN_LEDGER_REPLAY_AUTHORIZATION_TIME_INVALID"
+                )
+            existing_authorization = session.scalar(
+                select(FactorMiningCampaignRequestEventRecord.id)
+                .where(
+                    FactorMiningCampaignRequestEventRecord.event_kind
+                    == "REPLAY_AUTHORIZED",
+                    or_(
+                        FactorMiningCampaignRequestEventRecord.replay_authorization_id
+                        == authorization.authorization_id,
+                        FactorMiningCampaignRequestEventRecord.replay_authorization_hash
+                        == authorization.authorization_hash,
+                    ),
+                )
+                .with_for_update()
+            )
+            if existing_authorization is not None:
+                raise FactorMiningCampaignLedgerError(
+                    "FACTOR_MINING_CAMPAIGN_LEDGER_REPLAY_AUTHORIZATION_CONFLICT"
+                )
+            row_values = _factor_mining_campaign_event_values(
+                campaign_id=previous.campaign_id,
+                campaign_hash=previous.campaign_hash,
+                campaign_record_hash=previous.campaign_record_hash,
+                request_id=previous.request_id,
+                sequence=previous.sequence + 1,
+                event_kind="REPLAY_AUTHORIZED",
+                is_terminal=True,
+                request_hash=previous.request_hash,
+                request_actor_id=previous.request_actor_id,
+                resource_budget_hash=previous.resource_budget_hash,
+                source_authorization_hash=previous.source_authorization_hash,
+                replay_authorization_hash=authorization.authorization_hash,
+                replay_authorization_id=authorization.authorization_id,
+                replay_actor_id=authorization.actor_id,
+                replay_authorization_evidence_hash=(
+                    authorization.authorization_evidence_hash
+                ),
+                generation_receipt_hash=previous.generation_receipt_hash,
+                discovery_result_hash=previous.discovery_result_hash,
+                selection_commitment_hash=previous.selection_commitment_hash,
+                oos_release_hash=previous.oos_release_hash,
+                bundle_snapshot_hash=None,
+                manifest_snapshot_hash=None,
+                result_hash=None,
+                resource_usage_hash=None,
+                candidate_count=previous.candidate_count,
+                selected_candidate_count=previous.selected_candidate_count,
+                active_concurrency_observed=previous.active_concurrency_observed,
+                max_concurrency_observed=None,
+                cpu_milliseconds=None,
+                peak_memory_bytes=None,
+                wall_clock_milliseconds=None,
+                data_row_count=None,
+                artifact_byte_count=None,
+                failure_code=None,
+                occurred_at=authorization.authorized_at,
+                predecessor_record_hash=previous.record_hash,
+                lifecycle=_FACTOR_MINING_CAMPAIGN_LIFECYCLE,
+                eligible_for_trading=False,
+            )
+            session.add(_factor_mining_campaign_event_from_values(row_values))
+            session.flush()
+    except FactorMiningCampaignLedgerError:
+        if session.in_transaction():
+            session.rollback()
+        raise
+    except IntegrityError as exc:
+        if session.in_transaction():
+            session.rollback()
+        raise FactorMiningCampaignLedgerError(
+            "FACTOR_MINING_CAMPAIGN_LEDGER_REPLAY_AUTHORIZATION_CONFLICT"
+        ) from exc
+    if row_values is None:  # pragma: no cover - transaction either creates or raises.
+        raise FactorMiningCampaignLedgerError(
+            "FACTOR_MINING_CAMPAIGN_LEDGER_REPLAY_AUTHORIZATION_CONFLICT"
+        )
+    return FactorMiningCampaignReplayAuthorizationReceipt(
+        authorization_hash=authorization.authorization_hash,
+        unresolved_request_hash=authorization.unresolved_request_hash,
+        authorization_record_hash=row_values.record_hash,
+        authorized_at=authorization.authorized_at,
+    )
+
+
+def factor_mining_campaign_reserve_request(
+    session: Session,
+    *,
+    reservation: FactorMiningCampaignRequestReservation,
+) -> FactorMiningCampaignRequestEvent:
+    """Commit a one-shot request reservation before provider or compute work."""
+
+    if type(reservation) is not FactorMiningCampaignRequestReservation:
+        raise FactorMiningCampaignLedgerError(
+            "FACTOR_MINING_CAMPAIGN_LEDGER_RESERVATION_INVALID"
+        )
+    _require_clean_factor_mining_campaign_ledger_write_session(session)
+    row_values: _FactorMiningCampaignRequestEventValues | None = None
+    try:
+        with session.begin():
+            campaign_record = _load_factor_mining_campaign_record(
+                session,
+                campaign_id=reservation.campaign_id,
+                lock=True,
+            )
+            if campaign_record is None:
+                raise FactorMiningCampaignLedgerError(
+                    "FACTOR_MINING_CAMPAIGN_LEDGER_CAMPAIGN_MISSING"
+                )
+            campaign = _factor_mining_campaign_record_values_from_record(campaign_record)
+            if campaign.campaign_hash != reservation.campaign_hash:
+                raise FactorMiningCampaignLedgerError(
+                    "FACTOR_MINING_CAMPAIGN_LEDGER_CAMPAIGN_HASH_MISMATCH"
+                )
+            if campaign.source_authorization_hash != reservation.source_authorization_hash:
+                raise FactorMiningCampaignLedgerError(
+                    "FACTOR_MINING_CAMPAIGN_LEDGER_AUTHORIZATION_MISMATCH"
+                )
+            if campaign.runner_resource_budget_hash != reservation.resource_budget_hash:
+                raise FactorMiningCampaignLedgerError(
+                    "FACTOR_MINING_CAMPAIGN_LEDGER_RESOURCE_BUDGET_MISMATCH"
+                )
+            if reservation.reserved_at < campaign.registered_at:
+                raise FactorMiningCampaignLedgerError(
+                    "FACTOR_MINING_CAMPAIGN_LEDGER_RESERVATION_TIME_INVALID"
+                )
+            existing = _load_factor_mining_campaign_request_event_records(
+                session,
+                request_id=reservation.request_id,
+                lock=True,
+            )
+            if existing:
+                _validate_factor_mining_campaign_event_chain(
+                    campaign=campaign,
+                    records=existing,
+                )
+                raise FactorMiningCampaignLedgerError(
+                    "FACTOR_MINING_CAMPAIGN_LEDGER_REQUEST_ALREADY_RESERVED"
+                )
+            duplicate_request = session.scalar(
+                select(FactorMiningCampaignRequestEventRecord.id)
+                .where(
+                    FactorMiningCampaignRequestEventRecord.request_hash
+                    == reservation.request_hash,
+                    FactorMiningCampaignRequestEventRecord.event_kind == "RESERVED",
+                )
+                .with_for_update()
+            )
+            if duplicate_request is not None:
+                raise FactorMiningCampaignLedgerError(
+                    "FACTOR_MINING_CAMPAIGN_LEDGER_REQUEST_ALREADY_RESERVED"
+                )
+            reservation_predecessor_record_hash: str | None = None
+            if reservation.replay_authorization_hash is not None:
+                authorization_record = _load_factor_mining_campaign_replay_authorization_event(
+                    session,
+                    authorization_hash=reservation.replay_authorization_hash,
+                    lock=True,
+                )
+                if authorization_record is None:
+                    raise FactorMiningCampaignLedgerError(
+                        "FACTOR_MINING_CAMPAIGN_LEDGER_REPLAY_AUTHORIZATION_MISSING"
+                    )
+                source_records = _load_factor_mining_campaign_request_event_records(
+                    session,
+                    request_id=authorization_record.request_id,
+                    lock=True,
+                )
+                source_values = _validate_factor_mining_campaign_event_chain(
+                    campaign=campaign,
+                    records=source_records,
+                )
+                source_terminal = source_values[-1]
+                if (
+                    source_terminal.event_kind != "REPLAY_AUTHORIZED"
+                    or source_terminal.record_hash != authorization_record.record_hash
+                    or source_terminal.replay_authorization_hash
+                    != reservation.replay_authorization_hash
+                ):
+                    raise FactorMiningCampaignLedgerError(
+                        "FACTOR_MINING_CAMPAIGN_LEDGER_REPLAY_AUTHORIZATION_INVALID"
+                    )
+                if (
+                    source_terminal.request_id == reservation.request_id
+                    or source_terminal.request_hash == reservation.request_hash
+                    or reservation.reserved_at < source_terminal.occurred_at
+                ):
+                    raise FactorMiningCampaignLedgerError(
+                        "FACTOR_MINING_CAMPAIGN_LEDGER_REPLAY_RESERVATION_INVALID"
+                    )
+                consumed_authorization = session.scalar(
+                    select(FactorMiningCampaignRequestEventRecord.id)
+                    .where(
+                        FactorMiningCampaignRequestEventRecord.event_kind == "RESERVED",
+                        FactorMiningCampaignRequestEventRecord.replay_authorization_hash
+                        == reservation.replay_authorization_hash,
+                    )
+                    .with_for_update()
+                )
+                if consumed_authorization is not None:
+                    raise FactorMiningCampaignLedgerError(
+                        "FACTOR_MINING_CAMPAIGN_LEDGER_REPLAY_AUTHORIZATION_ALREADY_CONSUMED"
+                    )
+                reservation_predecessor_record_hash = source_terminal.record_hash
+            active_request_count = _factor_mining_campaign_active_request_count(
+                session,
+                campaign_record_hash=campaign.record_hash,
+            )
+            if active_request_count >= campaign.max_concurrent_runs:
+                raise FactorMiningCampaignLedgerError(
+                    "FACTOR_MINING_CAMPAIGN_LEDGER_CONCURRENCY_LIMIT_EXCEEDED"
+                )
+            row_values = _factor_mining_campaign_event_values(
+                campaign_id=campaign.campaign_id,
+                campaign_hash=campaign.campaign_hash,
+                campaign_record_hash=campaign.record_hash,
+                request_id=reservation.request_id,
+                sequence=1,
+                event_kind="RESERVED",
+                is_terminal=False,
+                request_hash=reservation.request_hash,
+                request_actor_id=reservation.request_actor_id,
+                resource_budget_hash=reservation.resource_budget_hash,
+                source_authorization_hash=reservation.source_authorization_hash,
+                replay_authorization_hash=reservation.replay_authorization_hash,
+                replay_authorization_id=None,
+                replay_actor_id=None,
+                replay_authorization_evidence_hash=None,
+                generation_receipt_hash=None,
+                discovery_result_hash=None,
+                selection_commitment_hash=None,
+                oos_release_hash=None,
+                bundle_snapshot_hash=None,
+                manifest_snapshot_hash=None,
+                result_hash=None,
+                resource_usage_hash=None,
+                candidate_count=None,
+                selected_candidate_count=None,
+                active_concurrency_observed=active_request_count + 1,
+                max_concurrency_observed=None,
+                cpu_milliseconds=None,
+                peak_memory_bytes=None,
+                wall_clock_milliseconds=None,
+                data_row_count=None,
+                artifact_byte_count=None,
+                failure_code=None,
+                occurred_at=reservation.reserved_at,
+                predecessor_record_hash=reservation_predecessor_record_hash,
+                lifecycle=_FACTOR_MINING_CAMPAIGN_LIFECYCLE,
+                eligible_for_trading=False,
+            )
+            session.add(_factor_mining_campaign_event_from_values(row_values))
+            session.flush()
+    except FactorMiningCampaignLedgerError:
+        if session.in_transaction():
+            session.rollback()
+        raise
+    except IntegrityError as exc:
+        if session.in_transaction():
+            session.rollback()
+        raise FactorMiningCampaignLedgerError(
+            "FACTOR_MINING_CAMPAIGN_LEDGER_REQUEST_ALREADY_RESERVED"
+        ) from exc
+    if row_values is None:  # pragma: no cover - transaction either creates or raises.
+        raise FactorMiningCampaignLedgerError(
+            "FACTOR_MINING_CAMPAIGN_LEDGER_REQUEST_RESERVATION_CONFLICT"
+        )
+    return _factor_mining_campaign_event_projection(row_values)
+
+
+def factor_mining_campaign_append_event(
+    session: Session,
+    *,
+    append: FactorMiningCampaignRequestEventAppend,
+) -> FactorMiningCampaignRequestEvent:
+    """Atomically append the only allowed next request transition."""
+
+    if type(append) is not FactorMiningCampaignRequestEventAppend:
+        raise FactorMiningCampaignLedgerError(
+            "FACTOR_MINING_CAMPAIGN_LEDGER_APPEND_INVALID"
+        )
+    _require_clean_factor_mining_campaign_ledger_write_session(session)
+    row_values: _FactorMiningCampaignRequestEventValues | None = None
+    try:
+        with session.begin():
+            records = _load_factor_mining_campaign_request_event_records(
+                session,
+                request_id=append.request_id,
+                lock=False,
+            )
+            if not records:
+                raise FactorMiningCampaignLedgerError(
+                    "FACTOR_MINING_CAMPAIGN_LEDGER_RESERVATION_MISSING"
+                )
+            campaign_record_hash = records[0].campaign_record_hash
+            campaign_record = session.scalar(
+                select(FactorMiningCampaignRecord)
+                .where(FactorMiningCampaignRecord.record_hash == campaign_record_hash)
+                .with_for_update()
+            )
+            if campaign_record is None:
+                raise FactorMiningCampaignLedgerError(
+                    "FACTOR_MINING_CAMPAIGN_LEDGER_CAMPAIGN_MISSING"
+                )
+            campaign = _factor_mining_campaign_record_values_from_record(campaign_record)
+            records = _load_factor_mining_campaign_request_event_records(
+                session,
+                request_id=append.request_id,
+                lock=True,
+            )
+            if not records:
+                raise FactorMiningCampaignLedgerError(
+                    "FACTOR_MINING_CAMPAIGN_LEDGER_RESERVATION_MISSING"
+                )
+            prior_values = _validate_factor_mining_campaign_event_chain(
+                campaign=campaign,
+                records=records,
+            )
+            row_values = _factor_mining_campaign_next_event_values(
+                previous=prior_values[-1],
+                append=append,
+            )
+            session.add(_factor_mining_campaign_event_from_values(row_values))
+            session.flush()
+    except FactorMiningCampaignLedgerError:
+        if session.in_transaction():
+            session.rollback()
+        raise
+    except IntegrityError as exc:
+        if session.in_transaction():
+            session.rollback()
+        raise FactorMiningCampaignLedgerError(
+            "FACTOR_MINING_CAMPAIGN_LEDGER_APPEND_CONFLICT"
+        ) from exc
+    if row_values is None:  # pragma: no cover - transaction either creates or raises.
+        raise FactorMiningCampaignLedgerError("FACTOR_MINING_CAMPAIGN_LEDGER_APPEND_CONFLICT")
+    return _factor_mining_campaign_event_projection(row_values)
+
+
+def factor_mining_campaign_read_request_ledger(
+    session: Session,
+    *,
+    request_id: str,
+) -> FactorMiningCampaignRequestLedger | None:
+    """Read one request only after verifying every immutable chain binding."""
+
+    normalized_request_id = _factor_mining_campaign_identifier(
+        request_id,
+        field_name="request_id",
+    )
+    records = _load_factor_mining_campaign_request_event_records(
+        session,
+        request_id=normalized_request_id,
+        lock=False,
+    )
+    if not records:
+        return None
+    campaign_record = session.scalar(
+        select(FactorMiningCampaignRecord).where(
+            FactorMiningCampaignRecord.record_hash == records[0].campaign_record_hash
+        )
+    )
+    if campaign_record is None:
+        raise FactorMiningCampaignLedgerError("FACTOR_MINING_CAMPAIGN_LEDGER_CAMPAIGN_MISSING")
+    campaign = _factor_mining_campaign_record_values_from_record(campaign_record)
+    values = _validate_factor_mining_campaign_event_chain(campaign=campaign, records=records)
+    return FactorMiningCampaignRequestLedger(
+        campaign=_factor_mining_campaign_registration_receipt(campaign),
+        events=tuple(_factor_mining_campaign_event_projection(item) for item in values),
+    )
 
 
 def prepare_order_submission(

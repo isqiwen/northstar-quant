@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""跨平台读取并校验非机密 Linux 部署清单。
+"""读取并校验 Linux x86_64 控制端的非机密部署清单。
 
 部署清单只描述目标主机和运行时路径，不能承载数据库密码、令牌或其他机密。
 机密仍只可通过受权限保护的活动 ``.env`` 在显式上传时传递。
@@ -15,9 +15,23 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Final
 
+try:  # Allow direct-script execution as well as package imports.
+    from .platform_support import PlatformSupportError, require_linux_x86_64
+except ImportError:  # pragma: no cover - direct-script invocation path.
+    from platform_support import PlatformSupportError, require_linux_x86_64
+
 
 class InventoryError(ValueError):
     """部署清单不符合安全约束。"""
+
+
+def _require_linux_x86_64_host() -> None:
+    """Reject unsupported controllers before reading a deployment inventory."""
+
+    try:
+        require_linux_x86_64()
+    except PlatformSupportError as exc:
+        raise InventoryError(str(exc)) from exc
 
 
 _KEY_PATTERN: Final = re.compile(r"^[A-Z][A-Z0-9_]*$")
@@ -400,6 +414,7 @@ class DeploymentInventory:
 def load_inventory(path: Path) -> DeploymentInventory:
     """加载部署清单，并在本地提前拒绝不安全的目标参数。"""
 
+    _require_linux_x86_64_host()
     supplied = _read_key_value_file(path)
     values = {**_DEFAULTS, **supplied}
 

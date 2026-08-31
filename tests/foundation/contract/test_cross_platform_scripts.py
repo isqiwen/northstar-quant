@@ -1,4 +1,4 @@
-"""Windows/Linux 共用控制面及 Linux 目标端边界的契约。"""
+"""Linux x86_64 工作站与 Linux 目标端脚本契约。"""
 
 from __future__ import annotations
 
@@ -48,7 +48,7 @@ def _run_python(path: Path, *arguments: str) -> subprocess.CompletedProcess[str]
     )
 
 
-def test_cross_platform_python_entrypoints_have_portable_help() -> None:
+def test_linux_python_entrypoints_have_help() -> None:
     for relative_path in PYTHON_ENTRYPOINTS:
         result = _run_python(PROJECT_ROOT / relative_path, "--help")
         assert result.returncode == 0, f"{relative_path}: {result.stdout}\n{result.stderr}"
@@ -133,7 +133,7 @@ def test_ops_dry_run_never_requires_ssh_or_linux_target(tmp_path: Path) -> None:
         assert "未连接 Linux 服务器" in result.stdout
 
 
-def test_justfile_is_thin_cross_platform_command_router() -> None:
+def test_justfile_is_a_thin_linux_command_router() -> None:
     justfile = (PROJECT_ROOT / "justfile").read_text(encoding="utf-8")
 
     for recipe in (
@@ -158,11 +158,13 @@ def test_justfile_is_thin_cross_platform_command_router() -> None:
     ):
         assert recipe in justfile
     assert "just_executable()" in justfile
+    assert "windows-shell" not in justfile
+    assert "powershell.exe" not in justfile
     assert "systemctl" not in justfile
     assert "docker" not in justfile.casefold()
 
 
-def test_vscode_workspace_exposes_only_cross_platform_daily_tasks() -> None:
+def test_vscode_workspace_exposes_only_linux_daily_tasks() -> None:
     """工作区只展示日常入口；首次工具 bootstrap 是受控的 Python 例外。"""
 
     workspace = PROJECT_ROOT / ".vscode"
@@ -261,8 +263,7 @@ def test_application_unit_tests_receive_the_unit_marker() -> None:
 
 
 def test_justfile_is_parseable_when_repository_local_just_is_available() -> None:
-    executable_name = "just.exe" if sys.platform == "win32" else "just"
-    if not (PROJECT_ROOT / ".northstar" / "bin" / executable_name).is_file():
+    if not (PROJECT_ROOT / ".northstar" / "bin" / "just").is_file():
         pytest.skip("当前工作站尚未安装仓库本地 just；bootstrap 契约不触发安装。")
 
     result = _run_python(PROJECT_ROOT / "scripts/dev/run_just.py", "--list")

@@ -45,7 +45,7 @@ tests/
 
 ## 一键运行
 
-Windows 与 Linux 使用相同的命令面：
+测试仅在 Linux x86_64 工作站上受支持：
 
 ```bash
 python scripts/dev/setup.py --bootstrap-tools  # 仅预览 uv、just、Git 安装计划；不执行安装
@@ -74,15 +74,15 @@ Alembic head；它强制 `paper`、禁用 live，不会下载
 与既有 loopback `northstar` 角色匹配，并存在完整的活动应用配置 `configs/app.yaml`。高层开发初始化入口会自动创建它；若只运行手动命令且
 该文件缺失，先执行：
 
-```powershell
-Copy-Item configs/app.example.yaml configs/app.yaml
+```bash
+cp configs/app.example.yaml configs/app.yaml
 ```
 
-Git Bash/Linux 使用 `cp configs/app.example.yaml configs/app.yaml`。示例文件本身不会被
+示例文件本身不会被
 应用读取；测试与应用都只读取活动文件。数据库测试使用隔离的 `northstar_test`。数据库删除或清空只能
 由用户在仓库自动化之外手动执行。
 
-```powershell
+```bash
 # 全量测试
 python scripts/dev/run_uv.py run --offline --no-sync pytest
 
@@ -112,9 +112,8 @@ python scripts/dev/run_uv.py run --offline --no-sync ruff check .
 python scripts/dev/run_uv.py run --offline --no-sync python scripts/ci/check_mypy_baseline.py check
 ```
 
-Windows 工作站的日常 unit、backtest、CLI 与开发脚本测试不依赖 Bash、本机 PostgreSQL 服务或 systemd。
-具备原生 PostgreSQL 与客户端工具的 Linux 工作站额外运行完整 pytest、部署 shell 契约和 PostgreSQL integration；
-这是 Linux 生产目标职责，不是 Windows 开发机职责。
+具备原生 PostgreSQL 与客户端工具的 Linux x86_64 工作站运行完整 pytest、部署 shell 契约和 PostgreSQL integration。
+这些质量门禁是 Linux x86_64 研究、控制和生产支持边界的一部分。
 
 ## 编写测试
 

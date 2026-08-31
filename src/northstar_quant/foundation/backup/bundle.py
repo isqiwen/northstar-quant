@@ -18,9 +18,10 @@ from pathlib import Path, PurePosixPath
 import re
 import shutil
 import stat
-import sys
 from typing import Callable, Final, Iterable, Literal
 from uuid import UUID, uuid4
+
+from northstar_quant.foundation.platform_support import require_linux_x86_64
 
 
 BundleCategory = Literal[
@@ -60,7 +61,6 @@ _MAX_DATABASE_DUMP_BYTES: Final = 512 * 1024 * 1024 * 1024
 _COPY_CHUNK_BYTES: Final = 1024 * 1024
 _AT_FDCWD: Final = -100
 _RENAME_NOREPLACE: Final = 1
-_WINDOWS_FILE_EXISTS_ERRORS: Final = frozenset({80, 183})
 
 
 class BackupBundleError(ValueError):
@@ -141,6 +141,7 @@ def create_backup_bundle(
     after all assets are staged but before the bundle becomes visible.
     """
 
+    require_linux_x86_64()
     normalized_id = _normalize_bundle_id(bundle_id)
     created_at = _normalize_now(now)
     parent = _secure_existing_directory(Path(output_parent), "备份输出父目录")
@@ -185,34 +186,12 @@ def _publish_stage_no_replace(stage_path: Path, final_path: Path) -> None:
     """Atomically publish a completed directory without ever replacing a target.
 
     ``os.rename`` replaces an existing target on POSIX, so it cannot be used for
-    backup publication even when a preceding existence check succeeds.  Northstar
-    supports Windows and Linux as development platforms; use each platform's
-    no-replace primitive and fail closed everywhere else.
+    backup publication even when a preceding existence check succeeds.  Linux
+    ``renameat2(..., RENAME_NOREPLACE)`` is the required no-replace primitive.
     """
 
-    if os.name == "nt":
-        _publish_windows_no_replace(stage_path, final_path)
-        return
-    if sys.platform == "linux":
-        _publish_linux_no_replace(stage_path, final_path)
-        return
-    raise BackupBundleError("当前平台不支持无覆盖原子发布备份包。")
-
-
-def _publish_windows_no_replace(stage_path: Path, final_path: Path) -> None:
-    kernel32 = getattr(ctypes, "windll").kernel32
-    move_file = kernel32.MoveFileExW
-    move_file.argtypes = [ctypes.c_wchar_p, ctypes.c_wchar_p, ctypes.c_uint32]
-    move_file.restype = ctypes.c_int
-    if move_file(str(stage_path), str(final_path), 0):
-        return
-    get_last_error = kernel32.GetLastError
-    get_last_error.argtypes = []
-    get_last_error.restype = ctypes.c_uint32
-    error_code = int(get_last_error())
-    if error_code in _WINDOWS_FILE_EXISTS_ERRORS:
-        raise BackupBundleError("备份包目标在发布时出现；拒绝覆盖。")
-    raise BackupBundleError("无法无覆盖地原子发布备份包。")
+    require_linux_x86_64()
+    _publish_linux_no_replace(stage_path, final_path)
 
 
 def _publish_linux_no_replace(stage_path: Path, final_path: Path) -> None:
@@ -248,6 +227,7 @@ def _publish_linux_no_replace(stage_path: Path, final_path: Path) -> None:
 def verify_backup_bundle(bundle_dir: str | Path) -> BackupBundle:
     """重新校验包清单、类型、文件集合、大小、哈希和无秘密文本资产约束。"""
 
+    require_linux_x86_64()
     path = _secure_existing_directory(Path(bundle_dir), "备份包目录")
     verified = _verify_bundle_directory(path)
     return BackupBundle(
@@ -354,9 +334,7 @@ def _copy_one_file(item: _PlannedFile, destination: Path) -> _Entry:
     destination.parent.mkdir(parents=True, exist_ok=True)
     os.chmod(destination.parent, 0o700)
     _assert_destination_parent(destination.parent)
-    flags = os.O_RDONLY
-    if hasattr(os, "O_NOFOLLOW"):
-        flags |= os.O_NOFOLLOW
+    flags = os.O_RDONLY | os.O_NOFOLLOW
     try:
         source_fd = os.open(item.source, flags)
     except OSError as exc:
@@ -598,7 +576,7 @@ def _secure_existing_directory(path: Path, label: str) -> Path:
         raise BackupBundleError(f"{label}不存在或无法安全读取。") from exc
     if not stat.S_ISDIR(mode):
         raise BackupBundleError(f"{label}必须是目录。")
-    if os.name == "posix" and mode & (stat.S_IWGRP | stat.S_IWOTH):
+    if mode & (stat.S_IWGRP | stat.S_IWOTH):
         raise BackupBundleError(f"{label}不能允许 group 或 other 写入。")
     return resolved
 
@@ -681,7 +659,7 @@ def _assert_destination_parent(path: Path) -> None:
         raise BackupBundleError("无法验证备份输出父目录。") from exc
     if path.is_symlink() or not stat.S_ISDIR(mode):
         raise BackupBundleError("备份输出父目录不安全。")
-    if os.name == "posix" and mode & (stat.S_IWGRP | stat.S_IWOTH):
+    if mode & (stat.S_IWGRP | stat.S_IWOTH):
         raise BackupBundleError("备份输出父目录不能允许 group 或 other 写入。")
 
 
@@ -704,10 +682,8 @@ def _sha256_file(path: Path) -> str:
 
 
 def _fsync_directory(path: Path) -> None:
-    if os.name != "posix":
-        return
     try:
-        descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+        descriptor = os.open(path, os.O_RDONLY | os.O_DIRECTORY)
     except OSError as exc:
         raise BackupBundleError("无法同步备份目录。") from exc
     try:

@@ -15,6 +15,24 @@ deploy_need_cmd() {
   fi
 }
 
+deploy_require_linux_x86_64() {
+  local system_name
+  local machine_name
+
+  system_name="$(uname -s)"
+  machine_name="$(uname -m)"
+  if [ "${system_name}" != "Linux" ]; then
+    deploy_fail "部署操作仅支持 Linux x86_64；当前系统为：${system_name}。"
+  fi
+  case "${machine_name}" in
+    x86_64|amd64)
+      ;;
+    *)
+      deploy_fail "部署操作仅支持 Linux x86_64；当前架构为：${machine_name}。"
+      ;;
+  esac
+}
+
 deploy_assert_bool() {
   local name="$1"
   local value="$2"

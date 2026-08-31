@@ -29,6 +29,7 @@ def run_event_backtest(
     execution_delay_sessions: int = 1,
     lot_size: int = 1,
     sellable_after_sessions: int = 0,
+    terminal_flatten: bool = False,
 ) -> BacktestResult:
     """运行一个带显式成本与延迟假设的收益型事件回测。
 
@@ -41,6 +42,11 @@ def run_event_backtest(
     该引擎不模拟保证金、换月、涨跌停和同日 OHLC 成交顺序，只能用于连续合约逻辑
     研究。手数取整与 T+N 可卖状态需要逐笔持仓引擎；传入非默认值时显式拒绝，避免
     配置被静默忽略。
+
+    设置 ``terminal_flatten=True`` 时，会在最后一个阶段内收益结算后，按最后有效权重
+    估计一次强制平仓的佣金（含最低佣金）与滑点，并计入最后一个 session 的净值和换手。
+    这只是在连续研究序列上消除阶段边界持仓残留的收益近似，不产生订单或成交，也不能
+    代替实际合约平仓回放。
     """
 
     _validate_backtest_assumptions(
@@ -54,6 +60,7 @@ def run_event_backtest(
         execution_delay_sessions=execution_delay_sessions,
         lot_size=lot_size,
         sellable_after_sessions=sellable_after_sessions,
+        terminal_flatten=terminal_flatten,
     )
 
     close_wide = (
@@ -109,6 +116,27 @@ def run_event_backtest(
         normalized_equity_values.append(equity_amount / float(initial_cash))
         net_return_values.append(equity_amount / starting_equity - 1.0)
         turnover_values.append(float(changes.sum()))
+
+    if terminal_flatten:
+        closing_weights = effective_weights.iloc[-1].abs()
+        closing_notionals = closing_weights * equity_amount
+        closing_mask = closing_weights > 1e-12
+        closing_commission = float(
+            sum(
+                max(float(notional) * commission_rate, float(min_commission))
+                for notional in closing_notionals[closing_mask]
+            )
+        )
+        closing_slippage = float(closing_notionals.sum()) * slippage_rate
+        equity_amount -= closing_commission + closing_slippage
+        if not math.isfinite(equity_amount) or equity_amount <= 0:
+            raise ValueError(
+                "阶段末强制平仓后回测权益已降至零或出现非有限值；"
+                "请检查目标杠杆、行情与交易成本配置"
+            )
+        normalized_equity_values[-1] = equity_amount / float(initial_cash)
+        net_return_values[-1] = equity_amount / starting_equity - 1.0
+        turnover_values[-1] += float(closing_weights.sum())
 
     equity = pd.Series(normalized_equity_values, index=returns.index, dtype=float)
     portfolio_returns = pd.Series(net_return_values, index=returns.index, dtype=float)
@@ -174,6 +202,7 @@ def _validate_backtest_assumptions(
     execution_delay_sessions: int,
     lot_size: int,
     sellable_after_sessions: int,
+    terminal_flatten: bool,
 ) -> None:
     """在计算前验证收益型引擎能够诚实执行的假设。"""
 
@@ -211,3 +240,5 @@ def _validate_backtest_assumptions(
         raise ValueError(
             "weight_return 引擎不支持 T+N 可卖状态；sellable_after_sessions 必须为 0"
         )
+    if not isinstance(terminal_flatten, bool):
+        raise ValueError("terminal_flatten 必须是 bool")

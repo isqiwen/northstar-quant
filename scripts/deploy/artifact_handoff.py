@@ -19,6 +19,7 @@ import argparse
 import hashlib
 import hmac
 import os
+import platform
 import re
 import secrets
 import stat
@@ -156,8 +157,14 @@ def receive_from_standard_input(*, release_id: str, expected_sha256: str) -> Non
     """Atomically publish one verified root-managed artifact candidate from stdin."""
 
     geteuid = getattr(os, "geteuid", None)
-    if sys.platform != "linux" or geteuid is None or geteuid() != 0:
-        _fail("artifact handoff requires Linux root")
+    machine = platform.machine().strip().lower().replace("-", "_")
+    if (
+        platform.system() != "Linux"
+        or machine not in {"x86_64", "amd64"}
+        or geteuid is None
+        or geteuid() != 0
+    ):
+        _fail("artifact handoff requires Linux x86_64 root")
 
     candidate_name = _candidate_name(release_id)
     expected_sha256 = _validate_expected_sha256(expected_sha256)

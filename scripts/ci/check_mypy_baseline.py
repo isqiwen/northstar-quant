@@ -100,7 +100,7 @@ class _FileLineMap:
 
 
 def _normalize_path(value: str) -> str:
-    """将 Windows 与 POSIX 的 mypy 路径统一为仓库相对 POSIX 路径。"""
+    """将外部诊断中的路径统一为仓库相对 POSIX 路径。"""
 
     normalized = value.replace("\\", "/")
     root_prefix = f"{PROJECT_ROOT.as_posix()}/"
@@ -110,7 +110,7 @@ def _normalize_path(value: str) -> str:
 
 
 def _normalize_diagnostic(raw: object) -> dict[str, int | str | None]:
-    """提取跨平台稳定且足以唯一标识一条 mypy 诊断的字段。"""
+    """提取稳定且足以唯一标识一条 mypy 诊断的字段。"""
 
     if not isinstance(raw, dict):
         raise BaselineError(f"mypy 输出了非对象 JSON：{raw!r}")

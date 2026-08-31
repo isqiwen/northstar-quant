@@ -80,6 +80,7 @@ trap finish_gate EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
+deploy_require_linux_x86_64
 if [ "${EUID}" -ne 0 ]; then
   deploy_fail "release gate entrypoint requires root"
 fi

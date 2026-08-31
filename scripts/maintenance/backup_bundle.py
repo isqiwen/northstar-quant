@@ -31,11 +31,12 @@ from northstar_quant.foundation.backup import (
     verify_postgresql_dump,
 )
 from northstar_quant.foundation.config.settings import load_settings
+from northstar_quant.foundation.platform_support import PlatformSupportError, require_linux_x86_64
 from northstar_quant.foundation.security import redact_text
 
 
 _SERVICE_NAME = "northstar-quant.service"
-_SAFE_POSIX_PATH = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+_SAFE_LINUX_PATH = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 _RELEASE_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 
 
@@ -96,9 +97,7 @@ def _require_directory(path: Path, label: str) -> Path:
 
 
 def _assert_service_is_inactive() -> None:
-    environment = {"PATH": os.environ.get("PATH", "") if os.name == "nt" else _SAFE_POSIX_PATH}
-    if not environment["PATH"]:
-        raise MaintenanceBackupError("无法建立受限 systemctl 环境。")
+    environment = {"PATH": _SAFE_LINUX_PATH}
     try:
         result = subprocess.run(
             ["systemctl", "show", "--property=ActiveState", "--value", _SERVICE_NAME],
@@ -121,7 +120,7 @@ def _assert_service_is_inactive() -> None:
 def _assert_external_output_parent(output_parent: Path, sources: tuple[Path, ...]) -> Path:
     parent = _require_directory(output_parent, "备份输出父目录")
     parent_mode = parent.lstat().st_mode
-    if os.name == "posix" and parent_mode & (stat.S_IWGRP | stat.S_IWOTH):
+    if parent_mode & (stat.S_IWGRP | stat.S_IWOTH):
         raise MaintenanceBackupError("备份输出父目录不能允许 group 或 other 写入。")
     for source in sources:
         resolved_source = source.resolve(strict=True)
@@ -182,6 +181,7 @@ def _snapshot_release_metadata(release_root: Path, destination: Path) -> Path:
 
 
 def _create(args: argparse.Namespace) -> dict[str, object]:
+    require_linux_x86_64()
     if args.confirm_create != "YES":
         raise MaintenanceBackupError("创建备份必须显式传入 --confirm-create YES。")
     if args.confirm_runtime_quiesced != "YES":
@@ -222,6 +222,7 @@ def _create(args: argparse.Namespace) -> dict[str, object]:
 
 
 def _verify(args: argparse.Namespace) -> dict[str, object]:
+    require_linux_x86_64()
     bundle = verify_backup_bundle(args.bundle_dir)
     verify_postgresql_dump(bundle.path / "postgresql" / "database.dump")
     return {
@@ -238,7 +239,13 @@ def main() -> int:
     args = _parser().parse_args()
     try:
         payload = _create(args) if args.command == "create" else _verify(args)
-    except (BackupBundleError, MaintenanceBackupError, PostgreSQLBackupError, ValueError) as exc:
+    except (
+        BackupBundleError,
+        MaintenanceBackupError,
+        PlatformSupportError,
+        PostgreSQLBackupError,
+        ValueError,
+    ) as exc:
         print(f"备份维护操作失败：{redact_text(str(exc))}", file=sys.stderr)
         return 2
     print(json.dumps(payload, ensure_ascii=False, sort_keys=True))

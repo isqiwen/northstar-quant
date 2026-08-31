@@ -17,11 +17,13 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.engine import URL, make_url
 from sqlalchemy.exc import ArgumentError
 
+from northstar_quant.foundation.platform_support import require_linux_x86_64
+
 
 _TEST_DATABASE_NAME: Final = "northstar_test"
 _LOOPBACK_HOSTS: Final = frozenset({"127.0.0.1", "localhost", "::1"})
 _SCHEMA_PATTERN: Final = re.compile(r"^restore_drill_[0-9a-f]{32}$")
-_SAFE_POSIX_PATH: Final = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+_SAFE_LINUX_PATH: Final = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 _TIMEOUT_SECONDS: Final = 120
 _DATA_MARKER: Final = "NORTHSTAR_RESTORE_DRILL_DATA_OK"
 _SCHEMA_MARKER: Final = "NORTHSTAR_RESTORE_DRILL_SCHEMA_OK"
@@ -58,6 +60,7 @@ def run_test_postgresql_restore_drill(
     清理；恢复阶段仅在单个事务中临时改名 schema，并始终以 ``ROLLBACK`` 收尾。
     """
 
+    require_linux_x86_64()
     url = _test_database_url(database_url)
     workspace = _secure_workspace(Path(workspace_dir))
     _validate_timeout(timeout_seconds)
@@ -127,15 +130,14 @@ def _secure_workspace(path: Path) -> Path:
         raise RestoreDrillError("恢复演练工作目录不存在或无法安全读取。") from exc
     if not stat.S_ISDIR(mode):
         raise RestoreDrillError("恢复演练工作目录必须是目录。")
-    if os.name == "posix" and mode & (stat.S_IWGRP | stat.S_IWOTH):
+    if mode & (stat.S_IWGRP | stat.S_IWOTH):
         raise RestoreDrillError("恢复演练工作目录不能允许 group 或 other 写入。")
     return resolved
 
 
 def _required_clients() -> dict[str, str]:
-    search_path = None if os.name == "nt" else _SAFE_POSIX_PATH
     clients = {
-        name: shutil.which(name, path=search_path)
+        name: shutil.which(name, path=_SAFE_LINUX_PATH)
         for name in ("pg_dump", "pg_restore", "psql")
     }
     missing = sorted(name for name, path in clients.items() if path is None)
@@ -157,12 +159,9 @@ def _reserve_archive(path: Path) -> Path:
 
 
 def _client_environment(url: URL) -> dict[str, str]:
-    path = os.environ.get("PATH", "") if os.name == "nt" else _SAFE_POSIX_PATH
-    if not path:
-        raise RestoreDrillError("无法建立受限 PostgreSQL 客户端环境。")
     environment = {
         "LC_ALL": "C",
-        "PATH": path,
+        "PATH": _SAFE_LINUX_PATH,
         "PGDATABASE": _TEST_DATABASE_NAME,
         "PGHOST": str(url.host),
         "PGPORT": str(url.port or 5432),

@@ -17,8 +17,10 @@ from typing import Final, Iterable
 
 try:  # Allow direct-script execution and module imports.
     from .archive_policy import archive_path_is_excluded
+    from .platform_support import PlatformSupportError, require_linux_x86_64
 except ImportError:  # pragma: no cover - direct-script invocation path.
     from archive_policy import archive_path_is_excluded
+    from platform_support import PlatformSupportError, require_linux_x86_64
 
 
 class PackageError(ValueError):
@@ -60,6 +62,15 @@ class Artifact:
 
 
 _COMMITTED_REVISION_PATTERN: Final = re.compile(r"^[0-9a-f]{40}$")
+
+
+def _require_linux_x86_64_host() -> None:
+    """Reject unsupported controllers before creating a release artifact."""
+
+    try:
+        require_linux_x86_64()
+    except PlatformSupportError as exc:
+        raise PackageError(str(exc)) from exc
 
 
 def _git_revision(project_root: Path, *, require_clean_commit: bool) -> str:
@@ -160,6 +171,7 @@ def build_artifact(
 ) -> Artifact:
     """构建制品，且绝不把活动配置、秘密或本地缓存带入归档。"""
 
+    _require_linux_x86_64_host()
     project_root = project_root.resolve()
     if not (project_root / "configs" / "app.example.yaml").is_file():
         raise PackageError("构建制品缺少完整应用配置模板：configs/app.example.yaml")
@@ -214,7 +226,7 @@ def build_artifact(
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="构建 Northstar Quant 跨平台部署制品。")
+    parser = argparse.ArgumentParser(description="构建 Northstar Quant Linux x86_64 部署制品。")
     parser.add_argument("--project-root", type=Path, default=Path.cwd(), help="项目根目录。")
     parser.add_argument("--output-dir", type=Path, default=Path("dist"), help="制品输出目录。")
     parser.add_argument("--revision", help="可选的安全 revision 标识。")

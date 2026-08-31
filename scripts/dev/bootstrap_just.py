@@ -23,7 +23,11 @@ from typing import BinaryIO
 from urllib.error import URLError
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
-import zipfile
+
+try:  # 支持直接脚本入口与包内导入。
+    from .platform_support import PlatformSupportError, canonical_machine, require_linux_x86_64
+except ImportError:  # pragma: no cover - 直接脚本入口会走此分支。
+    from platform_support import PlatformSupportError, canonical_machine, require_linux_x86_64
 
 
 JUST_VERSION = "1.57.0"
@@ -38,11 +42,10 @@ class JustBootstrapError(RuntimeError):
 
 @dataclass(frozen=True)
 class JustReleaseAsset:
-    """A pinned official just release asset for one supported platform."""
+    """The pinned official just release asset for the supported Linux host."""
 
     filename: str
     sha256: str
-    archive_format: str
     executable_name: str
 
     @property
@@ -50,33 +53,11 @@ class JustReleaseAsset:
         return f"{_RELEASE_URL}/{self.filename}"
 
 
-_ASSETS: dict[tuple[str, str], JustReleaseAsset] = {
-    (
-        "Linux",
-        "x86_64",
-    ): JustReleaseAsset(
-        filename="just-1.57.0-x86_64-unknown-linux-musl.tar.gz",
-        sha256="45b548094283cb9739af8f13273b8cddeee869f5b4ef2bb631b1f311cb566155",
-        archive_format="tar.gz",
-        executable_name="just",
-    ),
-    (
-        "Windows",
-        "x86_64",
-    ): JustReleaseAsset(
-        filename="just-1.57.0-x86_64-pc-windows-msvc.zip",
-        sha256="4c7391d17cb1d17b758b52004ee6411372b8a13ff37c3c9b9031625cb6026e09",
-        archive_format="zip",
-        executable_name="just.exe",
-    ),
-}
-
-
-def _canonical_machine(machine: str) -> str:
-    normalized = machine.strip().lower().replace("-", "_")
-    if normalized in {"x86_64", "amd64"}:
-        return "x86_64"
-    return normalized
+_LINUX_X86_64_ASSET = JustReleaseAsset(
+    filename="just-1.57.0-x86_64-unknown-linux-musl.tar.gz",
+    sha256="45b548094283cb9739af8f13273b8cddeee869f5b4ef2bb631b1f311cb566155",
+    executable_name="just",
+)
 
 
 def release_asset_for_platform(
@@ -84,17 +65,17 @@ def release_asset_for_platform(
     system_name: str | None = None,
     machine: str | None = None,
 ) -> JustReleaseAsset:
-    """Return the exact official release asset for a Tier-1 development host."""
+    """Return the exact official release asset for the Linux x86_64 host."""
 
     system = system_name or platform.system()
-    architecture = _canonical_machine(machine or platform.machine())
+    architecture = canonical_machine(machine or platform.machine())
     try:
-        return _ASSETS[(system, architecture)]
-    except KeyError as error:
+        require_linux_x86_64(system_name=system, machine=architecture)
+    except PlatformSupportError as error:
         raise JustBootstrapError(
-            "仓库本地 just 仅支持 Windows x86_64 与 Linux x86_64；"
-            f"当前平台为 {system} {architecture}。"
+            str(error)
         ) from error
+    return _LINUX_X86_64_ASSET
 
 
 def _require_directory(path: Path, *, label: str) -> None:
@@ -204,28 +185,6 @@ def _copy_bounded(source: BinaryIO, destination: Path) -> None:
         raise
 
 
-def _install_from_zip(archive_path: Path, *, asset: JustReleaseAsset, destination: Path) -> None:
-    try:
-        with zipfile.ZipFile(archive_path) as archive:
-            candidates: list[zipfile.ZipInfo] = []
-            for member in archive.infolist():
-                parts = _member_parts(member.filename)
-                if parts[-1] != asset.executable_name:
-                    continue
-                mode = member.external_attr >> 16
-                if member.is_dir() or stat.S_ISLNK(mode):
-                    raise JustBootstrapError("just 发布包中的可执行文件不是普通文件。")
-                if member.file_size > MAX_EXECUTABLE_BYTES:
-                    raise JustBootstrapError("just 可执行文件超过允许大小，已拒绝。")
-                candidates.append(member)
-            if len(candidates) != 1:
-                raise JustBootstrapError("just 发布包没有唯一的预期可执行文件。")
-            with archive.open(candidates[0]) as source:
-                _copy_bounded(source, destination)
-    except zipfile.BadZipFile as error:
-        raise JustBootstrapError("just 下载包不是有效 ZIP 文件。") from error
-
-
 def _install_from_tar(archive_path: Path, *, asset: JustReleaseAsset, destination: Path) -> None:
     try:
         with tarfile.open(archive_path, mode="r:gz") as archive:
@@ -263,10 +222,7 @@ def install_repository_just(
     archive_path = _download_asset(asset, directory=download_directory)
     destination = binary_directory / asset.executable_name
     try:
-        if asset.archive_format == "zip":
-            _install_from_zip(archive_path, asset=asset, destination=destination)
-        else:
-            _install_from_tar(archive_path, asset=asset, destination=destination)
+        _install_from_tar(archive_path, asset=asset, destination=destination)
     finally:
         archive_path.unlink(missing_ok=True)
     print(f"已安装仓库本地 just {JUST_VERSION}：{destination}")

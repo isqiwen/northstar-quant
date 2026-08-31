@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 import shutil
 
@@ -14,18 +13,10 @@ from tests.helpers.postgresql import postgresql_test_url
 
 
 @pytest.mark.integration
-@pytest.mark.skipif(
-    os.name == "nt",
-    reason="Windows workstations do not run the PostgreSQL CLI restore drill",
-)
 def test_real_pg_dump_and_pg_restore_drill_rolls_back_to_preserved_source(
     tmp_path: Path,
 ) -> None:
-    search_path = (
-        None
-        if os.name == "nt"
-        else "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-    )
+    search_path = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
     missing = [
         name
         for name in ("pg_dump", "pg_restore", "psql")

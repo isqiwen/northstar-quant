@@ -196,11 +196,20 @@ def test_environment_signature_payload_matches_the_controller_protocol() -> None
     )
 
 
-def test_root_gate_refuses_non_linux_or_nonroot_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(runner.sys, "platform", "win32")
+@pytest.mark.parametrize(
+    ("system_name", "machine"),
+    (("Windows", "AMD64"), ("Linux", "aarch64")),
+)
+def test_root_gate_refuses_unsupported_or_nonroot_runtime(
+    monkeypatch: pytest.MonkeyPatch,
+    system_name: str,
+    machine: str,
+) -> None:
+    monkeypatch.setattr(runner.platform, "system", lambda: system_name)
+    monkeypatch.setattr(runner.platform, "machine", lambda: machine)
     monkeypatch.setattr(runner.os, "geteuid", lambda: 0, raising=False)
 
-    with pytest.raises(runner.RootReleaseRunnerError, match="Linux root"):
+    with pytest.raises(runner.RootReleaseRunnerError, match="Linux x86_64 root"):
         runner._assert_linux_root()
 
 

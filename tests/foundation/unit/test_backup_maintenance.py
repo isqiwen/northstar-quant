@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import importlib.util
 import json
-import os
 from pathlib import Path
 import subprocess
 from types import SimpleNamespace
@@ -31,8 +30,7 @@ def _private_directory(path: Path) -> Path:
     """创建不依赖调用进程 umask 的私有目录。"""
 
     path.mkdir(parents=True, exist_ok=True, mode=0o700)
-    if os.name == "posix":
-        path.chmod(0o700)
+    path.chmod(0o700)
     return path
 
 
@@ -72,7 +70,6 @@ def test_backup_parent_must_not_overlap_any_input(tmp_path: Path):
         backup_maintenance._assert_external_output_parent(output_parent, (source,))
 
 
-@pytest.mark.skipif(os.name != "posix", reason="POSIX permission bits require Linux validation")
 def test_backup_parent_must_be_private_before_staging_a_database_dump(tmp_path: Path):
     source = tmp_path / "source"
     source.mkdir()

@@ -21,6 +21,14 @@ import tarfile
 import tempfile
 from typing import BinaryIO, Final, Iterator
 
+try:  # Allow direct-script execution as well as package imports.
+    from .platform_support import PlatformSupportError, require_linux_x86_64
+except ImportError:  # pragma: no cover - direct-script invocation path.
+    _DEPLOY_DIRECTORY = Path(__file__).resolve().parent
+    if str(_DEPLOY_DIRECTORY) not in sys.path:
+        sys.path.insert(0, str(_DEPLOY_DIRECTORY))
+    from platform_support import PlatformSupportError, require_linux_x86_64
+
 
 class VenvArchiveError(ValueError):
     """The service-built virtual-environment archive is unsafe."""
@@ -46,6 +54,15 @@ _ALLOWED_TOP_LEVEL_NAMES: Final = frozenset(
 )
 
 
+def _require_linux_x86_64_host() -> None:
+    """Reject unsupported hosts before receiving a service-built venv."""
+
+    try:
+        require_linux_x86_64()
+    except PlatformSupportError as exc:
+        raise VenvArchiveError(str(exc)) from exc
+
+
 def receive_venv_archive(
     source: BinaryIO,
     *,
@@ -60,6 +77,7 @@ def receive_venv_archive(
     parent and temporary directory must already be root-controlled.
     """
 
+    _require_linux_x86_64_host()
     # Do not resolve these paths: resolving an existing leaf symlink before
     # the lexists check would turn a rejected target into a different path.
     target_dir = target_dir.absolute()
@@ -259,10 +277,6 @@ def _extract_members(
 
 
 def _fsync_directory(path: Path) -> None:
-    # Windows cannot open a directory with os.open for fsync. The receiver is
-    # Linux-production-only, while keeping the pure validation tests portable.
-    if os.name == "nt":
-        return
     descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
     try:
         os.fsync(descriptor)
@@ -282,6 +296,11 @@ def _build_parser() -> argparse.ArgumentParser:
 
 def main() -> int:
     args = _build_parser().parse_args()
+    try:
+        _require_linux_x86_64_host()
+    except VenvArchiveError as exc:
+        print(f"unsupported host: {exc}", file=sys.stderr)
+        return 1
     if os.geteuid() != 0:
         print("venv archive receiver must run as root", file=sys.stderr)
         return 1

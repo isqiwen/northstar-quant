@@ -65,6 +65,16 @@ _IMMUTABLE_TRUNCATE_GUARD_SQL = re.compile(
     r"BEFORE\s+TRUNCATE\s+ON\s+ctp_contract_registry_publication_records\s+"
     r"FOR\s+EACH\s+STATEMENT\s+EXECUTE\s+FUNCTION\s+"
     r"northstar_reject_contract_authority_publication_mutation"
+    r"|"
+    r"trg_fm_campaign_records_reject_truncate\s+"
+    r"BEFORE\s+TRUNCATE\s+ON\s+factor_mining_campaign_records\s+"
+    r"FOR\s+EACH\s+STATEMENT\s+EXECUTE\s+FUNCTION\s+"
+    r"northstar_reject_factor_mining_campaign_ledger_mutation"
+    r"|"
+    r"trg_fm_campaign_events_reject_truncate\s+"
+    r"BEFORE\s+TRUNCATE\s+ON\s+factor_mining_campaign_request_events\s+"
+    r"FOR\s+EACH\s+STATEMENT\s+EXECUTE\s+FUNCTION\s+"
+    r"northstar_reject_factor_mining_campaign_ledger_mutation"
     r")\s*\(\s*\)\s*;\s*\Z",
     re.IGNORECASE | re.DOTALL,
 )

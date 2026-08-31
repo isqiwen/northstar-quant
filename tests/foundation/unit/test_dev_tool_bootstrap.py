@@ -10,7 +10,6 @@ import subprocess
 import tarfile
 from types import SimpleNamespace
 from unittest.mock import Mock
-import zipfile
 
 import pytest
 
@@ -26,40 +25,15 @@ from scripts.dev import (
 )
 
 
-def test_windows_bootstrap_plan_installs_requested_git_and_repository_local_tools() -> None:
-    missing = {"uv", "just", "git"}
-    tool_root = Path("C:/workspace/northstar-quant/.northstar")
-
-    steps = tool_bootstrap.build_install_plan(
-        missing_tools=missing,
-        system_name="Windows",
-        project_tool_root=tool_root,
-        python_executable="python",
-    )
-
-    winget_steps = [step.command for step in steps if step.command[0] == "winget"]
-    assert [step[3] for step in winget_steps] == ["Git.Git"]
-    assert all(step[:3] == ("winget", "install", "--id") for step in winget_steps)
-    assert steps[1].command == (
-        "python",
-        str(tool_bootstrap.JUST_BOOTSTRAP_SCRIPT),
-        "--tool-root",
-        str(tool_root),
-    )
-    assert [step.command for step in steps if step.command[:2] == ("python", "-m")] == [
-        (
-            "python",
-            "-m",
-            "pip",
-            "install",
-            "--disable-pip-version-check",
-            "--target",
-            str(tool_root / "bootstrap" / "pipx"),
-            "--upgrade",
-            "pipx",
-        ),
-        ("python", "-m", "pipx", "install", "--force", "uv"),
-    ]
+def test_tool_bootstrap_refuses_non_linux_host_before_rendering_plan() -> None:
+    with pytest.raises(tool_bootstrap.BootstrapPlanError, match="仅支持 Linux x86_64"):
+        tool_bootstrap.build_install_plan(
+            missing_tools={"uv", "just", "git"},
+            system_name="Windows",
+            machine="AMD64",
+            project_tool_root=Path("/safe/.northstar"),
+            python_executable="python",
+        )
 
 
 def test_local_just_plan_uses_the_pinned_stdlib_installer_without_system_package_manager(
@@ -150,7 +124,7 @@ def test_native_postgresql_service_plan_does_not_reinstall_packages(
 
 
 def test_native_postgresql_plan_refuses_non_linux_platform() -> None:
-    with pytest.raises(tool_bootstrap.BootstrapPlanError, match="仅支持 Ubuntu/Debian Linux"):
+    with pytest.raises(tool_bootstrap.BootstrapPlanError, match="仅支持 Linux x86_64"):
         tool_bootstrap.build_native_postgresql_plan(
             install_packages=True,
             system_name="Windows",
@@ -351,7 +325,6 @@ def test_repository_tool_root_check_refuses_symbolic_link() -> None:
         setup._require_owned_writable_directory(path, label="仓库工具目录")
 
 
-@pytest.mark.skipif(project_tools.os.name == "nt", reason="Windows symlink permissions vary by runner")
 def test_repository_tool_root_for_bootstrap_rejects_a_nested_symbolic_link(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -366,7 +339,6 @@ def test_repository_tool_root_for_bootstrap_rejects_a_nested_symbolic_link(
         setup._repository_tool_root_for_bootstrap()
 
 
-@pytest.mark.skipif(project_tools.os.name == "nt", reason="Windows symlink permissions vary by runner")
 def test_repository_tool_root_for_bootstrap_rejects_download_directory_symbolic_link(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -425,8 +397,7 @@ def test_repository_uv_resolver_requires_an_executable_under_dot_northstar(
     tmp_path: Path,
 ) -> None:
     repository = tmp_path / "repository"
-    executable_name = "uv.exe" if project_tools.os.name == "nt" else "uv"
-    executable = repository / ".northstar" / "bin" / executable_name
+    executable = repository / ".northstar" / "bin" / "uv"
     executable.parent.mkdir(parents=True)
     executable.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
     executable.chmod(0o755)
@@ -438,8 +409,7 @@ def test_repository_just_resolver_requires_an_executable_under_dot_northstar(
     tmp_path: Path,
 ) -> None:
     repository = tmp_path / "repository"
-    executable_name = "just.exe" if project_tools.os.name == "nt" else "just"
-    executable = repository / ".northstar" / "bin" / executable_name
+    executable = repository / ".northstar" / "bin" / "just"
     executable.parent.mkdir(parents=True)
     executable.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
     executable.chmod(0o755)
@@ -447,7 +417,6 @@ def test_repository_just_resolver_requires_an_executable_under_dot_northstar(
     assert project_tools.repository_just_executable(project_root=repository) == executable
 
 
-@pytest.mark.skipif(project_tools.os.name == "nt", reason="Windows symlink permissions vary by runner")
 def test_repository_uv_resolver_rejects_a_launcher_that_escapes_dot_northstar(
     tmp_path: Path,
 ) -> None:
@@ -464,7 +433,6 @@ def test_repository_uv_resolver_rejects_a_launcher_that_escapes_dot_northstar(
         project_tools.repository_uv_executable(project_root=repository)
 
 
-@pytest.mark.skipif(project_tools.os.name == "nt", reason="Windows symlink permissions vary by runner")
 def test_repository_just_resolver_rejects_a_launcher_that_escapes_dot_northstar(
     tmp_path: Path,
 ) -> None:
@@ -533,33 +501,69 @@ def test_run_just_executes_the_verified_repository_launcher(
     ]
 
 
-def test_just_release_assets_are_pinned_for_tier_one_workstations() -> None:
+@pytest.mark.parametrize(
+    ("runner", "tool"),
+    ((run_uv, "repository_uv_executable"), (run_just, "repository_just_executable")),
+)
+def test_repository_tool_runners_fail_closed_on_an_unsupported_host(
+    monkeypatch: pytest.MonkeyPatch,
+    runner: object,
+    tool: str,
+) -> None:
+    def unsupported() -> None:
+        raise runner.PlatformSupportError("unsupported host")  # type: ignore[attr-defined]
+
+    monkeypatch.setattr(runner, "require_linux_x86_64", unsupported)
+    monkeypatch.setattr(
+        runner,
+        tool,
+        lambda: pytest.fail("unsupported host must not resolve a local tool"),
+    )
+
+    assert runner.main(["--version"]) == 1  # type: ignore[attr-defined]
+
+
+def test_environment_check_reports_an_unsupported_host_as_an_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(check_env.platform, "system", lambda: "Windows")
+    monkeypatch.setattr(check_env.platform, "machine", lambda: "AMD64")
+
+    results = check_env.check_environment(require_config=False)
+
+    operating_system = next(item for item in results if item["name"] == "操作系统")
+    assert operating_system["status"] == "error"
+    assert "仅支持 Linux x86_64" in operating_system["message"]
+
+
+def test_setup_main_refuses_an_unsupported_host_before_any_workstation_action(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(setup.sys, "argv", ["setup.py", "--check-only"])
+
+    def unsupported() -> None:
+        raise setup.PlatformSupportError("unsupported host")
+
+    monkeypatch.setattr(setup, "require_linux_x86_64", unsupported)
+    monkeypatch.setattr(
+        setup,
+        "check_environment",
+        lambda **_: pytest.fail("unsupported host must not inspect workstation state"),
+    )
+
+    assert setup.main() == 1
+
+
+def test_just_release_asset_is_pinned_for_the_linux_x86_64_workstation() -> None:
     linux = bootstrap_just.release_asset_for_platform(system_name="Linux", machine="x86_64")
-    windows = bootstrap_just.release_asset_for_platform(system_name="Windows", machine="AMD64")
 
     assert linux.filename == "just-1.57.0-x86_64-unknown-linux-musl.tar.gz"
-    assert linux.archive_format == "tar.gz"
     assert linux.executable_name == "just"
-    assert windows.filename == "just-1.57.0-x86_64-pc-windows-msvc.zip"
-    assert windows.archive_format == "zip"
-    assert windows.executable_name == "just.exe"
-    assert len(linux.sha256) == len(windows.sha256) == 64
-    with pytest.raises(bootstrap_just.JustBootstrapError, match="仅支持"):
+    assert len(linux.sha256) == 64
+    with pytest.raises(bootstrap_just.JustBootstrapError, match="仅支持 Linux x86_64"):
+        bootstrap_just.release_asset_for_platform(system_name="Windows", machine="AMD64")
+    with pytest.raises(bootstrap_just.JustBootstrapError, match="仅支持 Linux x86_64"):
         bootstrap_just.release_asset_for_platform(system_name="Darwin", machine="arm64")
-
-
-def test_just_bootstrap_extracts_only_the_expected_zip_executable(tmp_path: Path) -> None:
-    asset = bootstrap_just.release_asset_for_platform(system_name="Windows", machine="x86_64")
-    archive_path = tmp_path / asset.filename
-    destination = tmp_path / "bin" / asset.executable_name
-    destination.parent.mkdir()
-    with zipfile.ZipFile(archive_path, "w") as archive:
-        archive.writestr("just-1.57.0-x86_64-pc-windows-msvc/just.exe", b"windows-just")
-        archive.writestr("just-1.57.0-x86_64-pc-windows-msvc/README.md", b"ignored")
-
-    bootstrap_just._install_from_zip(archive_path, asset=asset, destination=destination)
-
-    assert destination.read_bytes() == b"windows-just"
 
 
 def test_just_bootstrap_extracts_only_the_expected_tar_executable(tmp_path: Path) -> None:
@@ -582,15 +586,17 @@ def test_just_bootstrap_extracts_only_the_expected_tar_executable(tmp_path: Path
 
 
 def test_just_bootstrap_rejects_unsafe_archive_member_paths(tmp_path: Path) -> None:
-    asset = bootstrap_just.release_asset_for_platform(system_name="Windows", machine="x86_64")
+    asset = bootstrap_just.release_asset_for_platform(system_name="Linux", machine="x86_64")
     archive_path = tmp_path / asset.filename
     destination = tmp_path / "bin" / asset.executable_name
     destination.parent.mkdir()
-    with zipfile.ZipFile(archive_path, "w") as archive:
-        archive.writestr("../just.exe", b"unsafe")
+    with tarfile.open(archive_path, "w:gz") as archive:
+        executable = tarfile.TarInfo("../just")
+        executable.size = len(b"unsafe")
+        archive.addfile(executable, io.BytesIO(b"unsafe"))
 
     with pytest.raises(bootstrap_just.JustBootstrapError, match="不安全"):
-        bootstrap_just._install_from_zip(archive_path, asset=asset, destination=destination)
+        bootstrap_just._install_from_tar(archive_path, asset=asset, destination=destination)
 
 
 def test_just_bootstrap_rejects_a_digest_mismatch_without_leaking_temp_files(
@@ -600,7 +606,6 @@ def test_just_bootstrap_rejects_a_digest_mismatch_without_leaking_temp_files(
     asset = bootstrap_just.JustReleaseAsset(
         filename="just.tar.gz",
         sha256="0" * 64,
-        archive_format="tar.gz",
         executable_name="just",
     )
 
@@ -843,7 +848,7 @@ def test_workstation_initializer_waits_only_when_a_host_tool_is_still_unavailabl
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    step = tool_bootstrap.InstallStep("安装 Git", ("winget", "install", "--id", "Git.Git"))
+    step = tool_bootstrap.InstallStep("安装 Git", ("sudo", "apt-get", "install", "--yes", "git"))
     missing_states = iter(({"git"}, {"git"}))
     monkeypatch.setattr(setup, "_missing_bootstrap_tools", lambda: next(missing_states))
     monkeypatch.setattr(setup, "build_install_plan", lambda **_: [step])
@@ -1629,7 +1634,7 @@ def test_environment_schema_refuses_active_symlink(tmp_path: Path) -> None:
     try:
         active.symlink_to(target)
     except OSError:
-        pytest.skip("当前 Windows 权限不允许创建符号链接。")
+        pytest.skip("当前文件系统不允许创建符号链接。")
     template = tmp_path / ".env.example"
     template.write_text("FIRST=\n", encoding="utf-8")
 

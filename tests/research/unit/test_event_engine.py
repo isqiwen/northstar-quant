@@ -98,6 +98,59 @@ def test_event_backtest_applies_costs_and_minimum_commission_to_equity():
     assert low_capital.total_return < high_capital.total_return
 
 
+def test_event_backtest_terminal_flatten_charges_close_costs_and_turnover():
+    market_df, targets = _single_symbol_case()
+    initial_cash = 100_000.0
+    kwargs = {
+        "initial_cash": initial_cash,
+        "commission_bps": 0.01,
+        "min_commission": 10.0,
+        "slippage_bps": 30.0,
+    }
+
+    open_result = run_event_backtest(market_df, targets, **kwargs)
+    flattened = run_event_backtest(market_df, targets, terminal_flatten=True, **kwargs)
+
+    open_final_equity = float(open_result.equity_curve[-1]["equity"]) * initial_cash
+    expected_close_cost = max(open_final_equity * 0.01 / 10_000.0, 10.0) + (
+        open_final_equity * 30.0 / 10_000.0
+    )
+
+    assert float(flattened.equity_curve[-1]["equity"]) == pytest.approx(
+        (open_final_equity - expected_close_cost) / initial_cash
+    )
+    assert flattened.total_return == pytest.approx(
+        float(flattened.equity_curve[-1]["equity"]) - 1.0
+    )
+    assert float(flattened.turnover_curve[-1]["turnover"]) == pytest.approx(1.0)
+    assert flattened.turnover_estimate == pytest.approx(
+        open_result.turnover_estimate + 1.0 / len(open_result.turnover_curve)
+    )
+    assert flattened.max_drawdown == pytest.approx(
+        min(float(row["drawdown"]) for row in flattened.drawdown_curve)
+    )
+
+
+def test_event_backtest_terminal_flatten_defaults_to_false():
+    market_df, targets = _single_symbol_case()
+    kwargs = {
+        "initial_cash": 100_000.0,
+        "commission_bps": 20.0,
+        "min_commission": 10.0,
+        "slippage_bps": 30.0,
+    }
+
+    default_result = run_event_backtest(market_df, targets, **kwargs)
+    explicit_false_result = run_event_backtest(
+        market_df,
+        targets,
+        terminal_flatten=False,
+        **kwargs,
+    )
+
+    assert explicit_false_result == default_result
+
+
 def test_event_backtest_execution_delay_changes_realized_return():
     market_df, targets = _single_symbol_case()
 

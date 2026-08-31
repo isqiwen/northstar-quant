@@ -8,6 +8,7 @@ import subprocess
 import sys
 
 try:  # 支持直接脚本入口与包内导入。
+    from .platform_support import PlatformSupportError, require_linux_x86_64
     from .project_tools import (
         PROJECT_ROOT,
         ProjectToolError,
@@ -15,6 +16,7 @@ try:  # 支持直接脚本入口与包内导入。
         repository_uv_executable,
     )
 except ImportError:  # pragma: no cover - 直接脚本入口会走此分支。
+    from platform_support import PlatformSupportError, require_linux_x86_64
     from project_tools import (
         PROJECT_ROOT,
         ProjectToolError,
@@ -25,8 +27,9 @@ except ImportError:  # pragma: no cover - 直接脚本入口会走此分支。
 
 def main(arguments: list[str] | None = None) -> int:
     try:
+        require_linux_x86_64()
         executable = repository_uv_executable()
-    except ProjectToolError as error:
+    except (PlatformSupportError, ProjectToolError) as error:
         print(f"无法启动仓库本地 uv：{error}", file=sys.stderr)
         return 1
     environment = dict(os.environ)

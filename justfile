@@ -1,8 +1,6 @@
 # Northstar Quant 的统一开发、部署与运维命令。
-# Windows 使用 PowerShell，Linux 使用默认 shell；所有实质工作都委托给跨平台 Python
-# 控制面或 Linux 目标端脚本，避免在 Just recipe 中复制业务与安全逻辑。
-
-set windows-shell := ["powershell.exe", "-NoLogo", "-Command"]
+# 仅支持 Linux x86_64；所有实质工作都委托给 Python 控制面或 Linux 目标端脚本，
+# 避免在 Just recipe 中复制业务与安全逻辑。
 
 default:
     @{{quote(just_executable())}} --list

@@ -13,6 +13,7 @@ from northstar_quant.foundation.backup.restore_drill import (
     RestoreDrillError,
     run_test_postgresql_restore_drill,
 )
+from northstar_quant.foundation.platform_support import PlatformSupportError, require_linux_x86_64
 from northstar_quant.foundation.security import redact_text
 
 
@@ -30,6 +31,11 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def main() -> int:
+    try:
+        require_linux_x86_64()
+    except PlatformSupportError as exc:
+        print(f"恢复演练失败：{redact_text(str(exc))}", file=sys.stderr)
+        return 2
     args = _parser().parse_args()
     if args.confirm_test_drill != "YES":
         print("恢复演练必须显式传入 --confirm-test-drill YES。", file=sys.stderr)

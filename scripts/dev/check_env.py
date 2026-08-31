@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""检查跨平台开发工作站的必要条件。
+"""检查 Linux x86_64 开发工作站的必要条件。
 
 本脚本只读取本地状态，不会创建 `.env`、启动或停止 PostgreSQL、运行迁移或触发任何交易命令。
-Windows 和 Linux 都可通过 ``python scripts/dev/check_env.py`` 调用；该只读检查不需要项目依赖。
+该只读检查不需要项目依赖；非 Linux x86_64 主机明确失败关闭。
 """
 
 from __future__ import annotations
@@ -22,8 +22,10 @@ try:  # 支持直接脚本入口与包内导入。
         repository_just_executable,
         repository_uv_executable,
     )
+    from .platform_support import PlatformSupportError, require_linux_x86_64
 except ImportError:  # pragma: no cover - 直接脚本入口会走此分支。
     from project_tools import ProjectToolError, repository_just_executable, repository_uv_executable
+    from platform_support import PlatformSupportError, require_linux_x86_64
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -82,7 +84,7 @@ def _check_command(command: str, label: str, *, required: bool) -> CheckResult:
 def _check_repository_uv(*, required: bool) -> CheckResult:
     try:
         executable = repository_uv_executable()
-    except ProjectToolError as error:
+    except (PlatformSupportError, ProjectToolError) as error:
         return _result("uv", _optional_status(required), str(error))
     return _result("uv", "ok", f"已找到仓库本地可执行文件：{executable}。")
 
@@ -90,7 +92,7 @@ def _check_repository_uv(*, required: bool) -> CheckResult:
 def _check_repository_just(*, required: bool) -> CheckResult:
     try:
         executable = repository_just_executable()
-    except ProjectToolError as error:
+    except (PlatformSupportError, ProjectToolError) as error:
         return _result("just", _optional_status(required), str(error))
     return _result("just", "ok", f"已找到仓库本地可执行文件：{executable}。")
 
@@ -169,16 +171,13 @@ def check_environment(
 
     results: list[CheckResult] = []
     current_system = platform.system()
-    if current_system in {"Windows", "Linux"}:
-        results.append(_result("操作系统", "ok", f"{current_system}（Tier 1 开发平台）。"))
+    current_machine = platform.machine()
+    try:
+        require_linux_x86_64(system_name=current_system, machine=current_machine)
+    except PlatformSupportError as error:
+        results.append(_result("操作系统", "error", str(error)))
     else:
-        results.append(
-            _result(
-                "操作系统",
-                "warn",
-                f"{current_system} 不在 Windows/Linux Tier 1 开发支持范围内。",
-            )
-        )
+        results.append(_result("操作系统", "ok", "Linux x86_64（唯一受支持开发平台）。"))
     python_version = sys.version_info[:2]
     if python_version >= MINIMUM_PYTHON:
         results.append(
@@ -231,7 +230,7 @@ def check_environment(
 
 
 def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="检查 Northstar Quant 跨平台开发环境。")
+    parser = argparse.ArgumentParser(description="检查 Northstar Quant Linux x86_64 开发环境。")
     parser.add_argument(
         "--require-config",
         action="store_true",

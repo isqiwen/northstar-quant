@@ -731,43 +731,29 @@ infra/
 
 # 20. Platform Support
 
-开发：
-
-```text
-Windows x86_64
-Linux x86_64
-```
-
-均为 Tier 1。
-
-Production：
+开发、研究、部署控制端与生产：
 
 ```text
 Linux x86_64 only
 ```
 
-部署控制端：
-
-```text
-Windows
-Linux
-```
-
-都支持。
+Windows 本机、PowerShell、Git Bash 与 Windows 部署控制端均不受支持。若命令运行时
+操作系统或架构不满足 Linux x86_64，必须在任何写入、安装、迁移、构建、SSH 或交易操作前失败关闭。
 
 目标架构：
 
 ```text
-Windows/Linux workstation
+Linux x86_64 workstation
         ↓
 Python deployment orchestrator / just
         ↓
 SSH
         ↓
-Linux production
+Linux x86_64 production
 ```
 
-不得为 Windows Production 增加无需求的维护成本。
+不得为 Windows、macOS 或非 x86_64 Linux 增加兼容层、回退路径或测试成功路径。Windows 风格路径的拒绝
+仍属于输入安全校验，不构成平台支持。
 
 ---
 
@@ -806,7 +792,7 @@ scripts/
 
 Production target 仅 Linux。
 
-部署控制程序应跨平台。
+部署控制程序仅支持 Linux x86_64；目标端同样仅支持 Linux x86_64。
 
 标准流程：
 

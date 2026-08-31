@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from scripts.deploy import platform_support
 from scripts.deploy.release_transaction import (
     ReleaseRecoveryCategory,
     ReleaseTransactionError,
@@ -260,16 +261,37 @@ def test_broken_hash_chain_is_fail_closed_and_never_overwritten(tmp_path: Path) 
     assert second_event.read_text(encoding="utf-8") == tampered
 
 
-def test_production_store_requires_linux_root_before_touching_the_filesystem(
+@pytest.mark.parametrize(
+    ("system_name", "machine"),
+    (("Windows", "AMD64"), ("Linux", "aarch64")),
+)
+def test_production_store_requires_linux_x86_64_root_before_touching_the_filesystem(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    system_name: str,
+    machine: str,
+) -> None:
+    monkeypatch.setattr(platform_support.platform, "system", lambda: system_name)
+    monkeypatch.setattr(platform_support.platform, "machine", lambda: machine)
+    store = ReleaseTransactionStore(tmp_path / "production-transactions")
+
+    with pytest.raises(ReleaseTransactionPrivilegeError, match="Linux x86_64 root"):
+        store.initialize()
+    assert not store.root.exists()
+
+
+def test_test_only_nonroot_bypass_never_bypasses_the_linux_host_contract(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    import scripts.deploy.release_transaction as release_transaction
+    monkeypatch.setattr(platform_support.platform, "system", lambda: "Windows")
+    monkeypatch.setattr(platform_support.platform, "machine", lambda: "AMD64")
+    store = ReleaseTransactionStore(
+        tmp_path / "test-transactions",
+        unsafe_allow_non_root_for_tests=True,
+    )
 
-    monkeypatch.setattr(release_transaction.sys, "platform", "win32")
-    store = ReleaseTransactionStore(tmp_path / "production-transactions")
-
-    with pytest.raises(ReleaseTransactionPrivilegeError, match="Linux root"):
+    with pytest.raises(ReleaseTransactionPrivilegeError, match="Linux x86_64 root"):
         store.initialize()
     assert not store.root.exists()
 

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import platform
 import re
 import secrets
 import stat
@@ -187,8 +188,14 @@ def receive_from_standard_input(*, kind: str, release_id: str) -> None:
     """Atomically publish one verified root-managed candidate from stdin."""
 
     geteuid = getattr(os, "geteuid", None)
-    if geteuid is None or geteuid() != 0:
-        _fail("secure handoff requires Linux root")
+    machine = platform.machine().strip().lower().replace("-", "_")
+    if (
+        platform.system() != "Linux"
+        or machine not in {"x86_64", "amd64"}
+        or geteuid is None
+        or geteuid() != 0
+    ):
+        _fail("secure handoff requires Linux x86_64 root")
     try:
         spec = _HANDOFF_SPECS[kind]
     except KeyError as exc:

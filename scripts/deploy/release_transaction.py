@@ -18,13 +18,17 @@ import json
 import os
 import re
 import stat
-import sys
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
 from typing import Final
+
+try:  # Allow package imports and the isolated signed control-bundle invocation.
+    from .platform_support import PlatformSupportError, require_linux_x86_64
+except ImportError:  # pragma: no cover - isolated control-bundle invocation path.
+    from platform_support import PlatformSupportError, require_linux_x86_64
 
 
 class ReleaseTransactionError(RuntimeError):
@@ -284,9 +288,9 @@ def _coerce_state(value: ReleaseTransactionState | str) -> ReleaseTransactionSta
 class ReleaseTransactionStore:
     """Root-only, append-only journal store used by a fixed release runner.
 
-    ``unsafe_allow_non_root_for_tests`` exists only so cross-platform unit tests
-    can exercise persistence semantics.  Production callers must use the
-    default value, which requires Linux root and a root:root ``0700`` store.
+    ``unsafe_allow_non_root_for_tests`` exists only so Linux unit tests can
+    exercise persistence semantics. Production callers must use the default
+    value, which requires Linux x86_64 root and a root:root ``0700`` store.
     """
 
     def __init__(
@@ -689,11 +693,17 @@ class ReleaseTransactionStore:
         )
 
     def _require_production_privilege_boundary(self) -> None:
+        try:
+            require_linux_x86_64()
+        except PlatformSupportError as exc:
+            raise ReleaseTransactionPrivilegeError(
+                "release transaction journal requires Linux x86_64 root"
+            ) from exc
         if self._unsafe_allow_non_root_for_tests:
             return
-        if sys.platform != "linux" or getattr(os, "geteuid", lambda: -1)() != 0:
+        if getattr(os, "geteuid", lambda: -1)() != 0:
             raise ReleaseTransactionPrivilegeError(
-                "release transaction journal requires Linux root"
+                "release transaction journal requires Linux x86_64 root"
             )
         if not self._root.is_absolute() or any(part in {".", ".."} for part in self._root.parts):
             raise ReleaseTransactionIntegrityError(
@@ -793,10 +803,8 @@ def _write_all(descriptor: int, payload: bytes) -> None:
 
 
 def _fsync_directory(path: Path) -> None:
-    """Synchronize directory metadata where the production platform supports it."""
+    """Synchronize Linux directory metadata before continuing the journal."""
 
-    if os.name == "nt":
-        return
     descriptor = -1
     try:
         descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))

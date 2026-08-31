@@ -58,9 +58,7 @@ RELEASE_ENV_TEMP_FILE=""
 PREVIOUS_SERVICE_ENABLED=false
 PREVIOUS_SERVICE_ACTIVE=false
 
-if [ "$(uname -s)" != "Linux" ]; then
-  deploy_fail "版本安装脚本只支持 Linux。"
-fi
+deploy_require_linux_x86_64
 for required_command in cp cut find getent install mktemp python3 readlink realpath sha256sum sort stat systemctl tar; do
   deploy_need_cmd "${required_command}"
 done

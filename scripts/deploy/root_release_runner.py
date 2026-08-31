@@ -12,10 +12,12 @@ staging and never accepts an executable path or shell snippet from stdin.
 from __future__ import annotations
 
 import argparse
+import fcntl
 import hashlib
 import hmac
 import json
 import os
+import platform
 import posixpath
 import re
 import stat
@@ -30,11 +32,6 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, BinaryIO, Final, Iterator, Mapping, NoReturn, Sequence
-
-try:  # Importing this root-only module must remain possible on Windows.
-    import fcntl
-except ImportError:  # pragma: no cover - exercised only outside Linux.
-    fcntl = None  # type: ignore[assignment]
 
 
 class RootReleaseRunnerError(RuntimeError):
@@ -457,8 +454,13 @@ def _copy_file_to_stream(path: Path, destination: BinaryIO) -> None:
 
 
 def _assert_linux_root() -> None:
-    if sys.platform != "linux" or getattr(os, "geteuid", lambda: -1)() != 0:
-        _fail("root release gate requires Linux root")
+    machine = platform.machine().strip().lower().replace("-", "_")
+    if (
+        platform.system() != "Linux"
+        or machine not in {"x86_64", "amd64"}
+        or getattr(os, "geteuid", lambda: -1)() != 0
+    ):
+        _fail("root release gate requires Linux x86_64 root")
 
 
 def _assert_root_controlled_path(path: Path, *, file_mode: int | None = None) -> None:

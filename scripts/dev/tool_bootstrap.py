@@ -1,4 +1,4 @@
-"""跨平台开发工具与原生 PostgreSQL 安装计划。
+"""Linux x86_64 开发工具与原生 PostgreSQL 安装计划。
 
 常规开发工具计划默认只生成可审阅的命令，不执行安装。调用方必须在收到明确的
 ``YES`` 确认后才可以执行计划。原生 PostgreSQL 的系统安装计划仅供高层
@@ -16,6 +16,11 @@ import re
 import shlex
 import subprocess
 import sys
+
+try:  # 支持直接脚本入口与包内导入。
+    from .platform_support import PlatformSupportError, require_linux_x86_64
+except ImportError:  # pragma: no cover - 直接脚本入口会走此分支。
+    from platform_support import PlatformSupportError, require_linux_x86_64
 
 
 OS_RELEASE_PATH = Path("/etc/os-release")
@@ -132,47 +137,11 @@ def _repository_local_just_steps(
                 str(project_tool_root),
             ),
             note=(
-                "下载固定版本的官方 Linux/Windows x86_64 发布包；"
+                "下载固定版本的官方 Linux x86_64 发布包；"
                 "SHA-256 校验后仅写入 .northstar/bin。"
             ),
         )
     ]
-
-
-def _windows_plan(
-    *,
-    missing_tools: set[str],
-    project_tool_root: Path,
-    python_executable: str,
-) -> list[InstallStep]:
-    package_ids = {"git": "Git.Git"}
-
-    selected_ids: list[str] = []
-    for tool, package_id in package_ids.items():
-        if tool in missing_tools and package_id not in selected_ids:
-            selected_ids.append(package_id)
-    steps = [
-        InstallStep(
-            label=f"通过 winget 安装 {package_id}",
-            command=("winget", "install", "--id", package_id, "--exact", "--source", "winget"),
-        )
-        for package_id in selected_ids
-    ]
-    if "just" in missing_tools:
-        steps.extend(
-            _repository_local_just_steps(
-                project_tool_root=project_tool_root,
-                python_executable=python_executable,
-            )
-        )
-    if "uv" in missing_tools:
-        steps.extend(
-            _repository_local_uv_steps(
-                project_tool_root=project_tool_root,
-                python_executable=python_executable,
-            )
-        )
-    return steps
 
 
 def _linux_plan(
@@ -220,6 +189,7 @@ def build_install_plan(
     *,
     missing_tools: Iterable[str],
     system_name: str | None = None,
+    machine: str | None = None,
     os_release_path: Path = OS_RELEASE_PATH,
     project_tool_root: Path | None = None,
     python_executable: str | None = None,
@@ -230,21 +200,15 @@ def build_install_plan(
     current_system = system_name or platform.system()
     tool_root = project_tool_root or Path(".northstar")
     python = python_executable or sys.executable
-    if current_system == "Windows":
-        return _windows_plan(
-            missing_tools=missing,
-            project_tool_root=tool_root,
-            python_executable=python,
-        )
-    if current_system == "Linux":
-        return _linux_plan(
-            missing_tools=missing,
-            project_tool_root=tool_root,
-            python_executable=python,
-            os_release_path=os_release_path,
-        )
-    raise BootstrapPlanError(
-        "开发工具 bootstrap 仅正式支持 Windows 与 Ubuntu/Debian Linux；当前平台只提供检查。"
+    try:
+        require_linux_x86_64(system_name=current_system, machine=machine)
+    except PlatformSupportError as error:
+        raise BootstrapPlanError(str(error)) from error
+    return _linux_plan(
+        missing_tools=missing,
+        project_tool_root=tool_root,
+        python_executable=python,
+        os_release_path=os_release_path,
     )
 
 
@@ -252,6 +216,7 @@ def build_native_postgresql_plan(
     *,
     install_packages: bool,
     system_name: str | None = None,
+    machine: str | None = None,
     os_release_path: Path = OS_RELEASE_PATH,
 ) -> list[InstallStep]:
     """生成 Ubuntu/Debian 本机 PostgreSQL 的受限系统安装/启动计划。
@@ -262,10 +227,10 @@ def build_native_postgresql_plan(
     """
 
     current_system = system_name or platform.system()
-    if current_system != "Linux":
-        raise BootstrapPlanError(
-            "原生 PostgreSQL 默认安装仅支持 Ubuntu/Debian Linux；当前平台只提供检查。"
-        )
+    try:
+        require_linux_x86_64(system_name=current_system, machine=machine)
+    except PlatformSupportError as error:
+        raise BootstrapPlanError(str(error)) from error
     _read_os_release(os_release_path)
 
     steps: list[InstallStep] = []

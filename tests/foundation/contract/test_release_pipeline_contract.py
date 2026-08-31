@@ -1,4 +1,4 @@
-"""Cross-platform contracts for the signed, root-owned release pipeline."""
+"""Linux release-pipeline contracts for the signed, root-owned gate."""
 
 from __future__ import annotations
 
@@ -47,7 +47,7 @@ def _run_hook(
     store: ReleaseTransactionStore,
     *arguments: str,
 ) -> dict[str, object]:
-    """Exercise the CLI without requiring Linux root on Windows."""
+    """Exercise the CLI without requiring a real Linux root account."""
 
     monkeypatch.setattr(hook, "_store", lambda _root: store)
     monkeypatch.setattr(hook.sys, "argv", ["release_transaction_hook.py", *arguments])

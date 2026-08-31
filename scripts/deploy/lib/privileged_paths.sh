@@ -48,8 +48,7 @@ deploy_assert_root_controlled_directory() {
   local other_mode
 
   # The canonical-path grammar permits only absolute paths, so no component
-  # can be parsed as a test option.  Do not pass `--`: POSIX/Git Bash test
-  # implementations do not uniformly support it.
+  # can be parsed as a test option.
   if ! deploy_as_root test -d "${directory_path}" ||
     deploy_as_root test -L "${directory_path}" ||
     ! metadata="$(deploy_as_root stat -c '%u:%a' -- "${directory_path}")"; then

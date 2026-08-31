@@ -16,7 +16,6 @@ import os
 from pathlib import Path
 import secrets
 import stat
-import tempfile
 from typing import cast
 
 from northstar_quant.data.artifacts.fingerprints import (
@@ -33,6 +32,7 @@ from northstar_quant.data.artifacts.fingerprints import (
 from northstar_quant.data.contracts.data_domain import (
     Artifact,
     ArtifactKind,
+    ArtifactMetadata,
     ArtifactProvenance,
     ArtifactSnapshot,
     DataDomainError,
@@ -56,6 +56,7 @@ from northstar_quant.data.sources.protocol import (
     PublicationPurpose,
     PublicationScope,
 )
+from northstar_quant.foundation.platform_support import require_linux_x86_64
 
 
 ArtifactValue = RawArtifact | NormalizedArtifact | DerivedArtifact
@@ -67,7 +68,6 @@ _SNAPSHOT_LINEAGE_FORMAT = "northstar.snapshot-lineage.v1"
 _QUALITY_ASSESSMENT_FORMAT = "northstar.quality-assessment.v1"
 _QUALITY_BINDING_FORMAT = "northstar.quality-assessment-binding.v1"
 _PUBLICATION_AUTHORIZATION_FORMAT = "northstar.publication-authorization.v1"
-_REPARSE_POINT_FLAG = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0)
 
 
 class ArtifactStoreError(RuntimeError):
@@ -168,6 +168,7 @@ class ArtifactStore:
     """
 
     def __init__(self, root: str | Path) -> None:
+        require_linux_x86_64()
         candidate = Path(root).expanduser()
         if not candidate.is_absolute():
             raise ArtifactStoreError("不可变制品库根目录必须是绝对路径")
@@ -176,7 +177,7 @@ class ArtifactStore:
         _assert_safe_existing_ancestors(candidate)
         candidate.mkdir(parents=True, exist_ok=True, mode=0o700)
         root_state = _assert_directory(candidate, "不可变制品库根目录")
-        _assert_posix_private_directory(root_state, "不可变制品库根目录")
+        _assert_private_directory(root_state, "不可变制品库根目录")
         self._root = candidate
         for directory in (
             self._root / "blobs" / "sha256",
@@ -602,6 +603,78 @@ class ArtifactStore:
 
         stored = self.load_artifact(snapshot_hash)
         return self._read_immutable_bytes(stored.blob_path, "artifact blob")
+
+    def load_artifact_value(self, snapshot_hash: str) -> ArtifactValue:
+        """重建一份已完整校验的领域制品，供新的受治理派生 lineage 使用。
+
+        调用方不会得到可变路径或未验证的关系字典：先通过 :meth:`load_artifact`
+        校验整条 record/blob/lineage/authorization 链，再从冻结 record 重建
+        ``RawArtifact``、``NormalizedArtifact`` 或 ``DerivedArtifact``。这使研究输出
+        可以精确引用已发布输入，而无需把磁盘路径伪装成上游事实。
+        """
+
+        stored = self.load_artifact(snapshot_hash)
+        return self._load_artifact_value(stored.snapshot.snapshot_hash, visiting=frozenset())
+
+    def _load_artifact_value(
+        self,
+        snapshot_hash: str,
+        *,
+        visiting: frozenset[str],
+    ) -> ArtifactValue:
+        digest = _checked_hash(snapshot_hash, "snapshot_hash")
+        if digest in visiting:
+            raise ArtifactIntegrityConflict("artifact value 上游关系存在循环，已拒绝重建")
+        record = self._load_artifact_record(digest)
+        parent_hashes = _relation_parent_hashes(record.snapshot.kind, record.relations)
+        parents = tuple(
+            self._load_artifact_value(parent_hash, visiting=visiting | {digest})
+            for parent_hash in parent_hashes
+        )
+        snapshot = record.snapshot
+        metadata = ArtifactMetadata(
+            artifact_id=snapshot.artifact_id,
+            source_id=snapshot.source_id,
+            acquired_at=snapshot.acquired_at,
+            available_at=snapshot.available_at,
+            schema_version=snapshot.schema_version,
+            content_hash=snapshot.content_hash,
+            transform_version=snapshot.transform_version,
+            quality_status=snapshot.quality_status,
+            provenance=snapshot.provenance,
+        )
+        try:
+            if snapshot.kind is ArtifactKind.RAW:
+                return RawArtifact(
+                    metadata=metadata,
+                    raw_format=_required_text(record.relations["raw_format"], "raw_format"),
+                )
+            if snapshot.kind is ArtifactKind.NORMALIZED:
+                if len(parents) != 1 or not isinstance(parents[0], RawArtifact):
+                    raise ArtifactIntegrityConflict(
+                        "normalized artifact value 必须重建为一个 raw 上游"
+                    )
+                return NormalizedArtifact(
+                    metadata=metadata,
+                    raw_artifact=parents[0],
+                    normalization_identity=_required_hash(
+                        record.relations["normalization_identity"],
+                        "normalization_identity",
+                    ),
+                )
+            return DerivedArtifact(
+                metadata=metadata,
+                # Each branch above reconstructs one of the concrete Artifact
+                # implementations.  Narrow the closed union to the read-only
+                # Artifact protocol required by the public domain contract.
+                input_artifacts=tuple(cast(Artifact, parent) for parent in parents),
+                derivation_identity=_required_hash(
+                    record.relations["derivation_identity"],
+                    "derivation_identity",
+                ),
+            )
+        except DataDomainError as exc:
+            raise ArtifactIntegrityConflict("artifact value 无法重建领域对象") from exc
 
     def load_dataset_version(self, version_hash: str) -> DatasetVersion:
         """读取终态 dataset manifest，并逐项验证 record、lineage 和 blob。"""
@@ -1354,11 +1427,7 @@ class ArtifactStore:
     def _read_immutable_bytes(self, path: Path, label: str) -> bytes:
         """通过固定目录句柄读取正式对象，拒绝中间目录被链接替换。"""
 
-        if os.name == "nt":
-            # Windows 没有本实现可移植使用的 openat/dir_fd；依赖根目录 ACL，并在读取前后
-            # 检查 reparse point/普通文件身份。部署层必须只给服务用户写入该根。
-            return _read_regular_bytes(path, label)
-        directory_fd = self._open_posix_directory_fd(path.parent)
+        directory_fd = self._open_directory_fd(path.parent)
         try:
             return _read_regular_bytes_at(directory_fd, path.name, label)
         finally:
@@ -1381,18 +1450,15 @@ class ArtifactStore:
             if existing != payload:
                 raise ArtifactIntegrityConflict(f"{label} 已存在但内容不一致，已拒绝覆盖：{path}")
             return
-        if os.name == "nt":
-            self._write_immutable_windows(path, payload, label)
-            return
-        self._write_immutable_posix(path, payload, label)
+        self._write_immutable_at(path, payload, label)
 
-    def _write_immutable_posix(self, path: Path, payload: bytes, label: str) -> None:
+    def _write_immutable_at(self, path: Path, payload: bytes, label: str) -> None:
         """在固定 parent dir_fd 内 stage、fsync、hard-link 发布并回读验证。"""
 
-        directory_fd = self._open_posix_directory_fd(path.parent)
+        directory_fd = self._open_directory_fd(path.parent)
         temporary_name: str | None = None
         try:
-            descriptor, temporary_name = self._create_posix_staging_file(directory_fd)
+            descriptor, temporary_name = self._create_staging_file(directory_fd)
             with os.fdopen(descriptor, "wb") as file_obj:
                 file_obj.write(payload)
                 file_obj.flush()
@@ -1436,46 +1502,8 @@ class ArtifactStore:
                     pass
             os.close(directory_fd)
 
-    def _write_immutable_windows(self, path: Path, payload: bytes, label: str) -> None:
-        """Windows 的同目录 hard-link 发布；无法建立链接时失败关闭。"""
-
-        descriptor, temporary_name = tempfile.mkstemp(
-            prefix=".artifact-", suffix=".tmp", dir=path.parent
-        )
-        temporary_path = Path(temporary_name)
-        try:
-            with os.fdopen(descriptor, "wb") as file_obj:
-                file_obj.write(payload)
-                file_obj.flush()
-                os.fsync(file_obj.fileno())
-            try:
-                os.link(temporary_path, path, follow_symlinks=False)
-            except FileExistsError:
-                existing = _read_regular_bytes(path, label)
-                if existing != payload:
-                    raise ArtifactIntegrityConflict(
-                        f"{label} 并发发布后内容不一致，已拒绝覆盖：{path}"
-                    )
-            except OSError as exc:
-                if exc.errno == errno.EEXIST:
-                    existing = _read_regular_bytes(path, label)
-                    if existing != payload:
-                        raise ArtifactIntegrityConflict(
-                            f"{label} 并发发布后内容不一致，已拒绝覆盖：{path}"
-                        ) from exc
-                else:
-                    raise ArtifactStoreError(
-                        f"文件系统不支持安全的 no-replace 制品发布：{path}"
-                    ) from exc
-            existing = _read_regular_bytes(path, label)
-            if existing != payload:
-                raise ArtifactIntegrityConflict(f"{label} 发布后内容不一致，已拒绝继续：{path}")
-        finally:
-            # 只清理本进程刚创建的 staging 文件；从不删除永久对象或旧版本。
-            temporary_path.unlink(missing_ok=True)
-
-    def _create_posix_staging_file(self, directory_fd: int) -> tuple[int, str]:
-        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+    def _create_staging_file(self, directory_fd: int) -> tuple[int, str]:
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW
         for _ in range(3):
             temporary_name = f".artifact-{secrets.token_hex(24)}.tmp"
             try:
@@ -1502,22 +1530,9 @@ class ArtifactStore:
             relative = path.relative_to(self._root)
         except ValueError as exc:
             raise ArtifactStoreError("制品库内部目录越出根目录，已拒绝") from exc
-        if os.name == "nt":
-            current = self._root
-            _assert_directory(current, "不可变制品库根目录")
-            for part in relative.parts:
-                current = current / part
-                if _lstat(current) is None:
-                    try:
-                        current.mkdir()
-                    except FileExistsError:
-                        pass
-                _assert_directory(current, "制品库目录")
-            return
-
-        directory_fd = self._open_posix_directory_fd(self._root)
+        directory_fd = self._open_directory_fd(self._root)
         try:
-            flags = os.O_RDONLY | os.O_DIRECTORY | getattr(os, "O_NOFOLLOW", 0)
+            flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
             for part in relative.parts:
                 try:
                     os.mkdir(part, mode=0o700, dir_fd=directory_fd)
@@ -1531,7 +1546,7 @@ class ArtifactStore:
                     next_state = os.fstat(next_fd)
                     if not stat.S_ISDIR(next_state.st_mode):
                         raise ArtifactStoreError(f"制品库目录不是普通目录：{path}")
-                    _assert_posix_private_directory(next_state, "制品库目录")
+                    _assert_private_directory(next_state, "制品库目录")
                 except BaseException:
                     os.close(next_fd)
                     raise
@@ -1540,7 +1555,7 @@ class ArtifactStore:
         finally:
             os.close(directory_fd)
 
-    def _open_posix_directory_fd(self, path: Path) -> int:
+    def _open_directory_fd(self, path: Path) -> int:
         """从制品库 root 开始逐段打开非链接目录，返回调用方负责关闭的 fd。"""
 
         try:
@@ -1548,7 +1563,7 @@ class ArtifactStore:
         except ValueError as exc:
             raise ArtifactStoreError("制品库路径越出根目录，已拒绝") from exc
         root_state = _assert_directory(self._root, "不可变制品库根目录")
-        flags = os.O_RDONLY | os.O_DIRECTORY | getattr(os, "O_NOFOLLOW", 0)
+        flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
         try:
             directory_fd = os.open(self._root, flags)
         except OSError as exc:
@@ -1560,7 +1575,7 @@ class ArtifactStore:
                 opened_root.st_ino,
             ) != (root_state.st_dev, root_state.st_ino):
                 raise ArtifactStoreError("不可变制品库根目录在打开时发生变化，已拒绝")
-            _assert_posix_private_directory(opened_root, "不可变制品库根目录")
+            _assert_private_directory(opened_root, "不可变制品库根目录")
             for part in relative.parts:
                 try:
                     next_fd = os.open(part, flags, dir_fd=directory_fd)
@@ -1572,7 +1587,7 @@ class ArtifactStore:
                 if not stat.S_ISDIR(next_state.st_mode):
                     os.close(next_fd)
                     raise ArtifactStoreError(f"制品库目录不是普通目录：{path}")
-                _assert_posix_private_directory(next_state, "制品库目录")
+                _assert_private_directory(next_state, "制品库目录")
                 os.close(directory_fd)
                 directory_fd = next_fd
             return directory_fd
@@ -1886,36 +1901,8 @@ def _json_object_without_duplicates(pairs: list[tuple[str, object]]) -> dict[str
     return result
 
 
-def _read_regular_bytes(path: Path, label: str) -> bytes:
-    before = _assert_regular_file(path, label)
-    flags = os.O_RDONLY
-    if hasattr(os, "O_NOFOLLOW"):
-        flags |= os.O_NOFOLLOW
-    try:
-        descriptor = os.open(path, flags)
-    except FileNotFoundError as exc:
-        raise ArtifactNotFoundError(f"{label} 不存在：{path}") from exc
-    except OSError as exc:
-        raise ArtifactStoreError(f"无法安全读取 {label}：{path}") from exc
-    try:
-        after_open = os.fstat(descriptor)
-        if not stat.S_ISREG(after_open.st_mode):
-            raise ArtifactStoreError(f"{label} 不是普通文件：{path}")
-        with os.fdopen(descriptor, "rb", closefd=False) as file_obj:
-            data = file_obj.read()
-        after = _assert_regular_file(path, label)
-        if (before.st_dev, before.st_ino) != (after_open.st_dev, after_open.st_ino) or (
-            after_open.st_dev,
-            after_open.st_ino,
-        ) != (after.st_dev, after.st_ino):
-            raise ArtifactStoreError(f"读取 {label} 时文件身份发生变化，已拒绝")
-        return data
-    finally:
-        os.close(descriptor)
-
-
 def _read_regular_bytes_at(directory_fd: int, filename: str, label: str) -> bytes:
-    """在已固定的 POSIX 目录句柄内读取一个无链接普通文件。"""
+    """在已固定的目录句柄内读取一个无链接普通文件。"""
 
     if Path(filename).name != filename:
         raise ArtifactStoreError(f"{label} 文件名不安全，已拒绝读取")
@@ -1925,10 +1912,10 @@ def _read_regular_bytes_at(directory_fd: int, filename: str, label: str) -> byte
         raise ArtifactNotFoundError(f"{label} 不存在：{filename}") from exc
     except OSError as exc:
         raise ArtifactStoreError(f"无法安全检查 {label}：{filename}") from exc
-    if _is_reparse_or_symlink(before) or not stat.S_ISREG(before.st_mode):
+    if _is_symlink(before) or not stat.S_ISREG(before.st_mode):
         raise ArtifactStoreError(f"{label} 必须是非链接的普通文件：{filename}")
 
-    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+    flags = os.O_RDONLY | os.O_NOFOLLOW
     try:
         descriptor = os.open(filename, flags, dir_fd=directory_fd)
     except FileNotFoundError as exc:
@@ -1937,12 +1924,12 @@ def _read_regular_bytes_at(directory_fd: int, filename: str, label: str) -> byte
         raise ArtifactStoreError(f"无法安全读取 {label}：{filename}") from exc
     try:
         after_open = os.fstat(descriptor)
-        if _is_reparse_or_symlink(after_open) or not stat.S_ISREG(after_open.st_mode):
+        if _is_symlink(after_open) or not stat.S_ISREG(after_open.st_mode):
             raise ArtifactStoreError(f"{label} 不是普通文件：{filename}")
         with os.fdopen(descriptor, "rb", closefd=False) as file_obj:
             data = file_obj.read()
         after = os.stat(filename, dir_fd=directory_fd, follow_symlinks=False)
-        if _is_reparse_or_symlink(after) or not stat.S_ISREG(after.st_mode):
+        if _is_symlink(after) or not stat.S_ISREG(after.st_mode):
             raise ArtifactStoreError(f"{label} 读取后不再是普通文件：{filename}")
         if (before.st_dev, before.st_ino) != (after_open.st_dev, after_open.st_ino) or (
             after_open.st_dev,
@@ -1960,8 +1947,8 @@ def _assert_safe_existing_ancestors(path: Path) -> None:
         existing = _lstat(candidate)
         if existing is None:
             continue
-        if _is_reparse_or_symlink(existing):
-            raise ArtifactStoreError(f"不可变制品库祖先路径不能是符号链接或重解析点：{candidate}")
+        if _is_symlink(existing):
+            raise ArtifactStoreError(f"不可变制品库祖先路径不能是符号链接：{candidate}")
         if not stat.S_ISDIR(existing.st_mode):
             raise ArtifactStoreError(f"不可变制品库祖先路径不是目录：{candidate}")
 
@@ -1970,27 +1957,16 @@ def _assert_directory(path: Path, label: str) -> os.stat_result:
     state = _lstat(path)
     if state is None:
         raise ArtifactNotFoundError(f"{label} 不存在：{path}")
-    if _is_reparse_or_symlink(state) or not stat.S_ISDIR(state.st_mode):
+    if _is_symlink(state) or not stat.S_ISDIR(state.st_mode):
         raise ArtifactStoreError(f"{label} 必须是非链接的普通目录：{path}")
     return state
 
 
-def _assert_posix_private_directory(state: os.stat_result, label: str) -> None:
-    """POSIX 根及内部目录不得允许组或其他用户篡改。"""
+def _assert_private_directory(state: os.stat_result, label: str) -> None:
+    """根及内部目录不得允许组或其他用户篡改。"""
 
-    if os.name == "nt":
-        return
     if state.st_mode & (stat.S_IWGRP | stat.S_IWOTH):
         raise ArtifactStoreError(f"{label} 对组或其他用户可写，已拒绝使用")
-
-
-def _assert_regular_file(path: Path, label: str) -> os.stat_result:
-    state = _lstat(path)
-    if state is None:
-        raise ArtifactNotFoundError(f"{label} 不存在：{path}")
-    if _is_reparse_or_symlink(state) or not stat.S_ISREG(state.st_mode):
-        raise ArtifactStoreError(f"{label} 必须是非链接的普通文件：{path}")
-    return state
 
 
 def _lstat(path: Path) -> os.stat_result | None:
@@ -2002,10 +1978,8 @@ def _lstat(path: Path) -> os.stat_result | None:
         raise ArtifactStoreError(f"无法检查制品库路径：{path}") from exc
 
 
-def _is_reparse_or_symlink(state: os.stat_result) -> bool:
-    return stat.S_ISLNK(state.st_mode) or bool(
-        getattr(state, "st_file_attributes", 0) & _REPARSE_POINT_FLAG
-    )
+def _is_symlink(state: os.stat_result) -> bool:
+    return stat.S_ISLNK(state.st_mode)
 
 
 def _checked_hash(value: str, field_name: str) -> str:

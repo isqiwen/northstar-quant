@@ -50,7 +50,7 @@ NORTHSTAR_LIVE_TRADING_ENABLED=false
 | 项目 | 要求 |
 | --- | --- |
 | Python | 3.11 或更高版本 |
-| 开发工作站 | Windows x86_64 或 Linux x86_64 |
+| 开发、研究与部署控制主机 | 仅 Linux x86_64 |
 | 生产目标 | 仅 Linux x86_64 |
 | 核心运行数据库 | PostgreSQL |
 | 历史分析 | Parquet + DuckDB |
@@ -86,7 +86,7 @@ python scripts/dev/setup.py --initialize-workstation --confirm-tool-install YES
 - 删除、清空、重置、truncate、stamp 或 downgrade 数据库；
 - 下载市场数据、启动调度器、启用实盘或连接 CTP。
 
-Windows、其他 Linux、非默认端口，以及所有涉及数据库的低层命令要求操作者自行 provision 本机 PostgreSQL。若已有 <code>northstar</code> 角色，请把正确密码填入未跟踪的 <code>.env</code>；初始化不会改写它。
+Ubuntu/Debian 以外的 Linux x86_64、非默认端口，以及所有涉及数据库的低层命令要求操作者自行 provision 本机 PostgreSQL。若已有 <code>northstar</code> 角色，请把正确密码填入未跟踪的 <code>.env</code>；初始化不会改写它。
 
 ### 2.3 日常命令面的两条硬规则
 
@@ -470,7 +470,7 @@ CLI 位于 <code>src/northstar_quant/application/cli.py</code>，它是 applicat
 | 现象 | 常见原因 | 正确处理 |
 | --- | --- | --- |
 | 找不到 <code>uv</code> 或 <code>just</code> | 尚未完成仓库本地 bootstrap | 运行首次初始化；不要改用全局工具或裸 <code>just</code> |
-| PostgreSQL client/service 不可用 | 本机服务未 provision 或工具版本不匹配 | Ubuntu/Debian 用高层初始化；其他平台准备 loopback 服务；不要用 SQLite fallback |
+| PostgreSQL client/service 不可用 | 本机服务未 provision 或工具版本不匹配 | Ubuntu/Debian 用高层初始化；Ubuntu/Debian 以外的 Linux x86_64 环境手动准备 loopback 服务；不要用 SQLite fallback |
 | 密码认证失败 | <code>.env</code> 与已有角色密码不匹配 | 更新未跟踪 <code>.env</code>，不要覆盖角色 |
 | <code>configs/app.yaml</code> 缺失 | 只存在 example 模板 | 运行初始化或建立完整活动配置；模板不是 fallback |
 | migration 检查失败 | 旧完整 baseline 的 schema 不兼容 | 仓库自动化外手动重建开发数据库；禁止 stamp/reset |

@@ -14,7 +14,7 @@ NORTHSTAR_LIVE_TRADING_ENABLED=false
 
 ## 快速开始
 
-```powershell
+```bash
 python scripts/dev/setup.py --initialize-workstation
 python scripts/dev/run_just.py test
 python scripts/dev/run_just.py check
@@ -30,7 +30,8 @@ python scripts/dev/run_just.py check
 本地开发角色并将随机密码写入未跟踪的 `.env`，绝不在终端输出密码。已有角色、密码、认证规则、服务配置或数据不会被改写。
 `northstar` 只能创建/复用 `northstar` 与隔离的 `northstar_test`，并前向迁移；仓库自动化不会停止、重置或删除 PostgreSQL 服务或数据。
 
-Windows、非 Ubuntu/Debian Linux、非默认端口，及低层 `dev-postgres` 命令仍只检查操作者已 provision 的本机 PostgreSQL。
+开发、研究、部署控制和运行环境只支持 Linux x86_64；原生 Windows、PowerShell 与 Git Bash 不是支持环境。
+Ubuntu/Debian 以外的 Linux x86_64、非默认端口，及低层 `dev-postgres` 命令仍只检查操作者已 provision 的本机 PostgreSQL。
 若已有 `northstar` 角色，则在未跟踪的 `.env` 中填写与其匹配的 `POSTGRES_PASSWORD` 后再运行初始化；入口不会覆盖该密码。
 
 后续运行会先将 `.venv` 的 bootstrap 状态与锁文件、项目声明、Python、uv 和 bootstrap 代码核对，并做离线健康检查；
@@ -68,7 +69,8 @@ staging venv；只有替换无法安全恢复时才保留该目录供诊断，VS
 
 当前实施状态、完成度与外部阻塞只由[主实施计划](docs/planning/MASTER_IMPLEMENTATION_PLAN.md)维护；本 README
 不复制会随工作包变化的数字。生产灾备与权威数据 onboarding 仍需要外部授权、主机、数据许可和制品证据，它们不会因
-本地 fixture 或 `ctp_sim` 成功而自动升级。
+本地 fixture 或 `ctp_sim` 成功而自动升级。本地 PIT 回测、因子研究与受限 AI 因子挖掘可以独立推进，但同样不构成
+production、权威数据 onboarding 或真实交易的替代证据。
 
 ## License
 

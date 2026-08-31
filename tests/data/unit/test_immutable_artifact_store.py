@@ -247,6 +247,36 @@ def test_store_deduplicates_blob_but_preserves_raw_normalized_derived_snapshots_
     assert len(list((store.root / "blobs" / "sha256").rglob("*.blob"))) == 3
 
 
+def test_load_artifact_value_reconstructs_verified_parent_chain_for_new_lineage(
+    tmp_path: Path,
+) -> None:
+    store = ArtifactStore(tmp_path / "artifacts")
+    source = _source()
+    raw = _raw(b"raw-payload")
+    normalized = _normalized(raw, b"normalized-payload")
+    derived = _derived(normalized, b"derived-payload")
+    store.put_raw(source=source, artifact=raw, payload=b"raw-payload")
+    store.put_normalized(
+        source=source,
+        artifact=normalized,
+        payload=b"normalized-payload",
+        lineage=_lineage(normalized),
+    )
+    stored = store.put_derived(
+        source=source,
+        artifact=derived,
+        payload=b"derived-payload",
+        lineage=_lineage(derived),
+    )
+
+    restored = store.load_artifact_value(stored.snapshot.snapshot_hash)
+
+    assert type(restored) is DerivedArtifact
+    assert restored == derived
+    assert type(restored.input_artifacts[0]) is NormalizedArtifact
+    assert type(restored.input_artifacts[0].raw_artifact) is RawArtifact
+
+
 def test_store_from_settings_uses_only_storage_artifacts_root(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

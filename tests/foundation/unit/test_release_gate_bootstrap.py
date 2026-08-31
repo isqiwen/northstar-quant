@@ -24,10 +24,20 @@ def test_bootstrap_requires_an_apply_flag_and_exact_manual_confirmation() -> Non
 
 
 def test_bootstrap_fails_closed_without_linux_root(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(release_gate_bootstrap.sys, "platform", "win32")
+    monkeypatch.setattr(release_gate_bootstrap.platform, "system", lambda: "Windows")
+    monkeypatch.setattr(release_gate_bootstrap.platform, "machine", lambda: "AMD64")
     monkeypatch.setattr(release_gate_bootstrap.os, "geteuid", lambda: 0, raising=False)
 
-    with pytest.raises(release_gate_bootstrap.ReleaseGateBootstrapError, match="Linux root"):
+    with pytest.raises(release_gate_bootstrap.ReleaseGateBootstrapError, match="Linux x86_64 root"):
+        release_gate_bootstrap._require_linux_root()
+
+
+def test_bootstrap_fails_closed_on_non_x86_linux(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(release_gate_bootstrap.platform, "system", lambda: "Linux")
+    monkeypatch.setattr(release_gate_bootstrap.platform, "machine", lambda: "aarch64")
+    monkeypatch.setattr(release_gate_bootstrap.os, "geteuid", lambda: 0, raising=False)
+
+    with pytest.raises(release_gate_bootstrap.ReleaseGateBootstrapError, match="Linux x86_64 root"):
         release_gate_bootstrap._require_linux_root()
 
 

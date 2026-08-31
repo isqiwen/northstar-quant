@@ -13,9 +13,11 @@ from typing import Final
 from sqlalchemy.engine import URL, make_url
 from sqlalchemy.exc import ArgumentError
 
+from northstar_quant.foundation.platform_support import require_linux_x86_64
+
 
 _DEFAULT_TIMEOUT_SECONDS: Final = 60 * 60
-_SAFE_POSIX_PATH: Final = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+_SAFE_LINUX_PATH: Final = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 _LIBPQ_QUERY_ENV: Final = {
     "application_name": "PGAPPNAME",
     "connect_timeout": "PGCONNECT_TIMEOUT",
@@ -52,6 +54,7 @@ def create_postgresql_dump(
     拼接客户端输出。调用方必须提供一个尚不存在且位于私有 staging 目录的路径。
     """
 
+    require_linux_x86_64()
     environment = _database_environment(database_url)
     target = _reserve_new_output(Path(output_path))
     command = [
@@ -85,6 +88,7 @@ def verify_postgresql_dump(
 ) -> None:
     """使用 ``pg_restore --list`` 验证自定义格式档案，不连接任何数据库。"""
 
+    require_linux_x86_64()
     archive = _validate_nonempty_regular_file(Path(archive_path), "PostgreSQL 转储")
     command = [_require_executable(executable), "--list", str(archive)]
     _run_client(
@@ -129,10 +133,7 @@ def _apply_supported_libpq_query_options(url: URL, environment: dict[str, str]) 
 
 
 def _safe_client_environment() -> dict[str, str]:
-    path = os.environ.get("PATH", "") if os.name == "nt" else _SAFE_POSIX_PATH
-    if not path:
-        raise PostgreSQLBackupError("无法建立受限 PostgreSQL 客户端环境。")
-    return {"LC_ALL": "C", "PATH": path}
+    return {"LC_ALL": "C", "PATH": _SAFE_LINUX_PATH}
 
 
 def _reserve_new_output(path: Path) -> Path:
@@ -142,7 +143,7 @@ def _reserve_new_output(path: Path) -> Path:
     if parent.is_symlink() or not parent.is_dir():
         raise PostgreSQLBackupError("PostgreSQL 转储输出父目录不安全。")
     parent_mode = parent.lstat().st_mode
-    if os.name == "posix" and parent_mode & (stat.S_IWGRP | stat.S_IWOTH):
+    if parent_mode & (stat.S_IWGRP | stat.S_IWOTH):
         raise PostgreSQLBackupError("PostgreSQL 转储输出父目录不能允许 group 或 other 写入。")
     try:
         descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
@@ -168,7 +169,7 @@ def _validate_nonempty_regular_file(path: Path, label: str) -> Path:
 
 
 def _require_executable(executable: str) -> str:
-    found = shutil.which(executable, path=None if os.name == "nt" else _SAFE_POSIX_PATH)
+    found = shutil.which(executable, path=_SAFE_LINUX_PATH)
     if found is None:
         raise PostgreSQLBackupError(f"未找到必需 PostgreSQL 客户端：{executable}。")
     return found

@@ -4,6 +4,15 @@ PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 export PATH
 set -euo pipefail
 
+case "$(uname -s):$(uname -m)" in
+  Linux:x86_64|Linux:amd64)
+    ;;
+  *)
+    printf '%s\n' '远程运维目标仅支持 Linux x86_64。' >&2
+    exit 1
+    ;;
+esac
+
 # 只采集系统、systemd 和磁盘摘要；不得读取 .env、凭据、数据库内容或账户状态。
 if [ "$#" -ne 2 ]; then
   printf '%s\n' '用法：diagnose.sh <systemd-service-name> <app-root>' >&2

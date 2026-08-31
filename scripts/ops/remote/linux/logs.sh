@@ -4,6 +4,15 @@ PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 export PATH
 set -euo pipefail
 
+case "$(uname -s):$(uname -m)" in
+  Linux:x86_64|Linux:amd64)
+    ;;
+  *)
+    printf '%s\n' '远程运维目标仅支持 Linux x86_64。' >&2
+    exit 1
+    ;;
+esac
+
 # 仅只读：journalctl 不会改动服务或保留策略。
 if [ "$#" -ne 2 ]; then
   printf '%s\n' '用法：logs.sh <systemd-service-name> <lines>' >&2

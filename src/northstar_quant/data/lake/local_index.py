@@ -23,6 +23,7 @@ from northstar_quant.data.lake.models import (
     LakeDatasetReference,
 )
 from northstar_quant.data.lake.store import LakeStoreError, ParquetLakeStore
+from northstar_quant.foundation.platform_support import require_linux_x86_64
 
 
 _DATABASE_FILENAME = "lake-manifest-index.sqlite3"
@@ -88,6 +89,7 @@ class LakeManifestLocalIndex:
     """位于 ``<storage_dir>/local-tools`` 的显式、可重建 SQLite index。"""
 
     def __init__(self, root: str | Path) -> None:
+        require_linux_x86_64()
         candidate = Path(root).expanduser()
         if not candidate.is_absolute() or ".." in candidate.parts:
             raise LakeLocalIndexError("SQLite Local-tools root 必须是无 '..' 的绝对路径")
@@ -460,7 +462,7 @@ class LakeManifestLocalIndex:
             return
         if stat.S_ISLNK(state.st_mode) or not stat.S_ISREG(state.st_mode):
             raise LakeLocalIndexError("SQLite Local-tools index 必须是普通 tool-owned 文件")
-        if os.name != "nt" and state.st_uid != os.getuid():
+        if state.st_uid != os.getuid():
             raise LakeLocalIndexError("SQLite Local-tools index 必须由当前服务用户拥有")
 
     def _quarantine_corrupt_database(self) -> None:
@@ -491,11 +493,10 @@ def _ensure_private_root(path: Path) -> None:
     if path.is_symlink() or not path.is_dir():
         raise LakeLocalIndexError("SQLite Local-tools root 必须是普通目录，不能是符号链接")
     state = path.lstat()
-    if os.name != "nt":
-        if state.st_uid != os.getuid():
-            raise LakeLocalIndexError("SQLite Local-tools root 必须由当前服务用户拥有")
-        if stat.S_IMODE(state.st_mode) & 0o077:
-            raise LakeLocalIndexError("SQLite Local-tools root 不得向 group 或 other 开放访问")
+    if state.st_uid != os.getuid():
+        raise LakeLocalIndexError("SQLite Local-tools root 必须由当前服务用户拥有")
+    if stat.S_IMODE(state.st_mode) & 0o077:
+        raise LakeLocalIndexError("SQLite Local-tools root 不得向 group 或 other 开放访问")
 
 
 def _assert_no_symlink_ancestors(path: Path) -> None:

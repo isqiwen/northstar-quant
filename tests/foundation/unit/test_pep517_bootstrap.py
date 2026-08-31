@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -141,6 +140,19 @@ def test_bootstrap_exposes_only_development_and_release_profiles() -> None:
     assert bootstrap._parse_args(()).profile == "development"
 
 
+def test_pep517_bootstrap_refuses_an_unsupported_host_before_project_access(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(bootstrap.platform, "system", lambda: "Windows")
+    monkeypatch.setattr(bootstrap.platform, "machine", lambda: "AMD64")
+
+    with pytest.raises(bootstrap.BootstrapError, match="only supports Linux x86_64"):
+        bootstrap.bootstrap_environment(
+            project_root=Path("/must-not-be-read"),
+            profile_name="development",
+        )
+
+
 def test_managed_python_directory_is_rejected_outside_release_profile(tmp_path: Path) -> None:
     with pytest.raises(bootstrap.BootstrapError, match="only valid for release"):
         bootstrap._managed_python_install_dir(
@@ -149,7 +161,6 @@ def test_managed_python_directory_is_rejected_outside_release_profile(tmp_path: 
         )
 
 
-@pytest.mark.skipif(os.name == "nt", reason="requires POSIX symlink semantics")
 def test_linked_linux_interpreter_must_bind_to_the_managed_python_tree(tmp_path: Path) -> None:
     managed_root = tmp_path / "managed-python"
     home = managed_root / "cpython" / "bin"
@@ -210,7 +221,7 @@ def test_unmanaged_bootstrap_refuses_an_interpreter_inside_the_target_venv(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     target_venv = tmp_path / ".venv"
-    target_python = target_venv / "Scripts" / "python.exe"
+    target_python = target_venv / "bin" / "python"
     target_python.parent.mkdir(parents=True)
     target_python.write_bytes(b"not an executable interpreter")
     monkeypatch.setattr(bootstrap.sys, "_base_executable", str(target_python), raising=False)
@@ -240,8 +251,7 @@ def test_development_bootstrap_requires_repository_local_uv(tmp_path: Path) -> N
     with pytest.raises(bootstrap.BootstrapError, match="repository-local uv"):
         bootstrap._uv_executable(root=tmp_path, profile=profile)
 
-    executable_name = "uv.exe" if bootstrap.os.name == "nt" else "uv"
-    executable = tmp_path / ".northstar" / "bin" / executable_name
+    executable = tmp_path / ".northstar" / "bin" / "uv"
     executable.parent.mkdir(parents=True)
     executable.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
     executable.chmod(0o755)
@@ -265,7 +275,6 @@ def test_release_bootstrap_keeps_its_separate_managed_uv_lookup(
     )
 
 
-@pytest.mark.skipif(bootstrap.os.name == "nt", reason="Windows symlink permissions vary by runner")
 def test_repository_bootstrap_uv_rejects_an_external_symlink(tmp_path: Path) -> None:
     launcher = tmp_path / ".northstar" / "bin" / "uv"
     outside = tmp_path / "outside-uv"
@@ -441,7 +450,6 @@ def test_verified_source_cache_reuses_and_rechecks_the_exact_artifact(
     assert calls == 2
 
 
-@pytest.mark.skipif(os.name == "nt", reason="requires POSIX symlink semantics")
 def test_verified_source_cache_rejects_a_symbolic_link(
     tmp_path: Path,
 ) -> None:
@@ -470,8 +478,7 @@ def test_development_bootstrap_state_round_trips_through_a_regular_marker(tmp_pa
     marker = venv / bootstrap.DEVELOPMENT_BOOTSTRAP_STATE_FILENAME
     assert json.loads(marker.read_text(encoding="utf-8")) == state
     assert bootstrap._read_development_bootstrap_state(venv) == state
-    if os.name != "nt":
-        assert marker.stat().st_mode & 0o077 == 0
+    assert marker.stat().st_mode & 0o077 == 0
 
 
 def test_repository_dependency_cache_is_created_under_dot_northstar(tmp_path: Path) -> None:
@@ -486,7 +493,6 @@ def test_repository_dependency_cache_is_created_under_dot_northstar(tmp_path: Pa
     assert cache.source_artifacts.is_dir()
 
 
-@pytest.mark.skipif(os.name == "nt", reason="requires POSIX symlink semantics")
 def test_repository_dependency_cache_rejects_a_symbolic_link(tmp_path: Path) -> None:
     root = tmp_path / "project"
     root.mkdir()

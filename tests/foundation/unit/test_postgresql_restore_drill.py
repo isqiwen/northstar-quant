@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import pytest
@@ -105,7 +104,6 @@ def test_restore_drill_workspace_rejects_symbolic_link(tmp_path: Path):
         drill._secure_workspace(link)
 
 
-@pytest.mark.skipif(os.name != "posix", reason="POSIX 权限位只在 Linux/macOS 上可验证")
 def test_restore_drill_workspace_rejects_group_or_other_writable_directory(tmp_path: Path):
     workspace = tmp_path / "workspace"
     workspace.mkdir()

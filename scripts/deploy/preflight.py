@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""跨平台部署前检查。
+"""Linux x86_64 部署前检查。
 
 此模块不连接服务器、不执行 Shell，也不会输出环境文件的值。真正执行时，Linux
 后端仍会重新运行同等（且更严格）的门禁，避免客户端检查被绕过。
@@ -15,12 +15,23 @@ from pathlib import Path
 
 try:  # 允许作为 ``python scripts/deploy/preflight.py`` 或模块导入运行。
     from .inventory import DeploymentInventory, InventoryError, load_inventory
+    from .platform_support import PlatformSupportError, require_linux_x86_64
 except ImportError:  # pragma: no cover - 直接脚本执行路径。
     from inventory import DeploymentInventory, InventoryError, load_inventory
+    from platform_support import PlatformSupportError, require_linux_x86_64
 
 
 class PreflightError(ValueError):
     """活动环境文件或本地发布状态不安全。"""
+
+
+def _require_linux_x86_64_host() -> None:
+    """Reject unsupported controllers before local preflight work begins."""
+
+    try:
+        require_linux_x86_64()
+    except PlatformSupportError as exc:
+        raise PreflightError(str(exc)) from exc
 
 
 @dataclass
@@ -140,6 +151,7 @@ def run_preflight(
 ) -> PreflightReport:
     """执行纯本地检查；不会建立 SSH 连接或改变目标服务器。"""
 
+    _require_linux_x86_64_host()
     report = PreflightReport()
     required_paths = (
         project_root / "pyproject.toml",
@@ -207,7 +219,7 @@ def run_preflight(
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="执行 Northstar Quant 跨平台部署前检查。")
+    parser = argparse.ArgumentParser(description="执行 Northstar Quant Linux x86_64 部署前检查。")
     parser.add_argument("--inventory", type=Path, required=True, help="非机密部署清单路径。")
     parser.add_argument("--project-root", type=Path, default=Path.cwd(), help="项目根目录。")
     parser.add_argument("--upload-env", action="store_true", help="校验待上传的活动 .env。")

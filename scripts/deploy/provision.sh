@@ -64,9 +64,7 @@ deploy_assert_safe_name "RELEASE_ID" "${RELEASE_ID}"
 deploy_configure_linux_layout
 ntfy_validate_deployment_config
 
-if [ "$(uname -s)" != "Linux" ]; then
-  deploy_fail "远程部署目标必须是 Linux。"
-fi
+deploy_require_linux_x86_64
 if [ "${EUID}" -eq 0 ]; then
   deploy_fail "provision.sh 必须由独立的非 root SSH 部署身份运行。"
 fi

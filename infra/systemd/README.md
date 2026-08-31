@@ -1,7 +1,7 @@
 # systemd 模板
 
-这里保存 health、scheduler 和默认关闭的私网 Dashboard 服务模板。它们只由 Linux 生产目标运行；
-Windows/Linux 开发机通过 `scripts/deploy/deploy.py` 和 `just` 远程编排，不在本机模拟 systemd。
+这里保存 health、scheduler 和默认关闭的私网 Dashboard 服务模板。它们只由 Linux x86_64 生产目标运行；
+Linux x86_64 工作站通过 `scripts/deploy/deploy.py` 和 `just` 远程编排，不在本机模拟 systemd。
 
 模板随不可变发布制品进入目标主机，而不是作为可变共享文件使用。每个通过 preflight 的 release 会先冻结为
 root 管理状态，再由 root 从 release 内的模板渲染

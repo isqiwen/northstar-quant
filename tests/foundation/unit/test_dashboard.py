@@ -3,9 +3,12 @@ import os
 from pathlib import Path
 
 import polars as pl
+import pytest
 
+from northstar_quant.application import dashboard
 from northstar_quant.foundation.common.reporting import REPORT_SCHEMA_VERSION
 from northstar_quant.application.dashboard import _build_price_options
+from northstar_quant.foundation.platform_support import PlatformSupportError
 from northstar_quant.foundation.observability.monitoring.report_catalog import list_recent_report_artifacts
 
 
@@ -26,6 +29,23 @@ def test_build_price_options_uses_explicit_price_labels_only():
         "原始收盘价（close）",
     ]
     assert "研究视角（adjusted_close）" not in options
+
+
+def test_dashboard_fails_closed_before_loading_settings_on_an_unsupported_host(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def reject_unsupported_host() -> None:
+        raise PlatformSupportError("Northstar Quant 仅支持 Linux x86_64")
+
+    monkeypatch.setattr(dashboard, "require_linux_x86_64", reject_unsupported_host)
+    monkeypatch.setattr(
+        dashboard,
+        "get_settings",
+        lambda: (_ for _ in ()).throw(AssertionError("settings must not be loaded")),
+    )
+
+    with pytest.raises(PlatformSupportError, match="Linux x86_64"):
+        dashboard.render_dashboard()
 
 
 def test_recent_reports_discovers_only_nested_canonical_artifacts_in_stable_order(

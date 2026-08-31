@@ -28,6 +28,7 @@ import base64
 import hashlib
 import hmac
 import os
+import platform
 import re
 import secrets
 import stat
@@ -106,8 +107,14 @@ def _require_explicit_root_confirmation(*, apply: bool, confirmation: str) -> No
 
 def _require_linux_root() -> None:
     geteuid = getattr(os, "geteuid", None)
-    if sys.platform != "linux" or geteuid is None or geteuid() != 0:
-        _fail("root release-gate bootstrap requires Linux root")
+    machine = platform.machine().strip().lower().replace("-", "_")
+    if (
+        platform.system() != "Linux"
+        or machine not in {"x86_64", "amd64"}
+        or geteuid is None
+        or geteuid() != 0
+    ):
+        _fail("root release-gate bootstrap requires Linux x86_64 root")
 
 
 def _is_untrusted_staging_path(path: Path) -> bool:

@@ -7,8 +7,7 @@
 
 ## 1. 支持范围与安全起点
 
-Windows x86_64 和 Linux x86_64 均为 Tier 1 开发平台。生产目标仅为 Linux x86_64；不要把本地 Windows
-会话当作生产运行环境。
+开发、研究、部署控制和生产运行均仅支持 Linux x86_64。原生 Windows、PowerShell 与 Git Bash 不是支持环境。
 
 开发默认是 paper、offline 或本地 `ctp_sim` 语义演练。不要写入真实 CTP 凭据、不要创建 production profile、
 不要通过测试 fixture 或连续合约绕过账户、日历、规则和 pre-trade gate。
@@ -21,11 +20,11 @@ Linux 开发机需要 Python 3.11+。在 Ubuntu/Debian 上，高层 `--initializ
 不修改 PostgreSQL 配置、认证规则或数据目录。
 
 新服务上若 `northstar` 角色不存在，初始化才创建最小的 `LOGIN CREATEDB` 本地开发角色；空 `POSTGRES_PASSWORD` 会生成随机值并仅写入
-未跟踪、权限受限的 `.env`，绝不输出。已有角色、密码或认证规则不会被覆盖：若角色存在，请先在 `.env` 填入匹配的密码。Windows、
-非 Ubuntu/Debian Linux、非 5432 端口和所有低层分步命令仍要求操作者预先准备服务和凭据。
+未跟踪、权限受限的 `.env`，绝不输出。已有角色、密码或认证规则不会被覆盖：若角色存在，请先在 `.env` 填入匹配的密码。Ubuntu/Debian
+以外的 Linux x86_64、非 5432 端口和所有低层分步命令仍要求操作者预先准备服务和凭据。
 首次尚未安装 `uv`、`just` 或 Git 时，直接运行统一 Python 初始化入口：
 
-```powershell
+```bash
 python scripts/dev/setup.py --initialize-workstation
 ```
 
@@ -37,7 +36,7 @@ python scripts/dev/setup.py --initialize-workstation
 
 无交互自动化只能显式传入确认值：
 
-```powershell
+```bash
 python scripts/dev/setup.py --initialize-workstation --confirm-tool-install YES
 ```
 
@@ -47,7 +46,7 @@ python scripts/dev/setup.py --initialize-workstation --confirm-tool-install YES
 或凭据无法验证时，入口在迁移前失败关闭；它不会重置服务、覆盖角色密码、编辑认证规则或删除任何数据库数据。
 工具就绪后，在仓库根目录执行：
 
-```powershell
+```bash
 python scripts/dev/run_just.py setup
 python scripts/dev/run_just.py test
 python scripts/dev/run_just.py check
@@ -67,7 +66,7 @@ python scripts/dev/run_just.py check
 但锁定制品尚未缓存时仍会下载并验证，且不会信任旧 `.venv` 的包。普通失败会删除未提升的 sibling staging venv；只有
 原子提升无法安全恢复时才保留它用于诊断，且 VS Code Explorer 与文件监听默认忽略这些目录。
 
-```powershell
+```bash
 python scripts/dev/run_uv.py run --offline --no-sync python scripts/dev/check_env.py
 python scripts/dev/run_uv.py run --offline --no-sync pytest tests/research
 python scripts/dev/run_uv.py run --offline --no-sync ruff check .
@@ -87,9 +86,9 @@ bootstrap 与 Linux 发布预览也只保留显式终端入口。首次机器的
 [`scripts/dev/README.md`](../scripts/dev/README.md)，发布预览使用 `python scripts/dev/run_just.py deploy-preview`，它强制 dry-run，
 不建立 SSH 连接。
 
-Linux 上的完整 `pytest` 包含真实 PostgreSQL restore drill；在运行前，`PATH` 必须能找到与本机 PostgreSQL
+完整 `pytest` 包含真实 PostgreSQL restore drill；在运行前，Linux x86_64 的 `PATH` 必须能找到与本机 PostgreSQL
 服务端 major 兼容的 `pg_isready`、`psql`、`createdb`、`pg_dump` 与 `pg_restore`。`dev-postgres` recipe 只验证和复用
-已经运行的本机服务，不会安装或启动它；缺少工具或服务不可达时完整套件会明确失败，不能把 restore drill 静默跳过。Windows 工作站不执行该 Linux-only drill。
+已经运行的本机服务，不会安装或启动它；缺少工具或服务不可达时完整套件会明确失败，不能把 restore drill 静默跳过。
 
 数据库自动化只复用既有数据并执行前向迁移。仓库自动化绝不删除或清空数据库、表、schema 或本机 PostgreSQL 数据目录。
 测试数据库必须是隔离的
@@ -104,7 +103,7 @@ Parquet，本地工具集才可使用独立 SQLite。DuckDB 或 SQLite 不得替
 历史 Lake 与当前可覆盖的 `storage/market` 投影刻意分离。先通过受控 Source → ArtifactStore → `DatasetVersion`
 链完成授权、质量和血缘验证；只有与该 artifact canonical payload 完全一致的 Parquet，才可以物化到 Lake：
 
-```powershell
+```bash
 python scripts/dev/run_uv.py run --offline --no-sync northstar data lake materialize --input <verified-artifact.parquet> --dataset-version <dataset-version-sha256> --artifact-snapshot <snapshot-sha256> --kind bars --event-time-column date
 ```
 
@@ -120,7 +119,7 @@ DuckDB 在内存中运行、只暴露已经通过 `available_at <= as_of` 过滤
 SQLite 不是核心数据库的 fallback。唯一已实现的本地工具库位于 `<storage_dir>/local-tools/`，保存可从 Lake 重新构建的
 manifest discovery metadata；它没有订单、成交、持仓、策略状态、风险、审批、对账或审计事实。显式操作如下：
 
-```powershell
+```bash
 python scripts/dev/run_uv.py run --offline --no-sync northstar local-tools lake-index rebuild
 python scripts/dev/run_uv.py run --offline --no-sync northstar local-tools lake-index list --kind bars
 ```
@@ -128,6 +127,51 @@ python scripts/dev/run_uv.py run --offline --no-sync northstar local-tools lake-
 `rebuild` 先逐份调用 Lake verify，再以并发安全的 SQLite transaction 追加新的 index generation；SQLite 损坏或 schema
 不兼容时，只会隔离固定的 tool-owned 文件并在显式 rebuild 中重建。`list` 不是验证，也不会被 DuckDB 或 PostgreSQL
 自动读取。
+
+### 本地因子研究 Run Bundle
+
+P11 的因子挖掘/回测不是把 CSV、Parquet、DataFrame 或 notebook 直接交给命令行。可信本地 composition 先将精确的
+`DatasetVersion`、`DecisionReplayPlan`、sealed declarative campaign、hash-only generation receipt 与固定 research
+config（含来自可信 build/registration evidence 的 immutable `code_revision_hash`）注册为 immutable bundle artifact；随后
+使用独立 research CLI：
+
+```bash
+python scripts/dev/run_uv.py run --offline --no-sync northstar-research factor run --bundle-snapshot <definition-snapshot-sha256>
+python scripts/dev/run_uv.py run --offline --no-sync northstar-research factor replay --bundle-snapshot <definition-snapshot-sha256> --expected-manifest-snapshot <manifest-snapshot-sha256>
+python scripts/dev/run_uv.py run --offline --no-sync northstar-research factor inspect --artifact-snapshot <snapshot-sha256>
+```
+
+该入口只有 hash 参数；没有 `--input`、`--dataset-path`、`--config`、`--profile` 或 `latest`。它会复核 DatasetVersion、
+artifact blob/lineage、source authorization、PIT plan/campaign binding 和 expected manifest；未知、损坏或不匹配时不创建
+新研究运行。`replay` 验证已存在的完整 manifest/evidence graph，并在内存中投影全部 payload、snapshot、lineage 与
+manifest/result identity；绝不重发一份 evidence graph。
+首次 `run` 输出 exposure、weight、analysis、selection/OOS evidence、report 和 manifest 的受治理 artifacts，保留 content
+hash、lineage 与 fixed retention metadata。此 CLI 不导入 broker、live service、交易 scheduler、portfolio approval 或 live
+profile；它不是自动 scheduler。
+
+自动本地因子挖掘使用独立的 durable campaign 命令面，而不是扩展 `northstar-research` 或 broad `northstar` CLI：
+
+```bash
+python scripts/dev/run_uv.py run --offline --no-sync northstar-factor-mining campaign run --run-id <stable-id> --actor-id <actor-id> --declaration-snapshot <sha256>
+python scripts/dev/run_uv.py run --offline --no-sync northstar-factor-mining campaign inspect --request-id <stable-id>
+python scripts/dev/run_uv.py run --offline --no-sync northstar-factor-mining campaign authorize-replay --authorization-id <verifier-issued-stable-id> --unresolved-request-hash <sha256>
+```
+
+它只接受 stable ID 或 SHA-256 commitment，不能接收 provider/prompt/raw response、文件、dataset、config、profile 或
+secret。运行器会先在 PostgreSQL 中注册并 reserve receipt-free campaign declaration，再生成候选或启动 PIT research；
+campaign/request/receipt/selection/OOS/result/resource/failure/replay facts 以 append-only hash chain 保存。duplicate、并发、
+crash、timeout、cancellation、partial failure、写入歧义或 restart 都保持 `UNRESOLVED`；只有显式人工 replay authorization
+能够创建新的 request identity。候选、并发、CPU、内存、wall-clock、data-row 和 artifact-byte budget 任一超限或不可验证时，
+不得生成新候选、release OOS、发布结果或自动重试。
+`run` 只接受由代码安装的、受审阅的 generator capability；不会从 CLI 参数、环境变量或 provider 配置推断它。未安装时在
+任何 reservation 前失败关闭。`inspect` 与 `authorize-replay` 只使用 PostgreSQL 账本，因此不需要 generator。`authorize-replay`
+只提交 verifier-issued approval reference 和 source hash，不能接收或伪造 approver identity/evidence hash；私有受信 verifier
+必须确认两者的精确绑定并返回自己的 receipt hash 后才能写入 `REPLAY_AUTHORIZED`。当前默认 verifier 不可用，故没有已配置的
+外部人工授权服务时该命令会失败关闭。Foundation replay writer 也不是公共 self-attestation API；architecture contract 仅允许
+durable verifier bridge 使用它。生产 verifier 仍需外部配置 dedicated database role，不能把 direct database writer 当作人类
+审批能力。worker 在 Linux
+主线程中以累计的 `ITIMER_REAL` / `ITIMER_PROF` 与不放宽既有宿主限制的 `RLIMIT_AS` 守卫所有 generator/research 阶段；守卫
+不可用、超时、取消或资源状态不确定时，已预留 request 仍保持 `UNRESOLVED`。
 
 当前开发期只有一个完整的 Alembic 基线 `0001_current_schema_baseline`，不支持从历史 revision 升级。若本地开发库的
 `alembic_version` 不是该基线，或 revision 名称相同但 schema 早于当前完整基线，操作者必须在仓库自动化之外手动重建它，
@@ -145,7 +189,7 @@ python scripts/dev/run_uv.py run --offline --no-sync northstar local-tools lake-
 
 离线研究的最短安全路径：
 
-```powershell
+```bash
 python scripts/dev/run_uv.py run --offline --no-sync northstar data profiles
 python scripts/dev/run_uv.py run --offline --no-sync northstar data download --profile cn_futures_daily_trend_offline
 python scripts/dev/run_uv.py run --offline --no-sync northstar data validate --profile cn_futures_daily_trend_offline
@@ -200,6 +244,14 @@ Feature → Experiment → Backtest → Validation → OOS / Stress → Research
 
 研究结论不等于策略升级，更不等于订单权限。研究准入、供应商状态、数据授权和人工激活约束以
 [治理与安全](GOVERNANCE.md) 为准。
+
+连续日线横截面因子的严格 PIT 输入、因子分析、research-only 组合建议、成本/滑点回放和冻结 OOS
+fold 的专门合同见[连续日线 PIT 因子研究流水线](research/FACTOR_RESEARCH_PIPELINE.md)。它不构成实际合约、
+SimNow 或任何 live 交易路径。
+
+未来若由 AI 提出因子候选，只能通过[AI 自动因子挖掘与回测架构](research/AI_FACTOR_MINING_ARCHITECTURE.md)
+中的冻结 campaign、有限 primitive/参数网格和一次性 typed tool 路径进入；不得将 notebook、prompt、SQL、
+DataFrame 或未钉住数据选择器接入现有研究/回测命令。
 
 ## 6. 代码、配置与文档约定
 

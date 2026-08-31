@@ -43,9 +43,23 @@ def test_secure_handoff_rejects_unsafe_release_identifier(release_id: str) -> No
 
 
 def test_secure_handoff_fails_closed_without_linux_root(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(secure_handoff.platform, "system", lambda: "Linux")
+    monkeypatch.setattr(secure_handoff.platform, "machine", lambda: "x86_64")
     monkeypatch.setattr(secure_handoff.os, "geteuid", lambda: 1, raising=False)
 
-    with pytest.raises(secure_handoff.HandoffError, match="requires Linux root"):
+    with pytest.raises(secure_handoff.HandoffError, match="requires Linux x86_64 root"):
+        secure_handoff.receive_from_standard_input(
+            kind="environment",
+            release_id="release-20260822",
+        )
+
+
+def test_secure_handoff_fails_closed_on_non_x86_linux(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(secure_handoff.platform, "system", lambda: "Linux")
+    monkeypatch.setattr(secure_handoff.platform, "machine", lambda: "aarch64")
+    monkeypatch.setattr(secure_handoff.os, "geteuid", lambda: 0, raising=False)
+
+    with pytest.raises(secure_handoff.HandoffError, match="requires Linux x86_64 root"):
         secure_handoff.receive_from_standard_input(
             kind="environment",
             release_id="release-20260822",

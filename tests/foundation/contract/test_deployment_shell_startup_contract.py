@@ -58,6 +58,25 @@ def test_remote_install_and_upgrade_reexec_provision_in_privileged_bash_mode() -
     assert 'exec env SETUP_SERVER=0 /bin/bash -p "${DEPLOY_DIR}/provision.sh" "$@"' in upgrade
 
 
+def test_every_privileged_deployment_shell_boundary_requires_linux_x86_64() -> None:
+    deploy_dir = PROJECT_ROOT / "scripts" / "deploy"
+    common = (deploy_dir / "lib" / "common.sh").read_text(encoding="utf-8")
+
+    assert "deploy_require_linux_x86_64() {" in common
+    assert 'machine_name="$(uname -m)"' in common
+    assert "x86_64|amd64" in common
+
+    for entrypoint in (
+        deploy_dir / "provision.sh",
+        deploy_dir / "install-runtime.sh",
+        deploy_dir / "install-release.sh",
+        deploy_dir / "gate_release.sh",
+        deploy_dir / "ntfy" / "provision-ntfy.sh",
+        deploy_dir / "remote" / "linux" / "common.sh",
+    ):
+        assert "deploy_require_linux_x86_64" in entrypoint.read_text(encoding="utf-8")
+
+
 def test_provision_runs_root_shell_children_with_an_empty_environment() -> None:
     """Root child shells cannot inherit deployment-user startup hooks or PATH."""
 

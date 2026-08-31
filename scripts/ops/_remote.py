@@ -1,4 +1,4 @@
-"""跨平台运维控制面的共享远程调用器。
+"""Linux x86_64 运维控制面的共享远程调用器。
 
 这里刻意只接受经过 ``scripts/deploy/inventory.py`` 校验的非机密清单，并把固定的
 Linux 脚本通过标准输入交给 SSH。不会拼接用户输入为本地或远端 Shell 字符串。
@@ -35,11 +35,40 @@ _SSH_OPTIONS: Final = (
 )
 _REMOTE_OPERATION_TIMEOUT_SECONDS: Final = 300
 _REMOTE_SAFE_PATH: Final = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+_REMOTE_LINUX_X86_64_GUARD: Final = """\
+# The controller streams this guard before every fixed operation payload.  Do
+# not rely on controller architecture alone: the target must reject unsupported
+# Linux architectures before it reads application state or runs system tools.
+remote_system="$(uname -s)"
+remote_machine="$(uname -m)"
+if [ "${remote_system}" != "Linux" ]; then
+  printf '%s\\n' '远程运维目标仅支持 Linux x86_64。' >&2
+  exit 1
+fi
+case "${remote_machine}" in
+  x86_64|amd64)
+    ;;
+  *)
+    printf '%s\\n' '远程运维目标仅支持 Linux x86_64。' >&2
+    exit 1
+    ;;
+esac
+"""
 
 if str(DEPLOY_SCRIPT_ROOT) not in sys.path:
     sys.path.insert(0, str(DEPLOY_SCRIPT_ROOT))
 
 from inventory import DeploymentInventory, InventoryError, load_inventory  # noqa: E402
+from platform_support import PlatformSupportError, require_linux_x86_64  # noqa: E402
+
+
+__all__ = (
+    "PlatformSupportError",
+    "RemoteOperationError",
+    "load_deployment_inventory",
+    "require_linux_x86_64",
+    "run_linux_operation",
+)
 
 
 class RemoteOperationError(RuntimeError):
@@ -64,6 +93,7 @@ def run_linux_operation(
 ) -> int:
     """在目标 Linux 主机运行固定脚本；``dry_run`` 永远不建立 SSH 连接。"""
 
+    require_linux_x86_64()
     script_path = REMOTE_LINUX_ROOT / f"{operation}.sh"
     if not script_path.is_file():
         raise RemoteOperationError(f"未找到 Linux 运维脚本：{script_path}")
@@ -99,11 +129,12 @@ def run_linux_operation(
         "--",
         *arguments,
     ]
-    print(f"连接 Linux 目标：{inventory.deploy_host}（{operation}）")
+    payload = _REMOTE_LINUX_X86_64_GUARD + script_path.read_text(encoding="utf-8")
+    print(f"连接 Linux x86_64 目标：{inventory.deploy_host}（{operation}）")
     try:
         result = subprocess.run(
             command,
-            input=script_path.read_text(encoding="utf-8"),
+            input=payload,
             text=True,
             check=False,
             timeout=_REMOTE_OPERATION_TIMEOUT_SECONDS,

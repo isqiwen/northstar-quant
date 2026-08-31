@@ -19,6 +19,8 @@
 | 第一次参与代码开发或审阅变更 | [开发者指南](DEVELOPER_GUIDE.md) | 环境、架构、测试、持久化和完整改动流程的学习路径。 |
 | 理解系统边界、领域依赖和决策/订单链 | [架构设计](ARCHITECTURE.md) | 结构、语义、PIT、证据流、AI/执行边界和外部前提。 |
 | 初始化环境、创建画像、开发策略、运行回测 | [开发与研究工作流](DEVELOPMENT.md) | 开发平台、质量门禁、研究路径和代码约定。 |
+| 审阅连续日线横截面因子的 PIT 输入、分析与研究回放 | [连续日线 PIT 因子研究流水线](research/FACTOR_RESEARCH_PIPELINE.md) | 因子暴露、IC/分位分析、research-only 组合建议与 OOS 回放边界。 |
+| 设计或审阅 AI 自动因子挖掘与回测能力 | [AI 自动因子挖掘与回测架构](research/AI_FACTOR_MINING_ARCHITECTURE.md) | 受限候选语言、PIT campaign、OOS 隔离、审计和未来 scheduler 边界。 |
 | 配置、运行画像、报告、部署、备份与故障处理 | [运行、配置与部署手册](OPERATIONS.md) | 配置事实来源、运行/生产边界和运维程序。 |
 | 审核数据供应商、研究资格、AI 权限和安全控制 | [数据、研究、AI 与安全治理](GOVERNANCE.md) | 授权、PIT、准入、机密、审计与人工确认。 |
 | 查看当前实施状态、下一个工作包或外部阻塞 | [主实施计划](planning/MASTER_IMPLEMENTATION_PLAN.md) | 当前工作、下一项、外部阻塞与验收条件。 |
@@ -26,7 +28,7 @@
 ## 关联工程文档
 
 - [测试说明](../tests/README.md)：测试层级、隔离 PostgreSQL 和质量命令；
-- [脚本说明](../scripts/README.md)：`just`、跨平台控制面和 Linux 目标端脚本；
+- [脚本说明](../scripts/README.md)：Linux x86_64 控制面和 Linux 目标端脚本；
 - [基础设施说明](../infra/README.md)：部署声明、systemd、monitoring 与 backup 资产；
 - [offline 画像](../configs/profiles/offline/README.md)、[simulated 画像](../configs/profiles/simulated/README.md)、
   [live 画像](../configs/profiles/live/README.md)：各生命周期画像的专用约束；

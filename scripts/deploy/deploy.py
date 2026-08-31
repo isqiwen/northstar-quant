@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Windows/Linux 共用的部署控制面。
+"""Linux x86_64 部署控制面。
 
 默认仅做本地预检和制品构建。明确传入 ``--apply`` 后，本模块使用本机 OpenSSH
 上传受限制品和目标端操作层；所有 Linux 变更只会在远端
@@ -28,6 +28,7 @@ try:  # 允许作为 ``python scripts/deploy/deploy.py`` 或模块导入运行�
     from .control_bundle import ControlBundleError, build_control_artifact
     from .inventory import DeploymentInventory, InventoryError, load_inventory
     from .package import Artifact, PackageError, build_artifact
+    from .platform_support import PlatformSupportError, require_linux_x86_64
     from .preflight import PreflightReport, run_preflight
     from .release_manifest import (
         ReleaseManifestError,
@@ -46,6 +47,7 @@ except ImportError:  # pragma: no cover - 直接脚本执行路径。
     from control_bundle import ControlBundleError, build_control_artifact
     from inventory import DeploymentInventory, InventoryError, load_inventory
     from package import Artifact, PackageError, build_artifact
+    from platform_support import PlatformSupportError, require_linux_x86_64
     from preflight import PreflightReport, run_preflight
     from release_manifest import ReleaseManifestError, build_manifest, canonical_manifest_bytes
     from release_signing import ReleaseSigningError, sign_environment, sign_manifest
@@ -59,7 +61,7 @@ except ImportError:  # pragma: no cover - 直接脚本执行路径。
 
 
 class DeployError(RuntimeError):
-    """跨平台控制面无法安全继续。"""
+    """Linux 部署控制面无法安全继续。"""
 
 
 _UV_VERSION_PATTERN: Final = re.compile(r"^uv\s+([0-9][0-9A-Za-z.+-]*)(?:\s+.*)?$")
@@ -91,9 +93,19 @@ def _default_project_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
 
+def _require_linux_x86_64_host() -> None:
+    """Convert the shared host contract into the public deployment error type."""
+
+    try:
+        require_linux_x86_64()
+    except PlatformSupportError as exc:
+        raise DeployError(str(exc)) from exc
+
+
 def _project_uv_executable(*, project_root: Path) -> str:
     """Resolve the verified workstation uv path without consulting PATH."""
 
+    _require_linux_x86_64_host()
     tool_root = project_root / ".northstar"
     try:
         metadata = tool_root.lstat()
@@ -105,8 +117,7 @@ def _project_uv_executable(*, project_root: Path) -> str:
         raise DeployError("仓库本地 uv 目录不安全。")
 
     resolved_root = tool_root.resolve(strict=True)
-    names = ("uv.exe", "uv") if os.name == "nt" else ("uv", "uv.exe")
-    for name in names:
+    for name in ("uv",):
         candidate = tool_root / "bin" / name
         try:
             resolved = candidate.resolve(strict=True)
@@ -118,7 +129,7 @@ def _project_uv_executable(*, project_root: Path) -> str:
             resolved.relative_to(resolved_root)
         except ValueError as error:
             raise DeployError("仓库本地 uv 不能指向 .northstar 外部。") from error
-        if not resolved.is_file() or (os.name != "nt" and not os.access(resolved, os.X_OK)):
+        if not resolved.is_file() or not os.access(resolved, os.X_OK):
             raise DeployError("仓库本地 uv 不可执行。")
         return str(candidate)
     raise DeployError("未找到仓库本地 uv；请先运行开发初始化。")
@@ -152,6 +163,7 @@ def _print_audit(*, action: str, outcome: str, subject: str, **details: object) 
 def _run_quality_gates(*, project_root: Path) -> None:
     """实际部署前运行不可跳过的本地质量门禁。"""
 
+    _require_linux_x86_64_host()
     uv = _project_uv_executable(project_root=project_root)
     quality_gates = (
         ("离线依赖策略", (sys.executable, "scripts/ci/check_dependency_policy.py")),
@@ -187,6 +199,7 @@ def _run_remote_command(
     capture_output: bool = False,
     check: bool = True,
 ) -> subprocess.CompletedProcess[str]:
+    _require_linux_x86_64_host()
     try:
         result = subprocess.run(
             [ssh, *_SSH_OPTIONS, host, command],
@@ -206,14 +219,22 @@ def _assert_linux_target(*, ssh: str, inventory: DeploymentInventory) -> GateIde
     """Verify the fixed Linux gate instead of granting generic remote sudo."""
 
     print("检查远程 Linux、独立部署身份和固定 release gate")
-    platform = _run_remote_command(
+    remote_system = _run_remote_command(
         ssh=ssh,
         host=inventory.deploy_host,
         command="uname -s",
         capture_output=True,
     ).stdout.strip()
-    if platform != "Linux":
+    if remote_system != "Linux":
         raise DeployError(f"远程目标不是 Linux：{inventory.deploy_host}")
+    remote_machine = _run_remote_command(
+        ssh=ssh,
+        host=inventory.deploy_host,
+        command="uname -m",
+        capture_output=True,
+    ).stdout.strip().lower().replace("-", "_")
+    if remote_machine not in {"x86_64", "amd64"}:
+        raise DeployError(f"远程目标不是 Linux x86_64：{inventory.deploy_host}")
     deploy_user = _run_remote_command(
         ssh=ssh,
         host=inventory.deploy_host,
@@ -282,6 +303,7 @@ def _release_profile(
 def _submit_release_gate(*, ssh: str, host: str, submission: Submission) -> None:
     """Stream bytes to the only sudo verb; never stage paths or execute a remote shell."""
 
+    _require_linux_x86_64_host()
     command = [ssh, *_SSH_OPTIONS, host, f"sudo -n {ROOT_RUNNER_PATH} submit"]
     process: subprocess.Popen[bytes] | None = None
     try:
@@ -321,6 +343,7 @@ def _deploy_to_linux(
 ) -> None:
     """Submit one signed, immutable release to the fixed Linux root gate."""
 
+    _require_linux_x86_64_host()
     ssh = shutil.which("ssh")
     if ssh is None:
         raise DeployError("实际部署需要本机 OpenSSH ssh。")
@@ -379,7 +402,7 @@ def _deploy_to_linux(
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Northstar Quant 跨平台部署入口（默认 dry-run，不连接服务器）。",
+        description="Northstar Quant Linux x86_64 部署入口（默认 dry-run，不连接服务器）。",
         epilog=(
             "首次部署到 Linux 服务器需显式使用 --apply --setup-server --upload-env；"
             "真实交易 scheduler 还必须传入 --confirm-live-deploy YES。"
@@ -419,6 +442,11 @@ def _build_parser() -> argparse.ArgumentParser:
 
 def main() -> int:
     args = _build_parser().parse_args()
+    try:
+        _require_linux_x86_64_host()
+    except DeployError as exc:
+        print(f"部署主机不受支持：{exc}")
+        return 1
     project_root = (args.project_root or _default_project_root()).resolve()
     inventory_path = _resolve_from_project(project_root, args.inventory)
     if args.env_file is not None and not args.upload_env:

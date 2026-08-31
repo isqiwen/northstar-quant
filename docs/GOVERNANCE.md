@@ -64,6 +64,7 @@ price-limit 和 rollover 事实。未来规则、未来合约信息或修订值�
 AI 只能使用显式 allowlist 的 typed API：
 
 - Research Agent：研究目录、受控实验、回测和验证证据；
+- AI Factor Mining Agent：一次性、受限 feature/parameter 候选的 research-only 因子评估；
 - Intelligence Agent：受授权 evidence-bound Event 搜索和分析；
 - Data Quality Agent：Dataset/quality 诊断；
 - Ops Agent：单项 hash-only 诊断 snapshot。
@@ -74,6 +75,19 @@ Event 也绝不直接生成 BUY/SELL。
 
 `DurableResearchAgentRunner` 仅保存 hash-only audit event 和 trace。不得持久化 raw prompt、chain-of-thought、
 原始 query、document、result、rationale、secret 或 exception payload。Agent 不得 approve、enable-live、resume-risk、submit、连接 broker、修改数据、部署、恢复或绕过 kill switch。
+
+AI Factor Mining Agent 只能从由系统冻结的 canonical feature primitive 与有限参数网格中提出候选；它不能提供 Python、
+SQL、shell、DataFrame、`latest` 数据选择、成本/滑点、OOS 边界、风险限制、订单或目标。可信 runner 必须使用精确
+`DecisionReplayPlan` 和 immutable `DatasetVersion` 重放既有 PIT 因子流水线。每个 campaign 在 OOS 前冻结
+selection time 与候选预算；失败或未知状态不得自动重试或扩展搜索。自动本地入口使用独立 PostgreSQL durable
+reservation/audit 状态机：它在 generator/compute 前 reserve request，append-only/hash-linked 地记录 receipt、selection、
+OOS、result、resource 与 failure commitments。crash、timeout、cancellation、partial failure、restart 或写入不确定性保持
+`UNRESOLVED`；只有受信 verifier 对 external approval reference 与 source request 做精确绑定确认后的显式人工 replay
+authorization 可以创建新的 request identity，绝不恢复旧 request。CLI 不接收 self-attested approver/evidence，默认 verifier
+不可用时拒绝写入；Foundation private replay writer 只可由 durable verifier bridge 使用。未来外部人工授权服务必须使用独立
+database role，direct DB write 权限不是 approval authority。账本不保存 raw
+prompt、raw response、chain-of-thought、secret、异常原文或 broker/account/portfolio/execution state。详细架构见
+[AI 自动因子挖掘与回测架构](research/AI_FACTOR_MINING_ARCHITECTURE.md)。
 
 ## 5. 机密、供应链与审计
 

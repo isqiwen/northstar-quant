@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""跨平台开发工作站初始化入口。
+"""Linux x86_64 开发工作站初始化入口。
 
 ``--initialize-workstation`` 是首次开发环境的统一入口：缺少仓库本地 ``uv``、``just`` 或宿主机 Git 时，
 它会先展示可审阅的工具安装计划，并在交互终端要求精确确认；安装后会重新检查工具，
@@ -35,6 +35,7 @@ try:  # 支持 ``python scripts/dev/setup.py`` 与包内单元测试两种入口
         repository_tool_root,
         repository_uv_executable,
     )
+    from .platform_support import PlatformSupportError, require_linux_x86_64
     from .tool_bootstrap import (
         BootstrapPlanError,
         InstallStep,
@@ -51,6 +52,7 @@ except ImportError:  # pragma: no cover - 直接脚本入口会走此分支。
         repository_tool_root,
         repository_uv_executable,
     )
+    from platform_support import PlatformSupportError, require_linux_x86_64
     from tool_bootstrap import (
         BootstrapPlanError,
         InstallStep,
@@ -1004,7 +1006,7 @@ def _initialize_workstation(args: argparse.Namespace) -> int:
 
 
 def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="初始化 Northstar Quant 跨平台开发工作站。")
+    parser = argparse.ArgumentParser(description="初始化 Northstar Quant Linux x86_64 开发工作站。")
     parser.add_argument(
         "--bootstrap-tools",
         action="store_true",
@@ -1043,7 +1045,7 @@ def _parse_args() -> argparse.Namespace:
         help="仅供底层 --initialize-config 流程验证并复用本机 PostgreSQL。",
     )
     parser.add_argument("--migrate", action="store_true", help="在本地 PostgreSQL 就绪后运行迁移。")
-    parser.add_argument("--run-tests", action="store_true", help="运行跨平台单元测试与 Ruff。")
+    parser.add_argument("--run-tests", action="store_true", help="运行 Linux 单元测试与 Ruff。")
     parser.add_argument("--check-only", action="store_true", help="仅检查，不写入或管理任何本地服务。")
     return parser.parse_args()
 
@@ -1096,6 +1098,11 @@ def main() -> int:
     if bootstrap_error:
         print(bootstrap_error, file=sys.stderr)
         return 2
+    try:
+        require_linux_x86_64()
+    except PlatformSupportError as error:
+        print(f"开发初始化失败：{error}", file=sys.stderr)
+        return 1
     if args.bootstrap_tools:
         return _bootstrap_tools(args)
     if args.initialize_workstation:
@@ -1180,7 +1187,7 @@ def main() -> int:
             check=True,
         )
         _run([uv, "run", "--offline", "--no-sync", "ruff", "check", "."], env=safe_environment)
-    print("跨平台开发工作站初始化完成；未执行数据下载、调度或交易操作。")
+    print("Linux 开发工作站初始化完成；未执行数据下载、调度或交易操作。")
     return 0
 
 

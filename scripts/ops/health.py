@@ -1,12 +1,18 @@
 #!/usr/bin/env python3
-"""从 Windows 或 Linux 工作站读取 Linux 目标服务的健康状态。"""
+"""从 Linux x86_64 控制主机读取 Linux 目标服务的健康状态。"""
 
 from __future__ import annotations
 
 import argparse
 from pathlib import Path
 
-from _remote import RemoteOperationError, load_deployment_inventory, run_linux_operation
+from _remote import (
+    PlatformSupportError,
+    RemoteOperationError,
+    load_deployment_inventory,
+    require_linux_x86_64,
+    run_linux_operation,
+)
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -19,6 +25,7 @@ def _parser() -> argparse.ArgumentParser:
 def main() -> int:
     args = _parser().parse_args()
     try:
+        require_linux_x86_64()
         inventory = load_deployment_inventory(args.inventory)
         return run_linux_operation(
             inventory=inventory,
@@ -26,6 +33,9 @@ def main() -> int:
             arguments=(inventory.systemd_service_name,),
             dry_run=args.dry_run,
         )
+    except PlatformSupportError as exc:
+        print(f"运维控制主机不受支持：{exc}")
+        return 1
     except RemoteOperationError as exc:
         print(f"远程健康检查失败：{exc}")
         return 1

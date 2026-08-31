@@ -124,12 +124,12 @@ NORTHSTAR_LIVE_TRADING_ENABLED=false
 
 ### 3.1 前提条件
 
-开发和研究工作站支持 Windows x86_64 与 Linux x86_64。生产目标仅支持 Linux x86_64。你需要：
+开发、研究、部署控制和生产运行只支持 Linux x86_64。原生 Windows、PowerShell 与 Git Bash 不是支持环境。你需要：
 
 - Python 3.11 或更高版本；
 - Git；
 - 一个可以访问公开数据源的网络连接（仅在你执行数据下载时需要）；
-- PostgreSQL：Ubuntu/Debian 的高层初始化可以受控安装本机服务；Windows、其他 Linux 和非默认端口需要你自行准备本机 PostgreSQL。
+- PostgreSQL：Ubuntu/Debian 的高层初始化可以受控安装本机服务；其它 Linux x86_64 和非默认端口需要你自行准备本机 PostgreSQL。
 
 不要把 Docker、SQLite 或远程共享数据库当成核心 PostgreSQL 的替代方案。
 
@@ -435,13 +435,6 @@ python scripts/dev/run_uv.py run --offline --no-sync northstar local-tools lake-
 ~~~bash
 export NORTHSTAR_BROKER=ctp_sim
 export NORTHSTAR_DEFAULT_PROFILE_ID=cn_futures_daily_trend_simulated
-~~~
-
-PowerShell 对应写法是：
-
-~~~powershell
-$env:NORTHSTAR_BROKER = "ctp_sim"
-$env:NORTHSTAR_DEFAULT_PROFILE_ID = "cn_futures_daily_trend_simulated"
 ~~~
 
 随后可以按以下顺序做本地预演：

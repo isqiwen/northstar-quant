@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 import subprocess
 
@@ -71,7 +70,6 @@ def test_dump_rejects_existing_output_without_invoking_client(tmp_path: Path, mo
         postgresql.create_postgresql_dump(_URL, output_path=output)
 
 
-@pytest.mark.skipif(os.name != "posix", reason="POSIX permission bits require Linux validation")
 def test_dump_rejects_group_or_other_writable_staging_parent(tmp_path: Path):
     output_parent = tmp_path / "unsafe-staging"
     output_parent.mkdir()

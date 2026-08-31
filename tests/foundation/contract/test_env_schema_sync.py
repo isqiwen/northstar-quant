@@ -127,7 +127,7 @@ def test_env_schema_cli_refuses_active_symlink_without_touching_target(tmp_path)
     try:
         active.symlink_to(target)
     except OSError:
-        pytest.skip("当前 Windows 权限不允许创建符号链接。")
+        pytest.skip("当前文件系统不允许创建符号链接。")
 
     result = subprocess.run(
         [
@@ -158,7 +158,7 @@ def test_env_schema_cli_refuses_active_symlink_from_stdin_without_touching_targe
     try:
         active.symlink_to(target)
     except OSError:
-        pytest.skip("当前 Windows 权限不允许创建符号链接。")
+        pytest.skip("当前文件系统不允许创建符号链接。")
 
     result = subprocess.run(
         [
@@ -191,7 +191,7 @@ def test_env_schema_cli_refuses_symlinked_active_parent_without_touching_target(
     try:
         active_directory.symlink_to(outside_directory, target_is_directory=True)
     except OSError:
-        pytest.skip("当前 Windows 权限不允许创建符号链接。")
+        pytest.skip("当前文件系统不允许创建符号链接。")
 
     result = subprocess.run(
         [
@@ -221,7 +221,7 @@ def test_env_schema_cli_still_resolves_template_symlink(tmp_path):
     try:
         template.symlink_to(template_target)
     except OSError:
-        pytest.skip("当前 Windows 权限不允许创建符号链接。")
+        pytest.skip("当前文件系统不允许创建符号链接。")
 
     result = subprocess.run(
         [
