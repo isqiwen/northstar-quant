@@ -59,7 +59,7 @@ python scripts/dev/run_uv.py run --offline --no-sync ruff check .
 python scripts/dev/run_uv.py run --offline --no-sync python scripts/ci/check_mypy_baseline.py check
 ~~~
 
-## 4.## 4. 当前工作包
+## 4. 当前工作包
 
 ### BT-01.1 — Pin Backtest CI and Isolated Build Toolchain
 
@@ -101,7 +101,7 @@ python scripts/dev/run_uv.py run --offline --no-sync python scripts/ci/check_myp
 
 **Phase progress:** P12 当前承诺范围为 0/1；BT-01.1 是唯一 active work package。
 
- 暂缓的外部工作包
+## 5. 暂缓的外部工作包
 
 ### P10-WP08 — Platform Production / DR Acceptance
 
