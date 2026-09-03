@@ -26,15 +26,16 @@
 ## 2. 当前状态
 
 ~~~yaml
-active_phase: P11
-active_work_package: null
-next_task: null
+active_phase: P12
+active_work_package: BT-01.1
+next_task: "BT-01.1 — pin Backtest CI and isolated build toolchain"
 blocked_work_packages: [P10-WP08, P10-WP09, MAINT-WP02]
 ~~~
 
-按用户 2026-08-30 的决定，P11 是当前本地研究优先级。P10-WP08、P10-WP09 与 MAINT-WP02 保持 BLOCKED
-且暂缓。P11 的本地、synthetic 或用户已授权研究数据不得
-替代 production、数据 license、Contract Master 或真实 PIT/source evidence。
+P11 已完成，且按本文件“只保留未完成、待验证或外部阻塞工作”的规则不再保留其完成态条目。
+
+P12 本轮只授权一个跨仓库工作包：BT-01.1。未被明确列入当前工作包的项目不得在本轮开始；
+其中包括 BT-02 和 FL-01。
 
 ## 3. 全局安全与质量边界
 
@@ -58,42 +59,49 @@ python scripts/dev/run_uv.py run --offline --no-sync ruff check .
 python scripts/dev/run_uv.py run --offline --no-sync python scripts/ci/check_mypy_baseline.py check
 ~~~
 
-## 4. 当前工作包
+## 4.## 4. 当前工作包
 
-### P11-WP05 — Durable Local AI Mining Campaign Ledger & Bounded Runner
+### BT-01.1 — Pin Backtest CI and Isolated Build Toolchain
 
-**Status:** DONE
+**Status:** IN_PROGRESS
 
-**Dependencies:** P11-WP02、P11-WP03。
+**Owning repository:** [`isqiwen/quant-backtest`](https://github.com/isqiwen/quant-backtest)
 
-**Goal:** 为本地自动因子挖掘加入 PostgreSQL append-only campaign/request/receipt/result ledger、事务性 reservation
-和资源受限 research runner；它仍不是交易 scheduler。
+**Tracking issue:** [BT-01.1 / #16 — Pin CI and isolated build toolchain](https://github.com/isqiwen/quant-backtest/issues/16)。
+
+**Dependencies:**
+
+- BT-01 已通过并合并：[Backtest #15](https://github.com/isqiwen/quant-backtest/pull/15)。
+
+**Goal:** 消除 BT-01 合并后审查发现的可复现性 P1：同一源提交的 CI 和隔离 PEP 517 构建不得
+因可变 action tag、工具版本或 backend 依赖解析而静默改变。
+
+**Scope:**
+
+- 以完整 commit SHA 固定 CI action；
+- 固定 `uv` 和 CPython 3.12 patch 版本；
+- 固定 Hatchling 版本，并以完整 hash closure 约束隔离构建依赖；
+- 对固定项和受约束构建路径加入回归测试、文档和完整质量验证。
+
+**Out of scope:**
+
+- Backtest v1 contracts、Data Portal、StrategyPort、模拟运行时、订单/成交/账本、因子逻辑、
+  broker、paper/live 连接或任何交易权限；
+- FL-01 或其他并行工作包。
 
 **Acceptance:**
 
-- campaign、request、receipt、selection commitment、OOS release、result 和失败状态具备 hash-linked、append-only 审计链；
-- 并发重复、重启、崩溃、超时和 partial failure 保持 unresolved，只有显式人工 replay authorization 才能继续；
-- runner 有 candidate、并发、CPU、内存、wall-clock、数据行数和 artifact 字节预算，取消语义失败关闭；
-- 不保存 raw prompt、raw response、chain-of-thought、secret 或交易状态，且不导入 broker/portfolio/execution；
-- schema、repository、baseline migration、integration/failure/e2e 测试、CLI 和完整本地质量门禁同步通过。
+- CI 不再解析可变 action tag、浮动 `uv` 版本或浮动 Python patch；
+- PEP 517 backend 及其 transitive build dependencies 均由 hash constraints 覆盖；
+- clean locked install、format/lint、strict type check、tests 与 constrained wheel build 全部通过；
+- 文档保持“未实现模拟/公共 Backtest contract”的真实状态。
 
-**Fail-closed boundary:** PostgreSQL、reservation、audit、资源计量、数据授权或状态未知时，runner 不得生成新候选、
-释放 OOS 或启动新的回测。
+**Fail-closed boundary:** 固定项、hash constraint 或受约束构建任一缺失、漂移或失效时，不得将
+构建结果作为可复现 Backtest 基线，也不得开始 BT-02 的公共契约发布。
 
-~~~yaml
-completion:
-  completed_at: 2026-08-31
-  commit: null
-  notes: >
-    PostgreSQL append-only/hash-linked campaign ledger, transactional reservation, bounded Linux worker guard,
-    replay verifier bridge, CLI, baseline schema, integration/failure/e2e coverage and local quality gates are complete.
-    The shipped replay verifier is intentionally unavailable: an external human-approval service and dedicated database
-    role remain required before a verifier may issue replay approvals against direct database writers.
-~~~
+**Phase progress:** P12 当前承诺范围为 0/1；BT-01.1 是唯一 active work package。
 
-**Phase progress:** P11 当前保留范围已完成（1/1）；没有可自动开始的后续本地工作包。
-
-## 5. 暂缓的外部工作包
+ 暂缓的外部工作包
 
 ### P10-WP08 — Platform Production / DR Acceptance
 
