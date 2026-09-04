@@ -26,14 +26,15 @@
 ## 2. 当前状态
 
 ~~~yaml
-active_phase: P14
-active_work_package: BT-02.2
-next_task: "BT-02.2 — Publish BacktestResult and Artifact-Integrity Contract"
+active_phase: null
+active_work_package: null
+next_task: null
 blocked_work_packages: [P10-WP08, P10-WP09, MAINT-WP02]
 ~~~
 
-P14 本轮只授权一个跨仓库工作包：BT-02.2。未被明确列入当前工作包的项目不得在本轮开始；
-其中包括 BT-02 的其余切片、FL-01 和其他并行工作包。
+当前没有 READY、IN_PROGRESS 或 VERIFY 工作包。已完成工作按本文件“只保留未完成、待验证或外部阻塞工作”的规则移除，不保留完成态历史。
+
+不得据此自动启动任何新工作包；包括 BT-02 的后续切片、FL-01 和其他并行工作包，均需先由用户明确授权并在本文件中激活。
 
 ## 3. 全局安全与质量边界
 
@@ -57,63 +58,10 @@ python scripts/dev/run_uv.py run --offline --no-sync ruff check .
 python scripts/dev/run_uv.py run --offline --no-sync python scripts/ci/check_mypy_baseline.py check
 ~~~
 
-## 4. 当前工作包
+## 4. 当前授权状态
 
-### BT-02.2 — Publish BacktestResult and Artifact-Integrity Contract
-
-**Status:** IN_PROGRESS
-
-**Owning repository:** [`isqiwen/quant-backtest`](https://github.com/isqiwen/quant-backtest)
-
-**Parent delivery:** [BT-02 / #3 — Publish Backtest v1 and StrategyPort contracts](https://github.com/isqiwen/quant-backtest/issues/3)。
-
-**Tracking issue:** [BT-02.2 / #20 — Publish BacktestResult v1 and artifact-integrity contract](https://github.com/isqiwen/quant-backtest/issues/20)。
-
-**Dependencies:**
-
-- BT-01 已通过并合并：[Backtest #15](https://github.com/isqiwen/quant-backtest/pull/15)；
-- BT-01.1 的可复现工具链加固已通过并合并：[Backtest #17](https://github.com/isqiwen/quant-backtest/pull/17)；
-- BT-02.1 的闭合 `BacktestRunSpec v1` 已通过并合并：[Backtest #19](https://github.com/isqiwen/quant-backtest/pull/19)；
-- 已发布的 `quant-data-hub@v0.9.0` 只能作为可选兼容性夹具；本工作包不直连其数据库、也不把它写死为唯一受支持发布。
-
-**Goal:** 将 XL 的 BT-02 拆为可独立验收的下一个契约切片。只发布可复算、不可变且不可执行的模拟结果
-身份与制品完整性词汇，不执行模拟、写入制品或发布结果。
-
-**Scope:**
-
-- 发布随 wheel 分发、带版本的 `BacktestResult` v1 JSON Schema、严格 Python 模型、
-  duplicate-key-safe JSON 解析、canonical JSON 与 SHA-256 result content hash；
-- 将结果固定绑定到一个 `BacktestRunSpec` hash、engine release/semantics pin、终态 status/failure
-  词汇和闭合的 artifact descriptor 集合；
-- artifact descriptor 必须显式包含 kind、schema version、content/logical hash、byte/row count 与稳定排序，
-  不得包含 path、URL、可变引用或存储能力；
-- 提供正向、负向、不兼容 major、canonical-hash 与 clean-wheel 资源夹具，并保留禁止 participant execution、
-  simulation、data/storage/network 和 broker 的源码边界测试。
-
-**Out of scope:**
-
-- simulation coordinator、clock、Data Portal、participant execution、订单/成交/账本/account 行为、
-  artifact store、result API、网络、数据库、broker、paper/live 连接或任何交易权限；
-- `StrategyPort` 定义，或 Factor Lab / Strategy Lab source import、participant execution，
-  或对已发布 `FactorPackage` 的依赖；
-- BT-02 父项完成宣称、BT-02 的其余切片、FL-01 或其他并行工作包。
-
-**Acceptance:**
-
-- 任一 semantic field 改变都会改变 result content hash；仅被 schema 明确标识为 non-semantic 的 annotation
-  改变不会影响它；
-- 缺失或被篡改的 RunSpec、engine、status/failure、artifact identity、schema version、hash、count 或排序全部
-  以稳定 reason code fail closed；
-- `SUCCEEDED` 与非成功终态遵守互斥字段规则；结果不得暗示 research promotion 或 live authority；
-- clean installed wheel 可读取公开 schema 与 fixtures；锁定安装、format/lint、strict type check、tests 与受限 wheel
-  build 全部通过；
-- 不得执行 participant、启动 simulation、访问 data/storage/network，或暴露 broker capability。
-
-**Fail-closed boundary:** 任一 RunSpec binding、engine pin、terminal state、failure vocabulary、artifact identity、
-schema/semantic version、canonicalization rule、hash、count 或排序缺失、漂移或不兼容时，不得构造有效
-BacktestResult，不得暗示成功，也不得启动模拟、制品写入或任何外部访问。
-
-**Phase progress:** P14 当前承诺范围为 0/1；BT-02.2 是唯一 active work package。
+当前没有可执行的实施工作包。所有新的实现范围必须先写入本文件并由用户明确授权；不得从已完成事项、
+父 Issue 或其他仓库的合并状态推断新的授权。
 
 ## 5. 暂缓的外部工作包
 

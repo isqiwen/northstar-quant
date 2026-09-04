@@ -37,17 +37,16 @@ def test_agents_and_document_navigation_link_the_same_master_plan() -> None:
     assert "](planning/MASTER_IMPLEMENTATION_PLAN.md)" in docs_index
 
 
-def test_master_plan_tracks_the_explicitly_authorized_current_work_package() -> None:
+def test_master_plan_tracks_only_blocked_work_packages_without_a_next_task() -> None:
     plan = _read_master_plan()
 
-    assert "active_phase: P14" in plan
-    assert "active_work_package: BT-02.2" in plan
-    assert 'next_task: "BT-02.2 — Publish BacktestResult and Artifact-Integrity Contract"' in plan
+    assert "active_phase: null" in plan
+    assert "active_work_package: null" in plan
+    assert "next_task: null" in plan
     assert "blocked_work_packages: [P10-WP08, P10-WP09, MAINT-WP02]" in plan
-    assert plan.count("**Status:** IN_PROGRESS") == 1
+    assert "**Status:** IN_PROGRESS" not in plan
 
     expected_sections = {
-        "### BT-02.2 — Publish BacktestResult and Artifact-Integrity Contract": "IN_PROGRESS",
         "### P10-WP08 — Platform Production / DR Acceptance": "BLOCKED",
         "### P10-WP09 — Authoritative Data & Source Onboarding": "BLOCKED",
         "### MAINT-WP02 — Native Linux PostgreSQL Development / Docker Removal": "BLOCKED",
@@ -62,13 +61,12 @@ def test_master_plan_tracks_the_explicitly_authorized_current_work_package() -> 
         section = _section(plan, heading)
         assert f"**Status:** {status}" in section
         assert "**Acceptance:**" in section
-    active_section = _section(plan, "### BT-02.2 — Publish BacktestResult and Artifact-Integrity Contract")
-    assert "[BT-02.2 / #20" in active_section
-    assert "[BT-02 / #3" in active_section
-    assert "**Fail-closed boundary:**" in active_section
+    assert "### BT-02.2" not in plan
+    assert "[BT-02.2 / #20" not in plan
     assert "### BT-02.1" not in plan
     assert "[BT-02.1 / #18" not in plan
     assert "P13" not in plan
+    assert "P14" not in plan
     assert "### BT-01.1" not in plan
     assert "### P11-WP02 — Discovery Selection / OOS Release Protocol" not in plan
     assert "### P11-WP03 — Local Research Run Bundle & CLI" not in plan
