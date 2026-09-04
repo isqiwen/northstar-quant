@@ -26,15 +26,15 @@
 ## 2. 当前状态
 
 ~~~yaml
-active_phase: null
-active_work_package: null
-next_task: null
+active_phase: P15
+active_work_package: P15-DH-01
+next_task: Implement the explicit import-quality applicability check in isqiwen/quant-data-hub#10.
 blocked_work_packages: [P10-WP08, P10-WP09, MAINT-WP02]
 ~~~
 
-当前没有 READY、IN_PROGRESS 或 VERIFY 工作包。已完成工作按本文件“只保留未完成、待验证或外部阻塞工作”的规则移除，不保留完成态历史。
+当前唯一可执行工作包为 P15-DH-01。已完成工作按本文件“只保留未完成、待验证或外部阻塞工作”的规则移除，不保留完成态历史。
 
-不得据此自动启动任何新工作包；包括 BT-02 的后续切片、FL-01 和其他并行工作包，均需先由用户明确授权并在本文件中激活。
+不得据此自动启动其他工作包；BT-02 后续切片、FL-01 和其他并行工作包均未授权。
 
 ## 3. 全局安全与质量边界
 
@@ -60,8 +60,38 @@ python scripts/dev/run_uv.py run --offline --no-sync python scripts/ci/check_myp
 
 ## 4. 当前授权状态
 
-当前没有可执行的实施工作包。所有新的实现范围必须先写入本文件并由用户明确授权；不得从已完成事项、
-父 Issue 或其他仓库的合并状态推断新的授权。
+用户已授权按 GitHub Project 推进。本轮仅授权 **P15-DH-01**；不得从已完成事项、
+父 Issue 或其他仓库的合并状态推断其他实现范围。
+
+### P15-DH-01 — Data Hub Import Quality Applicability
+
+**Status:** IN_PROGRESS
+
+**GitHub Project item:** [quant-data-hub#10](https://github.com/isqiwen/quant-data-hub/issues/10)
+
+**Goal:** 对一个由调用者显式指定的 M3-B1 或 M3-B2b `ImportQualityEvaluation`，在新的 PostgreSQL
+`REPEATABLE READ` 视图中重算其版本化输入指纹，并给出只读、fail-closed 的适用性结论。
+
+**Scope:**
+
+- 添加 `ImportQualityApplicabilityService`，不写入新的质量结论，也不选择“latest PASS”；
+- 复用或收敛现有 B1/B2b 指纹实现，确保边界 `10,000 / 10,001 / 250,000 / 250,001` 明确处理；
+- 对指纹漂移、缺失 lineage、错误规则版本与超范围输入返回稳定的 `BLOCKED` 原因码；
+- 添加 SQLite 单元测试与 PostgreSQL 一致性测试，并更新 Data Hub 文档和项目状态。
+
+**Out of scope:**
+
+- 新的质量评估、快照/发布写入、自动调度、重试编排、数据源访问、交易或 broker 能力；
+- 选择未显式传入的证据，或激活其他 Project 工作包。
+
+**Dependencies:** `quant-data-hub` 的已合并 M3-B1/#7 与 M3-B2b/#9；均已满足。
+
+**Acceptance:**
+
+- 四个 B1/B2b 容量边界均有覆盖；
+- 服务不产生写入，不隐式选择证据，且在不可解释状态下 fail closed；
+- SQLite 与 PostgreSQL 测试、类型检查、lint 和项目既有质量门禁通过；
+- 合并后才将本工作包标记为 DONE，并再次使 `active_work_package` 与 `next_task` 为空。
 
 ## 5. 暂缓的外部工作包
 
