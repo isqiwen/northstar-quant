@@ -1,77 +1,65 @@
 # Northstar Quant Control Plane
 
-`northstar-quant` is the implementation control plane for the Northstar Quant
-repository suite. It holds the cross-repository plan, ownership map, delivery
-rules, and project-level decisions. It does not contain application code,
-runtime configuration, deployments, migrations, tests, or data assets.
+`northstar-quant` is the implementation control plane for nine domain
+repositories. It owns architecture topology, roadmap ordering, acceptance
+policy, and GitHub Project state. Domain repositories own all executable code,
+contracts, data, tests, deployment assets, and runtime authority.
 
 ## Start here
 
 For every non-trivial request:
 
-1. Read [the master implementation plan](docs/planning/MASTER_IMPLEMENTATION_PLAN.md).
-2. Check the linked GitHub Project item and the owning repository in
-   [the repository map](docs/REPOSITORY_MAP.md).
-3. Run `git status` and preserve unrelated user changes.
-4. Work on exactly one active work package.
+1. Read [the architecture](docs/ARCHITECTURE.md) when ownership, an interface,
+   an adapter, or a cross-repository seam may change.
+2. Read [the roadmap](docs/ROADMAP.md) and select only a work package whose
+   dependencies are satisfied.
+3. Read [the Project rules](docs/PROJECT_MANAGEMENT.md), then verify the live
+   fields in [GitHub Project 1](https://github.com/users/isqiwen/projects/1).
+4. Use [the repository map](docs/REPOSITORY_MAP.md) to enter the owner
+   repository and read its local `AGENTS.md` before implementation.
+5. Run `git status` in every repository you will touch and preserve unrelated
+   user changes.
 
-The master plan is the control plane's record of current work. GitHub Project
-is the live delivery queue. A repository's own issue, source, tests, and CI are
-the evidence for its implementation.
+Completion means every step above was checked against current default-branch
+and Project evidence, not remembered chat or a superseded issue.
 
 ## Routing
 
-Implementation belongs in the repository that owns the domain. When a work
-package changes source, tests, schema, configuration, API, deployment, or
-runtime behavior, switch to that owner repository and follow its local
-instructions. Do not recreate that implementation in this repository.
+The owner named in the architecture owns the domain meaning and publishes its
+interface. A consumer owns its compatibility policy and adapter. Cross-repository
+work uses immutable artifacts or authenticated network interfaces; repositories
+do not import one another's source or read one another's database.
 
-Changes in this repository are limited to:
+This repository accepts only architecture revisions, roadmap changes, Project
+policy, ownership maps, dependency decisions, and merged-evidence links.
+Implementation changes are made and tested in the owning domain repository.
 
-- the master implementation plan and work-package acceptance criteria;
-- repository ownership and cross-repository dependency maps;
-- delivery policy, governance, and explicitly approved architectural decisions;
-- links to merged evidence and externally blocked prerequisites.
+## Project lifecycle
 
-Keep each item concrete: owner repository, issue/PR link, dependencies,
-acceptance criteria, and status. Use a cross-repository contract only for a
-real seam; implementation details stay with the owner.
+- `Backlog` means planned but not dependency-ready.
+- `Todo` means dependency-ready and eligible to start.
+- `In Progress` means active implementation; limit three globally and one per
+  repository.
+- `Review` means an owner PR exists and is awaiting required checks or merge.
+- `Done` requires a merged owner PR and satisfied acceptance evidence.
 
-## Delivery lifecycle
+Every Project item must have Status, Priority, Kind, Effort, Target, owner
+repository, dependencies, exclusions, and acceptance evidence. Advance status
+only after checking the linked evidence. Closing or merging an unrelated issue
+does not authorize another work package.
 
-1. Select the one authorized Project work package and confirm its dependencies.
-2. Mark the Project item `In Progress` before implementation begins.
-3. Implement and validate only in the owning repository.
-4. Open a PR in that repository with the issue link, scope, exclusions, and
-   verification evidence.
-5. After the PR is merged, verify the merged commit and checks, then move the
-   Project item to `Done`.
-6. Update this master plan with the merged evidence, clear the active work
-   package and `next_task` when appropriate, and open a control-plane PR for
-   that documentation change.
+## Safety
 
-An open PR, a green CI run, or a local commit is not completion evidence. The
-control plane marks a work package done only after its owner-repository change
-is merged and the Project state agrees.
-
-## Safety and scope
-
-Northstar Quant is real-money-adjacent. The control plane never enables live
-trading, supplies credentials, grants production access, or converts research
-or simulation evidence into trading authority. Unknown authorization, account,
-risk, data, or broker state remains `NO NEW RISK`.
-
-Do not add `src/`, `tests/`, runtime configuration, package manifests,
-migrations, deployment scripts, or environment bootstrap code here. The
-pre-control-plane implementation is recoverable from
-`backup/pre-control-plane-20260904`.
+Northstar Quant is real-money-adjacent. Research artifacts, historical
+simulation, Paper, and SimNow never imply real-money authority. Unknown data,
+account, position, order, risk, broker, approval, or environment state remains
+fail-closed and permits no new risk.
 
 ## Control-plane verification
 
-Before committing a control-plane change:
+Before opening a control-plane PR:
 
-1. Check that every Markdown link and GitHub reference points to the intended
-   owner, issue, or PR.
+1. Check all Markdown links and GitHub references.
 2. Run `git diff --check`.
-3. Confirm the plan, GitHub Project state, and linked owner-repository evidence
-   describe the same lifecycle state.
+3. Confirm the architecture dependency graph has no contract-publication cycle.
+4. Confirm the roadmap and every live Project field describe the same status.
