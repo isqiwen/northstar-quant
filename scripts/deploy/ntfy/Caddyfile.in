@@ -1,7 +1,0 @@
-{
-    email @NTFY_ACME_EMAIL@
-}
-
-@NTFY_PUBLIC_HOST@ {
-    reverse_proxy ntfy:80
-}
