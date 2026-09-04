@@ -52,6 +52,12 @@ def test_master_plan_tracks_only_current_work_packages_and_statuses() -> None:
         "### P10-WP09 — Authoritative Data & Source Onboarding": "BLOCKED",
         "### MAINT-WP02 — Native Linux PostgreSQL Development / Docker Removal": "BLOCKED",
     }
+    assert re.findall(
+        r"^(### .+?)\n\n\*\*Status:\*\* ([A-Z_]+)$",
+        plan,
+        flags=re.MULTILINE,
+    ) == list(expected_sections.items())
+    assert "completed_at:" not in plan
     for heading, status in expected_sections.items():
         section = _section(plan, heading)
         assert f"**Status:** {status}" in section
