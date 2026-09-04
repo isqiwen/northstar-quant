@@ -26,16 +26,15 @@
 ## 2. 当前状态
 
 ~~~yaml
-active_phase: P13
-active_work_package: BT-02.1
-next_task: "BT-02.1 — Publish Closed BacktestRunSpec Contract Foundation"
+active_phase: null
+active_work_package: null
+next_task: null
 blocked_work_packages: [P10-WP08, P10-WP09, MAINT-WP02]
 ~~~
 
-上一项已完成工作已按本文件“只保留未完成、待验证或外部阻塞工作”的规则移除，不保留完成态历史。
+当前没有 READY、IN_PROGRESS 或 VERIFY 工作包。已完成工作按本文件“只保留未完成、待验证或外部阻塞工作”的规则移除，不保留完成态历史。
 
-P13 本轮只授权一个跨仓库工作包：BT-02.1。未被明确列入当前工作包的项目不得在本轮开始；
-其中包括 BT-02 的其余切片、FL-01 和其他并行工作包。
+不得据此自动启动任何新工作包；包括 BT-02 的后续切片、FL-01 和其他并行工作包，均需先由用户明确授权并在本文件中激活。
 
 ## 3. 全局安全与质量边界
 
@@ -59,61 +58,10 @@ python scripts/dev/run_uv.py run --offline --no-sync ruff check .
 python scripts/dev/run_uv.py run --offline --no-sync python scripts/ci/check_mypy_baseline.py check
 ~~~
 
-## 4. 当前工作包
+## 4. 当前授权状态
 
-### BT-02.1 — Publish Closed BacktestRunSpec Contract Foundation
-
-**Status:** IN_PROGRESS
-
-**Owning repository:** [`isqiwen/quant-backtest`](https://github.com/isqiwen/quant-backtest)
-
-**Parent delivery:** [BT-02 / #3 — Publish Backtest v1 and StrategyPort contracts](https://github.com/isqiwen/quant-backtest/issues/3)。
-
-**Tracking issue:** [BT-02.1 / #18 — Publish closed BacktestRunSpec v1 contract](https://github.com/isqiwen/quant-backtest/issues/18)。
-
-**Dependencies:**
-
-- BT-01 已通过并合并：[Backtest #15](https://github.com/isqiwen/quant-backtest/pull/15)；
-- BT-01.1 的可复现工具链加固已通过并合并：[Backtest #17](https://github.com/isqiwen/quant-backtest/pull/17)；
-- 已发布的 `quant-data-hub@v0.9.0` 只能作为可选兼容性夹具；本工作包不直连其数据库、也不把它写死为唯一受支持发布。
-
-**Goal:** 将 XL 的 BT-02 拆为可独立验收的首个契约切片。只发布可复算的闭合模拟输入身份，
-不执行模拟，也不发布结果或策略运行时。
-
-**Scope:**
-
-- 发布随 wheel 分发、带版本的 `BacktestRunSpec` v1 JSON Schema、严格 Python 模型、
-  duplicate-key-safe JSON 解析、canonical JSON 与 SHA-256 `run_spec_hash`；
-- 固定 engine 版本/字节摘要、Data Hub snapshot/manifest/export 引用、participant/runtime/parameter
-  制品、time/calendar/universe mapping、initial account profile、全部 model/parameter、random seed、
-  output profile/resource bounds；
-- `risk_policy` 必须是显式联合：`{ "kind": "NONE" }` 或完整固定的 policy/evaluator 引用；
-- 提供正向、负向、不兼容 major、canonical-hash 与 wheel-packaging 夹具，并保留禁止网络、broker、
-  wall-clock 与全局 RNG 的源码边界测试。
-
-**Out of scope:**
-
-- `BacktestResult`、`StrategyPort`、Data Portal、外部或本地数据读取、simulation clock/engine、
-  订单/成交/账本/account runtime、网络、数据库、broker、paper/live 连接或任何交易权限；
-- Factor Lab 或 Strategy Lab source import、participant execution，或对已发布 `FactorPackage` 的依赖；
-- BT-02 父项完成宣称、BT-02 的其余切片、FL-01 或其他并行工作包。
-
-**Acceptance:**
-
-- 任一 semantic field 改变都会改变 `run_spec_hash`；仅被 schema 明确标识为 non-semantic 的 annotation
-  改变不会影响它；
-- `latest`、branch、短/缺失 digest、未知字段、重复 JSON key、binary float/non-finite value、非 UTC 或倒置时间、
-  缺失 model pin、缺失/伪造的 risk policy 全部 fail closed；
-- caller-owned inert participant reference 无需 import 或 execute lab source 即可验证；
-- clean installed wheel 可读取公开 schema 与 fixtures；锁定安装、format/lint、strict type check、tests 与 wheel
-  build 全部通过；
-- 不得出现模拟成功、策略 promotion、live authority、外部访问或 broker capability 的暗示或实现。
-
-**Fail-closed boundary:** 任一 identity、content hash、schema/semantic version、canonicalization rule、
-model pin 或 risk policy mode 缺失、漂移或不兼容时，不得构造有效 RunSpec、不得报告成功 BacktestResult，
-也不得启动模拟或任何外部访问。
-
-**Phase progress:** P13 当前承诺范围为 0/1；BT-02.1 是唯一 active work package。
+当前没有可执行的实施工作包。所有新的实现范围必须先写入本文件并由用户明确授权；不得从已完成事项、
+父 Issue 或其他仓库的合并状态推断新的授权。
 
 ## 5. 暂缓的外部工作包
 
