@@ -351,7 +351,7 @@ def test_root_readme_links_to_control_plane_without_a_stale_roadmap() -> None:
     assert "P10 已完成" not in readme
     assert "不复制会随工作包变化的数字" in readme
     assert "唯一实施进度事实来源" in _read(MASTER_PLAN_PATH)
-    assert "active_phase: P13" in _read(MASTER_PLAN_PATH)
+    assert "active_phase: null" in _read(MASTER_PLAN_PATH)
     assert "[文档导航](docs/README.md)" in documentation_section
     assert "[使用者入门指南](docs/USER_GUIDE.md)" in documentation_section
     assert "[开发者指南](docs/DEVELOPER_GUIDE.md)" in documentation_section
