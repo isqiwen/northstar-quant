@@ -16,8 +16,10 @@ Project. Later outcomes stay here as themes until their prerequisites are real.
 - Completed: `R1-GOV-01`, via merged
   [northstar-quant PR #11](https://github.com/isqiwen/northstar-quant/pull/11)
   at `0fdbbb4`.
-- In review: `R1-GOV-02`; its nine owner PRs are tracked from
-  [northstar-quant issue #9](https://github.com/isqiwen/northstar-quant/issues/9).
+- Completed: `R1-GOV-02`; all nine owner PRs and verified merge commits are
+  recorded under [Governance](#governance).
+- Active critical-path work: `R1-DH-01`, `R1-RISK-01`, and `R1-SL-01`.
+- Ready queue: `R1-OPS-01`, `R1-BT-01`, `R1-MI-01`, and `R1-LIVE-01`.
 - Work-in-progress limit: three items globally and one item per repository.
 - First integrated target: deterministic offline research evidence with no
   broker path and no trading authority.
@@ -31,20 +33,20 @@ in [the architecture](ARCHITECTURE.md#current-wave-delivery-dependency-graph).
 | Code | Owner | Outcome | Status | Priority | Kind | Effort | Target | Depends on |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | [`R1-GOV-01`](https://github.com/isqiwen/northstar-quant/issues/10) | northstar-quant | Publish architecture R1 and reset Project 1. | Done | P0 | Task | M | 2026-Q3 | — |
-| [`R1-GOV-02`](https://github.com/isqiwen/northstar-quant/issues/9) | northstar-quant | Align repository-local ecosystem context to R1. | Review | P0 | Task | M | 2026-Q3 | GOV-01 |
-| [`R1-DH-01`](https://github.com/isqiwen/quant-data-hub/issues/32) | quant-data-hub | Establish a unique post-`v0.9.0` release baseline and contract inventory. | Backlog | P0 | Task | M | 2026-Q3 | GOV-02 |
-| [`R1-OPS-01`](https://github.com/isqiwen/quant-ops/issues/16) | quant-ops | Repair evidence, preflight, rollback and schema correctness in `0.1`. | Backlog | P0 | Bug | M | 2026-Q3 | GOV-02 |
-| [`R1-BT-01`](https://github.com/isqiwen/quant-backtest/issues/23) | quant-backtest | Publish the deterministic simulation protocol seam. | Backlog | P0 | Feature | L | 2026-Q3 | GOV-02 |
-| [`R1-RISK-01`](https://github.com/isqiwen/quant-portfolio-risk/issues/14) | quant-portfolio-risk | Bootstrap the pure risk module and producer-owned contracts. | Backlog | P0 | Feature | L | 2026-Q3 | GOV-02 |
-| [`R1-SL-01`](https://github.com/isqiwen/quant-strategy-lab/issues/14) | quant-strategy-lab | Bootstrap strategy definitions, releases and account-neutral intents. | Backlog | P0 | Feature | L | 2026-Q3 | GOV-02 |
+| [`R1-GOV-02`](https://github.com/isqiwen/northstar-quant/issues/9) | northstar-quant | Align repository-local ecosystem context to R1. | Done | P0 | Task | M | 2026-Q3 | GOV-01 |
+| [`R1-DH-01`](https://github.com/isqiwen/quant-data-hub/issues/32) | quant-data-hub | Establish a unique post-`v0.9.0` release baseline and contract inventory. | In Progress | P0 | Task | M | 2026-Q3 | GOV-02 |
+| [`R1-OPS-01`](https://github.com/isqiwen/quant-ops/issues/16) | quant-ops | Repair evidence, preflight, rollback and schema correctness in `0.1`. | Todo | P0 | Bug | M | 2026-Q3 | GOV-02 |
+| [`R1-BT-01`](https://github.com/isqiwen/quant-backtest/issues/23) | quant-backtest | Publish the deterministic simulation protocol seam. | Todo | P0 | Feature | L | 2026-Q3 | GOV-02 |
+| [`R1-RISK-01`](https://github.com/isqiwen/quant-portfolio-risk/issues/14) | quant-portfolio-risk | Bootstrap the pure risk module and producer-owned contracts. | In Progress | P0 | Feature | L | 2026-Q3 | GOV-02 |
+| [`R1-SL-01`](https://github.com/isqiwen/quant-strategy-lab/issues/14) | quant-strategy-lab | Bootstrap strategy definitions, releases and account-neutral intents. | In Progress | P0 | Feature | L | 2026-Q3 | GOV-02 |
 | [`R1-DH-02`](https://github.com/isqiwen/quant-data-hub/issues/31) | quant-data-hub | Publish immutable revision/supersession semantics and Snapshot interface `1.0`. | Backlog | P0 | Feature | XL | 2026-Q4 | DH-01 |
 | [`R1-OPS-02`](https://github.com/isqiwen/quant-ops/issues/15) | quant-ops | Publish the cross-repository release-verification interface. | Backlog | P1 | Feature | L | 2026-Q4 | OPS-01 |
 | [`R1-BT-02`](https://github.com/isqiwen/quant-backtest/issues/22) | quant-backtest | Implement the minimum deterministic simulator slice. | Backlog | P1 | Feature | XL | 2026-Q4 | BT-01, DH-02, RISK-01 |
 | [`R1-RISK-02`](https://github.com/isqiwen/quant-portfolio-risk/issues/13) | quant-portfolio-risk | Implement a deterministic sizing, exposure and limit-decision slice. | Backlog | P1 | Feature | L | 2026-Q4 | RISK-01, SL-01 |
 | [`R1-FL-01`](https://github.com/isqiwen/quant-factor-lab/issues/19) | quant-factor-lab | Publish factor-domain contracts and the control catalog. | Backlog | P1 | Feature | L | 2026-Q4 | DH-01 |
 | [`R1-FL-02`](https://github.com/isqiwen/quant-factor-lab/issues/18) | quant-factor-lab | Implement a point-in-time factor-computation slice. | Backlog | P1 | Feature | L | 2026-Q4 | FL-01, DH-02 |
-| [`R1-MI-01`](https://github.com/isqiwen/quant-market-intelligence/issues/13) | quant-market-intelligence | Bootstrap the executable evidence module and producer contracts. | Backlog | P2 | Feature | L | 2026-Q4 | GOV-02 |
-| [`R1-LIVE-01`](https://github.com/isqiwen/quant-live/issues/15) | quant-live | Bootstrap a disarmed, no-broker-effect runtime contract foundation. | Backlog | P1 | Feature | L | 2026-Q4 | GOV-02 |
+| [`R1-MI-01`](https://github.com/isqiwen/quant-market-intelligence/issues/13) | quant-market-intelligence | Bootstrap the executable evidence module and producer contracts. | Todo | P2 | Feature | L | 2026-Q4 | GOV-02 |
+| [`R1-LIVE-01`](https://github.com/isqiwen/quant-live/issues/15) | quant-live | Bootstrap a disarmed, no-broker-effect runtime contract foundation. | Todo | P1 | Feature | L | 2026-Q4 | GOV-02 |
 | [`R1-SL-02`](https://github.com/isqiwen/quant-strategy-lab/issues/15) | quant-strategy-lab | Produce the first inert StrategyRelease through official Backtest and pinned Risk. | Backlog | P1 | Feature | XL | 2027-Q1 | SL-01, FL-02, BT-02, RISK-02 |
 | [`R1-CON-01`](https://github.com/isqiwen/quant-console/issues/12) | quant-console | Bootstrap a secure read-only BFF/UI with pinned provider compatibility. | Backlog | P2 | Feature | L | 2027-Q1 | GOV-02, DH-02 |
 | [`R1-E2E-01`](https://github.com/isqiwen/northstar-quant/issues/8) | northstar-quant | Accept the cross-repository offline research golden path. | Backlog | P1 | Task | M | 2027-Q1 | SL-02 |
@@ -59,6 +61,18 @@ in [the architecture](ARCHITECTURE.md#current-wave-delivery-dependency-graph).
 - `R1-GOV-02`: all nine default branches link to `NORTHSTAR-ARCH-R1`, remove the
   copied no-umbrella assertion, declare local authority/exclusions, and pass
   their documentation checks.
+
+| R1-GOV-02 owner | Merged PR | Merge commit |
+| --- | --- | --- |
+| Data Hub | [#33](https://github.com/isqiwen/quant-data-hub/pull/33) | `473337f` |
+| Market Intelligence | [#14](https://github.com/isqiwen/quant-market-intelligence/pull/14) | `bb397be` |
+| Factor Lab | [#20](https://github.com/isqiwen/quant-factor-lab/pull/20) | `cf1a691` |
+| Strategy Lab | [#16](https://github.com/isqiwen/quant-strategy-lab/pull/16) | `f078798` |
+| Backtest | [#24](https://github.com/isqiwen/quant-backtest/pull/24) | `52e05d6` |
+| Portfolio Risk | [#15](https://github.com/isqiwen/quant-portfolio-risk/pull/15) | `28194b6` |
+| Live | [#16](https://github.com/isqiwen/quant-live/pull/16) | `8e81557` |
+| Ops | [#17](https://github.com/isqiwen/quant-ops/pull/17) | `5f43dea` |
+| Console | [#13](https://github.com/isqiwen/quant-console/pull/13) | `cee2132` |
 
 ### Data and intelligence
 

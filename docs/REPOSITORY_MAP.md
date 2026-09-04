@@ -3,13 +3,13 @@
 Baseline date: 2026-09-04. Maturity describes verified default-branch contents,
 not issue titles or aspirational architecture documents.
 
-Verified default-branch anchors: Data Hub `1dbd3f9`, Market Intelligence
-`9b6b829`, Factor Lab `1807ed3`, Strategy Lab `4472910`, Backtest `2979609`,
-Portfolio Risk `fb3480d`, Live `e5b5e2a`, Ops `a06769a`, and Console `ddf2c11`.
+Verified default-branch anchors: Data Hub `473337f`, Market Intelligence
+`bb397be`, Factor Lab `cf1a691`, Strategy Lab `f078798`, Backtest `52e05d6`,
+Portfolio Risk `28194b6`, Live `8e81557`, Ops `5f43dea`, and Console `cee2132`.
 
 | Repository | Domain authority | Verified baseline | Explicit exclusions |
 | --- | --- | --- | --- |
-| [quant-data-hub](https://github.com/isqiwen/quant-data-hub) | Canonical structured/reference data, lineage, quality evidence, immutable dataset snapshots and delivery. | Executable FastAPI/PostgreSQL module. Release `v0.9.0` is `6db13fb`; default branch `1dbd3f9` adds PR #30 while package metadata still says `0.9.0`, creating unreleased version drift. Current manifests/membership are append-only and drift-fail-closed, but complete observation revision/supersession is not implemented. | Factors, strategies, simulation, portfolio risk, orders. |
+| [quant-data-hub](https://github.com/isqiwen/quant-data-hub) | Canonical structured/reference data, lineage, quality evidence, immutable dataset snapshots and delivery. | Executable FastAPI/PostgreSQL module. Release `v0.9.0` is `6db13fb`; implementation anchor `1dbd3f9` adds PR #30 while package metadata still says `0.9.0`, creating unreleased version drift. Current `473337f` adds only the R1 ecosystem context after that implementation anchor. Manifests/membership are append-only and drift-fail-closed, but complete observation revision/supersession is not implemented. | Factors, strategies, simulation, portfolio risk, orders. |
 | [quant-market-intelligence](https://github.com/isqiwen/quant-market-intelligence) | Unstructured acquisition, document/evidence versions, descriptive claims, review, and `IntelligenceArtifact`. | Architecture-only repository; no package, contract, test, or CI implementation. | Canonical structured-data authority, trading signals, factors, execution. |
 | [quant-factor-lab](https://github.com/isqiwen/quant-factor-lab) | Point-in-time factor definition, computation, statistical evidence, tri-state publication gate, and inert `FactorPackage`. | Package metadata `0.1.0`, with no tag/release; strict Data Hub `v0.9.0` M4-B manifest/bar reader and 31 tests; no M4-C export, factor computation or publication yet. | Complete strategies, simulation, account risk, orders. |
 | [quant-strategy-lab](https://github.com/isqiwen/quant-strategy-lab) | Strategy composition, preregistered experiments, validation, eligibility, inert `StrategyRelease` and `StrategyIntent`. | Architecture-only repository. | Data/factor authority, simulator, position sizing, risk approval, activation. |
