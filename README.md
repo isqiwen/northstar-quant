@@ -1,77 +1,32 @@
-# Northstar Quant
+# Northstar Quant Control Plane
 
-面向中国商品期货的量化研究、情报、组合、风险和交易平台。项目是 real-money-adjacent 系统：当前支持的正向证据只限
-offline、paper 与本地 `ctp_sim`；没有真实 CTP 连接、真实账户或实盘交易能力。
+This repository is the implementation control plane for the Northstar Quant
+suite. It coordinates work across the domain repositories; it is deliberately
+not an application, package, runtime, deployment, or shared-code repository.
 
-默认安全设置：
+The current implementation queue lives in [GitHub Project 1](https://github.com/users/isqiwen/projects/1).
+The durable control record is the [master implementation plan](docs/planning/MASTER_IMPLEMENTATION_PLAN.md).
 
-```text
-NORTHSTAR_BROKER=paper
-NORTHSTAR_LIVE_TRADING_ENABLED=false
-```
+## What belongs here
 
-账户、持仓、订单、风险、市场数据、日历、合约、保证金、授权或 broker 状态未知时，系统必须 `NO NEW RISK`。
+- cross-repository work packages, dependencies, acceptance criteria, and status;
+- domain ownership and integration seams;
+- delivery and safety policy;
+- links to merged implementation evidence and external prerequisites.
 
-## 快速开始
+## What does not belong here
 
-```bash
-python scripts/dev/setup.py --initialize-workstation
-python scripts/dev/run_just.py test
-python scripts/dev/run_just.py check
-```
+- product or domain source code;
+- tests, package manifests, migrations, runtime configuration, data, or fixtures;
+- deployment automation, environment bootstrap, or broker integrations.
 
-首次入口会展示缺失的 `uv`、`just` 和 Git 安装计划，并在交互终端要求输入 `YES`。`uv`、`just`、其 bootstrap 依赖、缓存、状态和可执行文件
-都会写入未跟踪的仓库目录 `.northstar/`；项目通过固定路径调用它们，不修改 `PATH`，也不需要重启终端。安装完成后同一次
-调用会继续完成依赖同步、安全配置和 Alembic 前向迁移；仅当刚安装的宿主机工具在当前进程仍不可见时，才会提示重新打开终端后再次运行。
+Those assets belong to the repository that owns the relevant domain. See the
+[repository map](docs/REPOSITORY_MAP.md) and [operating model](docs/OPERATING_MODEL.md)
+before routing a task.
 
-在 Ubuntu/Debian 上，该高层入口默认以 `sudo` 安装 `postgresql` 与 `postgresql-client`，并执行
-`systemctl enable --now postgresql`，提供 `pg_isready`、`psql`、`createdb`、`pg_dump` 与 `pg_restore`。随后它只接受
-`127.0.0.1:5432` 的本机服务；若 `northstar` 角色不存在，才创建最小的
-本地开发角色并将随机密码写入未跟踪的 `.env`，绝不在终端输出密码。已有角色、密码、认证规则、服务配置或数据不会被改写。
-`northstar` 只能创建/复用 `northstar` 与隔离的 `northstar_test`，并前向迁移；仓库自动化不会停止、重置或删除 PostgreSQL 服务或数据。
+## Migration note
 
-开发、研究、部署控制和运行环境只支持 Linux x86_64；原生 Windows、PowerShell 与 Git Bash 不是支持环境。
-Ubuntu/Debian 以外的 Linux x86_64、非默认端口，及低层 `dev-postgres` 命令仍只检查操作者已 provision 的本机 PostgreSQL。
-若已有 `northstar` 角色，则在未跟踪的 `.env` 中填写与其匹配的 `POSTGRES_PASSWORD` 后再运行初始化；入口不会覆盖该密码。
-
-后续运行会先将 `.venv` 的 bootstrap 状态与锁文件、项目声明、Python、uv 和 bootstrap 代码核对，并做离线健康检查；
-完全匹配时直接复用环境。wheel 缓存位于 `.northstar/cache/uv`，唯一获准 source-only 包也会在校验 SHA-256 后缓存；
-需要强制重建时使用 `python scripts/dev/run_just.py env-bootstrap-refresh`。构建在原子替换 `.venv` 前失败时会自动删除本次
-staging venv；只有替换无法安全恢复时才保留该目录供诊断，VS Code 默认隐藏这类生成目录。
-
-需要分步排查时仍可使用底层入口：`python scripts/dev/run_just.py env-bootstrap`、
-`python scripts/dev/run_just.py dev-setup`、`python scripts/dev/run_just.py db-up`、
-`python scripts/dev/run_just.py db-migrate`。
-
-数据库自动化只前向迁移和复用已有数据。仓库自动化绝不删除或清空数据库、表、schema 或本机 PostgreSQL 数据目录。
-数据库删除或清空只能由用户在仓库自动化之外手动执行。
-
-存储职责：交易状态使用 PostgreSQL；大规模历史数据使用 Parquet；历史分析由 DuckDB 查询 Parquet；SQLite 只用于
-本地工具集的独立数据库。详见[架构设计](docs/ARCHITECTURE.md#存储职责)。
-
-当前仍处于开发期，`alembic/versions/` 只保留完整的
-`0001_current_schema_baseline`。旧基线不受支持：即使 revision 名称相同，只要本地 schema 早于当前完整基线，
-也必须由操作者在仓库自动化之外手动重建后，再运行 `python scripts/dev/run_just.py setup` 或 `northstar init-db`。
-自动化不会 reset、stamp 或删除数据库。
-
-## 文档
-
-完整的文档分流和专题权威请从[文档导航](docs/README.md)开始。
-
-第一次接触本项目：
-
-- [使用者入门指南](docs/USER_GUIDE.md)：第一次运行项目、完成首个离线研究、阅读报告，并理解安全边界；
-- [开发者指南](docs/DEVELOPER_GUIDE.md)：第一次参与代码开发时的环境、架构、测试、数据与 migration 学习路径；
-
-其余专题参考和项目控制面不在这里重复列出，以文档导航为准。
-
-## 当前边界
-
-当前实施状态、完成度与外部阻塞只由[主实施计划](docs/planning/MASTER_IMPLEMENTATION_PLAN.md)维护；本 README
-不复制会随工作包变化的数字。生产灾备与权威数据 onboarding 仍需要外部授权、主机、数据许可和制品证据，它们不会因
-本地 fixture 或 `ctp_sim` 成功而自动升级。本地 PIT 回测、因子研究与受限 AI 因子挖掘可以独立推进，但同样不构成
-production、权威数据 onboarding 或真实交易的替代证据。
-
-## License
-
-仓库当前未附带单独许可证文件。若需开源发布，应先补充明确的 `LICENSE`。
+The former monolithic implementation is preserved at
+[`backup/pre-control-plane-20260904`](https://github.com/isqiwen/northstar-quant/tree/backup/pre-control-plane-20260904),
+created from `main` commit `f86850c`. The `main` branch is now reserved for the
+control-plane role described above.
