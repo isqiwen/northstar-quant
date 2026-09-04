@@ -22,8 +22,8 @@ Project. Later outcomes stay here as themes until their prerequisites are real.
   [quant-data-hub PR #34](https://github.com/isqiwen/quant-data-hub/pull/34)
   at `296d53b` and immutable
   [release `v0.9.1`](https://github.com/isqiwen/quant-data-hub/releases/tag/v0.9.1).
-- Active critical-path implementation: `R1-DH-02` and `R1-RISK-01`;
-  `R1-SL-01` is in review.
+- Active critical-path implementation: `R1-DH-02`; `R1-RISK-01` and
+  `R1-SL-01` are in review.
 - Ready queue: `R1-OPS-01`, `R1-BT-01`, `R1-FL-01`, `R1-MI-01`, and
   `R1-LIVE-01`.
 - Work-in-progress limit: three items globally and one item per repository.
@@ -43,7 +43,7 @@ in [the architecture](ARCHITECTURE.md#current-wave-delivery-dependency-graph).
 | [`R1-DH-01`](https://github.com/isqiwen/quant-data-hub/issues/32) | quant-data-hub | Establish a unique post-`v0.9.0` release baseline and contract inventory. | Done | P0 | Task | M | 2026-Q3 | GOV-02 |
 | [`R1-OPS-01`](https://github.com/isqiwen/quant-ops/issues/16) | quant-ops | Repair evidence, preflight, rollback and schema correctness in `0.1`. | Todo | P0 | Bug | M | 2026-Q3 | GOV-02 |
 | [`R1-BT-01`](https://github.com/isqiwen/quant-backtest/issues/23) | quant-backtest | Publish the deterministic simulation protocol seam. | Todo | P0 | Feature | L | 2026-Q3 | GOV-02 |
-| [`R1-RISK-01`](https://github.com/isqiwen/quant-portfolio-risk/issues/14) | quant-portfolio-risk | Bootstrap the pure risk module and producer-owned contracts. | In Progress | P0 | Feature | L | 2026-Q3 | GOV-02 |
+| [`R1-RISK-01`](https://github.com/isqiwen/quant-portfolio-risk/issues/14) | quant-portfolio-risk | Bootstrap the pure risk module and producer-owned contracts. | Review | P0 | Feature | L | 2026-Q3 | GOV-02 |
 | [`R1-SL-01`](https://github.com/isqiwen/quant-strategy-lab/issues/14) | quant-strategy-lab | Bootstrap strategy definitions, releases and account-neutral intents. | Review | P0 | Feature | L | 2026-Q3 | GOV-02 |
 | [`R1-DH-02`](https://github.com/isqiwen/quant-data-hub/issues/31) | quant-data-hub | Publish immutable revision/supersession semantics and Snapshot interface `1.0`. | In Progress | P0 | Feature | XL | 2026-Q4 | DH-01 |
 | [`R1-OPS-02`](https://github.com/isqiwen/quant-ops/issues/15) | quant-ops | Publish the cross-repository release-verification interface. | Backlog | P1 | Feature | L | 2026-Q4 | OPS-01 |
