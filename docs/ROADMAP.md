@@ -13,7 +13,8 @@ Project. Later outcomes stay here as themes until their prerequisites are real.
 
 ## Current focus
 
-- Active: `R1-GOV-01`, publish this architecture and rebuild the Project.
+- In review: `R1-GOV-01`, via
+  [northstar-quant PR #11](https://github.com/isqiwen/northstar-quant/pull/11).
 - Next after `R1-GOV-01` is merged: `R1-GOV-02`, align the nine
   repository-local context documents. It remains Backlog until then.
 - Work-in-progress limit: three items globally and one item per repository.
@@ -28,7 +29,7 @@ in [the architecture](ARCHITECTURE.md#current-wave-delivery-dependency-graph).
 
 | Code | Owner | Outcome | Status | Priority | Kind | Effort | Target | Depends on |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| [`R1-GOV-01`](https://github.com/isqiwen/northstar-quant/issues/10) | northstar-quant | Publish architecture R1 and reset Project 1. | In Progress | P0 | Task | M | 2026-Q3 | — |
+| [`R1-GOV-01`](https://github.com/isqiwen/northstar-quant/issues/10) | northstar-quant | Publish architecture R1 and reset Project 1. | Review | P0 | Task | M | 2026-Q3 | — |
 | [`R1-GOV-02`](https://github.com/isqiwen/northstar-quant/issues/9) | northstar-quant | Align repository-local ecosystem context to R1. | Backlog | P0 | Task | M | 2026-Q3 | GOV-01 |
 | [`R1-DH-01`](https://github.com/isqiwen/quant-data-hub/issues/32) | quant-data-hub | Establish a unique post-`v0.9.0` release baseline and contract inventory. | Backlog | P0 | Task | M | 2026-Q3 | GOV-02 |
 | [`R1-OPS-01`](https://github.com/isqiwen/quant-ops/issues/16) | quant-ops | Repair evidence, preflight, rollback and schema correctness in `0.1`. | Backlog | P0 | Bug | M | 2026-Q3 | GOV-02 |
