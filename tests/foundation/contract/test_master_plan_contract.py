@@ -37,16 +37,17 @@ def test_agents_and_document_navigation_link_the_same_master_plan() -> None:
     assert "](planning/MASTER_IMPLEMENTATION_PLAN.md)" in docs_index
 
 
-def test_master_plan_tracks_only_blocked_work_packages_without_a_next_task() -> None:
+def test_master_plan_tracks_the_single_authorized_data_hub_work_package() -> None:
     plan = _read_master_plan()
 
-    assert "active_phase: null" in plan
-    assert "active_work_package: null" in plan
-    assert "next_task: null" in plan
+    assert "active_phase: P15" in plan
+    assert "active_work_package: P15-DH-01" in plan
+    assert "next_task: Implement the explicit import-quality applicability check" in plan
     assert "blocked_work_packages: [P10-WP08, P10-WP09, MAINT-WP02]" in plan
-    assert "**Status:** IN_PROGRESS" not in plan
+    assert plan.count("**Status:** IN_PROGRESS") == 1
 
     expected_sections = {
+        "### P15-DH-01 — Data Hub Import Quality Applicability": "IN_PROGRESS",
         "### P10-WP08 — Platform Production / DR Acceptance": "BLOCKED",
         "### P10-WP09 — Authoritative Data & Source Onboarding": "BLOCKED",
         "### MAINT-WP02 — Native Linux PostgreSQL Development / Docker Removal": "BLOCKED",
