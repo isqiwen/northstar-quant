@@ -26,16 +26,16 @@
 ## 2. 当前状态
 
 ~~~yaml
-active_phase: P12
-active_work_package: BT-01.1
-next_task: "BT-01.1 — pin Backtest CI and isolated build toolchain"
+active_phase: P13
+active_work_package: BT-02.1
+next_task: "BT-02.1 — Publish Closed BacktestRunSpec Contract Foundation"
 blocked_work_packages: [P10-WP08, P10-WP09, MAINT-WP02]
 ~~~
 
-P11 已完成，且按本文件“只保留未完成、待验证或外部阻塞工作”的规则不再保留其完成态条目。
+上一项已完成工作已按本文件“只保留未完成、待验证或外部阻塞工作”的规则移除，不保留完成态历史。
 
-P12 本轮只授权一个跨仓库工作包：BT-01.1。未被明确列入当前工作包的项目不得在本轮开始；
-其中包括 BT-02 和 FL-01。
+P13 本轮只授权一个跨仓库工作包：BT-02.1。未被明确列入当前工作包的项目不得在本轮开始；
+其中包括 BT-02 的其余切片、FL-01 和其他并行工作包。
 
 ## 3. 全局安全与质量边界
 
@@ -61,45 +61,59 @@ python scripts/dev/run_uv.py run --offline --no-sync python scripts/ci/check_myp
 
 ## 4. 当前工作包
 
-### BT-01.1 — Pin Backtest CI and Isolated Build Toolchain
+### BT-02.1 — Publish Closed BacktestRunSpec Contract Foundation
 
 **Status:** IN_PROGRESS
 
 **Owning repository:** [`isqiwen/quant-backtest`](https://github.com/isqiwen/quant-backtest)
 
-**Tracking issue:** [BT-01.1 / #16 — Pin CI and isolated build toolchain](https://github.com/isqiwen/quant-backtest/issues/16)。
+**Parent delivery:** [BT-02 / #3 — Publish Backtest v1 and StrategyPort contracts](https://github.com/isqiwen/quant-backtest/issues/3)。
+
+**Tracking issue:** [BT-02.1 / #18 — Publish closed BacktestRunSpec v1 contract](https://github.com/isqiwen/quant-backtest/issues/18)。
 
 **Dependencies:**
 
-- BT-01 已通过并合并：[Backtest #15](https://github.com/isqiwen/quant-backtest/pull/15)。
+- BT-01 已通过并合并：[Backtest #15](https://github.com/isqiwen/quant-backtest/pull/15)；
+- BT-01.1 的可复现工具链加固已通过并合并：[Backtest #17](https://github.com/isqiwen/quant-backtest/pull/17)；
+- 已发布的 `quant-data-hub@v0.9.0` 只能作为可选兼容性夹具；本工作包不直连其数据库、也不把它写死为唯一受支持发布。
 
-**Goal:** 消除 BT-01 合并后审查发现的可复现性 P1：同一源提交的 CI 和隔离 PEP 517 构建不得
-因可变 action tag、工具版本或 backend 依赖解析而静默改变。
+**Goal:** 将 XL 的 BT-02 拆为可独立验收的首个契约切片。只发布可复算的闭合模拟输入身份，
+不执行模拟，也不发布结果或策略运行时。
 
 **Scope:**
 
-- 以完整 commit SHA 固定 CI action；
-- 固定 `uv` 和 CPython 3.12 patch 版本；
-- 固定 Hatchling 版本，并以完整 hash closure 约束隔离构建依赖；
-- 对固定项和受约束构建路径加入回归测试、文档和完整质量验证。
+- 发布随 wheel 分发、带版本的 `BacktestRunSpec` v1 JSON Schema、严格 Python 模型、
+  duplicate-key-safe JSON 解析、canonical JSON 与 SHA-256 `run_spec_hash`；
+- 固定 engine 版本/字节摘要、Data Hub snapshot/manifest/export 引用、participant/runtime/parameter
+  制品、time/calendar/universe mapping、initial account profile、全部 model/parameter、random seed、
+  output profile/resource bounds；
+- `risk_policy` 必须是显式联合：`{ "kind": "NONE" }` 或完整固定的 policy/evaluator 引用；
+- 提供正向、负向、不兼容 major、canonical-hash 与 wheel-packaging 夹具，并保留禁止网络、broker、
+  wall-clock 与全局 RNG 的源码边界测试。
 
 **Out of scope:**
 
-- Backtest v1 contracts、Data Portal、StrategyPort、模拟运行时、订单/成交/账本、因子逻辑、
-  broker、paper/live 连接或任何交易权限；
-- FL-01 或其他并行工作包。
+- `BacktestResult`、`StrategyPort`、Data Portal、外部或本地数据读取、simulation clock/engine、
+  订单/成交/账本/account runtime、网络、数据库、broker、paper/live 连接或任何交易权限；
+- Factor Lab 或 Strategy Lab source import、participant execution，或对已发布 `FactorPackage` 的依赖；
+- BT-02 父项完成宣称、BT-02 的其余切片、FL-01 或其他并行工作包。
 
 **Acceptance:**
 
-- CI 不再解析可变 action tag、浮动 `uv` 版本或浮动 Python patch；
-- PEP 517 backend 及其 transitive build dependencies 均由 hash constraints 覆盖；
-- clean locked install、format/lint、strict type check、tests 与 constrained wheel build 全部通过；
-- 文档保持“未实现模拟/公共 Backtest contract”的真实状态。
+- 任一 semantic field 改变都会改变 `run_spec_hash`；仅被 schema 明确标识为 non-semantic 的 annotation
+  改变不会影响它；
+- `latest`、branch、短/缺失 digest、未知字段、重复 JSON key、binary float/non-finite value、非 UTC 或倒置时间、
+  缺失 model pin、缺失/伪造的 risk policy 全部 fail closed；
+- caller-owned inert participant reference 无需 import 或 execute lab source 即可验证；
+- clean installed wheel 可读取公开 schema 与 fixtures；锁定安装、format/lint、strict type check、tests 与 wheel
+  build 全部通过；
+- 不得出现模拟成功、策略 promotion、live authority、外部访问或 broker capability 的暗示或实现。
 
-**Fail-closed boundary:** 固定项、hash constraint 或受约束构建任一缺失、漂移或失效时，不得将
-构建结果作为可复现 Backtest 基线，也不得开始 BT-02 的公共契约发布。
+**Fail-closed boundary:** 任一 identity、content hash、schema/semantic version、canonicalization rule、
+model pin 或 risk policy mode 缺失、漂移或不兼容时，不得构造有效 RunSpec、不得报告成功 BacktestResult，
+也不得启动模拟或任何外部访问。
 
-**Phase progress:** P12 当前承诺范围为 0/1；BT-01.1 是唯一 active work package。
+**Phase progress:** P13 当前承诺范围为 0/1；BT-02.1 是唯一 active work package。
 
 ## 5. 暂缓的外部工作包
 

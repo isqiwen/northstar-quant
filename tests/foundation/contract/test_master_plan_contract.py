@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from tests.helpers.paths import PROJECT_ROOT
+import re
 
+from tests.helpers.paths import PROJECT_ROOT
 
 PLANNING_DIR = PROJECT_ROOT / "docs" / "planning"
 MASTER_PLAN = PLANNING_DIR / "MASTER_IMPLEMENTATION_PLAN.md"
@@ -14,19 +15,16 @@ def _read_master_plan() -> str:
 
 
 def _section(plan: str, heading: str) -> str:
-    return plan.split(heading, maxsplit=1)[1].split("\n### ", maxsplit=1)[0]
+    tail = plan.split(heading, maxsplit=1)[1]
+    return re.split(r"\n#{2,3} ", tail, maxsplit=1)[0]
 
 
 def test_master_plan_is_the_single_current_control_plane() -> None:
     assert MASTER_PLAN.is_file()
-    assert {
-        path.name
-        for path in PLANNING_DIR.iterdir()
-        if path.is_file()
-    } == {"MASTER_IMPLEMENTATION_PLAN.md"}
-    assert not (
-        PLANNING_DIR / "Northstar_Quant_Codex_Master_Implementation_Plan.md"
-    ).exists()
+    assert {path.name for path in PLANNING_DIR.iterdir() if path.is_file()} == {
+        "MASTER_IMPLEMENTATION_PLAN.md"
+    }
+    assert not (PLANNING_DIR / "Northstar_Quant_Codex_Master_Implementation_Plan.md").exists()
 
 
 def test_agents_and_document_navigation_link_the_same_master_plan() -> None:
@@ -42,13 +40,14 @@ def test_agents_and_document_navigation_link_the_same_master_plan() -> None:
 def test_master_plan_tracks_only_current_work_packages_and_statuses() -> None:
     plan = _read_master_plan()
 
-    assert "active_phase: P11" in plan
-    assert "active_work_package: null" in plan
-    assert "next_task: null" in plan
+    assert "active_phase: P13" in plan
+    assert "active_work_package: BT-02.1" in plan
+    assert 'next_task: "BT-02.1 — Publish Closed BacktestRunSpec Contract Foundation"' in plan
     assert "blocked_work_packages: [P10-WP08, P10-WP09, MAINT-WP02]" in plan
+    assert plan.count("**Status:** IN_PROGRESS") == 1
 
     expected_sections = {
-        "### P11-WP05 — Durable Local AI Mining Campaign Ledger & Bounded Runner": "DONE",
+        "### BT-02.1 — Publish Closed BacktestRunSpec Contract Foundation": "IN_PROGRESS",
         "### P10-WP08 — Platform Production / DR Acceptance": "BLOCKED",
         "### P10-WP09 — Authoritative Data & Source Onboarding": "BLOCKED",
         "### MAINT-WP02 — Native Linux PostgreSQL Development / Docker Removal": "BLOCKED",
@@ -57,10 +56,14 @@ def test_master_plan_tracks_only_current_work_packages_and_statuses() -> None:
         section = _section(plan, heading)
         assert f"**Status:** {status}" in section
         assert "**Acceptance:**" in section
-    assert "completed_at: 2026-08-31" in _section(
+    active_section = _section(
         plan,
-        "### P11-WP05 — Durable Local AI Mining Campaign Ledger & Bounded Runner",
+        "### BT-02.1 — Publish Closed BacktestRunSpec Contract Foundation",
     )
+    assert "[BT-02.1 / #18" in active_section
+    assert "[BT-02 / #3" in active_section
+    assert "**Fail-closed boundary:**" in active_section
+    assert "### BT-01.1" not in plan
     assert "### P11-WP02 — Discovery Selection / OOS Release Protocol" not in plan
     assert "### P11-WP03 — Local Research Run Bundle & CLI" not in plan
     assert "### P11-WP04 — Canonical Price/Volume Factors & Robustness Study" not in plan
