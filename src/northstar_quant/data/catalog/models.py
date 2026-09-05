@@ -1185,7 +1185,7 @@ class ImportRecord(CreatedAtMixin, Base):
     __tablename__ = "import_record"
     __table_args__ = (
         sa.UniqueConstraint("import_run_id", "source_row_number", name="record_import_row"),
-        sa.CheckConstraint("source_row_number >= 2", name="record_row_number_header_offset"),
+        sa.CheckConstraint("source_row_number >= 1", name="record_row_number_positive"),
         sa.CheckConstraint("length(normalized_payload_hash) = 64", name="record_hash_length"),
         sa.CheckConstraint(
             "disposition IN ('INSERTED', 'DUPLICATE_IDENTICAL', 'CONFLICT', 'REJECTED')",

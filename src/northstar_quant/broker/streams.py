@@ -31,6 +31,7 @@ from northstar_quant.sessions import SessionStore
 
 _STREAM_LOCK = 728401929
 _ACTIVE = {"STARTING", "RECEIVING", "STOP_REQUESTED"}
+_ARCHIVE_BYTES = 5 * 1024 * 1024
 
 
 def _hash(value: object) -> str:
@@ -47,6 +48,71 @@ def _object(value: object) -> dict[str, object]:
     if not isinstance(value, dict):
         raise ValueError("stream content must be an object")
     return cast(dict[str, object], value)
+
+
+def read_stream_archive(engine: Engine, identifier: UUID, through_sequence: int) -> bytes:
+    """Copy an exact committed prefix for Data, without connecting or projecting.
+
+    The immutable binding and every original callback/receipt are retained,
+    including non-market callbacks needed to explain identity and interruption.
+    Mutable shadow checkpoints and control state are deliberately excluded: a
+    later callback, pause or restart cannot change a previously selected prefix.
+    The 5 MiB bound applies to the full JSON document; never silently truncate.
+    """
+    if type(through_sequence) is not int or not 1 <= through_sequence <= 100000:
+        raise ValueError("archive prefix must end at a positive committed sequence")
+    with engine.connect() as connection:
+        row = BrokerStreams._row(connection, identifier)
+        if through_sequence > cast(int, row["received"]):
+            raise ValueError("archive prefix cannot include unreceived callbacks")
+        archive: dict[str, object] = {
+            "kind": "COPIED_CTP_CALLBACK_PREFIX",
+            "stream_id": str(identifier),
+            "through_sequence": through_sequence,
+            "binding": row["binding"],
+            "binding_hash": row["binding_hash"],
+            "events": [],
+        }
+        events: list[dict[str, object]] = []
+        size = len(_json(archive).encode())
+        records = (
+            connection.execution_options(yield_per=100)
+            .execute(
+                text("""
+                SELECT sequence, event, event_hash, committed_at FROM broker_stream_events
+                WHERE stream_id=:id AND sequence<=:through ORDER BY sequence
+            """),
+                {"id": identifier, "through": through_sequence},
+            )
+            .mappings()
+        )
+        for item in records:
+            event = _object(item["event"])
+            if (
+                item["sequence"] != len(events) + 1
+                or event.get("sequence") != item["sequence"]
+                or _hash(event) != item["event_hash"]
+            ):
+                raise ValueError("stream archive source sequence or content integrity failed")
+            entry = {
+                "event": event,
+                "event_hash": item["event_hash"],
+                "committed_at": item["committed_at"].astimezone(UTC).isoformat(),
+            }
+            size += len(_json(entry).encode()) + (1 if events else 0)
+            if size > _ARCHIVE_BYTES:
+                raise ValueError(
+                    "stream archive prefix exceeds 5 MiB; select an earlier committed "
+                    "sequence and a smaller explicit time range"
+                )
+            events.append(entry)
+        if len(events) != through_sequence:
+            raise ValueError("stream archive prefix is missing committed callbacks")
+    archive["events"] = events
+    content = _json(archive).encode()
+    if len(content) > _ARCHIVE_BYTES:
+        raise ValueError("stream archive prefix exceeds 5 MiB")
+    return content
 
 
 def initialize_streams(connection: Connection) -> None:
@@ -110,6 +176,7 @@ class BrokerStreams:
 
     def __init__(self, engine: Engine, library: DataLibrary) -> None:
         self._engine = engine
+        self._library = library
         self._configurations = SessionStore(engine, library)
         self._guard = threading.Lock()
         self._workers: dict[UUID, tuple[threading.Thread, threading.Event]] = {}
@@ -609,6 +676,31 @@ class BrokerStreams:
         worker = self._workers.get(identifier)
         return worker is not None and worker[0].is_alive()
 
+    def archive(
+        self,
+        identifier: UUID,
+        *,
+        through_sequence: int,
+        session_open: str,
+        session_close: str,
+        request_id: UUID,
+        allow_download: bool = False,
+    ) -> dict[str, object]:
+        """Publish an explicitly selected captured range through Data, not the SDK.
+
+        This is local reconstruction for research, never resumed shadow decisions
+        or execution. Data owns permission, idempotency, processing and publication;
+        an admitted but invalid range returns its retained FAILED attempt.
+        """
+        content = read_stream_archive(self._engine, identifier, through_sequence)
+        return self._library.receive_stream(
+            content,
+            session_open=session_open,
+            session_close=session_close,
+            allow_download=allow_download,
+            request_id=str(request_id),
+        )
+
     def get(self, identifier: UUID) -> dict[str, object]:
         with self._engine.connect() as connection:
             row = self._row(connection, identifier)
@@ -655,6 +747,7 @@ class BrokerStreams:
             "updated_at": str(row["updated_at"]),
             "order_sending": False,
             "cancel_sending": False,
+            "archives": self._library.stream_attempts(identifier),
             "steps": [
                 {
                     "sequence": item["sequence"],

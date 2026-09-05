@@ -18,12 +18,14 @@ from dataclasses import asdict, dataclass
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
+from typing import TYPE_CHECKING
 from uuid import UUID
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlalchemy import Engine, select, text
 from sqlalchemy.orm import Session
 
+from northstar_quant.data.broker import verify_broker_contract
 from northstar_quant.data.catalog.models import (
     CanonicalBar,
     DataSeries,
@@ -65,6 +67,9 @@ from northstar_quant.data.snapshots.service import (
     DatasetSnapshotPublicationService,
     DatasetSnapshotResolutionService,
 )
+
+if TYPE_CHECKING:
+    from northstar_quant.data.stream import StreamMinutes
 
 
 @dataclass(frozen=True, slots=True)
@@ -115,9 +120,10 @@ class ImportSpec:
             "SOURCE_DECLARED",
             "FINAL_REVISED",
             "SYNTHETIC",
+            "LOCAL_CAPTURE_RECONSTRUCTED",
         }:
             raise ValueError(
-                "data.availability_basis must be SOURCE_DECLARED, FINAL_REVISED or SYNTHETIC"
+                "data.availability_basis is not a supported current information-clock basis"
             )
         if not isinstance(self.currency, str) or re.fullmatch(r"[A-Z]{3}", self.currency) is None:
             raise ValueError("data.currency must be a three-letter uppercase currency")
@@ -362,6 +368,7 @@ class DatasetDetails:
     volume_unit: str
     adjustment: str
     timestamp_convention: str
+    processing_provenance: dict[str, object] | None = None
 
     @property
     def limitations(self) -> tuple[str, ...]:
@@ -376,12 +383,22 @@ class DatasetDetails:
                 "not historical publication."
             ),
             "SYNTHETIC": "Synthetic observations are for engineering checks only.",
+            "LOCAL_CAPTURE_RECONSTRUCTED": (
+                "Minutes are reconstructed from retained local callback receipt times, not "
+                "exchange publication or proof that this calculation ran at that time. "
+                "Shadow pauses are not replayed and historical shadow decisions are not changed."
+            ),
         }[self.import_spec.availability_basis]
         return (
             availability,
             "Source references and notes are operator declarations, not verified acquisition "
             "or redistribution rights.",
-            "The exact received CSV bytes are retained in the managed source archive. "
+            "The retained CTP JSON prefix contains copied SDK callbacks, not vendor wire bytes. "
+            "Observed LastPrice OHLC and snapshot-timed cumulative volume differences are "
+            "not exact trade-tape OHLCV; SimNow or synthetic callbacks do not prove "
+            "live acceptance."
+            if self.processing_provenance is not None
+            else "The exact received CSV bytes are retained in the managed source archive. "
             "A converted CSV is not an upstream provider response; only declared, linked "
             "upstream files constitute retained upstream evidence.",
             "Receipt received_at is local ingestion metadata, not historical publication time.",
@@ -414,6 +431,11 @@ class DatasetDetails:
             "source_reference": spec.source_reference,
             "availability_basis": spec.availability_basis,
             "availability_note": spec.availability_note,
+            **(
+                {"processing_provenance": self.processing_provenance}
+                if self.processing_provenance is not None
+                else {}
+            ),
             "limitations": list(self.limitations),
         }
 
@@ -430,7 +452,72 @@ def _import_csv(
     """Private canonical pipeline; DataLibrary owns admission, archive and attempts."""
 
     payload = SourcePayload(content, hashlib.sha256(content).hexdigest(), len(content))
+    if spec.availability_basis == "LOCAL_CAPTURE_RECONSTRUCTED":
+        raise ValueError("local capture timing requires the original retained CTP JSON prefix")
     adapter = _ResearchCsv(spec, payload=payload, archive=archive)
+    return _import_market(engine, spec, adapter, processing_hash=processing_hash, stage=stage)
+
+
+def _import_stream(
+    engine: Engine,
+    content: bytes,
+    *,
+    parameters: dict[str, object],
+    archive: dict[str, object],
+    processing_hash: str,
+    stage: Callable[[str, dict[str, object]], None],
+) -> ResearchDataset:
+    from northstar_quant.data.stream import reconstruct_stream
+
+    stage("PARSING", {})
+    reconstructed = reconstruct_stream(content, parameters)
+    binding = reconstructed.binding
+    contract_id = UUID(binding["contract_id"])
+    verify_broker_contract(engine, contract_id, binding["terms"])
+    with Session(engine) as session:
+        contract = session.get(FuturesContract, contract_id)
+        if contract is None:
+            raise ValueError("CTP market contract is no longer registered")
+        product = contract.product
+        spec = ImportSpec(
+            exchange="SHFE",
+            symbol=contract.contract_code,
+            product=product.code,
+            timezone="Asia/Shanghai",
+            currency=product.currency,
+            quantity_unit=product.quantity_unit,
+            price_tick=product.price_tick,
+            multiplier=product.contract_multiplier,
+            trading_day=reconstructed.session_open.astimezone(ZoneInfo("Asia/Shanghai")).date(),
+            session_open=reconstructed.session_open,
+            session_close=reconstructed.session_close,
+            source_name="SIMNOW_CTP",
+            source_reference=(
+                f"Retained SimNow CTP stream {reconstructed.stream_id}; "
+                f"prefix 1..{reconstructed.through_sequence}; "
+                f"original JSON sha256 {hashlib.sha256(content).hexdigest()}"
+            ),
+            availability_basis="LOCAL_CAPTURE_RECONSTRUCTED",
+            availability_note=(
+                "Reconstructed from original local callback receipt times; no exchange publication "
+                "or historical shadow-decision claim. Observed LastPrice OHLC and cumulative "
+                "volume deltas assigned by snapshot time are not trade-tape OHLCV."
+            ),
+        )
+    payload = SourcePayload(content, hashlib.sha256(content).hexdigest(), len(content))
+    adapter = _CtpSegment(spec, payload=payload, archive=archive, reconstructed=reconstructed)
+    return _import_market(engine, spec, adapter, processing_hash=processing_hash, stage=stage)
+
+
+def _import_market(
+    engine: Engine,
+    spec: ImportSpec,
+    adapter: _ResearchCsv,
+    *,
+    processing_hash: str,
+    stage: Callable[[str, dict[str, object]], None],
+) -> ResearchDataset:
+    payload, archive = adapter.payload, adapter.archive
     # Validate the whole input before catalog registration or canonical writes.
     # Existing observations must never fill gaps in the operator's current file.
     stage("PARSING", {})
@@ -445,12 +532,40 @@ def _import_csv(
         return _load_dataset(engine, previous)
     stage("IMPORTING", {})
     series_id = _catalog(engine, spec)
+    # A sampled CTP market is not interchangeable with operator OHLCV, even when
+    # prices happen to match. The current catalog has one meaning per series;
+    # refuse mixed fixed inputs rather than inventing a source-specific calendar.
+    with Session(engine) as session:
+        previous_imports = session.scalars(
+            select(ImportRun).where(
+                ImportRun.id.in_(
+                    select(CanonicalBar.import_run_id).where(CanonicalBar.series_id == series_id)
+                )
+            )
+        ).all()
+        for previous_import in previous_imports:
+            if _CtpSegment.mapping_version in {
+                adapter.mapping_version,
+                previous_import.mapping_version,
+            } and (
+                previous_import.mapping_version != adapter.mapping_version
+                or previous_import.source_receipt is None
+                or previous_import.source_receipt.content_hash != payload.content_hash
+                or previous_import.mapping is None
+                or previous_import.mapping.get("session") != spec.to_mapping()
+            ):
+                raise ValueError(
+                    "CTP observed-minute series cannot mix different sampling semantics "
+                    "or fixed sources"
+                )
     with Session(engine, autoflush=False, expire_on_commit=False) as session:
         imported = OhlcvImportService(session, adapter=adapter).import_file(
             OhlcvImportCommand(
                 # The ingestion adapter already owns the exact archived bytes;
                 # this diagnostic name is never opened or interpreted as a path.
-                file_path=Path("received.csv"),
+                file_path=Path(
+                    "received.json" if isinstance(adapter, _CtpSegment) else "received.csv"
+                ),
                 series_id=series_id,
                 source_name=spec.source_name,
                 source_timezone_name=spec.timezone,
@@ -613,6 +728,7 @@ def _read_dataset(session: Session, snapshot_id: UUID) -> tuple[ResearchDataset,
     sources: list[DatasetSource] = []
     import_quality: list[DatasetImportQuality] = []
     specs: list[ImportSpec] = []
+    stream_provenance: dict[str, object] | None = None
     pins = session.scalars(
         select(DatasetSnapshotImportQualityPin)
         .where(DatasetSnapshotImportQualityPin.manifest_id == snapshot_id)
@@ -628,13 +744,29 @@ def _read_dataset(session: Session, snapshot_id: UUID) -> tuple[ResearchDataset,
             receipt is None
             or mapping is None
             or _digest(mapping) != imported.mapping_hash
-            or imported.mapping_version != _ResearchCsv.mapping_version
+            or imported.mapping_version
+            not in {_ResearchCsv.mapping_version, _CtpSegment.mapping_version}
         ):
             raise ValueError("snapshot source mapping is missing, unsupported or has drifted")
         source_spec = mapping.get("session")
         if not isinstance(source_spec, dict):
             raise ValueError("snapshot original source session metadata is missing")
         spec = ImportSpec.from_mapping(source_spec)
+        if imported.mapping_version == _CtpSegment.mapping_version:
+            provenance = mapping.get("stream")
+            if (
+                spec.availability_basis != "LOCAL_CAPTURE_RECONSTRUCTED"
+                or not isinstance(provenance, dict)
+                or provenance.get("price_basis") != "OBSERVED_CTP_LAST_PRICE"
+                or provenance.get("volume_basis") != "CUMULATIVE_DELTA_AT_SNAPSHOT_TIME"
+                or provenance.get("time_basis") != "RECONSTRUCTED_FROM_LOCAL_RECEIPT_CLOCK"
+            ):
+                raise ValueError("CTP snapshot reconstruction meaning is missing or has drifted")
+            if stream_provenance is not None and stream_provenance != provenance:
+                raise ValueError("CTP snapshot mixes different fixed callback prefixes")
+            stream_provenance = provenance
+        elif spec.availability_basis == "LOCAL_CAPTURE_RECONSTRUCTED":
+            raise ValueError("operator CSV cannot claim locally captured CTP evidence")
         if (
             spec.source_name.upper() != receipt.source_name
             or spec.timezone != receipt.source_timezone_name
@@ -668,6 +800,8 @@ def _read_dataset(session: Session, snapshot_id: UUID) -> tuple[ResearchDataset,
             or source["byte_count"] != receipt.byte_count
             or str(source["source_name"]).upper() != receipt.source_name
             or source["allow_retention"] is not True
+            or (source["input_kind"] == "CTP_CALLBACK_SEGMENT")
+            != (imported.mapping_version == _CtpSegment.mapping_version)
         ):
             raise ValueError("snapshot original source archive evidence has drifted")
         specs.append(spec)
@@ -761,6 +895,7 @@ def _read_dataset(session: Session, snapshot_id: UUID) -> tuple[ResearchDataset,
         volume_unit=partition.volume_unit,
         adjustment=partition.adjustment,
         timestamp_convention=partition.timestamp_convention,
+        processing_provenance=stream_provenance,
     )
     return (
         ResearchDataset(snapshot_id, resolved.manifest.content_hash, market, tuple(bars), details),
@@ -1025,6 +1160,67 @@ class _ResearchCsv:
         return self.mapping_metadata(source_timezone_name=source_timezone_name)
 
 
+class _CtpSegment(_ResearchCsv):
+    """Actual JSON input and sampled minute output share the canonical import behavior."""
+
+    media_type = "application/json"
+    mapping_version = "ctp-callback-minute/1"
+    job_kind = "CTP_MINUTE_IMPORT"
+    input_kind = "CTP_CALLBACK_SEGMENT"
+
+    def __init__(
+        self,
+        spec: ImportSpec,
+        *,
+        payload: SourcePayload,
+        archive: dict[str, object],
+        reconstructed: StreamMinutes,
+    ) -> None:
+        super().__init__(spec, payload=payload, archive=archive)
+        self.reconstructed = reconstructed
+
+    def parse(self, payload: SourcePayload, *, source_timezone_name: str) -> ParsedOhlcvRows:
+        if payload != self.payload or source_timezone_name != self.spec.timezone:
+            raise ValueError("CTP parser input differs from the retained callback prefix")
+        if self._parsed is not None:
+            return self._parsed
+        timezone = ZoneInfo(self.spec.timezone)
+        self._parsed = ParsedOhlcvRows(
+            tuple(
+                RawOhlcvRow(
+                    source_row_number=index,
+                    symbol=self.spec.symbol,
+                    interval="1m",
+                    event_time=_utc(bar["start_at"]).astimezone(timezone),
+                    trading_day=self.spec.trading_day,
+                    available_at=_utc(bar["available_at"]).astimezone(timezone),
+                    source_record_id=f"{self.reconstructed.stream_id}:{bar['observation_id']}",
+                    price_currency=self.spec.currency,
+                    volume_unit="LOT",
+                    open_interest_unit="LOT",
+                    turnover_currency=self.spec.currency,
+                    turnover_multiplier=Decimal(1),
+                    open_price=Decimal(bar["open"]),
+                    high_price=Decimal(bar["high"]),
+                    low_price=Decimal(bar["low"]),
+                    close_price=Decimal(bar["close"]),
+                    volume=Decimal(bar["volume"]),
+                    turnover=None,
+                    open_interest=None,
+                )
+                for index, bar in enumerate(self.reconstructed.bars, 1)
+            ),
+            self.mapping_metadata(source_timezone_name=source_timezone_name),
+        )
+        return self._parsed
+
+    def mapping_metadata(self, *, source_timezone_name: str) -> dict[str, object]:
+        return {
+            **super().mapping_metadata(source_timezone_name=source_timezone_name),
+            "stream": self.reconstructed.provenance(),
+        }
+
+
 def _digest(value: object) -> str:
     return hashlib.sha256(
         json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
@@ -1067,6 +1263,6 @@ def _timestamp(value: datetime) -> str:
 
 
 def _utc(value: str) -> datetime:
-    if re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", value) is None:
-        raise ValueError("session timestamps must use YYYY-MM-DDTHH:MM:SSZ")
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?Z", value) is None:
+        raise ValueError("timestamps must use UTC Z with at most six fractional second digits")
     return datetime.fromisoformat(value).astimezone(UTC)

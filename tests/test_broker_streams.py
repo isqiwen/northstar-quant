@@ -81,7 +81,7 @@ def start(
     )
 
 
-def logins(accept: Any) -> None:
+def logins(accept: Any, *, at: datetime = OPEN) -> None:
     for index, channel in enumerate(("TD", "MD"), 1):
         accept(
             BrokerEvent(
@@ -90,9 +90,9 @@ def logins(accept: Any) -> None:
                 "OnRspUserLogin",
                 index,
                 True,
-                OPEN.isoformat().replace("+00:00", "Z"),
+                at.isoformat().replace("+00:00", "Z"),
                 0,
-                {"UserID": "123456", "BrokerID": "9999", "TradingDay": "20260907"},
+                {"UserID": "123456", "BrokerID": "9999", "TradingDay": at.strftime("%Y%m%d")},
             )
         )
 

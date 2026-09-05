@@ -154,14 +154,68 @@ ActionDay / UpdateTime 分别保留；接收进程存在不等于当前身份、
 <p id="stream-warmup">{_warmup_summary(state.get("market"))}</p>
 <details><summary>完整分钟处理与预热证据</summary>
 <pre id="stream-market-state">{_json(state.get("market"))}</pre></details></section></div>
+{_archive_panel(stream)}
 <section class="panel"><h2>固定输入与证据</h2>
 <p><a href="/broker/{_text(request["query_batch_id"])}">来源账户／合约查询</a> ·
 <a href="/api/streams/{identifier}">当前接收记录 JSON</a> ·
 <a href="/api/streams/{identifier}/events?after=0">最初 100 条实际回调证据</a></p>
-<p>实际 SDK 回调以 PostgreSQL 不可变逐行记录为准，不是网络原文、历史可得性证明或
-Data 已发布研究产品。查看 JSON 与翻页不连接柜台。</p>
+<p>实际 SDK 回调以 PostgreSQL 不可变逐行记录为准，不是网络原文或历史可得性证明。
+只有归档加工通过后才有独立发布的研究产品；查看 JSON 与翻页不连接柜台。</p>
 <details><summary>固定配置、使用依据、来源与实现身份</summary>
 <pre>{_json(binding)}</pre></details></section></div>"""
+
+
+def _archive_panel(stream: dict[str, object]) -> str:
+    received = cast(int, stream["received"])
+    disabled = "" if received else " disabled"
+    attempts = cast(list[dict[str, object]], stream["archives"])
+    rows = "".join(_archive_row(attempt) for attempt in attempts)
+    if not rows:
+        rows = '<tr><td colspan="5">尚无本地归档加工尝试；未归档不等于已发布。</td></tr>'
+    return f"""<section class="panel"><h2>将固定回调前缀归档并加工为市场段</h2>
+<p>只读取已保存的来源，不连接柜台。归档为带原接收时刻的 CTP 回调 JSON，
+不是 CSV，也不是供应商网络字节；从完整回调重新计算分钟，不复制近期影子结果。
+加工不会回写已运行的影子目标，也不补做旧控制期间的决策。</p>
+<form id="stream-archive-form" data-stream-id="{_text(stream["stream_id"])}">
+<label>固定前缀：从序号 1 到
+<input name="through_sequence" type="number" min="1" max="{received}" step="1"
+value="{received}" required></label>
+<p class="muted">本页打开时已保存 {received} 条。轮询不扩大所选前缀；
+需选择后来收到的内容时重新打开页面。整个 JSON 前缀最多 5 MiB，超限明确拒绝，不悄悄截断。</p>
+<label>首分钟起点（UTC）<input name="session_open" type="text" required maxlength="40"
+placeholder="YYYY-MM-DDTHH:MM:00Z"></label>
+<label>最后一分钟完成边界（UTC）<input name="session_close" type="text" required maxlength="40"
+placeholder="YYYY-MM-DDTHH:MM:00Z"></label>
+<p class="muted">明确选择左闭右开的完整分钟范围，UTC 不由浏览器本地时区推测。
+首个部分分钟、末尾未完成分钟和缺口不能靠缩放时间或补零变成有效数据；
+源日期、接收时刻与归档时间分别保留。只发布满足当前 DAY 质量约束的市场段。</p>
+<label class="check-field"><input name="allow_download" type="checkbox">
+<span>另行允许本机下载此归档：JSON 包含账户 TD 回调和私有身份，
+默认不允许下载，不应公开或转发。</span></label>
+<button type="submit"{disabled}>本地归档并检查发布条件（不连接柜台）</button>
+<p id="stream-archive-status" class="status" role="status"></p></form>
+<h3>最近 50 次归档与加工</h3><div class="table-scroll"><table><thead><tr>
+<th>固定前缀</th><th>所选 UTC 范围</th><th>加工状态与来源</th><th>发布产品</th><th>原因</th>
+</tr></thead><tbody id="stream-archives">{rows}</tbody></table></div></section>"""
+
+
+def _archive_row(attempt: dict[str, object]) -> str:
+    parameters = _object(attempt["parameters"])
+    snapshot = attempt["snapshot_id"]
+    product = (
+        "尚未发布"
+        if snapshot is None
+        else f'<a href="/datasets/{_text(snapshot)}">查看已发布数据</a>'
+    )
+    return (
+        f"<tr><td>1–{_text(parameters['through_sequence'])}</td>"
+        f'<td class="wrap-cell">{_text(parameters.get("session_open"))} → '
+        f"{_text(parameters.get('session_close'))}</td>"
+        f'<td><a href="/attempts/{_text(attempt["attempt_id"])}">'
+        f"{_text(attempt['status'])}</a><br>"
+        f'<a href="/sources/{_text(attempt["source_id"])}">托管 JSON 来源</a></td>'
+        f'<td>{product}</td><td class="wrap-cell">{_text(attempt["error"] or "—")}</td></tr>'
+    )
 
 
 def _step_row(step: dict[str, object], identifier: str) -> str:

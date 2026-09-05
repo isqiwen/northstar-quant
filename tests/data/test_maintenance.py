@@ -87,17 +87,18 @@ def test_initialization_and_restore_keep_all_interrupted_query_evidence(
     assert position_check["status"] == "MATCHED"
     assert order_check["status"] == "MATCHED" and len(order_check["orders"]) == 1
     streams, stream_id = BrokerStreams(postgres_engine, library), uuid4()
+    stream_open = OPEN - timedelta(days=3)
     try:
         start(streams, stream_source, configuration, stream_id)
         assert calls["ready"].wait(3)
-        logins(calls["accept"])
+        logins(calls["accept"], at=stream_open)
         # Leave headroom for receipt latency and the independent idle monitor.
         # A 5s source cadence plus 100ms transport legitimately exceeds the
         # 5s source-freshness limit before the next callback is projected.
         for sequence, seconds in enumerate(range(0, 181, 4), 3):
             event = tick(
                 sequence,
-                OPEN + timedelta(seconds=seconds),
+                stream_open + timedelta(seconds=seconds),
                 price="3100" if seconds < 120 else "3110",
                 volume=100 + sequence,
             )
@@ -105,6 +106,15 @@ def test_initialization_and_restore_keep_all_interrupted_query_evidence(
             calls["accept"](event)
     finally:
         streams.close()
+    archived = streams.archive(
+        stream_id,
+        through_sequence=48,
+        session_open="2026-09-04T01:01:00Z",
+        session_close="2026-09-04T01:03:00Z",
+        request_id=uuid4(),
+    )
+    assert archived["status"] == "PUBLISHED", archived
+    dataset = library.load_dataset(UUID(archived["snapshot_id"]))
     stream = streams.get(stream_id)
     events = streams.events(stream_id)
     assert stream["received"] == stream["cursor"] == len(events) == 48
@@ -121,7 +131,7 @@ def test_initialization_and_restore_keep_all_interrupted_query_evidence(
     assert ledger.get_order_check(order_check_id) == order_check
     assert streams.get(stream_id) == stream
     with _empty_restore_database(postgres_engine) as target:
-        backup(postgres_engine, SourceFiles(tmp_path / "sources"), tmp_path / "backup")
+        backup(postgres_engine, SourceFiles(tmp_path / "archive"), tmp_path / "backup")
         result = restore(target, tmp_path / "restored", tmp_path / "backup")
         assert result["evidence"] == {
             "query_batches_count": 105,
@@ -150,8 +160,27 @@ def test_initialization_and_restore_keep_all_interrupted_query_evidence(
         assert restored_streams.get(stream_id) == stream
         assert restored_streams.events(stream_id) == events
         assert restored_streams.get(stream_id)["connection"] == "NOT_ATTACHED"
+        restored_library = DataLibrary(target, SourceFiles(tmp_path / "restored"))
+        assert restored_library.load_dataset(dataset.snapshot_id) == dataset
+        assert restored_library.attempt(UUID(archived["attempt_id"])) == archived
         assert calls["count"] == 1  # Recovery did not invoke the synthetic receiver again.
         assert not (tmp_path / "restored/.restore-incomplete").exists()
+    # Fault injection: the archive bytes remain intact, but their parent receipt
+    # evidence no longer matches. Restoration must not trust just the file hash.
+    with postgres_engine.begin() as connection:
+        connection.execute(text("SET LOCAL session_replication_role = replica"))
+        connection.execute(
+            text(
+                "UPDATE broker_stream_events SET committed_at=committed_at+interval '1 second' "
+                "WHERE stream_id=:id AND sequence=1"
+            ),
+            {"id": stream_id},
+        )
+    backup(postgres_engine, SourceFiles(tmp_path / "archive"), tmp_path / "changed-parent-backup")
+    with _empty_restore_database(postgres_engine) as target:
+        with pytest.raises(ValueError, match="differs from its fixed persisted callback prefix"):
+            restore(target, tmp_path / "changed-parent-restore", tmp_path / "changed-parent-backup")
+        assert (tmp_path / "changed-parent-restore/.restore-incomplete").is_file()
 
 
 def test_corrupt_query_evidence_keeps_restore_unactivated(

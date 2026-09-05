@@ -274,6 +274,9 @@ def restore(engine: Engine, source_root: Path, directory: Path) -> dict[str, obj
     initialize_database(engine)
     require_current_database(engine)
     library = DataLibrary(engine, target)
+    # Failed processing still owns admitted sources. Verify their links to the
+    # retained broker prefix too, not only archives reached by publications.
+    library.verify_sources()
     with engine.connect() as connection:
         restored = manifest(connection)
         baseline = connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()

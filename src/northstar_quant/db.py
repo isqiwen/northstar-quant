@@ -48,6 +48,17 @@ def initialize_database(engine: Engine) -> None:
         if existing and "alembic_version" not in existing:
             raise ValueError("database is not empty and has no Northstar migration baseline")
         command.upgrade(configuration, "head")
+        # Record ordinals belong to the actual format: CSV has a header; copied
+        # JSON starts at record 1. Replace the format-specific assumption while
+        # preserving every previously accepted source record.
+        connection.exec_driver_sql("""
+            ALTER TABLE import_record
+                DROP CONSTRAINT IF EXISTS ck_import_record_record_row_number_header_offset;
+            ALTER TABLE import_record
+                DROP CONSTRAINT IF EXISTS ck_import_record_record_row_number_positive;
+            ALTER TABLE import_record ADD CONSTRAINT ck_import_record_record_row_number_positive
+                CHECK (source_row_number >= 1)
+        """)
         initialize_run_store(connection)
         initialize_session_store(connection)
         initialize_library(connection)

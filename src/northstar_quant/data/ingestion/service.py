@@ -152,7 +152,7 @@ class OhlcvImportService:
                 mapping=mapping,
                 error=error,
             )
-        except IntegrityError:
+        except IntegrityError as failure:
             self._session.rollback()
             existing = self._find_existing(command, request_fingerprint)
             if existing is not None:
@@ -164,8 +164,12 @@ class OhlcvImportService:
                 request_fingerprint=request_fingerprint,
                 mapping=mapping,
                 error=OhlcvImportError(
-                    "CANONICAL_BAR_CONCURRENT_CONFLICT",
-                    "a concurrent import changed this series; retry the same input safely",
+                    "CANONICAL_BAR_CONCURRENT_CONFLICT"
+                    if getattr(failure.orig, "sqlstate", None) == "23505"
+                    else "IMPORT_DATA_INVARIANT_FAILED",
+                    "a concurrent import changed this series; retry the same input safely"
+                    if getattr(failure.orig, "sqlstate", None) == "23505"
+                    else "normalized input did not satisfy persisted data invariants",
                     rows_read=len(normalized),
                     rows_rejected=len(normalized),
                     quarantined=True,

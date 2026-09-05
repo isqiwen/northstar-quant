@@ -49,6 +49,7 @@ from northstar_quant.data.research import (
     ResearchDataset,
     _digest,
     _import_csv,
+    _import_stream,
     _load_dataset,
     _source_evidence,
     _timestamp,
@@ -74,7 +75,10 @@ _sources = Table(
     Column("received_at", DateTime(timezone=True), nullable=False),
     Column("evidence_hash", String(64), nullable=False),
     CheckConstraint("allow_retention AND byte_count > 0 AND byte_count <= 5242880"),
-    CheckConstraint("input_kind IN ('RECEIVED_CSV', 'CONVERTED_CSV')"),
+    CheckConstraint(
+        "input_kind IN ('RECEIVED_CSV', 'CONVERTED_CSV', 'CTP_CALLBACK_SEGMENT')",
+        name="data_sources_input_kind_check",
+    ),
 )
 _attempts = Table(
     "data_processing_attempts",
@@ -125,6 +129,12 @@ def initialize_library(connection: Connection) -> None:
     """Create library metadata as part of the current atomic PostgreSQL baseline."""
 
     _metadata.create_all(connection)
+    # Replace the current constraint without rewriting retained source evidence.
+    connection.exec_driver_sql("""
+        ALTER TABLE data_sources DROP CONSTRAINT IF EXISTS data_sources_input_kind_check;
+        ALTER TABLE data_sources ADD CONSTRAINT data_sources_input_kind_check
+        CHECK (input_kind IN ('RECEIVED_CSV', 'CONVERTED_CSV', 'CTP_CALLBACK_SEGMENT'))
+    """)
     connection.exec_driver_sql("""
         CREATE OR REPLACE FUNCTION data_reject_source_change() RETURNS trigger AS $$
         BEGIN
@@ -224,6 +234,8 @@ class DataLibrary:
             try:
                 request_id = _request_id(request_id)
                 parameters = _parameters(spec)
+                if input_kind not in {"RECEIVED_CSV", "CONVERTED_CSV"}:
+                    raise ValueError("CSV reception requires RECEIVED_CSV or CONVERTED_CSV")
                 declaration = self._declaration(
                     filename,
                     source_name,
@@ -234,6 +246,29 @@ class DataLibrary:
                     upstream_source_id,
                     transformation_note,
                 )
+            except (ValueError, OSError) as error:
+                self._reject(request_id, _safe_admission_error(error))
+            return self._receive(content, declaration, parameters, request_id)
+
+    def receive_stream(
+        self,
+        content: bytes,
+        *,
+        session_open: str,
+        session_close: str,
+        allow_download: bool = False,
+        request_id: str,
+    ) -> dict[str, object]:
+        """Archive a fixed copied-callback prefix and publish an explicit minute range.
+
+        Retention and use permissions come from the persisted stream binding,
+        never caller-supplied account or market facts. The JSON keeps original
+        callback clocks; this archive's receipt time is only local file metadata.
+        A bad range or unusable market input leaves a retained FAILED attempt.
+        """
+        with self._writer():
+            try:
+                request_id = _request_id(request_id)
                 if (
                     not isinstance(content, bytes)
                     or not 1 <= len(content) <= self._files.max_file_bytes
@@ -241,37 +276,75 @@ class DataLibrary:
                     raise ValueError(
                         "source must be nonempty bytes within the configured upload limit"
                     )
-                declaration.update(
-                    content_hash=hashlib.sha256(content).hexdigest(), byte_count=len(content)
-                )
-                identity = _digest(
+                document = self._stream_document(content)
+                binding = cast(dict[str, object], document["binding"])
+                request = cast(dict[str, object], binding["request"])
+                parameters = _parameters(
                     {
-                        "operation": "receive",
-                        "source": _source_evidence(declaration),
-                        "spec": parameters,
+                        "stream_id": document["stream_id"],
+                        "through_sequence": document["through_sequence"],
+                        "session_open": session_open,
+                        "session_close": session_close,
                     }
                 )
-                existing = self._existing_request(request_id, identity)
-                if existing is not None:
-                    return self.attempt(existing)
-                stored = self._files.store(content)
-                if stored.content_hash != declaration["content_hash"] or stored.byte_count != len(
-                    content
-                ):
-                    raise ValueError("durable source identity differs from the received bytes")
-            except (ValueError, OSError) as error:
+                declaration = self._declaration(
+                    f"stream-{document['stream_id']}-{document['through_sequence']}.json",
+                    "SIMNOW_CTP",
+                    cast(str, request["use_basis"]),
+                    cast(bool, request["allow_retention"]),
+                    allow_download,
+                    "CTP_CALLBACK_SEGMENT",
+                    None,
+                    None,
+                )
+            except (ValueError, LookupError, OSError) as error:
                 self._reject(request_id, _safe_admission_error(error))
-            source: dict[str, object] = {
-                **declaration,
-                "source_id": uuid4(),
-                "received_at": datetime.now(UTC),
-            }
-            source["evidence_hash"] = _digest(_source_evidence(source))
-            attempt = self._new_attempt(source, parameters, request_id, identity)
-            with self._engine.begin() as connection:
-                connection.execute(_sources.insert().values(**source))
-                connection.execute(_attempts.insert().values(**attempt))
-            return self._process(source, attempt)
+            return self._receive(content, declaration, parameters, request_id)
+
+    def _receive(
+        self,
+        content: bytes,
+        declaration: dict[str, object],
+        parameters: dict[str, object],
+        request_id: str,
+    ) -> dict[str, object]:
+        try:
+            if (
+                not isinstance(content, bytes)
+                or not 1 <= len(content) <= self._files.max_file_bytes
+            ):
+                raise ValueError("source must be nonempty bytes within the configured upload limit")
+            declaration.update(
+                content_hash=hashlib.sha256(content).hexdigest(), byte_count=len(content)
+            )
+            identity = _digest(
+                {
+                    "operation": "receive",
+                    "source": _source_evidence(declaration),
+                    "spec": parameters,
+                }
+            )
+            existing = self._existing_request(request_id, identity)
+            if existing is not None:
+                return self.attempt(existing)
+            stored = self._files.store(content)
+            if stored.content_hash != declaration["content_hash"] or stored.byte_count != len(
+                content
+            ):
+                raise ValueError("durable source identity differs from the received bytes")
+        except (ValueError, OSError) as error:
+            self._reject(request_id, _safe_admission_error(error))
+        source: dict[str, object] = {
+            **declaration,
+            "source_id": uuid4(),
+            "received_at": datetime.now(UTC),
+        }
+        source["evidence_hash"] = _digest(_source_evidence(source))
+        attempt = self._new_attempt(source, parameters, request_id, identity)
+        with self._engine.begin() as connection:
+            connection.execute(_sources.insert().values(**source))
+            connection.execute(_attempts.insert().values(**attempt))
+        return self._process(source, attempt)
 
     def reprocess(
         self, source_id: UUID, *, spec: dict[str, object], request_id: str
@@ -283,6 +356,19 @@ class DataLibrary:
                 request_id = _request_id(request_id)
                 parameters = _parameters(spec)
                 source = self._source_row(source_id)
+                if source["input_kind"] == "CTP_CALLBACK_SEGMENT":
+                    with self._engine.connect() as connection:
+                        original = connection.execute(
+                            select(_attempts.c.parameters)
+                            .where(_attempts.c.source_id == source_id)
+                            .order_by(_attempts.c.created_at, _attempts.c.attempt_id)
+                            .limit(1)
+                        ).scalar_one()
+                    if any(
+                        parameters.get(key) != original[key]
+                        for key in ("stream_id", "through_sequence")
+                    ):
+                        raise ValueError("reprocessing cannot change the retained stream prefix")
                 identity = _digest(
                     {"operation": "reprocess", "source_id": str(source_id), "spec": parameters}
                 )
@@ -320,9 +406,9 @@ class DataLibrary:
             raise ValueError(
                 "explicit retention permission and a boolean download permission are required"
             )
-        if input_kind not in {"RECEIVED_CSV", "CONVERTED_CSV"}:
-            raise ValueError("input_kind must be RECEIVED_CSV or CONVERTED_CSV")
-        if input_kind == "RECEIVED_CSV" and (
+        if input_kind not in {"RECEIVED_CSV", "CONVERTED_CSV", "CTP_CALLBACK_SEGMENT"}:
+            raise ValueError("source input_kind is not supported")
+        if input_kind != "CONVERTED_CSV" and (
             upstream_source_id is not None or transformation_note is not None
         ):
             raise ValueError("upstream transformation metadata requires CONVERTED_CSV")
@@ -405,9 +491,14 @@ class DataLibrary:
         try:
             stage("VALIDATING", {})
             self._verify_source(source)
-            spec = ImportSpec.from_mapping(cast(dict[str, object], attempt["parameters"]))
-            if spec.source_name.upper() != str(source["source_name"]).upper():
-                raise ValueError("data.source_name differs from the retained source declaration")
+            parameters = cast(dict[str, object], attempt["parameters"])
+            spec = None
+            if source["input_kind"] != "CTP_CALLBACK_SEGMENT":
+                spec = ImportSpec.from_mapping(parameters)
+                if spec.source_name.upper() != str(source["source_name"]).upper():
+                    raise ValueError(
+                        "data.source_name differs from the retained source declaration"
+                    )
             with self._engine.connect() as connection:
                 previous = connection.scalar(
                     select(_attempts.c.snapshot_id)
@@ -425,17 +516,29 @@ class DataLibrary:
                 content = self._files.read(
                     str(source["content_hash"]), cast(int, source["byte_count"])
                 )
-                dataset = _import_csv(
-                    self._engine,
-                    content,
-                    spec,
-                    archive={
-                        "source_id": str(source["source_id"]),
-                        "evidence_hash": source["evidence_hash"],
-                    },
-                    processing_hash=str(attempt["processing_hash"]),
-                    stage=stage,
-                )
+                archive = {
+                    "source_id": str(source["source_id"]),
+                    "evidence_hash": source["evidence_hash"],
+                }
+                if source["input_kind"] == "CTP_CALLBACK_SEGMENT":
+                    dataset = _import_stream(
+                        self._engine,
+                        content,
+                        parameters=parameters,
+                        archive=archive,
+                        processing_hash=str(attempt["processing_hash"]),
+                        stage=stage,
+                    )
+                else:
+                    assert spec is not None
+                    dataset = _import_csv(
+                        self._engine,
+                        content,
+                        spec,
+                        archive=archive,
+                        processing_hash=str(attempt["processing_hash"]),
+                        stage=stage,
+                    )
                 self._verify_dataset_sources(dataset)
                 reused = False
             assert dataset.details is not None
@@ -544,7 +647,9 @@ class DataLibrary:
                 or _digest(_source_evidence(source)) != source["evidence_hash"]
             ):
                 raise ValueError("source archive permission or evidence has drifted")
-            self._files.read(str(source["content_hash"]), cast(int, source["byte_count"]))
+            content = self._files.read(str(source["content_hash"]), cast(int, source["byte_count"]))
+            if source["input_kind"] == "CTP_CALLBACK_SEGMENT":
+                self._stream_document(content)
             upstream_id = source["upstream_source_id"]
             if upstream_id is None:
                 return
@@ -552,6 +657,49 @@ class DataLibrary:
             if upstream["evidence_hash"] != source["upstream_evidence_hash"]:
                 raise ValueError("upstream source archive evidence has drifted")
             source = upstream
+
+    def _stream_document(self, content: bytes) -> dict[str, object]:
+        from northstar_quant.broker.streams import read_stream_archive
+
+        try:
+            document = json.loads(content)
+        except (ValueError, UnicodeError, RecursionError) as error:
+            raise ValueError("stream archive must be bounded copied-callback JSON") from error
+        if not isinstance(document, dict) or document.get("kind") != "COPIED_CTP_CALLBACK_PREFIX":
+            raise ValueError("source is not a copied CTP callback prefix")
+        identifier = document.get("stream_id")
+        through = document.get("through_sequence")
+        if (
+            not isinstance(identifier, str)
+            or len(identifier) != 36
+            or type(through) is not int
+            or not 1 <= through <= 100000
+        ):
+            raise ValueError("stream archive requires an explicit UUID and bounded prefix")
+        stream_id = UUID(identifier)
+        if str(stream_id) != identifier:
+            raise ValueError("stream archive identity must be a canonical UUID")
+        if read_stream_archive(self._engine, stream_id, through) != content:
+            raise ValueError("stream archive differs from its fixed persisted callback prefix")
+        binding = document.get("binding")
+        request = binding.get("request") if isinstance(binding, dict) else None
+        if not isinstance(request, dict) or not {"allow_retention", "use_basis"} <= request.keys():
+            raise ValueError("stream archive lacks a fixed source permission declaration")
+        return cast(dict[str, object], document)
+
+    def verify_sources(self) -> int:
+        """Verify every retained source, including failed/unpublished processing.
+
+        Restore uses the same source and parent-prefix checks as a new consumer;
+        this does not repair missing evidence, publish products or start reception.
+        """
+        count = 0
+        with self._engine.connect().execution_options(yield_per=100) as connection:
+            rows = connection.execute(select(_sources).order_by(_sources.c.source_id)).mappings()
+            for source in rows:
+                self._verify_source(dict(source))
+                count += 1
+        return count
 
     def _source_summary(self, source: dict[str, object]) -> dict[str, object]:
         result = _json_row(source)
@@ -640,6 +788,25 @@ class DataLibrary:
                 _json_row(row)
                 for row in connection.execute(
                     select(_attempts).order_by(_attempts.c.created_at.desc()).limit(limit)
+                ).mappings()
+            ]
+
+    def stream_attempts(self, stream_id: UUID) -> list[dict[str, object]]:
+        """Return recent fixed-prefix attempts without receiving or reprocessing."""
+        if not isinstance(stream_id, UUID):
+            raise ValueError("stream_id must be a UUID")
+        with self._engine.connect() as connection:
+            return [
+                _json_row(row)
+                for row in connection.execute(
+                    select(_attempts)
+                    .join(_sources, _attempts.c.source_id == _sources.c.source_id)
+                    .where(
+                        _sources.c.input_kind == "CTP_CALLBACK_SEGMENT",
+                        _attempts.c.parameters["stream_id"].astext == str(stream_id),
+                    )
+                    .order_by(_attempts.c.created_at.desc(), _attempts.c.attempt_id.desc())
+                    .limit(50)
                 ).mappings()
             ]
 
@@ -865,9 +1032,9 @@ def _json_row(row: Mapping[str, object] | RowMapping) -> dict[str, object]:
     }
 
 
-def _safe_admission_error(error: ValueError | OSError) -> str:
+def _safe_admission_error(error: ValueError | LookupError | OSError) -> str:
     return (
         str(error)[:512]
-        if isinstance(error, ValueError)
+        if isinstance(error, (ValueError, LookupError))
         else "source storage is unavailable; nothing accepted"
     )

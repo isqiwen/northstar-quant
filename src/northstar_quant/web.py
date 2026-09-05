@@ -42,6 +42,7 @@ _WORKSPACE_SESSION_SECONDS = 1800
 _INPUT_KIND_LABELS = {
     "RECEIVED_CSV": "实际收到的 CSV（不宣称供应商原文）",
     "CONVERTED_CSV": "外部转换后 CSV",
+    "CTP_CALLBACK_SEGMENT": "已保存 CTP 回调前缀 JSON（不是 CSV 或网络原文）",
 }
 _PROCESS_LABELS = {
     "PENDING": "等待处理",
@@ -484,6 +485,33 @@ def create_app(engine: Engine, library: DataLibrary) -> FastAPI:
             request_id=_uuid_field(payload, "request_id"),
         )
 
+    @app.post("/api/streams/{stream_id}/archive")
+    async def stream_archive(request: Request, stream_id: UUID) -> dict[str, object]:
+        protect_workspace_command(request)
+        payload = await _read_object(request)
+        if set(payload) != {
+            "through_sequence",
+            "session_open",
+            "session_close",
+            "allow_download",
+            "request_id",
+        }:
+            raise ValueError("归档只接受固定前缀、UTC 范围、下载许可和命令身份。")
+        if (
+            type(payload["through_sequence"]) is not int
+            or type(payload["allow_download"]) is not bool
+        ):
+            raise ValueError("through_sequence 必须是整数，allow_download 必须是布尔值。")
+        return await run_in_threadpool(
+            streams.archive,
+            stream_id,
+            through_sequence=payload["through_sequence"],
+            session_open=_string_field(payload, "session_open"),
+            session_close=_string_field(payload, "session_close"),
+            allow_download=payload["allow_download"],
+            request_id=_uuid_field(payload, "request_id"),
+        )
+
     @app.get("/paper", response_class=HTMLResponse)
     async def paper_home(request: Request) -> HTMLResponse:
         def workspace() -> str:
@@ -880,9 +908,11 @@ def _sources_workspace(
 
 
 def _source_page(source: dict[str, object]) -> str:
+    is_stream = source["input_kind"] == "CTP_CALLBACK_SEGMENT"
+    download_label = "下载托管回调 JSON（含账户信息）" if is_stream else "按原字节下载收到的文件"
     download = (
         f'<a class="button secondary" href="/api/sources/{_text(source["source_id"])}/download">'
-        "按原字节下载收到的文件</a>"
+        f"{download_label}</a>"
         if source["allow_download"]
         else ""
     )
@@ -892,13 +922,27 @@ def _source_page(source: dict[str, object]) -> str:
         if upstream is None
         else f'<p><a href="/sources/{_text(upstream)}">查看已关联的上游来源</a></p>'
     )
+    if is_stream:
+        stream_ids = {
+            str(identifier)
+            for attempt in _rows(source["attempts"])
+            if (identifier := _object(attempt["parameters"]).get("stream_id")) is not None
+        }
+        upstream_link = "".join(
+            f'<p><a href="/streams/{_text(identifier)}">返回固定前缀的来源流</a></p>'
+            for identifier in sorted(stream_ids)
+        )
+        upstream_link += (
+            '<p class="muted">这是从已保存 SDK 回调导出的 JSON，不是 CSV 或供应商网络原文。'
+            "文件可能含账户 TD 回调和私有身份；本机下载许可不是对外分享许可。</p>"
+        )
     properties = (
         ("来源标识", source["source_name"]),
         ("收到的文件名", source["filename"]),
         ("输入起点", _INPUT_KIND_LABELS.get(str(source["input_kind"]), source["input_kind"])),
         ("原文字节摘要", source["content_hash"]),
         ("原文字节数", source["byte_count"]),
-        ("接收时间", source["received_at"]),
+        ("归档时间（非行情首次接收）" if is_stream else "接收时间", source["received_at"]),
         ("归档状态", source["file_status"]),
         ("用途与留存依据", source["use_basis"]),
         ("获准留存", "是" if source["allow_retention"] else "否"),
@@ -914,9 +958,14 @@ def _source_page(source: dict[str, object]) -> str:
             indent=2,
         )
     )
+    description_note = (
+        "托管已保存回调的固定 JSON；回调首次接收时刻不会被归档时间替换。"
+        if is_stream
+        else "托管的是本次实际收到的内容，不以摘要存在代替原文可读。"
+    )
     return f"""<section class="intro"><a class="back" href="/sources">← 返回来源与处理</a>
 <p class="eyebrow">RECEIVED SOURCE</p><h1>{_text(source["filename"])}</h1>
-<p>托管的是本次实际收到的内容，不以摘要存在代替原文可读。</p>
+<p>{description_note}</p>
 <div class="actions">{download}</div></section>
 <section class="panel"><h2>固定来源与使用声明</h2><dl class="identity">{description}</dl>
 {upstream_link}<p class="muted">用途依据由操作者声明，不代表系统已核实第三方授权。
@@ -929,6 +978,7 @@ def _source_page(source: dict[str, object]) -> str:
 def _attempt_page(attempt: dict[str, object]) -> str:
     source = _object(attempt["source"])
     parameters = _object(attempt["parameters"])
+    is_stream = source["input_kind"] == "CTP_CALLBACK_SEGMENT"
     error = (
         ""
         if not attempt["error"]
@@ -958,6 +1008,29 @@ def _attempt_page(attempt: dict[str, object]) -> str:
     )
     quality = _text(json.dumps(attempt["quality"], ensure_ascii=False, indent=2))
     exact_parameters = _text(json.dumps(parameters, ensure_ascii=False, indent=2))
+    if is_stream:
+        fields = f"""<input type="hidden" name="stream_id" value="{_text(parameters["stream_id"])}">
+<input type="hidden" name="through_sequence" value="{_text(parameters["through_sequence"])}">
+<p>固定前缀 1–{_text(parameters["through_sequence"])} ·
+<a href="/streams/{_text(parameters["stream_id"])}">查看来源流与其他尝试</a></p>
+<label>首分钟起点（UTC）<input type="text" name="session_open" maxlength="40" required
+value="{_text(parameters.get("session_open") or "")}" placeholder="YYYY-MM-DDTHH:MM:00Z"></label>
+<label>最后一分钟完成边界（UTC）<input type="text" name="session_close" maxlength="40" required
+value="{_text(parameters.get("session_close") or "")}" placeholder="YYYY-MM-DDTHH:MM:00Z">
+</label>"""
+        reprocess_note = (
+            "只调整所选完整分钟的 UTC 起止范围；来源流和前缀固定，不能改成后来收到的数据。"
+            "从同一托管 JSON 回调重新加工，不复制近期影子步骤，不回写已运行影子目标或补做旧决策。"
+            "新的范围仍须通过质量检查；不能以重处理消除源缺口或补造分钟。"
+        )
+        kind = ' data-input-kind="CTP_CALLBACK_SEGMENT"'
+    else:
+        fields = _spec_fields(parameters)
+        reprocess_note = (
+            "读取同一份托管原文，创建新的处理尝试。不替换原文、权限、历史可得时间声明或已发布事实。"
+            "相同内容与参数可复用已确认产物；文件内容本身错误时，请上传修正后的新文件。"
+        )
+        kind = ""
     return f"""<section class="intro"><a class="back" href="/sources/{_text(source["source_id"])}">
 ← 返回来源详情</a><p class="eyebrow">PROCESSING ATTEMPT</p>
 <h1>{_text(source["filename"])} · 处理尝试</h1>
@@ -967,10 +1040,8 @@ def _attempt_page(attempt: dict[str, object]) -> str:
 <dl class="identity">{identity_text}</dl><details><summary>本次原始处理参数</summary>
 <pre>{exact_parameters}</pre></details><details open><summary>已完成的质量证据</summary>
 <pre>{quality}</pre></details></section><section class="panel"><h2>修正参数后重新处理</h2>
-<p class="muted">读取同一份托管原文，创建新的处理尝试。
-不替换原文、权限、历史可得时间声明或已发布事实。
-相同内容与参数可复用已确认产物；文件内容本身错误时，请上传修正后的新文件。</p>
-<form id="reprocess-form" data-source-id="{_text(source["source_id"])}">{_spec_fields(parameters)}
+<p class="muted">{reprocess_note}</p>
+<form id="reprocess-form" data-source-id="{_text(source["source_id"])}"{kind}>{fields}
 <button type="submit">用这些参数重新处理原文</button>
 <p id="reprocess-status" class="status" role="status"></p></form></section>"""
 
@@ -1363,6 +1434,11 @@ def _availability_notice(data: dict[str, object]) -> str:
             "来源声明 · 未经独立验证",
             "available_at 依据由操作人声明，系统未独立验证它是否为历史首次可得时间。",
         ),
+        "LOCAL_CAPTURE_RECONSTRUCTED": (
+            "本机接收回调重建 · 非原影子决策重放",
+            "按托管 JSON 中原本机收到时刻重建采样分钟，不是交易所发布时间、逐笔成交"
+            "或生产行情证明；不回写原会话决策。",
+        ),
         "SYNTHETIC": (
             "合成示例 · 非真实行情",
             "仅用于演示和工程验证，不用于评价真实市场中的策略表现。",
@@ -1454,6 +1530,8 @@ def _data_evidence(data: dict[str, object]) -> str:
         "quality": data["quality"],
         "import_spec": data["import_spec"],
     }
+    if "processing_provenance" in data:
+        identities["processing_provenance"] = data["processing_provenance"]
     exact_evidence = escape(json.dumps(identities, ensure_ascii=False, sort_keys=True, indent=2))
     limitations = "".join(
         f"<li>{_text(note)}</li>" for note in cast(list[str], data["limitations"])

@@ -55,6 +55,8 @@ function showDataNotice(data, target = document.querySelector("#selected-data-no
       "信息时钟假设为每根 bar 完成时可见，并非历史上观测到的首次可得时间。不能据此证明当时能够做出相同决策。"],
     SOURCE_DECLARED: ["来源声明 · 未经独立验证",
       "available_at 依据由操作人声明，系统未独立验证它是否为历史首次可得时间。"],
+    LOCAL_CAPTURE_RECONSTRUCTED: ["本机接收回调重建 · 非原影子决策重放",
+      "按托管 JSON 中原本机收到时刻重建采样分钟，不是交易所发布时间、逐笔成交或生产行情证明；不回写原会话决策。"],
     SYNTHETIC: ["合成示例 · 非真实行情", "仅用于演示和工程验证，不用于评价真实市场中的策略表现。"],
   };
   const notice = document.createElement("aside");
@@ -88,7 +90,7 @@ async function selectDataset(snapshotId) {
   selectedDataset = data;
   link.href = `/datasets/${encodeURIComponent(snapshotId)}`;
   link.hidden = false;
-  reuse.hidden = false;
+  reuse.hidden = data.availability_basis === "LOCAL_CAPTURE_RECONSTRUCTED";
   showDataNotice(data);
   return true;
 }
@@ -455,6 +457,13 @@ if (reprocessForm) reprocessForm.addEventListener("submit", async (event) => {
   status(notice, "正在读取托管原文并记录新的处理尝试…");
   try {
     const spec = Object.fromEntries(new FormData(reprocessForm));
+    if (reprocessForm.dataset.inputKind === "CTP_CALLBACK_SEGMENT") {
+      if (!/^[0-9]+$/.test(spec.through_sequence) ||
+          !Number.isSafeInteger(Number(spec.through_sequence))) {
+        throw new Error("固定前缀身份无效，请重新打开处理详情；不能更换原文。");
+      }
+      spec.through_sequence = Number(spec.through_sequence);
+    }
     const requestId = workspaceCommand(key, spec);
     const attempt = await api(`/api/sources/${encodeURIComponent(sourceId)}/reprocess`, {
       spec, request_id: requestId,
@@ -497,6 +506,39 @@ if (streamCreateForm) streamCreateForm.addEventListener("submit", async (event) 
     window.location.assign(`/streams/${encodeURIComponent(result.stream_id)}`);
   } catch (error) {
     status(notice, `${error.message} 同样参数重试复用原命令，不重复建立连接。`, true);
+    button.disabled = false;
+  }
+});
+
+const streamArchiveForm = document.querySelector("#stream-archive-form");
+if (streamArchiveForm) streamArchiveForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const streamId = streamArchiveForm.dataset.streamId;
+  const button = streamArchiveForm.querySelector("button[type=submit]");
+  const notice = document.querySelector("#stream-archive-status");
+  const key = `northstar.stream.archive.${streamId}`;
+  button.disabled = true;
+  status(notice, "正在归档固定的已保存回调前缀并检查分钟发布条件；不连接柜台…");
+  try {
+    const values = Object.fromEntries(new FormData(streamArchiveForm));
+    const through = Number(values.through_sequence);
+    const upper = Number(streamArchiveForm.elements.through_sequence.max);
+    if (!/^[0-9]+$/.test(values.through_sequence) || !Number.isSafeInteger(through) ||
+        through < 1 || through > upper) {
+      throw new Error("前缀必须是本页所示已保存序号内的正整数；轮询不会扩大此选择。");
+    }
+    const payload = {
+      through_sequence: through,
+      session_open: values.session_open.trim(),
+      session_close: values.session_close.trim(),
+      allow_download: streamArchiveForm.elements.allow_download.checked,
+    };
+    payload.request_id = workspaceCommand(key, payload);
+    const attempt = await api(`/api/streams/${encodeURIComponent(streamId)}/archive`, payload);
+    sessionStorage.removeItem(key);
+    window.location.assign(`/attempts/${encodeURIComponent(attempt.attempt_id)}`);
+  } catch (error) {
+    status(notice, `${error.message} 相同范围与许可重试会复用命令；不追加连接或替换来源。`, true);
     button.disabled = false;
   }
 });
@@ -618,6 +660,51 @@ if (streamReport) {
       rows.push(row);
     }
     document.querySelector("#stream-steps").replaceChildren(...rows);
+    const archives = stream.archives.map((attempt) => {
+      const parameters = attempt.parameters;
+      const row = document.createElement("tr");
+      for (const value of [
+        `1–${parameters.through_sequence}`,
+        `${textOrUnknown(parameters.session_open)} → ${textOrUnknown(parameters.session_close)}`,
+      ]) {
+        const cell = document.createElement("td");
+        cell.className = "wrap-cell";
+        cell.textContent = value;
+        row.append(cell);
+      }
+      const sourceCell = document.createElement("td");
+      const attemptLink = document.createElement("a");
+      attemptLink.href = `/attempts/${encodeURIComponent(attempt.attempt_id)}`;
+      attemptLink.textContent = attempt.status;
+      const sourceLink = document.createElement("a");
+      sourceLink.href = `/sources/${encodeURIComponent(attempt.source_id)}`;
+      sourceLink.textContent = "托管 JSON 来源";
+      sourceCell.append(attemptLink, document.createElement("br"), sourceLink);
+      const product = document.createElement("td");
+      if (attempt.snapshot_id === null) {
+        product.textContent = "尚未发布";
+      } else {
+        const link = document.createElement("a");
+        link.href = `/datasets/${encodeURIComponent(attempt.snapshot_id)}`;
+        link.textContent = "查看已发布数据";
+        product.append(link);
+      }
+      const reason = document.createElement("td");
+      reason.className = "wrap-cell";
+      reason.textContent = attempt.error || "—";
+      row.append(sourceCell, product, reason);
+      return row;
+    });
+    if (!archives.length) {
+      const row = document.createElement("tr");
+      const cell = document.createElement("td");
+      cell.colSpan = 5;
+      cell.textContent = "尚无本地归档加工尝试；未归档不等于已发布。";
+      row.append(cell);
+      archives.push(row);
+    }
+    // Only refresh results: never replace the operator's fixed prefix or range.
+    document.querySelector("#stream-archives").replaceChildren(...archives);
     streamControls();
   }
 

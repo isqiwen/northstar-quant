@@ -184,6 +184,20 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     stream_events.add_argument("stream_id", type=UUID)
     stream_events.add_argument("--after", type=int, default=0)
+    stream_archive = commands.add_parser(
+        "stream-archive",
+        help="archive a fixed saved callback prefix and process minutes; no connection",
+    )
+    stream_archive.add_argument("stream_id", type=UUID)
+    stream_archive.add_argument("--through-sequence", type=int, required=True)
+    stream_archive.add_argument("--session-open", required=True, help="first minute start in UTC")
+    stream_archive.add_argument("--session-close", required=True, help="last minute end in UTC")
+    stream_archive.add_argument("--request-id", type=UUID, required=True)
+    stream_archive.add_argument(
+        "--allow-download",
+        action="store_true",
+        help="permit local download including account TD callbacks",
+    )
     stream_start = commands.add_parser(
         "stream-start", help="explicit foreground SimNow reception and shadow signals; never orders"
     )
@@ -226,7 +240,13 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         require_current_database(engine)
 
-        if arguments.command in {"stream-start", "stream-list", "stream-show", "stream-events"}:
+        if arguments.command in {
+            "stream-start",
+            "stream-list",
+            "stream-show",
+            "stream-events",
+            "stream-archive",
+        }:
             from northstar_quant.broker.streams import BrokerStreams
             from northstar_quant.data.files import SourceFiles
             from northstar_quant.data.library import DataLibrary
@@ -243,6 +263,17 @@ def main(argv: Sequence[str] | None = None) -> int:
                         ensure_ascii=False,
                     )
                 )
+            elif arguments.command == "stream-archive":
+                attempt = streams.archive(
+                    arguments.stream_id,
+                    through_sequence=arguments.through_sequence,
+                    session_open=arguments.session_open,
+                    session_close=arguments.session_close,
+                    request_id=arguments.request_id,
+                    allow_download=arguments.allow_download,
+                )
+                print(json.dumps(attempt, ensure_ascii=False))
+                return 0 if attempt["status"] == "PUBLISHED" else 2
             else:
                 try:
                     stream_result = streams.start(

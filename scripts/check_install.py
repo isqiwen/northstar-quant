@@ -274,6 +274,16 @@ def main() -> None:
                         f"/api/streams/{missing_query}/control",
                         {"action": "RESUME", "request_id": str(uuid4())},
                     ),
+                    (
+                        f"/api/streams/{missing_query}/archive",
+                        {
+                            "through_sequence": 1,
+                            "session_open": "2026-09-07T01:01:00Z",
+                            "session_close": "2026-09-07T01:03:00Z",
+                            "allow_download": False,
+                            "request_id": str(uuid4()),
+                        },
+                    ),
                 ):
                     # Even an existing browser cookie cannot mutate without CSRF.
                     unprotected = Request(

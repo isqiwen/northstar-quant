@@ -15,8 +15,9 @@ returned terminal replies, and the selected contract subscription produced one m
 That bounded-query evidence is not a continuous or freshness-verified feed; see the
 [acceptance evidence and remaining gaps](docs/broker-source.md).
 The current #25 slice adds bounded durable TD/MD reception and account-neutral
-minute shadow signals. Fresh continuous external-market acceptance and the
-stream-to-Data archive/publication path remain incomplete.
+minute shadow signals, plus explicit local archive/processing of a saved callback
+prefix into a reusable market segment. Fresh continuous external-market acceptance
+remains incomplete; archiving old records does not provide that evidence.
 Broker orders and live execution are not implemented. Research, Paper and successful queries never enable real
 orders; see the [architecture and live gates](docs/ARCHITECTURE.md#9-首个受限实盘闭环).
 
@@ -224,9 +225,9 @@ interrupted receiver cannot be resumed into another connection.
 The source is `COPIED_CTP_CALLBACKS_POSTGRESQL`: immutable, sequenced SDK whitelist
 callbacks in PostgreSQL, committed before their corresponding processing step.
 Each stream is bounded to 100,000 events and 128 MiB. This is neither vendor wire
-bytes nor a published research Snapshot. #36's file archive, processing/publication
-and reusable market-segment linkage still need implementation; #25 remains partial.
-Actual fresh continuous-market acceptance has not yet been performed for this slice.
+bytes nor itself a published research Snapshot. Explicit prefix archiving now
+uses Data's existing source/attempt/publication path, described below; #25 remains
+partial. Actual fresh continuous-market acceptance has not yet been performed for this slice.
 
 The first scope is the [SHFE DAY continuous sessions](https://www.shfe.cn/services/calenderandholidays/tradinghours/):
 09:00–10:15, 10:30–11:30 and 13:30–15:00, Asia/Shanghai, with explicit source dates
@@ -262,8 +263,53 @@ Linux amd64 SDK and matching private account configuration; use the Web controls
 for a Web-owned receiver. Reusing the start UUID reads the existing stream rather
 than opening a second connection. Before deployment, back up with the running
 version, then run the new version's `northstar init-db` to add the four stream
-tables; preserve the existing database and source directory. Restored stream
+tables and apply the current source-kind constraint; preserve the existing database
+and source directory. Restored stream
 source/step chains are verified, never automatically attached or reconnected.
+
+### Archive saved callbacks for research or Paper
+
+On a stream's detail page, explicitly choose the saved prefix `1..through_sequence`
+and a complete, minute-aligned UTC range `[session_open, session_close)` within one
+supported SHFE DAY interval. Polling never changes those form values. This action
+reads local records only: it does not start a connection, resume shadow calculation
+or issue orders. The entire fixed JSON prefix must fit within 5 MiB; an oversized
+prefix is rejected, never silently truncated to fit.
+
+Data retains it as `CTP_CALLBACK_SEGMENT`, with its original callback sequence,
+receipt times, binding and hashes. The JSON contains TD account information as well
+as market callbacks. Retention is required by the original stream declaration;
+local download is a separate permission, **off by default**. Do not publish the file
+or treat local download permission as permission to redistribute it.
+
+```sh
+# Explicit local processing of saved evidence, with your selected UTC range.
+northstar stream-archive STREAM_UUID --through-sequence SEQUENCE \
+  --session-open START_UTC --session-close END_UTC --request-id REQUEST_UUID
+```
+
+The result is a Data processing attempt. Follow it at `/attempts/ATTEMPT_UUID` or
+from the stream's archive list; failures retain their source and explanation.
+Range correction on the attempt page processes the same bytes without changing
+its stream identity or prefix. Request UUID retries preserve the original outcome.
+Only a quality-accepted publication becomes selectable for research or file Paper;
+source, attempt, Snapshot and subsequent usages link back to the saved stream.
+
+The availability basis is `LOCAL_CAPTURE_RECONSTRUCTED`: minutes are recomputed
+from the original local receipt clock, not the archive date or the latest shadow
+steps. This is not a replay of the decisions, pauses or processing delays in the
+original shadow session. Missing/partial/unconfirmed minutes are not filled in;
+LastPrice OHLC and cumulative-volume deltas remain sampled observations, not a
+vendor trade tape, exact exchange OHLCV or production-price evidence. A series
+cannot mix another fixed source or different sampling semantics, even when prices
+match. This source meaning cannot be declared through the CSV upload form.
+
+The slice reuses the current Data library, source/attempt tables, managed files,
+Snapshot and research/Paper interfaces, without another storage service. Missing
+or corrupt evidence blocks new use; saved results remain inspectable with the
+source's condition. Joint backup/restore includes these references and files.
+Implementing and exercising this local path does not verify a fresh external feed;
+it adds no broker connection, query or order, and does not complete #25.
 
 ## Command line
 
