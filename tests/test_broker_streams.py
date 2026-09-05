@@ -204,10 +204,13 @@ def test_stream_retains_unprocessed_source_and_retries_only_the_missing_projecti
             time.sleep(0.01)
         assert streams.get(identifier)["paused"]
         assert streams.get(identifier)["reason"] == "QUOTE_STALE"
+        assert streams.get(identifier)["state"]["last_pause_reason"] == "QUOTE_STALE"
         with pytest.raises(ValueError, match="already running"):
             start(BrokerStreams(postgres_engine, library), source, configuration, uuid4())
     finally:
         streams.close()
+
+    assert streams.get(identifier)["state"]["last_pause_reason"] == "QUOTE_STALE"
 
 
 def test_browser_stream_start_stop_requires_csrf_and_never_reconnects_on_reads(

@@ -536,6 +536,8 @@ if (streamReport) {
       "stream-connection": stream.connection,
       "stream-paused": stream.paused ? "暂停或尚未满足推进条件" : "已启用，仍需逐条检查",
       "stream-reason": stream.reason,
+      "stream-last-pause-reason": state.last_pause_reason,
+      "stream-last-pause-at": state.last_pause_at,
       "stream-trading-days": `${textOrUnknown(state.TD_trading_day)} / ${textOrUnknown(state.MD_trading_day)}`,
       "stream-counts": `${stream.received} / ${stream.cursor}`,
       "stream-bytes": stream.byte_count,

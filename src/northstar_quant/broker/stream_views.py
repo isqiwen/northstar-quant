@@ -115,6 +115,10 @@ data-stream-status="{_text(stream["status"])}">
 <dt>影子推进</dt><dd id="stream-paused">
 {"暂停或尚未满足推进条件" if stream["paused"] else "已启用，仍需逐条检查"}</dd>
 <dt>原因</dt><dd id="stream-reason">{_text(stream["reason"])}</dd>
+<dt>最近保护暂停</dt><dd id="stream-last-pause-reason">
+{_text(state.get("last_pause_reason"))}</dd>
+<dt>保护触发时间（UTC）</dt><dd id="stream-last-pause-at">
+{_text(state.get("last_pause_at"))}</dd>
 <dt>TD / MD 交易日</dt><dd id="stream-trading-days">
 {_text(state.get("TD_trading_day"))} / {_text(state.get("MD_trading_day"))}</dd>
 <dt>已接收 / 已处理</dt><dd id="stream-counts">
@@ -125,7 +129,8 @@ data-stream-status="{_text(stream["status"])}">
 <dt>距末次接收（秒）</dt><dd id="stream-market-age">{_text(stream["market_age_seconds"])}</dd>
 <dt>持久更新时间</dt><dd id="stream-updated">{_text(stream["updated_at"])}</dd></dl>
 <p class="muted">接收间隔只描述本机收到时间，不证明来源行情新鲜。TD / MD 交易日与
-ActionDay / UpdateTime 分别保留；接收进程存在不等于当前身份、市场或账户已核对。</p>
+ActionDay / UpdateTime 分别保留；接收进程存在不等于当前身份、市场或账户已核对。
+最近保护暂停只记录自动保护触发，停止后仍保留，不代表最近一次操作者暂停或停止。</p>
 <div class="actions"><button type="button" data-stream-control="PAUSE"{pause_disabled}>
 暂停影子策略（继续接收）</button>
 <button type="button" data-stream-control="RESUME"{resume_disabled}>恢复影子预热</button>

@@ -328,12 +328,22 @@ class BrokerStreams:
             if not row["paused"]:
                 reason = idle_reason(_object(state.get("market", {})), now=datetime.now(UTC))
                 if reason is not None and reason != row["reason"]:
+                    if reason != "SCHEDULED_BREAK":
+                        state["last_pause_reason"] = reason
+                        state["last_pause_at"] = datetime.now(UTC).isoformat()
                     connection.execute(
                         text("""
                         UPDATE broker_streams SET paused=:paused, reason=:reason,
+                        state=CAST(:state AS jsonb), state_hash=:hash,
                         updated_at=clock_timestamp() WHERE stream_id=:id
                     """),
-                        {"id": identifier, "reason": reason, "paused": reason != "SCHEDULED_BREAK"},
+                        {
+                            "id": identifier,
+                            "reason": reason,
+                            "paused": reason != "SCHEDULED_BREAK",
+                            "state": _json(state),
+                            "hash": _hash(state),
+                        },
                     )
         return False
 
@@ -486,7 +496,10 @@ class BrokerStreams:
             if event.callback == "OnRtnDepthMarketData":
                 state["last_market_received_at"] = event.received_at
                 state["last_market_data"] = data
-            result["reason"] = reason
+            if reason is not None:
+                state["last_pause_reason"] = reason
+                state["last_pause_at"] = datetime.now(UTC).isoformat()
+            result["reason"] = reason or (row["reason"] if row["paused"] else None)
             connection.execute(
                 text("""
                 INSERT INTO broker_stream_steps(stream_id, sequence, result, result_hash)

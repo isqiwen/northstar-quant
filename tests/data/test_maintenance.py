@@ -91,7 +91,10 @@ def test_initialization_and_restore_keep_all_interrupted_query_evidence(
         start(streams, stream_source, configuration, stream_id)
         assert calls["ready"].wait(3)
         logins(calls["accept"])
-        for sequence, seconds in enumerate(range(0, 181, 5), 3):
+        # Leave headroom for receipt latency and the independent idle monitor.
+        # A 5s source cadence plus 100ms transport legitimately exceeds the
+        # 5s source-freshness limit before the next callback is projected.
+        for sequence, seconds in enumerate(range(0, 181, 4), 3):
             event = tick(
                 sequence,
                 OPEN + timedelta(seconds=seconds),
@@ -104,7 +107,7 @@ def test_initialization_and_restore_keep_all_interrupted_query_evidence(
         streams.close()
     stream = streams.get(stream_id)
     events = streams.events(stream_id)
-    assert stream["received"] == stream["cursor"] == len(events) == 39
+    assert stream["received"] == stream["cursor"] == len(events) == 48
     assert len(stream["steps"]) == 2 and stream["steps"][0]["result"]["intent"] is not None
     assert stream["status"] == "STOPPED" and stream["paused"]
     # Explicit initialization may add current Module tables, never rebind facts.
