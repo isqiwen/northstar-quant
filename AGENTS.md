@@ -1,9 +1,11 @@
 # Northstar Quant
 
-This repository is the sole maintained project for the personal futures research
-system. The product scope is domestic Chinese futures: historical research and
-continuous simulated trading first. Read `docs/ARCHITECTURE.md` for changes to
-domain meaning, the shared trading loop, storage or runtime topology; read
+This repository is the sole maintained personal domestic-futures trading system.
+The ultimate objective is controlled live trading. Deliver the shortest safe
+vertical path through a concrete broker simulation to a bounded real-account
+round trip; research and internal Paper support that path, not a prerequisite
+platform to finish in full. Read `docs/ARCHITECTURE.md` for changes to domain
+meaning, trading, broker integration, account recovery or runtime topology; read
 `README.md` to run the application. Code documents implemented details.
 
 ## Permanent engineering rules
@@ -20,9 +22,11 @@ domain meaning, the shared trading loop, storage or runtime topology; read
 - Repository count is a design choice. The current choice is one repository,
   one Python package, one application process and PostgreSQL. Modules call typed
   Python functions in process. Add another deployment only for demonstrated need.
-- Deliver vertical behavior: source data → accepted immutable snapshot → repeated
-  strategy and Risk decisions → simulated fills and account updates → persisted
-  result → browser view. Measure useful running outcomes, not artifact counts.
+- Deliver vertical behavior: accepted market/account facts → Strategy and Risk →
+  authorized execution → confirmed fills and ledger → reconciliation and browser
+  explanation. Distinguish research, internal Paper, broker simulation and live
+  evidence. Advanced research and portfolio features do not block the first
+  bounded live path; account safety and explicit trading authority do.
 - Keep types and invariant enforcement beside the behavior that owns them.
   Never create generic `contracts/`, `schemas/`, `validators/`, or `fixtures/`
   layers or renamed equivalents. Generate external descriptions only when used.
@@ -35,10 +39,15 @@ domain meaning, the shared trading loop, storage or runtime topology; read
 Data owns ingestion, source evidence, calendars, quality and immutable snapshots.
 Its public research interface returns immutable values and hides SQLAlchemy.
 Strategy maps point-in-time features to account-neutral target exposure. Risk
-owns sizing and limits. Execution owns simulated fills, costs and account truth.
-Apply already available account facts and effective market terms before using
-an executable market event to fill a previously authorized order. Update the
-account, observe data, decide, then authorize an order for a later event.
+owns sizing and limits. Accounting applies identified execution/account facts;
+Simulation produces simulated fills only. Broker execution owns external order
+state, sending and reconciliation; live balances start from verified broker facts,
+never research initial cash or simulated fills. Share decisions and ledger meaning,
+not the assumption that every order fills on a later bar.
+Simulation applies available account facts and effective terms before filling a
+previously authorized order on a later executable market event. Broker sessions
+apply confirmed external facts, never invent fills from bars. Both observe,
+decide and authorize against the updated account and unresolved orders.
 
 Use Decimal for financial values, explicit tick/multiplier/currency and the
 canonical futures contract UUID. Preserve bar start, bar completion, availability
@@ -46,6 +55,17 @@ and trading day separately. Derive portfolio state from the ledger, never from
 operator-supplied state. Persist complete inputs, data identity and implementation
 identity with every result. State model limitations truthfully; research results
 do not establish strategy profitability or live execution authority.
+
+Live safety: default to no order sending. Bind explicit runtime authorization to the
+broker environment, account, instrument, strategy/configuration, time window and
+risk limits. Startup/reconnect/restore requires reconciliation before re-arming.
+The user personally enables real investment execution in the verified software;
+the development agent does not send real investment orders on the user's behalf.
+Persist order identity and reservations before sending; unknown outcomes keep
+their reservations and require inquiry, never blind resubmission. Deduplicate
+individual broker fills, support partial fills, and distinguish cancellation or
+flatten requests from confirmed completion. One account has one confirmed sender;
+lease expiry alone does not authorize failover. Unresolved facts stop new risk.
 
 ## Workflow
 

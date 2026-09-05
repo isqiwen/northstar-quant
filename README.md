@@ -1,8 +1,14 @@
 # Northstar Quant
 
-A personal futures research application: import minute bars, replay a strategy
-with Risk and trading costs, and inspect persistent results in your browser.
-One repository, one Python package, one PostgreSQL database.
+A personal domestic-futures trading system targeting controlled live execution.
+One repository, one Python package, one PostgreSQL database. The delivery path is
+read-only broker access → broker simulation → recovery and reconciliation → a
+bounded, explicitly authorized live round trip; advanced research comes later.
+
+Currently implemented: import minute bars, replay a strategy with Risk and trading
+costs, and inspect persistent results in your browser. Broker connectivity and
+live execution are not implemented. Research or Paper results never enable real
+orders; see the [architecture and live gates](docs/ARCHITECTURE.md#9-首个受限实盘闭环).
 
 ## Run
 
