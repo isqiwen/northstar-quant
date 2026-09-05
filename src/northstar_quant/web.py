@@ -270,9 +270,14 @@ def create_app(engine: Engine, library: DataLibrary) -> FastAPI:
 
     @app.get("/broker/{batch_id}", response_class=HTMLResponse)
     async def broker_detail(request: Request, batch_id: UUID) -> HTMLResponse:
-        batch = await run_in_threadpool(broker.get, batch_id)
+        def content() -> str:
+            return broker_views.report(broker.get(batch_id), broker.baseline_context(batch_id))
+
         return workspace_page(
-            request, "SimNow 查询记录", broker_views.report(batch), mode="SimNow · 固定查询记录"
+            request,
+            "SimNow 查询记录",
+            await run_in_threadpool(content),
+            mode="SimNow · 固定查询记录",
         )
 
     @app.get("/api/broker/status")
@@ -289,6 +294,41 @@ def create_app(engine: Engine, library: DataLibrary) -> FastAPI:
     async def broker_query_detail(request: Request, batch_id: UUID) -> dict[str, object]:
         require_workspace_session(request)
         return await run_in_threadpool(broker.get, batch_id)
+
+    @app.get("/api/broker/queries/{batch_id}/baseline-context")
+    async def broker_baseline_context(request: Request, batch_id: UUID) -> dict[str, object]:
+        require_workspace_session(request)
+        return await run_in_threadpool(broker.baseline_context, batch_id)
+
+    @app.post("/api/broker/baselines")
+    async def broker_establish_baseline(request: Request) -> dict[str, object]:
+        protect_workspace_command(request)
+        payload = await _read_object(request)
+        if set(payload) != {"source_batch_id", "request_id"}:
+            raise ValueError("建立基准只接受 source_batch_id 和 request_id，不接受资金或仓位。")
+        return await run_in_threadpool(
+            broker.establish_baseline,
+            _uuid_field(payload, "source_batch_id"),
+            request_id=_uuid_field(payload, "request_id"),
+        )
+
+    @app.post("/api/broker/baseline-checks")
+    async def broker_compare_baseline(request: Request) -> dict[str, object]:
+        protect_workspace_command(request)
+        payload = await _read_object(request)
+        if set(payload) != {"baseline_id", "query_batch_id", "request_id"}:
+            raise ValueError("比较只接受 baseline_id、query_batch_id 和 request_id。")
+        return await run_in_threadpool(
+            broker.compare_baseline,
+            _uuid_field(payload, "baseline_id"),
+            _uuid_field(payload, "query_batch_id"),
+            request_id=_uuid_field(payload, "request_id"),
+        )
+
+    @app.get("/api/broker/baseline-checks/{check_id}")
+    async def broker_baseline_check(request: Request, check_id: UUID) -> dict[str, object]:
+        require_workspace_session(request)
+        return await run_in_threadpool(broker.get_baseline_check, check_id)
 
     @app.post("/api/broker/queries")
     async def broker_query(request: Request) -> dict[str, object]:

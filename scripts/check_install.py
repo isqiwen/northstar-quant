@@ -24,7 +24,7 @@ from contextlib import contextmanager
 from decimal import Decimal
 from http.cookiejar import CookieJar
 from pathlib import Path
-from urllib.error import URLError
+from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import HTTPCookieProcessor, ProxyHandler, Request, build_opener
 from uuid import uuid4
@@ -203,6 +203,42 @@ def main() -> None:
                 broker_status = json.loads(request(f"{base_url}/api/broker/status"))
                 assert not broker_status["credentials"]["configured"]
                 assert broker_status["connection"] == "ON_DEMAND_READ_ONLY"
+                saved_queries = command("broker-list")
+                missing_query = str(uuid4())
+                try:
+                    request(f"{base_url}/api/broker/queries/{missing_query}/baseline-context")
+                except HTTPError as error:
+                    assert error.code == 404
+                else:
+                    raise AssertionError("missing query must not invent a baseline context")
+                for path, payload in (
+                    (
+                        "/api/broker/baselines",
+                        {"source_batch_id": missing_query, "request_id": str(uuid4())},
+                    ),
+                    (
+                        "/api/broker/baseline-checks",
+                        {
+                            "baseline_id": str(uuid4()),
+                            "query_batch_id": missing_query,
+                            "request_id": str(uuid4()),
+                        },
+                    ),
+                ):
+                    # Even an existing browser cookie cannot mutate without CSRF.
+                    unprotected = Request(
+                        f"{base_url}{path}",
+                        data=json.dumps(payload).encode(),
+                        headers={"Content-Type": "application/json"},
+                    )
+                    try:
+                        with opener.open(unprotected, timeout=15):
+                            pass
+                    except HTTPError as error:
+                        assert error.code == 403
+                    else:
+                        raise AssertionError("baseline mutation without CSRF must be rejected")
+                assert command("broker-list") == saved_queries
                 upload = {
                     "content_base64": base64.b64encode(csv).decode("ascii"),
                     "filename": source_file,
@@ -306,7 +342,16 @@ def main() -> None:
                 hashlib.sha256((runtime / "backup/database.dump").read_bytes()).hexdigest()
                 == backup["database_sha256"]
             )
-            _check_restore(executable, runtime, environment, parsed, run_id, snapshot_id, data)
+            _check_restore(
+                executable,
+                runtime,
+                environment,
+                parsed,
+                run_id,
+                snapshot_id,
+                data,
+                command("broker-list"),
+            )
             print(json.dumps({"run_id": run_id, "summary": summary}, ensure_ascii=False))
         except Exception:
             if log_path.exists():
@@ -314,7 +359,9 @@ def main() -> None:
             raise
 
 
-def _check_restore(executable, runtime, environment, parsed, run_id, snapshot_id, data):
+def _check_restore(
+    executable, runtime, environment, parsed, run_id, snapshot_id, data, saved_queries
+):
     """Use a generated disposable restore database; never overwrite the source database."""
 
     target_name = "northstar_quant_restore_test_" + uuid4().hex[:12]
@@ -373,12 +420,29 @@ def _check_restore(executable, runtime, environment, parsed, run_id, snapshot_id
             unavailable.rename(referenced)
         result = command("restore", str(runtime / "backup"))
         assert result["status"] == "restored" and result["execution"] == "PAUSED"
+        evidence = result["evidence"]
+        assert set(evidence) == {
+            "query_batches_count",
+            "pending_queries_count",
+            "baselines_count",
+            "checks_count",
+        }
+        assert all(type(count) is int and count >= 0 for count in evidence.values())
+        assert evidence["query_batches_count"] >= len(saved_queries)
+        if not saved_queries:
+            assert evidence == {
+                "query_batches_count": 0,
+                "pending_queries_count": 0,
+                "baselines_count": 0,
+                "checks_count": 0,
+            }
+        assert command("broker-list") == saved_queries
         assert command("dataset", snapshot_id) == data
         assert command("replay", run_id)["run_id"] == run_id
         assert all(item["file_status"] == "AVAILABLE" for item in command("sources"))
         print(
             "Joint restore: empty database, retained bytes, source/processing/publication "
-            "and exact research reuse passed",
+            "and exact research reuse plus saved broker evidence verification passed",
             flush=True,
         )
     finally:

@@ -14,6 +14,7 @@ from uuid import UUID
 from sqlalchemy import Engine, text
 
 from northstar_quant.broker import ctp
+from northstar_quant.broker.baselines import BrokerBaselines
 from northstar_quant.broker.records import BrokerRecords, QueryCapture
 from northstar_quant.broker.settings import (
     credential_status,
@@ -28,6 +29,7 @@ class BrokerWorkspace:
     def __init__(self, engine: Engine) -> None:
         self._engine = engine
         self._records = BrokerRecords(engine)
+        self._baselines = BrokerBaselines(engine)
 
     @staticmethod
     def status() -> dict[str, object]:
@@ -44,6 +46,22 @@ class BrokerWorkspace:
 
     def get(self, batch_id: UUID) -> dict[str, object]:
         return self._records.get(batch_id)
+
+    def baseline_context(self, query_batch_id: UUID) -> dict[str, object]:
+        return self._baselines.context(query_batch_id)
+
+    def establish_baseline(self, source_batch_id: UUID, *, request_id: UUID) -> dict[str, object]:
+        """Record an existing observation locally, without credentials or a connection."""
+
+        return self._baselines.establish(source_batch_id, request_id=request_id)
+
+    def compare_baseline(
+        self, baseline_id: UUID, query_batch_id: UUID, *, request_id: UUID
+    ) -> dict[str, object]:
+        return self._baselines.compare(baseline_id, query_batch_id, request_id=request_id)
+
+    def get_baseline_check(self, check_id: UUID) -> dict[str, object]:
+        return self._baselines.get_check(check_id)
 
     def query(self, profile_name: str, instrument: str, *, request_id: UUID) -> dict[str, object]:
         profile = get_profile(profile_name)

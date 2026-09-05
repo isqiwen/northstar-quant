@@ -78,7 +78,7 @@ pattern="[A-Za-z]{{1,3}}[0-9]{{3,4}}"></label>
 </tr></thead><tbody>{rows}</tbody></table></div></section>"""
 
 
-def report(batch: dict[str, object]) -> str:
+def report(batch: dict[str, object], baseline_context: dict[str, object]) -> str:
     completeness = _object(batch["completeness"])
     sections = _object(completeness["sections"])
     panels = []
@@ -112,7 +112,9 @@ def report(batch: dict[str, object]) -> str:
 {_text(batch["instrument"])}</p><a href="/broker">返回连接工作台</a></section>
 <aside class="data-notice"><strong>未对账 · 不具备执行权限</strong>
 <p>各查询分时返回，不构成同一时刻的原子账户快照。本地柜台账本尚未建立，
-差异未知，不会把未知写成零，也不会覆盖研究或 Paper 账本。</p></aside>
+原始查询自身不提供账本核对。下方观察基准比较独立保存，不改写原回包，
+不会把未知写成零，也不会覆盖研究或 Paper 账本。</p></aside>
+{_baseline_panel(batch, baseline_context)}
 <section class="panel"><h2>查询范围与证据</h2><p>命令身份 {_text(batch["batch_id"])}</p>
 <p>交易账户身份 {_text(completeness["identity"])} ·
 柜台交易日 {_text(completeness["trading_day"])}</p>
@@ -125,3 +127,91 @@ def report(batch: dict[str, object]) -> str:
 <section class="panel"><h2>行情观察</h2><p>仅本次有限连接的订阅与行情证据，
 不是持续行情服务；无行情不代表价格为零，行情登录也不作为交易账户身份凭据。</p>
 {_json(batch["market"])}</section>"""
+
+
+def _baseline_panel(batch: dict[str, object], context: dict[str, object]) -> str:
+    eligibility = _object(context["eligibility"])
+    baseline = context["baseline"]
+    checks = cast(list[dict[str, object]], context["checks"])
+    query_id = _text(batch["batch_id"])
+    if baseline is None:
+        disabled = "" if eligibility["allowed"] else " disabled"
+        reasons = "".join(
+            f"<li>{_text(reason)}</li>" for reason in cast(list[str], eligibility["reasons"])
+        )
+        explanation = (
+            "<p>本次完整空账户观察可固定为基准。一个账户只保留一份，不能重新建立来消除差异。</p>"
+            if eligibility["allowed"]
+            else f"<p>当前观察不能建立空账户基准。</p><ul>{reasons}</ul>"
+        )
+        content = f"""{explanation}
+<button type="button" data-broker-local="establish" data-query-batch-id="{query_id}"{disabled}>
+固定本次观察为基准（仅本地）</button>"""
+    else:
+        baseline = _object(baseline)
+        source_id = _text(baseline["source_batch_id"])
+        funds = _object(_object(baseline["opening"])["funds"])
+        rows = "".join(
+            f"<tr><th>{_text(field)}</th><td>{_text(value)}</td></tr>"
+            for field, value in funds.items()
+        )
+        button = (
+            "<p>这是基准来源查询，不能与自身比较。需要基准固定之后的独立查询记录。</p>"
+            if batch["batch_id"] == baseline["source_batch_id"]
+            else "<p>本次查询已有固定比较，见下方结果；不会重复建立比较。</p>"
+            if any(check["query_batch_id"] == batch["batch_id"] for check in checks)
+            else f'<button type="button" data-broker-local="compare" '
+            f'data-query-batch-id="{query_id}" '
+            f'data-baseline-id="{_text(baseline["baseline_id"])}">'
+            "将本次查询与固定基准比较（仅本地）</button>"
+        )
+        content = f"""<p>已固定 · {_text(baseline["recorded_at"])} ·
+柜台交易日 {_text(baseline["trading_day"])} · {_text(baseline["currency"])}</p>
+<p><a href="/broker/{source_id}">查看基准来源查询</a>；
+基准不随之后的查询变化，不能重建来清除差异。</p>
+{button}<details><summary>固定的空账户资金观察</summary>
+<div class="table-scroll"><table><thead><tr><th>柜台字段</th><th>基准值</th></tr></thead>
+<tbody>{rows}</tbody></table></div>
+<details><summary>基准身份与来源摘要</summary>{_json(baseline)}</details></details>"""
+    history = "".join(_baseline_check(check, batch["batch_id"]) for check in checks)
+    if not history:
+        history = "<p>尚无独立查询比较。保存基准本身不产生“一致”结果。</p>"
+    return f"""<section class="panel" id="broker-baseline-panel">
+<h2>本地空账户观察基准</h2>
+<p>只比较已保存的柜台观察，不连接柜台、不下单；不接受手工资金或仓位。
+范围仅为同一账户的空仓人民币观察，不是成交、资金流或结算账本。</p>
+{content}<p id="broker-baseline-status" class="status" role="status"></p>
+<p class="muted">基准固定后，请另行发起一次已授权的只读查询，再在新记录中执行比较。
+这里的按钮不会代替你发起查询，也不会把原命令重试当作独立证据。</p>
+<h3>最近的观察比较（最多 20 条）</h3>{history}
+<p class="muted">字段变化不直接代表损失；“未发现变化”也不是账本对账通过。
+所有结果仍为 UNRECONCILED，均不开放报单、撤单或实盘权限。</p>
+<a href="/api/broker/queries/{query_id}/baseline-context">查看独立基准与比较记录</a>
+</section>"""
+
+
+def _baseline_check(check: dict[str, object], current_query_id: object) -> str:
+    label = {
+        "MATCHED": "未发现字段变化（仅观察比较）",
+        "DIFFERENCES": "观察字段或账户活动发生变化",
+        "UNKNOWN": "信息不足，不能判断一致",
+    }[str(check["status"])]
+    rows = "".join(
+        "<tr>"
+        + "".join(
+            f"<td>{_text('未知' if item[field] is None else item[field])}</td>"
+            for field in ("field", "expected", "observed", "delta")
+        )
+        + "</tr>"
+        for item in cast(list[dict[str, object]], check["funds"])
+    )
+    opened = " open" if check["query_batch_id"] == current_query_id else ""
+    reasons = "".join(f"<li>{_text(reason)}</li>" for reason in cast(list[str], check["reasons"]))
+    return f"""<details{opened}><summary>{_text(label)} · {_text(check["created_at"])}</summary>
+<p><a href="/broker/{_text(check["query_batch_id"])}">查看比较使用的独立查询</a></p>
+<div class="table-scroll"><table><thead><tr><th>柜台字段</th><th>固定基准</th>
+<th>后续查询</th><th>字段变化</th></tr></thead><tbody>{rows}</tbody></table></div>
+<h4>全账户持仓、委托与成交观察</h4>
+<p class="muted">null 表示未知，不等于没有活动。</p>{_json(check["activity"])}
+<ul>{reasons}</ul><a href="/api/broker/baseline-checks/{_text(check["check_id"])}">
+查看固定比较证据（非账本对账）</a></details>"""

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
@@ -12,11 +13,13 @@ from uuid import uuid4
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine
+from test_broker_baselines import saved_query
 
 from northstar_quant.broker import ctp
 from northstar_quant.broker.records import QueryCapture
 from northstar_quant.broker.settings import credential_status, load_credentials
 from northstar_quant.broker.workspace import BrokerWorkspace
+from northstar_quant.cli import main
 from northstar_quant.data.files import SourceFiles
 from northstar_quant.data.library import DataLibrary
 from northstar_quant.web import create_app
@@ -174,3 +177,137 @@ def test_broker_browser_requires_explicit_command_and_keeps_failure_evidence(
         assert "尚无完整响应，不能解释为空" in page.text
         assert client.get("/broker").status_code == 200
         assert len(client.get("/api/broker/queries").json()) == 1
+
+
+def test_browser_baseline_commands_are_private_local_and_preserve_original_queries(
+    postgres_engine: Engine,
+    clean_database: None,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    del clean_database
+    monkeypatch.delenv("NORTHSTAR_SIMNOW_CONFIG", raising=False)
+
+    def forbidden(*args: object, **kwargs: object) -> None:
+        raise AssertionError("local baseline commands must not load credentials or connect")
+
+    monkeypatch.setattr(ctp, "query_account", forbidden)
+    monkeypatch.setattr("northstar_quant.broker.workspace.load_credentials", forbidden)
+    source = saved_query(postgres_engine)
+    original = BrokerWorkspace(postgres_engine).get(source)
+    baseline_id, check_id = uuid4(), uuid4()
+    baseline_payload = {"source_batch_id": str(source), "request_id": str(baseline_id)}
+    library = DataLibrary(postgres_engine, SourceFiles(tmp_path / "archive"))
+    context_url = f"/api/broker/queries/{source}/baseline-context"
+    with TestClient(create_app(postgres_engine, library), base_url="http://127.0.0.1") as client:
+        assert client.get(context_url).status_code == 403
+        assert client.get(f"/api/broker/baseline-checks/{check_id}").status_code == 403
+        assert client.post("/api/broker/baselines", json=baseline_payload).status_code == 403
+        assert client.post("/api/broker/baseline-checks", json={}).status_code == 403
+        page = client.get(f"/broker/{source}")
+        assert page.status_code == 200
+        context = client.get(context_url).json()
+        assert context == {
+            "eligibility": {"allowed": True, "reasons": []},
+            "baseline": None,
+            "checks": [],
+        }
+        assert client.post("/api/broker/baselines", json=baseline_payload).status_code == 403
+        token = re.search(r'<meta name="northstar-csrf" content="([^"]+)">', page.text)
+        assert token is not None
+        client.headers["X-Northstar-CSRF"] = token.group(1)
+        assert (
+            client.post(
+                "/api/broker/baselines",
+                json=baseline_payload,
+                headers={"Origin": "https://elsewhere.test"},
+            ).status_code
+            == 403
+        )
+        for extra in ({"funds": {"Balance": "1"}}, {"positions": []}, {"source_batch_id": False}):
+            assert (
+                client.post("/api/broker/baselines", json=baseline_payload | extra).status_code
+                == 422
+            )
+        response = client.post("/api/broker/baselines", json=baseline_payload)
+        assert response.status_code == 200, response.text
+        baseline = response.json()
+        assert baseline["baseline_id"] == str(baseline_id)
+        assert baseline["status"] == "BASELINE_RECORDED"
+        assert client.post("/api/broker/baselines", json=baseline_payload).json() == baseline
+        check_payload = {
+            "baseline_id": str(baseline_id),
+            "query_batch_id": str(source),
+            "request_id": str(check_id),
+        }
+        assert client.post("/api/broker/baseline-checks", json=check_payload).status_code == 422
+        later = saved_query(postgres_engine, money={"Balance": "99999.9"}, position=True)
+        check_payload["query_batch_id"] = str(later)
+        assert (
+            client.post(
+                "/api/broker/baseline-checks",
+                json=check_payload | {"observed": {"Balance": "100000"}},
+            ).status_code
+            == 422
+        )
+        response = client.post("/api/broker/baseline-checks", json=check_payload)
+        assert response.status_code == 200, response.text
+        check = response.json()
+        assert check["status"] == "DIFFERENCES"
+        assert check["reconciliation"] == "UNRECONCILED"
+        assert check["execution"] == {"order_sending": False, "cancel_sending": False}
+        assert client.post("/api/broker/baseline-checks", json=check_payload).json() == check
+        assert client.get(f"/api/broker/baseline-checks/{check_id}").json() == check
+        page = client.get(f"/broker/{later}")
+        assert page.status_code == 200
+        assert "观察字段或账户活动发生变化" in page.text
+        assert "cu2610" in page.text and "不是账本对账通过" in page.text
+        assert 'data-broker-local="compare"' not in page.text
+        assert client.get(f"/api/broker/queries/{source}").json() == original
+        assert len(client.get("/api/broker/queries").json()) == 2
+    with TestClient(create_app(postgres_engine, library), base_url="http://127.0.0.1") as restarted:
+        assert restarted.get(context_url).status_code == 403
+        assert restarted.get(f"/broker/{source}").status_code == 200
+        context = restarted.get(context_url).json()
+        assert context["baseline"] == baseline and context["checks"] == [check]
+        assert restarted.get(f"/api/broker/queries/{source}").json() == original
+
+
+def test_cli_baseline_and_comparison_use_saved_evidence_without_credentials(
+    postgres_engine: Engine,
+    clean_database: None,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    del clean_database
+    monkeypatch.delenv("NORTHSTAR_SIMNOW_CONFIG", raising=False)
+    monkeypatch.setenv(
+        "NORTHSTAR_DATABASE_URL", postgres_engine.url.render_as_string(hide_password=False)
+    )
+
+    def forbidden(*args: object, **kwargs: object) -> None:
+        raise AssertionError("local baseline commands must not load credentials or connect")
+
+    monkeypatch.setattr(ctp, "query_account", forbidden)
+    monkeypatch.setattr("northstar_quant.broker.workspace.load_credentials", forbidden)
+    source = saved_query(postgres_engine)
+    baseline_id = uuid4()
+    command = ["broker-baseline", str(source), "--request-id", str(baseline_id)]
+    assert main(command) == 0
+    baseline = json.loads(capsys.readouterr().out)
+    assert baseline["status"] == "BASELINE_RECORDED"
+    assert main(command) == 0
+    assert json.loads(capsys.readouterr().out) == baseline
+    later = saved_query(postgres_engine)
+    assert main(["broker-compare", str(baseline_id), str(later), "--request-id", str(uuid4())]) == 0
+    check = json.loads(capsys.readouterr().out)
+    assert check["status"] == "MATCHED" and check["reconciliation"] == "UNRECONCILED"
+    assert main(["broker-baseline-context", str(later)]) == 0
+    context = json.loads(capsys.readouterr().out)
+    assert context["baseline"] == baseline and context["checks"] == [check]
+    incomplete = saved_query(postgres_engine, money={"Available": None})
+    assert (
+        main(["broker-compare", str(baseline_id), str(incomplete), "--request-id", str(uuid4())])
+        == 2
+    )
+    assert json.loads(capsys.readouterr().out)["status"] == "UNKNOWN"

@@ -64,6 +64,8 @@ def clean_database(postgres_engine: Engine) -> None:
             "data_admission_rejections",
             "data_backups",
             "broker_query_batches",
+            "broker_account_baselines",
+            "broker_baseline_checks",
         )
     )
     with postgres_engine.begin() as connection:

@@ -220,8 +220,10 @@ def restore(engine: Engine, source_root: Path, directory: Path) -> dict[str, obj
     a marker that the normal application entrypoints refuse to open.
     """
 
+    from northstar_quant.broker.baselines import BrokerBaselines
+    from northstar_quant.broker.records import BrokerRecords
     from northstar_quant.data.library import DataLibrary, manifest
-    from northstar_quant.db import require_current_database
+    from northstar_quant.db import initialize_database, require_current_database
 
     if (
         not directory.is_absolute()
@@ -266,6 +268,9 @@ def restore(engine: Engine, source_root: Path, directory: Path) -> dict[str, obj
         "--single-transaction",
         str(directory / "database.dump"),
     )
+    # A matching core baseline may predate newly added Module tables. Use the
+    # ordinary explicit initializer; it preserves facts and rejects retired cores.
+    initialize_database(engine)
     require_current_database(engine)
     library = DataLibrary(engine, target)
     with engine.connect() as connection:
@@ -288,6 +293,26 @@ def restore(engine: Engine, source_root: Path, directory: Path) -> dict[str, obj
     for snapshot_id in snapshot_ids:
         library.load_dataset(snapshot_id)
     audit = library.reconcile()
+    records = BrokerRecords(engine)
+    query_batches_count = pending_queries_count = 0
+    # A restored database is not active yet. Stream every identity, not the
+    # workspace's bounded recent list, and let the owning Module verify facts.
+    # PENDING remains interrupted evidence: get() never reconnects or resumes it.
+    with engine.connect().execution_options(yield_per=100) as connection:
+        query_ids = connection.execute(
+            text("SELECT batch_id FROM broker_query_batches ORDER BY batch_id")
+        ).scalars()
+        for query_id in query_ids:
+            query = records.get(query_id)
+            query_batches_count += 1
+            pending_queries_count += query["status"] == "PENDING"
+    baselines = BrokerBaselines(engine).verify_all()
+    evidence = {
+        "query_batches_count": query_batches_count,
+        "pending_queries_count": pending_queries_count,
+        "baselines_count": baselines["baselines_count"],
+        "checks_count": baselines["checks_count"],
+    }
     (target.root / ".restore-incomplete").unlink()
     SourceFiles._sync(target.root)
     return {
@@ -295,6 +320,10 @@ def restore(engine: Engine, source_root: Path, directory: Path) -> dict[str, obj
         "backup_id": document["backup_id"],
         "source_count": len(sources),
         "audit": audit,
+        "evidence": evidence,
         "execution": "PAUSED",
-        "scope": "retained sources and current data/research; broker recovery is not implemented",
+        "scope": (
+            "retained sources, data/research and saved broker baseline evidence; "
+            "current account reconciliation and execution recovery are not established"
+        ),
     }

@@ -29,9 +29,11 @@ stops the application and keeps its data volume.
 Compose persists database, managed source and backup volumes separately; retain
 database records and their referenced files together. Container rebuilds do not
 discard sources. Neither uploaded market files nor backups belong in public Git.
-Initialization accepts only the current storage baseline; it never resets an
-existing database. A storage-model change requires an explicitly prepared fresh
-development database after preserving needed evidence, not an in-place legacy upgrade.
+Initialization accepts only the current data baseline; it never resets an
+existing database. After a backup, `northstar init-db` can add a Module's new
+tables when existing fact shapes are unchanged. A replacement of existing storage
+shapes requires explicitly preserving needed evidence and preparing the current
+storage, not an in-place legacy compatibility path.
 
 The workspace imports a bounded CSV with explicit source, contract and session
 metadata. Select accepted data directly from the library, including after a
@@ -99,6 +101,36 @@ Only one query per environment/account runs at a time. A native crash or timeout
 is confined to a short-lived child inside the application, with no separate
 service. Saved final evidence survives restart; an interrupted parent leaves
 `PENDING`, not a claimed complete or continuously journaled capture.
+
+### Fixed account observations
+
+On a saved query page, “固定本次观察为基准” records a complete, flat CNY observation
+locally. All positions/orders/trades must have completed empty responses, and
+observed margin, freezes and position profit must be zero. Missing funds are not
+zero. This is an observation baseline, **not an external-fill ledger**.
+
+After fixing it, explicitly request another read-only query and compare that saved
+result on its page. The later query must belong to the same environment/account,
+start after baseline creation, and not reuse the source request. One environment/account
+has one immutable baseline; later balances never overwrite it to erase a difference.
+These local buttons need no credentials and never connect to the broker.
+
+```sh
+northstar broker-baseline SOURCE_QUERY_UUID --request-id BASELINE_UUID
+northstar broker-baseline-context SOURCE_QUERY_UUID
+northstar broker-compare BASELINE_UUID LATER_QUERY_UUID --request-id COMPARISON_UUID
+```
+
+Comparisons retain exact observed monetary differences and whole-account activity,
+including other contracts. `MATCHED` means no observed change in this limited scope;
+`DIFFERENCES` is unexplained change, not attributed P&L; `UNKNOWN` includes incomplete
+fields or a changed trading day requiring settlement facts. Every outcome remains
+`UNRECONCILED`, without trading authority or a claim of continuous coverage.
+Original query records and comparison records remain separate and immutable.
+
+For an existing current-data database, back it up with the running version before
+deploying this slice; initialize the two new baseline tables with the new version's
+`northstar init-db`. Keep the same database and source storage; do not drop or reset them.
 
 ## Command line
 
@@ -199,7 +231,9 @@ to that database and `NORTHSTAR_DATA_DIR` to a **new, independent absolute path*
 then run `northstar restore /absolute/backup-directory`. Do not initialize the
 target first. Restore preflights every referenced file and the dump, never drops
 or overwrites an existing database, and checks source/processing/publication
-relations under the current baseline. An incomplete restore blocks normal startup.
+relations, all saved broker query evidence and baseline/comparison references.
+An incomplete restore blocks normal startup. These are integrity checks, not a new
+broker observation; restored comparisons never establish current account safety.
 Recovered Paper remains paused; this is data/research recovery, not broker
 reconciliation or live re-arming. Those remain separately gated future work.
 

@@ -273,6 +273,31 @@ if (brokerForm) brokerForm.addEventListener("submit", async (event) => {
   }
 });
 
+document.querySelectorAll("[data-broker-local]").forEach((button) => {
+  button.addEventListener("click", async () => {
+    const queryId = button.dataset.queryBatchId;
+    const establishing = button.dataset.brokerLocal === "establish";
+    const payload = establishing ? {source_batch_id: queryId} : {
+      baseline_id: button.dataset.baselineId,
+      query_batch_id: queryId,
+    };
+    const key = `northstar.broker.${button.dataset.brokerLocal}.${queryId}`;
+    const notice = document.querySelector("#broker-baseline-status");
+    button.disabled = true;
+    status(notice, establishing ? "正在固定已保存的观察，不连接柜台…" :
+      "正在比较两份已保存的观察，不连接柜台…");
+    try {
+      payload.request_id = workspaceCommand(key, payload);
+      await api(establishing ? "/api/broker/baselines" : "/api/broker/baseline-checks", payload);
+      sessionStorage.removeItem(key);
+      window.location.reload();
+    } catch (error) {
+      status(notice, `${error.message} 重试复用同一命令，不会连接柜台或重复写入。`, true);
+      button.disabled = false;
+    }
+  });
+});
+
 if (configurationForm) configurationForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const button = configurationForm.querySelector("button[type=submit]");

@@ -139,6 +139,21 @@ def main(argv: Sequence[str] | None = None) -> int:
     broker_query.add_argument(
         "--request-id", type=UUID, required=True, help="reuse to read an uncertain response"
     )
+    broker_baseline = commands.add_parser(
+        "broker-baseline", help="record one saved flat-account observation locally; no connection"
+    )
+    broker_baseline.add_argument("source_batch_id", type=UUID)
+    broker_baseline.add_argument("--request-id", type=UUID, required=True)
+    broker_compare = commands.add_parser(
+        "broker-compare", help="compare an independent saved query; not ledger reconciliation"
+    )
+    broker_compare.add_argument("baseline_id", type=UUID)
+    broker_compare.add_argument("query_batch_id", type=UUID)
+    broker_compare.add_argument("--request-id", type=UUID, required=True)
+    broker_context = commands.add_parser(
+        "broker-baseline-context", help="read local baseline eligibility and saved comparisons"
+    )
+    broker_context.add_argument("query_batch_id", type=UUID)
     arguments = parser.parse_args(argv)
 
     engine = None
@@ -172,7 +187,14 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         require_current_database(engine)
 
-        if arguments.command in {"broker-query", "broker-list", "broker-show"}:
+        if arguments.command in {
+            "broker-query",
+            "broker-list",
+            "broker-show",
+            "broker-baseline",
+            "broker-compare",
+            "broker-baseline-context",
+        }:
             from northstar_quant.broker.workspace import BrokerWorkspace
 
             broker = BrokerWorkspace(engine)
@@ -184,6 +206,31 @@ def main(argv: Sequence[str] | None = None) -> int:
                 )
                 print(json.dumps(broker_result, ensure_ascii=False))
                 return 0 if broker_result["status"] == "COMPLETE" else 2
+            if arguments.command == "broker-baseline":
+                print(
+                    json.dumps(
+                        broker.establish_baseline(
+                            arguments.source_batch_id, request_id=arguments.request_id
+                        ),
+                        ensure_ascii=False,
+                    )
+                )
+                return 0
+            if arguments.command == "broker-compare":
+                broker_result = broker.compare_baseline(
+                    arguments.baseline_id,
+                    arguments.query_batch_id,
+                    request_id=arguments.request_id,
+                )
+                print(json.dumps(broker_result, ensure_ascii=False))
+                return 0 if broker_result["status"] == "MATCHED" else 2
+            if arguments.command == "broker-baseline-context":
+                print(
+                    json.dumps(
+                        broker.baseline_context(arguments.query_batch_id), ensure_ascii=False
+                    )
+                )
+                return 0
             if arguments.command == "broker-list":
                 print(json.dumps(broker.list(), ensure_ascii=False))
             else:
