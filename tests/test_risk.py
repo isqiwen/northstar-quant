@@ -3,8 +3,21 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal, localcontext
 from uuid import UUID
 
+import pytest
+
 from northstar_quant.data.research import Market
-from northstar_quant.risk import Outcome, PortfolioState, RiskPolicy, Side, evaluate_risk
+from northstar_quant.risk import (
+    OpeningAccount,
+    OpeningCandidate,
+    OpeningLimits,
+    OpeningTerms,
+    Outcome,
+    PortfolioState,
+    RiskPolicy,
+    Side,
+    evaluate_opening_budget,
+    evaluate_risk,
+)
 from northstar_quant.strategy import StrategyIntent
 
 AT = datetime(2026, 1, 5, 1, tzinfo=UTC)
@@ -90,3 +103,130 @@ def test_public_tick_bound_stays_inside_financial_limit_after_precision_reductio
     with localcontext() as context:
         context.prec = 96
         assert maximum * market.multiplier <= policy.max_gross_notional
+
+
+def opening_inputs() -> tuple[OpeningAccount, OpeningTerms, OpeningLimits, OpeningCandidate]:
+    return (
+        OpeningAccount(Decimal(10000), Decimal(10000), Decimal(0)),
+        OpeningTerms(
+            price_tick=Decimal(1),
+            multiplier=Decimal(10),
+            long_margin_by_money=Decimal("0.1"),
+            long_margin_by_volume=Decimal(2),
+            short_margin_by_money=Decimal("0.2"),
+            short_margin_by_volume=Decimal(3),
+            open_fee_by_money=Decimal("0.0001"),
+            open_fee_by_volume=Decimal("0.5"),
+            lower_limit=Decimal(90),
+            upper_limit=Decimal(120),
+            last_price=Decimal(100),
+            pre_settlement_price=Decimal(100),
+            min_limit_lots=1,
+            max_limit_lots=10,
+        ),
+        OpeningLimits(10, Decimal(2000), Decimal("0.5"), Decimal("0.1")),
+        OpeningCandidate(Side.BUY, Decimal(100)),
+    )
+
+
+def test_opening_budget_uses_actual_available_and_sell_daily_upper_bound() -> None:
+    account, terms, limits, candidate = opening_inputs()
+    account = replace(account, available=Decimal(200))
+    buy = evaluate_opening_budget(account, terms, limits, candidate)
+    sell = evaluate_opening_budget(account, terms, limits, replace(candidate, side=Side.SELL))
+    assert buy["outcome"] == "WITHIN_BUDGET" and buy["reasons"] == []
+    assert buy["requested_price"] == buy["reservation_price"] == "100"
+    assert buy["margin_reference_price"] == sell["margin_reference_price"] == "120"
+    assert buy["margin_budget"] == "122" and buy["fee_budget"] == "0.6"
+    assert buy["capital_budget"] == "122.6" and buy["available_after_budget"] == "77.4"
+    assert sell["requested_price"] == "100" and sell["reservation_price"] == "120"
+    assert sell["notional"] == "1200" and sell["margin_budget"] == "243"
+    assert sell["fee_budget"] == "0.62" and sell["capital_budget"] == "243.62"
+    assert sell["outcome"] == "REJECT" and sell["reasons"] == ["INSUFFICIENT_AVAILABLE"]
+    gross = evaluate_opening_budget(
+        replace(account, available=Decimal(10000)),
+        terms,
+        replace(limits, max_gross_notional=Decimal(1199)),
+        replace(candidate, side=Side.SELL),
+    )
+    assert gross["reasons"] == ["GROSS_NOTIONAL_LIMIT_EXCEEDED"]
+    higher_settlement = evaluate_opening_budget(
+        account, replace(terms, pre_settlement_price=Decimal(150)), limits, candidate
+    )
+    assert higher_settlement["margin_reference_price"] == "150"
+    assert higher_settlement["margin_budget"] == "152"
+    assert higher_settlement["notional"] == "1000" and higher_settlement["fee_budget"] == "0.6"
+    for result in (buy, sell, gross):
+        assert result["execution"] == {"order_sending": False, "cancel_sending": False}
+        assert result["scope"] == "OPENING_BUDGET_PRECHECK" and result["quantity_lots"] == 1
+
+
+def test_opening_budget_rounds_costs_up_and_accounts_for_existing_margin_after_fees() -> None:
+    _, terms, limits, candidate = opening_inputs()
+    terms = replace(
+        terms,
+        long_margin_by_money=Decimal("0.01"),
+        long_margin_by_volume=Decimal("0.005"),
+        open_fee_by_money=Decimal("0.000001"),
+        open_fee_by_volume=Decimal("0.005"),
+    )
+    account = OpeningAccount(Decimal("24.63"), Decimal("12.02"), Decimal("0.30"))
+    with localcontext() as context:
+        context.prec = 6
+        result = evaluate_opening_budget(account, terms, limits, candidate)
+        less_available = evaluate_opening_budget(
+            replace(account, available=Decimal("12.019999999999999999")), terms, limits, candidate
+        )
+        less_equity = evaluate_opening_budget(
+            replace(account, equity=Decimal("24.629999999999999999")), terms, limits, candidate
+        )
+    assert result["outcome"] == "WITHIN_BUDGET"
+    assert result["margin_budget"] == "12.01" and result["fee_budget"] == "0.01"
+    assert result["capital_budget"] == "12.02" and result["total_margin_budget"] == "12.31"
+    assert result["available_after_budget"] == "0"  # Existing margin is not deducted twice.
+    assert less_available["reasons"] == ["INSUFFICIENT_AVAILABLE"]
+    assert less_equity["reasons"] == ["MARGIN_FRACTION_EXCEEDED"]
+    insufficient_equity = evaluate_opening_budget(
+        replace(account, equity=Decimal(10)), terms, limits, candidate
+    )
+    assert "INSUFFICIENT_EQUITY" in insufficient_equity["reasons"]
+
+
+def test_opening_budget_rejects_order_size_price_tick_limits_and_adverse_prices() -> None:
+    account, terms, limits, candidate = opening_inputs()
+    cases = (
+        (terms, limits, replace(candidate, lots=2), "ONLY_ONE_OPENING_LOT_SUPPORTED"),
+        (replace(terms, min_limit_lots=2), limits, candidate, "INSTRUMENT_LOT_LIMIT"),
+        (terms, replace(limits, max_lots=1), replace(candidate, lots=2), "MAX_LOTS_EXCEEDED"),
+        (terms, limits, replace(candidate, limit_price=Decimal("100.5")), "PRICE_OFF_TICK"),
+        (terms, limits, replace(candidate, limit_price=Decimal(121)), "PRICE_OUTSIDE_DAILY_LIMITS"),
+        (
+            terms,
+            limits,
+            replace(candidate, limit_price=Decimal(111)),
+            "ADVERSE_PRICE_LIMIT_EXCEEDED",
+        ),
+        (
+            terms,
+            replace(limits, max_adverse_price_move_fraction=Decimal("0.05")),
+            OpeningCandidate(Side.SELL, Decimal(94)),
+            "ADVERSE_PRICE_LIMIT_EXCEEDED",
+        ),
+    )
+    for current_terms, current_limits, current_candidate, reason in cases:
+        result = evaluate_opening_budget(account, current_terms, current_limits, current_candidate)
+        assert result["outcome"] == "REJECT" and reason in result["reasons"]
+    for side, price in ((Side.BUY, "110"), (Side.SELL, "90")):
+        result = evaluate_opening_budget(
+            account, terms, limits, OpeningCandidate(side, Decimal(price))
+        )
+        assert result["outcome"] == "WITHIN_BUDGET"  # Exact adverse-price boundary is allowed.
+
+
+@pytest.mark.parametrize(
+    "value", [None, Decimal("NaN"), Decimal("Infinity"), Decimal("1e-19"), Decimal("1e34")]
+)
+def test_opening_budget_never_replaces_unknown_or_unbounded_costs_with_zero(value: Decimal) -> None:
+    _, terms, _, _ = opening_inputs()
+    with pytest.raises(ValueError):
+        replace(terms, open_fee_by_money=value)

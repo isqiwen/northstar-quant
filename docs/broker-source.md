@@ -180,3 +180,54 @@ TD 身份确认、各查询完整、交易日仍为 `20260904`，全账户持仓
 网络结果只描述该时刻，不证明 CTP 握手、认证、登录、账户查询或交易权限。
 环境服务时段、结算能力与账户可用条件仍应以用户实际使用时的
 [SimNow 官方环境说明](https://www.simnow.com.cn/product.action)和真实回报核实，不互相推定。
+
+## 单手 SHFE 投机开仓预算依据
+
+2026-09-06 核实：以下区分 SDK 字段事实与本项目保守预算，不是实际扣款或交易授权。
+仍锁定 `ctpwrapper==6.7.13` 和上述固定提交；本轮未读取私密账户、连接柜台或发送委托。
+
+同版本[原生结构](https://github.com/nooperpudd/ctpwrapper/blob/f7e08c01e25359b5f4385c14388f8dfe5a1d6fd7/ctp/header/ThostFtdcUserApiStruct.h)
+与[Python 字段绑定](https://github.com/nooperpudd/ctpwrapper/blob/f7e08c01e25359b5f4385c14388f8dfe5a1d6fd7/ctpwrapper/ApiStructure.py)
+分别提供多空保证金的 `Long/ShortMarginRatioByMoney`、`Long/ShortMarginRatioByVolume`，
+开仓手续费的 `OpenRatioByMoney`、`OpenRatioByVolume`；手续费结构没有 `IsRelative`。
+保证金的 `IsRelative` 表达是否相对交易所收取，不能把相对加收值当成完整保证金率。
+按同版本[枚举定义](https://github.com/nooperpudd/ctpwrapper/blob/f7e08c01e25359b5f4385c14388f8dfe5a1d6fd7/ctp/header/ThostFtdcUserApiDataType.h)，
+`InvestorRange='1'/'2'/'3'` 分别是所有、组、单一投资者，投机 `HedgeFlag='1'`，期货 `BizType='1'`。
+
+首版范围主动收窄：一份身份匹配的 CNY 期货资金回报、全账户空仓、无未决委托或本地预占，
+仅对固定影子目标推导的一手 SHFE 投机开仓做离线预算。资金回报须显式 `BizType='1'`；
+保证金须 `InvestorRange='3'`、`HedgeFlag='1'`、`IsRelative=0`、`InvestUnitID=''`；
+手续费须 `InvestorRange='3'`、`BizType='1'`、`InvestUnitID=''`，两种费率均须精确匹配
+BrokerID、InvestorID、ExchangeID 和合约。组级/所有投资者、相对率、非空投资单元、
+缺字段或歧义均不推测；旧保存回包缺失这些字段，不等于当时已核实。
+
+本地预算按字段量纲相加：`Q=1` 手，`M=VolumeMultiple`，BUY 使用 Long，SELL 使用 Short；
+`r_money/r_volume` 为相应保证金项，`c_money/c_volume` 为两项开仓手续费。所有值须有限且非负，
+按金额率直接使用小数，不再除以 100；零值必须来自明确回报，不能由缺失值补出。
+
+```text
+成交金额预算 N = Q × M × P_trade
+保证金预算 G = Q × (M × P_margin × r_money + r_volume)
+开仓手续费预算 F = N × c_money + Q × c_volume
+新增资金需求 = G + F
+```
+
+BUY 的 `P_trade` 取有效 limit，SELL 取同合约、同交易日、新鲜行情的有效 `UpperLimitPrice`，
+因为卖单可在高于 limit 的价格成交，limit 不是其成交金额上界。这是依据现行
+[交易规则第二十三条](https://www.shfe.cn/regulation/exchangerules/rules/202606/t20260603_831934.html)
+及[交易管理办法第三十二条](https://www.shfe.cn/regulation/exchangerules/otherrules/202606/t20260622_832186.html)
+的保守推导；报价必须位于有效涨跌停区间内，不从旧行情或固定涨跌幅补造上限。
+
+保证金不能直接沿用 BUY limit：同版本 SDK 的 `BrokerTradingParams.MarginPriceType`
+可选择昨结算价、最新价、成交均价或开仓价，见上述[保证金价格枚举](https://github.com/nooperpudd/ctpwrapper/blob/f7e08c01e25359b5f4385c14388f8dfe5a1d6fd7/ctp/header/ThostFtdcUserApiDataType.h)。
+当前七项查询没有查该参数；本地双向统一采用 `P_margin=max(UpperLimitPrice, PreSettlementPrice)`，
+两者均须实际提供有效正值。它仅适用于上述空仓首次单手、日内固定条款的保守预算，
+不是已确认柜台采用该价格或保证实际冻结金额完全一致；不覆盖组合抵扣、既有仓均价、跨日或临时提保。
+
+`TradingAccountField.Available` 是柜台报告的可用资金，不是 `Balance` 或 `WithdrawQuota`。
+本次可访问的 SDK 头文件未给出完整资金恒等式；SimNow 官方 Mini 手册的索引也仅列字段，
+[原 PDF](https://www.simnow.com.cn/DocumentDown/api_3/5_2_4/SFIT%2BCTP%2BMini%2BAPI-V1.7.0.pdf)
+访问遇到 WAF 挑战，未绕过。因此只在 `CurrMargin/FrozenMargin/FrozenCash/FrozenCommission`
+明确为零时直接以 `Available` 比较新增需求，不从余额重建、也不再扣一遍已有冻结。
+非零冻结不按未核实公式继续；币种、条款有效性、费额舍入及实际收取仍需柜台后续证据。
+此处的预算成立不构成持续账户对账、实际成交费用确认或报单许可。

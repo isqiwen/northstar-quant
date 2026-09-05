@@ -315,6 +315,9 @@ def restore(engine: Engine, source_root: Path, directory: Path) -> dict[str, obj
     from northstar_quant.broker.streams import BrokerStreams
 
     streams_count = BrokerStreams(engine, library).verify_all()
+    from northstar_quant.broker.budgets import BrokerOpeningBudgets
+
+    BrokerOpeningBudgets(engine, library).verify_all()
     evidence = {
         "query_batches_count": query_batches_count,
         "pending_queries_count": pending_queries_count,

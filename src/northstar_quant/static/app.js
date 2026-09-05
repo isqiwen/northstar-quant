@@ -543,6 +543,36 @@ if (streamArchiveForm) streamArchiveForm.addEventListener("submit", async (event
   }
 });
 
+const openingBudgetForm = document.querySelector("#opening-budget-form");
+if (openingBudgetForm) openingBudgetForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const streamId = openingBudgetForm.dataset.streamId;
+  const button = openingBudgetForm.querySelector("button[type=submit]");
+  const notice = document.querySelector("#opening-budget-status");
+  const key = `northstar.opening-budget.${streamId}`;
+  button.disabled = true;
+  status(notice, "正在读取固定影子步骤和柜台证据，计算本地一手预算；不连接、不发单…");
+  try {
+    const values = Object.fromEntries(new FormData(openingBudgetForm));
+    const sequence = Number(values.sequence);
+    if (!/^[0-9]+$/.test(values.sequence) || !Number.isSafeInteger(sequence) || sequence < 1) {
+      throw new Error("请选择一个已保存的影子目标步骤。");
+    }
+    const payload = {
+      sequence,
+      order_check_id: values.order_check_id,
+      limit_price: values.limit_price.trim(),
+    };
+    payload.request_id = workspaceCommand(key, payload);
+    const result = await api(`/api/streams/${encodeURIComponent(streamId)}/opening-budgets`, payload);
+    sessionStorage.removeItem(key);
+    window.location.assign(`/broker/opening-budgets/${encodeURIComponent(result.budget_id)}`);
+  } catch (error) {
+    status(notice, `${error.message} 相同输入重试复用命令，预算永远不授予执行权限。`, true);
+    button.disabled = false;
+  }
+});
+
 const streamReport = document.querySelector("#stream-report");
 if (streamReport) {
   const streamId = streamReport.dataset.streamId;

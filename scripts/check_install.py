@@ -215,6 +215,7 @@ def main() -> None:
                     f"/api/broker/position-entries/{missing_query}",
                     f"/api/broker/position-checks/{missing_query}",
                     f"/api/broker/order-checks/{missing_query}",
+                    f"/api/broker/opening-budgets/{missing_query}",
                     f"/api/streams/{missing_query}",
                     f"/api/streams/{missing_query}/events",
                 ):
@@ -281,6 +282,15 @@ def main() -> None:
                             "session_open": "2026-09-07T01:01:00Z",
                             "session_close": "2026-09-07T01:03:00Z",
                             "allow_download": False,
+                            "request_id": str(uuid4()),
+                        },
+                    ),
+                    (
+                        f"/api/streams/{missing_query}/opening-budgets",
+                        {
+                            "sequence": 1,
+                            "order_check_id": missing_query,
+                            "limit_price": "3101",
                             "request_id": str(uuid4()),
                         },
                     ),

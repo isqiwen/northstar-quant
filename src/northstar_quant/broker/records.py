@@ -73,7 +73,7 @@ CALLBACK_FIELDS: dict[str, tuple[str, ...]] = {
     "OnRspQryTradingAccount": tuple(
         "BrokerID AccountID CurrencyID TradingDay SettlementID PreBalance PreMargin Deposit "
         "Withdraw FrozenMargin FrozenCash FrozenCommission CurrMargin CashIn Commission "
-        "CloseProfit PositionProfit Balance Available WithdrawQuota Reserve".split()
+        "CloseProfit PositionProfit Balance Available WithdrawQuota Reserve BizType".split()
     ),
     "OnRspQryInvestorPosition": tuple(
         "InstrumentID BrokerID InvestorID PosiDirection HedgeFlag PositionDate YdPosition "
@@ -98,12 +98,12 @@ CALLBACK_FIELDS: dict[str, tuple[str, ...]] = {
     "OnRspQryInstrumentMarginRate": tuple(
         "InstrumentID InvestorRange BrokerID InvestorID HedgeFlag LongMarginRatioByMoney "
         "LongMarginRatioByVolume ShortMarginRatioByMoney ShortMarginRatioByVolume IsRelative "
-        "ExchangeID".split()
+        "ExchangeID InvestUnitID".split()
     ),
     "OnRspQryInstrumentCommissionRate": tuple(
         "InstrumentID InvestorRange BrokerID InvestorID OpenRatioByMoney OpenRatioByVolume "
         "CloseRatioByMoney CloseRatioByVolume CloseTodayRatioByMoney CloseTodayRatioByVolume "
-        "ExchangeID".split()
+        "ExchangeID BizType InvestUnitID".split()
     ),
     "OnRspSubMarketData": ("InstrumentID",),
     "OnRtnDepthMarketData": tuple(

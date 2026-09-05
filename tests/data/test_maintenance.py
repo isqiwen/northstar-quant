@@ -8,6 +8,7 @@ import subprocess
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import datetime, timedelta
+from decimal import Decimal
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -20,6 +21,7 @@ from test_broker_streams import Clock, logins, prepare, start
 from test_live import OPEN, tick
 
 from northstar_quant.broker.baselines import BrokerBaselines
+from northstar_quant.broker.budgets import BrokerOpeningBudgets
 from northstar_quant.broker.ledger import BrokerLedger
 from northstar_quant.broker.records import BrokerRecords
 from northstar_quant.broker.settings import get_profile
@@ -120,6 +122,10 @@ def test_initialization_and_restore_keep_all_interrupted_query_evidence(
     assert stream["received"] == stream["cursor"] == len(events) == 48
     assert len(stream["steps"]) == 2 and stream["steps"][0]["result"]["intent"] is not None
     assert stream["status"] == "STOPPED" and stream["paused"]
+    opening_budget = BrokerOpeningBudgets(postgres_engine, library).create(
+        stream_id, 48, order_check_id, limit_price=Decimal("3110"), request_id=uuid4()
+    )
+    assert opening_budget["status"] == "UNKNOWN"
     # Explicit initialization may add current Module tables, never rebind facts.
     initialize_database(postgres_engine)
     assert records.get(UUID(int=1)) == saved[0]
@@ -163,6 +169,10 @@ def test_initialization_and_restore_keep_all_interrupted_query_evidence(
         restored_library = DataLibrary(target, SourceFiles(tmp_path / "restored"))
         assert restored_library.load_dataset(dataset.snapshot_id) == dataset
         assert restored_library.attempt(UUID(archived["attempt_id"])) == archived
+        assert (
+            BrokerOpeningBudgets(target, restored_library).get(UUID(opening_budget["budget_id"]))
+            == opening_budget
+        )
         assert calls["count"] == 1  # Recovery did not invoke the synthetic receiver again.
         assert not (tmp_path / "restored/.restore-incomplete").exists()
     # Fault injection: the archive bytes remain intact, but their parent receipt

@@ -311,6 +311,43 @@ source's condition. Joint backup/restore includes these references and files.
 Implementing and exercising this local path does not verify a fresh external feed;
 it adds no broker connection, query or order, and does not complete #25.
 
+### Budget one opening lot from a saved shadow target
+
+On the stream page, select a saved target, an existing same-account order review,
+and a decimal limit price. Direction and risk limits come from the original target
+and stream configuration, not a manually supplied account or a newer template.
+
+```sh
+northstar broker-opening-budget STREAM_UUID --sequence SEQUENCE \
+  --order-check ORDER_CHECK_UUID --limit-price 3110 --request-id REQUEST_UUID
+northstar broker-opening-budget-show REQUEST_UUID
+```
+
+The immutable result links back to the exact shadow step, independent position/order
+review, account query, rates and original times. It is a **non-executable budget**:
+`WITHIN_BUDGET` means only that one lot fits the numerical constraints of those saved
+inputs. It creates no order, simulated fill or cash reservation, and never replays
+the original decision. Unknown facts remain `UNKNOWN`; insufficient funds or limits
+produce `REJECT`. Creation returns CLI exit code 0 only for `WITHIN_BUDGET`, otherwise 2.
+
+The first slice requires a same-day, flat CNY SHFE speculation account, no orders or
+trades, zero margin/freezes, explicit futures business and absolute account-specific
+rates. Missing business/investment-unit fields in earlier evidence are not inferred.
+Money- and lot-based rates are additive; simulated cash, margin and fees are excluded.
+BUY limit / SELL daily upper limit bound notional and fee budgets; margin separately
+uses the higher of the observed daily upper limit and previous settlement price.
+Budgets round upward to cents, not to alleged actual charges. See [the source and
+assumption notes](docs/broker-source.md#单手-shfe-投机开仓预算依据).
+
+Source time, receipt time, query window and calculation time stay separate. Old
+observations do not become current through this operation. Execution blockers remain
+visible even when numerical budgeting succeeds: account-event reconciliation, actual
+cash/fee accounting, reservations and authorized sending are not yet established.
+The page is `/broker/opening-budgets/REQUEST_UUID`; stream detail links saved results.
+Run explicit `northstar init-db` with the current version to add this Module's table;
+joint restore verifies its fixed parents without connecting or authorizing execution.
+This is an independent engineering slice of #32, not external simulation acceptance.
+
 ## Command line
 
 With Python 3.12, `uv`, and PostgreSQL 17:

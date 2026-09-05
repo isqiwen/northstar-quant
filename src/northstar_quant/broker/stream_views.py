@@ -6,6 +6,8 @@ import json
 from html import escape
 from typing import cast
 
+from northstar_quant.broker import budget_views
+
 
 def _text(value: object) -> str:
     return escape("未取得" if value is None else str(value), quote=True)
@@ -88,7 +90,7 @@ SDK 白名单回调，不是网络原始字节，也不是已发布研究 Snapsh
 <th>当前原因</th></tr></thead><tbody>{"".join(rows)}</tbody></table></div></section>"""
 
 
-def report(stream: dict[str, object]) -> str:
+def report(stream: dict[str, object], budget_context: dict[str, object]) -> str:
     binding, state = _object(stream["binding"]), _object(stream["state"])
     request = _object(binding["request"])
     identifier = _text(stream["stream_id"])
@@ -155,6 +157,7 @@ ActionDay / UpdateTime 分别保留；接收进程存在不等于当前身份、
 <details><summary>完整分钟处理与预热证据</summary>
 <pre id="stream-market-state">{_json(state.get("market"))}</pre></details></section></div>
 {_archive_panel(stream)}
+{budget_views.panel(stream, budget_context)}
 <section class="panel"><h2>固定输入与证据</h2>
 <p><a href="/broker/{_text(request["query_batch_id"])}">来源账户／合约查询</a> ·
 <a href="/api/streams/{identifier}">当前接收记录 JSON</a> ·

@@ -248,22 +248,8 @@ def _quote(event: BrokerEvent, instrument: str, tick: Decimal, now: datetime) ->
         raise ValueError("INSTRUMENT_MISMATCH")
     if row.get("ExchangeID") not in (None, "", "SHFE"):
         raise ValueError("EXCHANGE_MISMATCH")
-    day, action = row.get("TradingDay"), row.get("ActionDay")
-    if not isinstance(day, str) or re.fullmatch(r"[0-9]{8}", day) is None or action != day:
-        raise ValueError("SOURCE_DATES_NOT_CONFIRMED")
-    clock, millis = row.get("UpdateTime"), row.get("UpdateMillisec")
-    if (
-        not isinstance(clock, str)
-        or re.fullmatch(r"[0-9]{2}:[0-9]{2}:[0-9]{2}", clock) is None
-        or type(millis) is not int
-        or not 0 <= millis < 1000
-    ):
-        raise ValueError("SOURCE_TIME_NOT_CONFIRMED")
-    try:
-        local = datetime.combine(date.fromisoformat(day), time.fromisoformat(clock), _SHANGHAI)
-    except ValueError as error:
-        raise ValueError("SOURCE_TIME_NOT_CONFIRMED") from error
-    local += timedelta(milliseconds=millis)
+    local = ctp_day_quote_time(row).astimezone(_SHANGHAI)
+    day = row["TradingDay"]
     segment = next(
         (index for index, (start, end) in enumerate(_DAY) if start <= local.time() < end), None
     )
@@ -300,6 +286,31 @@ def _quote(event: BrokerEvent, instrument: str, tick: Decimal, now: datetime) ->
         "cumulative_volume": volume,
         "content_hash": _hash(row),
     }
+
+
+def ctp_day_quote_time(row: dict[str, Any]) -> datetime:
+    """Resolve the source clock used by DAY sampling and opening-budget freshness.
+
+    Receipt or calculation time never substitutes for a missing CTP source clock.
+    This only resolves explicit same-day timestamps, not a night-session calendar.
+    """
+    day, action = row.get("TradingDay"), row.get("ActionDay")
+    if not isinstance(day, str) or re.fullmatch(r"[0-9]{8}", day) is None or action != day:
+        raise ValueError("SOURCE_DATES_NOT_CONFIRMED")
+    clock, millis = row.get("UpdateTime"), row.get("UpdateMillisec")
+    if (
+        not isinstance(clock, str)
+        or re.fullmatch(r"[0-9]{2}:[0-9]{2}:[0-9]{2}", clock) is None
+        or type(millis) is not int
+        or not 0 <= millis < 1000
+    ):
+        raise ValueError("SOURCE_TIME_NOT_CONFIRMED")
+    try:
+        local = datetime.combine(date.fromisoformat(day), time.fromisoformat(clock), _SHANGHAI)
+    except ValueError as error:
+        raise ValueError("SOURCE_TIME_NOT_CONFIRMED") from error
+    local += timedelta(milliseconds=millis)
+    return local.astimezone(UTC)
 
 
 def _minute(quote: dict[str, Any], *, partial: bool, delta: int | None) -> dict[str, Any]:

@@ -10,7 +10,7 @@ import secrets
 import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from html import escape
 from importlib.resources import files
 from typing import cast
@@ -24,8 +24,9 @@ from sqlalchemy.exc import SQLAlchemyError
 from starlette.concurrency import run_in_threadpool
 from starlette.middleware.base import RequestResponseEndpoint
 
-from northstar_quant.broker import stream_views
+from northstar_quant.broker import budget_views, stream_views
 from northstar_quant.broker import views as broker_views
+from northstar_quant.broker.budgets import BrokerOpeningBudgets
 from northstar_quant.broker.streams import BrokerStreams
 from northstar_quant.broker.workspace import BrokerWorkspace
 from northstar_quant.data.files import SourceFiles
@@ -91,6 +92,7 @@ def create_app(engine: Engine, library: DataLibrary) -> FastAPI:
     paper = SessionStore(engine, library)
     broker = BrokerWorkspace(engine)
     streams = BrokerStreams(engine, library)
+    opening_budgets = BrokerOpeningBudgets(engine, library)
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -432,9 +434,44 @@ def create_app(engine: Engine, library: DataLibrary) -> FastAPI:
 
     @app.get("/streams/{stream_id}", response_class=HTMLResponse)
     async def stream_detail(request: Request, stream_id: UUID) -> HTMLResponse:
-        result = await run_in_threadpool(streams.get, stream_id)
+        def content() -> str:
+            return stream_views.report(streams.get(stream_id), opening_budgets.context(stream_id))
+
         return workspace_page(
-            request, "持续会话", stream_views.report(result), mode="SimNow · 影子决策 / 不发单"
+            request, "持续会话", await run_in_threadpool(content), mode="SimNow · 影子决策 / 不发单"
+        )
+
+    @app.post("/api/streams/{stream_id}/opening-budgets")
+    async def opening_budget_create(request: Request, stream_id: UUID) -> dict[str, object]:
+        protect_workspace_command(request)
+        payload = await _read_object(request)
+        if set(payload) != {"sequence", "order_check_id", "limit_price", "request_id"}:
+            raise ValueError("开仓预算只接受已保存步骤、委托核对、限价和命令身份。")
+        if type(payload["sequence"]) is not int:
+            raise ValueError("sequence 必须是整数。")
+        try:
+            limit_price = Decimal(_string_field(payload, "limit_price"))
+        except InvalidOperation as error:
+            raise ValueError("限价必须是十进制数字字符串。") from error
+        return await run_in_threadpool(
+            opening_budgets.create,
+            stream_id,
+            payload["sequence"],
+            _uuid_field(payload, "order_check_id"),
+            limit_price=limit_price,
+            request_id=_uuid_field(payload, "request_id"),
+        )
+
+    @app.get("/api/broker/opening-budgets/{budget_id}")
+    async def opening_budget_get(request: Request, budget_id: UUID) -> dict[str, object]:
+        require_workspace_session(request)
+        return await run_in_threadpool(opening_budgets.get, budget_id)
+
+    @app.get("/broker/opening-budgets/{budget_id}", response_class=HTMLResponse)
+    async def opening_budget_page(request: Request, budget_id: UUID) -> HTMLResponse:
+        result = await run_in_threadpool(opening_budgets.get, budget_id)
+        return workspace_page(
+            request, "固定开仓预算", budget_views.report(result), mode="历史预算 · 不发单"
         )
 
     @app.post("/api/streams", status_code=201)

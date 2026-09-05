@@ -9,6 +9,7 @@ import sys
 import time
 import tomllib
 from collections.abc import Sequence
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import cast
 from uuid import UUID, uuid4
@@ -176,6 +177,19 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     broker_orders.add_argument("position_check_id", type=UUID)
     broker_orders.add_argument("--request-id", type=UUID, required=True)
+    opening_budget = commands.add_parser(
+        "broker-opening-budget",
+        help="budget one opening lot from a saved shadow target; never execution permission",
+    )
+    opening_budget.add_argument("stream_id", type=UUID)
+    opening_budget.add_argument("--sequence", type=int, required=True)
+    opening_budget.add_argument("--order-check", type=UUID, required=True)
+    opening_budget.add_argument("--limit-price", required=True, help="exact decimal limit price")
+    opening_budget.add_argument("--request-id", type=UUID, required=True)
+    opening_budget_show = commands.add_parser(
+        "broker-opening-budget-show", help="read one fixed historical opening budget; no connection"
+    )
+    opening_budget_show.add_argument("budget_id", type=UUID)
     commands.add_parser("stream-list", help="list saved continuous shadow sessions; no connection")
     stream_show = commands.add_parser("stream-show", help="read a saved continuous shadow session")
     stream_show.add_argument("stream_id", type=UUID)
@@ -239,6 +253,31 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
 
         require_current_database(engine)
+
+        if arguments.command in {"broker-opening-budget", "broker-opening-budget-show"}:
+            from northstar_quant.broker.budgets import BrokerOpeningBudgets
+            from northstar_quant.data.files import SourceFiles
+            from northstar_quant.data.library import DataLibrary
+
+            budgets = BrokerOpeningBudgets(
+                engine, DataLibrary(engine, SourceFiles.from_environment())
+            )
+            if arguments.command == "broker-opening-budget":
+                try:
+                    limit_price = Decimal(arguments.limit_price)
+                except InvalidOperation as error:
+                    raise ValueError("limit price must be an exact decimal string") from error
+                budget_result = budgets.create(
+                    arguments.stream_id,
+                    arguments.sequence,
+                    arguments.order_check,
+                    limit_price=limit_price,
+                    request_id=arguments.request_id,
+                )
+            else:
+                budget_result = budgets.get(arguments.budget_id)
+            print(json.dumps(budget_result, ensure_ascii=False))
+            return 0 if budget_result["status"] == "WITHIN_BUDGET" else 2
 
         if arguments.command in {
             "stream-start",

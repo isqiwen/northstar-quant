@@ -758,6 +758,60 @@ class BrokerStreams:
             ],
         }
 
+    def decision(self, identifier: UUID, sequence: int) -> dict[str, object]:
+        """Read one fixed shadow decision and its confirming source, never the latest state.
+
+        This works beyond the workspace's recent-step window. Reading or using a
+        historical target cannot reconnect, replay it, or give it trading authority.
+        """
+        if type(sequence) is not int or not 1 <= sequence <= 100_000:
+            raise ValueError("decision sequence must identify one retained callback")
+        with self._engine.connect() as connection:
+            stream = self._row(connection, identifier)
+            row = (
+                connection.execute(
+                    text("""
+                    SELECT e.event, e.event_hash, e.committed_at AS event_committed_at,
+                           s.result, s.result_hash, s.committed_at AS step_committed_at
+                    FROM broker_stream_events e JOIN broker_stream_steps s
+                        USING (stream_id, sequence)
+                    WHERE e.stream_id=:id AND e.sequence=:sequence
+                """),
+                    {"id": identifier, "sequence": sequence},
+                )
+                .mappings()
+                .one_or_none()
+            )
+        if row is None or sequence > cast(int, stream["cursor"]):
+            raise LookupError("committed shadow decision not found")
+        if (
+            _hash(row["event"]) != row["event_hash"]
+            or _hash(row["result"]) != row["result_hash"]
+            or row["result"]["event_hash"] != row["event_hash"]
+        ):
+            raise ValueError("shadow decision source or result integrity failed")
+        binding = _object(stream["binding"])
+        query = BrokerRecords(self._engine).get(
+            UUID(str(_object(binding["request"])["query_batch_id"]))
+        )
+        if any(query[key] != binding[key] for key in ("profile", "account_id", "instrument")):
+            raise ValueError("shadow decision source identity differs from its binding")
+        configuration = self._configurations.get_configuration(str(stream["configuration_id"]))
+        if configuration != binding["configuration"]:
+            raise ValueError("shadow decision configuration differs from its fixed revision")
+        verify_broker_contract(
+            self._engine, UUID(str(binding["contract_id"])), _object(binding["terms"])
+        )
+        return {
+            "stream_id": str(identifier),
+            "sequence": sequence,
+            "binding": binding,
+            "event": row["event"],
+            "event_committed_at": row["event_committed_at"].isoformat(),
+            "result": row["result"],
+            "step_committed_at": row["step_committed_at"].isoformat(),
+        }
+
     def events(self, identifier: UUID, *, after: int = 0) -> list[dict[str, object]]:
         if type(after) is not int or after < 0:
             raise ValueError("event cursor must be nonnegative")
