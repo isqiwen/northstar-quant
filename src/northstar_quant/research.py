@@ -11,7 +11,7 @@ from datetime import date, datetime, timedelta
 from decimal import ROUND_HALF_EVEN, Decimal, localcontext
 from uuid import UUID
 
-from northstar_quant.data.research import Market, ResearchBar, ResearchDataset
+from northstar_quant.data.research import DatasetDetails, Market, ResearchBar, ResearchDataset
 from northstar_quant.execution import Account, PendingOrder
 from northstar_quant.risk import PortfolioState, RiskPolicy, evaluate_risk
 from northstar_quant.strategy import decimal_text, momentum_intent
@@ -121,6 +121,7 @@ class TradingSession:
         *,
         snapshot_id: UUID,
         content_hash: str,
+        data_details: DatasetDetails | None = None,
     ) -> None:
         if not isinstance(snapshot_id, UUID) or re.fullmatch(r"[0-9a-f]{64}", content_hash) is None:
             raise ValueError("research requires an exact snapshot UUID and SHA-256 identity")
@@ -147,6 +148,12 @@ class TradingSession:
                 raise ValueError("market economics exceed the 34-digit/18-place financial domain")
         self.market, self.config = market, config
         self.snapshot_id, self.content_hash = snapshot_id, content_hash
+        if data_details is not None and (
+            data_details.summary.snapshot_id != snapshot_id
+            or data_details.summary.content_hash != content_hash
+        ):
+            raise ValueError("source evidence does not belong to this research snapshot")
+        self._data_details = data_details
         self.account = Account(config.initial_cash, market)
         self.pending: PendingOrder | None = None
         self._policy = RiskPolicy(
@@ -283,6 +290,7 @@ class TradingSession:
             equity = self.account.equity(self._last.close)
             payload: dict[str, object] = {
                 "mode": "research",
+                "data": None if self._data_details is None else self._data_details.to_dict(),
                 "snapshot": {"id": str(self.snapshot_id), "content_hash": self.content_hash},
                 "market": {
                     key: str(value)
@@ -324,6 +332,13 @@ class TradingSession:
                     "not forcibly liquidated.",
                     "Historical research is not live Paper or broker execution; "
                     "no annualized performance is inferred.",
+                    "Fees, slippage and margin fractions are declared simulation assumptions, "
+                    "not independently verified historical broker or exchange terms.",
+                    *(
+                        ("Calculation input has no verified source evidence.",)
+                        if self._data_details is None
+                        else self._data_details.limitations
+                    ),
                 ],
             }
         content = json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False)
@@ -364,7 +379,11 @@ def run_research(dataset: ResearchDataset, config: ResearchConfig) -> ResearchRe
     if len(dataset.bars) > 100000:
         raise ValueError("research input exceeds 100000 bars")
     session = TradingSession(
-        dataset.market, config, snapshot_id=dataset.snapshot_id, content_hash=dataset.content_hash
+        dataset.market,
+        config,
+        snapshot_id=dataset.snapshot_id,
+        content_hash=dataset.content_hash,
+        data_details=dataset.details,
     )
     for bar in sorted(
         dataset.bars,

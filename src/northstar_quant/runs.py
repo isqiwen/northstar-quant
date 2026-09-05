@@ -143,6 +143,9 @@ class RunStore:
         snapshot = {"id": str(dataset.snapshot_id), "content_hash": dataset.content_hash}
         if complete_result["snapshot"] != snapshot or complete_result["config"] != configuration:
             raise ValueError("the result does not belong to the supplied data and configuration")
+        evidence = None if dataset.details is None else dataset.details.to_dict()
+        if complete_result["data"] != evidence:
+            raise ValueError("the result does not contain the supplied snapshot's source evidence")
         implementation = implementation_hash()
         payload = {
             "implementation_hash": implementation,

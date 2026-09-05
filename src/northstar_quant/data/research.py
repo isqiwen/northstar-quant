@@ -13,7 +13,7 @@ import hashlib
 import io
 import json
 import re
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -28,8 +28,10 @@ from northstar_quant.data.catalog.models import (
     SOURCE_RECEIPT_DEFAULT_REDISTRIBUTION_POLICY,
     CanonicalBar,
     DataSeries,
+    DatasetSnapshotImportQualityPin,
     DatasetSnapshotManifest,
     DatasetSnapshotPartition,
+    DatasetSnapshotSeriesQualityPin,
     Exchange,
     FuturesContract,
     FuturesProduct,
@@ -50,7 +52,10 @@ from northstar_quant.data.quality.evaluations import (
     ImportQualityEvaluationCommand,
     MinuteQualityEvaluationCommand,
 )
-from northstar_quant.data.quality.import_service import ImportQualityEvaluationService
+from northstar_quant.data.quality.import_service import (
+    ImportQualityEvaluationService,
+    current_import_quality_state,
+)
 from northstar_quant.data.quality.minute_service import MinuteQualityEvaluationService
 from northstar_quant.data.snapshots.publication import (
     PublishDatasetSnapshotCommand,
@@ -77,6 +82,9 @@ class ImportSpec:
     session_open: datetime
     session_close: datetime
     source_name: str
+    source_reference: str
+    availability_basis: str
+    availability_note: str
 
     def __post_init__(self) -> None:
         for name in ("exchange", "symbol", "product", "quantity_unit"):
@@ -94,6 +102,23 @@ class ImportSpec:
         ):
             raise ValueError(
                 "data.source_name must be a source identifier of at most 64 characters"
+            )
+        for name in ("source_reference", "availability_note"):
+            value = getattr(self, name)
+            if (
+                not isinstance(value, str)
+                or not value.strip()
+                or len(value) > 1024
+                or any(ord(character) < 32 or ord(character) == 127 for character in value)
+            ):
+                raise ValueError(f"data.{name} must be nonempty text of at most 1024 characters")
+        if not isinstance(self.availability_basis, str) or self.availability_basis not in {
+            "SOURCE_DECLARED",
+            "FINAL_REVISED",
+            "SYNTHETIC",
+        }:
+            raise ValueError(
+                "data.availability_basis must be SOURCE_DECLARED, FINAL_REVISED or SYNTHETIC"
             )
         if not isinstance(self.currency, str) or re.fullmatch(r"[A-Z]{3}", self.currency) is None:
             raise ValueError("data.currency must be a three-letter uppercase currency")
@@ -140,12 +165,16 @@ class ImportSpec:
             "session_open",
             "session_close",
             "source_name",
+            "source_reference",
+            "availability_basis",
+            "availability_note",
         }
         if not isinstance(value, dict) or set(value) != expected:
             raise ValueError("data input must contain exactly the current market/session fields")
         strings: dict[str, str] = {}
         for key, item in value.items():
-            if not isinstance(item, str) or not item or len(item) > 128:
+            maximum = 1024 if key in {"source_reference", "availability_note"} else 128
+            if not isinstance(item, str) or not item or len(item) > maximum:
                 raise ValueError(f"data.{key} must be a bounded nonempty string")
             strings[key] = item
         for key in ("price_tick", "multiplier"):
@@ -166,6 +195,9 @@ class ImportSpec:
             session_open=_utc(strings["session_open"]),
             session_close=_utc(strings["session_close"]),
             source_name=strings["source_name"],
+            source_reference=strings["source_reference"],
+            availability_basis=strings["availability_basis"],
+            availability_note=strings["availability_note"],
         )
 
     def to_mapping(self) -> dict[str, object]:
@@ -182,6 +214,9 @@ class ImportSpec:
             "session_open": self.session_open.isoformat().replace("+00:00", "Z"),
             "session_close": self.session_close.isoformat().replace("+00:00", "Z"),
             "source_name": self.source_name,
+            "source_reference": self.source_reference,
+            "availability_basis": self.availability_basis,
+            "availability_note": self.availability_note,
         }
 
 
@@ -214,6 +249,162 @@ class ResearchDataset:
     content_hash: str
     market: Market
     bars: tuple[ResearchBar, ...]
+    # Pure in-memory calculations need no persisted source receipt. Every Data
+    # read/import supplies verified details; absence is never historical evidence.
+    details: DatasetDetails | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class DatasetSummary:
+    """A cheap publication listing; opening or running still verifies its evidence."""
+
+    snapshot_id: UUID
+    content_hash: str
+    exchange: str
+    product: str
+    symbol: str
+    trading_day: date
+    session_open: datetime
+    session_close: datetime
+    bar_count: int
+    published_at: datetime
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "snapshot_id": str(self.snapshot_id),
+            "content_hash": self.content_hash,
+            "exchange": self.exchange,
+            "product": self.product,
+            "symbol": self.symbol,
+            "trading_day": self.trading_day.isoformat(),
+            "session_open": _timestamp(self.session_open),
+            "session_close": _timestamp(self.session_close),
+            "bar_count": self.bar_count,
+            "published_at": _timestamp(self.published_at),
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class DatasetSource:
+    import_run_id: UUID
+    receipt_id: UUID
+    source_name: str
+    content_hash: str
+    byte_count: int
+    received_at: datetime
+    acquisition_use: str
+    redistribution_policy: str
+    retention_policy: str
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            **asdict(self),
+            "import_run_id": str(self.import_run_id),
+            "receipt_id": str(self.receipt_id),
+            "received_at": _timestamp(self.received_at),
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class DatasetImportQuality:
+    evaluation_id: UUID
+    import_run_id: UUID
+    outcome: str
+    delivery_gate: str
+    rows_read: int
+    rows_accepted: int
+    rows_rejected: int
+    rows_inserted: int
+    rows_duplicate_identical: int
+    rows_conflicted: int
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            **asdict(self),
+            "evaluation_id": str(self.evaluation_id),
+            "import_run_id": str(self.import_run_id),
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class DatasetMinuteQuality:
+    evaluation_id: UUID
+    outcome: str
+    delivery_gate: str
+    expected_observation_count: int
+    observed_count: int
+    missing_observation_count: int
+
+    def to_dict(self) -> dict[str, object]:
+        return {**asdict(self), "evaluation_id": str(self.evaluation_id)}
+
+
+@dataclass(frozen=True, slots=True)
+class DatasetDetails:
+    """Verified publication meaning, including limitations of the supplied evidence."""
+
+    summary: DatasetSummary
+    import_spec: ImportSpec
+    sources: tuple[DatasetSource, ...]
+    import_quality: tuple[DatasetImportQuality, ...]
+    minute_quality: DatasetMinuteQuality
+    available_at_cutoff: datetime
+    volume_unit: str
+    adjustment: str
+    timestamp_convention: str
+
+    @property
+    def limitations(self) -> tuple[str, ...]:
+        availability = {
+            "SOURCE_DECLARED": (
+                "Availability timestamps are supplied by the operator; historical publication "
+                "has not been independently verified."
+            ),
+            "FINAL_REVISED": (
+                "Final revised data is for retrospective exploration. available_at is an "
+                "explicit simulated information-clock assumption at exact bar completion, "
+                "not historical publication."
+            ),
+            "SYNTHETIC": "Synthetic observations are for engineering checks only.",
+        }[self.import_spec.availability_basis]
+        return (
+            availability,
+            "Source references and notes are operator declarations, not verified acquisition "
+            "or redistribution rights.",
+            "The original CSV filename and bytes are not retained; receipts retain their "
+            "content hash and byte count. Research reuses pinned canonical observations.",
+            "Receipt received_at is local ingestion metadata, not historical publication time.",
+            "Research currently supports one contract and one continuous DAY session on one "
+            "local trading day; it does not replay revisions or perform daily settlement.",
+        )
+
+    def to_dict(self) -> dict[str, object]:
+        spec = self.import_spec
+        return {
+            **self.summary.to_dict(),
+            "import_spec": spec.to_mapping(),
+            "sources": [source.to_dict() for source in self.sources],
+            "quality": {
+                "imports": [quality.to_dict() for quality in self.import_quality],
+                "minute": self.minute_quality.to_dict(),
+            },
+            "semantics": {
+                "interval_seconds": 60,
+                "timestamp_convention": self.timestamp_convention,
+                "adjustment": self.adjustment,
+                "timezone": spec.timezone,
+                "currency": spec.currency,
+                "quantity_unit": spec.quantity_unit,
+                "volume_unit": self.volume_unit,
+                "price_tick": format(spec.price_tick.normalize(), "f"),
+                "multiplier": format(spec.multiplier.normalize(), "f"),
+                "available_at_cutoff": _timestamp(self.available_at_cutoff),
+            },
+            "source_reference": spec.source_reference,
+            "availability_basis": spec.availability_basis,
+            "availability_note": spec.availability_note,
+            "limitations": list(self.limitations),
+        }
 
 
 def import_csv(engine: Engine, path: Path, spec: ImportSpec) -> ResearchDataset:
@@ -322,54 +513,244 @@ def import_csv(engine: Engine, path: Path, spec: ImportSpec) -> ResearchDataset:
 
 
 def load_dataset(engine: Engine, snapshot_id: UUID) -> ResearchDataset:
-    """Verify stored identity and return native values from one pinned session."""
+    """Verify observations and their original source evidence in one read transaction."""
 
     with Session(engine, autoflush=False, expire_on_commit=False) as session:
         session.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"))
-        resolved = DatasetSnapshotResolutionService(session).resolve(snapshot_id)
-        partitions = session.scalars(
-            select(DatasetSnapshotPartition).where(
-                DatasetSnapshotPartition.manifest_id == snapshot_id
+        dataset, _details = _read_dataset(session, snapshot_id)
+        return dataset
+
+
+def list_datasets(engine: Engine, *, limit: int = 50) -> tuple[DatasetSummary, ...]:
+    """List published research sessions without rescanning their observations.
+
+    Rejected imports never publish a manifest. Each selected dataset is still
+    verified on opening or execution; a listing is not an integrity verdict.
+    """
+
+    if type(limit) is not int or not 1 <= limit <= 200:
+        raise ValueError("dataset list limit must be between 1 and 200")
+    with Session(engine) as session:
+        rows = session.execute(
+            select(DatasetSnapshotManifest, DatasetSnapshotPartition)
+            .join(
+                DatasetSnapshotPartition,
+                DatasetSnapshotPartition.manifest_id == DatasetSnapshotManifest.id,
             )
+            .where(
+                DatasetSnapshotManifest.partition_count == 1,
+                DatasetSnapshotManifest.idempotency_key.startswith("research-"),
+                DatasetSnapshotPartition.interval == "1m",
+                DatasetSnapshotPartition.timestamp_convention == "BAR_START",
+                DatasetSnapshotPartition.trading_day_from
+                == DatasetSnapshotPartition.trading_day_to,
+            )
+            .order_by(DatasetSnapshotManifest.created_at.desc(), DatasetSnapshotManifest.id.desc())
+            .limit(limit)
         ).all()
-        if len(partitions) != 1:
-            raise ValueError("research requires exactly one immutable snapshot partition")
-        partition = partitions[0]
-        if partition.interval != "1m" or partition.timestamp_convention != "BAR_START":
-            raise ValueError("research requires one-minute BAR_START data")
-        market = Market(
-            contract_id=partition.contract_id,
-            symbol=partition.contract_code,
-            exchange_timezone=partition.exchange_timezone_name,
-            currency=partition.price_currency,
-            quantity_unit=partition.quantity_unit,
-            price_tick=partition.price_tick,
-            multiplier=partition.contract_multiplier,
-            interval_seconds=60,
-        )
-        bars: list[ResearchBar] = []
-        for member in resolved.members:
-            bar = member.canonical_bar
-            if bar.revision_number != 1 or bar.supersedes_canonical_bar_id is not None:
-                raise ValueError("research does not replay observation corrections")
-            completed = member.event_time + timedelta(minutes=1)
-            if member.available_at < completed:
-                raise ValueError("a bar cannot be available before its completion")
-            bars.append(
-                ResearchBar(
-                    observation_id=bar.id,
-                    event_time=member.event_time,
-                    completed_at=completed,
-                    available_at=member.available_at,
-                    trading_day=bar.trading_day,
-                    close=bar.close_price,
-                    volume=bar.volume,
-                )
+        return tuple(_summary(manifest, partition) for manifest, partition in rows)
+
+
+def describe_dataset(engine: Engine, snapshot_id: UUID) -> DatasetDetails:
+    """Open a snapshot with its verified original provenance and publication quality."""
+
+    with Session(engine, autoflush=False, expire_on_commit=False) as session:
+        session.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"))
+        _dataset, details = _read_dataset(session, snapshot_id)
+        return details
+
+
+def _summary(
+    manifest: DatasetSnapshotManifest, partition: DatasetSnapshotPartition
+) -> DatasetSummary:
+    return DatasetSummary(
+        snapshot_id=manifest.id,
+        content_hash=manifest.content_hash,
+        exchange=partition.exchange_code,
+        product=partition.product_code,
+        symbol=partition.contract_code,
+        trading_day=partition.trading_day_from,
+        session_open=partition.event_time_from,
+        session_close=partition.event_time_to + timedelta(minutes=1),
+        bar_count=partition.row_count,
+        published_at=manifest.created_at,
+    )
+
+
+def _read_dataset(session: Session, snapshot_id: UUID) -> tuple[ResearchDataset, DatasetDetails]:
+    resolved = DatasetSnapshotResolutionService(session).resolve(snapshot_id)
+    partitions = session.scalars(
+        select(DatasetSnapshotPartition).where(DatasetSnapshotPartition.manifest_id == snapshot_id)
+    ).all()
+    if len(partitions) != 1:
+        raise ValueError("research requires exactly one immutable snapshot partition")
+    partition = partitions[0]
+    if partition.interval != "1m" or partition.timestamp_convention != "BAR_START":
+        raise ValueError("research requires one-minute BAR_START data")
+    market = Market(
+        contract_id=partition.contract_id,
+        symbol=partition.contract_code,
+        exchange_timezone=partition.exchange_timezone_name,
+        currency=partition.price_currency,
+        quantity_unit=partition.quantity_unit,
+        price_tick=partition.price_tick,
+        multiplier=partition.contract_multiplier,
+        interval_seconds=60,
+    )
+    bars: list[ResearchBar] = []
+    member_import_ids: set[UUID] = set()
+    for member in resolved.members:
+        bar = member.canonical_bar
+        if bar.revision_number != 1 or bar.supersedes_canonical_bar_id is not None:
+            raise ValueError("research does not replay observation corrections")
+        if bar.import_run_id is None:
+            raise ValueError("research requires original import evidence for every observation")
+        member_import_ids.add(bar.import_run_id)
+        completed = member.event_time + timedelta(minutes=1)
+        if member.available_at < completed:
+            raise ValueError("a bar cannot be available before its completion")
+        bars.append(
+            ResearchBar(
+                observation_id=bar.id,
+                event_time=member.event_time,
+                completed_at=completed,
+                available_at=member.available_at,
+                trading_day=bar.trading_day,
+                close=bar.close_price,
+                volume=bar.volume,
             )
-        if not bars or len({bar.trading_day for bar in bars}) != 1:
-            raise ValueError("research requires nonempty observations from exactly one trading day")
-        bars.sort(key=lambda bar: (bar.available_at, bar.event_time, str(bar.observation_id)))
-        return ResearchDataset(snapshot_id, resolved.manifest.content_hash, market, tuple(bars))
+        )
+    if not bars or len({bar.trading_day for bar in bars}) != 1:
+        raise ValueError("research requires nonempty observations from exactly one trading day")
+    bars.sort(key=lambda bar: (bar.available_at, bar.event_time, str(bar.observation_id)))
+    sources: list[DatasetSource] = []
+    import_quality: list[DatasetImportQuality] = []
+    specs: list[ImportSpec] = []
+    pins = session.scalars(
+        select(DatasetSnapshotImportQualityPin)
+        .where(DatasetSnapshotImportQualityPin.manifest_id == snapshot_id)
+        .order_by(DatasetSnapshotImportQualityPin.import_run_id)
+    ).all()
+    if {pin.import_run_id for pin in pins} != member_import_ids:
+        raise ValueError("snapshot source pins do not match the original observation imports")
+    for pin in pins:
+        imported = pin.import_run
+        receipt = imported.source_receipt
+        mapping = imported.mapping
+        if (
+            receipt is None
+            or mapping is None
+            or _digest(mapping) != imported.mapping_hash
+            or imported.mapping_version != _ResearchCsv.mapping_version
+        ):
+            raise ValueError("snapshot source mapping is missing, unsupported or has drifted")
+        source_spec = mapping.get("session")
+        if not isinstance(source_spec, dict):
+            raise ValueError("snapshot original source session metadata is missing")
+        spec = ImportSpec.from_mapping(source_spec)
+        if (
+            spec.source_name.upper() != receipt.source_name
+            or spec.timezone != receipt.source_timezone_name
+        ):
+            raise ValueError("snapshot original source identity differs from its session metadata")
+        # Pins bind the complete scanner fingerprint, not just an evaluation ID.
+        # Recompute before exposing mutable import/receipt metadata as evidence.
+        current = current_import_quality_state(session, pin.import_run_id)
+        if (
+            current.input_fingerprint != pin.input_fingerprint
+            or current.outcome != pin.outcome
+            or current.delivery_gate != pin.delivery_gate
+        ):
+            raise ValueError("snapshot original source evidence no longer matches its quality pin")
+        specs.append(spec)
+        sources.append(
+            DatasetSource(
+                import_run_id=imported.id,
+                receipt_id=receipt.id,
+                source_name=receipt.source_name,
+                content_hash=receipt.content_hash,
+                byte_count=receipt.byte_count,
+                received_at=receipt.received_at,
+                acquisition_use=receipt.acquisition_use,
+                redistribution_policy=receipt.redistribution_policy,
+                retention_policy=receipt.retention_policy,
+            )
+        )
+        import_quality.append(
+            DatasetImportQuality(
+                evaluation_id=pin.import_quality_evaluation_id,
+                import_run_id=pin.import_run_id,
+                outcome=pin.outcome,
+                delivery_gate=pin.delivery_gate,
+                rows_read=current.rows_read,
+                rows_accepted=current.rows_accepted,
+                rows_rejected=current.rows_rejected,
+                rows_inserted=current.rows_inserted,
+                rows_duplicate_identical=current.rows_duplicate_identical,
+                rows_conflicted=current.rows_conflicted,
+            )
+        )
+    if not specs or any(spec != specs[0] for spec in specs):
+        raise ValueError("research requires one consistent original source/session declaration")
+    spec = specs[0]
+    if spec.availability_basis == "FINAL_REVISED":
+        for observation in bars:
+            if observation.available_at != observation.completed_at:
+                raise ValueError(
+                    f"FINAL_REVISED observation {observation.observation_id} must use exact bar "
+                    "completion as its simulated available_at"
+                )
+    summary = _summary(resolved.manifest, partition)
+    if (
+        spec.exchange != summary.exchange
+        or spec.product != summary.product
+        or spec.symbol != summary.symbol
+        or spec.trading_day != summary.trading_day
+        or spec.session_open != summary.session_open
+        or spec.session_close != summary.session_close
+        or spec.timezone != market.exchange_timezone
+        or spec.currency != market.currency
+        or spec.quantity_unit != market.quantity_unit
+        or spec.price_tick != market.price_tick
+        or spec.multiplier != market.multiplier
+    ):
+        raise ValueError("snapshot original source/session declaration differs from frozen meaning")
+    expected = tuple(
+        spec.session_open + timedelta(minutes=offset)
+        for offset in range(int((spec.session_close - spec.session_open).total_seconds()) // 60)
+    )
+    if tuple(sorted(bar.event_time for bar in bars)) != expected:
+        raise ValueError("research requires one complete continuous minute session")
+    minute_pin = session.scalar(
+        select(DatasetSnapshotSeriesQualityPin).where(
+            DatasetSnapshotSeriesQualityPin.partition_id == partition.id
+        )
+    )
+    if minute_pin is None or minute_pin.evaluation_scope != "MINUTE_SESSION_COVERAGE":
+        raise ValueError("research requires pinned minute session quality evidence")
+    coverage = minute_pin.quality_evaluation
+    details = DatasetDetails(
+        summary=summary,
+        import_spec=spec,
+        sources=tuple(sources),
+        import_quality=tuple(import_quality),
+        minute_quality=DatasetMinuteQuality(
+            evaluation_id=minute_pin.quality_evaluation_id,
+            outcome=minute_pin.outcome,
+            delivery_gate=minute_pin.delivery_gate,
+            expected_observation_count=coverage.expected_observation_count,
+            observed_count=coverage.covered_observation_count,
+            missing_observation_count=coverage.missing_observation_count,
+        ),
+        available_at_cutoff=resolved.manifest.available_at_cutoff,
+        volume_unit=partition.volume_unit,
+        adjustment=partition.adjustment,
+        timestamp_convention=partition.timestamp_convention,
+    )
+    return (
+        ResearchDataset(snapshot_id, resolved.manifest.content_hash, market, tuple(bars), details),
+        details,
+    )
 
 
 def _catalog(engine: Engine, spec: ImportSpec) -> UUID:
@@ -552,6 +933,14 @@ class _ResearchCsv:
                     raise ValueError(f"CSV row {index} contains missing, extra or oversized fields")
                 event = _utc(row["event_time"])
                 available = _utc(row["available_at"])
+                if (
+                    self.spec.availability_basis == "FINAL_REVISED"
+                    and available != event + timedelta(minutes=1)
+                ):
+                    raise ValueError(
+                        f"CSV row {index} FINAL_REVISED available_at must equal event_time "
+                        "+ 1 minute (the simulated information-clock assumption)"
+                    )
                 if not self.spec.session_open <= event < self.spec.session_close:
                     raise ValueError(f"CSV row {index} falls outside the declared session")
                 numbers: dict[str, Decimal] = {}
@@ -623,6 +1012,10 @@ def _digest(value: object) -> str:
     return hashlib.sha256(
         json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
     ).hexdigest()
+
+
+def _timestamp(value: datetime) -> str:
+    return value.astimezone(UTC).isoformat().replace("+00:00", "Z")
 
 
 def _utc(value: str) -> datetime:

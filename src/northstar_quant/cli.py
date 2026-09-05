@@ -45,6 +45,24 @@ def main(argv: Sequence[str] | None = None) -> int:
     commands.add_parser("init-db", help="initialize or verify the current PostgreSQL baseline")
     run = commands.add_parser("run", help="import CSV, evaluate research and save the result")
     run.add_argument("study", type=Path, help="TOML study with [source] and [research]")
+    accept = commands.add_parser(
+        "import", help="accept CSV into the data library without a research run"
+    )
+    accept.add_argument("study", type=Path, help="TOML study with [source] and [research]")
+    commands.add_parser("datasets", help="list accepted datasets available for research")
+    dataset_command = commands.add_parser(
+        "dataset", help="show pinned source, quality and time evidence"
+    )
+    dataset_command.add_argument("snapshot_id", type=UUID)
+    research = commands.add_parser(
+        "research", help="research an accepted dataset without its source file"
+    )
+    research.add_argument("snapshot_id", type=UUID)
+    research.add_argument(
+        "--study",
+        type=Path,
+        help="use only this TOML study's [research] parameters; do not import CSV",
+    )
     replay = commands.add_parser("replay", help="reproduce a saved run from its immutable snapshot")
     replay.add_argument("run_id")
     show = commands.add_parser("show", help="read one persisted research result")
@@ -64,17 +82,49 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         require_current_database(engine)
 
-        from northstar_quant.data.research import ImportSpec, import_csv, load_dataset
+        from northstar_quant.data.research import (
+            ImportSpec,
+            describe_dataset,
+            import_csv,
+            list_datasets,
+            load_dataset,
+        )
         from northstar_quant.research import ResearchConfig, run_research
         from northstar_quant.runs import RunStore, implementation_hash
 
         store = RunStore(engine)
-        if arguments.command == "run":
+        if arguments.command in {"run", "import"}:
             csv_path, source, parameters = _study(arguments.study.resolve())
             config = ResearchConfig.from_mapping(parameters)
             dataset = import_csv(engine, csv_path, ImportSpec.from_mapping(source))
+            if arguments.command == "import":
+                print(
+                    json.dumps(
+                        describe_dataset(engine, dataset.snapshot_id).to_dict(), ensure_ascii=False
+                    )
+                )
+                return 0
             result = run_research(dataset, config)
             run_id = store.save(dataset, config, result)
+            print(json.dumps(store.get(run_id), ensure_ascii=False, sort_keys=True))
+        elif arguments.command == "datasets":
+            print(
+                json.dumps([item.to_dict() for item in list_datasets(engine)], ensure_ascii=False)
+            )
+        elif arguments.command == "dataset":
+            print(
+                json.dumps(
+                    describe_dataset(engine, arguments.snapshot_id).to_dict(), ensure_ascii=False
+                )
+            )
+        elif arguments.command == "research":
+            config = (
+                ResearchConfig()
+                if arguments.study is None
+                else ResearchConfig.from_mapping(_study(arguments.study.resolve())[2])
+            )
+            dataset = load_dataset(engine, arguments.snapshot_id)
+            run_id = store.save(dataset, config, run_research(dataset, config))
             print(json.dumps(store.get(run_id), ensure_ascii=False, sort_keys=True))
         elif arguments.command == "replay":
             original = store.get(arguments.run_id)

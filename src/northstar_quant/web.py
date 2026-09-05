@@ -19,7 +19,13 @@ from sqlalchemy.exc import SQLAlchemyError
 from starlette.concurrency import run_in_threadpool
 from starlette.middleware.base import RequestResponseEndpoint
 
-from northstar_quant.data.research import ImportSpec, import_csv, load_dataset
+from northstar_quant.data.research import (
+    ImportSpec,
+    describe_dataset,
+    import_csv,
+    list_datasets,
+    load_dataset,
+)
 from northstar_quant.research import ResearchConfig, run_research
 from northstar_quant.runs import RunStore
 
@@ -96,8 +102,8 @@ def create_app(engine: Engine) -> FastAPI:
         return JSONResponse({"detail": str(error)[:500]}, status_code=422)
 
     @app.exception_handler(LookupError)
-    async def missing_run(_request: Request, _error: LookupError) -> JSONResponse:
-        return JSONResponse({"detail": "没有找到这次研究。"}, status_code=404)
+    async def missing_resource(_request: Request, _error: LookupError) -> JSONResponse:
+        return JSONResponse({"detail": "没有找到这份数据或研究。"}, status_code=404)
 
     @app.get("/health/ready")
     def ready() -> dict[str, str]:
@@ -111,8 +117,12 @@ def create_app(engine: Engine) -> FastAPI:
         return {"status": "ready"}
 
     @app.get("/", response_class=HTMLResponse)
-    def home() -> str:
-        return _page("研究工作台", _workspace(store.list()))
+    def home(dataset: UUID | None = None) -> str:
+        datasets = [item.to_dict() for item in list_datasets(engine)]
+        selected = None if dataset is None else describe_dataset(engine, dataset).to_dict()
+        if selected is not None and all(item["snapshot_id"] != str(dataset) for item in datasets):
+            datasets.append(selected)
+        return _page("研究工作台", _workspace(store.list(), datasets, selected))
 
     @app.get("/assets/app.css")
     def stylesheet() -> Response:
@@ -131,6 +141,19 @@ def create_app(engine: Engine) -> FastAPI:
     @app.get("/api/runs")
     def list_runs(limit: int = 50) -> list[dict[str, object]]:
         return store.list(limit=limit)
+
+    @app.get("/api/datasets")
+    def accepted_datasets(limit: int = 50) -> list[dict[str, object]]:
+        return [item.to_dict() for item in list_datasets(engine, limit=limit)]
+
+    @app.get("/api/datasets/{snapshot_id}")
+    def dataset_details(snapshot_id: UUID) -> dict[str, object]:
+        return describe_dataset(engine, snapshot_id).to_dict()
+
+    @app.get("/datasets/{snapshot_id}", response_class=HTMLResponse)
+    def show_dataset(snapshot_id: UUID) -> str:
+        data = describe_dataset(engine, snapshot_id).to_dict()
+        return _page("数据详情", _dataset_page(data))
 
     @app.get("/api/runs/{run_id}")
     def get_run(run_id: str) -> dict[str, object]:
@@ -266,7 +289,11 @@ def _field(
     )
 
 
-def _workspace(runs: list[dict[str, object]]) -> str:
+def _workspace(
+    runs: list[dict[str, object]],
+    datasets: list[dict[str, object]],
+    selected: dict[str, object] | None,
+) -> str:
     fields = "".join(
         _field(name, label, value, placeholder=placeholder)
         for name, label, value, placeholder in (
@@ -282,6 +309,7 @@ def _workspace(runs: list[dict[str, object]]) -> str:
             ("session_open", "时段开始（UTC）", "", "2026-01-07T01:00:00Z"),
             ("session_close", "时段结束（UTC）", "", "2026-01-07T03:30:00Z"),
             ("source_name", "数据来源标识（英文）", "", "my-market-export"),
+            ("source_reference", "出处（来源地址或文件说明）", "", "数据提供方及下载地址"),
         )
     )
     defaults = ResearchConfig().to_dict()
@@ -307,11 +335,35 @@ def _workspace(runs: list[dict[str, object]]) -> str:
             ("order_lifetime_seconds", "授权有效时间（秒）"),
         )
     )
-    snapshot_field = _field(
-        "snapshot_id", "数据快照 ID", placeholder="导入后自动填入，或选择已有快照"
+    options = ['<option value="">请选择已接受的数据</option>']
+    for dataset in datasets:
+        selection = (
+            " selected"
+            if selected is not None and (dataset["snapshot_id"] == selected["snapshot_id"])
+            else ""
+        )
+        label = _dataset_label(dataset)
+        options.append(
+            f'<option value="{_text(dataset["snapshot_id"])}"{selection}>{_text(label)}</option>'
+        )
+    snapshot_field = (
+        '<label>选择行情数据<select name="snapshot_id" required>'
+        + "".join(options)
+        + "</select></label>"
     )
+    selected_link = (
+        '<a id="selected-data-link" hidden>查看来源与质量详情</a>'
+        if selected is None
+        else f'<a id="selected-data-link" href="/datasets/{_text(selected["snapshot_id"])}">'
+        "查看来源与质量详情</a>"
+    )
+    reuse_hidden = " hidden" if selected is None else ""
+    selected_notice = "" if selected is None else _availability_notice(selected)
     return f"""<section class="intro"><p class="eyebrow">RESEARCH WORKSPACE</p>
-<h1>让一段行情，成为可复核的研究。</h1><p>导入真实分钟数据，运行整段策略，查看扣费后的权益、持仓和每次风险决定。</p></section>
+<h1>让一段行情，成为可复核的研究。</h1><p>选择已保存的行情或导入新文件，查看扣费后的权益、持仓和每次风险决定。</p></section>
+<section class="panel data-library"><div class="section-title"><h2>已接受的数据</h2>
+<span class="muted">独立保存 · 无需先运行研究 · 最近 50 份</span></div>
+{_dataset_list(datasets)}</section>
 <div class="workspace"><section class="panel"><div class="section-title">
 <span class="step">01</span><h2>导入行情</h2></div>
 <p class="muted">当前支持一个合约、一个交易日内的一个连续时段，1 分钟 bars。
@@ -319,6 +371,14 @@ def _workspace(runs: list[dict[str, object]]) -> str:
 <form id="import-form"><label class="file-input">CSV 文件
 <input name="file" type="file" accept=".csv,text/csv" required></label>
 <details open><summary>合约与时段</summary><div class="fields">{fields}</div></details>
+<label class="availability-field">历史可得时间依据<select name="availability_basis" required>
+<option value="">请选择实际依据</option>
+<option value="SOURCE_DECLARED">来源声明（操作人填写，未经独立验证）</option>
+<option value="FINAL_REVISED">最终修订数据（仅探索模拟）</option>
+<option value="SYNTHETIC">合成示例（非真实行情）</option></select></label>
+<label>可得时间说明<textarea name="availability_note" rows="3" required
+placeholder="说明 available_at 的出处；最终修订数据须说明可见时间仅为假设。"
+></textarea></label>
 <details><summary>CSV 格式</summary><p>UTF-8，第一行包含以下列。
 时间带明确时区；available_at 不得早于该分钟完成。</p>
 <code class="csv-columns">{_CSV_COLUMNS}</code>
@@ -331,6 +391,10 @@ def _workspace(runs: list[dict[str, object]]) -> str:
 <p class="muted">系统自动取得合约属性，并从模拟账本生成账户状态。
 动量超过阈值后映射为明确的目标仓位。</p>
 <form id="research-form">{snapshot_field}
+<div class="data-selection-actions">{selected_link}
+<button type="button" class="text-button" id="reuse-data-metadata"{reuse_hidden}>
+复用合约与来源信息</button></div>
+<div id="selected-data-notice">{selected_notice}</div>
 <div class="fields">{basic_fields}</div><details><summary>风险限制</summary>
 <div class="fields">{risk_fields}</div></details>
 <button type="submit">运行整段研究</button>
@@ -338,6 +402,149 @@ def _workspace(runs: list[dict[str, object]]) -> str:
 <section class="panel history"><div class="section-title"><h2>研究记录</h2>
 <span class="muted">保存完整配置与结果</span></div>
 {_run_list(runs)}</section>"""
+
+
+def _dataset_label(data: dict[str, object]) -> str:
+    return (
+        f"{data['exchange']} · {data['symbol']} · {data['trading_day']} · "
+        f"{data['session_open']} — {data['session_close']} · {data['bar_count']} bars"
+    )
+
+
+def _dataset_list(datasets: list[dict[str, object]]) -> str:
+    if not datasets:
+        return (
+            '<div class="empty">还没有可研究的数据。导入并通过质量检查后，'
+            "即使不运行研究，也会保存在这里。</div>"
+        )
+    rows = [
+        f'<tr><td><a href="/datasets/{_text(data["snapshot_id"])}">'
+        f"{_text(data['exchange'])} · {_text(data['symbol'])}</a></td>"
+        f"<td>{_text(data['trading_day'])}</td>"
+        f"<td>{_text(data['session_open'])}<br>{_text(data['session_close'])}</td>"
+        f"<td>{_text(data['bar_count'])}</td>"
+        f'<td><a href="/?dataset={_text(data["snapshot_id"])}#research-form">'
+        "选用此数据</a></td></tr>"
+        for data in datasets
+    ]
+    return _table(["实际合约", "交易日", "覆盖时段（UTC）", "Bars", ""], rows)
+
+
+def _availability_notice(data: dict[str, object]) -> str:
+    notices = {
+        "FINAL_REVISED": (
+            "最终修订数据 · 仅用于探索模拟",
+            "信息时钟假设为每根 bar 完成时可见，并非历史上观测到的首次可得时间。"
+            "不能据此证明当时能够做出相同决策。",
+        ),
+        "SOURCE_DECLARED": (
+            "来源声明 · 未经独立验证",
+            "available_at 依据由操作人声明，系统未独立验证它是否为历史首次可得时间。",
+        ),
+        "SYNTHETIC": (
+            "合成示例 · 非真实行情",
+            "仅用于演示和工程验证，不用于评价真实市场中的策略表现。",
+        ),
+    }
+    title, note = notices[str(data["availability_basis"])]
+    return (
+        f'<aside class="data-notice"><strong>{title}</strong><p>{note}</p>'
+        f'<p class="muted">声明：{_text(data["availability_note"])}</p></aside>'
+    )
+
+
+def _dataset_page(data: dict[str, object]) -> str:
+    return f"""<section class="intro report-intro"><a class="back" href="/">← 返回工作台</a>
+<p class="eyebrow">ACCEPTED DATA</p><h1>{_text(data["symbol"])} · 数据详情</h1>
+<p>{_text(data["trading_day"])} · {_text(data["bar_count"])} 个 bars · 接受时的固定证据</p>
+<div class="actions"><a class="button"
+href="/?dataset={_text(data["snapshot_id"])}#research-form">用此数据研究</a>
+<a class="button secondary" href="/api/datasets/{_text(data["snapshot_id"])}"
+download="dataset-{_text(data["snapshot_id"])}.json">下载数据说明</a></div></section>
+{_availability_notice(data)}{_data_evidence(data)}"""
+
+
+def _data_evidence(data: dict[str, object]) -> str:
+    semantics, quality = _object(data["semantics"]), _object(data["quality"])
+    minute = _object(quality["minute"])
+    properties: tuple[tuple[str, object], ...] = (
+        ("实际合约", f"{data['exchange']} / {data['product']} / {data['symbol']}"),
+        ("交易日", data["trading_day"]),
+        ("覆盖时段（UTC）", f"{data['session_open']} — {data['session_close']}"),
+        ("时间语义", f"{semantics['interval_seconds']} 秒 / {semantics['timestamp_convention']}"),
+        ("可得时间截点", semantics["available_at_cutoff"]),
+        ("时区 / 币种", f"{semantics['timezone']} / {semantics['currency']}"),
+        ("报价单位 / 成交量单位", f"{semantics['quantity_unit']} / {semantics['volume_unit']}"),
+        ("最小价格变动 / 每手乘数", f"{semantics['price_tick']} / {semantics['multiplier']}"),
+        ("价格调整方式", semantics["adjustment"]),
+        ("来源出处", data["source_reference"]),
+        ("数据快照", data["snapshot_id"]),
+        ("数据摘要", data["content_hash"]),
+        ("接受发布时间", data["published_at"]),
+    )
+    description = "".join(f"<dt>{label}</dt><dd>{_text(value)}</dd>" for label, value in properties)
+    source_rows = [
+        "<tr>"
+        + "".join(
+            f"<td>{_text(source[key])}</td>"
+            for key in (
+                "source_name",
+                "received_at",
+                "byte_count",
+                "acquisition_use",
+                "redistribution_policy",
+                "retention_policy",
+            )
+        )
+        + "</tr>"
+        for source in _rows(data["sources"])
+    ]
+    import_rows = [
+        "<tr>"
+        + "".join(
+            f"<td>{_text(item[key])}</td>"
+            for key in (
+                "outcome",
+                "delivery_gate",
+                "rows_read",
+                "rows_accepted",
+                "rows_rejected",
+                "rows_inserted",
+                "rows_duplicate_identical",
+                "rows_conflicted",
+            )
+        )
+        + "</tr>"
+        for item in _rows(quality["imports"])
+    ]
+    quality_detail = "".join(
+        f"<dt>{label}</dt><dd>{_text(minute[key])}</dd>"
+        for label, key in (
+            ("分钟质量结果", "outcome"),
+            ("交付门禁", "delivery_gate"),
+            ("应有观测数", "expected_observation_count"),
+            ("实际观测数", "observed_count"),
+            ("缺失观测数", "missing_observation_count"),
+        )
+    )
+    identities = {
+        "sources": data["sources"],
+        "quality": data["quality"],
+        "import_spec": data["import_spec"],
+    }
+    exact_evidence = escape(json.dumps(identities, ensure_ascii=False, sort_keys=True, indent=2))
+    limitations = "".join(
+        f"<li>{_text(note)}</li>" for note in cast(list[str], data["limitations"])
+    )
+    sources_table = _table(
+        ["来源", "原始文件接收时间", "字节数", "使用依据", "再分发", "保留策略"], source_rows
+    )
+    return f"""<section class="panel"><h2>行情来源与数据含义</h2>
+<dl class="identity">{description}</dl>{sources_table}</section>
+<section class="panel"><h2>接受时的质量结果</h2><dl class="identity">{quality_detail}</dl>
+{_table(["导入质量", "门禁", "读取", "接受", "拒绝", "新写入", "相同重复", "冲突"], import_rows)}
+<details><summary>原始文件摘要、质量评估身份与导入声明</summary><pre>{exact_evidence}</pre></details></section>
+<section class="panel"><h2>数据使用限制</h2><ul>{limitations}</ul></section>"""
 
 
 def _run_list(runs: list[dict[str, object]]) -> str:
@@ -373,6 +580,10 @@ def _table(headers: list[str], rows: list[str]) -> str:
 
 def _report(run: dict[str, object]) -> str:
     result = _object(run["result"])
+    configuration = _object(run["config"])
+    data = None if result["data"] is None else _object(result["data"])
+    data_notice = "" if data is None else _availability_notice(data)
+    data_evidence = "" if data is None else _data_evidence(data)
     market, summary = _object(result["market"]), _object(result["summary"])
     curve, fills, decisions = (
         _rows(result["equity_curve"]),
@@ -450,6 +661,7 @@ def _report(run: dict[str, object]) -> str:
 <a class="button secondary" href="/api/runs/{_text(run["run_id"])}"
 download="research-{_text(run["run_id"])}.json">下载完整结果</a></div>
 <p id="research-status" role="status" class="status"></p></section>
+{data_notice}
 <section class="metrics">{metrics}</section>
 <section class="panel"><div class="section-title"><h2>权益变化</h2>
 <span class="muted">{currency} · 按观测顺序</span></div>
@@ -462,8 +674,13 @@ download="research-{_text(run["run_id"])}.json">下载完整结果</a></div>
 <span class="muted">最近 200 条 / 共 {len(fills)} 条</span></div>{fills_table}</section>
 <section class="panel"><div class="section-title"><h2>策略与风险决定</h2>
 <span class="muted">最近 200 条 / 共 {len(decisions)} 条</span></div>{decisions_table}</section>
+{data_evidence}
 <section class="panel"><h2>模型范围</h2><p>这是单合约、单交易日的历史模拟；
 成交使用完成的 bar 价格。样本内结果不能证明策略可盈利。</p>
+<p>本次模拟按每手每次成交收取 {_money(configuration["fee_per_lot"])} {currency}，
+每次成交施加 {_text(configuration["slippage_ticks"])} ticks 的不利滑点，
+初始保证金比例为 {_percentage(configuration["initial_margin_fraction"])}。
+这些是研究配置中的模拟假设，并非已核实的交易所或期货公司实际条款。</p>
 <ul>{assumptions}</ul></section><section class="panel"><details>
 <summary>完整配置与可复核身份</summary><pre>{config}</pre><dl class="identity">
 <dt>数据快照</dt><dd>{_text(_object(run["snapshot"])["id"])}</dd>

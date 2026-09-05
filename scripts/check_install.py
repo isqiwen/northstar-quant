@@ -47,7 +47,8 @@ def main() -> None:
     executable = str(Path(sys.executable).parent / "northstar")
     settings = tomllib.loads(study.read_text("utf-8"))
     source = dict(settings["source"])
-    csv = (study.parent / source.pop("file")).read_text("utf-8")
+    source_file = source.pop("file")
+    csv = (study.parent / source_file).read_text("utf-8")
     opener = build_opener(ProxyHandler({}))
 
     def request(url: str, payload: object = None) -> bytes:
@@ -59,6 +60,9 @@ def main() -> None:
     with tempfile.TemporaryDirectory(prefix="northstar-install-") as directory:
         runtime = Path(directory)
         log_path = runtime / "server.log"
+        research_study = runtime / "research-only.toml"
+        research_study.write_text(study.read_text("utf-8"), encoding="utf-8")
+        assert not (runtime / source_file).exists(), "reuse check must not have the source CSV"
 
         def command(*arguments: str):
             completed = subprocess.run(
@@ -114,8 +118,17 @@ def main() -> None:
         try:
             assert command("init-db") == {"status": "ready"}
             assert command("init-db") == {"status": "ready"}
-            saved = command("run", str(study))
+            runs_before_import = command("list")
+            data = command("import", str(study))
+            snapshot_id = data["snapshot_id"]
+            assert command("list") == runs_before_import
+            assert command("import", str(study)) == data
+            assert sum(item["snapshot_id"] == snapshot_id for item in command("datasets")) == 1
+            assert command("dataset", snapshot_id) == data
+            saved = command("research", snapshot_id, "--study", str(research_study))
             run_id = saved["run_id"]
+            assert saved["snapshot"]["id"] == snapshot_id
+            assert saved["result"]["data"] == data
             summary = saved["result"]["summary"]
             assert summary["bar_count"] == 12, summary
             assert summary["decision_count"] == 11, summary
@@ -128,9 +141,14 @@ def main() -> None:
                 + Decimal(summary["unrealized_pnl"])
                 - Decimal(summary["total_fees"])
             ), summary
+            assert command("research", snapshot_id, "--study", str(research_study)) == saved
             assert command("run", str(study)) == saved
             assert command("replay", run_id) == saved
-            print("Installed CLI: import, accounting, repeat and exact replay passed", flush=True)
+            print(
+                "Installed CLI: data library, source-free research, accounting, repeat and "
+                "exact replay passed",
+                flush=True,
+            )
 
             with server() as base_url:
                 imported = json.loads(
@@ -138,6 +156,9 @@ def main() -> None:
                 )
                 assert imported["snapshot_id"] == saved["snapshot"]["id"]
                 assert imported["content_hash"] == saved["snapshot"]["content_hash"]
+                datasets = json.loads(request(f"{base_url}/api/datasets"))
+                assert sum(item["snapshot_id"] == snapshot_id for item in datasets) == 1
+                assert json.loads(request(f"{base_url}/api/datasets/{snapshot_id}")) == data
                 submitted = json.loads(
                     request(
                         f"{base_url}/api/runs",
@@ -146,19 +167,43 @@ def main() -> None:
                 )
                 assert submitted["run_id"] == run_id
                 assert json.loads(request(f"{base_url}/api/runs/{run_id}")) == saved
+                assert source["symbol"] in request(f"{base_url}/datasets/{snapshot_id}").decode(
+                    "utf-8"
+                )
                 assert source["symbol"] in request(f"{base_url}{submitted['url']}").decode("utf-8")
                 assert request(f"{base_url}/")
                 assert request(f"{base_url}/assets/app.js")
                 assert request(f"{base_url}/assets/app.css")
-            print("Installed HTTP: import, research, saved report and assets passed", flush=True)
+            print(
+                "Installed HTTP: import, data library, source evidence, research and report passed",
+                flush=True,
+            )
 
             with server() as base_url:
+                datasets = json.loads(request(f"{base_url}/api/datasets"))
+                selected = next(item for item in datasets if item["snapshot_id"] == snapshot_id)
+                assert (
+                    json.loads(request(f"{base_url}/api/datasets/{selected['snapshot_id']}"))
+                    == data
+                )
+                resumed = json.loads(
+                    request(
+                        f"{base_url}/api/runs",
+                        {"snapshot_id": selected["snapshot_id"], "config": settings["research"]},
+                    )
+                )
+                assert resumed["run_id"] == run_id
                 assert json.loads(request(f"{base_url}/api/runs/{run_id}")) == saved
                 listed = json.loads(request(f"{base_url}/api/runs"))
                 assert sum(item["run_id"] == run_id for item in listed) == 1
             assert command("show", run_id) == saved
             assert command("replay", run_id) == saved
-            print("Process restart: persisted result and exact replay passed", flush=True)
+            assert command("dataset", snapshot_id) == data
+            assert command("research", snapshot_id, "--study", str(research_study)) == saved
+            print(
+                "Process restart: dataset reuse, persisted source/result and exact replay passed",
+                flush=True,
+            )
             print(json.dumps({"run_id": run_id, "summary": summary}, ensure_ascii=False))
         except Exception:
             if log_path.exists():

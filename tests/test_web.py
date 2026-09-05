@@ -37,16 +37,38 @@ def test_import_research_and_reopen_preserve_complete_result(
         "session_open": "2026-01-07T01:00:00Z",
         "session_close": "2026-01-07T01:08:00Z",
         "source_name": "research-http-check",
+        "source_reference": "generated in-memory HTTP workflow observations",
+        "availability_basis": "SYNTHETIC",
+        "availability_note": "Generated bars become available two seconds after completion.",
     }
     with TestClient(create_app(postgres_engine), base_url="http://127.0.0.1") as client:
         assert client.get("/health/ready").status_code == 200
         assert client.get("/api/runs").json() == []
+        assert client.get("/api/datasets").json() == []
         imported = client.post(
             "/api/import", json={"csv": "\n".join(lines) + "\n", "spec": specification}
         )
         assert imported.status_code == 200, imported.text
         dataset = imported.json()
         assert dataset["bar_count"] == len(prices)
+        # Acceptance itself persists a selectable dataset; no research run is required.
+        assert client.get("/api/runs").json() == []
+        assert client.get("/api/datasets").json()[0]["snapshot_id"] == dataset["snapshot_id"]
+        selected = client.get("/", params={"dataset": dataset["snapshot_id"]})
+        assert selected.status_code == 200
+        assert f'<option value="{dataset["snapshot_id"]}" selected>' in selected.text
+        details = client.get(f"/api/datasets/{dataset['snapshot_id']}").json()
+        assert details["import_spec"] == specification
+        assert details["sources"][0]["source_name"] == specification["source_name"].upper()
+        assert details["quality"]["imports"][0]["rows_accepted"] == len(prices)
+        assert details["quality"]["minute"]["observed_count"] == len(prices)
+        assert details["quality"]["minute"]["missing_observation_count"] == 0
+        assert details["semantics"]["price_tick"] == specification["price_tick"]
+        data_page = client.get(f"/datasets/{dataset['snapshot_id']}")
+        assert data_page.status_code == 200
+        assert specification["source_reference"] in data_page.text
+        assert details["sources"][0]["content_hash"] in data_page.text
+        assert "合成示例 · 非真实行情" in data_page.text
         request = {"snapshot_id": dataset["snapshot_id"], "config": {}}
         forbidden = client.post(
             "/api/runs", json=request, headers={"Origin": "https://another-origin.example"}
@@ -68,11 +90,14 @@ def test_import_research_and_reopen_preserve_complete_result(
         assert len(saved["result"]["equity_curve"]) == len(prices)
         assert saved["snapshot"]["content_hash"] == dataset["content_hash"]
         assert saved["config"] == saved["result"]["config"]
+        assert saved["result"]["data"] == details
         assert len(saved["implementation_hash"]) == 64
         report = client.get(submitted.json()["url"])
         assert report.status_code == 200
         assert "RB2605" in report.text
-        assert 'class="equity-chart"' in report.text
+        assert specification["source_reference"] in report.text
+        assert details["quality"]["minute"]["evaluation_id"] in report.text
+        assert "合成示例 · 非真实行情" in report.text
         assert client.get("/assets/app.js").status_code == 200
         repeated = client.post("/api/runs", json=request)
         assert repeated.json()["run_id"] == run_id
@@ -83,12 +108,16 @@ def test_import_research_and_reopen_preserve_complete_result(
         with TestClient(create_app(reopened), base_url="http://127.0.0.1") as client:
             assert client.get(f"/api/runs/{run_id}").json() == saved
             assert client.get("/").status_code == 200
+            assert client.get("/api/datasets").json()[0]["snapshot_id"] == dataset["snapshot_id"]
+            assert client.get(f"/api/datasets/{dataset['snapshot_id']}").json() == details
             changed = client.post(
                 "/api/runs",
                 json={"snapshot_id": dataset["snapshot_id"], "config": {"fee_per_lot": "3"}},
             )
             assert changed.status_code == 201, changed.text
             assert changed.json()["run_id"] != run_id
+            changed_run = client.get(f"/api/runs/{changed.json()['run_id']}").json()
+            assert changed_run["result"]["data"] == details
             assert len(client.get("/api/runs").json()) == 2
     finally:
         reopened.dispose()

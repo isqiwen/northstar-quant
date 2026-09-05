@@ -13,6 +13,9 @@ trading_day = "2026-01-07"
 session_open = "2026-01-07T01:00:00Z"
 session_close = "2026-01-07T01:12:00Z"
 source_name = "synthetic_intraday_demo"
+source_reference = "Project-generated synthetic intraday example; not market observations."
+availability_basis = "SYNTHETIC"
+availability_note = "Generated bar times and availability are solely for deterministic engineering checks."
 
 [research]
 initial_cash = "100000"

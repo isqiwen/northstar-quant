@@ -33,6 +33,87 @@ function readConfiguration(form) {
 }
 
 const importForm = document.querySelector("#import-form");
+const researchForm = document.querySelector("#research-form");
+let selectedDataset = null;
+let selectionSequence = 0;
+
+function datasetLabel(data) {
+  return `${data.exchange} · ${data.symbol} · ${data.trading_day} · ` +
+    `${data.session_open} — ${data.session_close} · ${data.bar_count} bars`;
+}
+
+function showDataNotice(data) {
+  const notices = {
+    FINAL_REVISED: ["最终修订数据 · 仅用于探索模拟",
+      "信息时钟假设为每根 bar 完成时可见，并非历史上观测到的首次可得时间。不能据此证明当时能够做出相同决策。"],
+    SOURCE_DECLARED: ["来源声明 · 未经独立验证",
+      "available_at 依据由操作人声明，系统未独立验证它是否为历史首次可得时间。"],
+    SYNTHETIC: ["合成示例 · 非真实行情", "仅用于演示和工程验证，不用于评价真实市场中的策略表现。"],
+  };
+  const notice = document.createElement("aside");
+  notice.className = "data-notice";
+  const title = document.createElement("strong");
+  const description = document.createElement("p");
+  [title.textContent, description.textContent] = notices[data.availability_basis];
+  const declaration = document.createElement("p");
+  declaration.className = "muted";
+  declaration.textContent = `声明：${data.availability_note}`;
+  notice.append(title, description, declaration);
+  document.querySelector("#selected-data-notice").replaceChildren(notice);
+}
+
+async function selectDataset(snapshotId) {
+  const selection = ++selectionSequence;
+  const select = researchForm.elements.snapshot_id;
+  const link = document.querySelector("#selected-data-link");
+  const reuse = document.querySelector("#reuse-data-metadata");
+  selectedDataset = null;
+  reuse.hidden = true;
+  link.hidden = true;
+  document.querySelector("#selected-data-notice").replaceChildren();
+  if (!snapshotId) return false;
+  const data = await api(`/api/datasets/${encodeURIComponent(snapshotId)}`);
+  if (selection !== selectionSequence) return false;
+  if (![...select.options].some((option) => option.value === snapshotId)) {
+    select.add(new Option(datasetLabel(data), snapshotId));
+  }
+  select.value = snapshotId;
+  selectedDataset = data;
+  link.href = `/datasets/${encodeURIComponent(snapshotId)}`;
+  link.hidden = false;
+  reuse.hidden = false;
+  showDataNotice(data);
+  return true;
+}
+
+if (researchForm) {
+  const notice = document.querySelector("#research-status");
+  researchForm.elements.snapshot_id.addEventListener("change", async (event) => {
+    try {
+      await selectDataset(event.target.value);
+      status(notice, "");
+    } catch (error) {
+      status(notice, error.message, true);
+    }
+  });
+  if (researchForm.elements.snapshot_id.value) {
+    selectDataset(researchForm.elements.snapshot_id.value).catch((error) => {
+      status(notice, error.message, true);
+    });
+  }
+  document.querySelector("#reuse-data-metadata").addEventListener("click", () => {
+    if (!selectedDataset) return;
+    for (const [key, value] of Object.entries(selectedDataset.import_spec)) {
+      const field = importForm.elements.namedItem(key);
+      if (field && field.type !== "file") field.value = value;
+    }
+    importForm.elements.file.value = "";
+    status(document.querySelector("#import-status"),
+      "已复用合约、时段与来源信息。请选择新文件，并确认交易日、时段与可得时间声明后导入。");
+    importForm.scrollIntoView({behavior: "smooth", block: "start"});
+  });
+}
+
 if (importForm) importForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const button = importForm.querySelector("button[type=submit]");
@@ -46,9 +127,7 @@ if (importForm) importForm.addEventListener("submit", async (event) => {
     if (file.size > 5 * 1024 * 1024) throw new Error("CSV 文件不得超过 5 MiB。");
     const csv = new TextDecoder("utf-8", {fatal: true}).decode(await file.arrayBuffer());
     const result = await api("/api/import", {csv, spec: values});
-    document.querySelector("#research-form [name=snapshot_id]").value = result.snapshot_id;
-    status(notice, `已保存 ${result.bar_count} 个 bars。数据快照已填入右侧，可以运行研究。`);
-    document.querySelector("#research-form").scrollIntoView({behavior: "smooth", block: "nearest"});
+    window.location.assign(`/?dataset=${encodeURIComponent(result.snapshot_id)}#research-form`);
   } catch (error) {
     status(notice, error.message, true);
   } finally {
@@ -56,7 +135,6 @@ if (importForm) importForm.addEventListener("submit", async (event) => {
   }
 });
 
-const researchForm = document.querySelector("#research-form");
 if (researchForm) researchForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const button = researchForm.querySelector("button[type=submit]");
@@ -78,7 +156,7 @@ for (const button of document.querySelectorAll("[data-use-run]")) {
     try {
       const run = await api(`/api/runs/${button.dataset.useRun}`);
       const form = document.querySelector("#research-form");
-      form.elements.snapshot_id.value = run.snapshot.id;
+      if (!await selectDataset(run.snapshot.id)) return;
       for (const [key, value] of Object.entries(run.config)) form.elements[key].value = value;
       status(notice, "已载入这次研究的数据与完整配置。修改参数后运行会保存新的结果。");
       form.scrollIntoView({behavior: "smooth", block: "start"});
