@@ -345,6 +345,27 @@ This greenfield application has neither backward nor forward compatibility.
 data. `uv build` produces one installable application wheel with its current
 migrations and dependency-lock identity.
 
+### VS Code
+
+The checked-in `.vscode` setup uses the repository's locked `uv` environment,
+Ruff, mypy and pytest. Install the recommended extensions and run the
+“Northstar: sync dependencies” task after a fresh checkout. If VS Code has
+retained another interpreter, use “Python: Select Interpreter” and choose the
+repository `.venv`. The Test Explorer, test and verify tasks use the disposable
+local Compose database
+`northstar_quant_test`; its schema is deliberately reset by pytest. The tasks
+create it together with an isolated `northstar_quant_vscode` database for native
+debugging, never using the containerized application's `northstar_quant` data.
+Run “Northstar: prepare isolated development databases” once before using Test
+Explorer; the test and verify tasks run that preparation automatically.
+
+Use “Northstar: Debug local workspace (port 18081)” for breakpoints in a local
+process. It prepares the isolated database and its paired private archive at
+`.northstar/vscode-sources`; this is intentionally separate from the Docker
+application and its managed volume on port 18080. The configuration leaves
+`NORTHSTAR_SIMNOW_CONFIG` empty, so it neither loads broker credentials nor
+connects to a broker. Do not add a private SimNow file to `.vscode/test.env`.
+
 CI also installs the wheel with locked runtime dependencies in a separate
 environment and exercises the installed CLI and HTTP application from an empty
 working directory. It checks the synthetic study's accounting, repeated runs,

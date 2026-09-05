@@ -1,0 +1,47 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Northstar: Debug local workspace (port 18081)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "northstar_quant.cli",
+      "args": [
+        "serve",
+        "--port",
+        "18081"
+      ],
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.vscode/test.env",
+      "env": {
+        "NORTHSTAR_DATABASE_URL": "postgresql+psycopg://northstar:northstar_local@127.0.0.1:15432/northstar_quant_vscode",
+        "NORTHSTAR_DATA_DIR": "${workspaceFolder}/.northstar/vscode-sources",
+        "NORTHSTAR_SIMNOW_CONFIG": ""
+      },
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "preLaunchTask": "Northstar: initialize VS Code debug database"
+    },
+    {
+      "name": "Northstar: Debug current pytest file",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "args": [
+        "${file}",
+        "-q"
+      ],
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.vscode/test.env",
+      "env": {
+        "NORTHSTAR_TEST_DATABASE_URL": "postgresql+psycopg://northstar:northstar_local@127.0.0.1:15432/northstar_quant_test",
+        "NORTHSTAR_DATABASE_URL": "",
+        "NORTHSTAR_DATA_DIR": "",
+        "NORTHSTAR_SIMNOW_CONFIG": ""
+      },
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "preLaunchTask": "Northstar: prepare isolated development databases"
+    }
+  ]
+}

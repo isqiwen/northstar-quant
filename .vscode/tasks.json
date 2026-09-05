@@ -1,0 +1,198 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Northstar: sync dependencies",
+      "type": "process",
+      "command": "uv",
+      "args": [
+        "sync",
+        "--locked"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Northstar: start local PostgreSQL",
+      "type": "process",
+      "command": "docker",
+      "args": [
+        "compose",
+        "up",
+        "-d",
+        "--wait",
+        "postgres"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Northstar: prepare isolated development databases",
+      "type": "process",
+      "command": "docker",
+      "args": [
+        "compose",
+        "exec",
+        "-T",
+        "postgres",
+        "sh",
+        "-ec",
+        "for database in northstar_quant_vscode northstar_quant_test; do\n  existing=\"$(psql -U northstar -d postgres -tAc \"SELECT 1 FROM pg_database WHERE datname = '$database'\")\"\n  if [ \"$existing\" != \"1\" ]; then\n    createdb -U northstar \"$database\"\n  fi\ndone"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "dependsOn": "Northstar: start local PostgreSQL",
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      "label": "Northstar: initialize VS Code debug database",
+      "type": "process",
+      "command": "uv",
+      "args": [
+        "run",
+        "--locked",
+        "northstar",
+        "init-db"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "NORTHSTAR_DATABASE_URL": "postgresql+psycopg://northstar:northstar_local@127.0.0.1:15432/northstar_quant_vscode",
+          "NORTHSTAR_DATA_DIR": "${workspaceFolder}/.northstar/vscode-sources",
+          "NORTHSTAR_SIMNOW_CONFIG": ""
+        }
+      },
+      "dependsOn": "Northstar: prepare isolated development databases",
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      "label": "Northstar: lint",
+      "type": "process",
+      "command": "uv",
+      "args": [
+        "run",
+        "--locked",
+        "ruff",
+        "check",
+        "src",
+        "tests",
+        "scripts"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Northstar: check formatting",
+      "type": "process",
+      "command": "uv",
+      "args": [
+        "run",
+        "--locked",
+        "ruff",
+        "format",
+        "--check",
+        "src",
+        "tests",
+        "scripts"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Northstar: type check",
+      "type": "process",
+      "command": "uv",
+      "args": [
+        "run",
+        "--locked",
+        "mypy",
+        "src"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Northstar: test",
+      "type": "process",
+      "command": "make",
+      "args": [
+        "test"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "NORTHSTAR_TEST_DATABASE_URL": "postgresql+psycopg://northstar:northstar_local@127.0.0.1:15432/northstar_quant_test",
+          "NORTHSTAR_DATABASE_URL": "",
+          "NORTHSTAR_DATA_DIR": "",
+          "NORTHSTAR_SIMNOW_CONFIG": ""
+        }
+      },
+      "dependsOn": "Northstar: prepare isolated development databases",
+      "dependsOrder": "sequence",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "Northstar: verify",
+      "type": "process",
+      "command": "make",
+      "args": [
+        "verify"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "NORTHSTAR_TEST_DATABASE_URL": "postgresql+psycopg://northstar:northstar_local@127.0.0.1:15432/northstar_quant_test",
+          "NORTHSTAR_DATABASE_URL": "",
+          "NORTHSTAR_DATA_DIR": "",
+          "NORTHSTAR_SIMNOW_CONFIG": ""
+        }
+      },
+      "dependsOn": "Northstar: prepare isolated development databases",
+      "dependsOrder": "sequence",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "Northstar: start containerized application",
+      "type": "process",
+      "command": "docker",
+      "args": [
+        "compose",
+        "up",
+        "--build",
+        "-d"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Northstar: stop containerized application",
+      "type": "process",
+      "command": "docker",
+      "args": [
+        "compose",
+        "down"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    }
+  ]
+}
