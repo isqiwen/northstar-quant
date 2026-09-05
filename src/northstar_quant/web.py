@@ -8,6 +8,8 @@ import json
 import re
 import secrets
 import time
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from decimal import Decimal
 from html import escape
 from importlib.resources import files
@@ -22,7 +24,9 @@ from sqlalchemy.exc import SQLAlchemyError
 from starlette.concurrency import run_in_threadpool
 from starlette.middleware.base import RequestResponseEndpoint
 
+from northstar_quant.broker import stream_views
 from northstar_quant.broker import views as broker_views
+from northstar_quant.broker.streams import BrokerStreams
 from northstar_quant.broker.workspace import BrokerWorkspace
 from northstar_quant.data.files import SourceFiles
 from northstar_quant.data.library import AdmissionRejected, DataLibrary
@@ -85,7 +89,16 @@ def create_app(engine: Engine, library: DataLibrary) -> FastAPI:
     store = RunStore(engine)
     paper = SessionStore(engine, library)
     broker = BrokerWorkspace(engine)
-    app = FastAPI(title="Northstar · 个人量化工作台", docs_url=None, redoc_url=None)
+    streams = BrokerStreams(engine, library)
+
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+        yield
+        await run_in_threadpool(streams.close)
+
+    app = FastAPI(
+        title="Northstar · 个人量化工作台", docs_url=None, redoc_url=None, lifespan=lifespan
+    )
     browser_sessions: dict[str, tuple[str, float]] = {}
 
     def workspace_page(
@@ -405,6 +418,72 @@ def create_app(engine: Engine, library: DataLibrary) -> FastAPI:
             request_id=_uuid_field(payload, "request_id"),
         )
 
+    @app.get("/streams", response_class=HTMLResponse)
+    async def stream_home(request: Request) -> HTMLResponse:
+        def content() -> str:
+            return stream_views.workspace(
+                broker.list(), paper.list_configurations(), streams.list()
+            )
+
+        return workspace_page(
+            request, "持续行情与影子策略", await run_in_threadpool(content), mode="SimNow · 不发单"
+        )
+
+    @app.get("/streams/{stream_id}", response_class=HTMLResponse)
+    async def stream_detail(request: Request, stream_id: UUID) -> HTMLResponse:
+        result = await run_in_threadpool(streams.get, stream_id)
+        return workspace_page(
+            request, "持续会话", stream_views.report(result), mode="SimNow · 影子决策 / 不发单"
+        )
+
+    @app.post("/api/streams", status_code=201)
+    async def stream_start(request: Request) -> dict[str, object]:
+        protect_workspace_command(request)
+        payload = await _read_object(request)
+        if set(payload) != {
+            "query_batch_id",
+            "configuration_id",
+            "request_id",
+            "duration_seconds",
+            "allow_retention",
+            "use_basis",
+        }:
+            raise ValueError("持续接收只接受查询、固定配置、时长及留存声明；不接受凭据或地址。")
+        return await run_in_threadpool(
+            streams.start,
+            _uuid_field(payload, "query_batch_id"),
+            _string_field(payload, "configuration_id"),
+            request_id=_uuid_field(payload, "request_id"),
+            duration_seconds=cast(int, payload["duration_seconds"]),
+            allow_retention=cast(bool, payload["allow_retention"]),
+            use_basis=_string_field(payload, "use_basis"),
+        )
+
+    @app.get("/api/streams/{stream_id}")
+    async def stream_state(request: Request, stream_id: UUID) -> dict[str, object]:
+        require_workspace_session(request)
+        return await run_in_threadpool(streams.get, stream_id)
+
+    @app.get("/api/streams/{stream_id}/events")
+    async def stream_events(
+        request: Request, stream_id: UUID, after: int = 0
+    ) -> list[dict[str, object]]:
+        require_workspace_session(request)
+        return await run_in_threadpool(streams.events, stream_id, after=after)
+
+    @app.post("/api/streams/{stream_id}/control")
+    async def stream_control(request: Request, stream_id: UUID) -> dict[str, object]:
+        protect_workspace_command(request)
+        payload = await _read_object(request)
+        if set(payload) != {"action", "request_id"}:
+            raise ValueError("会话控制只接受 action 和 request_id。")
+        return await run_in_threadpool(
+            streams.control,
+            stream_id,
+            _string_field(payload, "action"),
+            request_id=_uuid_field(payload, "request_id"),
+        )
+
     @app.get("/paper", response_class=HTMLResponse)
     async def paper_home(request: Request) -> HTMLResponse:
         def workspace() -> str:
@@ -692,10 +771,11 @@ def _page(
 <script src="/assets/app.js" defer></script></head><body>
 <header class="topbar"><a class="brand" href="/">NORTHSTAR<span>个人量化工作台</span></a>
 <nav aria-label="工作台"><a href="/">历史研究</a><a href="/sources">来源与处理</a>
-<a href="/paper">文件 Paper</a><a href="/broker">SimNow 连接</a></nav>
+<a href="/paper">文件 Paper</a><a href="/broker">SimNow 连接</a>
+<a href="/streams">持续行情</a></nav>
 <span class="mode">{_text(mode)}</span></header>
 <main>{content}</main><footer>研究、内部 Paper 与 SimNow 柜台证据分别保存。
-当前 SimNow 仅显式只读查询；模拟结果不代表实盘表现。</footer>
+SimNow 接收与影子目标不授予交易权限；模拟结果不代表实盘表现。</footer>
 </body></html>"""
 
 

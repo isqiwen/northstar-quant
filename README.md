@@ -12,8 +12,11 @@ account in your browser. A concrete CTP adapter now provides explicit bounded
 SimNow read-only queries and saved browser evidence. On 2026-09-05, the approved
 `simnow_dev` account passed actual TD authentication/login, all seven TD queries
 returned terminal replies, and the selected contract subscription produced one market observation.
-This is not a continuous or freshness-verified feed; see the
+That bounded-query evidence is not a continuous or freshness-verified feed; see the
 [acceptance evidence and remaining gaps](docs/broker-source.md).
+The current #25 slice adds bounded durable TD/MD reception and account-neutral
+minute shadow signals. Fresh continuous external-market acceptance and the
+stream-to-Data archive/publication path remain incomplete.
 Broker orders and live execution are not implemented. Research, Paper and successful queries never enable real
 orders; see the [architecture and live gates](docs/ARCHITECTURE.md#9-首个受限实盘闭环).
 
@@ -200,6 +203,68 @@ owned order, continuous lifecycle recovery or permission to release reservations
 After backing up the running database, `init-db` adds the single order-review
 table; original queries, position entries and comparisons remain unchanged.
 
+### Bounded reception and shadow signals
+
+`/streams` starts an explicit SimNow TD/MD connection from an existing `COMPLETE`,
+identity-confirmed query, canonical SHFE product/contract metadata and an immutable
+configuration revision. Select the saved query and configuration, set 60–7200
+seconds, and explicitly declare permitted local retention and its usage basis.
+The old query fixes the connection scope; it is not current account or price evidence.
+Only one receiver per application database runs; same-account bounded queries
+cannot overlap it. Page load, refresh, restart and command retries do not reconnect.
+
+This is `SHADOW_ONLY`: Strategy emits account-neutral targets, without Account
+Risk, simulated fills, cash, orders or cancellations. Configuration cash, costs
+and margin assumptions do not become broker facts. `PAUSE` stops shadow calculation
+but continues retaining callbacks; `RESUME` resets warmup rather than replaying
+missed decisions; `STOP` ends this connection, not an order or position.
+`STOP_REQUESTED` is not confirmation that reception has ended. A stopped or
+interrupted receiver cannot be resumed into another connection.
+
+The source is `COPIED_CTP_CALLBACKS_POSTGRESQL`: immutable, sequenced SDK whitelist
+callbacks in PostgreSQL, committed before their corresponding processing step.
+Each stream is bounded to 100,000 events and 128 MiB. This is neither vendor wire
+bytes nor a published research Snapshot. #36's file archive, processing/publication
+and reusable market-segment linkage still need implementation; #25 remains partial.
+Actual fresh continuous-market acceptance has not yet been performed for this slice.
+
+The first scope is the [SHFE DAY continuous sessions](https://www.shfe.cn/services/calenderandholidays/tradinghours/):
+09:00–10:15, 10:30–11:30 and 13:30–15:00, Asia/Shanghai, with explicit source dates
+and one confirmed trading day. Night trading and auctions are unsupported.
+The initial minute and the first minute after a break are partial; the last minute
+is not flushed on a timer or shutdown. Later accepted observations confirm completion.
+OHLC describes observed LastPrice samples, not a reconstructed trade tape; volume
+is a cumulative difference assigned to the arriving snapshot's time, not proof of
+exact per-minute exchange volume. Source/receipt freshness and intra-session gaps
+have a five-second engineering limit; unknown or conflicting time/volume stops
+shadow calculation. The limit is not an exchange guarantee or a fallback to zero.
+Only a trusted preceding session-end observation permits a scheduled-break label;
+otherwise silence remains stale/unknown, not assumed healthy market closure.
+
+The report shows persisted/processed sequence, source and receipt times, reasons,
+the latest ten minute/signal results and their callback evidence. One-second browser
+polling updates local records only, preserving the existing browser session and CSRF.
+An available receiver or successful subscription does not establish market freshness
+or account reconciliation.
+
+```sh
+northstar stream-list
+northstar stream-show STREAM_UUID
+northstar stream-events STREAM_UUID --after 0
+# Explicit connection; remains in the foreground for the bounded duration.
+northstar stream-start QUERY_UUID --configuration CONFIGURATION_ID --seconds 300 \
+  --allow-retention --use-basis 'YOUR_CONFIRMED_LOCAL_USE_AND_RETENTION_BASIS' \
+  --request-id STREAM_UUID
+```
+
+The read commands need no broker credentials. A new start requires the verified
+Linux amd64 SDK and matching private account configuration; use the Web controls
+for a Web-owned receiver. Reusing the start UUID reads the existing stream rather
+than opening a second connection. Before deployment, back up with the running
+version, then run the new version's `northstar init-db` to add the four stream
+tables; preserve the existing database and source directory. Restored stream
+source/step chains are verified, never automatically attached or reconnected.
+
 ## Command line
 
 With Python 3.12, `uv`, and PostgreSQL 17:
@@ -300,10 +365,10 @@ then run `northstar restore /absolute/backup-directory`. Do not initialize the
 target first. Restore preflights every referenced file and the dump, never drops
 or overwrites an existing database, and checks source/processing/publication
 relations, all saved broker query evidence, baseline/comparison references and
-the position-ledger and order-review input chains.
+the position-ledger, order-review and continuous-reception source/step chains.
 An incomplete restore blocks normal startup. These are integrity checks, not a new
 broker observation; restored comparisons never establish current account safety.
-Recovered Paper remains paused; this is data/research recovery, not broker
+Recovered Paper remains paused and streams remain unattached; this is evidence recovery, not broker
 reconciliation or live re-arming. Those remain separately gated future work.
 
 ## Recoverable file Paper

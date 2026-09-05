@@ -6,6 +6,7 @@ import argparse
 import json
 import os
 import sys
+import time
 import tomllib
 from collections.abc import Sequence
 from pathlib import Path
@@ -175,6 +176,23 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     broker_orders.add_argument("position_check_id", type=UUID)
     broker_orders.add_argument("--request-id", type=UUID, required=True)
+    commands.add_parser("stream-list", help="list saved continuous shadow sessions; no connection")
+    stream_show = commands.add_parser("stream-show", help="read a saved continuous shadow session")
+    stream_show.add_argument("stream_id", type=UUID)
+    stream_events = commands.add_parser(
+        "stream-events", help="read up to 100 original SDK callbacks"
+    )
+    stream_events.add_argument("stream_id", type=UUID)
+    stream_events.add_argument("--after", type=int, default=0)
+    stream_start = commands.add_parser(
+        "stream-start", help="explicit foreground SimNow reception and shadow signals; never orders"
+    )
+    stream_start.add_argument("query_batch_id", type=UUID)
+    stream_start.add_argument("--configuration", required=True)
+    stream_start.add_argument("--seconds", type=int, default=300)
+    stream_start.add_argument("--allow-retention", action="store_true", required=True)
+    stream_start.add_argument("--use-basis", required=True)
+    stream_start.add_argument("--request-id", type=UUID, required=True)
     arguments = parser.parse_args(argv)
 
     engine = None
@@ -207,6 +225,46 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
 
         require_current_database(engine)
+
+        if arguments.command in {"stream-start", "stream-list", "stream-show", "stream-events"}:
+            from northstar_quant.broker.streams import BrokerStreams
+            from northstar_quant.data.files import SourceFiles
+            from northstar_quant.data.library import DataLibrary
+
+            streams = BrokerStreams(engine, DataLibrary(engine, SourceFiles.from_environment()))
+            if arguments.command == "stream-list":
+                print(json.dumps(streams.list(), ensure_ascii=False))
+            elif arguments.command == "stream-show":
+                print(json.dumps(streams.get(arguments.stream_id), ensure_ascii=False))
+            elif arguments.command == "stream-events":
+                print(
+                    json.dumps(
+                        streams.events(arguments.stream_id, after=arguments.after),
+                        ensure_ascii=False,
+                    )
+                )
+            else:
+                try:
+                    stream_result = streams.start(
+                        arguments.query_batch_id,
+                        arguments.configuration,
+                        request_id=arguments.request_id,
+                        duration_seconds=arguments.seconds,
+                        allow_retention=arguments.allow_retention,
+                        use_basis=arguments.use_basis,
+                    )
+                    print(json.dumps(stream_result, ensure_ascii=False), flush=True)
+                    while stream_result["status"] in {"STARTING", "RECEIVING", "STOP_REQUESTED"}:
+                        time.sleep(0.5)
+                        stream_result = streams.get(arguments.request_id)
+                        if stream_result["reason"] == "OWNER_NOT_ATTACHED":
+                            break
+                except KeyboardInterrupt:
+                    pass
+                finally:
+                    streams.close()
+                print(json.dumps(streams.get(arguments.request_id), ensure_ascii=False))
+            return 0
 
         if arguments.command in {
             "broker-query",

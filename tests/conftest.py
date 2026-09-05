@@ -69,6 +69,10 @@ def clean_database(postgres_engine: Engine) -> None:
             "broker_position_entries",
             "broker_position_checks",
             "broker_order_checks",
+            "broker_streams",
+            "broker_stream_events",
+            "broker_stream_steps",
+            "broker_stream_commands",
         )
     )
     with postgres_engine.begin() as connection:

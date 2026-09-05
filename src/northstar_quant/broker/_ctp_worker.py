@@ -25,6 +25,10 @@ from northstar_quant.broker.settings import Credentials, SimnowProfile
 
 _MAX_EVENTS = 10_000
 _MAX_BYTES = 8 * 1024 * 1024
+_STREAM_EVENTS = 100_000
+_STREAM_BYTES = 128 * 1024 * 1024
+_STREAM_QUEUE = 256
+_MAX_MESSAGE = 64 * 1024
 _QUERY_INTERVAL = 1.1
 _TD_QUERIES = (
     ("account", "TradingAccount"),
@@ -57,10 +61,25 @@ def _copy_fields(callback: str, native: object | None) -> dict[str, object] | No
     return copied
 
 
+class _Stopped(Exception):
+    """Unwind a requested local stop without inventing a counter failure."""
+
+
 class _Receiver:
-    def __init__(self, connection: Connection, timeout: float) -> None:
+    def __init__(
+        self,
+        connection: Connection,
+        timeout: float,
+        *,
+        streaming: bool = False,
+        stop_signal: Any = None,
+    ) -> None:
         self.connection = connection
         self.deadline = time.monotonic() + timeout
+        self.streaming = streaming
+        self.stop_signal = stop_signal
+        self.event_limit = _STREAM_EVENTS if streaming else _MAX_EVENTS
+        self.byte_limit = _STREAM_BYTES if streaming else _MAX_BYTES
         self.lock = threading.Lock()
         self.queue: deque[dict[str, object]] = deque()
         self.sequence = 0
@@ -68,6 +87,7 @@ class _Receiver:
         self.failure: str | None = None
         self.connected: set[str] = set()
         self.responses: dict[tuple[str, str, int], dict[str, object] | None] = {}
+        self.expected_responses: set[tuple[str, str, int]] = set()
         self.quote_seen = False
         self.closed = False
 
@@ -81,12 +101,18 @@ class _Receiver:
         error_id: int = 0,
     ) -> dict[str, object] | None:
         with self.lock:
-            if self.closed or self.failure == "CAPTURE_LIMIT_EXCEEDED":
+            if self.closed or self.failure in {"CAPTURE_LIMIT_EXCEEDED", "STREAM_LIMIT_EXCEEDED"}:
                 return None
-            if callback == "OnRtnDepthMarketData" and self.quote_seen:
+            if callback == "OnRtnDepthMarketData" and self.quote_seen and not self.streaming:
                 return None
-            if self.sequence >= _MAX_EVENTS:
-                self.failure = "CAPTURE_LIMIT_EXCEEDED"
+            if (
+                self.sequence >= self.event_limit
+                or self.streaming
+                and len(self.queue) >= _STREAM_QUEUE
+            ):
+                self.failure = (
+                    "STREAM_LIMIT_EXCEEDED" if self.streaming else "CAPTURE_LIMIT_EXCEEDED"
+                )
                 return None
             event = BrokerEvent(
                 sequence=self.sequence + 1,
@@ -100,8 +126,10 @@ class _Receiver:
             )
             event_data = event.to_dict()
             encoded = json.dumps({"kind": "event", "event": event_data}).encode()
-            if self.total_bytes + len(encoded) > _MAX_BYTES:
-                self.failure = "CAPTURE_LIMIT_EXCEEDED"
+            if self.total_bytes + len(encoded) > self.byte_limit or len(encoded) > _MAX_MESSAGE:
+                self.failure = (
+                    "STREAM_LIMIT_EXCEEDED" if self.streaming else "CAPTURE_LIMIT_EXCEEDED"
+                )
                 return None
             self.total_bytes += len(encoded)
             self.sequence += 1
@@ -112,9 +140,12 @@ class _Receiver:
                 self.connected.add(channel)
             elif callback == "OnFrontDisconnected":
                 self.failure = self.failure or "DISCONNECTED"
+            elif callback == "OnHeartBeatWarning" and self.streaming:
+                self.failure = self.failure or "HEARTBEAT_WARNING"
             elif error_id:
                 self.failure = self.failure or "CTP_RESPONSE_ERROR"
-            if is_last and request_id is not None:
+            if is_last and (channel, callback, request_id) in self.expected_responses:
+                assert request_id is not None
                 self.responses[(channel, callback, request_id)] = data
             if callback == "OnRtnDepthMarketData":
                 self.quote_seen = True
@@ -158,6 +189,8 @@ class _Receiver:
             self.drain()
             if self.failure:
                 return False
+            if self.stop_signal is not None and self.stop_signal.is_set():
+                raise _Stopped
             if condition():
                 return True
             time.sleep(0.02)
@@ -177,6 +210,7 @@ class _Receiver:
         )
         if pending is None:
             return False
+        self.expected_responses.add((channel, callback, request_id))
         code = int(getattr(api, method)(native, request_id))
         # Reserve order/time before the native call. Only this thread drains the
         # queue, after the actual immediate return code has replaced this value.
@@ -342,10 +376,51 @@ def capture(
     directory: str,
     timeout: float,
 ) -> None:
+    _capture(connection, profile, credentials, instrument, directory, timeout)
+
+
+def stream(
+    connection: Connection,
+    profile: SimnowProfile,
+    credentials: Credentials,
+    instrument: str,
+    directory: str,
+    duration: float,
+    stop_signal: Any,
+) -> None:
+    _capture(
+        connection,
+        profile,
+        credentials,
+        instrument,
+        directory,
+        duration,
+        streaming=True,
+        stop_signal=stop_signal,
+    )
+
+
+def _capture(
+    connection: Connection,
+    profile: SimnowProfile,
+    credentials: Credentials,
+    instrument: str,
+    directory: str,
+    timeout: float,
+    *,
+    streaming: bool = False,
+    stop_signal: Any = None,
+) -> None:
     # Native libraries can print directly through C stdio. Suppress both output
     # descriptors before importing them; only our typed evidence leaves the child.
     _silence_native()
-    receiver = _Receiver(connection, timeout)
+    stream_deadline = time.monotonic() + timeout
+    receiver = _Receiver(
+        connection,
+        min(timeout, 45) if streaming else timeout,
+        streaming=streaming,
+        stop_signal=stop_signal,
+    )
     receiver.event(
         "TD",
         "CaptureStarted",
@@ -456,6 +531,7 @@ def capture(
         )
         if pending is None:
             return
+        receiver.expected_responses.add(("MD", "OnRspSubMarketData", 0))
         code = int(market.SubscribeMarketData([instrument]))
         cast(dict[str, object], pending["data"])["return_code"] = code
         if code:
@@ -463,7 +539,21 @@ def capture(
             return
         # SubscribeMarketData has no request-ID input: keep its actual callback
         # identity instead of inventing a caller request ID.
-        receiver.wait(lambda: receiver.quote_seen, seconds=3)
+        if streaming:
+            key = ("MD", "OnRspSubMarketData", 0)
+            if not receiver.wait(lambda: key in receiver.responses, seconds=5):
+                receiver.failure = receiver.failure or "SUBSCRIPTION_TIMEOUT"
+                return
+            subscription = receiver.responses[key]
+            if subscription is None or subscription.get("InstrumentID") != instrument:
+                receiver.failure = "SUBSCRIPTION_IDENTITY_MISMATCH"
+                return
+            receiver.deadline = stream_deadline
+            receiver.wait(lambda: False)
+        else:
+            receiver.wait(lambda: receiver.quote_seen, seconds=3)
+    except _Stopped:
+        pass
     except Exception:
         receiver.failure = receiver.failure or "SDK_OPERATION_FAILED"
     finally:

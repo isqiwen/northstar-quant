@@ -7,7 +7,10 @@ SDK load/create/release is separately checked in an explicitly networkless image
 from __future__ import annotations
 
 import json
+import multiprocessing
 import os
+import struct
+import threading
 import time
 from datetime import UTC, datetime
 from multiprocessing.connection import Connection
@@ -124,6 +127,40 @@ class _Market(_Trader):
 _MODE = "normal"
 
 
+class _StreamMarket(_Market):
+    def SubscribeMarketData(self, instruments: list[str]) -> int:
+        super().SubscribeMarketData(instruments)
+        if _MODE == "overflow":
+            for _ in range(1000):
+                self.OnRtnDepthMarketData(
+                    SimpleNamespace(InstrumentID=instruments[0], LastPrice=101.0)
+                )
+            return 0
+        self._closed = threading.Event()
+
+        def emit() -> None:
+            for index in range(1, 6):
+                if self._closed.wait(0.04):
+                    return
+                self.OnRtnDepthMarketData(
+                    SimpleNamespace(InstrumentID=instruments[0], LastPrice=100.0 + index)
+                )
+            if _MODE == "disconnect":
+                self.OnFrontDisconnected(4097)
+                self.OnFrontConnected()  # SDK reconnect never causes another login.
+            elif _MODE == "heartbeat":
+                self.OnHeartBeatWarning(30)
+
+        self._emitter = threading.Thread(target=emit, daemon=True)
+        self._emitter.start()
+        return 0
+
+    def Release(self) -> None:
+        if "_closed" in self.__dict__:
+            self._closed.set()
+            self._emitter.join(timeout=0.2)
+
+
 def _scripted_capture(
     connection: Connection,
     profile: SimnowProfile,
@@ -132,14 +169,22 @@ def _scripted_capture(
     directory: str,
     timeout: float,
 ) -> None:
+    _install_scripted(instrument)
+    _ctp_worker.capture(connection, profile, credentials, instrument, directory, timeout)
+
+
+def _install_scripted(instrument: str, *, streaming: bool = False) -> None:
     global _MODE
     _MODE = {
         "er2610": "reject",
         "ml2610": "missing_last",
         "md2610": "market_day",
         "ma2610": "market_account",
+        "dc2610": "disconnect",
+        "hb2610": "heartbeat",
+        "of2610": "overflow",
     }.get(instrument, "normal")
-    sdk = SimpleNamespace(TraderApiPy=_Trader, MdApiPy=_Market)
+    sdk = SimpleNamespace(TraderApiPy=_Trader, MdApiPy=_StreamMarket if streaming else _Market)
     structures = SimpleNamespace(
         **{
             name: SimpleNamespace
@@ -164,7 +209,42 @@ def _scripted_capture(
         ),
     )
     _ctp_worker._QUERY_INTERVAL = 0
-    _ctp_worker.capture(connection, profile, credentials, instrument, directory, timeout)
+
+
+def _scripted_stream(
+    connection: Connection,
+    profile: SimnowProfile,
+    credentials: Credentials,
+    instrument: str,
+    directory: str,
+    duration: float,
+    stop_signal: Any,
+) -> None:
+    _install_scripted(instrument, streaming=True)
+    _ctp_worker.stream(
+        connection, profile, credentials, instrument, directory, duration, stop_signal
+    )
+
+
+def _crashed_stream(
+    connection: Connection,
+    profile: SimnowProfile,
+    credentials: Credentials,
+    instrument: str,
+    directory: str,
+    duration: float,
+    _stop_signal: Any,
+) -> None:
+    if instrument == "pc2610":
+        connection.send_bytes(
+            json.dumps(
+                {"kind": "versions", "trader": "v6.7.13_test", "market": "v6.7.13_test"}
+            ).encode()
+        )
+        os.write(connection.fileno(), struct.pack("!i", 1024))
+        time.sleep(60)  # Length prefix arrived, body never does.
+        return
+    _crashed_capture(connection, profile, credentials, instrument, directory, duration)
 
 
 def _crashed_capture(
@@ -321,6 +401,15 @@ def test_unapproved_endpoint_is_rejected_before_any_sdk_activity() -> None:
     wrong = SimnowProfile("simnow_dev", "tcp://127.0.0.1:1234", "tcp://127.0.0.1:1235")
     with pytest.raises(ValueError, match="approved"):
         ctp.query_account(wrong, _credentials(), "rb2610")
+    with pytest.raises(ValueError, match="approved"):
+        ctp.stream_account(
+            wrong,
+            _credentials(),
+            "rb2610",
+            on_event=lambda event: None,
+            should_stop=lambda: False,
+            duration_seconds=1,
+        )
 
 
 def test_scripted_capture_round_trips_postgres_without_claiming_external_reconciliation(
@@ -362,3 +451,139 @@ def test_scripted_capture_round_trips_postgres_without_claiming_external_reconci
     assert reconciliation["differences"] is None
     assert saved["execution"] == {"order_sending": False, "cancel_sending": False}
     assert "NEVER-PERSIST" not in json.dumps(saved)
+
+
+def test_stream_persists_successive_quotes_and_stops_without_reconnecting(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _available(monkeypatch, _scripted_capture)
+    monkeypatch.setattr(_ctp_worker, "stream", _scripted_stream)
+    events: list[BrokerEvent] = []
+    quotes = 0
+
+    def retain(event: BrokerEvent) -> None:
+        nonlocal quotes
+        events.append(event)
+        if event.callback == "OnRtnDepthMarketData":
+            quotes += 1
+
+    failure = ctp.stream_account(
+        get_profile("simnow_dev"),
+        _credentials(),
+        "rb2610",
+        on_event=retain,
+        should_stop=lambda: quotes >= 4,
+        duration_seconds=10,
+    )
+    assert failure is None and quotes >= 4
+    assert [event.sequence for event in events] == list(range(1, len(events) + 1))
+    assert any(event.callback == "OnRtnTrade" for event in events)
+    requests = [event for event in events if event.callback == "RequestSent"]
+    assert (
+        len([event for event in requests if event.data and event.data["section"] == "login"]) == 2
+    )
+    serialized = json.dumps([event.to_dict() for event in events])
+    assert "NEVER-PERSIST" not in serialized and "local-test-password" not in serialized
+    assert not [
+        child for child in multiprocessing.active_children() if child.name == "northstar-ctp-stream"
+    ]
+
+
+@pytest.mark.parametrize(
+    "instrument, expected",
+    [
+        ("dc2610", "DISCONNECTED"),
+        ("hb2610", "HEARTBEAT_WARNING"),
+        ("of2610", "STREAM_LIMIT_EXCEEDED"),
+    ],
+)
+def test_stream_stops_on_disconnect_heartbeat_or_callback_backpressure(
+    monkeypatch: pytest.MonkeyPatch,
+    instrument: str,
+    expected: str,
+) -> None:
+    _available(monkeypatch, _scripted_capture)
+    monkeypatch.setattr(_ctp_worker, "stream", _scripted_stream)
+    events: list[BrokerEvent] = []
+    failure = ctp.stream_account(
+        get_profile("simnow_dev"),
+        _credentials(),
+        instrument,
+        on_event=events.append,
+        should_stop=lambda: False,
+        duration_seconds=5,
+    )
+    assert failure == expected
+    assert len([event for event in events if event.callback == "OnRspAuthenticate"]) == 1
+    assert [event.sequence for event in events] == list(range(1, len(events) + 1))
+
+
+@pytest.mark.parametrize("callback", ["record", "stop"])
+def test_stream_propagates_failed_caller_callbacks_and_reaps_native_process(
+    monkeypatch: pytest.MonkeyPatch,
+    callback: str,
+) -> None:
+    _available(monkeypatch, _scripted_capture)
+    monkeypatch.setattr(_ctp_worker, "stream", _scripted_stream)
+    recorded = 0
+    failure = ValueError("synthetic durable write failure")
+
+    def retain(event: BrokerEvent) -> None:
+        nonlocal recorded
+        recorded += 1
+        if callback == "record":
+            raise failure
+
+    def stop() -> bool:
+        if callback == "stop" and recorded:
+            raise failure
+        return False
+
+    with pytest.raises(ValueError) as caught:
+        ctp.stream_account(
+            get_profile("simnow_dev"),
+            _credentials(),
+            "rb2610",
+            on_event=retain,
+            should_stop=stop,
+            duration_seconds=5,
+        )
+    assert caught.value is failure and recorded == 1
+    assert not [
+        child for child in multiprocessing.active_children() if child.name == "northstar-ctp-stream"
+    ]
+
+
+@pytest.mark.parametrize(
+    "instrument, expected",
+    [
+        ("cr2610", "SDK_PROCESS_EXITED"),
+        ("to2610", "STREAM_STOP_TIMEOUT"),
+        ("pc2610", "STREAM_STOP_TIMEOUT"),
+    ],
+)
+def test_stream_crash_or_unresponsive_stop_does_not_leave_native_child_running(
+    monkeypatch: pytest.MonkeyPatch,
+    instrument: str,
+    expected: str,
+) -> None:
+    _available(monkeypatch, _scripted_capture)
+    monkeypatch.setattr(_ctp_worker, "stream", _crashed_stream)
+    events: list[BrokerEvent] = []
+    started = time.monotonic()
+    failure = ctp.stream_account(
+        get_profile("simnow_dev"),
+        _credentials(),
+        instrument,
+        on_event=events.append,
+        should_stop=lambda: bool(events),
+        duration_seconds=1,
+    )
+    assert time.monotonic() - started < 6
+    assert failure == expected
+    assert [event.callback for event in events] == (
+        [] if instrument == "pc2610" else ["OnFrontConnected"]
+    )
+    assert not [
+        child for child in multiprocessing.active_children() if child.name == "northstar-ctp-stream"
+    ]

@@ -204,6 +204,9 @@ def main() -> None:
                 assert not broker_status["credentials"]["configured"]
                 assert broker_status["connection"] == "ON_DEMAND_READ_ONLY"
                 saved_queries = command("broker-list")
+                saved_streams = [item["stream_id"] for item in command("stream-list")]
+                assert "SHADOW_ONLY" in request(f"{base_url}/streams").decode()
+                assert [item["stream_id"] for item in command("stream-list")] == saved_streams
                 missing_query = str(uuid4())
                 anonymous = build_opener(ProxyHandler({}))
                 for path in (
@@ -212,6 +215,8 @@ def main() -> None:
                     f"/api/broker/position-entries/{missing_query}",
                     f"/api/broker/position-checks/{missing_query}",
                     f"/api/broker/order-checks/{missing_query}",
+                    f"/api/streams/{missing_query}",
+                    f"/api/streams/{missing_query}/events",
                 ):
                     for browser, expected_status in ((anonymous, 403), (opener, 404)):
                         try:
@@ -254,6 +259,21 @@ def main() -> None:
                         "/api/broker/order-checks",
                         {"position_check_id": missing_query, "request_id": str(uuid4())},
                     ),
+                    (
+                        "/api/streams",
+                        {
+                            "query_batch_id": missing_query,
+                            "configuration_id": configuration["configuration_id"],
+                            "request_id": str(uuid4()),
+                            "duration_seconds": 300,
+                            "allow_retention": True,
+                            "use_basis": "Synthetic installation acceptance; never connect",
+                        },
+                    ),
+                    (
+                        f"/api/streams/{missing_query}/control",
+                        {"action": "RESUME", "request_id": str(uuid4())},
+                    ),
                 ):
                     # Even an existing browser cookie cannot mutate without CSRF.
                     unprotected = Request(
@@ -270,6 +290,7 @@ def main() -> None:
                         else:
                             raise AssertionError("broker mutation requires a session and CSRF")
                 assert command("broker-list") == saved_queries
+                assert [item["stream_id"] for item in command("stream-list")] == saved_streams
                 upload = {
                     "content_base64": base64.b64encode(csv).decode("ascii"),
                     "filename": source_file,
@@ -382,6 +403,7 @@ def main() -> None:
                 snapshot_id,
                 data,
                 command("broker-list"),
+                [item["stream_id"] for item in command("stream-list")],
             )
             print(json.dumps({"run_id": run_id, "summary": summary}, ensure_ascii=False))
         except Exception:
@@ -391,7 +413,15 @@ def main() -> None:
 
 
 def _check_restore(
-    executable, runtime, environment, parsed, run_id, snapshot_id, data, saved_queries
+    executable,
+    runtime,
+    environment,
+    parsed,
+    run_id,
+    snapshot_id,
+    data,
+    saved_queries,
+    saved_streams,
 ):
     """Use a generated disposable restore database; never overwrite the source database."""
 
@@ -460,9 +490,11 @@ def _check_restore(
             "position_entries_count",
             "position_checks_count",
             "order_checks_count",
+            "streams_count",
         }
         assert all(type(count) is int and count >= 0 for count in evidence.values())
         assert evidence["query_batches_count"] >= len(saved_queries)
+        assert evidence["streams_count"] >= len(saved_streams)
         if not saved_queries:
             assert evidence == {
                 "query_batches_count": 0,
@@ -472,8 +504,10 @@ def _check_restore(
                 "position_entries_count": 0,
                 "position_checks_count": 0,
                 "order_checks_count": 0,
+                "streams_count": 0,
             }
         assert command("broker-list") == saved_queries
+        assert [item["stream_id"] for item in command("stream-list")] == saved_streams
         assert command("dataset", snapshot_id) == data
         assert command("replay", run_id)["run_id"] == run_id
         assert all(item["file_status"] == "AVAILABLE" for item in command("sources"))

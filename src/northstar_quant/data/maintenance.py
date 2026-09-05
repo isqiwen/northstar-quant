@@ -309,6 +309,9 @@ def restore(engine: Engine, source_root: Path, directory: Path) -> dict[str, obj
             pending_queries_count += query["status"] == "PENDING"
     baselines = BrokerBaselines(engine).verify_all()
     positions = BrokerLedger(engine).verify_all()
+    from northstar_quant.broker.streams import BrokerStreams
+
+    streams_count = BrokerStreams(engine, library).verify_all()
     evidence = {
         "query_batches_count": query_batches_count,
         "pending_queries_count": pending_queries_count,
@@ -317,6 +320,7 @@ def restore(engine: Engine, source_root: Path, directory: Path) -> dict[str, obj
         "position_entries_count": positions["position_entries_count"],
         "position_checks_count": positions["position_checks_count"],
         "order_checks_count": positions["order_checks_count"],
+        "streams_count": streams_count,
     }
     (target.root / ".restore-incomplete").unlink()
     SourceFiles._sync(target.root)

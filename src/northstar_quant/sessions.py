@@ -219,6 +219,11 @@ class SessionStore:
             )
             return [_configuration(row) for row in rows]
 
+    def get_configuration(self, configuration_id: str) -> dict[str, object]:
+        """Read an exact immutable revision, without creating a Paper account."""
+        with self._engine.connect() as connection:
+            return self._get_configuration(connection, configuration_id)
+
     def create(
         self, snapshot_id: UUID, configuration_id: str, *, request_id: UUID
     ) -> dict[str, object]:

@@ -131,8 +131,10 @@ class BrokerEvent:
     data: dict[str, object] | None
 
     def __post_init__(self) -> None:
-        if type(self.sequence) is not int or not 1 <= self.sequence <= MAX_EVENTS:
-            raise ValueError("broker callback sequence exceeds the bounded capture")
+        # A continuous session persists callbacks individually; QueryCapture
+        # separately retains its smaller 10000-event collection limit below.
+        if type(self.sequence) is not int or not 1 <= self.sequence <= 100_000:
+            raise ValueError("broker callback sequence exceeds the bounded session")
         if self.channel not in {"TD", "MD"} or self.callback not in CALLBACK_FIELDS:
             raise ValueError("unsupported read-only CTP callback")
         if self.request_id is not None and (

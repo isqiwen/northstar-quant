@@ -466,3 +466,214 @@ if (reprocessForm) reprocessForm.addEventListener("submit", async (event) => {
     button.disabled = false;
   }
 });
+
+const streamCreateForm = document.querySelector("#stream-create-form");
+if (streamCreateForm) streamCreateForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const button = streamCreateForm.querySelector("button[type=submit]");
+  const notice = document.querySelector("#stream-create-status");
+  const key = "northstar.stream.create";
+  button.disabled = true;
+  status(notice, "正在固定范围并启动只读接收与影子预热；不会报单或撤单…");
+  try {
+    const values = Object.fromEntries(new FormData(streamCreateForm));
+    if (!/^[0-9]+$/.test(values.duration_seconds)) {
+      throw new Error("接收时长必须为 60–7200 秒的整数。");
+    }
+    const duration = Number(values.duration_seconds);
+    if (!Number.isSafeInteger(duration) || duration < 60 || duration > 7200) {
+      throw new Error("接收时长必须为 60–7200 秒的整数。");
+    }
+    const payload = {
+      query_batch_id: values.query_batch_id,
+      configuration_id: values.configuration_id,
+      duration_seconds: duration,
+      allow_retention: streamCreateForm.elements.allow_retention.checked,
+      use_basis: values.use_basis.trim(),
+    };
+    payload.request_id = workspaceCommand(key, payload);
+    const result = await api("/api/streams", payload);
+    sessionStorage.removeItem(key);
+    window.location.assign(`/streams/${encodeURIComponent(result.stream_id)}`);
+  } catch (error) {
+    status(notice, `${error.message} 同样参数重试复用原命令，不重复建立连接。`, true);
+    button.disabled = false;
+  }
+});
+
+const streamReport = document.querySelector("#stream-report");
+if (streamReport) {
+  const streamId = streamReport.dataset.streamId;
+  const streamPath = `/api/streams/${encodeURIComponent(streamId)}`;
+  const notice = document.querySelector("#stream-control-status");
+  const pollNotice = document.querySelector("#stream-poll-status");
+  const controls = [...document.querySelectorAll("[data-stream-control]")];
+  let currentStream = null;
+  let controlPending = false;
+  let readHealthy = false;
+  let readSequence = 0;
+  let pollTimer = null;
+  let leftPage = false;
+  const textOrUnknown = (value) => value === null || value === undefined ? "未取得" : String(value);
+
+  function streamControls() {
+    if (!currentStream) return;
+    const active = ["STARTING", "RECEIVING"].includes(currentStream.status);
+    for (const button of controls) {
+      const allowed = button.dataset.streamControl === "RESUME" ?
+        readHealthy && currentStream.status === "RECEIVING" && currentStream.connection === "RECEIVING" &&
+          currentStream.paused : active;
+      button.disabled = controlPending || !allowed;
+    }
+  }
+
+  function renderStream(stream) {
+    currentStream = stream;
+    streamReport.dataset.streamStatus = stream.status;
+    const state = stream.state;
+    const values = {
+      "stream-state": stream.status,
+      "stream-connection": stream.connection,
+      "stream-paused": stream.paused ? "暂停或尚未满足推进条件" : "已启用，仍需逐条检查",
+      "stream-reason": stream.reason,
+      "stream-trading-days": `${textOrUnknown(state.TD_trading_day)} / ${textOrUnknown(state.MD_trading_day)}`,
+      "stream-counts": `${stream.received} / ${stream.cursor}`,
+      "stream-bytes": stream.byte_count,
+      "stream-last-received": state.last_received_at,
+      "stream-last-market": state.last_market_received_at,
+      "stream-market-age": stream.market_age_seconds === null ? null :
+        stream.market_age_seconds.toFixed(1),
+      "stream-updated": stream.updated_at,
+    };
+    for (const [id, value] of Object.entries(values)) {
+      document.getElementById(id).textContent = textOrUnknown(value);
+    }
+    document.querySelector("#stream-last-data").textContent =
+      JSON.stringify(state.last_market_data ?? null, null, 2);
+    const quote = state.last_market_data;
+    document.querySelector("#stream-last-quote").textContent = quote ?
+      `源日期 ${textOrUnknown(quote.ActionDay)} · ${textOrUnknown(quote.UpdateTime)} · ` +
+      `最新价 ${textOrUnknown(quote.LastPrice)} · 数量字段 ${textOrUnknown(quote.Volume)}` :
+      "尚未收到行情，不以零价替代。";
+    document.querySelector("#stream-market-state").textContent =
+      JSON.stringify(state.market ?? null, null, 2);
+    document.querySelector("#stream-warmup").textContent = state.market ?
+      `${state.market.status} · ${state.market.reason}` : "尚无可处理行情，或影子预热已重置。";
+    const rows = stream.steps.slice(0, 10).map((step) => {
+      const row = document.createElement("tr");
+      const sequence = document.createElement("td");
+      const source = document.createElement("a");
+      source.href = `${streamPath}/events?after=${step.sequence - 1}`;
+      source.textContent = String(step.sequence);
+      sequence.append(source);
+      row.append(sequence);
+      const committed = document.createElement("td");
+      committed.textContent = step.committed_at;
+      row.append(committed);
+      const bar = step.result.bar;
+      const intent = step.result.intent;
+      const momentum = intent ? String(intent.momentum) : "";
+      const summaries = [bar ? [
+        `${bar.start_at} → ${bar.completed_at}`,
+        `开 ${bar.open} · 高 ${bar.high} · 低 ${bar.low} · 收 ${bar.close}`,
+        `采样累计差分量 ${textOrUnknown(bar.volume)}`,
+      ] : ["本步没有完成分钟"], intent ? [
+        `账户中性目标比例 ${intent.target_fraction}`,
+        `动量 ${momentum.length > 14 ? momentum.slice(0, 14) + "…" : momentum}`,
+        `有效至 ${intent.valid_until}`,
+      ] : ["本步没有影子目标"]];
+      for (const [index, lines] of summaries.entries()) {
+        const cell = document.createElement("td");
+        cell.className = "wrap-cell";
+        for (const line of lines) {
+          const paragraph = document.createElement("p");
+          paragraph.textContent = line;
+          cell.append(paragraph);
+        }
+        if (index === 1) {
+          const details = document.createElement("details");
+          const label = document.createElement("summary");
+          label.textContent = "本步完整证据";
+          const content = document.createElement("pre");
+          content.textContent = JSON.stringify(step, null, 2);
+          details.append(label, content);
+          cell.append(details);
+        }
+        row.append(cell);
+      }
+      const reason = document.createElement("td");
+      reason.className = "wrap-cell";
+      reason.textContent = textOrUnknown(step.result.reason);
+      row.append(reason);
+      return row;
+    });
+    if (!rows.length) {
+      const row = document.createElement("tr");
+      const cell = document.createElement("td");
+      cell.colSpan = 5;
+      cell.textContent = "尚无完成的分钟或影子目标；未收到不等于零。";
+      row.append(cell);
+      rows.push(row);
+    }
+    document.querySelector("#stream-steps").replaceChildren(...rows);
+    streamControls();
+  }
+
+  async function readStream() {
+    const sequence = ++readSequence;
+    const stream = await api(streamPath);
+    if (sequence !== readSequence || leftPage) return;
+    readHealthy = true;
+    renderStream(stream);
+    status(pollNotice, ["STOPPED", "FAILED"].includes(stream.status) ?
+      "接收已结束；保存证据仍可读取，页面不会重新连接柜台。" :
+      "每秒只读更新当前状态，不重连柜台。");
+  }
+
+  async function pollStream() {
+    try {
+      await readStream();
+    } catch (error) {
+      readHealthy = false;
+      status(pollNotice, `状态读取失败：${error.message} 当前显示保留的先前观察，` +
+        "不代表接收仍正常；可刷新页面重新读取，页面不会自动重连柜台。", true);
+      controls.find((button) => button.dataset.streamControl === "RESUME").disabled = true;
+      return;
+    }
+    if (!leftPage && !["STOPPED", "FAILED"].includes(streamReport.dataset.streamStatus)) {
+      pollTimer = window.setTimeout(pollStream, 1000);
+    }
+  }
+
+  for (const button of controls) button.addEventListener("click", async () => {
+    const action = button.dataset.streamControl;
+    const payload = {action};
+    const key = `northstar.stream.${streamId}.${action}`;
+    controlPending = true;
+    controls.forEach((control) => { control.disabled = true; });
+    status(notice, action === "STOP" ? "正在记录停止请求，等待接收进程结束…" :
+      action === "PAUSE" ? "正在暂停影子推进；继续接收实际回调…" :
+        "正在重新预热影子策略；不重连、不补做旧决策…");
+    try {
+      payload.request_id = workspaceCommand(key, payload);
+      await api(`${streamPath}/control`, payload);
+      await readStream();
+      sessionStorage.removeItem(key);
+      status(notice, action === "STOP" ?
+        "停止命令已保存；以接收状态确认是否结束。停止不代表撤单或平仓。" :
+        "控制命令已保存；当前生效状态见上方，没有执行授权或报撤单。");
+    } catch (error) {
+      readHealthy = false;
+      status(notice, `${error.message} 重试复用同一命令，不重新连接或补做决策。`, true);
+    } finally {
+      controlPending = false;
+      if (currentStream) streamControls();
+      else controls.forEach((control) => { control.disabled = control.dataset.streamControl === "RESUME"; });
+    }
+  });
+  window.addEventListener("pagehide", () => {
+    leftPage = true;
+    window.clearTimeout(pollTimer);
+  });
+  pollStream();
+}

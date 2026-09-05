@@ -11,7 +11,10 @@ import importlib.metadata
 import json
 import multiprocessing
 import platform
+import queue
+import re
 import tempfile
+import threading
 import time
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -30,6 +33,8 @@ _VERSION = "6.7.13"
 _MAX_EVENTS = 10_000
 _MAX_BYTES = 8 * 1024 * 1024
 _MAX_MESSAGE = 64 * 1024
+_STREAM_EVENTS = 100_000
+_STREAM_BYTES = 128 * 1024 * 1024
 
 
 def sdk_status() -> dict[str, object]:
@@ -240,3 +245,187 @@ def query_account(
             sender.close()
             receiver.close()
     return result()
+
+
+def stream_account(
+    profile: SimnowProfile,
+    credentials: Credentials,
+    instrument: str,
+    *,
+    on_event: Callable[[BrokerEvent], None],
+    should_stop: Callable[[], bool],
+    duration_seconds: float,
+) -> str | None:
+    """Receive one explicitly started, bounded, continuous read-only session.
+
+    Initial TD/MD authentication and seven queries share the proven query calls;
+    startup is limited to 45 seconds and the whole session to 1..7200 seconds.
+    Unlike query_account, all quotes and TD notifications reach on_event in local
+    sequence order, without accumulating the session in parent memory. Maximums
+    are 100000 events, 128 MiB overall, 64 KiB per message and 256 queued native
+    callbacks. Backpressure overflow stops reception, never silently drops ticks.
+
+    The caller must durably record each callback before returning, keep both
+    callbacks bounded, and own account exclusivity/authorization. Exceptions from
+    either callback propagate after reaping the native child; they are never
+    swallowed followed by continued reception. Stop is checked every <=100 ms
+    outside caller callbacks. Graceful stop/deadline returns None; native failure
+    returns a bounded code. A child that cannot stop within three seconds is
+    terminated, then killed if necessary. No reconnect/login retry or sending.
+    """
+    from northstar_quant.broker._ctp_worker import stream
+
+    if type(duration_seconds) not in {int, float} or not 1 <= duration_seconds <= 7200:
+        raise ValueError("read-only stream duration must be between 1 and 7200 seconds")
+    if profile != get_profile(profile.name):
+        raise ValueError("only the explicitly approved SimNow endpoints may be streamed")
+    validate_instrument(instrument)
+    if should_stop():
+        return None
+    installed = sdk_status()
+    if not installed["available"]:
+        return cast(str, installed["reason"])
+    context = multiprocessing.get_context("spawn")
+    receiver, sender = context.Pipe(duplex=False)
+    stop_signal = context.Event()
+    messages: queue.Queue[bytes | str] = queue.Queue(maxsize=1)
+    reader_stopped = threading.Event()
+
+    def read_messages() -> None:
+        # poll() only proves that some bytes are readable. A child can hang
+        # after a length prefix, so frame reads cannot own the cancellation loop.
+        while not reader_stopped.is_set():
+            packet: bytes | str
+            try:
+                packet = receiver.recv_bytes(_MAX_MESSAGE)
+            except EOFError:
+                packet = "SDK_PROCESS_EXITED"
+            except (OSError, ValueError):
+                packet = "SDK_STREAM_FAILED"
+            while not reader_stopped.is_set():
+                try:
+                    messages.put(packet, timeout=0.1)
+                    break
+                except queue.Full:
+                    pass
+            if isinstance(packet, str):
+                return
+
+    reader = threading.Thread(target=read_messages, name="northstar-ctp-stream-pipe", daemon=True)
+    failure: str | None = None
+    completed = releasing = False
+    sequence = total_bytes = 0
+    stop_deadline: float | None = None
+    deadline = time.monotonic() + duration_seconds
+    with tempfile.TemporaryDirectory(prefix="northstar-ctp-stream-") as directory:
+        child = context.Process(
+            target=stream,
+            args=(
+                sender,
+                profile,
+                credentials,
+                instrument,
+                directory,
+                duration_seconds,
+                stop_signal,
+            ),
+            name="northstar-ctp-stream",
+            daemon=True,
+        )
+        try:
+            child.start()
+            sender.close()
+            reader.start()
+            while True:
+                now = time.monotonic()
+                if stop_deadline is None and (now >= deadline or should_stop()):
+                    stop_signal.set()
+                    stop_deadline = now + 3
+                if stop_deadline is not None and now >= stop_deadline:
+                    failure = failure or (
+                        "SDK_RELEASE_TIMEOUT" if releasing else "STREAM_STOP_TIMEOUT"
+                    )
+                    break
+                event: BrokerEvent | None = None
+                try:
+                    try:
+                        encoded = messages.get(timeout=0.1)
+                    except queue.Empty:
+                        if not child.is_alive():
+                            failure = failure or "SDK_PROCESS_EXITED"
+                            break
+                        continue
+                    if isinstance(encoded, str):
+                        failure = failure or encoded
+                        break
+                    total_bytes += len(encoded)
+                    if total_bytes > _STREAM_BYTES:
+                        failure = "STREAM_LIMIT_EXCEEDED"
+                        break
+                    message = json.loads(encoded)
+                    if not isinstance(message, dict):
+                        raise ValueError("invalid native stream message")
+                    match message.get("kind"):
+                        case "event":
+                            if sequence >= _STREAM_EVENTS:
+                                failure = "STREAM_LIMIT_EXCEEDED"
+                                break
+                            event = BrokerEvent.from_dict(message["event"])
+                            if event.sequence != sequence + 1:
+                                raise ValueError("native stream sequence is not contiguous")
+                            sequence = event.sequence
+                        case "versions":
+                            if any(
+                                not isinstance(message.get(key), str)
+                                or len(message[key]) > 128
+                                or not message[key].startswith("v6.7.13_")
+                                for key in ("trader", "market")
+                            ):
+                                raise ValueError("invalid stream SDK identity")
+                        case "complete" | "releasing":
+                            reported = message.get("failure_code")
+                            if reported is not None and (
+                                not isinstance(reported, str)
+                                or re.fullmatch(r"[A-Z][A-Z0-9_]{0,63}", reported) is None
+                            ):
+                                raise ValueError("invalid stream failure code")
+                            failure = failure or reported
+                            if message["kind"] == "complete":
+                                completed = True
+                                break
+                            releasing = True
+                            stop_deadline = min(stop_deadline or now + 3, now + 3)
+                        case _:
+                            raise ValueError("unknown native stream message")
+                except EOFError:
+                    failure = failure or "SDK_PROCESS_EXITED"
+                    break
+                except (OSError, ValueError, TypeError, KeyError):
+                    failure = "SDK_STREAM_FAILED"
+                    break
+                # Deliberately outside the native decoding handler: a failed
+                # durable write must escape, after finally closes this receiver.
+                if event is not None:
+                    on_event(event)
+            if completed:
+                child.join(timeout=1)
+                if child.is_alive():
+                    failure = failure or "SDK_RELEASE_TIMEOUT"
+                elif child.exitcode != 0:
+                    failure = failure or "SDK_PROCESS_EXITED"
+        finally:
+            stop_signal.set()
+            reader_stopped.set()
+            if child.pid is not None:
+                if child.is_alive():
+                    child.terminate()
+                    child.join(timeout=1)
+                if child.is_alive():
+                    child.kill()
+                    child.join(timeout=1)
+                child.close()
+            if reader.ident is not None:
+                reader.join(timeout=1)
+            receiver.close()
+            sender.close()
+    return failure

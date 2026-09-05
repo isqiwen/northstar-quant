@@ -7,6 +7,7 @@ import shutil
 import subprocess
 from collections.abc import Iterator
 from contextlib import contextmanager
+from datetime import datetime, timedelta
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -15,12 +16,16 @@ from sqlalchemy import Engine, create_engine, text
 from test_broker_baselines import saved_query
 from test_broker_ledger import ledger_query, position, position_baseline, trade
 from test_broker_orders import order
+from test_broker_streams import Clock, logins, prepare, start
+from test_live import OPEN, tick
 
 from northstar_quant.broker.baselines import BrokerBaselines
 from northstar_quant.broker.ledger import BrokerLedger
 from northstar_quant.broker.records import BrokerRecords
 from northstar_quant.broker.settings import get_profile
+from northstar_quant.broker.streams import BrokerStreams
 from northstar_quant.data.files import SourceFiles
+from northstar_quant.data.library import DataLibrary
 from northstar_quant.data.maintenance import backup, restore
 from northstar_quant.db import initialize_database
 
@@ -45,7 +50,7 @@ def _empty_restore_database(source: Engine) -> Iterator[Engine]:
 
 
 def test_initialization_and_restore_keep_all_interrupted_query_evidence(
-    postgres_engine: Engine, clean_database: None, tmp_path: Path
+    postgres_engine: Engine, clean_database: None, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     del clean_database
     records = BrokerRecords(postgres_engine)
@@ -58,10 +63,12 @@ def test_initialization_and_restore_keep_all_interrupted_query_evidence(
         )
         for number in range(1, 102)
     ]
+    library, stream_source, configuration, calls = prepare(postgres_engine, tmp_path, monkeypatch)
     baselines = BrokerBaselines(postgres_engine)
-    baseline_id, check_id = position_baseline(postgres_engine), uuid4()
+    baseline_id = UUID(baselines.context(stream_source)["baseline"]["baseline_id"])
+    check_id = uuid4()
     baseline = baselines.get_baseline(baseline_id)
-    comparison = baselines.compare(baseline_id, saved_query(postgres_engine), request_id=check_id)
+    comparison = baselines.compare(baseline_id, stream_source, request_id=check_id)
     ledger = BrokerLedger(postgres_engine)
     entry_id, position_check_id, order_check_id = uuid4(), uuid4(), uuid4()
     fill = trade()
@@ -79,6 +86,27 @@ def test_initialization_and_restore_keep_all_interrupted_query_evidence(
     assert entry["status"] == "READY" and entry["fill_count"] == 1
     assert position_check["status"] == "MATCHED"
     assert order_check["status"] == "MATCHED" and len(order_check["orders"]) == 1
+    streams, stream_id = BrokerStreams(postgres_engine, library), uuid4()
+    try:
+        start(streams, stream_source, configuration, stream_id)
+        assert calls["ready"].wait(3)
+        logins(calls["accept"])
+        for sequence, seconds in enumerate(range(0, 181, 5), 3):
+            event = tick(
+                sequence,
+                OPEN + timedelta(seconds=seconds),
+                price="3100" if seconds < 120 else "3110",
+                volume=100 + sequence,
+            )
+            Clock.at = datetime.fromisoformat(event.received_at)
+            calls["accept"](event)
+    finally:
+        streams.close()
+    stream = streams.get(stream_id)
+    events = streams.events(stream_id)
+    assert stream["received"] == stream["cursor"] == len(events) == 39
+    assert len(stream["steps"]) == 2 and stream["steps"][0]["result"]["intent"] is not None
+    assert stream["status"] == "STOPPED" and stream["paused"]
     # Explicit initialization may add current Module tables, never rebind facts.
     initialize_database(postgres_engine)
     assert records.get(UUID(int=1)) == saved[0]
@@ -88,6 +116,7 @@ def test_initialization_and_restore_keep_all_interrupted_query_evidence(
     assert ledger.get(entry_id) == entry
     assert ledger.get_check(position_check_id) == position_check
     assert ledger.get_order_check(order_check_id) == order_check
+    assert streams.get(stream_id) == stream
     with _empty_restore_database(postgres_engine) as target:
         backup(postgres_engine, SourceFiles(tmp_path / "sources"), tmp_path / "backup")
         result = restore(target, tmp_path / "restored", tmp_path / "backup")
@@ -99,6 +128,7 @@ def test_initialization_and_restore_keep_all_interrupted_query_evidence(
             "position_entries_count": 1,
             "position_checks_count": 1,
             "order_checks_count": 1,
+            "streams_count": 1,
         }
         assert result["execution"] == "PAUSED"
         restored = BrokerRecords(target)
@@ -111,6 +141,13 @@ def test_initialization_and_restore_keep_all_interrupted_query_evidence(
         assert restored_ledger.get(entry_id) == entry
         assert restored_ledger.get_check(position_check_id) == position_check
         assert restored_ledger.get_order_check(order_check_id) == order_check
+        restored_streams = BrokerStreams(
+            target, DataLibrary(target, SourceFiles(tmp_path / "restored"))
+        )
+        assert restored_streams.get(stream_id) == stream
+        assert restored_streams.events(stream_id) == events
+        assert restored_streams.get(stream_id)["connection"] == "NOT_ATTACHED"
+        assert calls["count"] == 1  # Recovery did not invoke the synthetic receiver again.
         assert not (tmp_path / "restored/.restore-incomplete").exists()
 
 
@@ -173,6 +210,42 @@ def test_broken_position_chain_keeps_restore_unactivated(
         assert (tmp_path / "restored/.restore-incomplete").is_file()
 
 
+def test_corrupt_stream_parent_source_keeps_restore_unactivated(
+    postgres_engine: Engine, clean_database: None, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    del clean_database
+    library, source, configuration, calls = prepare(postgres_engine, tmp_path, monkeypatch)
+    streams, identifier = BrokerStreams(postgres_engine, library), uuid4()
+    try:
+        start(streams, source, configuration, identifier)
+        assert calls["ready"].wait(3)
+        logins(calls["accept"])
+        event = tick(3, OPEN)
+        Clock.at = datetime.fromisoformat(event.received_at)
+        calls["accept"](event)
+    finally:
+        streams.close()
+    assert streams.get(identifier)["received"] == streams.get(identifier)["cursor"] == 3
+    # A copied callback is the parent source of its stored projection. Damage
+    # that source without changing the projection or its pinned event hash.
+    with postgres_engine.begin() as connection:
+        connection.execute(text("SET LOCAL session_replication_role = replica"))
+        damaged = connection.execute(
+            text(
+                "UPDATE broker_stream_events SET event_hash=:hash "
+                "WHERE stream_id=:id AND sequence=3"
+            ),
+            {"hash": "0" * 64, "id": identifier},
+        )
+        assert damaged.rowcount == 1
+    with _empty_restore_database(postgres_engine) as target:
+        backup(postgres_engine, SourceFiles(tmp_path / "archive"), tmp_path / "backup")
+        with pytest.raises(ValueError, match="stream source sequence or digest"):
+            restore(target, tmp_path / "restored", tmp_path / "backup")
+        assert (tmp_path / "restored/.restore-incomplete").is_file()
+        assert calls["count"] == 1
+
+
 def test_restore_installs_new_module_tables_without_replacing_existing_facts(
     postgres_engine: Engine, tmp_path: Path
 ) -> None:
@@ -186,12 +259,21 @@ def test_restore_installs_new_module_tables_without_replacing_existing_facts(
             "position_checks_count": 0,
             "order_checks_count": 0,
         }
+        assert (
+            BrokerStreams(
+                source, DataLibrary(source, SourceFiles(tmp_path / "sources"))
+            ).verify_all()
+            == 0
+        )
         destination = tmp_path / "backup"
         document = backup(source, SourceFiles(tmp_path / "sources"), destination)
-        # This isolated source models the same core baseline before this empty
-        # Module table existed. No existing account fact is removed.
+        # This isolated source models the same core baseline before these empty
+        # Module tables existed. No existing account fact is removed.
         with source.begin() as connection:
-            connection.exec_driver_sql("DROP TABLE broker_order_checks")
+            connection.exec_driver_sql("DROP TABLE broker_stream_commands")
+            connection.exec_driver_sql("DROP TABLE broker_stream_steps")
+            connection.exec_driver_sql("DROP TABLE broker_stream_events")
+            connection.exec_driver_sql("DROP TABLE broker_streams")
         dump = destination / "database.dump"
         subprocess.run(
             [
@@ -223,6 +305,7 @@ def test_restore_installs_new_module_tables_without_replacing_existing_facts(
                 "position_entries_count": 0,
                 "position_checks_count": 0,
                 "order_checks_count": 0,
+                "streams_count": 0,
             }
             assert result["execution"] == "PAUSED"
             assert BrokerRecords(target).get(query_id) == original
