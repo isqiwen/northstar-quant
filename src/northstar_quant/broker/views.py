@@ -121,6 +121,7 @@ def report(
 不会把未知写成零，也不会覆盖研究或 Paper 账本。</p></aside>
 {_baseline_panel(batch, baseline_context)}
 {_ledger_panel(batch, baseline_context, ledger_context)}
+{_orders_panel(batch, ledger_context)}
 <section class="panel"><h2>查询范围与证据</h2><p>命令身份 {_text(batch["batch_id"])}</p>
 <p>交易账户身份 {_text(completeness["identity"])} ·
 柜台交易日 {_text(completeness["trading_day"])}</p>
@@ -408,4 +409,83 @@ def _position_check(check: dict[str, object], current_query_id: object) -> str:
 <p>null 代表未知；这里只保留观察，不自动入账、报撤单或释放预占。</p>
 {_json(activity)}
 </details><a href="/api/broker/position-checks/{_text(check["check_id"])}">查看固定数量比较证据</a>
+</details>"""
+
+
+def _orders_panel(batch: dict[str, object], context: dict[str, object]) -> str:
+    position_check, current = context["current_check"], context["current_order_check"]
+    if current is not None:
+        action = "<p>本次持仓比较已有固定委托核对；读取原结果，不重复核对。</p>" + _order_check(
+            _object(current), batch["batch_id"]
+        )
+    elif position_check is not None:
+        action = f"""<button type="button" data-broker-orders
+data-position-check-id="{_text(_object(position_check)["check_id"])}">
+核对保存的委托与已入账成交（仅本地）</button>"""
+    else:
+        action = "<p>先固定本次独立查询与账簿的持仓比较，才能核对同一组输入的委托与成交。</p>"
+    history = "".join(
+        _order_check(check, batch["batch_id"])
+        for check in cast(list[dict[str, object]], context["order_checks"])
+        if current is None or check["check_id"] != _object(current)["check_id"]
+    )
+    return f"""<section class="panel" id="broker-orders-panel">
+<h2>保存的委托与逐笔成交核对</h2>
+<p>复用已固定持仓比较的入账依据和独立查询，不连接柜台、不接收手工订单或成交，
+也不修改原查询、原入账或原持仓比较。</p>
+{action}<p id="broker-orders-status" class="status" role="status"></p>
+<p class="muted">撤单提交或撤单被拒绝不等于已撤销；终态仍可能缺少成交，
+未决委托在后续查询中消失也不能视为已撤销。所有委托仍属于外部观察，
+没有订单发送所有权，也不授权释放预占。</p>
+<p class="muted">MATCHED 只表示有限委托观察与成交数量相符，不是完整订单生命周期或账户对账。
+仍为 UNRECONCILED，报单、撤单和实盘权限始终关闭。</p>
+<h3>其他近期委托核对（最近 20 条内）</h3>{history or "<p>没有其他固定委托核对。</p>"}
+</section>"""
+
+
+def _order_check(check: dict[str, object], current_query_id: object) -> str:
+    label = {
+        "MATCHED": "委托观察与已入账成交数量相符（有限范围）",
+        "DIFFERENCES": "委托与成交存在差异",
+        "UNKNOWN": "事实不足，不能判断委托与成交一致",
+    }[str(check["status"])]
+    rows = []
+    for order in cast(list[dict[str, object]], check["orders"]):
+        active = "未知" if order["active"] is None else "活动" if order["active"] else "非活动"
+        values = [
+            order["symbol"],
+            order["order_sys_id"],
+            order["order_state"],
+            order["submit_state"],
+            active,
+            order["original_lots"],
+            order["reported_traded_lots"],
+            order["reported_remaining_lots"],
+            order["ledger_filled_lots"],
+            order["fill_gap_lots"],
+        ]
+        rows.append(
+            "<tr>"
+            + "".join(f"<td>{_text('未知' if value is None else value)}</td>" for value in values)
+            + "</tr>"
+        )
+    if not rows:
+        rows.append(
+            '<tr><td colspan="10">没有可关联委托；是否已知请以核对状态与问题为准。</td></tr>'
+        )
+    opened = " open" if check["query_batch_id"] == current_query_id else ""
+    evidence = {
+        key: check[key] for key in ("unlinked_fills", "unrecorded_fills", "unresolved_observations")
+    }
+    return f"""<details{opened}><summary>{_text(label)} · {_text(check["recorded_at"])}</summary>
+<p><a href="/api/broker/position-checks/{_text(check["position_check_id"])}">固定持仓比较依据</a> ·
+<a href="/broker/{_text(check["query_batch_id"])}">独立查询来源</a></p>
+<div class="table-scroll"><table><thead><tr><th>合约</th><th>柜台委托号</th><th>委托状态</th>
+<th>提交状态</th><th>活动性</th><th>原始手数</th><th>柜台成交</th><th>柜台剩余</th>
+<th>已入账成交</th><th>成交差</th></tr></thead><tbody>{"".join(rows)}</tbody></table></div>
+<p class="muted">成交差 = 柜台报告成交 − 已入账逐笔成交；非活动不代表成交已全部核清。</p>
+<h4>核对问题</h4>{_json(check["problems"])}
+<details><summary>逐单问题、成交身份与回包定位</summary>{_json(check["orders"])}</details>
+<details><summary>未关联／未入账成交与未解决观察</summary>{_json(evidence)}</details>
+<a href="/api/broker/order-checks/{_text(check["check_id"])}">查看固定委托核对证据（本机私有）</a>
 </details>"""

@@ -82,6 +82,7 @@ def require_current_database(engine: Engine) -> None:
         "broker_baseline_checks",
         "broker_position_entries",
         "broker_position_checks",
+        "broker_order_checks",
     }
     if actual != expected or not required <= present:
         raise ValueError("database does not have the current Northstar baseline")

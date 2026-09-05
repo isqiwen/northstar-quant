@@ -140,6 +140,31 @@ TD 身份确认、各查询完整、交易日仍为 `20260904`，全账户持仓
 非空实际成交、活动委托、逐笔费用、资金流、结算和持续回报均未完成验收，
 所有结果保持 `UNRECONCILED`，无报撤单或生产权限；没有主动制造交易样本。
 
+### 委托观察与逐笔成交关联
+
+在上述固定持仓比较之上，增加仅处理本地记录的委托核对。`OrderStatus` 与
+`OrderSubmitStatus` 分别解释，数量依据 `VolumeTotalOriginal`、`VolumeTraded`、
+`VolumeTotal`；字段和枚举仍来自同版本 SDK 的
+[Order 结构](https://github.com/nooperpudd/ctpwrapper/blob/f7e08c01e25359b5f4385c14388f8dfe5a1d6fd7/ctp/header/ThostFtdcUserApiStruct.h#L1368)
+和[状态定义](https://github.com/nooperpudd/ctpwrapper/blob/f7e08c01e25359b5f4385c14388f8dfe5a1d6fd7/ctp/header/ThostFtdcUserApiDataType.h#L573)。
+撤单提交、撤单被拒绝与撤销终态不能合并；插入拒绝与撤销状态组合也单独显示，
+参考[维护者的处理](https://github.com/vnpy/vnpy_ctp/blob/ad76250cf87cf5b03604336fde8c7489bdc0d0d7/vnpy_ctp/gateway/ctp_gateway.py#L667)，
+但不引入其发送实现或仅按 OrderRef 关联的简化身份。
+
+关联使用同环境、账户、交易日、交易所和 `OrderSysID`，保留前导零及回包自身的
+`FrontID/SessionID/OrderRef`。缺交易所委托编号、身份冲突及歧义原样保留；
+同一成交只从已有去重账簿累计，当前比较查询中的新成交不能用来补齐它自己的核对依据。
+核对只到固定入账序号，后续入账不改变旧结果。旧委托消失、累计量回退、终态改变保持未知。
+这里没有本地发送记录，也不释放预占；仍不构成订单生命周期、完整账户或执行权限验收。
+
+2026-09-05 **13:53 UTC**，真实浏览器复用上节已经保存的独立空账户查询与持仓比较，
+生成委托核对 `MATCHED`（0 条委托、0 笔未关联成交），并保持 `UNRECONCILED`。
+本轮没有新增柜台查询；全部 7 批原始查询、已有入账和持仓比较摘要保持不变。
+桌面 1440 与窄屏 390 无横向溢出、JavaScript 错误为 0；应用重启后返回原固定结果。
+联合备份在新空库恢复，核验 7 批查询、1 个观察基准、1 次观察比较、1 个持仓入账、
+1 次持仓比较及 1 次委托核对，执行保持 `PAUSED`。实际非空委托仍未验收；
+部分成交、撤单状态、负成交差、歧义与丢失等行为由合成回包测试保护，不冒充真实交易。
+
 ## 授权范围内的 TCP 实测
 
 用户指定以下两套范围；本次未能从可访问的官方页面独立复核新端口的归属。

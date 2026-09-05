@@ -211,6 +211,7 @@ def main() -> None:
                     f"/api/broker/queries/{missing_query}/ledger-context",
                     f"/api/broker/position-entries/{missing_query}",
                     f"/api/broker/position-checks/{missing_query}",
+                    f"/api/broker/order-checks/{missing_query}",
                 ):
                     for browser, expected_status in ((anonymous, 403), (opener, 404)):
                         try:
@@ -248,6 +249,10 @@ def main() -> None:
                             "query_batch_id": missing_query,
                             "request_id": str(uuid4()),
                         },
+                    ),
+                    (
+                        "/api/broker/order-checks",
+                        {"position_check_id": missing_query, "request_id": str(uuid4())},
                     ),
                 ):
                     # Even an existing browser cookie cannot mutate without CSRF.
@@ -454,6 +459,7 @@ def _check_restore(
             "checks_count",
             "position_entries_count",
             "position_checks_count",
+            "order_checks_count",
         }
         assert all(type(count) is int and count >= 0 for count in evidence.values())
         assert evidence["query_batches_count"] >= len(saved_queries)
@@ -465,6 +471,7 @@ def _check_restore(
                 "checks_count": 0,
                 "position_entries_count": 0,
                 "position_checks_count": 0,
+                "order_checks_count": 0,
             }
         assert command("broker-list") == saved_queries
         assert command("dataset", snapshot_id) == data

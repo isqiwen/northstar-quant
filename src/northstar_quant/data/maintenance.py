@@ -316,6 +316,7 @@ def restore(engine: Engine, source_root: Path, directory: Path) -> dict[str, obj
         "checks_count": baselines["checks_count"],
         "position_entries_count": positions["position_entries_count"],
         "position_checks_count": positions["position_checks_count"],
+        "order_checks_count": positions["order_checks_count"],
     }
     (target.root / ".restore-incomplete").unlink()
     SourceFiles._sync(target.root)
@@ -327,7 +328,7 @@ def restore(engine: Engine, source_root: Path, directory: Path) -> dict[str, obj
         "evidence": evidence,
         "execution": "PAUSED",
         "scope": (
-            "retained sources, data/research, broker baseline and position ledger evidence; "
+            "retained sources, data/research, broker baseline, position and order evidence; "
             "current account reconciliation and execution recovery are not established"
         ),
     }

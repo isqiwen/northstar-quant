@@ -64,6 +64,15 @@ _checks = Table(
     Column("sha256", String(64), nullable=False),
     UniqueConstraint("entry_id", "query_batch_id"),
 )
+_order_checks = Table(
+    "broker_order_checks",
+    _metadata,
+    Column("check_id", PGUUID(as_uuid=True), primary_key=True),
+    Column("position_check_id", PGUUID(as_uuid=True), nullable=False, unique=True),
+    Column("recorded_at", DateTime(timezone=True), nullable=False),
+    Column("document", JSONB, nullable=False),
+    Column("sha256", String(64), nullable=False),
+)
 _EXECUTION = {"order_sending": False, "cancel_sending": False}
 _MAX_ENTRIES = 1000
 _MAX_FILLS = 10000
@@ -80,7 +89,7 @@ def initialize_broker_ledger(connection: Connection) -> None:
         END;
         $$ LANGUAGE plpgsql
     """)
-    for table in (_entries, _checks):
+    for table in (_entries, _checks, _order_checks):
         connection.exec_driver_sql(f"DROP TRIGGER IF EXISTS immutable ON {table.name}")
         connection.exec_driver_sql(f"""
             CREATE TRIGGER immutable BEFORE UPDATE OR DELETE ON {table.name}
@@ -260,6 +269,8 @@ class BrokerLedger:
         keys = (
             ("baseline_id", "source_batch_id", "ordinal")
             if table is _entries
+            else ("position_check_id",)
+            if table is _order_checks
             else ("entry_id", "query_batch_id")
         )
         if any(
@@ -319,6 +330,91 @@ class BrokerLedger:
         if check["entry_hash"] != _hash(entry) or check["query_hash"] != _hash(source):
             raise ValueError("position comparison input evidence is damaged")
         return check
+
+    def get_order_check(self, check_id: UUID) -> dict[str, Any]:
+        checked = self._raw(_order_checks, check_id)
+        try:
+            parent = self.get_check(UUID(checked["position_check_id"]))
+        except LookupError as error:
+            raise ValueError("order comparison parent evidence is missing") from error
+        if (
+            checked["position_check_hash"] != _hash(parent)
+            or checked["entry_id"] != parent["entry_id"]
+            or checked["query_batch_id"] != parent["query_batch_id"]
+        ):
+            raise ValueError("order comparison input evidence is damaged")
+        return checked
+
+    def check_orders(self, position_check_id: UUID, *, request_id: UUID) -> dict[str, Any]:
+        """Freeze an order/fill review of an existing independent quantity comparison.
+
+        No new query, fill ingestion, catalog mutation, or reservation release.
+        The parent fixes both the later query and the exact historical entry;
+        newer entries must never change this comparison's expected fill set.
+        """
+        from sqlalchemy.dialects.postgresql import insert
+
+        from northstar_quant.broker.orders import inspect_orders
+
+        if not isinstance(position_check_id, UUID) or not isinstance(request_id, UUID):
+            raise ValueError("order comparisons require UUID identities")
+        try:
+            saved = self.get_order_check(request_id)
+        except LookupError:
+            pass
+        else:
+            if saved["position_check_id"] != str(position_check_id):
+                raise ValueError("order comparison is already bound to different input")
+            return saved
+        parent = self.get_check(position_check_id)
+        entry = self.get(UUID(parent["entry_id"]))
+        history = self._history(UUID(entry["baseline_id"]), through=entry["ordinal"])
+        sources = [self._records.get(UUID(item["source_batch_id"])) for item in history]
+        sources.append(self._records.get(UUID(parent["query_batch_id"])))
+        known = [fill for item in history for fill in item["added_fills"]]
+        result = inspect_orders(parent, sources, known)
+        now = _now()
+        document = {
+            "check_id": str(request_id),
+            "position_check_id": str(position_check_id),
+            "entry_id": parent["entry_id"],
+            "query_batch_id": parent["query_batch_id"],
+            "position_check_hash": _hash(parent),
+            "recorded_at": now,
+            "implementation_hash": implementation_hash(),
+            **result,
+            "scope": "ORDER_OBSERVATIONS_AND_RECORDED_FILLS",
+            "reconciliation": "UNRECONCILED",
+            "execution": dict(_EXECUTION),
+            "limitations": [
+                "OBSERVED_ORDERS_HAVE_NO_LOCAL_SEND_OR_CANCEL_AUTHORIZATION",
+                "CUMULATIVE_QUANTITIES_DO_NOT_REPLACE_INDIVIDUAL_FILLS",
+                "NO_RESERVATION_RELEASE_OR_ORDER_LIFECYCLE_RECOVERY",
+                "NO_CONFIRMED_FEES_CASHFLOW_OR_SETTLEMENT_LEDGER",
+                "QUERIES_ARE_NOT_ATOMIC_OR_CONTINUOUS_EVENT_COVERAGE",
+            ],
+        }
+        with self._engine.begin() as connection:
+            connection.execute(
+                insert(_order_checks)
+                .values(
+                    check_id=request_id,
+                    position_check_id=position_check_id,
+                    recorded_at=_time(now),
+                    document=document,
+                    sha256=_hash(document),
+                )
+                .on_conflict_do_nothing()
+            )
+        try:
+            saved = self.get_order_check(request_id)
+        except LookupError as error:
+            raise ValueError(
+                "position comparison already has an order review; read it instead"
+            ) from error
+        if saved["position_check_id"] != str(position_check_id):
+            raise ValueError("order comparison is already bound to different input")
+        return saved
 
     @staticmethod
     def _after(batch: dict[str, Any], recorded_at: str) -> None:
@@ -641,6 +737,8 @@ class BrokerLedger:
                 "current_check": None,
                 "entries": [],
                 "checks": [],
+                "current_order_check": None,
+                "order_checks": [],
             }
         history = self._history(UUID(baseline["baseline_id"]))
         current = history[-1] if history else None
@@ -664,6 +762,25 @@ class BrokerLedger:
                     )
                 )
             )
+            order_ids = list(
+                connection.scalars(
+                    select(_order_checks.c.check_id)
+                    .join(_checks, _checks.c.check_id == _order_checks.c.position_check_id)
+                    .join(_entries, _entries.c.entry_id == _checks.c.entry_id)
+                    .where(_entries.c.baseline_id == UUID(baseline["baseline_id"]))
+                    .order_by(_order_checks.c.recorded_at.desc())
+                    .limit(20)
+                )
+            )
+            current_order_id = (
+                None
+                if current_id is None
+                else connection.scalar(
+                    select(_order_checks.c.check_id).where(
+                        _order_checks.c.position_check_id == current_id
+                    )
+                )
+            )
         return {
             "baseline_id": baseline["baseline_id"],
             "current": current,
@@ -673,10 +790,14 @@ class BrokerLedger:
             "current_check": None if current_id is None else self.get_check(current_id),
             "entries": list(reversed(history[-20:])),
             "checks": [self.get_check(identifier) for identifier in ids],
+            "current_order_check": None
+            if current_order_id is None
+            else self.get_order_check(current_order_id),
+            "order_checks": [self.get_order_check(identifier) for identifier in order_ids],
         }
 
     def verify_all(self) -> dict[str, int]:
-        counts = {"position_entries_count": 0, "position_checks_count": 0}
+        counts = {"position_entries_count": 0, "position_checks_count": 0, "order_checks_count": 0}
         with self._engine.connect() as connection:
             baseline_ids = list(connection.scalars(select(_entries.c.baseline_id).distinct()))
             for baseline_id in baseline_ids:
@@ -684,6 +805,9 @@ class BrokerLedger:
             for check_id in connection.scalars(select(_checks.c.check_id)).yield_per(100):
                 self.get_check(check_id)
                 counts["position_checks_count"] += 1
+            for check_id in connection.scalars(select(_order_checks.c.check_id)).yield_per(100):
+                self.get_order_check(check_id)
+                counts["order_checks_count"] += 1
         return counts
 
 

@@ -170,6 +170,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     broker_positions.add_argument("entry_id", type=UUID)
     broker_positions.add_argument("query_batch_id", type=UUID)
     broker_positions.add_argument("--request-id", type=UUID, required=True)
+    broker_orders = commands.add_parser(
+        "broker-orders", help="check saved order observations against recorded fills; no connection"
+    )
+    broker_orders.add_argument("position_check_id", type=UUID)
+    broker_orders.add_argument("--request-id", type=UUID, required=True)
     arguments = parser.parse_args(argv)
 
     engine = None
@@ -213,6 +218,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "broker-ingest",
             "broker-ledger",
             "broker-positions",
+            "broker-orders",
         }:
             from northstar_quant.broker.workspace import BrokerWorkspace
 
@@ -268,6 +274,12 @@ def main(argv: Sequence[str] | None = None) -> int:
                     arguments.entry_id,
                     arguments.query_batch_id,
                     request_id=arguments.request_id,
+                )
+                print(json.dumps(broker_result, ensure_ascii=False))
+                return 0 if broker_result["status"] == "MATCHED" else 2
+            if arguments.command == "broker-orders":
+                broker_result = broker.check_orders(
+                    arguments.position_check_id, request_id=arguments.request_id
                 )
                 print(json.dumps(broker_result, ensure_ascii=False))
                 return 0 if broker_result["status"] == "MATCHED" else 2

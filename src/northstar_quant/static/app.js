@@ -323,6 +323,25 @@ document.querySelectorAll("[data-broker-ledger]").forEach((button) => {
   });
 });
 
+document.querySelectorAll("[data-broker-orders]").forEach((button) => {
+  button.addEventListener("click", async () => {
+    const payload = {position_check_id: button.dataset.positionCheckId};
+    const key = `northstar.broker.orders.${payload.position_check_id}`;
+    const notice = document.querySelector("#broker-orders-status");
+    button.disabled = true;
+    status(notice, "正在核对已保存的委托与逐笔成交，不连接柜台或修改入账…");
+    try {
+      payload.request_id = workspaceCommand(key, payload);
+      await api("/api/broker/order-checks", payload);
+      sessionStorage.removeItem(key);
+      window.location.reload();
+    } catch (error) {
+      status(notice, `${error.message} 重试复用同一命令，不连接柜台或重复核对。`, true);
+      button.disabled = false;
+    }
+  });
+});
+
 if (configurationForm) configurationForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const button = configurationForm.querySelector("button[type=submit]");

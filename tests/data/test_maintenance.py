@@ -14,6 +14,7 @@ import pytest
 from sqlalchemy import Engine, create_engine, text
 from test_broker_baselines import saved_query
 from test_broker_ledger import ledger_query, position, position_baseline, trade
+from test_broker_orders import order
 
 from northstar_quant.broker.baselines import BrokerBaselines
 from northstar_quant.broker.ledger import BrokerLedger
@@ -62,7 +63,7 @@ def test_initialization_and_restore_keep_all_interrupted_query_evidence(
     baseline = baselines.get_baseline(baseline_id)
     comparison = baselines.compare(baseline_id, saved_query(postgres_engine), request_id=check_id)
     ledger = BrokerLedger(postgres_engine)
-    entry_id, position_check_id = uuid4(), uuid4()
+    entry_id, position_check_id, order_check_id = uuid4(), uuid4(), uuid4()
     fill = trade()
     entry = ledger.ingest(
         baseline_id,
@@ -71,11 +72,13 @@ def test_initialization_and_restore_keep_all_interrupted_query_evidence(
     )
     position_check = ledger.compare(
         entry_id,
-        ledger_query(postgres_engine, trades=(fill,), positions=(position(),)),
+        ledger_query(postgres_engine, trades=(fill,), positions=(position(),), orders=(order(),)),
         request_id=position_check_id,
     )
+    order_check = ledger.check_orders(position_check_id, request_id=order_check_id)
     assert entry["status"] == "READY" and entry["fill_count"] == 1
     assert position_check["status"] == "MATCHED"
+    assert order_check["status"] == "MATCHED" and len(order_check["orders"]) == 1
     # Explicit initialization may add current Module tables, never rebind facts.
     initialize_database(postgres_engine)
     assert records.get(UUID(int=1)) == saved[0]
@@ -84,6 +87,7 @@ def test_initialization_and_restore_keep_all_interrupted_query_evidence(
     assert baselines.get_check(check_id) == comparison
     assert ledger.get(entry_id) == entry
     assert ledger.get_check(position_check_id) == position_check
+    assert ledger.get_order_check(order_check_id) == order_check
     with _empty_restore_database(postgres_engine) as target:
         backup(postgres_engine, SourceFiles(tmp_path / "sources"), tmp_path / "backup")
         result = restore(target, tmp_path / "restored", tmp_path / "backup")
@@ -94,6 +98,7 @@ def test_initialization_and_restore_keep_all_interrupted_query_evidence(
             "checks_count": 1,
             "position_entries_count": 1,
             "position_checks_count": 1,
+            "order_checks_count": 1,
         }
         assert result["execution"] == "PAUSED"
         restored = BrokerRecords(target)
@@ -105,6 +110,7 @@ def test_initialization_and_restore_keep_all_interrupted_query_evidence(
         restored_ledger = BrokerLedger(target)
         assert restored_ledger.get(entry_id) == entry
         assert restored_ledger.get_check(position_check_id) == position_check
+        assert restored_ledger.get_order_check(order_check_id) == order_check
         assert not (tmp_path / "restored/.restore-incomplete").exists()
 
 
@@ -178,14 +184,14 @@ def test_restore_installs_new_module_tables_without_replacing_existing_facts(
         assert BrokerLedger(source).verify_all() == {
             "position_entries_count": 0,
             "position_checks_count": 0,
+            "order_checks_count": 0,
         }
         destination = tmp_path / "backup"
         document = backup(source, SourceFiles(tmp_path / "sources"), destination)
-        # This isolated source models the same core baseline before these two
-        # empty Module tables existed. No existing account fact is removed.
+        # This isolated source models the same core baseline before this empty
+        # Module table existed. No existing account fact is removed.
         with source.begin() as connection:
-            connection.exec_driver_sql("DROP TABLE broker_position_checks")
-            connection.exec_driver_sql("DROP TABLE broker_position_entries")
+            connection.exec_driver_sql("DROP TABLE broker_order_checks")
         dump = destination / "database.dump"
         subprocess.run(
             [
@@ -216,18 +222,56 @@ def test_restore_installs_new_module_tables_without_replacing_existing_facts(
                 "checks_count": 0,
                 "position_entries_count": 0,
                 "position_checks_count": 0,
+                "order_checks_count": 0,
             }
             assert result["execution"] == "PAUSED"
             assert BrokerRecords(target).get(query_id) == original
             assert BrokerLedger(target).verify_all() == {
                 "position_entries_count": 0,
                 "position_checks_count": 0,
+                "order_checks_count": 0,
             }
             restored = BrokerBaselines(target)
             baseline = restored.establish(query_id, request_id=uuid4())
             assert baseline["source_batch_id"] == str(query_id)
             assert BrokerRecords(target).get(query_id) == original
             assert not (tmp_path / "restored/.restore-incomplete").exists()
+
+
+def test_missing_order_check_parent_keeps_restore_unactivated(
+    postgres_engine: Engine, clean_database: None, tmp_path: Path
+) -> None:
+    del clean_database
+    ledger = BrokerLedger(postgres_engine)
+    baseline_id = position_baseline(postgres_engine)
+    entry_id, position_check_id, order_check_id = uuid4(), uuid4(), uuid4()
+    fill = trade()
+    ledger.ingest(
+        baseline_id,
+        ledger_query(postgres_engine, trades=(fill,), positions=(position(),)),
+        request_id=entry_id,
+    )
+    ledger.compare(
+        entry_id,
+        ledger_query(postgres_engine, trades=(fill,), positions=(position(),), orders=(order(),)),
+        request_id=position_check_id,
+    )
+    comparison = ledger.check_orders(position_check_id, request_id=order_check_id)
+    assert comparison["status"] == "MATCHED" and len(comparison["orders"]) == 1
+    # Fault injection removes only the fixed parent. The order check's own
+    # digest, ledger entry and source query remain intact; they cannot replace it.
+    with postgres_engine.begin() as connection:
+        connection.execute(text("SET LOCAL session_replication_role = replica"))
+        removed = connection.execute(
+            text("DELETE FROM broker_position_checks WHERE check_id = :id"),
+            {"id": position_check_id},
+        )
+        assert removed.rowcount == 1
+    with _empty_restore_database(postgres_engine) as target:
+        backup(postgres_engine, SourceFiles(tmp_path / "sources"), tmp_path / "backup")
+        with pytest.raises(ValueError, match="order comparison parent evidence"):
+            restore(target, tmp_path / "restored", tmp_path / "backup")
+        assert (tmp_path / "restored/.restore-incomplete").is_file()
 
 
 def test_restore_never_writes_inside_backup_and_manifest_cannot_block_on_fifo(

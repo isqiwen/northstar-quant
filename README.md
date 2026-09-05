@@ -172,6 +172,34 @@ restore preserve fixed results; integrity checks never repair missing catalog fa
 Back up the running database before deployment, then explicitly run `init-db`
 to add the two position-ledger tables without replacing retained account records.
 
+### Order observations and recorded fills
+
+On a saved independent position comparison, “核对委托与已入账成交” fixes an
+order review using that comparison's exact historical ledger and later query:
+
+```sh
+northstar broker-orders POSITION_CHECK_UUID --request-id ORDER_CHECK_UUID
+```
+
+It shows reported order and submission states separately, cumulative traded
+quantity, linked individual ledger fills and their signed difference. Unrecorded
+trades from the comparison query remain differences; they never fill their own
+ledger gap. Later ledger entries cannot change an earlier review's inputs.
+Repeated observations do not duplicate fills; conflicting identities, declining
+cumulative quantities, changed terminal states and missing previously observed
+orders remain unknown. Empty exchange order IDs retain their original fields
+without guessing an association from OrderRef alone. At most 10,000 observations
+are reviewed per command.
+
+Cancel-submitted and cancel-rejected are not cancellation completion. A canceled
+order can still lack recorded fills; its unfilled quantity is not necessarily
+queued quantity. This is an external order observation, not a locally sent or
+owned order, continuous lifecycle recovery or permission to release reservations.
+`MATCHED` only describes this observation/fill scope; all results remain
+`UNRECONCILED`, with no sending authority. No command reads credentials or connects.
+After backing up the running database, `init-db` adds the single order-review
+table; original queries, position entries and comparisons remain unchanged.
+
 ## Command line
 
 With Python 3.12, `uv`, and PostgreSQL 17:
@@ -271,7 +299,8 @@ to that database and `NORTHSTAR_DATA_DIR` to a **new, independent absolute path*
 then run `northstar restore /absolute/backup-directory`. Do not initialize the
 target first. Restore preflights every referenced file and the dump, never drops
 or overwrites an existing database, and checks source/processing/publication
-relations, all saved broker query evidence and baseline/comparison references.
+relations, all saved broker query evidence, baseline/comparison references and
+the position-ledger and order-review input chains.
 An incomplete restore blocks normal startup. These are integrity checks, not a new
 broker observation; restored comparisons never establish current account safety.
 Recovered Paper remains paused; this is data/research recovery, not broker

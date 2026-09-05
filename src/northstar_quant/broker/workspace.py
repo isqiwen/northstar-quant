@@ -86,6 +86,14 @@ class BrokerWorkspace:
     def get_position_check(self, check_id: UUID) -> dict[str, object]:
         return self._ledger.get_check(check_id)
 
+    def check_orders(self, position_check_id: UUID, *, request_id: UUID) -> dict[str, object]:
+        """Compare saved order observations with recorded fills without querying again."""
+
+        return self._ledger.check_orders(position_check_id, request_id=request_id)
+
+    def get_order_check(self, check_id: UUID) -> dict[str, object]:
+        return self._ledger.get_order_check(check_id)
+
     def query(self, profile_name: str, instrument: str, *, request_id: UUID) -> dict[str, object]:
         profile = get_profile(profile_name)
         instrument = validate_instrument(instrument)

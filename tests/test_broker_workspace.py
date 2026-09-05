@@ -14,6 +14,8 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine
 from test_broker_baselines import saved_query
+from test_broker_ledger import ledger_query, position, position_baseline, trade
+from test_broker_orders import order
 
 from northstar_quant.broker import ctp
 from northstar_quant.broker.records import QueryCapture
@@ -464,14 +466,116 @@ def test_cli_position_ledger_does_not_turn_unknown_observations_into_success(
     assert main(["broker-ledger", str(later)]) == 0
     context = json.loads(capsys.readouterr().out)
     assert context["current"] == entry and context["current_check"] == check
+    order_command = ["broker-orders", check["check_id"], "--request-id", str(uuid4())]
+    assert main(order_command) == 0
+    order_check = json.loads(capsys.readouterr().out)
+    assert order_check["status"] == "MATCHED"
+    assert order_check["reconciliation"] == "UNRECONCILED"
+    assert main(order_command) == 0
+    assert json.loads(capsys.readouterr().out) == order_check
     incomplete = saved_query(postgres_engine, failure="SDK_PROCESS_EXITED")
     assert (
         main(["broker-positions", str(entry_id), str(incomplete), "--request-id", str(uuid4())])
         == 2
     )
+    incomplete_check = json.loads(capsys.readouterr().out)
+    assert incomplete_check["status"] == "UNKNOWN"
+    assert main(["broker-orders", incomplete_check["check_id"], "--request-id", str(uuid4())]) == 2
     assert json.loads(capsys.readouterr().out)["status"] == "UNKNOWN"
     assert (
         main(["broker-ingest", str(baseline_id), str(incomplete), "--request-id", str(uuid4())])
         == 2
     )
     assert json.loads(capsys.readouterr().out)["status"] == "UNKNOWN"
+
+
+def test_browser_order_check_uses_fixed_inputs_without_credentials_or_manual_facts(
+    postgres_engine: Engine,
+    clean_database: None,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    del clean_database
+    monkeypatch.delenv("NORTHSTAR_SIMNOW_CONFIG", raising=False)
+
+    def forbidden(*args: object, **kwargs: object) -> None:
+        raise AssertionError("saved order checks must not load credentials or connect")
+
+    monkeypatch.setattr(ctp, "query_account", forbidden)
+    monkeypatch.setattr("northstar_quant.broker.workspace.load_credentials", forbidden)
+    workspace = BrokerWorkspace(postgres_engine)
+    baseline_id = position_baseline(postgres_engine)
+    source = ledger_query(
+        postgres_engine, trades=(trade(),), positions=(position(),), orders=(order(),)
+    )
+    entry_id, position_check_id, order_check_id = uuid4(), uuid4(), uuid4()
+    entry = workspace.ingest_positions(baseline_id, source, request_id=entry_id)
+    later = ledger_query(
+        postgres_engine, trades=(trade(),), positions=(position(),), orders=(order(),)
+    )
+    position_check = workspace.compare_positions(entry_id, later, request_id=position_check_id)
+    original = workspace.get(later)
+    payload = {"position_check_id": str(position_check_id), "request_id": str(order_check_id)}
+    check_url = f"/api/broker/order-checks/{order_check_id}"
+    context_url = f"/api/broker/queries/{later}/ledger-context"
+    library = DataLibrary(postgres_engine, SourceFiles(tmp_path / "archive"))
+    with TestClient(create_app(postgres_engine, library), base_url="http://127.0.0.1") as client:
+        assert client.get(check_url).status_code == 403
+        assert client.post("/api/broker/order-checks", json=payload).status_code == 403
+        page = client.get(f"/broker/{later}")
+        assert page.status_code == 200
+        assert "data-broker-orders" in page.text
+        assert client.get(context_url).json()["current_order_check"] is None
+        assert client.post("/api/broker/order-checks", json=payload).status_code == 403
+        token = re.search(r'<meta name="northstar-csrf" content="([^"]+)">', page.text)
+        assert token is not None
+        client.headers["X-Northstar-CSRF"] = token.group(1)
+        assert (
+            client.post(
+                "/api/broker/order-checks",
+                json=payload,
+                headers={"Origin": "https://elsewhere.test"},
+            ).status_code
+            == 403
+        )
+        for extra in (
+            {"orders": []},
+            {"fills": []},
+            {"funds": {}},
+            {"positions": []},
+            {"position_check_id": False},
+        ):
+            assert client.post("/api/broker/order-checks", json=payload | extra).status_code == 422
+        response = client.post("/api/broker/order-checks", json=payload)
+        assert response.status_code == 200, response.text
+        check = response.json()
+        assert check["status"] == "MATCHED"
+        assert check["scope"] == "ORDER_OBSERVATIONS_AND_RECORDED_FILLS"
+        assert check["reconciliation"] == "UNRECONCILED"
+        assert check["execution"] == {"order_sending": False, "cancel_sending": False}
+        assert len(check["orders"]) == 1
+        observed = check["orders"][0]
+        assert observed["ledger_filled_lots"] == 2 and observed["fill_gap_lots"] == 0
+        assert observed["ownership"] == "EXTERNAL_NOT_OWNED"
+        assert observed["reservation_release"] == "NOT_AUTHORIZED"
+        assert client.post("/api/broker/order-checks", json=payload).json() == check
+        assert client.get(check_url).json() == check
+        page = client.get(f"/broker/{later}")
+        assert page.status_code == 200
+        assert "data-broker-orders" not in page.text
+        assert "委托观察与已入账成交数量相符（有限范围）" in page.text
+        assert "撤单提交或撤单被拒绝不等于已撤销" in page.text
+        assert observed["order_state"] in page.text and observed["submit_state"] in page.text
+        assert client.get(context_url).json()["current_order_check"] == check
+        assert client.get(f"/api/broker/queries/{later}").json() == original
+        assert client.get(f"/api/broker/position-entries/{entry_id}").json() == entry
+        assert (
+            client.get(f"/api/broker/position-checks/{position_check_id}").json() == position_check
+        )
+        assert len(client.get("/api/broker/queries").json()) == 3
+    with TestClient(create_app(postgres_engine, library), base_url="http://127.0.0.1") as restarted:
+        assert restarted.get(check_url).status_code == 403
+        assert restarted.get(f"/broker/{later}").status_code == 200
+        assert restarted.get(check_url).json() == check
+        context = restarted.get(context_url).json()
+        assert context["current_order_check"] == check and context["order_checks"] == [check]

@@ -375,6 +375,23 @@ def create_app(engine: Engine, library: DataLibrary) -> FastAPI:
         require_workspace_session(request)
         return await run_in_threadpool(broker.get_position_check, check_id)
 
+    @app.post("/api/broker/order-checks")
+    async def broker_check_orders(request: Request) -> dict[str, object]:
+        protect_workspace_command(request)
+        payload = await _read_object(request)
+        if set(payload) != {"position_check_id", "request_id"}:
+            raise ValueError("委托核对只接受 position_check_id 和 request_id，不接受手工事实。")
+        return await run_in_threadpool(
+            broker.check_orders,
+            _uuid_field(payload, "position_check_id"),
+            request_id=_uuid_field(payload, "request_id"),
+        )
+
+    @app.get("/api/broker/order-checks/{check_id}")
+    async def broker_order_check(request: Request, check_id: UUID) -> dict[str, object]:
+        require_workspace_session(request)
+        return await run_in_threadpool(broker.get_order_check, check_id)
+
     @app.post("/api/broker/queries")
     async def broker_query(request: Request) -> dict[str, object]:
         protect_workspace_command(request)

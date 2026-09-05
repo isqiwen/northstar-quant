@@ -68,6 +68,7 @@ def clean_database(postgres_engine: Engine) -> None:
             "broker_baseline_checks",
             "broker_position_entries",
             "broker_position_checks",
+            "broker_order_checks",
         )
     )
     with postgres_engine.begin() as connection:

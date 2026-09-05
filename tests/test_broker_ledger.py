@@ -83,7 +83,9 @@ def ledger_query(
     *,
     trades: tuple[dict[str, Any], ...] = (),
     positions: tuple[dict[str, Any], ...] = (),
+    orders: tuple[dict[str, Any], ...] = (),
     async_trades: tuple[dict[str, Any], ...] = (),
+    async_orders: tuple[dict[str, Any], ...] = (),
     day: str = "20260907",
     failure: str | None = None,
     profile: str = "simnow_dev",
@@ -112,6 +114,8 @@ def ledger_query(
             if event.callback == "OnRspQryTrade"
             else positions
             if event.callback == "OnRspQryInvestorPosition"
+            else orders
+            if event.callback == "OnRspQryOrder"
             else None
         )
         if rows:
@@ -129,13 +133,16 @@ def ledger_query(
             events.append(
                 replace(event, sequence=len(events) + 1, data=data, received_at=capture.started_at)
             )
-    for row in async_trades:
+    for callback, row in [
+        *(("OnRtnTrade", row) for row in async_trades),
+        *(("OnRtnOrder", row) for row in async_orders),
+    ]:
         events.append(
             replace(
                 events[-1],
                 sequence=len(events) + 1,
                 channel="TD",
-                callback="OnRtnTrade",
+                callback=callback,
                 request_id=None,
                 is_last=None,
                 error_id=0,
@@ -277,7 +284,11 @@ def test_later_new_trades_and_other_contract_positions_show_differences_not_auto
     assert {item["symbol"] for item in result["positions"]} == {"RB2610", "CU2610"}
     assert all(item["delta_today"] == 2 for item in result["positions"])
     assert ledger.get(entry_id) == entry and entry["fill_count"] == 0
-    assert ledger.verify_all() == {"position_entries_count": 1, "position_checks_count": 1}
+    assert ledger.verify_all() == {
+        "position_entries_count": 1,
+        "position_checks_count": 1,
+        "order_checks_count": 0,
+    }
 
 
 def test_independence_scope_idempotency_and_same_query_concurrency(
