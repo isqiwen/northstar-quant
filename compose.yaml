@@ -19,6 +19,10 @@ services:
     build: .
     environment:
       NORTHSTAR_DATABASE_URL: postgresql+psycopg://northstar:northstar_local@postgres:5432/northstar_quant
+      NORTHSTAR_DATA_DIR: /var/lib/northstar/sources
+    volumes:
+      - source-data:/var/lib/northstar/sources
+      - backup-data:/var/lib/northstar/backups
     depends_on:
       postgres:
         condition: service_healthy
@@ -27,3 +31,5 @@ services:
     command: ["sh", "-c", "northstar init-db && exec uvicorn northstar_quant.web:application --factory --host 0.0.0.0 --port 18080"]
 volumes:
   postgres-data:
+  source-data:
+  backup-data:

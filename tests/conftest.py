@@ -56,6 +56,15 @@ def clean_database(postgres_engine: Engine) -> None:
         f'"{name}"'
         for name in ("paper_configurations", "paper_sessions", "paper_inputs", "paper_steps")
     )
+    quoted.extend(
+        f'"{name}"'
+        for name in (
+            "data_sources",
+            "data_processing_attempts",
+            "data_admission_rejections",
+            "data_backups",
+        )
+    )
     with postgres_engine.begin() as connection:
         connection.execute(text("SET LOCAL session_replication_role = replica"))
         connection.exec_driver_sql(f"TRUNCATE TABLE {', '.join(quoted)} RESTART IDENTITY CASCADE")

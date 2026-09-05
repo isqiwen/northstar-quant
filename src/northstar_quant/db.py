@@ -29,6 +29,8 @@ def open_database() -> Engine:
 def initialize_database(engine: Engine) -> None:
     """Install the sole current baseline on an empty database, or verify it."""
 
+    from northstar_quant.data.library import initialize_library
+    from northstar_quant.data.maintenance import initialize_maintenance
     from northstar_quant.runs import initialize_run_store
     from northstar_quant.sessions import initialize_session_store
 
@@ -44,6 +46,8 @@ def initialize_database(engine: Engine) -> None:
         command.upgrade(configuration, "head")
         initialize_run_store(connection)
         initialize_session_store(connection)
+        initialize_library(connection)
+        initialize_maintenance(connection)
 
 
 def require_current_database(engine: Engine) -> None:
@@ -63,6 +67,10 @@ def require_current_database(engine: Engine) -> None:
         "paper_sessions",
         "paper_inputs",
         "paper_steps",
+        "data_sources",
+        "data_processing_attempts",
+        "data_admission_rejections",
+        "data_backups",
     }
     if actual != expected or not required <= present:
         raise ValueError("database does not have the current Northstar baseline")

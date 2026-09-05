@@ -12,7 +12,11 @@ async function api(path, payload) {
   if (payload !== undefined && csrf) options.headers["X-Northstar-CSRF"] = csrf.content;
   const response = await fetch(path, options);
   const result = await response.json();
-  if (!response.ok) throw new Error(result.detail || "操作未完成，请稍后重试。");
+  if (!response.ok) {
+    const error = new Error(result.detail || "操作未完成，请稍后重试。");
+    error.rejectionId = result.rejection_id;
+    throw error;
+  }
   return result;
 }
 
@@ -122,17 +126,45 @@ if (importForm) importForm.addEventListener("submit", async (event) => {
   const button = importForm.querySelector("button[type=submit]");
   const notice = document.querySelector("#import-status");
   button.disabled = true;
-  status(notice, "正在导入、检查完整性并保存数据快照…");
+  status(notice, "正在按原字节接收文件、记录加工并检查发布条件…");
+  const key = "northstar.source.import";
   try {
     const values = Object.fromEntries(new FormData(importForm));
     const file = values.file;
     delete values.file;
     if (file.size > 5 * 1024 * 1024) throw new Error("CSV 文件不得超过 5 MiB。");
-    const csv = new TextDecoder("utf-8", {fatal: true}).decode(await file.arrayBuffer());
-    const result = await api("/api/import", {csv, spec: values});
-    window.location.assign(`/?dataset=${encodeURIComponent(result.snapshot_id)}#research-form`);
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const digest = await crypto.subtle.digest("SHA-256", bytes);
+    const hash = [...new Uint8Array(digest)].map((value) => value.toString(16).padStart(2, "0")).join("");
+    const permission = {
+      input_kind: values.input_kind,
+      use_basis: values.use_basis,
+      allow_retention: importForm.elements.allow_retention.checked,
+      allow_download: importForm.elements.allow_download.checked,
+      upstream_source_id: values.upstream_source_id.trim() || null,
+      transformation_note: values.transformation_note.trim() || null,
+    };
+    for (const name of Object.keys(permission)) delete values[name];
+    const declaration = {filename: file.name, source_name: values.source_name, ...permission, spec: values};
+    const requestId = workspaceCommand(key, {...declaration, content_hash: hash});
+    // Small bounded chunks avoid argument-stack limits without changing any bytes.
+    const chunks = [];
+    for (let offset = 0; offset < bytes.length; offset += 32768) {
+      chunks.push(String.fromCharCode(...bytes.subarray(offset, offset + 32768)));
+    }
+    const result = await api("/api/import", {
+      ...declaration, content_base64: btoa(chunks.join("")), request_id: requestId,
+    });
+    sessionStorage.removeItem(key);
+    window.location.assign(`/attempts/${encodeURIComponent(result.attempt_id)}`);
   } catch (error) {
     status(notice, error.message, true);
+    if (error.rejectionId) {
+      const link = document.createElement("a");
+      link.href = "/sources";
+      link.textContent = ` 查看接收前拒绝记录 ${error.rejectionId}`;
+      notice.append(link);
+    }
   } finally {
     button.disabled = false;
   }
@@ -211,7 +243,7 @@ function showConfiguration(configuration) {
 
 // Keep a command identity across a lost HTTP response and page refresh. Only a
 // successful acknowledgement clears it; retrying cannot consume another bar.
-function paperCommand(key, payload) {
+function workspaceCommand(key, payload) {
   const signature = JSON.stringify(payload);
   const previous = sessionStorage.getItem(key);
   const command = previous ? JSON.parse(previous) : null;
@@ -294,7 +326,7 @@ if (paperCreateForm) {
     const key = "northstar.paper.create";
     try {
       const payload = Object.fromEntries(new FormData(paperCreateForm));
-      payload.request_id = paperCommand(key, payload);
+      payload.request_id = workspaceCommand(key, payload);
       const result = await api("/api/paper", payload);
       sessionStorage.removeItem(key);
       window.location.assign(`/paper/${encodeURIComponent(result.session_id)}`);
@@ -313,12 +345,35 @@ if (paperAdvance) paperAdvance.addEventListener("click", async () => {
   paperAdvance.disabled = true;
   status(notice, "正在核对已提交状态并处理下一条输入…");
   try {
-    const requestId = paperCommand(key, {});
+    const requestId = workspaceCommand(key, {});
     await api(`/api/paper/${encodeURIComponent(identifier)}/advance`, {request_id: requestId});
     sessionStorage.removeItem(key);
     window.location.reload();
   } catch (error) {
     status(notice, `${error.message} 重试使用同一命令身份，不会额外推进一条。`, true);
     paperAdvance.disabled = false;
+  }
+});
+
+const reprocessForm = document.querySelector("#reprocess-form");
+if (reprocessForm) reprocessForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const sourceId = reprocessForm.dataset.sourceId;
+  const button = reprocessForm.querySelector("button[type=submit]");
+  const notice = document.querySelector("#reprocess-status");
+  const key = `northstar.source.reprocess.${sourceId}`;
+  button.disabled = true;
+  status(notice, "正在读取托管原文并记录新的处理尝试…");
+  try {
+    const spec = Object.fromEntries(new FormData(reprocessForm));
+    const requestId = workspaceCommand(key, spec);
+    const attempt = await api(`/api/sources/${encodeURIComponent(sourceId)}/reprocess`, {
+      spec, request_id: requestId,
+    });
+    sessionStorage.removeItem(key);
+    window.location.assign(`/attempts/${encodeURIComponent(attempt.attempt_id)}`);
+  } catch (error) {
+    status(notice, `${error.message} 相同参数重试会复用命令身份。`, true);
+    button.disabled = false;
   }
 });

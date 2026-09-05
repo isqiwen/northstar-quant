@@ -13,6 +13,7 @@ import hashlib
 import io
 import json
 import re
+from collections.abc import Callable, Mapping
 from dataclasses import asdict, dataclass
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
@@ -24,8 +25,6 @@ from sqlalchemy import Engine, select, text
 from sqlalchemy.orm import Session
 
 from northstar_quant.data.catalog.models import (
-    SOURCE_RECEIPT_DEFAULT_ACQUISITION_USE,
-    SOURCE_RECEIPT_DEFAULT_REDISTRIBUTION_POLICY,
     CanonicalBar,
     DataSeries,
     DatasetSnapshotImportQualityPin,
@@ -295,6 +294,13 @@ class DatasetSource:
     acquisition_use: str
     redistribution_policy: str
     retention_policy: str
+    source_id: UUID
+    filename: str
+    use_basis: str
+    allow_download: bool
+    input_kind: str
+    upstream_source_id: UUID | None
+    transformation_note: str | None
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -302,6 +308,10 @@ class DatasetSource:
             "import_run_id": str(self.import_run_id),
             "receipt_id": str(self.receipt_id),
             "received_at": _timestamp(self.received_at),
+            "source_id": str(self.source_id),
+            "upstream_source_id": (
+                None if self.upstream_source_id is None else str(self.upstream_source_id)
+            ),
         }
 
 
@@ -371,8 +381,9 @@ class DatasetDetails:
             availability,
             "Source references and notes are operator declarations, not verified acquisition "
             "or redistribution rights.",
-            "The original CSV filename and bytes are not retained; receipts retain their "
-            "content hash and byte count. Research reuses pinned canonical observations.",
+            "The exact received CSV bytes are retained in the managed source archive. "
+            "A converted CSV is not an upstream provider response; only declared, linked "
+            "upstream files constitute retained upstream evidence.",
             "Receipt received_at is local ingestion metadata, not historical publication time.",
             "Research currently supports one contract and one continuous DAY session on one "
             "local trading day; it does not replay revisions or perform daily settlement.",
@@ -407,42 +418,55 @@ class DatasetDetails:
         }
 
 
-def import_csv(engine: Engine, path: Path, spec: ImportSpec) -> ResearchDataset:
-    """Durably accept a complete session and return its verified immutable snapshot.
+def _import_csv(
+    engine: Engine,
+    content: bytes,
+    spec: ImportSpec,
+    *,
+    archive: dict[str, object],
+    processing_hash: str,
+    stage: Callable[[str, dict[str, object]], None],
+) -> ResearchDataset:
+    """Private canonical pipeline; DataLibrary owns admission, archive and attempts."""
 
-    An exact retry reuses the imported rows, quality evidence and snapshot.
-    Failed quality remains recorded but cannot produce a ResearchDataset.
-    """
-
-    if not isinstance(spec, ImportSpec):
-        raise ValueError("spec must be an ImportSpec")
-    adapter = _ResearchCsv(spec)
-    payload = adapter.load(path)
+    payload = SourcePayload(content, hashlib.sha256(content).hexdigest(), len(content))
+    adapter = _ResearchCsv(spec, payload=payload, archive=archive)
     # Validate the whole input before catalog registration or canonical writes.
     # Existing observations must never fill gaps in the operator's current file.
+    stage("PARSING", {})
     adapter.parse(payload, source_timezone_name=spec.timezone)
-    identity = _digest({"source_hash": payload.content_hash, "spec": spec.to_mapping()})
+    identity = _digest({"processing_hash": processing_hash, "archive": archive})
     key = "research-" + identity
     with Session(engine) as session:
         previous = session.scalar(
             select(DatasetSnapshotManifest.id).where(DatasetSnapshotManifest.idempotency_key == key)
         )
     if previous is not None:
-        return load_dataset(engine, previous)
+        return _load_dataset(engine, previous)
+    stage("IMPORTING", {})
     series_id = _catalog(engine, spec)
-    # Reuse exactly the bounded bytes whose identity we pinned, even if the
-    # operator edits the source file while this run is executing.
-    adapter.payload = payload
     with Session(engine, autoflush=False, expire_on_commit=False) as session:
         imported = OhlcvImportService(session, adapter=adapter).import_file(
             OhlcvImportCommand(
-                file_path=path,
+                # The ingestion adapter already owns the exact archived bytes;
+                # this diagnostic name is never opened or interpreted as a path.
+                file_path=Path("received.csv"),
                 series_id=series_id,
                 source_name=spec.source_name,
                 source_timezone_name=spec.timezone,
                 idempotency_key=key,
                 correlation_id=key,
             )
+        )
+        stage(
+            "IMPORTING",
+            {
+                "import_run_id": str(imported.import_run_id),
+                "import_status": imported.status,
+                "rows_read": imported.rows_read,
+                "rows_accepted": imported.rows_accepted,
+                "rows_rejected": imported.rows_rejected,
+            },
         )
         if imported.status != "SUCCEEDED":
             failure = session.get(ImportRun, imported.import_run_id)
@@ -461,6 +485,7 @@ def import_csv(engine: Engine, path: Path, spec: ImportSpec) -> ResearchDataset:
             raise ValueError("the import produced no observations for the declared session")
         cutoff = max(row.available_at for row in facts)
         import_ids = sorted({row.import_run_id for row in facts}, key=str)
+    stage("QUALITY", {"import_run_id": str(imported.import_run_id)})
     pins: list[SnapshotImportQualityPinSelection] = []
     for import_id in import_ids:
         with Session(engine, autoflush=False, expire_on_commit=False) as session:
@@ -492,6 +517,7 @@ def import_csv(engine: Engine, path: Path, spec: ImportSpec) -> ResearchDataset:
                 f"session quality rejected delivery: {coverage.outcome}; "
                 f"{coverage.missing_observation_count} missing bars"
             )
+    stage("PUBLISHING", {"minute_evaluation_id": str(coverage.quality_evaluation_id)})
     with Session(engine, autoflush=False, expire_on_commit=False) as session:
         published = DatasetSnapshotPublicationService(session).publish(
             PublishDatasetSnapshotCommand(
@@ -509,55 +535,16 @@ def import_csv(engine: Engine, path: Path, spec: ImportSpec) -> ResearchDataset:
                 correlation_id=key,
             )
         )
-    return load_dataset(engine, published.snapshot_id)
+    return _load_dataset(engine, published.snapshot_id)
 
 
-def load_dataset(engine: Engine, snapshot_id: UUID) -> ResearchDataset:
+def _load_dataset(engine: Engine, snapshot_id: UUID) -> ResearchDataset:
     """Verify observations and their original source evidence in one read transaction."""
 
     with Session(engine, autoflush=False, expire_on_commit=False) as session:
         session.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"))
         dataset, _details = _read_dataset(session, snapshot_id)
         return dataset
-
-
-def list_datasets(engine: Engine, *, limit: int = 50) -> tuple[DatasetSummary, ...]:
-    """List published research sessions without rescanning their observations.
-
-    Rejected imports never publish a manifest. Each selected dataset is still
-    verified on opening or execution; a listing is not an integrity verdict.
-    """
-
-    if type(limit) is not int or not 1 <= limit <= 200:
-        raise ValueError("dataset list limit must be between 1 and 200")
-    with Session(engine) as session:
-        rows = session.execute(
-            select(DatasetSnapshotManifest, DatasetSnapshotPartition)
-            .join(
-                DatasetSnapshotPartition,
-                DatasetSnapshotPartition.manifest_id == DatasetSnapshotManifest.id,
-            )
-            .where(
-                DatasetSnapshotManifest.partition_count == 1,
-                DatasetSnapshotManifest.idempotency_key.startswith("research-"),
-                DatasetSnapshotPartition.interval == "1m",
-                DatasetSnapshotPartition.timestamp_convention == "BAR_START",
-                DatasetSnapshotPartition.trading_day_from
-                == DatasetSnapshotPartition.trading_day_to,
-            )
-            .order_by(DatasetSnapshotManifest.created_at.desc(), DatasetSnapshotManifest.id.desc())
-            .limit(limit)
-        ).all()
-        return tuple(_summary(manifest, partition) for manifest, partition in rows)
-
-
-def describe_dataset(engine: Engine, snapshot_id: UUID) -> DatasetDetails:
-    """Open a snapshot with its verified original provenance and publication quality."""
-
-    with Session(engine, autoflush=False, expire_on_commit=False) as session:
-        session.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"))
-        _dataset, details = _read_dataset(session, snapshot_id)
-        return details
 
 
 def _summary(
@@ -662,6 +649,27 @@ def _read_dataset(session: Session, snapshot_id: UUID) -> tuple[ResearchDataset,
             or current.delivery_gate != pin.delivery_gate
         ):
             raise ValueError("snapshot original source evidence no longer matches its quality pin")
+        archive = mapping.get("archive")
+        if not isinstance(archive, dict):
+            raise ValueError("snapshot original source archive identity is missing")
+        source = (
+            session.execute(
+                text("SELECT * FROM data_sources WHERE source_id = :source_id"),
+                {"source_id": UUID(str(archive.get("source_id")))},
+            )
+            .mappings()
+            .one_or_none()
+        )
+        if (
+            source is None
+            or _digest(_source_evidence(dict(source))) != archive.get("evidence_hash")
+            or source["evidence_hash"] != archive.get("evidence_hash")
+            or source["content_hash"] != receipt.content_hash
+            or source["byte_count"] != receipt.byte_count
+            or str(source["source_name"]).upper() != receipt.source_name
+            or source["allow_retention"] is not True
+        ):
+            raise ValueError("snapshot original source archive evidence has drifted")
         specs.append(spec)
         sources.append(
             DatasetSource(
@@ -670,10 +678,17 @@ def _read_dataset(session: Session, snapshot_id: UUID) -> tuple[ResearchDataset,
                 source_name=receipt.source_name,
                 content_hash=receipt.content_hash,
                 byte_count=receipt.byte_count,
-                received_at=receipt.received_at,
+                received_at=source["received_at"],
                 acquisition_use=receipt.acquisition_use,
                 redistribution_policy=receipt.redistribution_policy,
                 retention_policy=receipt.retention_policy,
+                source_id=source["source_id"],
+                filename=source["filename"],
+                use_basis=source["use_basis"],
+                allow_download=source["allow_download"],
+                input_kind=source["input_kind"],
+                upstream_source_id=source["upstream_source_id"],
+                transformation_note=source["transformation_note"],
             )
         )
         import_quality.append(
@@ -876,24 +891,25 @@ class _ResearchCsv:
     mapping_version = "research-session-csv/1"
     job_kind = "RESEARCH_CSV_IMPORT"
     input_kind = "OPERATOR_FILE"
-    retention_policy = "TRANSIENT"
-    acquisition_use = SOURCE_RECEIPT_DEFAULT_ACQUISITION_USE
-    redistribution_policy = SOURCE_RECEIPT_DEFAULT_REDISTRIBUTION_POLICY
+    retention_policy = "CONTROLLED"
+    redistribution_policy = "PROHIBITED"
 
-    def __init__(self, spec: ImportSpec) -> None:
+    def __init__(
+        self, spec: ImportSpec, *, payload: SourcePayload, archive: dict[str, object]
+    ) -> None:
         self.spec = spec
-        self.payload: SourcePayload | None = None
+        self.payload = payload
+        self.archive = archive
+        self.acquisition_use = (
+            "SYNTHETIC_TEST_ONLY"
+            if spec.availability_basis == "SYNTHETIC"
+            else "PRIVATE_RESEARCH_ONLY"
+        )
         self._parsed: ParsedOhlcvRows | None = None
 
     def load(self, file_path: Path) -> SourcePayload:
-        if self.payload is not None:
-            return self.payload
-        maximum = get_settings().max_csv_bytes
-        with file_path.open("rb") as source:
-            content = source.read(maximum + 1)
-        if not content or len(content) > maximum:
-            raise ValueError("CSV must be nonempty and fit the configured byte limit")
-        return SourcePayload(content, hashlib.sha256(content).hexdigest(), len(content))
+        del file_path
+        return self.payload
 
     def parse(self, payload: SourcePayload, *, source_timezone_name: str) -> ParsedOhlcvRows:
         if source_timezone_name != self.spec.timezone:
@@ -1002,6 +1018,7 @@ class _ResearchCsv:
             "mapping_version": self.mapping_version,
             "source_timezone_name": source_timezone_name,
             "session": self.spec.to_mapping(),
+            "archive": self.archive,
         }
 
     def request_fingerprint_metadata(self, *, source_timezone_name: str) -> dict[str, object]:
@@ -1012,6 +1029,37 @@ def _digest(value: object) -> str:
     return hashlib.sha256(
         json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
     ).hexdigest()
+
+
+def _source_evidence(source: Mapping[str, object]) -> dict[str, object]:
+    """The immutable archive declaration pinned by an actual canonical import."""
+
+    return {
+        key: (
+            _timestamp(value)
+            if isinstance(value, datetime)
+            else str(value)
+            if isinstance(value, UUID)
+            else value
+        )
+        for key, value in source.items()
+        if key
+        in {
+            "source_id",
+            "filename",
+            "source_name",
+            "use_basis",
+            "allow_retention",
+            "allow_download",
+            "input_kind",
+            "upstream_source_id",
+            "transformation_note",
+            "upstream_evidence_hash",
+            "content_hash",
+            "byte_count",
+            "received_at",
+        }
+    }
 
 
 def _timestamp(value: datetime) -> str:

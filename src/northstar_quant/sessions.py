@@ -40,9 +40,10 @@ from sqlalchemy.engine import RowMapping
 
 from northstar_quant.accounting import Account, FillFact
 from northstar_quant.data.catalog.models import DatasetSnapshotManifest
-from northstar_quant.data.research import ResearchBar, ResearchDataset, load_dataset
+from northstar_quant.data.library import DataLibrary
+from northstar_quant.data.research import ResearchBar, ResearchDataset
 from northstar_quant.research import ResearchConfig, TradingSession
-from northstar_quant.runs import implementation_hash
+from northstar_quant.runtime import implementation_hash
 from northstar_quant.strategy import decimal_text
 
 _metadata = MetaData()
@@ -183,10 +184,11 @@ def _configuration(row: RowMapping) -> dict[str, object]:
 class SessionStore:
     """Persist file inputs, immutable configuration and one isolated Paper account."""
 
-    def __init__(self, engine: Engine) -> None:
+    def __init__(self, engine: Engine, library: DataLibrary) -> None:
         if engine.dialect.name != "postgresql":
             raise ValueError("persistent Paper requires PostgreSQL")
         self._engine = engine
+        self._library = library
 
     def save_configuration(self, name: str, config: ResearchConfig) -> dict[str, object]:
         if not isinstance(name, str) or not 1 <= len(name.strip()) <= 80:
@@ -222,7 +224,7 @@ class SessionStore:
     ) -> dict[str, object]:
         _uuid(snapshot_id)
         _uuid(request_id)
-        dataset = load_dataset(self._engine, snapshot_id)
+        dataset = self._library.load_dataset(snapshot_id)
         if dataset.details is None or not 1 <= len(dataset.bars) <= 1440:
             raise ValueError("Paper requires a verified single DAY snapshot of at most 1440 bars")
         bars = _ordered_bars(dataset)
@@ -433,7 +435,7 @@ class SessionStore:
                         session_id, recorded_step["sequence"], _object(recorded_step["step"])
                     )
                 snapshot_id = prior["snapshot_id"]
-        dataset = load_dataset(self._engine, snapshot_id)
+        dataset = self._library.load_dataset(snapshot_id)
         bars = _ordered_bars(dataset)
         with self._engine.begin() as connection:
             connection.execute(text("SET LOCAL lock_timeout = '5s'"))

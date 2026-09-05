@@ -7,34 +7,48 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from datetime import timedelta
 from pathlib import Path
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy import Engine, create_engine, event, text
 from sqlalchemy.exc import DBAPIError
 
-from northstar_quant.data.research import ImportSpec, ResearchDataset, import_csv
+from northstar_quant.data.files import SourceFiles
+from northstar_quant.data.library import DataLibrary
+from northstar_quant.data.research import ResearchDataset
 from northstar_quant.research import ResearchConfig, run_research
 from northstar_quant.sessions import SessionStore
 
 
-def _study(engine: Engine) -> tuple[ResearchDataset, ResearchConfig]:
+def _study(engine: Engine, tmp_path: Path) -> tuple[DataLibrary, ResearchDataset, ResearchConfig]:
     path = Path(__file__).resolve().parents[1] / "examples/intraday.toml"
     study = tomllib.loads(path.read_text())
     source = dict(study["source"])
     csv = path.parent / source.pop("file")
-    return import_csv(engine, csv, ImportSpec.from_mapping(source)), ResearchConfig.from_mapping(
-        study["research"]
+    library = DataLibrary(engine, SourceFiles(tmp_path / "sources"))
+    attempt = library.receive(
+        csv.read_bytes(),
+        filename=csv.name,
+        source_name=source["source_name"],
+        spec=source,
+        request_id=str(uuid4()),
+        **study["archive"],
+    )
+    assert attempt["status"] == "PUBLISHED", attempt
+    return (
+        library,
+        library.load_dataset(UUID(attempt["snapshot_id"])),
+        ResearchConfig.from_mapping(study["research"]),
     )
 
 
 def test_paper_restarts_with_fixed_configuration_and_matches_batch_account(
-    postgres_engine: Engine, clean_database: None
+    postgres_engine: Engine, clean_database: None, tmp_path: Path
 ) -> None:
     del clean_database
-    dataset, config = _study(postgres_engine)
+    library, dataset, config = _study(postgres_engine, tmp_path)
     batch = run_research(dataset, config).to_dict()
-    store = SessionStore(postgres_engine)
+    store = SessionStore(postgres_engine, library)
     saved = store.save_configuration("日盘基线", config)
     assert store.save_configuration("日盘基线", config) == saved
     session_id = uuid4()
@@ -64,7 +78,7 @@ def test_paper_restarts_with_fixed_configuration_and_matches_batch_account(
 
     reopened = create_engine(postgres_engine.url)
     try:
-        restored = SessionStore(reopened)
+        restored = SessionStore(reopened, library)
         assert restored.get(session_id) == paused
         assert paused["configuration"] == saved
         assert paused["status"] == "PAUSED"
@@ -86,11 +100,11 @@ def test_paper_restarts_with_fixed_configuration_and_matches_batch_account(
 
 
 def test_failed_commit_lost_ack_and_competing_workers_never_duplicate_money(
-    postgres_engine: Engine, clean_database: None, monkeypatch: pytest.MonkeyPatch
+    postgres_engine: Engine, clean_database: None, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     del clean_database
-    dataset, config = _study(postgres_engine)
-    store = SessionStore(postgres_engine)
+    library, dataset, config = _study(postgres_engine, tmp_path)
+    store = SessionStore(postgres_engine, library)
     saved = store.save_configuration("transaction check", config)
     identity = uuid4()
     store.create(dataset.snapshot_id, str(saved["configuration_id"]), request_id=identity)
@@ -113,12 +127,15 @@ def test_failed_commit_lost_ack_and_competing_workers_never_duplicate_money(
     acknowledged_later = store.advance(identity, request_id=command)
     # Discarding a committed response simulates a lost acknowledgement. A new
     # worker must find the persisted command result, not advance the next bar.
-    assert SessionStore(postgres_engine).advance(identity, request_id=command) == acknowledged_later
+    assert (
+        SessionStore(postgres_engine, library).advance(identity, request_id=command)
+        == acknowledged_later
+    )
     same_command = uuid4()
     with ThreadPoolExecutor(max_workers=2) as workers:
         first = workers.submit(store.advance, identity, request_id=same_command)
         duplicate = workers.submit(
-            SessionStore(postgres_engine).advance, identity, request_id=same_command
+            SessionStore(postgres_engine, library).advance, identity, request_id=same_command
         )
         assert first.result() == duplicate.result()
     assert store.get(identity)["cursor"] == before["cursor"] + 2
@@ -143,19 +160,19 @@ def test_failed_commit_lost_ack_and_competing_workers_never_duplicate_money(
         store.advance(identity, request_id=uuid4())
     assert store.get(identity)["summary"] == run_research(dataset, config).to_dict()["summary"]
 
-    def unavailable_source(_engine, _snapshot):
+    def unavailable_source(_snapshot):
         raise ValueError("source is unavailable after the command was committed")
 
-    monkeypatch.setattr("northstar_quant.sessions.load_dataset", unavailable_source)
+    monkeypatch.setattr(library, "load_dataset", unavailable_source)
     assert store.advance(identity, request_id=command) == acknowledged_later
 
 
 def test_changed_implementation_or_corrupted_checkpoint_cannot_resume(
-    postgres_engine: Engine, clean_database: None, monkeypatch: pytest.MonkeyPatch
+    postgres_engine: Engine, clean_database: None, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     del clean_database
-    dataset, config = _study(postgres_engine)
-    store = SessionStore(postgres_engine)
+    library, dataset, config = _study(postgres_engine, tmp_path)
+    store = SessionStore(postgres_engine, library)
     saved = store.save_configuration("identity check", config)
     identity = uuid4()
     store.create(dataset.snapshot_id, str(saved["configuration_id"]), request_id=identity)
@@ -179,18 +196,16 @@ def test_changed_implementation_or_corrupted_checkpoint_cannot_resume(
 
 
 def test_unsupported_cross_day_input_never_creates_a_paper_account(
-    postgres_engine: Engine, clean_database: None, monkeypatch: pytest.MonkeyPatch
+    postgres_engine: Engine, clean_database: None, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     del clean_database
-    dataset, config = _study(postgres_engine)
+    library, dataset, config = _study(postgres_engine, tmp_path)
     changed_bar = replace(
         dataset.bars[-1], trading_day=dataset.bars[-1].trading_day + timedelta(days=1)
     )
     unsupported = replace(dataset, bars=(*dataset.bars[:-1], changed_bar))
-    monkeypatch.setattr(
-        "northstar_quant.sessions.load_dataset", lambda _engine, _snapshot: unsupported
-    )
-    store = SessionStore(postgres_engine)
+    monkeypatch.setattr(library, "load_dataset", lambda _snapshot: unsupported)
+    store = SessionStore(postgres_engine, library)
     saved = store.save_configuration("no overnight", config)
     with pytest.raises(ValueError, match="one trading day"):
         store.create(dataset.snapshot_id, str(saved["configuration_id"]), request_id=uuid4())

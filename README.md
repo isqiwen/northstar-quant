@@ -1,11 +1,12 @@
 # Northstar Quant
 
 A personal domestic-futures trading system targeting controlled live execution.
-One repository, one Python package, one PostgreSQL database. The delivery path is
+One repository, one Python package, PostgreSQL and a managed private source directory. The delivery path is
 read-only broker access → broker simulation → recovery and reconciliation → a
 bounded, explicitly authorized live round trip; advanced research comes later.
 
-Currently implemented: import minute bars, replay a strategy with Risk and trading
+Currently implemented: retain original uploaded bytes, inspect processing failures
+and publication, import minute bars, replay a strategy with Risk and trading
 costs, save fixed configurations, and advance a recoverable file-driven Paper
 account in your browser. Broker connectivity and
 live execution are not implemented. Research or Paper results never enable real
@@ -20,6 +21,9 @@ docker compose up --build -d
 Open <http://127.0.0.1:18080>. The browser and database bind to local loopback;
 the Compose credentials are local development credentials. `docker compose down`
 stops the application and keeps its data volume.
+Compose persists database, managed source and backup volumes separately; retain
+database records and their referenced files together. Container rebuilds do not
+discard sources. Neither uploaded market files nor backups belong in public Git.
 Initialization accepts only the current storage baseline; it never resets an
 existing database. A storage-model change requires an explicitly prepared fresh
 development database after preserving needed evidence, not an in-place legacy upgrade.
@@ -37,6 +41,7 @@ With Python 3.12, `uv`, and PostgreSQL 17:
 ```sh
 uv sync --locked
 export NORTHSTAR_DATABASE_URL='postgresql+psycopg://northstar:northstar_local@127.0.0.1:15432/northstar_quant'
+export NORTHSTAR_DATA_DIR='/absolute/private/northstar/sources'
 uv run northstar init-db
 uv run northstar import examples/intraday.toml
 uv run northstar datasets
@@ -56,6 +61,81 @@ study's research parameters and the accepted snapshot; it does not read or
 re-import the CSV. Without `--study`, it uses explicit research defaults.
 The browser provides the same selection without copying a UUID, and can reuse
 source/contract metadata for another import with an explicitly selected new file.
+
+## Retained sources and processing
+
+Uploading uses the file's actual bytes, including BOM or invalid UTF-8; parsing
+happens only after permitted reception. Declare retention permission, permitted
+local download, a usage basis, and whether the file was received directly or
+converted outside this application. A converted file may link an actually retained
+upstream source and a transformation note; the app does not invent an upstream
+archive or claim it executed that conversion. Declarations are not independently
+verified licenses, and local download permission is not redistribution permission.
+
+`/sources` lists received files, processing and bounded pre-admission rejections.
+Every accepted attempt fixes input, parameters and the actual implementation.
+Invalid parameters, format or quality remain visible. Fix parameters on its detail
+page and reprocess retained bytes; a broken file needs a separately uploaded
+corrected file. Only confirmed publications with intact evidence are offered for
+new research or Paper. Historical saved reports remain visible when bytes are
+missing, with a source status explaining why re-execution is unavailable.
+
+`northstar import STUDY` returns the processing attempt, not an implied successful
+dataset; `PUBLISHED` carries `snapshot_id`. Each invocation creates a new attempt;
+use `--request-id UUID` to retry an uncertain acknowledgement without repeating it.
+The study's import-only `[archive]` table explicitly declares `use_basis`,
+`allow_retention`, `allow_download`, `input_kind`, and optional
+`upstream_source_id`/`transformation_note`; see the synthetic example.
+Research-only commands do not need that table or the operator's original file.
+
+```sh
+northstar sources
+northstar source SOURCE_UUID
+northstar attempt ATTEMPT_UUID
+northstar reprocess SOURCE_UUID --study examples/intraday.toml --request-id REQUEST_UUID
+northstar download SOURCE_UUID /absolute/new-output.csv
+northstar audit-data
+```
+
+Reprocessing records another attempt but reuses confirmed products for the same
+input, parameters and implementation. It never replaces the original receipt,
+availability declaration or an existing decision. Source and research pages show
+the links through processing and publication to research/Paper consumers.
+
+The single-file limit is 5 MiB (8 MiB HTTP envelope). The archive defaults to
+10 GiB and leaves at least 256 MiB free; set `NORTHSTAR_ARCHIVE_MAX_BYTES` and
+`NORTHSTAR_ARCHIVE_MIN_FREE_BYTES` to explicit local limits. Files are digest-named,
+verified and flushed before their database reference is committed. A failure in
+between may leave an unreferenced complete file or staging material, never a
+partly published source. `audit-data` identifies these and marks interrupted
+processing failed; it does not delete anything. The source list, detail, audit and
+processing results expose unavailable files and capacity failures.
+
+### Joint backup and empty-environment restore
+
+The Docker image includes PostgreSQL 17 client tools; a local Python installation
+also needs compatible `pg_dump`, `pg_restore`, `createdb` and `dropdb` for the full
+installation acceptance. Normal app operation does not require a local server binary.
+
+```sh
+docker compose exec app northstar backup /var/lib/northstar/backups/manual-001
+```
+
+This uses a maintenance gate for source processing and one exported PostgreSQL
+snapshot for the dump and file reference list. The destination must be new and
+separate from the live source directory. A completed backup contains
+`database.dump`, `manifest.json`, and its own verified `sources/` bytes. Backup
+references remain recorded; neither live sources nor valid backup references
+have a destructive cleanup entrypoint.
+
+For restore, explicitly create an **empty database**, set `NORTHSTAR_DATABASE_URL`
+to that database and `NORTHSTAR_DATA_DIR` to a **new, independent absolute path**,
+then run `northstar restore /absolute/backup-directory`. Do not initialize the
+target first. Restore preflights every referenced file and the dump, never drops
+or overwrites an existing database, and checks source/processing/publication
+relations under the current baseline. An incomplete restore blocks normal startup.
+Recovered Paper remains paused; this is data/research recovery, not broker
+reconciliation or live re-arming. Those remain separately gated future work.
 
 ## Recoverable file Paper
 
@@ -98,8 +178,8 @@ CSV columns are exactly `event_time,available_at,source_record_id,open,high,low,
 `event_time` is the minute's start. `available_at` must be at or after its
 completion, with its evidence and limitations declared in `[source]`:
 
-- `source_reference`: original source/file reference; retain the original file
-  separately, as PostgreSQL keeps accepted observations and byte hashes, not CSV bytes.
+- `source_reference`: declared acquisition/file reference, distinct from the
+  application's actual archived bytes and upstream relationship.
 - `availability_basis`: `SOURCE_DECLARED` for source times supplied by the
   operator (not independently verified), `FINAL_REVISED` for retrospective
   exploration, or `SYNTHETIC` for generated engineering examples.
@@ -115,18 +195,18 @@ The first real file comes from [Shinny EDB](docs/data-source.md): the actual
 `SHFE.rb2610` contract's 2026-09-04 afternoon session, 90 one-minute bars. It is
 retrospective data, not a point-in-time certified feed. Downloaded market files
 stay in a manually prepared local `.northstar/` evidence bundle and are not
-redistributed in this repository. This is not an application-managed source archive;
-the current Compose deployment persists PostgreSQL only.
+redistributed in this repository. That earlier manual bundle is not itself the
+managed archive; current imports explicitly retain the received file in Data.
 
 ## Planned data and workspace management
 
 The [lifecycle design](docs/ARCHITECTURE.md#8-持久化界面与运行维护) extends the same
 application with managed source files, processing attempts, publication and usage
 tracking. PostgreSQL owns records and trading facts; durable files hold source
-bytes and large data products. Raw archives, complete failed-import tracking and
-factor-result management are not yet implemented. Continue retaining original
-files separately for now. Fixed strategy/Risk revisions and Paper run bindings
-are implemented; broader policy management and live controls remain future work.
+bytes and large data products. The bounded source→processing→publication→research
+path and its joint backup/restore are implemented, as are fixed strategy/Risk
+revisions and Paper bindings. Factor-result management, larger data products,
+broader policy management and live controls remain future work.
 
 The workspace will expose data, actual factors, strategy configurations, Risk and
 research/trading runs. Each run binds exact data, configuration and implementation

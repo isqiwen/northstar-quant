@@ -1,11 +1,12 @@
-FROM python:3.12-slim AS build
+FROM python:3.12-slim-trixie AS build
 WORKDIR /app
 COPY --from=ghcr.io/astral-sh/uv:0.11.33 /uv /usr/local/bin/uv
 COPY pyproject.toml uv.lock README.md ./
 COPY src ./src
 RUN uv sync --locked --no-dev --no-editable
 
-FROM python:3.12-slim AS runtime
+FROM python:3.12-slim-trixie AS runtime
+RUN apt-get update && apt-get install -y --no-install-recommends postgresql-client-17 && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=build /app/.venv /app/.venv
 ENV PATH="/app/.venv/bin:$PATH"

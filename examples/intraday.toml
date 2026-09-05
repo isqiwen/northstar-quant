@@ -1,4 +1,10 @@
 # Synthetic input for learning the workflow, not historical market evidence.
+[archive]
+use_basis = "Synthetic engineering example generated for this application; local retention and download permitted."
+allow_retention = true
+allow_download = true
+input_kind = "RECEIVED_CSV"
+
 [source]
 file = "intraday.csv"
 exchange = "SIM"

@@ -2,16 +2,17 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
 import json
 import re
 import secrets
-import tempfile
 import time
 from decimal import Decimal
 from html import escape
 from importlib.resources import files
-from pathlib import Path
 from typing import cast
+from urllib.parse import quote
 from uuid import UUID
 
 from fastapi import FastAPI, HTTPException, Request
@@ -21,22 +22,33 @@ from sqlalchemy.exc import SQLAlchemyError
 from starlette.concurrency import run_in_threadpool
 from starlette.middleware.base import RequestResponseEndpoint
 
-from northstar_quant.data.research import (
-    ImportSpec,
-    describe_dataset,
-    import_csv,
-    list_datasets,
-    load_dataset,
-)
+from northstar_quant.data.files import SourceFiles
+from northstar_quant.data.library import AdmissionRejected, DataLibrary
 from northstar_quant.research import ResearchConfig, run_research
 from northstar_quant.runs import RunStore
 from northstar_quant.sessions import SessionStore
 
-_MAX_BODY = 5 * 1024 * 1024
+_MAX_BODY = 8 * 1024 * 1024
 _LOCAL_HOST = re.compile(r"(?:127\.0\.0\.1|localhost)(?::[1-9][0-9]{0,4})?\Z")
 _CSV_COLUMNS = "event_time,available_at,source_record_id,open,high,low,close,volume"
-_PAPER_COOKIE = "northstar_paper_session"
-_PAPER_SESSION_SECONDS = 1800
+_WORKSPACE_COOKIE = "northstar_workspace_session"
+_WORKSPACE_SESSION_SECONDS = 1800
+_INPUT_KIND_LABELS = {
+    "RECEIVED_CSV": "实际收到的 CSV（不宣称供应商原文）",
+    "CONVERTED_CSV": "外部转换后 CSV",
+}
+_PROCESS_LABELS = {
+    "PENDING": "等待处理",
+    "RUNNING": "正在处理",
+    "FAILED": "失败",
+    "PUBLISHED": "已发布",
+    "RECEIVED": "已接收",
+    "VALIDATING": "检查处理参数",
+    "PARSING": "解析文件",
+    "IMPORTING": "写入观测",
+    "QUALITY": "质量检查",
+    "PUBLISHING": "发布快照",
+}
 _DECISION_LABELS = {
     "BUY": "买入",
     "SELL": "卖出",
@@ -63,35 +75,38 @@ def application() -> FastAPI:
 
     from northstar_quant.db import open_database
 
-    return create_app(open_database())
+    engine = open_database()
+    return create_app(engine, DataLibrary(engine, SourceFiles.from_environment()))
 
 
-def create_app(engine: Engine) -> FastAPI:
+def create_app(engine: Engine, library: DataLibrary) -> FastAPI:
     store = RunStore(engine)
-    paper = SessionStore(engine)
+    paper = SessionStore(engine, library)
     app = FastAPI(title="Northstar · 个人量化工作台", docs_url=None, redoc_url=None)
     browser_sessions: dict[str, tuple[str, float]] = {}
 
-    def paper_page(request: Request, title: str, content: str) -> HTMLResponse:
+    def workspace_page(
+        request: Request, title: str, content: str, *, mode: str = "历史研究 · 本机"
+    ) -> HTMLResponse:
         # Called on the event loop, as is command protection below. Tokens are
         # process-local browser sessions, not broker execution authority.
         now = time.monotonic()
         for identifier, (_, deadline) in list(browser_sessions.items()):
             if deadline <= now:
                 del browser_sessions[identifier]
-        identifier = request.cookies.get(_PAPER_COOKIE, "")
+        identifier = request.cookies.get(_WORKSPACE_COOKIE, "")
         if identifier not in browser_sessions:
             if len(browser_sessions) >= 64:
                 del browser_sessions[next(iter(browser_sessions))]
             identifier = secrets.token_urlsafe(32)
             browser_sessions[identifier] = (
                 secrets.token_urlsafe(32),
-                now + _PAPER_SESSION_SECONDS,
+                now + _WORKSPACE_SESSION_SECONDS,
             )
         csrf, deadline = browser_sessions[identifier]
-        response = HTMLResponse(_page(title, content, csrf=csrf, mode="内部 Paper · 文件输入"))
+        response = HTMLResponse(_page(title, content, csrf=csrf, mode=mode))
         response.set_cookie(
-            _PAPER_COOKIE,
+            _WORKSPACE_COOKIE,
             identifier,
             max_age=max(1, int(deadline - now)),
             httponly=True,
@@ -100,18 +115,22 @@ def create_app(engine: Engine) -> FastAPI:
         )
         return response
 
-    def protect_paper_command(request: Request) -> None:
-        session = browser_sessions.get(request.cookies.get(_PAPER_COOKIE, ""))
-        supplied = request.headers.get("x-northstar-csrf", "")
-        if (
-            session is None
-            or session[1] <= time.monotonic()
-            or not supplied.isascii()
-            or not secrets.compare_digest(session[0], supplied)
-        ):
+    def require_workspace_session(request: Request) -> str:
+        session = browser_sessions.get(request.cookies.get(_WORKSPACE_COOKIE, ""))
+        if session is None or session[1] <= time.monotonic():
             raise HTTPException(
                 status_code=403,
-                detail="Paper 操作会话缺失或已过期。请重新打开 Paper 页面后操作。",
+                detail="工作台会话缺失或已过期。请重新打开工作台页面后操作。",
+            )
+        return session[0]
+
+    def protect_workspace_command(request: Request) -> None:
+        expected = require_workspace_session(request)
+        supplied = request.headers.get("x-northstar-csrf", "")
+        if not supplied.isascii() or not secrets.compare_digest(expected, supplied):
+            raise HTTPException(
+                status_code=403,
+                detail="工作台操作校验失败。请重新打开页面后操作。",
             )
 
     @app.middleware("http")
@@ -150,6 +169,16 @@ def create_app(engine: Engine) -> FastAPI:
     async def input_error(_request: Request, error: ValueError) -> JSONResponse:
         return JSONResponse({"detail": str(error)[:500]}, status_code=422)
 
+    @app.exception_handler(AdmissionRejected)
+    async def rejected_source(_request: Request, error: AdmissionRejected) -> JSONResponse:
+        return JSONResponse(
+            {"detail": str(error)[:500], "rejection_id": error.rejection_id}, status_code=422
+        )
+
+    @app.exception_handler(PermissionError)
+    async def forbidden_asset(_request: Request, _error: PermissionError) -> JSONResponse:
+        return JSONResponse({"detail": "此来源未获准下载。"}, status_code=403)
+
     @app.exception_handler(LookupError)
     async def missing_resource(_request: Request, _error: LookupError) -> JSONResponse:
         return JSONResponse({"detail": "没有找到这份数据、配置或运行。"}, status_code=404)
@@ -166,12 +195,17 @@ def create_app(engine: Engine) -> FastAPI:
         return {"status": "ready"}
 
     @app.get("/", response_class=HTMLResponse)
-    def home(dataset: UUID | None = None) -> str:
-        datasets = [item.to_dict() for item in list_datasets(engine)]
-        selected = None if dataset is None else describe_dataset(engine, dataset).to_dict()
-        if selected is not None and all(item["snapshot_id"] != str(dataset) for item in datasets):
-            datasets.append(selected)
-        return _page("研究工作台", _workspace(store.list(), datasets, selected))
+    async def home(request: Request, dataset: UUID | None = None) -> HTMLResponse:
+        def workspace() -> str:
+            datasets = [item.to_dict() for item in library.list_datasets()]
+            selected = None if dataset is None else library.describe_dataset(dataset).to_dict()
+            if selected is not None and all(
+                item["snapshot_id"] != str(dataset) for item in datasets
+            ):
+                datasets.append(selected)
+            return _workspace(store.list(), datasets, selected)
+
+        return workspace_page(request, "研究工作台", await run_in_threadpool(workspace))
 
     @app.get("/assets/app.css")
     def stylesheet() -> Response:
@@ -193,37 +227,54 @@ def create_app(engine: Engine) -> FastAPI:
 
     @app.get("/api/datasets")
     def accepted_datasets(limit: int = 50) -> list[dict[str, object]]:
-        return [item.to_dict() for item in list_datasets(engine, limit=limit)]
+        return [item.to_dict() for item in library.list_datasets(limit=limit)]
 
     @app.get("/api/datasets/{snapshot_id}")
     def dataset_details(snapshot_id: UUID) -> dict[str, object]:
-        return describe_dataset(engine, snapshot_id).to_dict()
+        return library.describe_dataset(snapshot_id).to_dict()
+
+    @app.get("/api/datasets/{snapshot_id}/lineage")
+    def dataset_lineage(snapshot_id: UUID) -> dict[str, object]:
+        return library.lineage(snapshot_id)
 
     @app.get("/datasets/{snapshot_id}", response_class=HTMLResponse)
-    def show_dataset(snapshot_id: UUID) -> str:
-        data = describe_dataset(engine, snapshot_id).to_dict()
-        return _page("数据详情", _dataset_page(data))
+    async def show_dataset(request: Request, snapshot_id: UUID) -> HTMLResponse:
+        data = await run_in_threadpool(library.describe_dataset, snapshot_id)
+        lineage = await run_in_threadpool(library.lineage, snapshot_id)
+        return workspace_page(
+            request, "数据详情", _dataset_page(data.to_dict()) + _lineage_panel(lineage)
+        )
 
     @app.get("/api/runs/{run_id}")
     def get_run(run_id: str) -> dict[str, object]:
         return store.get(run_id)
 
     @app.get("/runs/{run_id}", response_class=HTMLResponse)
-    def show_run(run_id: str) -> str:
-        return _page("研究结果", _report(store.get(run_id)))
+    async def show_run(request: Request, run_id: str) -> HTMLResponse:
+        run = await run_in_threadpool(store.get, run_id)
+        snapshot_id = UUID(str(_object(run["snapshot"])["id"]))
+        lineage = await run_in_threadpool(library.lineage, snapshot_id)
+        return workspace_page(request, "研究结果", _report(run) + _lineage_panel(lineage))
 
     @app.get("/paper", response_class=HTMLResponse)
     async def paper_home(request: Request) -> HTMLResponse:
         def workspace() -> str:
-            datasets = [item.to_dict() for item in list_datasets(engine)]
+            datasets = [item.to_dict() for item in library.list_datasets()]
             return _paper_workspace(paper.list_configurations(), datasets, paper.list())
 
-        return paper_page(request, "文件 Paper 工作台", await run_in_threadpool(workspace))
+        return workspace_page(
+            request,
+            "文件 Paper 工作台",
+            await run_in_threadpool(workspace),
+            mode="内部 Paper · 文件输入",
+        )
 
     @app.get("/paper/{session_id}", response_class=HTMLResponse)
     async def paper_detail(request: Request, session_id: UUID) -> HTMLResponse:
         result = await run_in_threadpool(paper.get, session_id)
-        return paper_page(request, "文件 Paper 会话", _paper_report(result))
+        return workspace_page(
+            request, "文件 Paper 会话", _paper_report(result), mode="内部 Paper · 文件输入"
+        )
 
     @app.get("/api/configurations")
     def list_configurations() -> list[dict[str, object]]:
@@ -231,7 +282,7 @@ def create_app(engine: Engine) -> FastAPI:
 
     @app.post("/api/configurations", status_code=201)
     async def save_configuration(request: Request) -> dict[str, object]:
-        protect_paper_command(request)
+        protect_workspace_command(request)
         payload = await _read_object(request)
         if set(payload) != {"name", "config"} or not isinstance(payload["name"], str):
             raise ValueError("保存配置需要 name 和 config，不能提供账户状态或执行权限。")
@@ -244,7 +295,7 @@ def create_app(engine: Engine) -> FastAPI:
 
     @app.post("/api/paper", status_code=201)
     async def create_paper(request: Request) -> dict[str, object]:
-        protect_paper_command(request)
+        protect_workspace_command(request)
         payload = await _read_object(request)
         if set(payload) != {"snapshot_id", "configuration_id", "request_id"}:
             raise ValueError("新建 Paper 只接受 snapshot_id、configuration_id 和 request_id。")
@@ -265,7 +316,7 @@ def create_app(engine: Engine) -> FastAPI:
 
     @app.post("/api/paper/{session_id}/advance")
     async def advance_paper(request: Request, session_id: UUID) -> dict[str, object]:
-        protect_paper_command(request)
+        protect_workspace_command(request)
         payload = await _read_object(request)
         if set(payload) != {"request_id"}:
             raise ValueError("推进只接受 request_id；不能注入游标、账户状态或新配置。")
@@ -275,35 +326,118 @@ def create_app(engine: Engine) -> FastAPI:
 
     @app.post("/api/import")
     async def upload(request: Request) -> dict[str, object]:
+        protect_workspace_command(request)
         payload = await _read_object(request)
-        if set(payload) != {"csv", "spec"}:
-            raise ValueError("导入需要 csv 和 spec，不能含其他字段。")
-        csv = payload["csv"]
-        if not isinstance(csv, str) or not csv.strip():
-            raise ValueError("请选择包含数据的 UTF-8 CSV 文件。")
-        spec = ImportSpec.from_mapping(_object(payload["spec"]))
+        if set(payload) != {
+            "content_base64",
+            "filename",
+            "source_name",
+            "use_basis",
+            "allow_retention",
+            "allow_download",
+            "input_kind",
+            "upstream_source_id",
+            "transformation_note",
+            "spec",
+            "request_id",
+        }:
+            raise ValueError(
+                "上传需要原文字节、来源与权限声明、处理参数和命令身份，不能提供本地路径。"
+            )
+        encoded = _string_field(payload, "content_base64")
+        try:
+            content = base64.b64decode(encoded, validate=True)
+        except (binascii.Error, ValueError) as error:
+            raise ValueError("content_base64 必须是严格 Base64 编码的原始文件字节。") from error
+        for name in ("allow_retention", "allow_download"):
+            if type(payload[name]) is not bool:
+                raise ValueError(f"{name} 必须是明确的布尔值。")
+        upstream = payload["upstream_source_id"]
+        note = payload["transformation_note"]
+        if note is not None and not isinstance(note, str):
+            raise ValueError("transformation_note 必须是文本或 null。")
+        return await run_in_threadpool(
+            library.receive,
+            content,
+            filename=_string_field(payload, "filename"),
+            source_name=_string_field(payload, "source_name"),
+            use_basis=_string_field(payload, "use_basis"),
+            allow_retention=cast(bool, payload["allow_retention"]),
+            allow_download=cast(bool, payload["allow_download"]),
+            input_kind=_string_field(payload, "input_kind"),
+            upstream_source_id=None
+            if upstream is None
+            else _uuid_field(payload, "upstream_source_id"),
+            transformation_note=note,
+            spec=_object(payload["spec"]),
+            request_id=str(_uuid_field(payload, "request_id")),
+        )
 
-        def accept_file() -> dict[str, object]:
-            path: Path | None = None
-            try:
-                with tempfile.NamedTemporaryFile(prefix="northstar-import-", suffix=".csv") as file:
-                    path = Path(file.name)
-                    file.write(csv.encode("utf-8"))
-                    file.flush()
-                    dataset = import_csv(engine, path, spec)
-                    return {
-                        "snapshot_id": str(dataset.snapshot_id),
-                        "content_hash": dataset.content_hash,
-                        "bar_count": len(dataset.bars),
-                    }
-            finally:
-                if path is not None:
-                    path.unlink(missing_ok=True)
+    @app.get("/sources", response_class=HTMLResponse)
+    async def sources_home(request: Request) -> HTMLResponse:
+        def content() -> str:
+            return _sources_workspace(
+                library.list_sources(), library.list_attempts(), library.list_rejections()
+            )
 
-        return await run_in_threadpool(accept_file)
+        return workspace_page(
+            request, "来源与处理", await run_in_threadpool(content), mode="本机来源归档"
+        )
+
+    @app.get("/sources/{source_id}", response_class=HTMLResponse)
+    async def source_page(request: Request, source_id: UUID) -> HTMLResponse:
+        source = await run_in_threadpool(library.source, source_id)
+        return workspace_page(request, "来源详情", _source_page(source), mode="本机来源归档")
+
+    @app.get("/attempts/{attempt_id}", response_class=HTMLResponse)
+    async def attempt_page(request: Request, attempt_id: UUID) -> HTMLResponse:
+        attempt = await run_in_threadpool(library.attempt, attempt_id)
+        return workspace_page(request, "处理尝试", _attempt_page(attempt), mode="本机来源处理")
+
+    @app.get("/api/sources")
+    def list_sources(limit: int = 50) -> list[dict[str, object]]:
+        return library.list_sources(limit=limit)
+
+    @app.get("/api/sources/{source_id}")
+    def source_details(source_id: UUID) -> dict[str, object]:
+        return library.source(source_id)
+
+    @app.get("/api/attempts")
+    def list_attempts(limit: int = 50) -> list[dict[str, object]]:
+        return library.list_attempts(limit=limit)
+
+    @app.get("/api/attempts/{attempt_id}")
+    def attempt_details(attempt_id: UUID) -> dict[str, object]:
+        return library.attempt(attempt_id)
+
+    @app.get("/api/sources/{source_id}/download")
+    async def download_source(request: Request, source_id: UUID) -> Response:
+        require_workspace_session(request)
+        filename, content = await run_in_threadpool(library.download, source_id)
+        return Response(
+            content,
+            media_type="application/octet-stream",
+            headers={
+                "Content-Disposition": f"attachment; filename*=UTF-8''{quote(filename, safe='')}"
+            },
+        )
+
+    @app.post("/api/sources/{source_id}/reprocess")
+    async def reprocess_source(request: Request, source_id: UUID) -> dict[str, object]:
+        protect_workspace_command(request)
+        payload = await _read_object(request)
+        if set(payload) != {"spec", "request_id"}:
+            raise ValueError("重处理只接受 spec 和 request_id，不能更换原文或来源权限。")
+        return await run_in_threadpool(
+            library.reprocess,
+            source_id,
+            spec=_object(payload["spec"]),
+            request_id=str(_uuid_field(payload, "request_id")),
+        )
 
     @app.post("/api/runs", status_code=201)
     async def submit(request: Request) -> dict[str, str]:
+        protect_workspace_command(request)
         payload = await _read_object(request)
         if set(payload) != {"snapshot_id", "config"}:
             raise ValueError("研究需要 snapshot_id 和 config，不能提供账户状态。")
@@ -316,7 +450,7 @@ def create_app(engine: Engine) -> FastAPI:
         configuration = ResearchConfig.from_mapping(_object(payload["config"]))
 
         def execute() -> dict[str, str]:
-            dataset = load_dataset(engine, snapshot_id)
+            dataset = library.load_dataset(snapshot_id)
             result = run_research(dataset, configuration)
             run_id = store.save(dataset, configuration, result)
             return {"run_id": run_id, "url": f"/runs/{run_id}"}
@@ -336,6 +470,13 @@ def _uuid_field(payload: dict[str, object], name: str) -> UUID:
     return identifier
 
 
+def _string_field(payload: dict[str, object], name: str) -> str:
+    value = payload[name]
+    if not isinstance(value, str):
+        raise ValueError(f"{name} 必须是字符串。")
+    return value
+
+
 async def _read_object(request: Request) -> dict[str, object]:
     if request.headers.get("content-type", "").split(";", 1)[0].strip() != "application/json":
         raise HTTPException(status_code=415, detail="请使用 application/json。")
@@ -343,7 +484,9 @@ async def _read_object(request: Request) -> dict[str, object]:
     async for chunk in request.stream():
         content.extend(chunk)
         if len(content) > _MAX_BODY:
-            raise HTTPException(status_code=413, detail="请求不得超过 5 MiB。")
+            raise HTTPException(
+                status_code=413, detail="编码后请求不得超过 8 MiB；原文件最多 5 MiB。"
+            )
     try:
         payload: object = json.loads(content, object_pairs_hook=_unique_fields)
     except (UnicodeDecodeError, json.JSONDecodeError, RecursionError) as error:
@@ -399,7 +542,8 @@ def _page(
 <title>{_text(title)} · Northstar</title><link rel="stylesheet" href="/assets/app.css">
 <script src="/assets/app.js" defer></script></head><body>
 <header class="topbar"><a class="brand" href="/">NORTHSTAR<span>个人量化工作台</span></a>
-<nav aria-label="工作台"><a href="/">历史研究</a><a href="/paper">文件 Paper</a></nav>
+<nav aria-label="工作台"><a href="/">历史研究</a><a href="/sources">来源与处理</a>
+<a href="/paper">文件 Paper</a></nav>
 <span class="mode">{_text(mode)}</span></header>
 <main>{content}</main><footer>研究与内部 Paper 仅使用模拟账户，不连接交易柜台，
 不代表实盘表现。</footer>
@@ -413,6 +557,201 @@ def _field(
         f'<label>{_text(label)}<input name="{_text(name)}" type="{kind}" '
         f'value="{_text(value)}" placeholder="{_text(placeholder)}" required></label>'
     )
+
+
+def _spec_fields(values: dict[str, object] | None = None) -> str:
+    specification = {} if values is None else values
+    fields = "".join(
+        _field(name, label, specification.get(name, default), placeholder=placeholder)
+        for name, label, default, placeholder in (
+            ("exchange", "交易所", "", "SHFE"),
+            ("product", "品种", "", "RB"),
+            ("symbol", "合约代码", "", "RB2605"),
+            ("timezone", "交易所时区", "Asia/Shanghai", ""),
+            ("currency", "币种", "CNY", ""),
+            ("quantity_unit", "报价单位", "TON", ""),
+            ("price_tick", "最小价格变动", "", "1"),
+            ("multiplier", "每手合约乘数", "", "10"),
+            ("trading_day", "交易日", "", "2026-01-07"),
+            ("session_open", "时段开始（UTC）", "", "2026-01-07T01:00:00Z"),
+            ("session_close", "时段结束（UTC）", "", "2026-01-07T03:30:00Z"),
+            ("source_name", "数据来源标识（英文）", "", "my-market-export"),
+            ("source_reference", "出处（来源地址或文件说明）", "", "数据提供方及下载地址"),
+        )
+    )
+    options = ['<option value="">请选择实际依据</option>']
+    for value, label in (
+        ("SOURCE_DECLARED", "来源声明（操作人填写，未经独立验证）"),
+        ("FINAL_REVISED", "最终修订数据（仅探索模拟）"),
+        ("SYNTHETIC", "合成示例（非真实行情）"),
+    ):
+        selected = " selected" if specification.get("availability_basis") == value else ""
+        options.append(f'<option value="{value}"{selected}>{label}</option>')
+    return f"""<details open><summary>合约、时段与来源参数</summary>
+<div class="fields">{fields}</div></details>
+<label class="availability-field">历史可得时间依据<select name="availability_basis" required>
+{"".join(options)}</select></label><label>可得时间说明<textarea name="availability_note" rows="3"
+required placeholder="说明 available_at 的出处；最终修订数据须说明可见时间仅为假设。"
+>{_text(specification.get("availability_note", ""))}</textarea></label>"""
+
+
+def _source_list(sources: list[dict[str, object]]) -> str:
+    rows = [
+        f'<tr><td><a href="/sources/{_text(source["source_id"])}">{_text(source["filename"])}</a>'
+        f'<br><span class="muted">{_text(source["source_name"])}</span></td>'
+        f"<td>{_text(_INPUT_KIND_LABELS.get(str(source['input_kind']), source['input_kind']))}</td>"
+        f"<td>{_text(source['byte_count'])}</td><td>{_text(source['received_at'])}</td>"
+        f"<td>{_text(source['file_status'])}</td>"
+        f"<td>{'允许本机下载' if source['allow_download'] else '不允许下载'}</td></tr>"
+        for source in sources
+    ]
+    return _table(["收到的文件", "输入起点", "字节数", "接收时间", "归档状态", "下载权限"], rows)
+
+
+def _attempt_list(attempts: list[dict[str, object]]) -> str:
+    rows = []
+    for attempt in attempts:
+        snapshot = attempt["snapshot_id"]
+        product = (
+            "—"
+            if snapshot is None
+            else (f'<a href="/?dataset={_text(snapshot)}#research-form">选用已发布数据</a>')
+        )
+        rows.append(
+            f'<tr><td><a href="/attempts/{_text(attempt["attempt_id"])}">'
+            f"{_text(attempt['created_at'])}</a></td>"
+            f"<td>{_text(_PROCESS_LABELS.get(str(attempt['status']), attempt['status']))}</td>"
+            f"<td>{_text(_PROCESS_LABELS.get(str(attempt['stage']), attempt['stage']))}</td>"
+            f'<td class="wrap-cell">{_text(attempt["error"] or "—")}</td><td>{product}</td></tr>'
+        )
+    return _table(["处理尝试", "结果", "已到达阶段", "原因", "发布结果"], rows)
+
+
+def _sources_workspace(
+    sources: list[dict[str, object]],
+    attempts: list[dict[str, object]],
+    rejections: list[dict[str, object]],
+) -> str:
+    rejected_rows = [
+        f"<tr><td>{_text(item['created_at'])}</td>"
+        f'<td class="wrap-cell">{_text(item["reason"])}</td>'
+        f"<td>{_text(item['rejection_id'])}</td></tr>"
+        for item in rejections
+    ]
+    return f"""<section class="intro"><p class="eyebrow">SOURCE LIBRARY</p>
+<h1>原文留存，处理有据。</h1><p>查看实际收到的文件、处理失败与发布结果；不会把未发布材料列为可研究数据。</p>
+<div class="actions"><a class="button" href="/#import-form">上传并处理新文件</a></div></section>
+<section class="panel"><div class="section-title"><h2>托管来源</h2>
+<span class="muted">最近 50 份 · 本机不可变归档</span></div>{_source_list(sources)}</section>
+<section class="panel"><div class="section-title"><h2>加工与发布尝试</h2>
+<span class="muted">最近 50 次 · 失败记录也保留</span></div>{_attempt_list(attempts)}</section>
+<section class="panel"><h2>接收前拒绝</h2><p class="muted">仅保留有界拒绝原因和命令身份，
+不保存未获准的内容；传输格式或浏览器会话校验失败不创建来源。</p>
+{_table(["时间", "拒绝原因", "记录身份"], rejected_rows)}</section>"""
+
+
+def _source_page(source: dict[str, object]) -> str:
+    download = (
+        f'<a class="button secondary" href="/api/sources/{_text(source["source_id"])}/download">'
+        "按原字节下载收到的文件</a>"
+        if source["allow_download"]
+        else ""
+    )
+    upstream = source["upstream_source_id"]
+    upstream_link = (
+        '<p class="muted">未关联托管上游原文；不补造供应商原文或转换血缘。</p>'
+        if upstream is None
+        else f'<p><a href="/sources/{_text(upstream)}">查看已关联的上游来源</a></p>'
+    )
+    properties = (
+        ("来源标识", source["source_name"]),
+        ("收到的文件名", source["filename"]),
+        ("输入起点", _INPUT_KIND_LABELS.get(str(source["input_kind"]), source["input_kind"])),
+        ("原文字节摘要", source["content_hash"]),
+        ("原文字节数", source["byte_count"]),
+        ("接收时间", source["received_at"]),
+        ("归档状态", source["file_status"]),
+        ("用途与留存依据", source["use_basis"]),
+        ("获准留存", "是" if source["allow_retention"] else "否"),
+        ("本机下载", "允许" if source["allow_download"] else "不允许"),
+        ("转换说明", source["transformation_note"] or "无"),
+        ("来源身份", source["source_id"]),
+    )
+    description = "".join(f"<dt>{label}</dt><dd>{_text(value)}</dd>" for label, value in properties)
+    references = _text(
+        json.dumps(
+            {"products": source["products"], "usages": source["usages"]},
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
+    return f"""<section class="intro"><a class="back" href="/sources">← 返回来源与处理</a>
+<p class="eyebrow">RECEIVED SOURCE</p><h1>{_text(source["filename"])}</h1>
+<p>托管的是本次实际收到的内容，不以摘要存在代替原文可读。</p>
+<div class="actions">{download}</div></section>
+<section class="panel"><h2>固定来源与使用声明</h2><dl class="identity">{description}</dl>
+{upstream_link}<p class="muted">用途依据由操作者声明，不代表系统已核实第三方授权。
+本机下载许可不等于对外再分发许可；当前不提供删除或任意服务器路径访问。</p></section>
+<section class="panel"><h2>处理尝试</h2>{_attempt_list(_rows(source["attempts"]))}</section>
+<section class="panel"><h2>已发布产物与运行引用</h2><p class="muted">这是当前引用关系，
+不会回写历史研究的固定证据或结果身份。</p><pre>{references}</pre></section>"""
+
+
+def _attempt_page(attempt: dict[str, object]) -> str:
+    source = _object(attempt["source"])
+    parameters = _object(attempt["parameters"])
+    error = (
+        ""
+        if not attempt["error"]
+        else f'<aside class="data-notice error">{_text(attempt["error"])}</aside>'
+    )
+    snapshot = attempt["snapshot_id"]
+    product = (
+        '<p class="muted">尚无已发布快照，不能用于研究。原文和失败证据仍保留。</p>'
+        if snapshot is None
+        else f'<div class="actions"><a class="button" '
+        f'href="/?dataset={_text(snapshot)}#research-form">使用已发布数据继续研究</a>'
+        f'<a class="button secondary" href="/datasets/{_text(snapshot)}">'
+        "查看质量与数据详情</a></div>"
+    )
+    identities = (
+        ("输入来源", source["filename"]),
+        ("原文字节摘要", source["content_hash"]),
+        ("处理尝试", attempt["attempt_id"]),
+        ("命令身份", attempt["request_id"]),
+        ("前次尝试", attempt["retry_of"] or "首次处理"),
+        ("处理实现摘要", attempt["implementation_hash"]),
+        ("创建时间", attempt["created_at"]),
+        ("更新时间", attempt["updated_at"]),
+    )
+    identity_text = "".join(
+        f"<dt>{label}</dt><dd>{_text(value)}</dd>" for label, value in identities
+    )
+    quality = _text(json.dumps(attempt["quality"], ensure_ascii=False, indent=2))
+    exact_parameters = _text(json.dumps(parameters, ensure_ascii=False, indent=2))
+    return f"""<section class="intro"><a class="back" href="/sources/{_text(source["source_id"])}">
+← 返回来源详情</a><p class="eyebrow">PROCESSING ATTEMPT</p>
+<h1>{_text(source["filename"])} · 处理尝试</h1>
+<p>{_text(_PROCESS_LABELS.get(str(attempt["status"]), attempt["status"]))} ·
+已到达：{_text(_PROCESS_LABELS.get(str(attempt["stage"]), attempt["stage"]))}</p>
+{product}</section>{error}<section class="panel"><h2>固定输入与执行证据</h2>
+<dl class="identity">{identity_text}</dl><details><summary>本次原始处理参数</summary>
+<pre>{exact_parameters}</pre></details><details open><summary>已完成的质量证据</summary>
+<pre>{quality}</pre></details></section><section class="panel"><h2>修正参数后重新处理</h2>
+<p class="muted">读取同一份托管原文，创建新的处理尝试。
+不替换原文、权限、历史可得时间声明或已发布事实。
+相同内容与参数可复用已确认产物；文件内容本身错误时，请上传修正后的新文件。</p>
+<form id="reprocess-form" data-source-id="{_text(source["source_id"])}">{_spec_fields(parameters)}
+<button type="submit">用这些参数重新处理原文</button>
+<p id="reprocess-status" class="status" role="status"></p></form></section>"""
+
+
+def _lineage_panel(lineage: dict[str, object]) -> str:
+    references = _text(json.dumps(lineage["usages"], ensure_ascii=False, indent=2))
+    return f"""<section class="panel"><h2>托管来源与处理链</h2>
+<p class="muted">以下为当前可查询的来源、处理和引用；它们不改变本次研究或快照的固定身份。</p>
+{_source_list(_rows(lineage["sources"]))}{_attempt_list(_rows(lineage["attempts"]))}
+<details><summary>当前运行引用</summary><pre>{references}</pre></details></section>"""
 
 
 def _configuration_fields() -> str:
@@ -656,24 +995,6 @@ def _workspace(
     datasets: list[dict[str, object]],
     selected: dict[str, object] | None,
 ) -> str:
-    fields = "".join(
-        _field(name, label, value, placeholder=placeholder)
-        for name, label, value, placeholder in (
-            ("exchange", "交易所", "", "SHFE"),
-            ("product", "品种", "", "RB"),
-            ("symbol", "合约代码", "", "RB2605"),
-            ("timezone", "交易所时区", "Asia/Shanghai", ""),
-            ("currency", "币种", "CNY", ""),
-            ("quantity_unit", "报价单位", "TON", ""),
-            ("price_tick", "最小价格变动", "", "1"),
-            ("multiplier", "每手合约乘数", "", "10"),
-            ("trading_day", "交易日", "", "2026-01-07"),
-            ("session_open", "时段开始（UTC）", "", "2026-01-07T01:00:00Z"),
-            ("session_close", "时段结束（UTC）", "", "2026-01-07T03:30:00Z"),
-            ("source_name", "数据来源标识（英文）", "", "my-market-export"),
-            ("source_reference", "出处（来源地址或文件说明）", "", "数据提供方及下载地址"),
-        )
-    )
     defaults = ResearchConfig().to_dict()
     basic_fields = "".join(
         _field(name, label, defaults[name])
@@ -727,26 +1048,36 @@ def _workspace(
 <span class="muted">独立保存 · 无需先运行研究 · 最近 50 份</span></div>
 {_dataset_list(datasets)}</section>
 <div class="workspace"><section class="panel"><div class="section-title">
-<span class="step">01</span><h2>导入行情</h2></div>
+<span class="step">01</span><h2>上传原文并处理</h2></div>
 <p class="muted">当前支持一个合约、一个交易日内的一个连续时段，1 分钟 bars。
 填写实际合约属性和数据覆盖时段。</p>
 <form id="import-form"><label class="file-input">CSV 文件
 <input name="file" type="file" accept=".csv,text/csv" required></label>
-<details open><summary>合约与时段</summary><div class="fields">{fields}</div></details>
-<label class="availability-field">历史可得时间依据<select name="availability_basis" required>
-<option value="">请选择实际依据</option>
-<option value="SOURCE_DECLARED">来源声明（操作人填写，未经独立验证）</option>
-<option value="FINAL_REVISED">最终修订数据（仅探索模拟）</option>
-<option value="SYNTHETIC">合成示例（非真实行情）</option></select></label>
-<label>可得时间说明<textarea name="availability_note" rows="3" required
-placeholder="说明 available_at 的出处；最终修订数据须说明可见时间仅为假设。"
-></textarea></label>
+<p class="muted">原文件最多 5 MiB，按收到的字节留存，不在浏览器中解码或转换。
+数据层另检查归档总量和可用磁盘空间；处理失败也能在<a href="/sources">来源与处理</a>查询。</p>
+<fieldset><legend>输入起点与明确许可</legend>
+<label>实际上传的内容<select name="input_kind" required>
+<option value="">请选择文件的真实起点</option>
+<option value="RECEIVED_CSV">实际收到的 CSV（不宣称供应商原文）</option>
+<option value="CONVERTED_CSV">外部转换后 CSV</option></select></label>
+<label>用途与留存依据<textarea name="use_basis" rows="3" required
+placeholder="写明来源条款或授权，以及本机研究、留存与备份用途。请勿上传无权留存的内容。"></textarea></label>
+<label class="check-field"><input type="checkbox" name="allow_retention" required>
+我确认有权将本次内容留存于应用归档，并用于本机研究及备份。</label>
+<label class="check-field"><input type="checkbox" name="allow_download">
+允许本机操作者下载此归档文件（不等于对外再分发许可）。</label>
+<details><summary>已有上游归档与转换说明（可选）</summary>
+<label>已托管上游来源身份<input name="upstream_source_id"
+placeholder="已有来源详情中的 UUID"></label>
+<label>转换说明<textarea name="transformation_note" rows="3"
+placeholder="外部转换文件需说明转换方式；没有上游原文时明确缺失，不能补造血缘。"></textarea></label>
+</details></fieldset>{_spec_fields()}
 <details><summary>CSV 格式</summary><p>UTF-8，第一行包含以下列。
 时间带明确时区；available_at 不得早于该分钟完成。</p>
 <code class="csv-columns">{_CSV_COLUMNS}</code>
 <p class="muted">一行对应一个完整分钟；volume 为手数。
 合约、币种与时段使用上方填写的属性。</p></details>
-<button type="submit">导入并检查数据</button>
+<button type="submit">按原字节归档并处理</button>
 <p id="import-status" role="status" class="status"></p></form></section>
 <section class="panel"><div class="section-title">
 <span class="step">02</span><h2>运行研究</h2></div>

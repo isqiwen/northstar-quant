@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import tomllib
 from collections.abc import Sequence
 from pathlib import Path
 from typing import cast
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from alembic.util.exc import CommandError
 from sqlalchemy.exc import SQLAlchemyError
@@ -17,17 +18,22 @@ from sqlalchemy.exc import SQLAlchemyError
 from northstar_quant.db import initialize_database, open_database, require_current_database
 
 
-def _study(path: Path) -> tuple[Path, dict[str, object], dict[str, object]]:
+def _study(path: Path) -> tuple[Path, dict[str, object], dict[str, object], dict[str, object]]:
     if path.stat().st_size > 65_536:
         raise ValueError("study settings exceed 64 KiB")
     with path.open("rb") as stream:
         document = tomllib.load(stream)
-    if set(document) != {"source", "research"}:
-        raise ValueError("study requires exactly [source] and [research]")
+    if not {"source", "research"} <= set(document) <= {"source", "research", "archive"}:
+        raise ValueError("study requires [source], [research] and optional import-only [archive]")
     source = document["source"]
     research = document["research"]
-    if not isinstance(source, dict) or not isinstance(research, dict):
-        raise ValueError("source and research must be TOML tables")
+    archive = document.get("archive", {})
+    if (
+        not isinstance(source, dict)
+        or not isinstance(research, dict)
+        or not isinstance(archive, dict)
+    ):
+        raise ValueError("source, research and archive must be TOML tables")
     source = dict(source)
     file_name = source.pop("file", None)
     if not isinstance(file_name, str) or not file_name.strip():
@@ -36,6 +42,7 @@ def _study(path: Path) -> tuple[Path, dict[str, object], dict[str, object]]:
         (path.parent / file_name).resolve(),
         cast(dict[str, object], source),
         cast(dict[str, object], research),
+        cast(dict[str, object], archive),
     )
 
 
@@ -49,6 +56,35 @@ def main(argv: Sequence[str] | None = None) -> int:
         "import", help="accept CSV into the data library without a research run"
     )
     accept.add_argument("study", type=Path, help="TOML study with [source] and [research]")
+    for command in (run, accept):
+        command.add_argument(
+            "--request-id", type=UUID, help="reuse on retry; otherwise a new attempt"
+        )
+    commands.add_parser("sources", help="list retained source files and their availability")
+    source_command = commands.add_parser("source", help="show processing and usage of one source")
+    source_command.add_argument("source_id", type=UUID)
+    attempt_command = commands.add_parser("attempt", help="show accepted processing or failure")
+    attempt_command.add_argument("attempt_id", type=UUID)
+    reprocess = commands.add_parser(
+        "reprocess", help="process retained bytes with explicit parameters"
+    )
+    reprocess.add_argument("source_id", type=UUID)
+    reprocess.add_argument("--study", required=True, type=Path)
+    reprocess.add_argument("--request-id", required=True, type=UUID)
+    download = commands.add_parser("download", help="export permitted original bytes to a new file")
+    download.add_argument("source_id", type=UUID)
+    download.add_argument("destination", type=Path)
+    commands.add_parser(
+        "audit-data", help="reconcile interrupted processing and inspect files; never delete"
+    )
+    backup_command = commands.add_parser(
+        "backup", help="maintenance-window database and source backup"
+    )
+    backup_command.add_argument("destination", type=Path)
+    restore_command = commands.add_parser(
+        "restore", help="restore trusted backup into an empty database and new data directory"
+    )
+    restore_command.add_argument("backup", type=Path)
     commands.add_parser("datasets", help="list accepted datasets available for research")
     dataset_command = commands.add_parser(
         "dataset", help="show pinned source, quality and time evidence"
@@ -100,21 +136,29 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(json.dumps({"status": "ready"}))
             return 0
 
+        if arguments.command == "restore":
+            from northstar_quant.data.maintenance import restore
+
+            data_root = os.environ.get("NORTHSTAR_DATA_DIR")
+            if not data_root:
+                raise ValueError("NORTHSTAR_DATA_DIR must be an explicitly prepared new directory")
+            restored = restore(engine, Path(data_root), arguments.backup.resolve())
+            print(json.dumps(restored, ensure_ascii=False))
+            return 0
+
         require_current_database(engine)
 
-        from northstar_quant.data.research import (
-            ImportSpec,
-            describe_dataset,
-            import_csv,
-            list_datasets,
-            load_dataset,
-        )
+        from northstar_quant.data.files import SourceFiles
+        from northstar_quant.data.library import DataLibrary
         from northstar_quant.research import ResearchConfig, run_research
-        from northstar_quant.runs import RunStore, implementation_hash
+        from northstar_quant.runs import RunStore
+        from northstar_quant.runtime import implementation_hash
         from northstar_quant.sessions import SessionStore
 
         store = RunStore(engine)
-        paper = SessionStore(engine)
+        files = SourceFiles.from_environment()
+        library = DataLibrary(engine, files)
+        paper = SessionStore(engine, library)
         if arguments.command == "configure":
             config = ResearchConfig.from_mapping(_study(arguments.study.resolve())[2])
             print(json.dumps(paper.save_configuration(arguments.name, config), ensure_ascii=False))
@@ -143,27 +187,49 @@ def main(argv: Sequence[str] | None = None) -> int:
                 )
             )
         elif arguments.command in {"run", "import"}:
-            csv_path, source, parameters = _study(arguments.study.resolve())
-            config = ResearchConfig.from_mapping(parameters)
-            dataset = import_csv(engine, csv_path, ImportSpec.from_mapping(source))
-            if arguments.command == "import":
-                print(
-                    json.dumps(
-                        describe_dataset(engine, dataset.snapshot_id).to_dict(), ensure_ascii=False
-                    )
+            csv_path, source, parameters, archive = _study(arguments.study.resolve())
+            required = {"use_basis", "allow_retention", "allow_download", "input_kind"}
+            if (
+                not required
+                <= set(archive)
+                <= required | {"upstream_source_id", "transformation_note"}
+            ):
+                raise ValueError(
+                    "imports require explicit [archive] use_basis, allow_retention, "
+                    "allow_download and input_kind"
                 )
-                return 0
+            with csv_path.open("rb") as stream:
+                content = stream.read(files.max_file_bytes + 1)
+            upstream = archive.get("upstream_source_id")
+            attempt = library.receive(
+                content,
+                filename=csv_path.name,
+                source_name=cast(str, source.get("source_name")),
+                use_basis=cast(str, archive["use_basis"]),
+                allow_retention=cast(bool, archive["allow_retention"]),
+                allow_download=cast(bool, archive["allow_download"]),
+                input_kind=cast(str, archive["input_kind"]),
+                upstream_source_id=None if upstream is None else UUID(str(upstream)),
+                transformation_note=cast(str | None, archive.get("transformation_note")),
+                spec=source,
+                request_id=str(arguments.request_id or uuid4()),
+            )
+            if arguments.command == "import" or attempt["status"] != "PUBLISHED":
+                print(json.dumps(attempt, ensure_ascii=False))
+                return 0 if attempt["status"] == "PUBLISHED" else 2
+            dataset = library.load_dataset(UUID(str(attempt["snapshot_id"])))
+            config = ResearchConfig.from_mapping(parameters)
             result = run_research(dataset, config)
             run_id = store.save(dataset, config, result)
             print(json.dumps(store.get(run_id), ensure_ascii=False, sort_keys=True))
         elif arguments.command == "datasets":
             print(
-                json.dumps([item.to_dict() for item in list_datasets(engine)], ensure_ascii=False)
+                json.dumps([item.to_dict() for item in library.list_datasets()], ensure_ascii=False)
             )
         elif arguments.command == "dataset":
             print(
                 json.dumps(
-                    describe_dataset(engine, arguments.snapshot_id).to_dict(), ensure_ascii=False
+                    library.describe_dataset(arguments.snapshot_id).to_dict(), ensure_ascii=False
                 )
             )
         elif arguments.command == "research":
@@ -172,7 +238,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 if arguments.study is None
                 else ResearchConfig.from_mapping(_study(arguments.study.resolve())[2])
             )
-            dataset = load_dataset(engine, arguments.snapshot_id)
+            dataset = library.load_dataset(arguments.snapshot_id)
             run_id = store.save(dataset, config, run_research(dataset, config))
             print(json.dumps(store.get(run_id), ensure_ascii=False, sort_keys=True))
         elif arguments.command == "replay":
@@ -180,7 +246,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             if original["implementation_hash"] != implementation_hash():
                 raise ValueError("exact replay requires the saved implementation identity")
             snapshot = cast(dict[str, object], original["snapshot"])
-            dataset = load_dataset(engine, UUID(str(snapshot["id"])))
+            dataset = library.load_dataset(UUID(str(snapshot["id"])))
             if dataset.content_hash != snapshot["content_hash"]:
                 raise ValueError("stored snapshot identity does not match the saved research")
             config = ResearchConfig.from_mapping(cast(dict[str, object], original["config"]))
@@ -192,6 +258,35 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(json.dumps(store.get(arguments.run_id), ensure_ascii=False, sort_keys=True))
         elif arguments.command == "list":
             print(json.dumps(store.list(), ensure_ascii=False, sort_keys=True))
+        elif arguments.command == "sources":
+            print(json.dumps(library.list_sources(), ensure_ascii=False))
+        elif arguments.command == "source":
+            print(json.dumps(library.source(arguments.source_id), ensure_ascii=False))
+        elif arguments.command == "attempt":
+            print(json.dumps(library.attempt(arguments.attempt_id), ensure_ascii=False))
+        elif arguments.command == "reprocess":
+            attempt = library.reprocess(
+                arguments.source_id,
+                spec=_study(arguments.study.resolve())[1],
+                request_id=str(arguments.request_id),
+            )
+            print(json.dumps(attempt, ensure_ascii=False))
+            return 0 if attempt["status"] == "PUBLISHED" else 2
+        elif arguments.command == "download":
+            filename, content = library.download(arguments.source_id)
+            with arguments.destination.open("xb") as stream:
+                stream.write(content)
+            print(json.dumps({"filename": filename, "byte_count": len(content)}))
+        elif arguments.command == "audit-data":
+            print(json.dumps(library.reconcile(), ensure_ascii=False))
+        elif arguments.command == "backup":
+            from northstar_quant.data.maintenance import backup
+
+            print(
+                json.dumps(
+                    backup(engine, files, arguments.destination.resolve()), ensure_ascii=False
+                )
+            )
         elif arguments.command == "serve":
             if not 1024 <= arguments.port <= 65535:
                 raise ValueError("port must be between 1024 and 65535")
@@ -199,7 +294,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
             from northstar_quant.web import create_app
 
-            uvicorn.run(create_app(engine), host="127.0.0.1", port=arguments.port)
+            uvicorn.run(create_app(engine, library), host="127.0.0.1", port=arguments.port)
         return 0
     except SQLAlchemyError:
         print(

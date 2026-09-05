@@ -562,11 +562,11 @@ class JobRun(CreatedAtMixin, Base):
 
 
 class SourceReceipt(CreatedAtMixin, Base):
-    """Durable metadata for transient bytes observed by an ingestion command.
+    """Canonical ingestion evidence, distinct from managed source bytes.
 
-    The source bytes themselves are deliberately not persisted here.  The receipt
-    is the PostgreSQL evidence that lets a canonical observation be traced back to
-    a named source input without turning the local filesystem into a second store.
+    Current library imports pin the controlled archive identity and evidence hash
+    inside ImportRun.mapping in the same transaction as canonical observations.
+    This receipt identifies ingestion; DataLibrary owns retention and file access.
     """
 
     __tablename__ = "source_receipt"

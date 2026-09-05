@@ -8,8 +8,11 @@ synthetic intraday example; no application database is reset or deleted.
 from __future__ import annotations
 
 import argparse
+import base64
+import hashlib
 import json
 import os
+import re
 import socket
 import subprocess
 import sys
@@ -19,10 +22,11 @@ import tomllib
 from collections.abc import Iterator
 from contextlib import contextmanager
 from decimal import Decimal
+from http.cookiejar import CookieJar
 from pathlib import Path
 from urllib.error import URLError
 from urllib.parse import urlsplit
-from urllib.request import ProxyHandler, Request, build_opener
+from urllib.request import HTTPCookieProcessor, ProxyHandler, Request, build_opener
 from uuid import uuid4
 
 
@@ -49,17 +53,25 @@ def main() -> None:
     settings = tomllib.loads(study.read_text("utf-8"))
     source = dict(settings["source"])
     source_file = source.pop("file")
-    csv = (study.parent / source_file).read_text("utf-8")
-    opener = build_opener(ProxyHandler({}))
+    csv = (study.parent / source_file).read_bytes()
+    opener = build_opener(ProxyHandler({}), HTTPCookieProcessor(CookieJar()))
 
     def request(url: str, payload: object = None) -> bytes:
         body = None if payload is None else json.dumps(payload).encode("utf-8")
         headers = {} if body is None else {"Content-Type": "application/json"}
+        if body is not None:
+            parsed_url = urlsplit(url)
+            with opener.open(f"{parsed_url.scheme}://{parsed_url.netloc}/", timeout=15) as page:
+                html = page.read().decode()
+            token = re.search(r'<meta name="northstar-csrf" content="([^"]+)"', html)
+            assert token is not None, "workspace must provide a CSRF token"
+            headers["X-Northstar-CSRF"] = token.group(1)
         with opener.open(Request(url, data=body, headers=headers), timeout=15) as response:
             return response.read()
 
     with tempfile.TemporaryDirectory(prefix="northstar-install-") as directory:
         runtime = Path(directory)
+        environment["NORTHSTAR_DATA_DIR"] = str(runtime / "sources")
         log_path = runtime / "server.log"
         research_study = runtime / "research-only.toml"
         research_study.write_text(study.read_text("utf-8"), encoding="utf-8")
@@ -120,10 +132,14 @@ def main() -> None:
             assert command("init-db") == {"status": "ready"}
             assert command("init-db") == {"status": "ready"}
             runs_before_import = command("list")
-            data = command("import", str(study))
-            snapshot_id = data["snapshot_id"]
+            attempt = command("import", str(study))
+            assert attempt["status"] == "PUBLISHED", attempt
+            snapshot_id = attempt["snapshot_id"]
+            data = command("dataset", snapshot_id)
             assert command("list") == runs_before_import
-            assert command("import", str(study)) == data
+            repeated = command("import", str(study))
+            assert repeated["snapshot_id"] == snapshot_id
+            assert repeated["attempt_id"] != attempt["attempt_id"]
             assert sum(item["snapshot_id"] == snapshot_id for item in command("datasets")) == 1
             assert command("dataset", snapshot_id) == data
             saved = command("research", snapshot_id, "--study", str(research_study))
@@ -170,11 +186,37 @@ def main() -> None:
             assert paused_paper["cursor"] == 1 and paused_paper["status"] == "PAUSED"
 
             with server() as base_url:
-                imported = json.loads(
-                    request(f"{base_url}/api/import", {"csv": csv, "spec": source})
-                )
+                upload = {
+                    "content_base64": base64.b64encode(csv).decode("ascii"),
+                    "filename": source_file,
+                    "source_name": source["source_name"],
+                    "use_basis": settings["archive"]["use_basis"],
+                    "allow_retention": True,
+                    "allow_download": True,
+                    "input_kind": "RECEIVED_CSV",
+                    "upstream_source_id": None,
+                    "transformation_note": None,
+                    "spec": source,
+                    "request_id": str(uuid4()),
+                }
+                imported = json.loads(request(f"{base_url}/api/import", upload))
+                assert imported["status"] == "PUBLISHED", imported
                 assert imported["snapshot_id"] == saved["snapshot"]["id"]
-                assert imported["content_hash"] == saved["snapshot"]["content_hash"]
+                assert request(f"{base_url}/api/sources/{imported['source_id']}/download") == csv
+                assert json.loads(request(f"{base_url}/api/import", upload)) == imported
+                invalid = dict(
+                    upload, request_id=str(uuid4()), spec=dict(source, price_tick="invalid")
+                )
+                failed = json.loads(request(f"{base_url}/api/import", invalid))
+                assert failed["status"] == "FAILED", failed
+                assert request(f"{base_url}/attempts/{failed['attempt_id']}")
+                repaired = json.loads(
+                    request(
+                        f"{base_url}/api/sources/{failed['source_id']}/reprocess",
+                        {"spec": source, "request_id": str(uuid4())},
+                    )
+                )
+                assert repaired["status"] == "PUBLISHED" and repaired["snapshot_id"] == snapshot_id
                 datasets = json.loads(request(f"{base_url}/api/datasets"))
                 assert sum(item["snapshot_id"] == snapshot_id for item in datasets) == 1
                 assert json.loads(request(f"{base_url}/api/datasets/{snapshot_id}")) == data
@@ -238,11 +280,98 @@ def main() -> None:
                 "Process restart: dataset reuse, persisted source/result and exact replay passed",
                 flush=True,
             )
+            export = runtime / "retained.csv"
+            command("download", attempt["source_id"], str(export))
+            assert export.read_bytes() == csv
+            backup = command("backup", str(runtime / "backup"))
+            assert backup["sources"]
+            assert (
+                hashlib.sha256((runtime / "backup/database.dump").read_bytes()).hexdigest()
+                == backup["database_sha256"]
+            )
+            _check_restore(executable, runtime, environment, parsed, run_id, snapshot_id, data)
             print(json.dumps({"run_id": run_id, "summary": summary}, ensure_ascii=False))
         except Exception:
             if log_path.exists():
                 print(log_path.read_text("utf-8"), file=sys.stderr)
             raise
+
+
+def _check_restore(executable, runtime, environment, parsed, run_id, snapshot_id, data):
+    """Use a generated disposable restore database; never overwrite the source database."""
+
+    target_name = "northstar_quant_restore_test_" + uuid4().hex[:12]
+    pg_environment = dict(environment, PGPASSWORD=parsed.password or "")
+    pg_arguments = [
+        "--no-password",
+        f"--host={parsed.hostname}",
+        f"--port={parsed.port or 5432}",
+        f"--username={parsed.username}",
+        target_name,
+    ]
+    subprocess.run(
+        ["createdb", *pg_arguments], env=pg_environment, check=True, capture_output=True, timeout=30
+    )
+    restored = dict(
+        environment,
+        NORTHSTAR_DATABASE_URL=environment["NORTHSTAR_DATABASE_URL"].rsplit("/", 1)[0]
+        + "/"
+        + target_name,
+        NORTHSTAR_DATA_DIR=str(runtime / "restored-sources"),
+    )
+
+    def command(*arguments):
+        result = subprocess.run(
+            [executable, *arguments],
+            env=restored,
+            cwd=runtime,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        if result.returncode:
+            raise RuntimeError(f"restore acceptance {arguments[0]} failed: {result.stderr}")
+        return json.loads(result.stdout)
+
+    try:
+        manifest = json.loads((runtime / "backup/manifest.json").read_bytes())
+        identity = manifest["sources"][0]["content_hash"]
+        referenced = runtime / "backup/sources/objects" / identity[:2] / identity
+        unavailable = runtime / "missing-source.saved"
+        referenced.rename(unavailable)
+        try:
+            missing = subprocess.run(
+                [executable, "restore", str(runtime / "backup")],
+                env=restored,
+                cwd=runtime,
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+            assert missing.returncode != 0, "missing referenced bytes must reject restoration"
+            assert not Path(restored["NORTHSTAR_DATA_DIR"]).exists(), (
+                "preflight must not activate partial restore"
+            )
+        finally:
+            unavailable.rename(referenced)
+        result = command("restore", str(runtime / "backup"))
+        assert result["status"] == "restored" and result["execution"] == "PAUSED"
+        assert command("dataset", snapshot_id) == data
+        assert command("replay", run_id)["run_id"] == run_id
+        assert all(item["file_status"] == "AVAILABLE" for item in command("sources"))
+        print(
+            "Joint restore: empty database, retained bytes, source/processing/publication "
+            "and exact research reuse passed",
+            flush=True,
+        )
+    finally:
+        subprocess.run(
+            ["dropdb", *pg_arguments],
+            env=pg_environment,
+            check=True,
+            capture_output=True,
+            timeout=30,
+        )
 
 
 if __name__ == "__main__":

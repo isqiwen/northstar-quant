@@ -26,6 +26,8 @@ label {display: block; font-size: 12px; color: #536359;}
 fieldset {border: 0; border-top: 1px solid #e9ede5; margin: 24px 0 0; padding: 12px 0 0; min-width: 0;}
 legend {font-size: 13px; color: #476555; padding: 0 12px 0 0;}
 .configuration-preview {margin: 12px 0 24px;}
+.check-field {display: flex; align-items: flex-start; gap: 10px; margin: 16px 0; font-size: 13px;}
+.check-field input {width: auto; flex: 0 0 auto; margin: 5px 0 0;}
 input, select, textarea {width: 100%; min-width: 0; display: block; padding: 10px 12px; border: 1px solid #d9e2d7; border-radius: 6px; margin-top: 6px; font: inherit; font-size: 14px; color: #223d33; background: #fcfdfa;}
 input:focus, select:focus, textarea:focus {outline: 2px solid #a6caba; outline-offset: 1px;}
 textarea {resize: vertical;}
@@ -59,6 +61,7 @@ table {width: 100%; border-collapse: collapse; font-size: 12px; font-variant-num
 th {font-weight: 500; color: #7b8878; text-align: left; background: #f7f9f4;}
 th, td {padding: 13px 12px; border-bottom: 1px solid #edf0e9;}
 td {color: #354f3e;}
+.wrap-cell {white-space: normal; min-width: 220px; max-width: 440px; overflow-wrap: anywhere;}
 .metrics {display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin: 0 0 24px;}
 .metric {background: #fff; border: 1px solid #e0e6dc; border-radius: 10px; padding: 22px;}
 .metric span, .metric small {display: block; color: #788773; font-size: 12px;}
