@@ -61,7 +61,7 @@ def sdk_status() -> dict[str, object]:
 
 
 def sdk_self_check() -> dict[str, object]:
-    """Create/release SDK handles in isolation; never Init, register or connect."""
+    """Construct queries, prepare/release handles; never Init, register or connect."""
 
     from northstar_quant.broker._ctp_worker import check_native
 

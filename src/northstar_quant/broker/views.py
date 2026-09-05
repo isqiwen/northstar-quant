@@ -92,6 +92,8 @@ def report(batch: dict[str, object]) -> str:
             if section["status"] != "COMPLETE"
             else "以下为柜台返回字段，未补填或推算账户事实。"
         )
+        if name == "instrument":
+            note += " 目标合约须按代码精确匹配；包含同前缀合约在内的全部回包保存在原始记录中。"
         panels.append(
             f'<section class="panel"><h2>{_text(_SECTIONS.get(name, name))}</h2>'
             f"<p>{_text(section['status'])} · {_text(note)}</p>"
@@ -112,7 +114,8 @@ def report(batch: dict[str, object]) -> str:
 <p>各查询分时返回，不构成同一时刻的原子账户快照。本地柜台账本尚未建立，
 差异未知，不会把未知写成零，也不会覆盖研究或 Paper 账本。</p></aside>
 <section class="panel"><h2>查询范围与证据</h2><p>命令身份 {_text(batch["batch_id"])}</p>
-<p>身份 {_text(completeness["identity"])} · 柜台交易日 {_text(completeness["trading_day"])}</p>
+<p>交易账户身份 {_text(completeness["identity"])} ·
+柜台交易日 {_text(completeness["trading_day"])}</p>
 {_json(capture_info)}<details><summary>失败、缺项与未完成对账的原因</summary>
 {_json(batch["reconciliation"])}</details>
 <details><summary>环境、查询范围与实现身份</summary>
@@ -120,4 +123,5 @@ def report(batch: dict[str, object]) -> str:
 <a href="/api/broker/queries/{_text(batch["batch_id"])}">查看完整固定回包记录（本机私有）</a>
 </section><div class="workspace">{"".join(panels)}</div>
 <section class="panel"><h2>行情观察</h2><p>仅本次有限连接的订阅与行情证据，
-不是持续行情服务；无行情不代表价格为零。</p>{_json(batch["market"])}</section>"""
+不是持续行情服务；无行情不代表价格为零，行情登录也不作为交易账户身份凭据。</p>
+{_json(batch["market"])}</section>"""

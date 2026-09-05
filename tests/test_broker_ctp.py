@@ -35,8 +35,8 @@ class _Trader:
     def RegisterFront(self, _front: str) -> None:
         pass
 
-    def SubscribePrivateTopic(self, _mode: int) -> None:
-        pass
+    def SubscribePrivateTopic(self, mode: int, sequence: int) -> None:
+        assert (mode, sequence) == (2, 1)
 
     def SubscribePublicTopic(self, _mode: int) -> None:
         pass
@@ -63,6 +63,8 @@ class _Trader:
             raise AssertionError("unexpected SDK operation")
 
         def respond(native: SimpleNamespace, request: int) -> int:
+            if method == "ReqQryTradingAccount":
+                assert native.BizType == "1"
             if method == "ReqQryOrder" and _MODE == "reject":
                 return -3
             callback = getattr(self, "OnRsp" + method.removeprefix("Req"))
@@ -91,6 +93,21 @@ class _Trader:
 
 
 class _Market(_Trader):
+    def ReqUserLogin(self, _native: SimpleNamespace, _request: int) -> int:
+        # Actual SimNow MD reply: request 0, no account identity. It is not TD
+        # authentication, and must not erase the independently confirmed account.
+        self.OnRspUserLogin(
+            SimpleNamespace(
+                TradingDay="20260903" if _MODE == "market_day" else "20260904",
+                BrokerID="9999" if _MODE == "market_account" else "",
+                UserID="654321" if _MODE == "market_account" else "",
+            ),
+            None,
+            0,
+            True,
+        )
+        return 0
+
     def SubscribeMarketData(self, instruments: list[str]) -> int:
         self.OnRspSubMarketData(SimpleNamespace(InstrumentID=instruments[0]), None, 0, True)
         for price in (float("inf"), 100.0):
@@ -116,7 +133,12 @@ def _scripted_capture(
     timeout: float,
 ) -> None:
     global _MODE
-    _MODE = {"er2610": "reject", "ml2610": "missing_last"}.get(instrument, "normal")
+    _MODE = {
+        "er2610": "reject",
+        "ml2610": "missing_last",
+        "md2610": "market_day",
+        "ma2610": "market_account",
+    }.get(instrument, "normal")
     sdk = SimpleNamespace(TraderApiPy=_Trader, MdApiPy=_Market)
     structures = SimpleNamespace(
         **{
@@ -190,7 +212,9 @@ def test_capture_orders_fast_callbacks_and_copies_only_permitted_facts(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _available(monkeypatch, _scripted_capture)
-    result = ctp.query_account(get_profile("simnow_dev"), _credentials(), "rb2610")
+    result = ctp.query_account(
+        get_profile("simnow_dev"), _credentials(), "rb2610", timeout_seconds=1
+    )
     assert result.failure_code is None
     assert result.trader_api_version == "v6.7.13_scripted_test"
     requests = [event for event in result.events if event.callback == "RequestSent"]
@@ -238,6 +262,8 @@ def test_capture_orders_fast_callbacks_and_copies_only_permitted_facts(
     [
         ("er2610", "CTP_REQUEST_REJECTED"),
         ("ml2610", "QUERY_TIMEOUT"),
+        ("md2610", "MARKET_LOGIN_TRADING_DAY_MISMATCH"),
+        ("ma2610", "MARKET_LOGIN_IDENTITY_MISMATCH"),
     ],
 )
 def test_rejected_or_unterminated_query_keeps_evidence_without_retry(
@@ -255,9 +281,12 @@ def test_rejected_or_unterminated_query_keeps_evidence_without_retry(
     assert result.failure_code == failure
     requests = [event for event in result.events if event.callback == "RequestSent"]
     assert len({event.request_id for event in requests}) == len(requests)
-    assert not any(
-        event.data["section"] == "commission" for event in requests if event.data is not None
-    )
+    if instrument in {"er2610", "ml2610"}:
+        assert not any(
+            event.data["section"] == "commission" for event in requests if event.data is not None
+        )
+    else:
+        assert not any(event.callback == "OnRspSubMarketData" for event in result.events)
     if instrument == "er2610":
         assert requests[-1].data is not None
         assert requests[-1].data["return_code"] == -3

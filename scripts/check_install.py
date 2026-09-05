@@ -138,7 +138,10 @@ def main() -> None:
                 checked_sdk = command("broker-sdk-check")
                 assert checked_sdk["native_verified"], checked_sdk
                 assert checked_sdk["trader_api_version"] and checked_sdk["market_api_version"]
-                print("Installed native CTP: create/release passed without network", flush=True)
+                print(
+                    "Installed native CTP: query structs, topics and release passed offline",
+                    flush=True,
+                )
             assert command("init-db") == {"status": "ready"}
             assert command("init-db") == {"status": "ready"}
             runs_before_import = command("list")

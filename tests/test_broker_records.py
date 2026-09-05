@@ -17,7 +17,11 @@ from northstar_quant.broker.settings import get_profile
 
 
 def _capture(
-    *, profile: str = "simnow_dev", account: str = "123456", with_position: bool = False
+    *,
+    profile: str = "simnow_dev",
+    account: str = "123456",
+    with_position: bool = False,
+    instruments: tuple[str, ...] = ("rb2610",),
 ) -> QueryCapture:
     started = datetime.now(UTC)
     events: list[BrokerEvent] = []
@@ -127,10 +131,25 @@ def _capture(
         10,
     ):
         sent(section, "ReqQry" + suffix, request)
-        event("OnRspQry" + suffix, rows[suffix], request=request, last=True)
+        if section == "instrument" and instruments:
+            assert rows[suffix] is not None
+            for index, name in enumerate(instruments):
+                event(
+                    "OnRspQry" + suffix,
+                    {**rows[suffix], "InstrumentID": name},
+                    request=request,
+                    last=index == len(instruments) - 1,
+                )
+        else:
+            event(
+                "OnRspQry" + suffix,
+                None if section == "instrument" else rows[suffix],
+                request=request,
+                last=True,
+            )
     event("OnFrontConnected", channel="MD")
-    sent("login", "ReqUserLogin", 2, channel="MD")
-    event("OnRspUserLogin", login, request=2, last=True, channel="MD")
+    sent("login", "ReqUserLogin", 0, channel="MD")
+    event("OnRspUserLogin", login, request=0, last=True, channel="MD")
     sent("depth", "SubscribeMarketData", None, channel="MD")
     event("OnRspSubMarketData", {"InstrumentID": "rb2610"}, request=0, last=True, channel="MD")
     event(
@@ -192,6 +211,7 @@ def test_query_completion_is_durable_private_and_never_establishes_a_ledger(
     assert saved["completeness"]["sections"]["positions"]["rows"][0]["InstrumentID"] == "cu2610"
     assert saved["completeness"]["sections"]["positions"]["rows"][0]["YdPosition"] == 1
     assert saved["market"]["continuous_feed"] is False
+    assert saved["market"]["login_identity"] == "CONFIRMED"
     assert saved["market"]["depth"]["data"]["UpperLimitPrice"] is None
     assert "must-not-retain-secret" not in json.dumps(saved)
     assert "Password" not in json.dumps(saved)
@@ -235,6 +255,165 @@ def test_requests_bind_account_and_environment_without_fallback_or_implicit_reco
     assert records.get(request_id)["status"] == "PENDING"
     with pytest.raises(ValueError, match="ASCII"):
         _begin(records, account="１２３")
+
+
+def test_market_login_without_account_identity_preserves_confirmed_td_account(
+    postgres_engine: Engine,
+    clean_database: None,
+) -> None:
+    del clean_database
+    records = BrokerRecords(postgres_engine)
+    batch_id = UUID(str(_begin(records)["batch_id"]))
+    capture = _capture()
+    events = tuple(
+        replace(event, data={**event.data, "BrokerID": "", "UserID": ""})
+        if event.channel == "MD" and event.callback == "OnRspUserLogin" and event.data
+        else event
+        for event in capture.events
+    )
+    saved = records.finish(batch_id, replace(capture, events=events))
+    assert saved["status"] == "COMPLETE"
+    assert saved["completeness"]["identity"] == "CONFIRMED"
+    assert saved["market"]["login_identity"] == "UNKNOWN"
+    assert saved["market"]["login"]["UserID"] == ""
+    assert "MARKET_LOGIN_IDENTITY_UNKNOWN" in saved["reconciliation"]["reasons"]
+    assert saved["reconciliation"]["status"] == "UNRECONCILED"
+    assert saved["execution"] == {"order_sending": False, "cancel_sending": False}
+    assert records.get(batch_id) == saved
+
+
+@pytest.mark.parametrize(
+    "failure, expected_status",
+    [
+        ("wrong_request", "INCOMPLETE"),
+        ("missing_last", "INCOMPLETE"),
+        ("broker_error", "FAILED"),
+        ("wrong_account", "FAILED"),
+        ("wrong_day", "FAILED"),
+        ("missing_day", "FAILED"),
+        ("capture_failure", "FAILED"),
+    ],
+)
+def test_market_uncertainty_cannot_validate_the_query_or_overwrite_td_identity(
+    postgres_engine: Engine,
+    clean_database: None,
+    failure: str,
+    expected_status: str,
+) -> None:
+    del clean_database
+    records = BrokerRecords(postgres_engine)
+    batch_id = UUID(str(_begin(records)["batch_id"]))
+    capture = _capture()
+    events = []
+    for event in capture.events:
+        if event.channel == "MD" and event.callback == "OnRspUserLogin":
+            assert event.data is not None
+            if failure == "wrong_request":
+                event = replace(event, request_id=100)
+            elif failure == "missing_last":
+                event = replace(event, is_last=False)
+            elif failure == "broker_error":
+                event = replace(event, error_id=42)
+            elif failure == "wrong_account":
+                event = replace(event, data={**event.data, "UserID": "654321"})
+            elif failure in {"wrong_day", "missing_day"}:
+                event = replace(
+                    event,
+                    data={
+                        **event.data,
+                        "TradingDay": "20260904" if failure == "wrong_day" else None,
+                    },
+                )
+        events.append(event)
+    saved = records.finish(
+        batch_id,
+        replace(
+            capture,
+            events=tuple(events),
+            failure_code="QUERY_TIMEOUT" if failure == "capture_failure" else None,
+        ),
+    )
+    assert saved["status"] == expected_status
+    assert saved["completeness"]["identity"] == "CONFIRMED"
+    assert saved["market"]["login_identity"] == (
+        "MISMATCH"
+        if failure == "wrong_account"
+        else "UNKNOWN"
+        if failure in {"wrong_request", "missing_last", "broker_error"}
+        else "CONFIRMED"
+    )
+    if failure in {"wrong_day", "missing_day"}:
+        assert "MARKET_LOGIN_TRADING_DAY_MISMATCH" in saved["completeness"]["reasons"]
+    assert saved["reconciliation"]["status"] == "UNRECONCILED"
+    assert saved["execution"] == {"order_sending": False, "cancel_sending": False}
+
+
+def test_exact_contract_projection_keeps_all_broker_prefix_matches_as_evidence(
+    postgres_engine: Engine,
+    clean_database: None,
+) -> None:
+    del clean_database
+    records = BrokerRecords(postgres_engine)
+    batch_id = UUID(str(_begin(records)["batch_id"]))
+    capture = _capture(instruments=("rb2610C3500", "rb2610", "rb2610P3300"))
+    saved = records.finish(batch_id, capture)
+    assert saved["status"] == "COMPLETE"
+    section = saved["completeness"]["sections"]["instrument"]
+    assert section["identity"] == "CONFIRMED"
+    assert [row["InstrumentID"] for row in section["rows"]] == ["rb2610"]
+    assert [
+        event["data"]["InstrumentID"]
+        for event in saved["capture"]["events"]
+        if event["callback"] == "OnRspQryInstrument"
+    ] == ["rb2610C3500", "rb2610", "rb2610P3300"]
+    assert saved["reconciliation"]["status"] == "UNRECONCILED"
+    assert records.get(batch_id) == saved
+
+
+@pytest.mark.parametrize("instruments", [(), ("rb2610C3500",), ("rb2610", "rb2610")])
+def test_missing_or_duplicate_exact_contract_cannot_confirm_selected_terms(
+    postgres_engine: Engine,
+    clean_database: None,
+    instruments: tuple[str, ...],
+) -> None:
+    del clean_database
+    records = BrokerRecords(postgres_engine)
+    batch_id = UUID(str(_begin(records)["batch_id"]))
+    saved = records.finish(batch_id, _capture(instruments=instruments))
+    assert saved["status"] == "INCOMPLETE"
+    section = saved["completeness"]["sections"]["instrument"]
+    assert section["status"] == "COMPLETE"  # Response ended, contract remains unconfirmed.
+    assert section["identity"] == "UNKNOWN"
+    reason = (
+        "EXACT_INSTRUMENT_NOT_UNIQUE" if len(instruments) == 2 else "EXACT_INSTRUMENT_NOT_FOUND"
+    )
+    assert reason in saved["completeness"]["reasons"]
+    assert saved["reconciliation"]["status"] == "UNRECONCILED"
+    assert saved["execution"] == {"order_sending": False, "cancel_sending": False}
+
+
+@pytest.mark.parametrize(
+    "callback", ["OnRspQryInstrumentMarginRate", "OnRspQryInstrumentCommissionRate"]
+)
+def test_rates_for_another_instrument_are_never_selected_as_effective_terms(
+    postgres_engine: Engine,
+    clean_database: None,
+    callback: str,
+) -> None:
+    del clean_database
+    records = BrokerRecords(postgres_engine)
+    batch_id = UUID(str(_begin(records)["batch_id"]))
+    capture = _capture()
+    events = tuple(
+        replace(event, data={**event.data, "InstrumentID": "rb2610C3500"})
+        if event.callback == callback and event.data
+        else event
+        for event in capture.events
+    )
+    saved = records.finish(batch_id, replace(capture, events=events))
+    assert saved["status"] == "FAILED"
+    assert "INSTRUMENT_QUERY_IDENTITY_MISMATCH" in saved["completeness"]["reasons"]
+    assert saved["reconciliation"]["status"] == "UNRECONCILED"
 
 
 @pytest.mark.parametrize(

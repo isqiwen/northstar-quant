@@ -30,7 +30,7 @@ M3 不阻塞首个受限闭环，但实际交易日、今昨仓、费用保证�
 | 2 | [#17 导入首份真实国内期货行情，并从已有数据继续研究](https://github.com/isqiwen/northstar-quant/issues/17) | [#16](https://github.com/isqiwen/northstar-quant/issues/16) |
 | 3 | [#24 保存并选择固定策略/Risk 配置，运行最小持久会话](https://github.com/isqiwen/northstar-quant/issues/24) | #17 |
 | 4 | [#36 上传原文后持久归档，追踪处理与发布并继续研究](https://github.com/isqiwen/northstar-quant/issues/36) | #17；无需外部账号，不阻塞 #24 |
-| 5 | [#31 具体柜台仿真只读连接、账户与行情核对](https://github.com/isqiwen/northstar-quant/issues/31) | —；实际验收需本机私密配置与环境可用 |
+| 5 | [#31 具体柜台仿真只读连接、账户与行情核对](https://github.com/isqiwen/northstar-quant/issues/31) | —；本机配置与 dev TD 登录/查询已验证，继续核对与非空账户验收 |
 | 6 | [#34 开户、程序化准入、生产 API 权限与只读账户核对](https://github.com/isqiwen/northstar-quant/issues/34) | #31；外部准入与开发并行，不阻塞仿真 |
 | 7 | [#25 可追溯的持续行情驱动会话，解释新鲜度与断线缺口](https://github.com/isqiwen/northstar-quant/issues/25) | #24、#31、#36 |
 | 8 | [#32 在外部柜台仿真完成策略报撤单、部分成交与账本核对](https://github.com/isqiwen/northstar-quant/issues/32) | #24、#25、#31 |
@@ -66,11 +66,12 @@ Order 表示默认优先执行顺序，原生 Blocked by 表示真正依赖。
 
 用户尚未开生产账户，已提供 SimNow 仿真账户及两套环境，同意先只读验收再推进受限仿真报撤单。
 采用 [CTP / SimNow](https://www.simnow.com.cn/product.action) 的一个具体接入；
-本机私密配置与实际登录在 #31 验收，生产期货公司与
+本机私密配置已就绪，2026-09-05 dev TD 实际认证/登录及七类查询已取得终结回包；
+#31 继续完成真实核对与剩余验收，生产期货公司与
 程序化报告确认、认证及行情权限在 #34 核实。密码、认证码和个人账户资料不进入公共 Issues。
 模拟环境和生产环境分别授权，能登录不等于允许报撤单，仿真通过不等于允许动用真实资金。
 
-私密配置未就绪不阻塞具体 Adapter、持久证据、网页和无网络原生验证；
+本轮不再将密码与认证配置列为缺失输入；
 不得用 SDK 加载、端口连通、固定返回值或内部 Paper 替代 #31/#32 的外部柜台验收。
 只读是连通验收阶段，后续 #25/#32 继续打通持续行情和受限报撤单，不以只读工具作为最终交付。
 没有生产准入和具体执行授权时，#35 保持未完成，不以目标声明授权代理下单。

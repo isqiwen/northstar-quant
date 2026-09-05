@@ -270,6 +270,34 @@ def _versions(trader: Any, market: Any) -> dict[str, str]:
     return result
 
 
+def _subscribe_reports(trader: Any) -> None:
+    # QUICK observes reports after login, not an earlier SDK flow. The current
+    # binding requires nSeqNo even though CTP uses it only in sequence-resume mode;
+    # pass the native default (1). Public subscription has no sequence argument.
+    trader.SubscribePrivateTopic(2, 1)
+    trader.SubscribePublicTopic(2)
+
+
+def _account_queries(
+    structures: Any, *, broker_id: str, investor_id: str, instrument: str
+) -> list[tuple[str, str, Any]]:
+    queries = []
+    for section, suffix in _TD_QUERIES:
+        fields = (
+            {} if section == "instrument" else {"BrokerID": broker_id, "InvestorID": investor_id}
+        )
+        if section == "account":
+            # The native field is one char; this binding's empty-string default
+            # cannot be constructed. '1' is the actual CTP futures business type.
+            fields.update(CurrencyID="CNY", BizType="1")
+        if section in {"instrument", "margin", "commission"}:
+            fields["InstrumentID"] = instrument
+        if section == "margin":
+            fields["HedgeFlag"] = "1"
+        queries.append((section, suffix, getattr(structures, "Qry" + suffix + "Field")(**fields)))
+    return queries
+
+
 def check_native(connection: Connection) -> None:
     """A separate no-network code path: no credentials, fronts, Init or login."""
 
@@ -283,11 +311,15 @@ def check_native(connection: Connection) -> None:
     trader = market = None
     try:
         sdk = importlib.import_module("ctpwrapper")
+        structures = importlib.import_module("ctpwrapper.ApiStructure")
+        # Synthetic identifiers, never operator credentials or a request send.
+        _account_queries(structures, broker_id="9999", investor_id="0", instrument="rb2610")
         with tempfile.TemporaryDirectory(prefix="northstar-ctp-check-") as directory:
             trader, market = sdk.TraderApiPy(), sdk.MdApiPy()
             trader.Create(directory + "/td-")
             market.Create(directory + "/md-")
             versions = _versions(trader, market)
+            _subscribe_reports(trader)
             trader.Release()
             market.Release()
             result.update(
@@ -331,6 +363,12 @@ def capture(
     try:
         sdk = importlib.import_module("ctpwrapper")
         structures = importlib.import_module("ctpwrapper.ApiStructure")
+        queries = _account_queries(
+            structures,
+            broker_id=credentials.broker_id,
+            investor_id=credentials.user_id,
+            instrument=instrument,
+        )
         trader = _native_class(sdk.TraderApiPy, receiver, "TD")()
         market = _native_class(sdk.MdApiPy, receiver, "MD")()
         connection.send_bytes(
@@ -339,9 +377,7 @@ def capture(
         trader.Create(directory + "/td-")
         market.Create(directory + "/md-")
         trader.RegisterFront(profile.td_front)
-        # Observe current reports without replaying previous SDK flow state.
-        trader.SubscribePrivateTopic(2)
-        trader.SubscribePublicTopic(2)
+        _subscribe_reports(trader)
         trader.Init()
         if not receiver.wait(lambda: "TD" in receiver.connected):
             receiver.failure = receiver.failure or "TD_CONNECT_TIMEOUT"
@@ -375,26 +411,11 @@ def capture(
             return
         # One in-flight query at a time, with a conservative 1.1-second gap.
         # This is our limit, not a claim about the current broker's configured cap.
-        for request, (section, suffix) in enumerate(_TD_QUERIES, start=3):
+        for request, (section, suffix, native) in enumerate(queries, start=3):
             ready_at = time.monotonic() + _QUERY_INTERVAL
             if not receiver.wait(lambda: time.monotonic() >= ready_at):
                 receiver.failure = receiver.failure or "QUERY_TIMEOUT"
                 return
-            fields = (
-                {}
-                if section == "instrument"
-                else {
-                    "BrokerID": credentials.broker_id,
-                    "InvestorID": credentials.user_id,
-                }
-            )
-            if section == "account":
-                fields["CurrencyID"] = "CNY"
-            if section in {"instrument", "margin", "commission"}:
-                fields["InstrumentID"] = instrument
-            if section == "margin":
-                fields["HedgeFlag"] = "1"
-            native = getattr(structures, "Qry" + suffix + "Field")(**fields)
             if not receiver.request(trader, section, "Qry" + suffix, native, request, "TD"):
                 return
         market.RegisterFront(profile.md_front)
@@ -402,9 +423,27 @@ def capture(
         if not receiver.wait(lambda: "MD" in receiver.connected, seconds=5):
             receiver.failure = receiver.failure or "MD_CONNECT_TIMEOUT"
             return
-        if not receiver.request(market, "login", "UserLogin", login, 100, "MD"):
+        # This one MD session uses request 0, which the actual front returns.
+        # MD login does not establish an investor identity; TD above does.
+        if not receiver.request(market, "login", "UserLogin", login, 0, "MD"):
             return
-        if not _same_account(receiver, credentials, "MD", 100):
+        market_login = receiver.responses.get(("MD", "OnRspUserLogin", 0))
+        trader_login = receiver.responses[("TD", "OnRspUserLogin", 2)]
+        if (
+            not market_login
+            or not trader_login
+            or market_login.get("TradingDay") != trader_login.get("TradingDay")
+        ):
+            receiver.failure = "MARKET_LOGIN_TRADING_DAY_MISMATCH"
+            return
+        if any(
+            market_login.get(field) not in {None, "", expected}
+            for field, expected in (
+                ("BrokerID", credentials.broker_id),
+                ("UserID", credentials.user_id),
+            )
+        ):
+            receiver.failure = "MARKET_LOGIN_IDENTITY_MISMATCH"
             return
         pending = receiver.event(
             "MD",

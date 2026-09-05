@@ -9,9 +9,12 @@ Currently implemented: retain original uploaded bytes, inspect processing failur
 and publication, import minute bars, replay a strategy with Risk and trading
 costs, save fixed configurations, and advance a recoverable file-driven Paper
 account in your browser. A concrete CTP adapter now provides explicit bounded
-SimNow read-only queries and saved browser evidence; actual account login remains
-unverified pending private credentials. Broker orders and live execution are not
-implemented. Research, Paper and successful queries never enable real
+SimNow read-only queries and saved browser evidence. On 2026-09-05, the approved
+`simnow_dev` account passed actual TD authentication/login, all seven TD queries
+returned terminal replies, and the selected contract subscription produced one market observation.
+This is not a continuous or freshness-verified feed; see the
+[acceptance evidence and remaining gaps](docs/broker-source.md).
+Broker orders and live execution are not implemented. Research, Paper and successful queries never enable real
 orders; see the [architecture and live gates](docs/ARCHITECTURE.md#9-首个受限实盘闭环).
 
 ## Run
@@ -60,7 +63,9 @@ docker compose -f compose.yaml -f compose.simnow.yaml up --build -d
 docker compose exec app northstar broker-sdk-check
 ```
 
-`broker-sdk-check` creates and releases native handles without network access.
+`broker-sdk-check` constructs the actual query structures with synthetic identifiers,
+creates native handles and configures report topics using the same calls as a query,
+then releases them without initializing a connection or sending any request.
 Open `/broker`, explicitly select `simnow_dev` or `simnow_trading` and a concrete
 futures contract, then click “连接并查询（只读）”. Only these two operator-approved
 environments are accepted. Profile definitions live beside the adapter, not in
@@ -68,6 +73,9 @@ the credentials file. No connection starts on page load, restart or restore.
 
 The query records CNY funds and whole-account positions/orders/trades, plus the
 selected contract, margin/commission terms and a bounded market observation.
+The instrument query can return same-prefix options: retain every raw callback,
+but select the requested futures contract by exact identity. MD login is separate
+from TD account authentication; absent MD identity fields remain unknown.
 Missing replies differ from confirmed empty results. `COMPLETE` means reply
 collection completed, **not** a reconciled account; local broker-ledger differences
 remain unknown until that ledger is established. No order, cancel, settlement

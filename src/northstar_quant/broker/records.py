@@ -600,17 +600,21 @@ def _result(binding: dict[str, object], capture: QueryCapture | None) -> dict[st
         }
         for name in _QUERIES
     }
+    sections["instrument"]["identity"] = "UNKNOWN"
     reasons: set[str] = set()
     unknown: set[str] = {
         "TRADING_SESSION_TIMES_NOT_VERIFIED",
         "LOCAL_LEDGER_NOT_ESTABLISHED",
         "QUERY_WINDOW_IS_NOT_AN_ATOMIC_ACCOUNT_SNAPSHOT",
     }
+    # This is the TD account identity. MD may omit account fields entirely;
+    # observing that public market session cannot undo verified account facts.
     identity = "UNKNOWN"
     trading_day: str | None = None
     market: dict[str, object] = {
         "status": "NOT_OBSERVED",
         "login": None,
+        "login_identity": "UNKNOWN",
         "depth": None,
         "continuous_feed": False,
     }
@@ -692,27 +696,48 @@ def _result(binding: dict[str, object], capture: QueryCapture | None) -> dict[st
                 continue
             if event.callback == "OnRspUserLogin":
                 request = None if key is None else requests.get(key)
-                if request is None or request[0] != "login" or event.is_last is not True:
+                login_complete = (
+                    request is not None and request[0] == "login" and event.is_last is True
+                )
+                if not login_complete:
                     reasons.add("LOGIN_REQUEST_OR_COMPLETION_NOT_CONFIRMED")
                 if data is not None and not event.error_id:
                     matching = (
                         data.get("BrokerID") == profile["broker_id"]
                         and data.get("UserID") == account_id
                     )
-                    if not matching:
+                    if event.channel == "MD":
+                        market["login"] = dict(data)
+                        market["status"] = "LOGIN_OBSERVED"
+                        if trading_day is None or data.get("TradingDay") != trading_day:
+                            reasons.add("MARKET_LOGIN_TRADING_DAY_MISMATCH")
+                            fatal = True
+                        if any(
+                            data.get(field) not in {None, "", expected}
+                            for field, expected in (
+                                ("BrokerID", profile["broker_id"]),
+                                ("UserID", account_id),
+                            )
+                        ):
+                            market["login_identity"] = "MISMATCH"
+                            reasons.add("MARKET_LOGIN_IDENTITY_MISMATCH")
+                            fatal = True
+                        elif matching and login_complete and market["login_identity"] != "MISMATCH":
+                            market["login_identity"] = "CONFIRMED"
+                        else:
+                            unknown.add("MARKET_LOGIN_IDENTITY_UNKNOWN")
+                    elif not matching:
                         identity = "MISMATCH"
                         reasons.add("LOGIN_ACCOUNT_IDENTITY_MISMATCH")
                         fatal = True
-                    elif event.channel == "TD":
-                        identity = "CONFIRMED" if identity != "MISMATCH" else identity
+                    else:
+                        if login_complete and identity != "MISMATCH":
+                            identity = "CONFIRMED"
                         day = data.get("TradingDay")
                         if isinstance(day, str) and re.fullmatch(r"[0-9]{8}", day):
                             trading_day = day
                         else:
                             reasons.add("BROKER_TRADING_DAY_UNKNOWN")
-                    else:
-                        market["login"] = dict(data)
-                        market["status"] = "LOGIN_OBSERVED"
                 else:
                     reasons.add("LOGIN_RESPONSE_MISSING_OR_FAILED")
             if event.callback == "OnRspAuthenticate" and data is not None:
@@ -747,7 +772,12 @@ def _result(binding: dict[str, object], capture: QueryCapture | None) -> dict[st
                 if event.error_id:
                     cast(list[int], item["error_ids"]).append(event.error_id)
                     item["status"] = "ERROR"
-                if data is not None:
+                # CTP's InstrumentID query can return prefix matches, including
+                # options. Preserve every callback in capture, while this
+                # selected-contract projection accepts exact equality only.
+                if data is not None and (
+                    section != "instrument" or data.get("InstrumentID") == instrument
+                ):
                     cast(list[dict[str, object]], item["rows"]).append(dict(data))
                     if section in _ACCOUNT_ROWS:
                         investor_key = "AccountID" if section == "account" else "InvestorID"
@@ -825,6 +855,16 @@ def _result(binding: dict[str, object], capture: QueryCapture | None) -> dict[st
         for name, section in sections.items():
             if section["status"] != "COMPLETE":
                 reasons.add(f"{name.upper()}_QUERY_NOT_COMPLETE")
+            if name == "instrument" and section["status"] == "COMPLETE":
+                count = len(cast(list[dict[str, object]], section["rows"]))
+                if count == 1:
+                    section["identity"] = "CONFIRMED"
+                else:
+                    reasons.add(
+                        "EXACT_INSTRUMENT_NOT_FOUND"
+                        if count == 0
+                        else "EXACT_INSTRUMENT_NOT_UNIQUE"
+                    )
             if name in {"account", "instrument", "margin", "commission"} and not section["rows"]:
                 unknown.add(f"{name.upper()}_FACTS_NOT_RETURNED")
         if capture.failure_code is not None:
@@ -832,6 +872,8 @@ def _result(binding: dict[str, object], capture: QueryCapture | None) -> dict[st
             fatal = True
         if capture.trader_api_version is None:
             unknown.add("TRADER_API_VERSION_UNKNOWN")
+        if market["login_identity"] == "UNKNOWN":
+            unknown.add("MARKET_LOGIN_IDENTITY_UNKNOWN")
     else:
         reasons.add("QUERY_NOT_FINISHED_OR_CALLER_INTERRUPTED")
     status = (
