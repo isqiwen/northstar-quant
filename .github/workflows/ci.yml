@@ -31,6 +31,8 @@ jobs:
       - name: Install PostgreSQL 17 maintenance client
         run: |
           sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends postgresql-common ca-certificates
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
           sudo apt-get install -y --no-install-recommends postgresql-client-17
       - name: Build and verify the installed wheel
         run: |
