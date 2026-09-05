@@ -49,6 +49,8 @@ def main() -> None:
     environment = dict(os.environ, NORTHSTAR_DATABASE_URL=database_url)
     environment.pop("PYTHONPATH", None)
     environment.pop("PYTHONHOME", None)
+    # Acceptance never inherits private operator credentials or connects to a broker.
+    environment.pop("NORTHSTAR_SIMNOW_CONFIG", None)
     executable = str(Path(sys.executable).parent / "northstar")
     settings = tomllib.loads(study.read_text("utf-8"))
     source = dict(settings["source"])
@@ -129,6 +131,14 @@ def main() -> None:
                             raise RuntimeError("installed HTTP application did not stop") from None
 
         try:
+            broker_setup = command("broker-status")
+            assert not broker_setup["credentials"]["configured"], broker_setup
+            assert broker_setup["execution"] == {"order_sending": False, "cancel_sending": False}
+            if broker_setup["sdk"]["supported"]:
+                checked_sdk = command("broker-sdk-check")
+                assert checked_sdk["native_verified"], checked_sdk
+                assert checked_sdk["trader_api_version"] and checked_sdk["market_api_version"]
+                print("Installed native CTP: create/release passed without network", flush=True)
             assert command("init-db") == {"status": "ready"}
             assert command("init-db") == {"status": "ready"}
             runs_before_import = command("list")
@@ -186,6 +196,10 @@ def main() -> None:
             assert paused_paper["cursor"] == 1 and paused_paper["status"] == "PAUSED"
 
             with server() as base_url:
+                assert "SimNow" in request(f"{base_url}/broker").decode()
+                broker_status = json.loads(request(f"{base_url}/api/broker/status"))
+                assert not broker_status["credentials"]["configured"]
+                assert broker_status["connection"] == "ON_DEMAND_READ_ONLY"
                 upload = {
                     "content_base64": base64.b64encode(csv).decode("ascii"),
                     "filename": source_file,

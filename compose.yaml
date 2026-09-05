@@ -16,6 +16,7 @@ services:
       timeout: 3s
       retries: 20
   app:
+    platform: linux/amd64
     build: .
     environment:
       NORTHSTAR_DATABASE_URL: postgresql+psycopg://northstar:northstar_local@postgres:5432/northstar_quant

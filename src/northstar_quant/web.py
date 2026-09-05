@@ -22,6 +22,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from starlette.concurrency import run_in_threadpool
 from starlette.middleware.base import RequestResponseEndpoint
 
+from northstar_quant.broker import views as broker_views
+from northstar_quant.broker.workspace import BrokerWorkspace
 from northstar_quant.data.files import SourceFiles
 from northstar_quant.data.library import AdmissionRejected, DataLibrary
 from northstar_quant.research import ResearchConfig, run_research
@@ -82,6 +84,7 @@ def application() -> FastAPI:
 def create_app(engine: Engine, library: DataLibrary) -> FastAPI:
     store = RunStore(engine)
     paper = SessionStore(engine, library)
+    broker = BrokerWorkspace(engine)
     app = FastAPI(title="Northstar · 个人量化工作台", docs_url=None, redoc_url=None)
     browser_sessions: dict[str, tuple[str, float]] = {}
 
@@ -255,6 +258,50 @@ def create_app(engine: Engine, library: DataLibrary) -> FastAPI:
         snapshot_id = UUID(str(_object(run["snapshot"])["id"]))
         lineage = await run_in_threadpool(library.lineage, snapshot_id)
         return workspace_page(request, "研究结果", _report(run) + _lineage_panel(lineage))
+
+    @app.get("/broker", response_class=HTMLResponse)
+    async def broker_home(request: Request) -> HTMLResponse:
+        def content() -> str:
+            return broker_views.workspace(broker.status(), broker.list())
+
+        return workspace_page(
+            request, "SimNow 连接", await run_in_threadpool(content), mode="SimNow · 只读验收"
+        )
+
+    @app.get("/broker/{batch_id}", response_class=HTMLResponse)
+    async def broker_detail(request: Request, batch_id: UUID) -> HTMLResponse:
+        batch = await run_in_threadpool(broker.get, batch_id)
+        return workspace_page(
+            request, "SimNow 查询记录", broker_views.report(batch), mode="SimNow · 固定查询记录"
+        )
+
+    @app.get("/api/broker/status")
+    async def broker_status(request: Request) -> dict[str, object]:
+        require_workspace_session(request)
+        return await run_in_threadpool(broker.status)
+
+    @app.get("/api/broker/queries")
+    async def broker_queries(request: Request, limit: int = 50) -> list[dict[str, object]]:
+        require_workspace_session(request)
+        return await run_in_threadpool(broker.list, limit=limit)
+
+    @app.get("/api/broker/queries/{batch_id}")
+    async def broker_query_detail(request: Request, batch_id: UUID) -> dict[str, object]:
+        require_workspace_session(request)
+        return await run_in_threadpool(broker.get, batch_id)
+
+    @app.post("/api/broker/queries")
+    async def broker_query(request: Request) -> dict[str, object]:
+        protect_workspace_command(request)
+        payload = await _read_object(request)
+        if set(payload) != {"profile", "instrument", "request_id"}:
+            raise ValueError("查询只接受 profile、instrument 和 request_id；网页不接收凭据或地址。")
+        return await run_in_threadpool(
+            broker.query,
+            _string_field(payload, "profile"),
+            _string_field(payload, "instrument"),
+            request_id=_uuid_field(payload, "request_id"),
+        )
 
     @app.get("/paper", response_class=HTMLResponse)
     async def paper_home(request: Request) -> HTMLResponse:
@@ -543,10 +590,10 @@ def _page(
 <script src="/assets/app.js" defer></script></head><body>
 <header class="topbar"><a class="brand" href="/">NORTHSTAR<span>个人量化工作台</span></a>
 <nav aria-label="工作台"><a href="/">历史研究</a><a href="/sources">来源与处理</a>
-<a href="/paper">文件 Paper</a></nav>
+<a href="/paper">文件 Paper</a><a href="/broker">SimNow 连接</a></nav>
 <span class="mode">{_text(mode)}</span></header>
-<main>{content}</main><footer>研究与内部 Paper 仅使用模拟账户，不连接交易柜台，
-不代表实盘表现。</footer>
+<main>{content}</main><footer>研究、内部 Paper 与 SimNow 柜台证据分别保存。
+当前 SimNow 仅显式只读查询；模拟结果不代表实盘表现。</footer>
 </body></html>"""
 
 

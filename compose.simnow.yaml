@@ -1,0 +1,11 @@
+# Optional private configuration for the same application, not a second gateway.
+# Run scripts/setup_simnow.sh locally first; this file contains no account secrets.
+services:
+  app:
+    environment:
+      NORTHSTAR_SIMNOW_CONFIG: /run/secrets/simnow
+    secrets:
+      - simnow
+secrets:
+  simnow:
+    file: ./.northstar/simnow.env

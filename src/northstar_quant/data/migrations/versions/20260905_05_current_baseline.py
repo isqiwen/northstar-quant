@@ -1,6 +1,6 @@
 """Create the only current Data Hub authority-store shape.
 
-Revision ID: 20260905_04
+Revision ID: 20260905_05
 Revises: none
 Create Date: 2026-09-05
 """
@@ -12,7 +12,7 @@ from alembic import context, op
 from northstar_quant.data.catalog import models as _models  # noqa: F401
 from northstar_quant.data.db.base import Base
 
-revision: str = "20260905_04"
+revision: str = "20260905_05"
 down_revision: str | Sequence[str] | None = None
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None

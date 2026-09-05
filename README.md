@@ -8,8 +8,10 @@ bounded, explicitly authorized live round trip; advanced research comes later.
 Currently implemented: retain original uploaded bytes, inspect processing failures
 and publication, import minute bars, replay a strategy with Risk and trading
 costs, save fixed configurations, and advance a recoverable file-driven Paper
-account in your browser. Broker connectivity and
-live execution are not implemented. Research or Paper results never enable real
+account in your browser. A concrete CTP adapter now provides explicit bounded
+SimNow read-only queries and saved browser evidence; actual account login remains
+unverified pending private credentials. Broker orders and live execution are not
+implemented. Research, Paper and successful queries never enable real
 orders; see the [architecture and live gates](docs/ARCHITECTURE.md#9-首个受限实盘闭环).
 
 ## Run
@@ -33,6 +35,62 @@ metadata. Select accepted data directly from the library, including after a
 restart, inspect its source and quality, then research without re-uploading the
 file. Reports show the saved equity curve, fills, costs, holdings and risk
 decisions alongside fixed input evidence. Empty state contains no invented results.
+
+## SimNow connection
+
+The current deployment is one **Linux amd64** application with `ctpwrapper==6.7.13`.
+Compose selects that architecture, including on an Apple Silicon host. Native
+macOS/arm64 remains usable for research and inspecting saved records, but not CTP.
+The [SDK evidence and limitations](docs/broker-source.md) separate offline native
+verification from actual authentication and account-query acceptance.
+
+In your own terminal, run the private configuration wizard:
+
+```sh
+bash scripts/setup_simnow.sh
+```
+
+It saves literal values in owner-only `.northstar/simnow.env`, excluded from Git
+and Docker build context. Do not source this file, paste its contents into chat,
+or add credentials to HTTP requests. The wizard does not connect or trade.
+For a database already on the current baseline, attach that file to the same app:
+
+```sh
+docker compose -f compose.yaml -f compose.simnow.yaml up --build -d
+docker compose exec app northstar broker-sdk-check
+```
+
+`broker-sdk-check` creates and releases native handles without network access.
+Open `/broker`, explicitly select `simnow_dev` or `simnow_trading` and a concrete
+futures contract, then click “连接并查询（只读）”. Only these two operator-approved
+environments are accepted. Profile definitions live beside the adapter, not in
+the credentials file. No connection starts on page load, restart or restore.
+
+The query records CNY funds and whole-account positions/orders/trades, plus the
+selected contract, margin/commission terms and a bounded market observation.
+Missing replies differ from confirmed empty results. `COMPLETE` means reply
+collection completed, **not** a reconciled account; local broker-ledger differences
+remain unknown until that ledger is established. No order, cancel, settlement
+confirmation, transfer or password-update operation is exposed in this stage.
+Controlled simulation orders/cancels are the next execution slice, not prohibited
+permanently.
+
+The same entrypoints are available from the installed CLI:
+
+```sh
+northstar broker-status
+northstar broker-query simnow_dev --instrument rb2610 --request-id REQUEST_UUID
+northstar broker-list
+northstar broker-show REQUEST_UUID
+```
+
+For a native Linux amd64 installation, set `NORTHSTAR_SIMNOW_CONFIG` to the
+absolute private file path. Reusing a request UUID returns the fixed query,
+including a failed or interrupted one; a deliberate new query needs a new UUID.
+Only one query per environment/account runs at a time. A native crash or timeout
+is confined to a short-lived child inside the application, with no separate
+service. Saved final evidence survives restart; an interrupted parent leaves
+`PENDING`, not a claimed complete or continuously journaled capture.
 
 ## Command line
 
@@ -228,7 +286,8 @@ Results report realized and unrealized PnL, remaining exposure, fees, equity and
 drawdown. They do not assume a final liquidation, exchange settlement, partial
 fills or market impact. The strategy is a baseline momentum direction with a
 deadband and explicit target exposure, not a profitability claim. There is no
-annualized Sharpe inferred from a single session, live data feed or broker link.
+annualized Sharpe inferred from a single session. Research does not consume the
+bounded SimNow query as a live feed.
 
 Accepted input snapshots and results are immutable. A run records its full
 configuration, snapshot identity and an implementation fingerprint of source,
@@ -250,6 +309,9 @@ working directory. It checks the synthetic study's accounting, repeated runs,
 exact replay, packaged web assets and persistence across application restarts.
 It also checks installed configuration/Paper operations, command retry identity,
 paused process restart and exact agreement with the batch simulation account.
+On Linux amd64 it also checks the installed native CTP create/release path without
+network access. Installation checks explicitly discard the operator's private
+SimNow configuration; passing CI is not broker login or simulated-trading evidence.
 The same check runs inside the runtime-only Docker image, without a source mount:
 `python scripts/check_install.py examples/intraday.toml` (use the installed
 environment's Python and the disposable test database). This is a real HTTP

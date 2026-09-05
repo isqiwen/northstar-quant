@@ -126,10 +126,34 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     serve = commands.add_parser("serve", help="serve the personal research workspace")
     serve.add_argument("--port", type=int, default=18080)
+    commands.add_parser("broker-status", help="inspect SimNow setup without connecting")
+    commands.add_parser("broker-sdk-check", help="load and release native SDK without network")
+    commands.add_parser("broker-list", help="list persisted SimNow query evidence")
+    broker_show = commands.add_parser("broker-show", help="read one saved broker query")
+    broker_show.add_argument("batch_id", type=UUID)
+    broker_query = commands.add_parser(
+        "broker-query", help="explicit bounded SimNow read-only query"
+    )
+    broker_query.add_argument("profile", choices=("simnow_dev", "simnow_trading"))
+    broker_query.add_argument("--instrument", required=True, help="one concrete futures instrument")
+    broker_query.add_argument(
+        "--request-id", type=UUID, required=True, help="reuse to read an uncertain response"
+    )
     arguments = parser.parse_args(argv)
 
     engine = None
     try:
+        if arguments.command == "broker-sdk-check":
+            from northstar_quant.broker.ctp import sdk_self_check
+
+            status = sdk_self_check()
+            print(json.dumps(status, ensure_ascii=False))
+            return 0 if status["native_verified"] else 2
+        if arguments.command == "broker-status":
+            from northstar_quant.broker.workspace import BrokerWorkspace
+
+            print(json.dumps(BrokerWorkspace.status(), ensure_ascii=False))
+            return 0
         engine = open_database()
         if arguments.command == "init-db":
             initialize_database(engine)
@@ -147,6 +171,24 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
 
         require_current_database(engine)
+
+        if arguments.command in {"broker-query", "broker-list", "broker-show"}:
+            from northstar_quant.broker.workspace import BrokerWorkspace
+
+            broker = BrokerWorkspace(engine)
+            if arguments.command == "broker-query":
+                broker_result = broker.query(
+                    arguments.profile,
+                    arguments.instrument,
+                    request_id=arguments.request_id,
+                )
+                print(json.dumps(broker_result, ensure_ascii=False))
+                return 0 if broker_result["status"] == "COMPLETE" else 2
+            if arguments.command == "broker-list":
+                print(json.dumps(broker.list(), ensure_ascii=False))
+            else:
+                print(json.dumps(broker.get(arguments.batch_id), ensure_ascii=False))
+            return 0
 
         from northstar_quant.data.files import SourceFiles
         from northstar_quant.data.library import DataLibrary

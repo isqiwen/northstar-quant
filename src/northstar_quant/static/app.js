@@ -253,6 +253,26 @@ function workspaceCommand(key, payload) {
   return requestId;
 }
 
+const brokerForm = document.querySelector("#broker-query-form");
+if (brokerForm) brokerForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const button = brokerForm.querySelector("button[type=submit]");
+  const notice = document.querySelector("#broker-query-status");
+  const key = "northstar.broker.query";
+  button.disabled = true;
+  status(notice, "正在连接模拟柜台并保存有限查询，约需一分钟；不会下单或自动重连…");
+  try {
+    const payload = Object.fromEntries(new FormData(brokerForm));
+    payload.request_id = workspaceCommand(key, payload);
+    const result = await api("/api/broker/queries", payload);
+    sessionStorage.removeItem(key);
+    window.location.assign(`/broker/${encodeURIComponent(result.batch_id)}`);
+  } catch (error) {
+    status(notice, `${error.message} 同样参数重试会复用查询身份，不重复连接。`, true);
+    button.disabled = false;
+  }
+});
+
 if (configurationForm) configurationForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const button = configurationForm.querySelector("button[type=submit]");

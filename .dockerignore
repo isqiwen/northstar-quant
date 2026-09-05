@@ -1,6 +1,7 @@
 .git
 .venv
 .env
+.northstar
 tests
 dist
 .mypy_cache
