@@ -1,0 +1,50 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "northstar-quant"
+version = "0.1.0"
+description = "A personal futures research application"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "alembic>=1.14,<2",
+  "fastapi>=0.115,<1",
+  "httpx2>=2.12,<3",
+  "packaging>=25,<27",
+  "pydantic-settings>=2.6,<3",
+  "pyarrow>=18,<22",
+  "psycopg[binary]>=3.2,<4",
+  "SQLAlchemy>=2.0.36,<3",
+  "uvicorn[standard]>=0.30,<1",
+]
+
+[project.scripts]
+northstar = "northstar_quant.cli:main"
+
+[dependency-groups]
+dev = ["mypy>=1.14,<2", "pytest>=8.3,<9", "ruff>=0.8,<1"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/northstar_quant"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"uv.lock" = "northstar_quant/uv.lock"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+pythonpath = ["tests/data"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true

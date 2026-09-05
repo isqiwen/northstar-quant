@@ -4,3 +4,10 @@
 __pycache__/
 *.swp
 *.tmp
+.env
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+dist/
+build/
+*.egg-info/

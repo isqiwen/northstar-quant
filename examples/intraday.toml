@@ -1,0 +1,29 @@
+# Synthetic input for learning the workflow, not historical market evidence.
+[source]
+file = "intraday.csv"
+exchange = "SIM"
+symbol = "RB2605"
+product = "RB"
+timezone = "Asia/Shanghai"
+currency = "CNY"
+quantity_unit = "TON"
+price_tick = "1"
+multiplier = "10"
+trading_day = "2026-01-07"
+session_open = "2026-01-07T01:00:00Z"
+session_close = "2026-01-07T01:12:00Z"
+source_name = "synthetic_intraday_demo"
+
+[research]
+initial_cash = "100000"
+lookback = 1
+threshold = "0.005"
+target_fraction = "0.5"
+max_lots = 10
+max_gross_notional = "1000000"
+max_margin_fraction = "0.5"
+initial_margin_fraction = "0.1"
+max_adverse_price_move_fraction = "0.1"
+fee_per_lot = "2"
+slippage_ticks = 1
+order_lifetime_seconds = 120

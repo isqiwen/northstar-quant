@@ -1,306 +1,236 @@
-# Nine-repository architecture
+# 国内期货个人量化系统架构
 
-Architecture revision: `NORTHSTAR-ARCH-R1`
+目标范围：国内期货、分钟级研究与持续模拟交易。一个维护者、一个项目、一个本地工作台。
+本设计区分当前能力和目标能力；模块划分约束职责，不要求现在创建全部文件或抽象。
+开发任务和实时状态以 [GitHub Project 1](https://github.com/users/isqiwen/projects/1) 为准。
 
-Baseline: 2026-09-04
+## 1. 设计判断与交付边界
 
-This revision replaces the former monolithic architecture and the copied
-`ECOSYSTEM.md` rule that denied an umbrella repository. `northstar-quant` is the
-implementation control plane, not a runtime domain. The nine repositories below
-remain independent domain authorities.
+采用模块化单体：一个 Python 包、一个应用部署、一个 PostgreSQL。
+策略、风控、模拟成交和账户计算在进程内协作；来源适配仅发生在实际外部行情接口处。
+采用“小 Interface 隐藏完整行为”的原则，让变化集中在拥有该行为的 Module 内。
 
-## Design rules
+比较过三种方向：继续加厚单日脚本最省初始改动，却容易把跨日账户逻辑散落到调用方；
+通用事件平台和插件系统适配面很大，却没有当前需求支撑其维护成本；
+连续账户与共用交易循环能同时服务历史研究和 Paper，故选后者。
+个人使用入口按导入、研究、比较、运行 Paper、处理问题组织，不要求使用者拼接内部步骤。
 
-Each repository is designed as a deep module: callers should learn a small,
-versioned interface while domain logic and storage remain local. The producer
-owns the meaning and schema of facts it publishes. Each consumer owns its
-compatibility policy and adapter at the seam.
+“科学”落实为可得时间正确、账户守恒、真实成本与交易约束、预先确定评价方案和可复核结果；
+“简洁”落实为单一职责所有者、少量入口、已有行为复用和一项纵向结果一次交付。
+这些可检查条件优先于仓库数量、文件数量或测试数量。拓扑仍可随实际需求改变。
 
-Cross-repository interaction uses one of two forms:
+当前阶段的完成条件：真实国内期货数据可导入并解释质量；能跨交易日研究、
+比较事前固定方案的样本外表现；同一方案可启动持续模拟账户，
+在重复输入、断线、进程退出和备份恢复后保持账本一致，并能在网页处理异常。
+真实委托、期权、高频逐笔撮合、多币种和交易所交割均不在本阶段。
 
-- an immutable, content-addressed artifact with producer release and schema
-  version pins; or
-- an authenticated network interface with explicit version, identity,
-  idempotency, time, error, and freshness semantics.
+## 2. 当前实现与能力缺口
 
-There is no cross-repository source import, shared mutable database, implicit
-`latest`, copying of a producer's private model, or independent redefinition of
-producer semantics. A consumer may keep a wire model and compatibility adapter
-at its boundary. A shared library is introduced only when at least two real
-adapters prove a stable seam and one repository is named as its owner.
+| 能力 | 当前事实 | 目标 |
+|---|---|---|
+| 数据 | 一个合约、一个本地自然日内连续 DAY 时段的 1 分钟 CSV；质量检查、不可变快照 | 真实来源、数据集复用、交易日多时段、结算和条款、按可得时间读取修订 |
+| 研究 | 单日完整序列、动量目标、风控、费用与滑点、FIFO 账户 | 连续跨日账户、保守成交、共同评价窗口、事前实验计划与样本外比较 |
+| 结果 | PostgreSQL 完整结果、内容校验、精确重放、网页 | 试验组织、运行进度、成本和每日损益解释 |
+| Paper | TradingSession 有内存增量入口 | 逐事件持久化、真实持续来源、恢复、控制和状态呈现 |
+| 交付 | 单仓库源码、Docker、安装包及安装态 CI 验收入口 | 每次交付从远端干净检出验证，保持部署可复现 |
 
-Repository-owned development, validation and control-plane entry points support
-both macOS and Linux x86_64 unless an explicitly scoped runtime adapter documents
-a narrower platform. An operating-system-specific binary is never the sole
-official path for contract tests, local planning, or offline acceptance.
+底层已有夜盘日历与不可变修订能力，但公开研究入口尚未接通；不能把底层类型存在算作交付。
+SHFE 日频获取代码也不等于已具备持续分钟行情源。
+基线交付的提交、CI 与干净检出证据统一记录在 [#16](https://github.com/isqiwen/northstar-quant/issues/16)。
 
-## Data and decision topology
+## 3. Module 与职责所有权
 
-```mermaid
-flowchart LR
-    MI[Market Intelligence] -->|IntelligenceArtifact| DH[Data Hub]
-    DH -->|ReferenceSnapshot| MI
-    LV[Live] -->|CaptureSegmentManifest| DH
-    DH -->|acceptance receipt + pinned reference snapshot| LV
-    DH -->|DatasetSnapshotManifest| FL[Factor Lab]
-    DH -->|DatasetSnapshotManifest| BT[Backtest]
-    FL -->|FactorPackage| SL[Strategy Lab]
-    FL -->|BacktestRunSpec + diagnostic participant| BT
-    BT -->|BacktestResult| FL
-    SL -->|StrategyDefinition + candidate participant| BT
-    BT -->|BacktestResult| SL
-    SL -->|StrategyIntent| PR[Portfolio Risk]
-    BT -->|simulated account + working-order facts| PR
-    LV -->|current account + working-order facts| PR
-    DH -->|pinned market + reference facts| PR
-    PR -->|RiskDecision| BT
-    PR -->|RiskDecision| LV
-    DH --> UI[Console]
-    FL --> UI
-    SL --> UI
-    BT --> UI
-    PR --> UI
-    LV --> UI
-```
+下表中的后续文件名是定位建议，只有相应行为进入开发时才调整代码。
 
-## Governance and command topology
+| Module | 使用者可依赖的 Interface | 内部 Implementation 与数据所有权 | 当前定位 |
+|---|---|---|---|
+| Data | 接受来源；列出可用数据；冻结和读取指定信息截面 | 来源原文、接收记录、合约条款、日历、质量、修订及 Snapshot | `data/`，公开入口 `data/research.py` |
+| Strategy | 当时可见的市场信息与策略状态 → Target exposure | 特征、预热、参数和策略内部状态；不持有账户或下单权限 | `strategy.py` |
+| Risk | 目标、已提交账户事实、待单预占及当时条款 → 有界授权或拒绝 | 定手数、账户与合约限额、保证金、成本、数据新鲜度和减仓规则 | `risk.py` |
+| Accounting | 成交、结算和资金事实 → 可重建账户 | 现金、分合约今昨仓、结算基准、已入账盈亏、费用和资金预占 | 当前在 `execution.py`；日结实现时再内聚拆分 |
+| Simulation | 既有授权与后续可用市场事件 → 模拟成交或未成交 | 滑点、费用适用、价格和量限制、部分成交、委托有效期 | `execution.py` |
+| Trading | 推进一个输入、生成当前报告 | 事件顺序、策略调用、Risk、模拟执行与账户推进；Research/Paper 共用 | 当前 `research.py:TradingSession`；Paper 需要时提取 |
+| Research | 在固定数据和评价计划上运行、比较结果 | 评价窗口、候选方案、预热、基准、试验记录和长任务 | `research.py`、`runs.py` |
+| Paper | 从固定方案创建会话、推进已接受输入、查询和控制会话 | PostgreSQL 事务、去重、游标、重建、输入新鲜度和生命周期 | 待实现；不提前建立空包 |
+| Workspace | 导入、研究、比较、Paper 控制、问题处理 | 用户工作流、命令校验、状态呈现；调用上述行为 | `web.py`、`static/`、`cli.py` |
 
-```mermaid
-flowchart LR
-    HU[Human operator] -->|intent| UI[Console]
-    UI -->|AdministrativeCommand| LV[Live]
-    UI -->|OperationalCommand| OP[Ops]
-    SL[Strategy Lab] -->|inert StrategyRelease| OP
-    OP -->|DeploymentCommand| RG[Ops target-local release gate / process manager]
-    RG -.process lifecycle only.-> LV
-    OP -->|ReleaseManifest + verified ApprovalRecord + pinned config| LV
-    LV -->|authoritative command status + readiness/safety/reconciliation| UI
-    OP -->|authoritative command status + deployment evidence| UI
-    LV -->|sanitized operational evidence| OP
-    NS[Northstar control plane] -.->|architecture + roadmap only| DH
-    NS -.-> MI
-    NS -.-> FL
-    NS -.-> SL
-    NS -.-> BT
-    NS -.-> PR
-    NS -.-> LV
-    NS -.-> OP
-    NS -.-> UI
-```
+请求和结果类型与拥有行为的 Module 共处；不建立共享 contracts、schemas、
+validators、fixtures 或换名后的同类层。因子是 Strategy 使用的计算，暂不成立独立平台。
+PostgreSQL 是当前确定依赖，不设计任意数据库替换接口；市场来源有真实变化才实现具体 Adapter。
 
-Arrows represent artifact or network-interface dependencies, not source-code
-dependencies. Bidirectional runtime collaboration, such as Live/Ops or
-Strategy/Backtest, is implemented through two separately owned interfaces; it
-does not create a contract-publication cycle.
+## 4. 数据、时间与因果顺序
 
-## Domain modules and owned interfaces
+市场事实分别记录事件起始、完成、来源发布时间或可得时间、本地接收时间、交易日和稳定来源身份。
+历史 Availability time 必须有来源依据；本次导入时间不能冒充历史发布时间，
+最终修订文件也不能冒充当时已知数据。不能确认的条件进入研究限制或阻止相应模式运行。
 
-This table assigns target semantic ownership; it does not claim that an
-interface has shipped. Verified implementation maturity is recorded separately
-in [the repository map](REPOSITORY_MAP.md).
+交易日包含显式的夜盘、日盘和休市间隔；自然日不能替代交易日。
+预期覆盖来自交易日历与所选交易范围，不能由文件实际包含的行反向定义。
+合约 tick、乘数、最后交易日、涨跌停、手续费和保证金条款都带适用范围；
+研究冻结其证据，不能用今天的参数无声覆盖历史参数。
+具体交易时段以[交易所公布的时间](https://www.shfe.cn/services/calenderandholidays/tradinghours/)为依据。
 
-| Module | Interface it owns | Primary consumers |
-| --- | --- | --- |
-| Data Hub | `DatasetSnapshotManifest`, bounded snapshot member/export reads, reference snapshots, acceptance/publication receipts, quality and lineage evidence. | Factor Lab, Backtest, Strategy Lab, Portfolio Risk, Market Intelligence, Live and Console. |
-| Market Intelligence | `DocumentManifest`, `EvidenceReference`, reviewed `IntelligenceArtifact`, local submission-attempt/outbox state. | Data Hub and Console. |
-| Factor Lab | `FactorDefinition`, `FactorRunSpec`, evaluation/gate evidence, inert `FactorPackageManifest`. | Strategy Lab and Console. |
-| Strategy Lab | `StrategyDefinition`, preregistered experiment evidence, inert `StrategyRelease`, account-neutral `StrategyIntent`. | Backtest, Portfolio Risk, Ops and Console; Live resolves only the exact release pinned by an Ops manifest. |
-| Backtest | `BacktestRunSpec`, participant protocol, deterministic event/order/fill/account artifacts, `BacktestResult`. | Strategy Lab, Factor Lab and Console. |
-| Portfolio Risk | `RiskPolicy`, normalized `RiskPortfolioStateInput`, `PortfolioProposal`, `RiskDecision`. | Backtest, Live, Strategy Lab and Console. |
-| Live | `CaptureSegmentManifest`, account/readiness/safety/reconciliation state, `ReleaseVerificationState`, `ActivationState`, administrative command and authoritative command status. | Data Hub, Portfolio Risk, Ops and Console. |
-| Ops | `ReleaseManifest`, verified `ApprovalRecord`, deployment/rollback/backup/restore plan and evidence, `DeploymentCommand` and authoritative command status. | Ops target-local adapters consume deployment commands; Live consumes manifests/verified approvals; Console consumes status/evidence. |
-| Console | Browser-facing view models, operator-intent envelopes and non-authoritative command correlation. Provider-owned interfaces remain authoritative. | Human operators. |
+历史输入按可得时间、来源顺序和稳定身份确定排序。同一市场事实的后续修订只在公布后可见。
+无法合理合并的迟到或乱序数据隔离并说明原因；禁止回写既有决策或补造过去成交。
 
-## Critical seams
+模拟交易每一步的固定顺序为：
 
-### Strategy, risk and execution
+1. 接受当前输入，确定此刻已经可得且生效的合约条款和交易时段。
+2. 结算与资金事件按其实际到达顺序入账；条款更新不追溯修改以前的决策和成交。
+3. 只有可执行市场事件才尝试撮合之前授权的待单；以当前适用条款重检约束，
+   已失效的价格、成本或资金授权不能继续成交。
+4. 成交与费用入账，更新持仓估值；形成此刻可见的信息集，推进特征和策略状态。
+5. Strategy 给出目标；Risk 基于当前账户及全部未决授权计算可接受动作，
+   保存下一事件才可能执行的授权，以及本步解释信息。
 
-Research produces a release; a release does not produce the evidence that
-qualifies itself. The authoritative research composition is:
+普通 bar 仍遵循旧单成交→账户更新→新决策的顺序；单独结算或条款事件不提供成交价格。
+尚未取得必需结算事实时暂停需要该事实的推进，不能提前借用未来才公布的价格。
 
-```text
-StrategyDefinition + content-addressed candidate participant
-→ StrategyIntent
+bar 完成前不能使用其 close；根据本 bar 做出的决定不能成交在自身 close。
+已有订单也不能用在其提交之前已完成、仅晚到的 bar 倒填成交。
+处理多合约同一时点时先形成明确的市场批次再共同决策；等时事件的排序和资金分配规则必须确定。
 
-StrategyIntent
-+ Backtest simulated account/position/working-order facts
-+ pinned market/reference facts
-+ pinned RiskPolicy
-→ RiskPortfolioStateInput + evaluation request
-→ PortfolioProposal
-→ RiskDecision
-→ Backtest SimulationCommand
-→ BacktestResult + preregistered validation evidence
-→ inert StrategyRelease
-```
+## 5. 账户、结算与模拟成交
 
-The later Live composition begins from a different gate:
+首阶段使用 CNY、单合约、单策略；一个连续账户跨交易日推进。
+初始资金仅在账户建立时产生。多个独立日内实验可以分别评价，但不能直接拼接为连续权益。
 
-```text
-exact inert StrategyRelease
-+ verified ReleaseManifest
-+ valid, unexpired human ApprovalRecord
-→ Live ReleaseVerificationState
-→ explicit ActivationState
+每笔持仓保留真实合约、方向、数量、开仓交易日、原始价格和当前结算基准。
+成交记录开平性质及实际费用，平今/平昨根据交易日判定。
+结算按独立的、有来源的结算事实入账并更新基准，重复结算不重复计入。
+不能用收盘价静默替代结算价，也不能把结算盈亏和累计逐笔盈亏重复相加。
+国内期货需要日结，是由[上期所结算规则](https://www.shfe.cn/regulation/exchangerules/rules/202606/t20260603_831935.html)
+中的保证金与当日无负债结算制度决定的；账户模拟的具体算法仍由所选合约和数据条款验证。
 
-active StrategyIntent
-+ current Live account/position/working-order facts
-+ pinned market/reference facts
-+ pinned RiskPolicy
-→ PortfolioProposal
-→ RiskDecision
-+ all Live execution gates
-→ Live OrderCommand
-```
+持续保持：
 
-`StrategyIntent` is account-neutral and cannot contain order authority, account
-lots, approval, or activation. Portfolio Risk exclusively owns allocation,
-sizing, exposure and limit meaning. Backtest converts a valid, unexpired,
-exactly bound historical decision into simulated commands; Live converts a
-valid, unexpired, exactly bound current decision into broker-side commands.
-Only `ALLOW`, or a machine-enforceable `REDUCE` that cannot increase risk, may
-produce the corresponding command. `REJECT`, `UNKNOWN`, error or timeout
-produces no new-risk command. A consumer may tighten or reject a decision but
-never loosen it. Even `ALLOW` is necessary but never sufficient for Live
-execution.
+`权益 = 初始资金 + 净资金流 + 已入账盈亏 - 已收费用 + 当前未结算浮动盈亏`
 
-Backtest and Live each own their account facts. Their adapters translate those
-facts into the Portfolio Risk-owned `RiskPortfolioStateInput`; neither imports
-the other's private account type. Backtest owns simulated margin, settlement
-and ledger conservation. Portfolio Risk owns pre-trade estimates, portfolio
-limits and authorization outcomes. Both model versions are pinned in evidence.
-Backtest may use `risk_policy: NONE` only for simulator-mechanics or factor
-diagnostic tests; such a result is ineligible as StrategyRelease promotion
-evidence.
+仓位等于已入账成交净额；可用资金同时扣除持仓保证金和未决授权预占。
+保证金占用与手续费支出分别记账。研究报告区分交易损益、结算入账和估值，三者可勾稽。
 
-### Intelligence and structured data
+Risk 处理持仓及待单的共同约束，增加风险与减少风险分别判断。
+行情或条款缺失、未恢复账户和数据过期阻止新增风险；
+不能因此把请求平仓显示成已经平仓。非正权益、跳空和保证金不足要产生明确结果。
 
-Market Intelligence owns claims, evidence, `IntelligenceArtifact` identity and
-its local submission-attempt/outbox state. Data Hub exclusively owns reference
-snapshots, ingestion-command envelopes, supported versions, idempotent receipt
-rules, acceptance/publication receipts and canonical dataset publication. The
-two repositories never co-own or co-evolve one submission contract. Data Hub
-validates and normalizes an `IntelligenceArtifact` without reinterpreting its
-claim. Market Intelligence never writes Data Hub storage or publishes directly
-to Factor Lab, Strategy Lab, or Live.
+当前后续 close 加不利 tick 滑点、全量成交是显式模型假设。
+扩展后至少覆盖交易时段、涨跌停、零成交量、成交量参与上限、整手数量、
+部分成交、有效期和跨时段待单处理；不足以推断的排队优先级采用声明的保守规则。
+不会从 OHLC 推断同根 bar 内精确先后。观察不足时保留未成交和残余仓位。
+若配置日终空仓，必须在事前安排可执行的平仓；缺少后续价格时标记未完成。
 
-The interface is established without a dependency cycle:
+## 6. 研究方法与结果身份
 
-1. Market Intelligence publishes producer-owned artifact fixtures.
-2. Data Hub publishes reference-snapshot and submission/receipt fixtures.
-3. Each repository implements its adapter against the fixed fixtures.
-4. A separate joint acceptance proves artifact-to-snapshot lineage.
+Research plan 在运行前固定：数据身份与期间、策略及候选参数、
+训练/验证/最终评价窗口、预热范围、账户起点、成本、Risk、基准和选择规则。
+评价按时间划分；候选方案使用共同评分窗口，lookback 变化不能偷偷改变统计期间。
+训练或选参不得读取最终评价段；早期数据可用于声明的预热，但不混入该段收益。
 
-### Operations, execution and presentation
+初版先使用现金基准，再添加通过同一执行成本与风险约束的简单交易基准。
+保存成功、失败和不交易结果，以及尝试过的参数；反复观察最终评价段后继续选参，
+该段不再具有未使用样本的含义。样本外切分也不是盈利保证。
+这是对[回测过拟合研究](https://www.davidhbailey.com/dhbpapers/backtest-prob.pdf)
+所揭示的多次试验选择偏差的最低限度工程回应，初期不建设复杂统计平台。
 
-The names describe distinct authority:
+报告提供净权益、每日损益、回撤、费用、暴露、成交和未成交原因、评价样本量，
+以及预先固定方案与实现身份。评价过短或假设不成立时不输出失真的年化指标。
+独立初始化的样本外折只汇总实验统计；要画连续净值就必须真实延续账户和资金。
 
-- Northstar is the implementation control plane.
-- Ops is the deployment and operations module.
-- Console is the human control surface.
-- Live is the only broker side-effect authority.
+已有 run_id 绑定数据、参数、结果与源码/依赖/运行环境，CLI 精确重放已有差异检测。
+后续增加运行前计划身份和试验关系，使同一计划结果漂移成为显式失败。
+完整输出摘要用于检测内容变更；冻结事实不意味着维护旧代码或旧协议兼容。
 
-| Plane | May do | Must never do |
-| --- | --- | --- |
-| Northstar | Define architecture, roadmap, Project state and acceptance policy. | Send runtime/deployment commands, approve or activate a release, access a broker. |
-| Ops | Verify artifacts and human approvals; plan/execute deployment mechanics, process start/stop and rollback; retain operational evidence. | Manufacture an approval, arm/activate a strategy, submit or cancel a broker order, redefine provider health. |
-| Console | Authenticate the browser session, collect operator intent, call a bounded provider command and correlate its returned status. | Be the authorization/audit authority, call a broker/SSH/database/artifact store directly, or expose a generic proxy. |
-| Live | Authenticate, authorize and audit activation/safety/OMS commands; own account truth and every broker side effect. | Treat deployment, approval, Risk `ALLOW`, Project status or UI state as sufficient execution authority. |
+运行较长时采用持久研究任务、明确的尝试记录和有界并发；关闭网页不会丢失进度。
+任务失败或取消不发布完成结果。先在同一部署中实现必要的后台执行；
+只有测量证明 CPU 计算影响行情接收时才增加同包 worker 进程。
 
-Human authorization originates outside Ops and is bound into a signed or
-otherwise verifiable `ApprovalRecord`; Ops verifies and transports it. Live is
-the final authority for activate, arm, disarm, cancel and emergency-stop
-commands. Initial Console work is read-only and cannot request any arm action.
-Provider command results and audit evidence are authoritative; Console stores
-only correlation identity and a rendered status.
+## 7. Paper 持久化与故障语义
 
-Ops may verify and stage an exact Live release but cannot activate, arm, or
-submit. Live publishes authoritative readiness, safety and reconciliation facts;
-Ops retains only sanitized, immutable operational evidence or references without
-becoming the query authority. Ops owns backup/restore mechanics and evidence;
-each domain owner defines restored-data integrity and reconciliation predicates.
-An Ops-owned target-local release gate/process-manager adapter handles
-`DeploymentCommand`; the Live domain never implements that command. Process
-start/stop is deployment mechanics, not Live activation or safety authority.
+由研究方案启动 Paper 复用的是固定策略、条款要求、成本和风控配置，
+Paper 创建自己的模拟账户，不复制研究期末余额。
+初始状态不足时先预热，不能以“应用在线”代替“会话已具备决策条件”。
 
-Before Live accepts any new-risk effect, the exact release manifest, unexpired
-human approval and command envelope must be valid; Strategy, Risk and Data
-identities must be pinned and active; the explicit execution mode must match;
-the process must be armed under a current writer fence; broker, settlement and
-reconciliation state must be healthy; account and feed observations must be
-fresh; the applicable Risk decision must be current and bound; and the OMS
-intent must already be durable and idempotent. Missing, stale, future, unknown,
-mismatched or timed-out state blocks new risk. Restart, generation change and
-trading-day rollover disarm. Deployment success, activation and arming are three
-different states.
+核心推进与历史研究共用。区别只在输入取得方式、时钟和提交频率：
+Research 在固定 Snapshot 上计算后保存结果；
+Paper 先持久接受输入并确定会话输入序列；市场、结算、条款和操作者命令的相对顺序均可追溯。
+后台推进者只处理该序列中的下一项，不能按抢到锁的先后排列事实。对每一步做短事务：
 
-## Identity, time and compatibility
+1. 锁定会话所属账户行，读取已提交游标、账本、策略状态和待单。
+2. 在锁内选择序列中下一待处理输入；外部指定的后序输入不能越过前序输入。
+   检查身份及内容；已处理输入返回原处理结果。
+3. 从已提交状态计算完整下一步，不先修改跨事务共享的内存真相。
+4. 同事务保存输入处理记录、成交、账本、授权、策略状态、游标和 checkpoint。
+5. 提交后再确认输入或发布网页通知。
 
-Every cross-repository artifact or command binds:
+唯一键、事务和账户级串行处理共同防重复效果；
+checkpoint 是可重建加速材料，账本与已接受事实才是依据。
+这使用 PostgreSQL 的[行锁和事务语义](https://www.postgresql.org/docs/17/explicit-locking.html)，
+不声称外部网络全局 exactly-once。
 
-- `schema_version` and producer release identity;
-- canonical content hash and immutable object identity;
-- correlation, causation and idempotency identity where commands are involved;
-- UTC event/decision/available/observed times appropriate to the domain;
-- original source/exchange timezone and `trading_day` when market semantics
-  require them; normalization to UTC never discards that context;
-- exact upstream artifact identities and policy/model versions;
-- a closed success/failure/unknown vocabulary.
+| 故障 | 必须得到的结果 |
+|---|---|
+| 提交前退出 | 没有半步入账；重投从已提交状态计算 |
+| 提交后确认前退出 | 重投返回原结果，不再成交或扣费 |
+| 两个推进者竞争 | 锁内选择确定序列的下一项；相邻输入不能倒序，也不能重复消耗资金 |
+| 行情断线或缺口 | 区分休市与故障；暂停新增风险并暴露实际最后接收时间 |
+| 重连补历史 | 可修复数据与预热，不能给旧待单制造事后成交 |
+| 数据修订 | 保留原决策，按新事实的可得顺序影响以后步骤 |
+| 应用重启 | 从已提交记录恢复并核对，再恢复连续推进 |
+| 备份恢复 | 默认恢复为待核查的暂停状态，防止原实例与恢复实例同时推进 |
 
-Consumers fail closed on unknown major versions, hash drift, missing pins,
-stale/future observations, incomplete pagination, ambiguous time, or incompatible
-authority. Compatibility fixtures live with the consumer; canonical producer
-fixtures live with the producer.
+持续行情 Adapter 必须指向实际选定的来源，并记录接收、去重和缺口处理能力。
+基于文件的增量验收有价值，但页面须标记输入类型；
+来源尚未选定时，持续外部行情接入 Issue 保持待输入，其他开发可以推进。
 
-## Current-wave delivery dependency graph
+会话状态至少表达预热、运行、暂停、降级、停止和失败。
+暂停停止新决策，但继续记录行情与核对账户；待单如何处理必须明确。
+平仓请求经过相同 Risk、模拟执行与账本路径，有价格后才可能完成；
+停止会话仍保留可见的残余仓位。控制命令持久化并去重。
 
-The graph below governs publication order. It is deliberately acyclic even
-where runtime calls are bidirectional.
+## 8. 持久化、界面与运行维护
 
-```mermaid
-flowchart TD
-    G1[R1-GOV-01 architecture reset] --> G2[R1-GOV-02 local context alignment]
-    G2 --> D1[R1-DH-01 release baseline]
-    G2 --> O1[R1-OPS-01 correctness repair]
-    G2 --> B1[R1-BT-01 simulation protocols]
-    G2 --> R1[R1-RISK-01 risk contracts]
-    G2 --> S1[R1-SL-01 strategy contracts]
-    G2 --> M1[R1-MI-01 intelligence foundation]
-    G2 --> L1[R1-LIVE-01 disarmed contract foundation]
-    G2 --> C1[R1-CON-01 Console foundation]
-    D1 --> D2[R1-DH-02 snapshot interface 1.0]
-    D2 --> C1
-    O1 --> O2[R1-OPS-02 release verification]
-    D1 --> F1[R1-FL-01 factor contracts]
-    F1 --> F2[R1-FL-02 PIT factor slice]
-    D2 --> F2
-    D2 --> B2[R1-BT-02 simulator slice]
-    B1 --> B2
-    R1 --> B2
-    R1 --> R2[R1-RISK-02 decision slice]
-    S1 --> R2
-    F2 --> S2[R1-SL-02 inert strategy release]
-    B2 --> S2
-    R2 --> S2
-    S2 --> E1[R1-E2E-01 offline acceptance]
-    E1 -.future gate.-> PA[Paper acceptance]
-    L1 -.future gate.-> PA
-    O2 -.future gate.-> PA
-    C1 -.future gate.-> PA
-    M1 -.future slice.-> IA[Intelligence lineage acceptance]
-    D2 -.future slice.-> IA
-    F2 -.future slice.-> IA
-```
+继续复用现有来源、目录、观测、质量、Snapshot 与完整研究结果存储。
+随着对应功能落地，再增加研究计划/任务、Paper 会话/输入处理、
+订单/成交、账户分录/结算、控制命令等实际所需记录。
+关系和唯一约束属于拥有行为的数据库模型；灵活研究报告继续用 JSONB。
+不为文档先建表，不构建覆盖全系统的事件溯源框架，也不保存两份可独立修改的账户真相。
 
-Market Intelligence, Live and Console foundation nodes deliberately do not gate
-`R1-E2E-01`; they feed the separately named future intelligence and Paper
-acceptance themes. Dotted future nodes are not current Project items.
+网页围绕数据、研究、Paper 和需要处理的问题组织。
+默认显示合约、日期、来源、状态、净值和原因，UUID 与摘要进入详情。
+允许从已有数据继续研究、比较方案和从选定方案启动 Paper；每一步都复用应用入口。
+状态页分别展示数据库、任务、数据新鲜度和会话状态，不能合成一个含糊的绿色“就绪”。
 
-## Safety invariant
+当前限本机单用户，沿用本机地址与同源限制；需要远程使用时再实现实际认证。
+凭据在运行环境中，日志不包含凭据。数据与代码分离备份，支持在指定空库恢复，
+检查研究身份、账本、游标与待单；备份成功不能替代恢复演练。
+兼容策略仍是单一当前实现：变更前保存必要事实，重建受影响的开发存储；
+实际长期账户事实不能因代码升级无声丢弃或覆盖。
 
-The first integrated target is a reproducible, offline, non-tradable research
-slice. `R1-LIVE-01` may establish disarmed contracts in parallel but has no
-broker effect. Paper acceptance follows only after offline evidence and the
-Live, Ops and Console foundations exist. SimNow and production are separate
-future gates. No artifact, Project status, test result, deployment, Paper run,
-or SimNow run enables real-money behavior.
+## 9. 完成核心闭环后的扩展
+
+多合约使用一个账户、共同估值时点和组合级限额，待单跨合约共同预占资金；
+先采用透明加总保证金，不假设跨品种抵扣。
+换月交易真实近远月合约，分别记录费用、价差和未成交；
+连续价格只用于声明的特征处理，主力选择仅使用当时可得信息，明确最后交易日前约束。
+
+多策略先定义固定预算、目标净额和解释规则，再增加第二个实际策略。
+策略目标贡献不等于独立真实成交；策略相反目标抵消时不虚构两笔账户成交。
+
+未来真实执行仅在用户确认柜台、账户与执行范围后建立单独里程碑。
+届时复用 Strategy、Risk 和账本含义，外部成交事实来自柜台：
+先提交授权、预占与稳定 client_order_id，再在事务外发送；
+发送结果不确定时保留 UNKNOWN 和预占、查询对账后决定后续动作。
+部分成交按外部成交身份去重；撤单请求不等于撤单成功。
+PostgreSQL 与柜台之间不存在普通本地原子事务，不能自动换订单身份盲目重发。
+本轮不创建空 broker 层或真实下单任务。
+
+## 10. 开发与验收方式
+
+按 [ROADMAP.md](ROADMAP.md) 的阶段和 Project 的原生依赖推进。
+每个 Issue 交付从输入到持久结果和用户可见解释的完整行为，
+包含范围、依赖、验收与未知条件。先细化当前一至两个任务的实现，再滚动调整后续设计。
+
+验证只保护昂贵失败：时间因果、账户守恒、订单/成交去重、数据身份、
+事务恢复和关键真实集成。纯计算尽量直接运行，数据库行为用真实 PostgreSQL，
+外部故障用明确的输入或模拟响应；外部接入完成仍须实际来源证据。
+不测试文档、目录或重复声明，也不以独立的协议、测试包或脚手架作为开发目标。

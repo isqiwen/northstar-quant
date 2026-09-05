@@ -1,0 +1,120 @@
+"""Supported user operations for the single personal application."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+import tomllib
+from collections.abc import Sequence
+from pathlib import Path
+from typing import cast
+from uuid import UUID
+
+from alembic.util.exc import CommandError
+from sqlalchemy.exc import SQLAlchemyError
+
+from northstar_quant.db import initialize_database, open_database, require_current_database
+
+
+def _study(path: Path) -> tuple[Path, dict[str, object], dict[str, object]]:
+    if path.stat().st_size > 65_536:
+        raise ValueError("study settings exceed 64 KiB")
+    with path.open("rb") as stream:
+        document = tomllib.load(stream)
+    if set(document) != {"source", "research"}:
+        raise ValueError("study requires exactly [source] and [research]")
+    source = document["source"]
+    research = document["research"]
+    if not isinstance(source, dict) or not isinstance(research, dict):
+        raise ValueError("source and research must be TOML tables")
+    source = dict(source)
+    file_name = source.pop("file", None)
+    if not isinstance(file_name, str) or not file_name.strip():
+        raise ValueError("source.file must name a CSV file relative to the study")
+    return (
+        (path.parent / file_name).resolve(),
+        cast(dict[str, object], source),
+        cast(dict[str, object], research),
+    )
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(prog="northstar", description=__doc__)
+    commands = parser.add_subparsers(dest="command", required=True)
+    commands.add_parser("init-db", help="initialize or verify the current PostgreSQL baseline")
+    run = commands.add_parser("run", help="import CSV, evaluate research and save the result")
+    run.add_argument("study", type=Path, help="TOML study with [source] and [research]")
+    replay = commands.add_parser("replay", help="reproduce a saved run from its immutable snapshot")
+    replay.add_argument("run_id")
+    show = commands.add_parser("show", help="read one persisted research result")
+    show.add_argument("run_id")
+    commands.add_parser("list", help="list the latest stored research runs")
+    serve = commands.add_parser("serve", help="serve the personal research workspace")
+    serve.add_argument("--port", type=int, default=18080)
+    arguments = parser.parse_args(argv)
+
+    engine = None
+    try:
+        engine = open_database()
+        if arguments.command == "init-db":
+            initialize_database(engine)
+            print(json.dumps({"status": "ready"}))
+            return 0
+
+        require_current_database(engine)
+
+        from northstar_quant.data.research import ImportSpec, import_csv, load_dataset
+        from northstar_quant.research import ResearchConfig, run_research
+        from northstar_quant.runs import RunStore, implementation_hash
+
+        store = RunStore(engine)
+        if arguments.command == "run":
+            csv_path, source, parameters = _study(arguments.study.resolve())
+            config = ResearchConfig.from_mapping(parameters)
+            dataset = import_csv(engine, csv_path, ImportSpec.from_mapping(source))
+            result = run_research(dataset, config)
+            run_id = store.save(dataset, config, result)
+            print(json.dumps(store.get(run_id), ensure_ascii=False, sort_keys=True))
+        elif arguments.command == "replay":
+            original = store.get(arguments.run_id)
+            if original["implementation_hash"] != implementation_hash():
+                raise ValueError("exact replay requires the saved implementation identity")
+            snapshot = cast(dict[str, object], original["snapshot"])
+            dataset = load_dataset(engine, UUID(str(snapshot["id"])))
+            if dataset.content_hash != snapshot["content_hash"]:
+                raise ValueError("stored snapshot identity does not match the saved research")
+            config = ResearchConfig.from_mapping(cast(dict[str, object], original["config"]))
+            run_id = store.save(dataset, config, run_research(dataset, config))
+            if run_id != arguments.run_id:
+                raise ValueError("replay did not reproduce the saved result identity")
+            print(json.dumps(store.get(run_id), ensure_ascii=False, sort_keys=True))
+        elif arguments.command == "show":
+            print(json.dumps(store.get(arguments.run_id), ensure_ascii=False, sort_keys=True))
+        elif arguments.command == "list":
+            print(json.dumps(store.list(), ensure_ascii=False, sort_keys=True))
+        elif arguments.command == "serve":
+            if not 1024 <= arguments.port <= 65535:
+                raise ValueError("port must be between 1024 and 65535")
+            import uvicorn
+
+            from northstar_quant.web import create_app
+
+            uvicorn.run(create_app(engine), host="127.0.0.1", port=arguments.port)
+        return 0
+    except SQLAlchemyError:
+        print(
+            "northstar: PostgreSQL operation failed; check its availability and baseline",
+            file=sys.stderr,
+        )
+        return 2
+    except (OSError, ValueError, LookupError, CommandError) as exc:
+        print(f"northstar: {exc}", file=sys.stderr)
+        return 2
+    finally:
+        if engine is not None:
+            engine.dispose()
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

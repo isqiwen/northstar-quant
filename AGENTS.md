@@ -1,65 +1,67 @@
-# Northstar Quant Control Plane
+# Northstar Quant
 
-`northstar-quant` is the implementation control plane for nine domain
-repositories. It owns architecture topology, roadmap ordering, acceptance
-policy, and GitHub Project state. Domain repositories own all executable code,
-contracts, data, tests, deployment assets, and runtime authority.
+This repository is the sole maintained project for the personal futures research
+system. The product scope is domestic Chinese futures: historical research and
+continuous simulated trading first. Read `docs/ARCHITECTURE.md` for changes to
+domain meaning, the shared trading loop, storage or runtime topology; read
+`README.md` to run the application. Code documents implemented details.
 
-## Start here
+## Permanent engineering rules
 
-For every non-trivial request:
+- Keep agent instructions in their owning Git repository. Never create
+  `../AGENTS.md` in the non-repository workspace directory.
+- Maintain one current project. Complete replacements by removing superseded
+  projects, code, configuration and runtime resources; do not retain parallel
+  legacy implementations, retirement-only repositories or compatibility layers.
+- Greenfield: implement exactly one current architecture, storage model and
+  protocol. There is neither backward nor forward compatibility. Replace all
+  affected callers atomically and remove superseded code, tests and active prose.
+  Immutable content identities preserve reproducibility, not old implementations.
+- Repository count is a design choice. The current choice is one repository,
+  one Python package, one application process and PostgreSQL. Modules call typed
+  Python functions in process. Add another deployment only for demonstrated need.
+- Deliver vertical behavior: source data → accepted immutable snapshot → repeated
+  strategy and Risk decisions → simulated fills and account updates → persisted
+  result → browser view. Measure useful running outcomes, not artifact counts.
+- Keep types and invariant enforcement beside the behavior that owns them.
+  Never create generic `contracts/`, `schemas/`, `validators/`, or `fixtures/`
+  layers or renamed equivalents. Generate external descriptions only when used.
+- Keep only tests for costly observable failures: causality, money, authorization,
+  immutable data, reproducibility and real integration. Never test documents,
+  Markdown, links, directory layout, trivial constants or private implementation.
 
-1. Read [the architecture](docs/ARCHITECTURE.md) when ownership, an interface,
-   an adapter, or a cross-repository seam may change.
-2. Read [the roadmap](docs/ROADMAP.md) and select only a work package whose
-   dependencies are satisfied.
-3. Read [the Project rules](docs/PROJECT_MANAGEMENT.md), then verify the live
-   fields in [GitHub Project 1](https://github.com/users/isqiwen/projects/1).
-4. Use [the repository map](docs/REPOSITORY_MAP.md) to enter the owner
-   repository and read its local `AGENTS.md` before implementation.
-5. Run `git status` in every repository you will touch and preserve unrelated
-   user changes.
+## Domain rules
 
-Completion means every step above was checked against current default-branch
-and Project evidence, not remembered chat or a superseded issue.
+Data owns ingestion, source evidence, calendars, quality and immutable snapshots.
+Its public research interface returns immutable values and hides SQLAlchemy.
+Strategy maps point-in-time features to account-neutral target exposure. Risk
+owns sizing and limits. Execution owns simulated fills, costs and account truth.
+Apply already available account facts and effective market terms before using
+an executable market event to fill a previously authorized order. Update the
+account, observe data, decide, then authorize an order for a later event.
 
-## Routing
+Use Decimal for financial values, explicit tick/multiplier/currency and the
+canonical futures contract UUID. Preserve bar start, bar completion, availability
+and trading day separately. Derive portfolio state from the ledger, never from
+operator-supplied state. Persist complete inputs, data identity and implementation
+identity with every result. State model limitations truthfully; research results
+do not establish strategy profitability or live execution authority.
 
-The owner named in the architecture owns the domain meaning and publishes its
-interface. A consumer owns its compatibility policy and adapter. Cross-repository
-work uses immutable artifacts or authenticated network interfaces; repositories
-do not import one another's source or read one another's database.
+## Workflow
 
-This repository accepts only architecture revisions, roadmap changes, Project
-policy, ownership maps, dependency decisions, and merged-evidence links.
-Implementation changes are made and tested in the owning domain repository.
-
-## Project lifecycle
-
-- `Backlog` means planned but not dependency-ready.
-- `Todo` means dependency-ready and eligible to start.
-- `In Progress` means active implementation; limit three globally and one per
-  repository.
-- `Review` means an owner PR exists and is awaiting required checks or merge.
-- `Done` requires a merged owner PR and satisfied acceptance evidence.
-
-Every Project item must have Status, Priority, Kind, Effort, Target, owner
-repository, dependencies, exclusions, and acceptance evidence. Advance status
-only after checking the linked evidence. Closing or merging an unrelated issue
-does not authorize another work package.
-
-## Safety
-
-Northstar Quant is real-money-adjacent. Research artifacts, historical
-simulation, Paper, and SimNow never imply real-money authority. Unknown data,
-account, position, order, risk, broker, approval, or environment state remains
-fail-closed and permits no new risk.
-
-## Control-plane verification
-
-Before opening a control-plane PR:
-
-1. Check all Markdown links and GitHub references.
-2. Run `git diff --check`.
-3. Confirm the architecture dependency graph has no contract-publication cycle.
-4. Confirm the roadmap and every live Project field describe the same status.
+Inspect the worktree first and preserve unrelated user edits. Architecture and
+implementation may change together in the same local work package; a separate
+documentation merge is never an implementation dependency.
+For product development, read `docs/ROADMAP.md`, then the selected issue and its
+blocking dependencies in https://github.com/users/isqiwen/projects/1. Use issues
+in this repository only, keep Project status aligned with observed progress,
+and deliver one primary vertical outcome at a time. Record missing external
+inputs without blocking independent work. Close issues only with reviewable
+implementation and acceptance evidence; local work alone is not remote delivery.
+Verify affected behavior and a real PostgreSQL vertical path when storage or
+integration changes.
+For agreed implementation tasks, routine edits, commits, non-forced pushes,
+CI follow-up and Issue/Project updates are authorized without repeated approval.
+Read-only questions authorize inspection, not implementation or publication.
+Merges, releases, broker connections and irreversible data operations require
+their own explicit task scope; routine development authority does not imply them.

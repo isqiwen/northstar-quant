@@ -1,0 +1,67 @@
+:root {color-scheme: light; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #192b29; background: #f4f6f3; font-size: 15px; line-height: 1.6;}
+* {box-sizing: border-box;}
+body {margin: 0;}
+a {color: #176b5a; text-decoration: none;}
+a:hover {text-decoration: underline;}
+.topbar {height: 78px; padding: 0 max(5vw, 24px); border-bottom: 1px solid #dfe6de; display: flex; justify-content: space-between; align-items: center; background: #fbfcfa;}
+.brand {font-size: 18px; font-weight: 750; letter-spacing: .12em; color: #163f36; display: flex; gap: 24px; align-items: center;}
+.brand span {font-size: 13px; font-weight: 400; letter-spacing: .02em; color: #64716b;}
+.mode {font-size: 12px; color: #567166; border: 1px solid #d7e3d7; padding: 5px 12px; border-radius: 30px; background: #eef4ec;}
+main {max-width: 1300px; padding: 0 32px; margin: 0 auto;}
+.intro {padding: 50px 0 30px;}
+.eyebrow {letter-spacing: .18em; font-size: 11px; font-weight: 700; color: #748177; margin: 0 0 14px;}
+h1 {font-size: clamp(25px, 3.2vw, 38px); line-height: 1.35; font-weight: 620; letter-spacing: -.03em; margin: 0 0 16px;}
+.intro p:not(.eyebrow):not(.status) {color: #6a766d; margin: 0;}
+h2 {font-size: 19px; font-weight: 620; margin: 0;}
+.workspace {display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start;}
+.panel {background: #fff; border: 1px solid #e0e6dc; border-radius: 12px; padding: 26px; margin-bottom: 24px;}
+.section-title {display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;}
+.section-title > .muted {margin-left: auto;}
+.step {color: #518376; font-size: 12px; font-variant-numeric: tabular-nums; border: 1px solid #d7e8df; background: #f2f7f3; border-radius: 6px; padding: 4px 8px;}
+.muted {font-size: 13px; color: #778278;}
+p {margin: 10px 0 18px;}
+.fields {display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0;}
+label {display: block; font-size: 12px; color: #536359;}
+input {width: 100%; min-width: 0; display: block; padding: 10px 12px; border: 1px solid #d9e2d7; border-radius: 6px; margin-top: 6px; font: inherit; font-size: 14px; color: #223d33; background: #fcfdfa;}
+input:focus {outline: 2px solid #a6caba; outline-offset: 1px;}
+input::placeholder {color: #9da69b;}
+.file-input {padding: 18px; border: 1px dashed #bccfbf; border-radius: 8px; background: #f8faf6; margin: 20px 0;}
+.file-input input {border: 0; background: transparent; padding-left: 0;}
+details {border-top: 1px solid #e9ede5; margin-top: 20px; padding-top: 14px;}
+summary {cursor: pointer; font-size: 13px; color: #476555;}
+button, .button {display: inline-block; background: #176b55; color: #fff; border: 1px solid #176b55; border-radius: 6px; font: inherit; font-size: 13px; font-weight: 550; padding: 10px 18px; cursor: pointer;}
+form > button {margin-top: 24px; width: 100%;}
+button:hover, .button:hover {background: #105b46; text-decoration: none;}
+button:disabled {opacity: .5; cursor: wait;}
+.secondary {background: transparent; color: #355b48; border-color: #bfd1bd;}
+.secondary:hover {background: #eaf1e6;}
+.text-button {padding: 0; background: none; border: 0; color: #176b55; white-space: nowrap; font-size: 12px;}
+.text-button:hover {background: none; text-decoration: underline;}
+.status {min-height: 22px; font-size: 13px; color: #287059; margin: 12px 0 0; overflow-wrap: anywhere;}
+.error {color: #b44b36;}
+.csv-columns {font-size: 11px; display: block; overflow-wrap: anywhere; color: #607461; background: #f5f7f1; padding: 12px; border-radius: 5px;}
+.empty {text-align: center; padding: 38px 10px; color: #83907f; font-size: 14px;}
+.table-scroll {overflow-x: auto;}
+table {width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap;}
+th {font-weight: 500; color: #7b8878; text-align: left; background: #f7f9f4;}
+th, td {padding: 13px 12px; border-bottom: 1px solid #edf0e9;}
+td {color: #354f3e;}
+.metrics {display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin: 0 0 24px;}
+.metric {background: #fff; border: 1px solid #e0e6dc; border-radius: 10px; padding: 22px;}
+.metric span, .metric small {display: block; color: #788773; font-size: 12px;}
+.metric strong {display: block; font-size: clamp(22px, 2.5vw, 32px); font-weight: 570; letter-spacing: -.04em; margin: 10px 0 4px; font-variant-numeric: tabular-nums;}
+.actions {display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px;}
+.back {display: inline-block; color: #63816e; font-size: 12px; margin-bottom: 30px;}
+.equity-chart {display: block; width: 100%; height: auto; max-height: 370px; overflow: visible;}
+.equity-line {stroke: #24785e; stroke-width: 2; fill: none; vector-effect: non-scaling-stroke;}
+.grid-line {stroke: #e2e9db; stroke-width: 1;}
+.equity-chart text {font-size: 11px; fill: #839077; font-family: inherit;}
+.account-line {display: flex; flex-wrap: wrap; gap: 26px; padding: 20px 0 0; font-size: 13px; color: #57734f;}
+.identity {display: grid; grid-template-columns: 160px 1fr; gap: 12px; font-size: 12px;}
+.identity dt {color: #839078;}
+.identity dd {margin: 0; overflow-wrap: anywhere; font-family: ui-monospace, monospace; color: #5c7051;}
+pre {font-size: 12px; background: #f7f9f4; padding: 18px; border-radius: 6px; overflow-x: auto;}
+li {font-size: 13px; color: #738368; margin: 7px 0;}
+footer {padding: 30px; text-align: center; color: #96a08e; font-size: 11px;}
+@media (max-width: 850px) {.workspace {grid-template-columns: 1fr;} .metrics {grid-template-columns: 1fr 1fr;} .brand span {display: none;} main {padding: 0 18px;} .intro {padding-top: 34px;} .panel {padding: 20px;}}
+@media (max-width: 440px) {.fields {grid-template-columns: 1fr;} .metric {padding: 16px;} .mode {font-size: 10px;} .identity {grid-template-columns: 1fr;} .identity dd {margin-bottom: 10px;} .topbar {padding: 0 18px;}}

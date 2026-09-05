@@ -1,0 +1,170 @@
+"""Run the installed CLI and HTTP workflow against an explicit disposable database.
+
+Uses only the standard library, never imports application source, and launches
+the installed entrypoint from an empty working directory. The study is the
+synthetic intraday example; no application database is reset or deleted.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import socket
+import subprocess
+import sys
+import tempfile
+import time
+import tomllib
+from collections.abc import Iterator
+from contextlib import contextmanager
+from decimal import Decimal
+from pathlib import Path
+from urllib.error import URLError
+from urllib.parse import urlsplit
+from urllib.request import ProxyHandler, Request, build_opener
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("study", type=Path, help="path to examples/intraday.toml")
+    study = parser.parse_args().study.resolve()
+    if sys.flags.optimize:
+        parser.error("run without -O or PYTHONOPTIMIZE so acceptance assertions are enforced")
+    database_url = os.environ.get("NORTHSTAR_TEST_DATABASE_URL", "")
+    parsed = urlsplit(database_url)
+    if (
+        parsed.scheme != "postgresql+psycopg"
+        or parsed.path != "/northstar_quant_test"
+        or parsed.query
+        or parsed.fragment
+    ):
+        parser.error("NORTHSTAR_TEST_DATABASE_URL must name disposable northstar_quant_test")
+
+    environment = dict(os.environ, NORTHSTAR_DATABASE_URL=database_url)
+    environment.pop("PYTHONPATH", None)
+    environment.pop("PYTHONHOME", None)
+    executable = str(Path(sys.executable).parent / "northstar")
+    settings = tomllib.loads(study.read_text("utf-8"))
+    source = dict(settings["source"])
+    csv = (study.parent / source.pop("file")).read_text("utf-8")
+    opener = build_opener(ProxyHandler({}))
+
+    def request(url: str, payload: object = None) -> bytes:
+        body = None if payload is None else json.dumps(payload).encode("utf-8")
+        headers = {} if body is None else {"Content-Type": "application/json"}
+        with opener.open(Request(url, data=body, headers=headers), timeout=15) as response:
+            return response.read()
+
+    with tempfile.TemporaryDirectory(prefix="northstar-install-") as directory:
+        runtime = Path(directory)
+        log_path = runtime / "server.log"
+
+        def command(*arguments: str):
+            completed = subprocess.run(
+                [executable, *arguments],
+                cwd=runtime,
+                env=environment,
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+            if completed.returncode:
+                raise RuntimeError(f"northstar {arguments[0]} failed: {completed.stderr}")
+            return json.loads(completed.stdout)
+
+        @contextmanager
+        def server() -> Iterator[str]:
+            with socket.socket() as listener:
+                listener.bind(("127.0.0.1", 0))
+                port = listener.getsockname()[1]
+            base_url = f"http://127.0.0.1:{port}"
+            with log_path.open("a", encoding="utf-8") as log:
+                process = subprocess.Popen(
+                    [executable, "serve", "--port", str(port)],
+                    cwd=runtime,
+                    env=environment,
+                    stdout=log,
+                    stderr=subprocess.STDOUT,
+                )
+                try:
+                    deadline = time.monotonic() + 30
+                    while True:
+                        if process.poll() is not None or time.monotonic() >= deadline:
+                            raise RuntimeError("installed HTTP application did not become ready")
+                        try:
+                            if json.loads(request(f"{base_url}/health/ready")) == {
+                                "status": "ready"
+                            }:
+                                break
+                        except URLError:
+                            pass
+                        time.sleep(0.1)
+                    yield base_url
+                finally:
+                    if process.poll() is None:
+                        process.terminate()
+                        try:
+                            process.wait(timeout=10)
+                        except subprocess.TimeoutExpired:
+                            process.kill()
+                            process.wait(timeout=10)
+                            raise RuntimeError("installed HTTP application did not stop") from None
+
+        try:
+            assert command("init-db") == {"status": "ready"}
+            assert command("init-db") == {"status": "ready"}
+            saved = command("run", str(study))
+            run_id = saved["run_id"]
+            summary = saved["result"]["summary"]
+            assert summary["bar_count"] == 12, summary
+            assert summary["decision_count"] == 11, summary
+            assert summary["fill_count"] == 7, summary
+            assert Decimal(summary["total_fees"]) == Decimal("70"), summary
+            assert Decimal(summary["ending_equity"]) == Decimal("94580"), summary
+            assert Decimal(summary["ending_equity"]) == (
+                Decimal(summary["initial_cash"])
+                + Decimal(summary["realized_pnl"])
+                + Decimal(summary["unrealized_pnl"])
+                - Decimal(summary["total_fees"])
+            ), summary
+            assert command("run", str(study)) == saved
+            assert command("replay", run_id) == saved
+            print("Installed CLI: import, accounting, repeat and exact replay passed", flush=True)
+
+            with server() as base_url:
+                imported = json.loads(
+                    request(f"{base_url}/api/import", {"csv": csv, "spec": source})
+                )
+                assert imported["snapshot_id"] == saved["snapshot"]["id"]
+                assert imported["content_hash"] == saved["snapshot"]["content_hash"]
+                submitted = json.loads(
+                    request(
+                        f"{base_url}/api/runs",
+                        {"snapshot_id": imported["snapshot_id"], "config": settings["research"]},
+                    )
+                )
+                assert submitted["run_id"] == run_id
+                assert json.loads(request(f"{base_url}/api/runs/{run_id}")) == saved
+                assert source["symbol"] in request(f"{base_url}{submitted['url']}").decode("utf-8")
+                assert request(f"{base_url}/")
+                assert request(f"{base_url}/assets/app.js")
+                assert request(f"{base_url}/assets/app.css")
+            print("Installed HTTP: import, research, saved report and assets passed", flush=True)
+
+            with server() as base_url:
+                assert json.loads(request(f"{base_url}/api/runs/{run_id}")) == saved
+                listed = json.loads(request(f"{base_url}/api/runs"))
+                assert sum(item["run_id"] == run_id for item in listed) == 1
+            assert command("show", run_id) == saved
+            assert command("replay", run_id) == saved
+            print("Process restart: persisted result and exact replay passed", flush=True)
+            print(json.dumps({"run_id": run_id, "summary": summary}, ensure_ascii=False))
+        except Exception:
+            if log_path.exists():
+                print(log_path.read_text("utf-8"), file=sys.stderr)
+            raise
+
+
+if __name__ == "__main__":
+    main()

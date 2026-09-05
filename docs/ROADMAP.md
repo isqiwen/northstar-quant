@@ -1,163 +1,58 @@
-# Nine-repository roadmap
+# 开发顺序与交付管理
 
-Architecture revision: `NORTHSTAR-ARCH-R1`
+目标：国内期货，先研究与持续模拟交易。详细职责和不变量见 [ARCHITECTURE.md](ARCHITECTURE.md)。
+所有开发任务都属于 [isqiwen/northstar-quant](https://github.com/isqiwen/northstar-quant)，
+[Project 1](https://github.com/users/isqiwen/projects/1) 是顺序、优先级与实时状态的唯一管理入口。
+本文只解释阶段和顺序，不复制动态任务状态。
 
-Planning baseline: 2026-09-04
+## 阶段完成条件
 
-System of record: [GitHub Project 1](https://github.com/users/isqiwen/projects/1)
+| 阶段 | 可运行结果 | 任务 |
+|---|---|---|
+| [M0 单仓库交付](https://github.com/isqiwen/northstar-quant/milestone/1) | GitHub 干净检出可启动、研究、精确重放；已有本地实现形成可复核远端交付 | #16 |
+| [M1 研究可复核](https://github.com/isqiwen/northstar-quant/milestone/2) | 真实数据、夜盘和连续跨日账户、成本与成交约束、样本外比较、修订可得性和持久研究任务 | #17–#23 |
+| [M2 持续 Paper](https://github.com/isqiwen/northstar-quant/milestone/3) | 方案复用、独立模拟账户、真实持续行情、顺序与事务恢复、网页控制及备份恢复 | #24–#27 |
+| [M3 组合增强](https://github.com/isqiwen/northstar-quant/milestone/4) | 多合约共同资金、真实换月和多策略预算，逐项提供研究结果 | #28–#30 |
 
-This is a rolling-wave plan for the nine domain repositories. It replaces the
-former phase plan in full; old phase and milestone identifiers are not carried
-forward. Only work with an observable outcome and a stable owner enters the
-Project. Later outcomes stay here as themes until their prerequisites are real.
+M0 和 M1 是研究主线；M2 是首个研究与模拟交易产品的完成边界。
+M3 不阻塞首个可用版本。没有已确认的交付日期，不以虚构季度承诺代替依赖关系。
+具体真实交易接口不在这轮 Issue 清单内；确定柜台、账户与执行范围后再设里程碑。
 
-## Current focus
+## 建议执行顺序
 
-- Completed: `R1-GOV-01`, via merged
-  [northstar-quant PR #11](https://github.com/isqiwen/northstar-quant/pull/11)
-  at `0fdbbb4`.
-- Completed: `R1-GOV-02`; all nine owner PRs and verified merge commits are
-  recorded under [Governance](#governance).
-- Completed: `R1-DH-01`, via merged
-  [quant-data-hub PR #34](https://github.com/isqiwen/quant-data-hub/pull/34)
-  at `296d53b` and immutable
-  [release `v0.9.1`](https://github.com/isqiwen/quant-data-hub/releases/tag/v0.9.1).
-- Active critical-path reviews: `R1-DH-02`, `R1-RISK-01`, and `R1-SL-01`.
-- Ready queue: `R1-OPS-01`, `R1-BT-01`, `R1-FL-01`, `R1-MI-01`, and
-  `R1-LIVE-01`.
-- Work-in-progress limit: three items globally and one item per repository.
-- First integrated target: deterministic offline research evidence with no
-  broker path and no trading authority.
+| 顺序 | 用户可见结果 | 前置 Issue |
+|---|---|---|
+| 1 | [#16 从单仓库干净检出启动并复现完整研究闭环](https://github.com/isqiwen/northstar-quant/issues/16) | — |
+| 2 | [#17 导入首份真实国内期货行情，并从已有数据继续研究](https://github.com/isqiwen/northstar-quant/issues/17) | [#16](https://github.com/isqiwen/northstar-quant/issues/16) |
+| 3 | [#18 按真实交易日研究夜盘、日盘和跨日时段](https://github.com/isqiwen/northstar-quant/issues/18) | [#17](https://github.com/isqiwen/northstar-quant/issues/17) |
+| 4 | [#19 用连续账户完成跨日结算、今昨仓费用和保证金核算](https://github.com/isqiwen/northstar-quant/issues/19) | [#18](https://github.com/isqiwen/northstar-quant/issues/18) |
+| 5 | [#20 让模拟成交遵守时段、价格和成交量约束，并解释未成交](https://github.com/isqiwen/northstar-quant/issues/20) | [#19](https://github.com/isqiwen/northstar-quant/issues/19) |
+| 6 | [#21 固定评价方案并比较策略、基准和样本外表现](https://github.com/isqiwen/northstar-quant/issues/21) | [#20](https://github.com/isqiwen/northstar-quant/issues/20) |
+| 7 | [#22 按首次可得时间处理迟到与修订，保持历史决策不被改写](https://github.com/isqiwen/northstar-quant/issues/22) | [#18](https://github.com/isqiwen/northstar-quant/issues/18)、[#19](https://github.com/isqiwen/northstar-quant/issues/19) |
+| 8 | [#23 运行较长研究时可关闭网页，并恢复查看进度与结果](https://github.com/isqiwen/northstar-quant/issues/23) | [#21](https://github.com/isqiwen/northstar-quant/issues/21) |
+| 9 | [#24 从研究方案启动可断点恢复的增量模拟账户](https://github.com/isqiwen/northstar-quant/issues/24) | [#21](https://github.com/isqiwen/northstar-quant/issues/21)、[#22](https://github.com/isqiwen/northstar-quant/issues/22) |
+| 10 | [#25 接入一个真实持续行情来源，驱动 Paper 并处理断线缺口](https://github.com/isqiwen/northstar-quant/issues/25) | [#24](https://github.com/isqiwen/northstar-quant/issues/24)、[#23](https://github.com/isqiwen/northstar-quant/issues/23) |
+| 11 | [#26 从工作台暂停、恢复、请求平仓和停止 Paper，并处理运行异常](https://github.com/isqiwen/northstar-quant/issues/26) | [#25](https://github.com/isqiwen/northstar-quant/issues/25)、[#23](https://github.com/isqiwen/northstar-quant/issues/23) |
+| 12 | [#27 备份后在空环境恢复研究与 Paper，并核对账户状态](https://github.com/isqiwen/northstar-quant/issues/27) | [#24](https://github.com/isqiwen/northstar-quant/issues/24)、[#23](https://github.com/isqiwen/northstar-quant/issues/23) |
+| 13 | [#28 在一个账户中完成多合约组合研究与共同风险约束](https://github.com/isqiwen/northstar-quant/issues/28) | [#19](https://github.com/isqiwen/northstar-quant/issues/19)、[#20](https://github.com/isqiwen/northstar-quant/issues/20)、[#21](https://github.com/isqiwen/northstar-quant/issues/21) |
+| 14 | [#29 跨到期月份执行真实合约换月，并解释价差与成本](https://github.com/isqiwen/northstar-quant/issues/29) | [#28](https://github.com/isqiwen/northstar-quant/issues/28)、[#22](https://github.com/isqiwen/northstar-quant/issues/22) |
+| 15 | [#30 让两个实际策略共享账户预算，并解释目标净额与组合贡献](https://github.com/isqiwen/northstar-quant/issues/30) | [#28](https://github.com/isqiwen/northstar-quant/issues/28) |
 
-## Work packages
+Order 表示默认优先执行顺序，原生 Blocked by 表示真正依赖。
+依赖已完成的独立任务可以调整顺序；同一时间默认只推进一个主要纵向结果。
+每条 Issue 的实现范围、验收和外部条件位于 Issue 正文，不另建横向任务清单。
 
-Each code links to its owner-repository issue. Dependencies refer to codes in
-this table and form the acyclic delivery graph
-in [the architecture](ARCHITECTURE.md#current-wave-delivery-dependency-graph).
+## Project 使用规则
 
-| Code | Owner | Outcome | Status | Priority | Kind | Effort | Target | Depends on |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| [`R1-GOV-01`](https://github.com/isqiwen/northstar-quant/issues/10) | northstar-quant | Publish architecture R1 and reset Project 1. | Done | P0 | Task | M | 2026-Q3 | — |
-| [`R1-GOV-02`](https://github.com/isqiwen/northstar-quant/issues/9) | northstar-quant | Align repository-local ecosystem context to R1. | Done | P0 | Task | M | 2026-Q3 | GOV-01 |
-| [`R1-DH-01`](https://github.com/isqiwen/quant-data-hub/issues/32) | quant-data-hub | Establish a unique post-`v0.9.0` release baseline and contract inventory. | Done | P0 | Task | M | 2026-Q3 | GOV-02 |
-| [`R1-OPS-01`](https://github.com/isqiwen/quant-ops/issues/16) | quant-ops | Repair evidence, preflight, rollback and schema correctness in `0.1`. | Todo | P0 | Bug | M | 2026-Q3 | GOV-02 |
-| [`R1-BT-01`](https://github.com/isqiwen/quant-backtest/issues/23) | quant-backtest | Publish the deterministic simulation protocol seam. | Todo | P0 | Feature | L | 2026-Q3 | GOV-02 |
-| [`R1-RISK-01`](https://github.com/isqiwen/quant-portfolio-risk/issues/14) | quant-portfolio-risk | Bootstrap the pure risk module and producer-owned contracts. | Review | P0 | Feature | L | 2026-Q3 | GOV-02 |
-| [`R1-SL-01`](https://github.com/isqiwen/quant-strategy-lab/issues/14) | quant-strategy-lab | Bootstrap strategy definitions, releases and account-neutral intents. | Review | P0 | Feature | L | 2026-Q3 | GOV-02 |
-| [`R1-DH-02`](https://github.com/isqiwen/quant-data-hub/issues/31) | quant-data-hub | Publish immutable revision/supersession semantics and Snapshot interface `1.0`. | Review | P0 | Feature | XL | 2026-Q4 | DH-01 |
-| [`R1-OPS-02`](https://github.com/isqiwen/quant-ops/issues/15) | quant-ops | Publish the cross-repository release-verification interface. | Backlog | P1 | Feature | L | 2026-Q4 | OPS-01 |
-| [`R1-BT-02`](https://github.com/isqiwen/quant-backtest/issues/22) | quant-backtest | Implement the minimum deterministic simulator slice. | Backlog | P1 | Feature | XL | 2026-Q4 | BT-01, DH-02, RISK-01 |
-| [`R1-RISK-02`](https://github.com/isqiwen/quant-portfolio-risk/issues/13) | quant-portfolio-risk | Implement a deterministic sizing, exposure and limit-decision slice. | Backlog | P1 | Feature | L | 2026-Q4 | RISK-01, SL-01 |
-| [`R1-FL-01`](https://github.com/isqiwen/quant-factor-lab/issues/19) | quant-factor-lab | Publish factor-domain contracts and the control catalog. | Todo | P1 | Feature | L | 2026-Q4 | DH-01 |
-| [`R1-FL-02`](https://github.com/isqiwen/quant-factor-lab/issues/18) | quant-factor-lab | Implement a point-in-time factor-computation slice. | Backlog | P1 | Feature | L | 2026-Q4 | FL-01, DH-02 |
-| [`R1-MI-01`](https://github.com/isqiwen/quant-market-intelligence/issues/13) | quant-market-intelligence | Bootstrap the executable evidence module and producer contracts. | Todo | P2 | Feature | L | 2026-Q4 | GOV-02 |
-| [`R1-LIVE-01`](https://github.com/isqiwen/quant-live/issues/15) | quant-live | Bootstrap a disarmed, no-broker-effect runtime contract foundation. | Todo | P1 | Feature | L | 2026-Q4 | GOV-02 |
-| [`R1-SL-02`](https://github.com/isqiwen/quant-strategy-lab/issues/15) | quant-strategy-lab | Produce the first inert StrategyRelease through official Backtest and pinned Risk. | Backlog | P1 | Feature | XL | 2027-Q1 | SL-01, FL-02, BT-02, RISK-02 |
-| [`R1-CON-01`](https://github.com/isqiwen/quant-console/issues/12) | quant-console | Bootstrap a secure read-only BFF/UI with pinned provider compatibility. | Backlog | P2 | Feature | L | 2027-Q1 | GOV-02, DH-02 |
-| [`R1-E2E-01`](https://github.com/isqiwen/northstar-quant/issues/8) | northstar-quant | Accept the cross-repository offline research golden path. | Backlog | P1 | Task | M | 2027-Q1 | SL-02 |
+- 保留必要的 Status、Priority、Milestone、Order 和原生依赖；只有缺少外部输入时用 `needs-input`。
+- Backlog：尚未选择开始，或前置/外部条件未具备。Todo：依赖具备、范围明确、可以开始。
+- In Progress：正在实现完整行为。Review：代码和验收证据可检查。Done：验收满足且交付证据可复核。
+- 正常推进应先查看所选 Issue 和其前置，再更新状态；发现遗漏时修正同一任务或拆出实际可用行为。
+- 结束开发时写明可复核提交、相关运行/验证证据和已知限制；同步 Issue 与 Project。
+  本地运行、文档完成或 CI 全绿单独都不代表整个用户结果已交付。
+- 架构与代码可以在同一工作中修改；无需先合并一份架构文档才允许实施。
+- #25 的具体持续行情来源尚未选定，这只阻塞该接入验收，研究与 Paper 核心可以继续。
+- 每项任务都从输入走到持久结果和用户可见解释。兼容层、泛化 Contract/Schema/Validator/Fixture、
+  文档测试、空框架和目录建设均不作为独立任务或验收目标。
 
-## Acceptance evidence
-
-### Governance
-
-- `R1-GOV-01`: architecture, repository map, roadmap and Project policy are
-  merged; the old plan is absent; Project 1 contains only the replacement work
-  packages with all required fields populated.
-- `R1-GOV-02`: all nine default branches link to `NORTHSTAR-ARCH-R1`, remove the
-  copied no-umbrella assertion, declare local authority/exclusions, and pass
-  their documentation checks.
-
-| R1-GOV-02 owner | Merged PR | Merge commit |
-| --- | --- | --- |
-| Data Hub | [#33](https://github.com/isqiwen/quant-data-hub/pull/33) | `473337f` |
-| Market Intelligence | [#14](https://github.com/isqiwen/quant-market-intelligence/pull/14) | `bb397be` |
-| Factor Lab | [#20](https://github.com/isqiwen/quant-factor-lab/pull/20) | `cf1a691` |
-| Strategy Lab | [#16](https://github.com/isqiwen/quant-strategy-lab/pull/16) | `f078798` |
-| Backtest | [#24](https://github.com/isqiwen/quant-backtest/pull/24) | `52e05d6` |
-| Portfolio Risk | [#15](https://github.com/isqiwen/quant-portfolio-risk/pull/15) | `28194b6` |
-| Live | [#16](https://github.com/isqiwen/quant-live/pull/16) | `8e81557` |
-| Ops | [#17](https://github.com/isqiwen/quant-ops/pull/17) | `5f43dea` |
-| Console | [#13](https://github.com/isqiwen/quant-console/pull/13) | `cee2132` |
-
-### Data and intelligence
-
-- `R1-DH-01`: merged
-  [quant-data-hub PR #34](https://github.com/isqiwen/quant-data-hub/pull/34)
-  at `296d53b`; exact-main CI passed and annotated
-  [release `v0.9.1`](https://github.com/isqiwen/quant-data-hub/releases/tag/v0.9.1)
-  identifies those bytes and enumerates every supported cross-repository
-  contract/version.
-- `R1-DH-02`: fixtures prove immutable revisions, explicit supersession,
-  bounded reads, lineage and fail-closed major-version handling; release notes
-  name the Snapshot `1.0` compatibility policy. Reference fixtures bind an
-  explicit ID, version and hash, never `latest`, and reject invalid time or
-  precision, missing pins and incompatible versions.
-- `R1-MI-01`: an installable module publishes versioned `DocumentManifest`,
-  `EvidenceReference` and `IntelligenceArtifact` schemas plus producer fixtures;
-  tests reject missing provenance, ambiguous time and mutable identity. It does
-  not fetch arbitrary URLs, call a model, or publish into Data Hub.
-
-### Factors, strategy, risk and simulation
-
-- `R1-FL-01`: producer schemas and fixtures cover definition, run request,
-  evaluation/gate evidence and inert package manifest; control identifiers and
-  tri-state outcomes have one documented owner.
-- `R1-FL-02`: a pinned Data Hub snapshot produces a reproducible factor artifact
-  without look-ahead; tests cover event/available time, missing members,
-  revision drift and repeated-run hash equality. It contains no local
-  simulation/fill/cost/accounting module or trading/promotion authority.
-- `R1-SL-01`: installable schemas and fixtures cover `StrategyDefinition`, inert
-  `StrategyRelease` and account-neutral `StrategyIntent`; tests reject account,
-  lot, order, approval and activation authority.
-- `R1-RISK-01`: pure deterministic contracts cover `RiskPolicy`, normalized
-  `RiskPortfolioStateInput`, `PortfolioProposal` and `RiskDecision`; unknown,
-  stale or incompatible account facts fail closed.
-- `R1-RISK-02`: fixed intent, account state and policy fixtures reproduce sizing,
-  exposure and limit outcomes with reason codes; boundary and property tests
-  prove no decision exceeds policy.
-- `R1-BT-01`: versioned fixtures define participant lifecycle, intent/risk seam,
-  event order, simulated command/order/fill/account facts and result identity;
-  protocols contain no broker or wall-clock dependency.
-- `R1-BT-02`: a pinned snapshot, participant and Risk decision run end-to-end
-  twice with byte-identical result hashes; ledger conservation, settlement,
-  margin, ordering and failure fixtures pass.
-- `R1-SL-02`: an inert release binds exact factor, data, simulator, risk-policy
-  and experiment evidence; the official Backtest reproduces the declared result
-  and no Live activation path exists.
-
-### Runtime, operations and presentation
-
-- `R1-OPS-01`: tests prove complete approval identity, observation freshness,
-  distinct current/predecessor rollback digests and resolvable schema recipes;
-  unknown evidence stops the plan.
-- `R1-OPS-02`: a versioned manifest and verification result bind repository,
-  commit, artifact hash, schema, environment and approval; consumer fixtures
-  prove tamper and incompatible-version rejection. It cannot arm Live.
-- `R1-LIVE-01`: an installable service exposes versioned readiness, safety,
-  reconciliation, capture-manifest and command-status fixtures; it cannot arm,
-  connect to a broker or create any external effect, and `REAL_MONEY` is
-  structurally impossible in this slice.
-- `R1-CON-01`: authenticated browser-to-BFF reads one pinned Data Hub provider
-  interface, renders stale/unavailable/incompatible/unknown states, and has no
-  generic proxy or direct database, artifact-store, SSH or broker credential.
-
-### Integrated acceptance
-
-- `R1-E2E-01`: clean documented macOS and Linux x86_64 environments resolve
-  pinned Data Hub data into factor evidence, an inert StrategyRelease,
-  deterministic Risk and Backtest evidence; two executions reproduce all
-  declared hashes, failure injection is fail-closed, and the acceptance
-  manifest links every merged owner PR.
-
-## Later themes, not Project items
-
-- Market Intelligence to Data Hub to Factor Lab evidence lineage.
-- Paper end-to-end rehearsal with fake broker and operator Console; entry
-  requires `R1-E2E-01`, `R1-LIVE-01`, `R1-OPS-02` and `R1-CON-01` evidence.
-- SimNow qualification after Paper reliability evidence.
-- Production/read-only observation, then a separately authorized real-money
-  gate. No date or issue is assigned until the preceding safety evidence exists.
-
-Expanding a theme requires an architecture review, a named owner, explicit
-exclusions, dependency-ready producer interfaces and observable acceptance
-evidence. It must not be decomposed into speculative placeholder issues.
+原有三个跨仓库开发事项已由当前单仓库计划取代，不再作为活跃路线。
