@@ -23,6 +23,7 @@ from pathlib import Path
 from urllib.error import URLError
 from urllib.parse import urlsplit
 from urllib.request import ProxyHandler, Request, build_opener
+from uuid import uuid4
 
 
 def main() -> None:
@@ -150,6 +151,24 @@ def main() -> None:
                 flush=True,
             )
 
+            configuration = command("configure", str(research_study), "--name", "Installed Paper")
+            paper_id = str(uuid4())
+            paper = command(
+                "paper-create",
+                snapshot_id,
+                configuration["configuration_id"],
+                "--request-id",
+                paper_id,
+            )
+            assert paper["status"] == "PAUSED" and paper["cursor"] == 0
+            assert paper["input_type"] == "FILE_REPLAY"
+            assert paper["configuration"] == configuration
+            step_command = str(uuid4())
+            first_step = command("paper-next", paper_id, "--request-id", step_command)
+            assert command("paper-next", paper_id, "--request-id", step_command) == first_step
+            paused_paper = command("paper-show", paper_id)
+            assert paused_paper["cursor"] == 1 and paused_paper["status"] == "PAUSED"
+
             with server() as base_url:
                 imported = json.loads(
                     request(f"{base_url}/api/import", {"csv": csv, "spec": source})
@@ -174,12 +193,15 @@ def main() -> None:
                 assert request(f"{base_url}/")
                 assert request(f"{base_url}/assets/app.js")
                 assert request(f"{base_url}/assets/app.css")
+                assert json.loads(request(f"{base_url}/api/paper/{paper_id}")) == paused_paper
+                assert source["symbol"] in request(f"{base_url}/paper/{paper_id}").decode("utf-8")
             print(
                 "Installed HTTP: import, data library, source evidence, research and report passed",
                 flush=True,
             )
 
             with server() as base_url:
+                assert json.loads(request(f"{base_url}/api/paper/{paper_id}")) == paused_paper
                 datasets = json.loads(request(f"{base_url}/api/datasets"))
                 selected = next(item for item in datasets if item["snapshot_id"] == snapshot_id)
                 assert (
@@ -200,6 +222,18 @@ def main() -> None:
             assert command("replay", run_id) == saved
             assert command("dataset", snapshot_id) == data
             assert command("research", snapshot_id, "--study", str(research_study)) == saved
+            for _ in range(1, summary["bar_count"]):
+                command("paper-next", paper_id, "--request-id", str(uuid4()))
+            complete_paper = command("paper-show", paper_id)
+            assert complete_paper["status"] == "COMPLETED"
+            assert complete_paper["summary"] == summary
+            assert complete_paper["fills"] == saved["result"]["fills"]
+            assert complete_paper["pending_order"] == saved["result"]["pending_order"]
+            print(
+                "Installed Paper: fixed configuration, one-step retries, paused process restart "
+                "and batch-account equivalence passed",
+                flush=True,
+            )
             print(
                 "Process restart: dataset reuse, persisted source/result and exact replay passed",
                 flush=True,

@@ -55,6 +55,24 @@ class StrategyIntent:
         ).hexdigest()
 
 
+def validate_momentum_parameters(
+    threshold: Decimal, target_fraction: Decimal, lifetime_seconds: int
+) -> None:
+    """Strategy owns the meaning of its threshold, target and intent lifetime."""
+
+    if (
+        not isinstance(threshold, Decimal)
+        or not threshold.is_finite()
+        or not Decimal(0) <= threshold <= Decimal(1)
+        or not isinstance(target_fraction, Decimal)
+        or not target_fraction.is_finite()
+        or not Decimal(0) < target_fraction <= Decimal(1)
+        or type(lifetime_seconds) is not int
+        or lifetime_seconds <= 0
+    ):
+        raise ValueError("momentum requires threshold [0, 1], target (0, 1] and positive lifetime")
+
+
 def momentum_intent(
     *,
     observation_id: UUID,
@@ -68,6 +86,7 @@ def momentum_intent(
 ) -> StrategyIntent:
     """Map a thresholded return's sign to an explicit target fraction."""
 
+    validate_momentum_parameters(threshold, target_fraction, lifetime_seconds)
     with localcontext() as context:
         context.prec = 96
         context.rounding = ROUND_HALF_EVEN

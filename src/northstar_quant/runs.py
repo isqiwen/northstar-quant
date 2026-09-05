@@ -16,7 +16,7 @@ from typing import cast
 
 from packaging.requirements import Requirement
 from packaging.utils import canonicalize_name
-from sqlalchemy import Column, DateTime, Engine, MetaData, String, Table, func, select
+from sqlalchemy import Column, Connection, DateTime, Engine, MetaData, String, Table, func, select
 from sqlalchemy.dialects.postgresql import JSONB, UUID, insert
 
 from northstar_quant.data.research import ResearchDataset
@@ -36,7 +36,7 @@ _runs = Table(
 )
 
 
-def initialize_run_store(engine: Engine) -> None:
+def initialize_run_store(engine: Engine | Connection) -> None:
     """Create the current result table during explicit database initialization."""
 
     if engine.dialect.name != "postgresql":

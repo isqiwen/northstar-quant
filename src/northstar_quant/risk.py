@@ -44,6 +44,34 @@ class RiskPolicy:
     fee_per_lot: Decimal
     slippage_ticks: int = 0
 
+    def __post_init__(self) -> None:
+        if (
+            type(self.max_lots) is not int
+            or not 1 <= self.max_lots <= 1_000_000_000
+            or type(self.slippage_ticks) is not int
+            or self.slippage_ticks < 0
+        ):
+            raise ValueError("risk policy requires positive integer lots and nonnegative ticks")
+        for value in (
+            self.max_gross_notional,
+            self.fee_per_lot,
+            self.max_margin_fraction,
+            self.initial_margin_fraction,
+            self.max_adverse_price_move_fraction,
+        ):
+            if not isinstance(value, Decimal) or not value.is_finite():
+                raise ValueError("risk policy amounts must be finite exact decimals")
+        if (
+            self.max_gross_notional <= 0
+            or self.fee_per_lot < 0
+            or not Decimal(0) < self.max_margin_fraction <= Decimal(1)
+            or not Decimal(0) < self.initial_margin_fraction <= Decimal(1)
+            or not Decimal(0) < self.max_adverse_price_move_fraction < Decimal(1)
+        ):
+            raise ValueError(
+                "risk policy requires positive limits and bounded margin/price fractions"
+            )
+
 
 @dataclass(frozen=True, slots=True)
 class RiskDecision:
@@ -84,20 +112,6 @@ def evaluate_risk(
             or state.observed_at.utcoffset() != timedelta(0)
         ):
             raise ValueError("risk requires finite account values, integer lots and UTC time")
-        if (
-            type(policy.max_lots) is not int
-            or not 1 <= policy.max_lots <= 1_000_000_000
-            or type(policy.slippage_ticks) is not int
-            or policy.slippage_ticks < 0
-            or not policy.max_gross_notional.is_finite()
-            or policy.max_gross_notional <= 0
-            or not policy.fee_per_lot.is_finite()
-            or policy.fee_per_lot < 0
-            or not Decimal(0) < policy.max_margin_fraction <= Decimal(1)
-            or not Decimal(0) < policy.initial_margin_fraction <= Decimal(1)
-            or not Decimal(0) < policy.max_adverse_price_move_fraction < Decimal(1)
-        ):
-            raise ValueError("risk policy requires bounded positive limits and nonnegative costs")
         return _evaluate(intent, state, policy, market)
 
 

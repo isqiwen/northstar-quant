@@ -4,6 +4,7 @@ body {margin: 0;}
 a {color: #176b5a; text-decoration: none;}
 a:hover {text-decoration: underline;}
 .topbar {height: 78px; padding: 0 max(5vw, 24px); border-bottom: 1px solid #dfe6de; display: flex; justify-content: space-between; align-items: center; background: #fbfcfa;}
+.topbar nav {display: flex; gap: 20px; font-size: 13px;}
 .brand {font-size: 18px; font-weight: 750; letter-spacing: .12em; color: #163f36; display: flex; gap: 24px; align-items: center;}
 .brand span {font-size: 13px; font-weight: 400; letter-spacing: .02em; color: #64716b;}
 .mode {font-size: 12px; color: #567166; border: 1px solid #d7e3d7; padding: 5px 12px; border-radius: 30px; background: #eef4ec;}
@@ -22,6 +23,9 @@ h2 {font-size: 19px; font-weight: 620; margin: 0;}
 p {margin: 10px 0 18px;}
 .fields {display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0;}
 label {display: block; font-size: 12px; color: #536359;}
+fieldset {border: 0; border-top: 1px solid #e9ede5; margin: 24px 0 0; padding: 12px 0 0; min-width: 0;}
+legend {font-size: 13px; color: #476555; padding: 0 12px 0 0;}
+.configuration-preview {margin: 12px 0 24px;}
 input, select, textarea {width: 100%; min-width: 0; display: block; padding: 10px 12px; border: 1px solid #d9e2d7; border-radius: 6px; margin-top: 6px; font: inherit; font-size: 14px; color: #223d33; background: #fcfdfa;}
 input:focus, select:focus, textarea:focus {outline: 2px solid #a6caba; outline-offset: 1px;}
 textarea {resize: vertical;}
@@ -73,4 +77,4 @@ pre {font-size: 12px; background: #f7f9f4; padding: 18px; border-radius: 6px; ov
 li {font-size: 13px; color: #738368; margin: 7px 0;}
 footer {padding: 30px; text-align: center; color: #96a08e; font-size: 11px;}
 @media (max-width: 850px) {.workspace {grid-template-columns: 1fr;} .metrics {grid-template-columns: 1fr 1fr;} .brand span {display: none;} main {padding: 0 18px;} .intro {padding-top: 34px;} .panel {padding: 20px;}}
-@media (max-width: 440px) {.fields {grid-template-columns: 1fr;} .metric {padding: 16px;} .mode {font-size: 10px;} .identity {grid-template-columns: 1fr;} .identity dd {margin-bottom: 10px;} .topbar {padding: 0 18px;}}
+@media (max-width: 440px) {.fields {grid-template-columns: 1fr;} .metric {padding: 16px;} .mode {font-size: 10px;} .identity {grid-template-columns: 1fr;} .identity dd {margin-bottom: 10px;} .topbar {height: auto; min-height: 78px; padding: 16px 18px; flex-wrap: wrap; gap: 12px;} .topbar nav {order: 3; width: 100%; gap: 24px;}}

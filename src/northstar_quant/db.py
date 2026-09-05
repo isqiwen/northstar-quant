@@ -30,6 +30,7 @@ def initialize_database(engine: Engine) -> None:
     """Install the sole current baseline on an empty database, or verify it."""
 
     from northstar_quant.runs import initialize_run_store
+    from northstar_quant.sessions import initialize_session_store
 
     configuration = Config()
     configuration.set_main_option(
@@ -41,7 +42,8 @@ def initialize_database(engine: Engine) -> None:
         if existing and "alembic_version" not in existing:
             raise ValueError("database is not empty and has no Northstar migration baseline")
         command.upgrade(configuration, "head")
-    initialize_run_store(engine)
+        initialize_run_store(connection)
+        initialize_session_store(connection)
 
 
 def require_current_database(engine: Engine) -> None:
@@ -54,5 +56,13 @@ def require_current_database(engine: Engine) -> None:
     expected = set(ScriptDirectory.from_config(configuration).get_heads())
     with engine.connect() as connection:
         actual = set(MigrationContext.configure(connection).get_current_heads())
-    if actual != expected:
+        present = set(inspect(connection).get_table_names())
+    required = {
+        "research_runs",
+        "paper_configurations",
+        "paper_sessions",
+        "paper_inputs",
+        "paper_steps",
+    }
+    if actual != expected or not required <= present:
         raise ValueError("database does not have the current Northstar baseline")

@@ -6,7 +6,8 @@ read-only broker access → broker simulation → recovery and reconciliation �
 bounded, explicitly authorized live round trip; advanced research comes later.
 
 Currently implemented: import minute bars, replay a strategy with Risk and trading
-costs, and inspect persistent results in your browser. Broker connectivity and
+costs, save fixed configurations, and advance a recoverable file-driven Paper
+account in your browser. Broker connectivity and
 live execution are not implemented. Research or Paper results never enable real
 orders; see the [architecture and live gates](docs/ARCHITECTURE.md#9-首个受限实盘闭环).
 
@@ -19,6 +20,9 @@ docker compose up --build -d
 Open <http://127.0.0.1:18080>. The browser and database bind to local loopback;
 the Compose credentials are local development credentials. `docker compose down`
 stops the application and keeps its data volume.
+Initialization accepts only the current storage baseline; it never resets an
+existing database. A storage-model change requires an explicitly prepared fresh
+development database after preserving needed evidence, not an in-place legacy upgrade.
 
 The workspace imports a bounded CSV with explicit source, contract and session
 metadata. Select accepted data directly from the library, including after a
@@ -52,6 +56,38 @@ study's research parameters and the accepted snapshot; it does not read or
 re-import the CSV. Without `--study`, it uses explicit research defaults.
 The browser provides the same selection without copying a UUID, and can reuse
 source/contract metadata for another import with an explicitly selected new file.
+
+## Recoverable file Paper
+
+Open `/paper`, save a named strategy/Risk configuration, choose an accepted
+dataset, and create a paused independent simulated account. “核对并推进下一条”
+checks the committed fill ledger and advances exactly one accepted observation.
+The page shows its fixed configuration, cash, positions, fees, curve, pending
+authorization and input cursor. Saving another configuration does not change
+an existing account. Reopening or restarting never advances it automatically.
+
+This is explicitly `FILE_REPLAY`, not continuous market reception, a broker
+simulation or live trading. Input exhaustion does not liquidate residual positions.
+Only one accepted DAY session, minute bars and the current full-fill model are
+supported. Browser operations require a short-lived browser session and CSRF
+token; after a process restart, reopen the page before taking another step.
+
+The CLI provides the same bounded behavior:
+
+```sh
+northstar configure examples/intraday.toml --name intraday
+northstar configurations
+northstar paper-create SNAPSHOT_ID CONFIGURATION_ID --request-id REQUEST_UUID
+northstar paper-next SESSION_ID --request-id ANOTHER_REQUEST_UUID
+northstar paper-show SESSION_ID
+```
+
+Use a fresh UUID for each intended command and reuse that UUID when retrying an
+uncertain response. Each committed step is idempotent; a retry does not consume
+another observation. Continuing a saved account requires its exact implementation
+identity. Historical evidence remains readable, without an old-code compatibility path.
+
+## Data imports
 
 Research parameters have explicit defaults and reject unknown fields. Money,
 prices and ratios are decimal strings; counts are integers. The application
@@ -87,13 +123,14 @@ the current Compose deployment persists PostgreSQL only.
 The [lifecycle design](docs/ARCHITECTURE.md#8-持久化界面与运行维护) extends the same
 application with managed source files, processing attempts, publication and usage
 tracking. PostgreSQL owns records and trading facts; durable files hold source
-bytes and large data products. Raw archives, complete failed-import tracking,
-factor-result management and reusable strategy/Risk configuration revisions are
-not yet implemented. Continue retaining original files separately for now.
+bytes and large data products. Raw archives, complete failed-import tracking and
+factor-result management are not yet implemented. Continue retaining original
+files separately for now. Fixed strategy/Risk revisions and Paper run bindings
+are implemented; broader policy management and live controls remain future work.
 
 The workspace will expose data, actual factors, strategy configurations, Risk and
 research/trading runs. Each run binds exact data, configuration and implementation
-identities; editing a configuration will not change an active session or grant live
+identities; editing a configuration does not change a Paper session or grant live
 execution authority. These capabilities follow the live-first development order,
 not separate management-platform milestones.
 
@@ -131,6 +168,8 @@ CI also installs the wheel with locked runtime dependencies in a separate
 environment and exercises the installed CLI and HTTP application from an empty
 working directory. It checks the synthetic study's accounting, repeated runs,
 exact replay, packaged web assets and persistence across application restarts.
+It also checks installed configuration/Paper operations, command retry identity,
+paused process restart and exact agreement with the batch simulation account.
 The same check runs inside the runtime-only Docker image, without a source mount:
 `python scripts/check_install.py examples/intraday.toml` (use the installed
 environment's Python and the disposable test database). This is a real HTTP

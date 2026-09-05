@@ -1,3 +1,4 @@
+import json
 from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from decimal import ROUND_DOWN, Decimal, localcontext
@@ -5,8 +6,9 @@ from uuid import UUID
 
 import pytest
 
+from northstar_quant.accounting import Account, FillFact
 from northstar_quant.data.research import Market, ResearchBar, ResearchDataset
-from northstar_quant.research import ResearchConfig, TradingSession, run_research
+from northstar_quant.research import ResearchConfig, TradingSession, TradingStep, run_research
 
 AT = datetime(2026, 1, 5, 1, tzinfo=UTC)
 
@@ -94,15 +96,18 @@ def test_risk_rejection_and_incremental_retries_are_observable_and_deterministic
     session = TradingSession(
         data.market, config, snapshot_id=data.snapshot_id, content_hash=data.content_hash
     )
+    steps = []
     for bar in data.bars:
-        session.advance(bar)
+        step = session.advance(bar)
+        assert step is not None
+        steps.append(step)
         assert session.advance(bar) is None
-    assert session.result().to_dict() == batch
+    assert session.result(steps).to_dict() == batch
     assert batch["fills"] == []
     assert batch["decisions"][0]["reason"] == "NO_PERMITTED_POSITION"
     with pytest.raises(ValueError, match="reused"):
         session.advance(replace(data.bars[-1], close=Decimal(121)))
-    assert session.result().to_dict() == batch
+    assert session.result(steps).to_dict() == batch
     with localcontext() as context:
         context.prec = 6
         context.rounding = ROUND_DOWN
@@ -122,3 +127,79 @@ def test_configuration_is_complete_and_changed_strategy_changes_result_identity(
     assert first["result_hash"] != second["result_hash"]
     assert first["fills"] == []
     assert len(second["fills"]) == 1
+
+
+def test_checkpoint_recovery_preserves_pending_fifo_warmup_and_complete_result() -> None:
+    data = dataset(("100", "110", "112", "112", "108", "106", "106", "112"))
+    config = ResearchConfig(lookback=2, threshold=Decimal("0.03"), max_lots=4)
+    batch = run_research(data, config).to_dict()
+    session = TradingSession(
+        data.market, config, snapshot_id=data.snapshot_id, content_hash=data.content_hash
+    )
+    assert session.summary()["bar_count"] == 0
+    assert session.summary()["ending_equity"] == "100000"
+    checkpoint = json.loads(json.dumps(session.checkpoint()))
+    ledger = []
+    steps = []
+    for bar in data.bars:
+        rebuilt = Account(config.initial_cash, data.market)
+        for fill in ledger:
+            assert rebuilt.apply(FillFact.from_dict(fill)).to_dict() == fill
+        session = TradingSession.from_checkpoint(
+            data.market,
+            config,
+            snapshot_id=data.snapshot_id,
+            content_hash=data.content_hash,
+            checkpoint=checkpoint,
+            account=rebuilt,
+        )
+        step = session.advance(bar)
+        assert step is not None
+        restored_step = TradingStep.from_dict(json.loads(json.dumps(step.to_dict())))
+        assert restored_step == step
+        steps.append(restored_step)
+        if step.fill is not None:
+            ledger.append(step.fill.to_dict())
+        checkpoint = json.loads(json.dumps(session.checkpoint()))
+        assert len(checkpoint["history"]) <= config.lookback + 1
+        assert "decisions" not in checkpoint and "equity_curve" not in checkpoint
+        assert session.advance(bar) is None
+    assert session.result(steps).to_dict() == batch
+    assert session.summary() == batch["summary"]
+    with pytest.raises(ValueError, match="counters"):
+        TradingSession.from_checkpoint(
+            data.market,
+            config,
+            snapshot_id=data.snapshot_id,
+            content_hash=data.content_hash,
+            checkpoint={**checkpoint, "bar_count": checkpoint["bar_count"] + 1},
+            account=rebuilt,
+        )
+    with pytest.raises(ValueError, match="drawdown"):
+        TradingSession.from_checkpoint(
+            data.market,
+            config,
+            snapshot_id=data.snapshot_id,
+            content_hash=data.content_hash,
+            checkpoint={**checkpoint, "maximum_drawdown": "0"},
+            account=rebuilt,
+        )
+    rebuilt.cash += Decimal(1)
+    with pytest.raises(ValueError, match="verified fill ledger"):
+        TradingSession.from_checkpoint(
+            data.market,
+            config,
+            snapshot_id=data.snapshot_id,
+            content_hash=data.content_hash,
+            checkpoint=checkpoint,
+            account=rebuilt,
+        )
+    with pytest.raises(ValueError, match="fixed input or configuration"):
+        TradingSession.from_checkpoint(
+            data.market,
+            replace(config, max_lots=5),
+            snapshot_id=data.snapshot_id,
+            content_hash=data.content_hash,
+            checkpoint=checkpoint,
+            account=rebuilt,
+        )

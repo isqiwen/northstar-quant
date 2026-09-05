@@ -68,6 +68,26 @@ def main(argv: Sequence[str] | None = None) -> int:
     show = commands.add_parser("show", help="read one persisted research result")
     show.add_argument("run_id")
     commands.add_parser("list", help="list the latest stored research runs")
+    configure = commands.add_parser("configure", help="save immutable strategy/Risk parameters")
+    configure.add_argument("study", type=Path)
+    configure.add_argument("--name", required=True, help="human-readable configuration label")
+    commands.add_parser("configurations", help="list saved immutable configurations")
+    paper_create = commands.add_parser(
+        "paper-create", help="create a paused FILE_REPLAY Paper account"
+    )
+    paper_create.add_argument("snapshot_id", type=UUID)
+    paper_create.add_argument("configuration_id")
+    paper_create.add_argument(
+        "--request-id", type=UUID, required=True, help="stable retry identity"
+    )
+    commands.add_parser("paper-list", help="list paused or completed Paper accounts")
+    paper_show = commands.add_parser("paper-show", help="inspect committed Paper facts")
+    paper_show.add_argument("session_id", type=UUID)
+    paper_next = commands.add_parser("paper-next", help="reconcile and advance one file input only")
+    paper_next.add_argument("session_id", type=UUID)
+    paper_next.add_argument(
+        "--request-id", type=UUID, required=True, help="reuse this UUID on retry"
+    )
     serve = commands.add_parser("serve", help="serve the personal research workspace")
     serve.add_argument("--port", type=int, default=18080)
     arguments = parser.parse_args(argv)
@@ -91,9 +111,38 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         from northstar_quant.research import ResearchConfig, run_research
         from northstar_quant.runs import RunStore, implementation_hash
+        from northstar_quant.sessions import SessionStore
 
         store = RunStore(engine)
-        if arguments.command in {"run", "import"}:
+        paper = SessionStore(engine)
+        if arguments.command == "configure":
+            config = ResearchConfig.from_mapping(_study(arguments.study.resolve())[2])
+            print(json.dumps(paper.save_configuration(arguments.name, config), ensure_ascii=False))
+        elif arguments.command == "configurations":
+            print(json.dumps(paper.list_configurations(), ensure_ascii=False))
+        elif arguments.command == "paper-create":
+            print(
+                json.dumps(
+                    paper.create(
+                        arguments.snapshot_id,
+                        arguments.configuration_id,
+                        request_id=arguments.request_id,
+                    ),
+                    ensure_ascii=False,
+                )
+            )
+        elif arguments.command == "paper-list":
+            print(json.dumps(paper.list(), ensure_ascii=False))
+        elif arguments.command == "paper-show":
+            print(json.dumps(paper.get(arguments.session_id), ensure_ascii=False))
+        elif arguments.command == "paper-next":
+            print(
+                json.dumps(
+                    paper.advance(arguments.session_id, request_id=arguments.request_id),
+                    ensure_ascii=False,
+                )
+            )
+        elif arguments.command in {"run", "import"}:
             csv_path, source, parameters = _study(arguments.study.resolve())
             config = ResearchConfig.from_mapping(parameters)
             dataset = import_csv(engine, csv_path, ImportSpec.from_mapping(source))
