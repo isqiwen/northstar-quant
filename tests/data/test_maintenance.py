@@ -13,8 +13,10 @@ from uuid import UUID, uuid4
 import pytest
 from sqlalchemy import Engine, create_engine, text
 from test_broker_baselines import saved_query
+from test_broker_ledger import ledger_query, position, position_baseline, trade
 
 from northstar_quant.broker.baselines import BrokerBaselines
+from northstar_quant.broker.ledger import BrokerLedger
 from northstar_quant.broker.records import BrokerRecords
 from northstar_quant.broker.settings import get_profile
 from northstar_quant.data.files import SourceFiles
@@ -56,23 +58,42 @@ def test_initialization_and_restore_keep_all_interrupted_query_evidence(
         for number in range(1, 102)
     ]
     baselines = BrokerBaselines(postgres_engine)
-    baseline_id, check_id = uuid4(), uuid4()
-    baseline = baselines.establish(saved_query(postgres_engine), request_id=baseline_id)
+    baseline_id, check_id = position_baseline(postgres_engine), uuid4()
+    baseline = baselines.get_baseline(baseline_id)
     comparison = baselines.compare(baseline_id, saved_query(postgres_engine), request_id=check_id)
+    ledger = BrokerLedger(postgres_engine)
+    entry_id, position_check_id = uuid4(), uuid4()
+    fill = trade()
+    entry = ledger.ingest(
+        baseline_id,
+        ledger_query(postgres_engine, trades=(fill,), positions=(position(),)),
+        request_id=entry_id,
+    )
+    position_check = ledger.compare(
+        entry_id,
+        ledger_query(postgres_engine, trades=(fill,), positions=(position(),)),
+        request_id=position_check_id,
+    )
+    assert entry["status"] == "READY" and entry["fill_count"] == 1
+    assert position_check["status"] == "MATCHED"
     # Explicit initialization may add current Module tables, never rebind facts.
     initialize_database(postgres_engine)
     assert records.get(UUID(int=1)) == saved[0]
     assert records.get(UUID(int=101)) == saved[-1]
     assert baselines.get_baseline(baseline_id) == baseline
     assert baselines.get_check(check_id) == comparison
+    assert ledger.get(entry_id) == entry
+    assert ledger.get_check(position_check_id) == position_check
     with _empty_restore_database(postgres_engine) as target:
         backup(postgres_engine, SourceFiles(tmp_path / "sources"), tmp_path / "backup")
         result = restore(target, tmp_path / "restored", tmp_path / "backup")
         assert result["evidence"] == {
-            "query_batches_count": 103,
+            "query_batches_count": 105,
             "pending_queries_count": 101,
             "baselines_count": 1,
             "checks_count": 1,
+            "position_entries_count": 1,
+            "position_checks_count": 1,
         }
         assert result["execution"] == "PAUSED"
         restored = BrokerRecords(target)
@@ -81,6 +102,9 @@ def test_initialization_and_restore_keep_all_interrupted_query_evidence(
         restored_baselines = BrokerBaselines(target)
         assert restored_baselines.get_baseline(baseline_id) == baseline
         assert restored_baselines.get_check(check_id) == comparison
+        restored_ledger = BrokerLedger(target)
+        assert restored_ledger.get(entry_id) == entry
+        assert restored_ledger.get_check(position_check_id) == position_check
         assert not (tmp_path / "restored/.restore-incomplete").exists()
 
 
@@ -111,6 +135,38 @@ def test_corrupt_query_evidence_keeps_restore_unactivated(
         assert (tmp_path / "restored/.restore-incomplete").is_file()
 
 
+def test_broken_position_chain_keeps_restore_unactivated(
+    postgres_engine: Engine, clean_database: None, tmp_path: Path
+) -> None:
+    del clean_database
+    baseline_id = position_baseline(postgres_engine)
+    ledger = BrokerLedger(postgres_engine)
+    first_id = uuid4()
+    first_fill = trade()
+    ledger.ingest(
+        baseline_id, ledger_query(postgres_engine, trades=(first_fill,)), request_id=first_id
+    )
+    later = ledger.ingest(
+        baseline_id,
+        ledger_query(postgres_engine, trades=(first_fill, trade("T2", Volume=1))),
+        request_id=uuid4(),
+    )
+    assert later["status"] == "READY" and later["fill_count"] == 2
+    # Simulate a missing predecessor, not just a bad row digest. The later entry
+    # and its source query remain intact, but the full position chain is broken.
+    with postgres_engine.begin() as connection:
+        connection.execute(text("SET LOCAL session_replication_role = replica"))
+        removed = connection.execute(
+            text("DELETE FROM broker_position_entries WHERE entry_id = :id"), {"id": first_id}
+        )
+        assert removed.rowcount == 1
+    with _empty_restore_database(postgres_engine) as target:
+        backup(postgres_engine, SourceFiles(tmp_path / "sources"), tmp_path / "backup")
+        with pytest.raises(ValueError, match="position ledger chain or source evidence"):
+            restore(target, tmp_path / "restored", tmp_path / "backup")
+        assert (tmp_path / "restored/.restore-incomplete").is_file()
+
+
 def test_restore_installs_new_module_tables_without_replacing_existing_facts(
     postgres_engine: Engine, tmp_path: Path
 ) -> None:
@@ -119,13 +175,17 @@ def test_restore_installs_new_module_tables_without_replacing_existing_facts(
         query_id = saved_query(source)
         original = BrokerRecords(source).get(query_id)
         assert BrokerBaselines(source).verify_all() == {"baselines_count": 0, "checks_count": 0}
+        assert BrokerLedger(source).verify_all() == {
+            "position_entries_count": 0,
+            "position_checks_count": 0,
+        }
         destination = tmp_path / "backup"
         document = backup(source, SourceFiles(tmp_path / "sources"), destination)
         # This isolated source models the same core baseline before these two
         # empty Module tables existed. No existing account fact is removed.
         with source.begin() as connection:
-            connection.exec_driver_sql("DROP TABLE broker_baseline_checks")
-            connection.exec_driver_sql("DROP TABLE broker_account_baselines")
+            connection.exec_driver_sql("DROP TABLE broker_position_checks")
+            connection.exec_driver_sql("DROP TABLE broker_position_entries")
         dump = destination / "database.dump"
         subprocess.run(
             [
@@ -154,9 +214,15 @@ def test_restore_installs_new_module_tables_without_replacing_existing_facts(
                 "pending_queries_count": 0,
                 "baselines_count": 0,
                 "checks_count": 0,
+                "position_entries_count": 0,
+                "position_checks_count": 0,
             }
             assert result["execution"] == "PAUSED"
             assert BrokerRecords(target).get(query_id) == original
+            assert BrokerLedger(target).verify_all() == {
+                "position_entries_count": 0,
+                "position_checks_count": 0,
+            }
             restored = BrokerBaselines(target)
             baseline = restored.establish(query_id, request_id=uuid4())
             assert baseline["source_batch_id"] == str(query_id)

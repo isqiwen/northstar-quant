@@ -221,6 +221,7 @@ def restore(engine: Engine, source_root: Path, directory: Path) -> dict[str, obj
     """
 
     from northstar_quant.broker.baselines import BrokerBaselines
+    from northstar_quant.broker.ledger import BrokerLedger
     from northstar_quant.broker.records import BrokerRecords
     from northstar_quant.data.library import DataLibrary, manifest
     from northstar_quant.db import initialize_database, require_current_database
@@ -307,11 +308,14 @@ def restore(engine: Engine, source_root: Path, directory: Path) -> dict[str, obj
             query_batches_count += 1
             pending_queries_count += query["status"] == "PENDING"
     baselines = BrokerBaselines(engine).verify_all()
+    positions = BrokerLedger(engine).verify_all()
     evidence = {
         "query_batches_count": query_batches_count,
         "pending_queries_count": pending_queries_count,
         "baselines_count": baselines["baselines_count"],
         "checks_count": baselines["checks_count"],
+        "position_entries_count": positions["position_entries_count"],
+        "position_checks_count": positions["position_checks_count"],
     }
     (target.root / ".restore-incomplete").unlink()
     SourceFiles._sync(target.root)
@@ -323,7 +327,7 @@ def restore(engine: Engine, source_root: Path, directory: Path) -> dict[str, obj
         "evidence": evidence,
         "execution": "PAUSED",
         "scope": (
-            "retained sources, data/research and saved broker baseline evidence; "
+            "retained sources, data/research, broker baseline and position ledger evidence; "
             "current account reconciliation and execution recovery are not established"
         ),
     }

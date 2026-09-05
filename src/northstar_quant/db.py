@@ -30,6 +30,7 @@ def initialize_database(engine: Engine) -> None:
     """Install current tables explicitly, preserving all existing application facts."""
 
     from northstar_quant.broker.baselines import initialize_broker_baselines
+    from northstar_quant.broker.ledger import initialize_broker_ledger
     from northstar_quant.broker.records import initialize_broker_records
     from northstar_quant.data.library import initialize_library
     from northstar_quant.data.maintenance import initialize_maintenance
@@ -52,6 +53,7 @@ def initialize_database(engine: Engine) -> None:
         initialize_maintenance(connection)
         initialize_broker_records(connection)
         initialize_broker_baselines(connection)
+        initialize_broker_ledger(connection)
 
 
 def require_current_database(engine: Engine) -> None:
@@ -78,6 +80,8 @@ def require_current_database(engine: Engine) -> None:
         "broker_query_batches",
         "broker_account_baselines",
         "broker_baseline_checks",
+        "broker_position_entries",
+        "broker_position_checks",
     }
     if actual != expected or not required <= present:
         raise ValueError("database does not have the current Northstar baseline")

@@ -15,6 +15,7 @@ from sqlalchemy import Engine, text
 
 from northstar_quant.broker import ctp
 from northstar_quant.broker.baselines import BrokerBaselines
+from northstar_quant.broker.ledger import BrokerLedger
 from northstar_quant.broker.records import BrokerRecords, QueryCapture
 from northstar_quant.broker.settings import (
     credential_status,
@@ -30,6 +31,7 @@ class BrokerWorkspace:
         self._engine = engine
         self._records = BrokerRecords(engine)
         self._baselines = BrokerBaselines(engine)
+        self._ledger = BrokerLedger(engine)
 
     @staticmethod
     def status() -> dict[str, object]:
@@ -62,6 +64,27 @@ class BrokerWorkspace:
 
     def get_baseline_check(self, check_id: UUID) -> dict[str, object]:
         return self._baselines.get_check(check_id)
+
+    def ledger_context(self, query_batch_id: UUID) -> dict[str, object]:
+        return self._ledger.context(query_batch_id)
+
+    def ingest_positions(
+        self, baseline_id: UUID, source_batch_id: UUID, *, request_id: UUID
+    ) -> dict[str, object]:
+        """Apply saved external fills locally; never accept operator-supplied positions."""
+
+        return self._ledger.ingest(baseline_id, source_batch_id, request_id=request_id)
+
+    def compare_positions(
+        self, entry_id: UUID, query_batch_id: UUID, *, request_id: UUID
+    ) -> dict[str, object]:
+        return self._ledger.compare(entry_id, query_batch_id, request_id=request_id)
+
+    def get_position_entry(self, entry_id: UUID) -> dict[str, object]:
+        return self._ledger.get(entry_id)
+
+    def get_position_check(self, check_id: UUID) -> dict[str, object]:
+        return self._ledger.get_check(check_id)
 
     def query(self, profile_name: str, instrument: str, *, request_id: UUID) -> dict[str, object]:
         profile = get_profile(profile_name)

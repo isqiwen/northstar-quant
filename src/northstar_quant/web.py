@@ -271,7 +271,11 @@ def create_app(engine: Engine, library: DataLibrary) -> FastAPI:
     @app.get("/broker/{batch_id}", response_class=HTMLResponse)
     async def broker_detail(request: Request, batch_id: UUID) -> HTMLResponse:
         def content() -> str:
-            return broker_views.report(broker.get(batch_id), broker.baseline_context(batch_id))
+            return broker_views.report(
+                broker.get(batch_id),
+                broker.baseline_context(batch_id),
+                broker.ledger_context(batch_id),
+            )
 
         return workspace_page(
             request,
@@ -329,6 +333,47 @@ def create_app(engine: Engine, library: DataLibrary) -> FastAPI:
     async def broker_baseline_check(request: Request, check_id: UUID) -> dict[str, object]:
         require_workspace_session(request)
         return await run_in_threadpool(broker.get_baseline_check, check_id)
+
+    @app.get("/api/broker/queries/{batch_id}/ledger-context")
+    async def broker_ledger_context(request: Request, batch_id: UUID) -> dict[str, object]:
+        require_workspace_session(request)
+        return await run_in_threadpool(broker.ledger_context, batch_id)
+
+    @app.post("/api/broker/position-entries")
+    async def broker_ingest_positions(request: Request) -> dict[str, object]:
+        protect_workspace_command(request)
+        payload = await _read_object(request)
+        if set(payload) != {"baseline_id", "source_batch_id", "request_id"}:
+            raise ValueError("入账只接受 baseline_id、source_batch_id 和 request_id。")
+        return await run_in_threadpool(
+            broker.ingest_positions,
+            _uuid_field(payload, "baseline_id"),
+            _uuid_field(payload, "source_batch_id"),
+            request_id=_uuid_field(payload, "request_id"),
+        )
+
+    @app.get("/api/broker/position-entries/{entry_id}")
+    async def broker_position_entry(request: Request, entry_id: UUID) -> dict[str, object]:
+        require_workspace_session(request)
+        return await run_in_threadpool(broker.get_position_entry, entry_id)
+
+    @app.post("/api/broker/position-checks")
+    async def broker_compare_positions(request: Request) -> dict[str, object]:
+        protect_workspace_command(request)
+        payload = await _read_object(request)
+        if set(payload) != {"entry_id", "query_batch_id", "request_id"}:
+            raise ValueError("持仓比较只接受 entry_id、query_batch_id 和 request_id。")
+        return await run_in_threadpool(
+            broker.compare_positions,
+            _uuid_field(payload, "entry_id"),
+            _uuid_field(payload, "query_batch_id"),
+            request_id=_uuid_field(payload, "request_id"),
+        )
+
+    @app.get("/api/broker/position-checks/{check_id}")
+    async def broker_position_check(request: Request, check_id: UUID) -> dict[str, object]:
+        require_workspace_session(request)
+        return await run_in_threadpool(broker.get_position_check, check_id)
 
     @app.post("/api/broker/queries")
     async def broker_query(request: Request) -> dict[str, object]:

@@ -205,12 +205,21 @@ def main() -> None:
                 assert broker_status["connection"] == "ON_DEMAND_READ_ONLY"
                 saved_queries = command("broker-list")
                 missing_query = str(uuid4())
-                try:
-                    request(f"{base_url}/api/broker/queries/{missing_query}/baseline-context")
-                except HTTPError as error:
-                    assert error.code == 404
-                else:
-                    raise AssertionError("missing query must not invent a baseline context")
+                anonymous = build_opener(ProxyHandler({}))
+                for path in (
+                    f"/api/broker/queries/{missing_query}/baseline-context",
+                    f"/api/broker/queries/{missing_query}/ledger-context",
+                    f"/api/broker/position-entries/{missing_query}",
+                    f"/api/broker/position-checks/{missing_query}",
+                ):
+                    for browser, expected_status in ((anonymous, 403), (opener, 404)):
+                        try:
+                            with browser.open(f"{base_url}{path}", timeout=15):
+                                pass
+                        except HTTPError as error:
+                            assert error.code == expected_status
+                        else:
+                            raise AssertionError("broker evidence requires a session and saved ID")
                 for path, payload in (
                     (
                         "/api/broker/baselines",
@@ -224,6 +233,22 @@ def main() -> None:
                             "request_id": str(uuid4()),
                         },
                     ),
+                    (
+                        "/api/broker/position-entries",
+                        {
+                            "baseline_id": str(uuid4()),
+                            "source_batch_id": missing_query,
+                            "request_id": str(uuid4()),
+                        },
+                    ),
+                    (
+                        "/api/broker/position-checks",
+                        {
+                            "entry_id": str(uuid4()),
+                            "query_batch_id": missing_query,
+                            "request_id": str(uuid4()),
+                        },
+                    ),
                 ):
                     # Even an existing browser cookie cannot mutate without CSRF.
                     unprotected = Request(
@@ -231,13 +256,14 @@ def main() -> None:
                         data=json.dumps(payload).encode(),
                         headers={"Content-Type": "application/json"},
                     )
-                    try:
-                        with opener.open(unprotected, timeout=15):
-                            pass
-                    except HTTPError as error:
-                        assert error.code == 403
-                    else:
-                        raise AssertionError("baseline mutation without CSRF must be rejected")
+                    for browser in (anonymous, opener):
+                        try:
+                            with browser.open(unprotected, timeout=15):
+                                pass
+                        except HTTPError as error:
+                            assert error.code == 403
+                        else:
+                            raise AssertionError("broker mutation requires a session and CSRF")
                 assert command("broker-list") == saved_queries
                 upload = {
                     "content_base64": base64.b64encode(csv).decode("ascii"),
@@ -426,6 +452,8 @@ def _check_restore(
             "pending_queries_count",
             "baselines_count",
             "checks_count",
+            "position_entries_count",
+            "position_checks_count",
         }
         assert all(type(count) is int and count >= 0 for count in evidence.values())
         assert evidence["query_batches_count"] >= len(saved_queries)
@@ -435,6 +463,8 @@ def _check_restore(
                 "pending_queries_count": 0,
                 "baselines_count": 0,
                 "checks_count": 0,
+                "position_entries_count": 0,
+                "position_checks_count": 0,
             }
         assert command("broker-list") == saved_queries
         assert command("dataset", snapshot_id) == data

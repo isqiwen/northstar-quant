@@ -132,6 +132,46 @@ For an existing current-data database, back it up with the running version befor
 deploying this slice; initialize the two new baseline tables with the new version's
 `northstar init-db`. Keep the same database and source storage; do not drop or reset them.
 
+### Confirmed trades and gross positions
+
+The saved-query page can append its confirmed trade callbacks to a position ledger
+rooted in the fixed flat observation. Repeated callbacks and later query repeats
+do not increase holdings twice; conflicting trade identities retain the original
+fact and block a known projection. Buy-open and sell-open remain separate long
+and short holdings. Confirmed quantities do not imply known fees: this ledger
+never substitutes zero fees or the research account for a broker cash ledger.
+
+The current scope is one trading day, SHFE futures and speculation, with explicit
+open/close-today/close-yesterday effects. A later open cannot hide an earlier
+close without established holdings. Unsupported effects, unmapped contracts,
+incomplete queries and missing previously recorded trades remain visible as
+`UNKNOWN`. No correction or automatic reset operation exists in this slice.
+Each day is bounded to 1,000 append entries and 10,000 distinct fills.
+
+Contract UUIDs come from Data's existing catalog. An exact Instrument response
+can register a contract under an already registered product, but cannot invent
+the physical quantity unit missing from that response. Missing product metadata
+or conflicting terms must be resolved through Data before usable trade projection.
+Original callback evidence remains readable; no CSV, calendar or Snapshot is
+fabricated to register a broker fill.
+
+```sh
+northstar broker-ingest BASELINE_UUID SOURCE_QUERY_UUID --request-id ENTRY_UUID
+northstar broker-ledger SOURCE_QUERY_UUID
+# Explicitly obtain a new authorized read-only query after fixing the entry.
+northstar broker-positions ENTRY_UUID LATER_QUERY_UUID --request-id CHECK_UUID
+```
+
+The independent check compares gross today/yesterday quantities and lists later
+unrecorded trades without importing them into its fixed expected ledger. It also
+retains the full observed order/position evidence. `MATCHED` here means only
+position quantities agree; fees, cash flows, settlement, order-state reconciliation
+and continuous event coverage are not established. Every result remains
+`UNRECONCILED` without order or cancel authority. Repeated commands, restart and
+restore preserve fixed results; integrity checks never repair missing catalog facts.
+Back up the running database before deployment, then explicitly run `init-db`
+to add the two position-ledger tables without replacing retained account records.
+
 ## Command line
 
 With Python 3.12, `uv`, and PostgreSQL 17:

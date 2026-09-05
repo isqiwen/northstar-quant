@@ -298,6 +298,31 @@ document.querySelectorAll("[data-broker-local]").forEach((button) => {
   });
 });
 
+document.querySelectorAll("[data-broker-ledger]").forEach((button) => {
+  button.addEventListener("click", async () => {
+    const queryId = button.dataset.queryBatchId;
+    const ingesting = button.dataset.brokerLedger === "ingest";
+    const payload = ingesting ? {
+      baseline_id: button.dataset.baselineId,
+      source_batch_id: queryId,
+    } : {entry_id: button.dataset.entryId, query_batch_id: queryId};
+    const key = `northstar.broker.positions.${button.dataset.brokerLedger}.${queryId}`;
+    const notice = document.querySelector("#broker-ledger-status");
+    button.disabled = true;
+    status(notice, ingesting ? "正在记录已保存的成交并推导数量，不连接柜台…" :
+      "正在比较固定账簿与独立查询，不修改账簿或连接柜台…");
+    try {
+      payload.request_id = workspaceCommand(key, payload);
+      await api(ingesting ? "/api/broker/position-entries" : "/api/broker/position-checks", payload);
+      sessionStorage.removeItem(key);
+      window.location.reload();
+    } catch (error) {
+      status(notice, `${error.message} 重试复用同一命令，不会连接柜台或重复入账。`, true);
+      button.disabled = false;
+    }
+  });
+});
+
 if (configurationForm) configurationForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const button = configurationForm.querySelector("button[type=submit]");

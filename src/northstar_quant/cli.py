@@ -154,6 +154,22 @@ def main(argv: Sequence[str] | None = None) -> int:
         "broker-baseline-context", help="read local baseline eligibility and saved comparisons"
     )
     broker_context.add_argument("query_batch_id", type=UUID)
+    broker_ingest = commands.add_parser(
+        "broker-ingest", help="apply saved broker fills to the local quantity ledger; no connection"
+    )
+    broker_ingest.add_argument("baseline_id", type=UUID)
+    broker_ingest.add_argument("source_batch_id", type=UUID)
+    broker_ingest.add_argument("--request-id", type=UUID, required=True)
+    broker_ledger = commands.add_parser(
+        "broker-ledger", help="read local fill entries and independent position comparisons"
+    )
+    broker_ledger.add_argument("query_batch_id", type=UUID)
+    broker_positions = commands.add_parser(
+        "broker-positions", help="compare fixed ledger quantities with a later saved query"
+    )
+    broker_positions.add_argument("entry_id", type=UUID)
+    broker_positions.add_argument("query_batch_id", type=UUID)
+    broker_positions.add_argument("--request-id", type=UUID, required=True)
     arguments = parser.parse_args(argv)
 
     engine = None
@@ -194,6 +210,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             "broker-baseline",
             "broker-compare",
             "broker-baseline-context",
+            "broker-ingest",
+            "broker-ledger",
+            "broker-positions",
         }:
             from northstar_quant.broker.workspace import BrokerWorkspace
 
@@ -231,6 +250,27 @@ def main(argv: Sequence[str] | None = None) -> int:
                     )
                 )
                 return 0
+            if arguments.command == "broker-ingest":
+                broker_result = broker.ingest_positions(
+                    arguments.baseline_id,
+                    arguments.source_batch_id,
+                    request_id=arguments.request_id,
+                )
+                print(json.dumps(broker_result, ensure_ascii=False))
+                return 0 if broker_result["status"] == "READY" else 2
+            if arguments.command == "broker-ledger":
+                print(
+                    json.dumps(broker.ledger_context(arguments.query_batch_id), ensure_ascii=False)
+                )
+                return 0
+            if arguments.command == "broker-positions":
+                broker_result = broker.compare_positions(
+                    arguments.entry_id,
+                    arguments.query_batch_id,
+                    request_id=arguments.request_id,
+                )
+                print(json.dumps(broker_result, ensure_ascii=False))
+                return 0 if broker_result["status"] == "MATCHED" else 2
             if arguments.command == "broker-list":
                 print(json.dumps(broker.list(), ensure_ascii=False))
             else:

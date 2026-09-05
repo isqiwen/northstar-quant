@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 from html import escape
 from typing import cast
 
@@ -78,7 +79,11 @@ pattern="[A-Za-z]{{1,3}}[0-9]{{3,4}}"></label>
 </tr></thead><tbody>{rows}</tbody></table></div></section>"""
 
 
-def report(batch: dict[str, object], baseline_context: dict[str, object]) -> str:
+def report(
+    batch: dict[str, object],
+    baseline_context: dict[str, object],
+    ledger_context: dict[str, object],
+) -> str:
     completeness = _object(batch["completeness"])
     sections = _object(completeness["sections"])
     panels = []
@@ -111,10 +116,11 @@ def report(batch: dict[str, object], baseline_context: dict[str, object]) -> str
 <p>{_text(_object(batch["profile"])["name"])} · 账户 {_text(batch["account_id"])} ·
 {_text(batch["instrument"])}</p><a href="/broker">返回连接工作台</a></section>
 <aside class="data-notice"><strong>未对账 · 不具备执行权限</strong>
-<p>各查询分时返回，不构成同一时刻的原子账户快照。本地柜台账本尚未建立，
-原始查询自身不提供账本核对。下方观察基准比较独立保存，不改写原回包，
+<p>各查询分时返回，不构成同一时刻的原子账户快照。完整的资金、费用与结算账本尚未建立，
+原始查询自身不提供账本核对。下方观察比较、成交入账及数量比较独立保存，不改写原回包，
 不会把未知写成零，也不会覆盖研究或 Paper 账本。</p></aside>
 {_baseline_panel(batch, baseline_context)}
+{_ledger_panel(batch, baseline_context, ledger_context)}
 <section class="panel"><h2>查询范围与证据</h2><p>命令身份 {_text(batch["batch_id"])}</p>
 <p>交易账户身份 {_text(completeness["identity"])} ·
 柜台交易日 {_text(completeness["trading_day"])}</p>
@@ -155,11 +161,14 @@ def _baseline_panel(batch: dict[str, object], context: dict[str, object]) -> str
             f"<tr><th>{_text(field)}</th><td>{_text(value)}</td></tr>"
             for field, value in funds.items()
         )
+        timing_note = _query_timing_note(batch, baseline["recorded_at"])
         button = (
             "<p>这是基准来源查询，不能与自身比较。需要基准固定之后的独立查询记录。</p>"
             if batch["batch_id"] == baseline["source_batch_id"]
             else "<p>本次查询已有固定比较，见下方结果；不会重复建立比较。</p>"
             if any(check["query_batch_id"] == batch["batch_id"] for check in checks)
+            else f"<p>{_text(timing_note)}</p>"
+            if timing_note is not None
             else f'<button type="button" data-broker-local="compare" '
             f'data-query-batch-id="{query_id}" '
             f'data-baseline-id="{_text(baseline["baseline_id"])}">'
@@ -215,3 +224,188 @@ def _baseline_check(check: dict[str, object], current_query_id: object) -> str:
 <p class="muted">null 表示未知，不等于没有活动。</p>{_json(check["activity"])}
 <ul>{reasons}</ul><a href="/api/broker/baseline-checks/{_text(check["check_id"])}">
 查看固定比较证据（非账本对账）</a></details>"""
+
+
+def _query_timing_note(batch: dict[str, object], recorded_at: object) -> str | None:
+    """Explain visibly impossible timing; the owning Module still enforces commands."""
+
+    if batch["capture"] is None:
+        return "本次查询尚无固定终态，不能入账或作为独立比较证据。"
+    capture = _object(batch["capture"])
+    fixed = datetime.fromisoformat(str(recorded_at))
+    if (
+        datetime.fromisoformat(str(batch["created_at"])) <= fixed
+        or datetime.fromisoformat(str(capture["started_at"])) <= fixed
+    ):
+        return "本次查询在目标记录固定前已开始，不能作为独立后续证据；请使用之后发起的查询。"
+    if datetime.fromisoformat(str(capture["finished_at"])) >= datetime.now(UTC):
+        return "本次查询结束时间尚未到达，不能入账或作为已完成的比较证据。"
+    return None
+
+
+def _ledger_panel(
+    batch: dict[str, object],
+    baseline_context: dict[str, object],
+    context: dict[str, object],
+) -> str:
+    query_id = _text(batch["batch_id"])
+    baseline_id = context["baseline_id"]
+    baseline = baseline_context["baseline"]
+    current, source_entry = context["current"], context["source_entry"]
+    if baseline_id is None or baseline is None:
+        action = "<p>先从完整空账户观察固定一次基准；不能手工补填成交或持仓作为起点。</p>"
+    elif source_entry is not None:
+        saved = _object(source_entry)
+        action = (
+            f"<p>本次查询已有第 {_text(saved['ordinal'])} 次固定入账："
+            f'<a href="/api/broker/position-entries/{_text(saved["entry_id"])}">'
+            "查看原入账记录</a>。不会再次导入或覆盖结果。</p>"
+        )
+    elif batch["batch_id"] == _object(baseline)["source_batch_id"]:
+        action = "<p>本次查询是空账户基准来源；成交入账需要基准固定之后发起的查询。</p>"
+    elif timing_note := _query_timing_note(batch, _object(baseline)["recorded_at"]):
+        action = f"<p>{_text(timing_note)}</p>"
+    else:
+        action = f"""<button type="button" data-broker-ledger="ingest"
+data-query-batch-id="{query_id}" data-baseline-id="{_text(baseline_id)}">
+将本次保存的成交入账（仅本地）</button>
+<p class="muted">按固定来源识别和去重成交；不会用查询汇总持仓覆盖账簿。
+若需核对已有入账结果，请先执行下面的独立比较，再决定是否接收新的成交事实。</p>"""
+    if current is None:
+        projection = "<p>尚无成交入账记录；没有账簿不能声称持仓一致。</p>"
+        comparison = ""
+    else:
+        latest = _object(current)
+        latest_projection = _object(latest["position_projection"])
+        projection = (
+            f"<h3>最新固定投影 · 第 {_text(latest['ordinal'])} 次</h3>"
+            f"<p>{_text(latest['status'])} · {_text(latest['recorded_at'])}</p>"
+            f"<p>累计已识别成交 {_text(latest['fill_count'])} 笔；"
+            f"持仓推导 {_text(latest_projection['status'])}。</p>"
+            + _position_projection(latest_projection)
+        )
+        if context["current_check"] is not None:
+            checked = _object(context["current_check"])
+            comparison = (
+                "<p>本次查询与最新入账结果已有固定比较："
+                f'<a href="/api/broker/position-checks/{_text(checked["check_id"])}">'
+                "查看原比较记录</a>；不会重复比较。</p>"
+            )
+        elif latest["source_batch_id"] == batch["batch_id"]:
+            comparison = (
+                "<p>本次查询是最新入账的来源，不能自行证明一致。"
+                "需要该记录固定之后才发起的另一份查询。</p>"
+            )
+        elif timing_note := _query_timing_note(batch, latest["recorded_at"]):
+            comparison = f"<p>{_text(timing_note)}</p>"
+        else:
+            comparison = f"""<button type="button" data-broker-ledger="compare"
+data-query-batch-id="{query_id}" data-entry-id="{_text(latest["entry_id"])}">
+将本次查询与固定账簿数量比较（仅本地）</button>
+<p class="muted">只接受这次入账固定之后才发起的独立查询；早先的查询不能作为后验核对。
+本次查询的新成交尚未入账时保留差异，不自动修改账簿消除它。</p>"""
+    entries = "".join(
+        _position_entry(entry, batch["batch_id"])
+        for entry in cast(list[dict[str, object]], context["entries"])
+    )
+    checks = "".join(
+        _position_check(check, batch["batch_id"])
+        for check in cast(list[dict[str, object]], context["checks"])
+    )
+    return f"""<section class="panel" id="broker-ledger-panel">
+<h2>成交入账与持仓数量核对</h2>
+<p>当前范围：同一交易日、空账户起点、SHFE 期货投机持仓；
+按真实保存的成交开平推导多空与今昨仓，不接受手工成交或仓位，不产生模拟成交。</p>
+{action}{projection}{comparison}
+<p id="broker-ledger-status" class="status" role="status"></p>
+<p class="muted">这些按钮只处理本地证据，不连接柜台或触发新查询。
+费用、资金流和结算账本尚未建立；READY 仅表示该次持仓可推导，
+MATCHED 仅表示有限数量相同。所有结果仍为 UNRECONCILED，不启用报单、撤单或实盘权限。</p>
+<h3>最近成交入账（最多 20 条）</h3>{entries or "<p>尚无固定入账记录。</p>"}
+<h3>最近持仓数量比较（最多 20 条）</h3>{checks or "<p>尚无独立数量比较。</p>"}
+<a href="/api/broker/queries/{query_id}/ledger-context">查看账簿记录与比较证据（本机私有）</a>
+</section>"""
+
+
+def _position_projection(projection: dict[str, object]) -> str:
+    if projection["status"] != "KNOWN":
+        return "<p>数量投影未知，不能将空列表解释为空仓；请查看入账问题。</p>"
+    rows = "".join(
+        "<tr>"
+        + "".join(
+            f"<td>{_text(item[field])}</td>"
+            for field in (
+                "exchange",
+                "symbol",
+                "hedge_flag",
+                "direction",
+                "today_lots",
+                "yesterday_lots",
+            )
+        )
+        + "</tr>"
+        for item in cast(list[dict[str, object]], projection["positions"])
+    )
+    if not rows:
+        return "<p>按已入账成交推导为空仓；不是柜台当前空仓的独立证明。</p>"
+    return f"""<div class="table-scroll"><table><thead><tr><th>交易所</th><th>合约</th>
+<th>投保标志</th><th>方向</th><th>今仓手数</th><th>昨仓手数</th></tr></thead>
+<tbody>{rows}</tbody></table></div>"""
+
+
+def _position_entry(entry: dict[str, object], current_query_id: object) -> str:
+    opened = " open" if entry["source_batch_id"] == current_query_id else ""
+    return f"""<details{opened}><summary>第 {_text(entry["ordinal"])} 次入账 ·
+{_text(entry["status"])} · {_text(entry["recorded_at"])}</summary>
+<p>新识别 {_text(entry["new_fill_count"])} 笔，重复观察 {_text(entry["duplicate_count"])} 笔；
+累计 {_text(entry["fill_count"])} 笔。</p>
+<p><a href="/broker/{_text(entry["source_batch_id"])}">查看入账来源查询</a></p>
+{_position_projection(_object(entry["position_projection"]))}
+<h4>入账问题</h4>{_json(entry["problems"])}
+<details><summary>本次新增的已识别成交</summary>{_json(entry["added_fills"])}</details>
+<a href="/api/broker/position-entries/{_text(entry["entry_id"])}">查看固定入账证据</a></details>"""
+
+
+def _position_check(check: dict[str, object], current_query_id: object) -> str:
+    label = {
+        "MATCHED": "数量相同（仅持仓数量范围）",
+        "DIFFERENCES": "持仓数量或未入账成交存在差异",
+        "UNKNOWN": "事实不足，不能判断持仓一致",
+    }[str(check["status"])]
+    rows = "".join(
+        "<tr>"
+        + "".join(
+            f"<td>{_text('未知' if item[field] is None else item[field])}</td>"
+            for field in (
+                "symbol",
+                "direction",
+                "expected_today",
+                "observed_today",
+                "delta_today",
+                "expected_yesterday",
+                "observed_yesterday",
+                "delta_yesterday",
+            )
+        )
+        + "</tr>"
+        for item in cast(list[dict[str, object]], check["positions"])
+    )
+    if not rows:
+        rows = '<tr><td colspan="8">没有逐合约数量；是否已知请以状态与问题为准。</td></tr>'
+    opened = " open" if check["query_batch_id"] == current_query_id else ""
+    activity = {
+        "unrecorded_fills": check["unrecorded_fills"],
+        "observed_orders": check["observed_orders"],
+    }
+    return f"""<details{opened}><summary>{_text(label)} · {_text(check["recorded_at"])}</summary>
+<p><a href="/api/broker/position-entries/{_text(check["entry_id"])}">查看固定入账依据</a> ·
+<a href="/broker/{_text(check["query_batch_id"])}">查看独立后续查询</a></p>
+<div class="table-scroll"><table><thead><tr><th>合约</th><th>方向</th><th>账簿今仓</th>
+<th>柜台今仓</th><th>今仓差</th><th>账簿昨仓</th><th>柜台昨仓</th><th>昨仓差</th>
+</tr></thead><tbody>{rows}</tbody></table></div>
+<h4>比较问题</h4>{_json(check["problems"])}
+<details><summary>观察到的未入账成交与委托</summary>
+<p>null 代表未知；这里只保留观察，不自动入账、报撤单或释放预占。</p>
+{_json(activity)}
+</details><a href="/api/broker/position-checks/{_text(check["check_id"])}">查看固定数量比较证据</a>
+</details>"""
