@@ -4,8 +4,9 @@ This repository is the sole maintained personal domestic-futures trading system.
 The ultimate objective is controlled live trading. Deliver the shortest safe
 vertical path through a concrete broker simulation to a bounded real-account
 round trip; research and internal Paper support that path, not a prerequisite
-platform to finish in full. Read `docs/ARCHITECTURE.md` for changes to domain
-meaning, trading, broker integration, account recovery or runtime topology; read
+platform to finish in full. Read `docs/ARCHITECTURE.md` for changes to data
+lifecycle, factor/strategy/risk configuration, workspace controls, trading,
+broker integration, recovery or runtime topology; read
 `README.md` to run the application. Code documents implemented details.
 
 ## Permanent engineering rules
@@ -20,8 +21,9 @@ meaning, trading, broker integration, account recovery or runtime topology; read
   affected callers atomically and remove superseded code, tests and active prose.
   Immutable content identities preserve reproducibility, not old implementations.
 - Repository count is a design choice. The current choice is one repository,
-  one Python package, one application process and PostgreSQL. Modules call typed
-  Python functions in process. Add another deployment only for demonstrated need.
+  one Python package, one application process and PostgreSQL, with managed durable
+  files for source archives and large data products. Modules call typed Python
+  functions in process. Add another deployment only for demonstrated need.
 - Deliver vertical behavior: accepted market/account facts → Strategy and Risk →
   authorized execution → confirmed fills and ledger → reconciliation and browser
   explanation. Distinguish research, internal Paper, broker simulation and live
@@ -37,6 +39,10 @@ meaning, trading, broker integration, account recovery or runtime topology; read
 ## Domain rules
 
 Data owns ingestion, source evidence, calendars, quality and immutable snapshots.
+Its interface owns source retention, processing provenance and publication; the
+workspace calls it rather than manipulating files or database tables. Preserve
+referenced evidence; back up database records and their files together. Temporary
+processing material is disposable, published data and trading facts are not.
 Its public research interface returns immutable values and hides SQLAlchemy.
 Strategy maps point-in-time features to account-neutral target exposure. Risk
 owns sizing and limits. Accounting applies identified execution/account facts;
@@ -55,6 +61,10 @@ and trading day separately. Derive portfolio state from the ledger, never from
 operator-supplied state. Persist complete inputs, data identity and implementation
 identity with every result. State model limitations truthfully; research results
 do not establish strategy profitability or live execution authority.
+Save strategy and Risk parameters as immutable configuration revisions; bind runs
+to exact revisions and implementation identities. Editing a template never changes
+an active session or grants execution authority. Factor management starts with
+actual strategy calculations and their data, not a separate platform.
 
 Live safety: default to no order sending. Bind explicit runtime authorization to the
 broker environment, account, instrument, strategy/configuration, time window and

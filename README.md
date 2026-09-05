@@ -78,7 +78,24 @@ quality expectations by omitting missing bars.
 The first real file comes from [Shinny EDB](docs/data-source.md): the actual
 `SHFE.rb2610` contract's 2026-09-04 afternoon session, 90 one-minute bars. It is
 retrospective data, not a point-in-time certified feed. Downloaded market files
-stay in local `.northstar/` storage and are not redistributed in this repository.
+stay in a manually prepared local `.northstar/` evidence bundle and are not
+redistributed in this repository. This is not an application-managed source archive;
+the current Compose deployment persists PostgreSQL only.
+
+## Planned data and workspace management
+
+The [lifecycle design](docs/ARCHITECTURE.md#8-持久化界面与运行维护) extends the same
+application with managed source files, processing attempts, publication and usage
+tracking. PostgreSQL owns records and trading facts; durable files hold source
+bytes and large data products. Raw archives, complete failed-import tracking,
+factor-result management and reusable strategy/Risk configuration revisions are
+not yet implemented. Continue retaining original files separately for now.
+
+The workspace will expose data, actual factors, strategy configurations, Risk and
+research/trading runs. Each run binds exact data, configuration and implementation
+identities; editing a configuration will not change an active session or grant live
+execution authority. These capabilities follow the live-first development order,
+not separate management-platform milestones.
 
 ## Model scope
 
