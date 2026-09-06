@@ -414,7 +414,6 @@ def test_browser_position_ledger_requires_local_commands_and_independent_evidenc
         page = client.get(f"/broker/{later}")
         assert page.status_code == 200
         assert "数量相同（仅持仓数量范围）" in page.text
-        assert "费用、资金流和结算账本尚未建立" in page.text
         assert 'data-broker-ledger="compare"' not in page.text
         context = client.get(f"/api/broker/queries/{later}/ledger-context").json()
         assert context["current_check"] == check

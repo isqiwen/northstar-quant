@@ -213,6 +213,7 @@ def main() -> None:
                     f"/api/broker/queries/{missing_query}/baseline-context",
                     f"/api/broker/queries/{missing_query}/ledger-context",
                     f"/api/broker/position-entries/{missing_query}",
+                    f"/api/broker/funds-entries/{missing_query}",
                     f"/api/broker/position-checks/{missing_query}",
                     f"/api/broker/order-checks/{missing_query}",
                     f"/api/broker/opening-budgets/{missing_query}",
@@ -245,6 +246,22 @@ def main() -> None:
                         {
                             "baseline_id": str(uuid4()),
                             "source_batch_id": missing_query,
+                            "request_id": str(uuid4()),
+                        },
+                    ),
+                    (
+                        "/api/broker/funds-entries",
+                        {
+                            "baseline_id": str(uuid4()),
+                            "source_batch_id": missing_query,
+                            "request_id": str(uuid4()),
+                        },
+                    ),
+                    (
+                        f"/api/streams/{missing_query}/position-entries",
+                        {
+                            "baseline_id": str(uuid4()),
+                            "through_sequence": 1,
                             "request_id": str(uuid4()),
                         },
                     ),

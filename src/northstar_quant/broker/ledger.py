@@ -1,8 +1,9 @@
 """Append confirmed trades, then compare frozen gross positions independently.
 
 One bounded, same-day position ledger starts at an existing flat observation.
-Entries store only newly identified fills; previous entries and raw queries are
-retained by hash. Cash, fees, settlement and sending authority are not inferred.
+Entries store only newly identified fills; previous entries, raw queries and
+fixed copied stream prefixes are retained by hash. Cash, fees, settlement and
+sending authority are not inferred.
 """
 
 from __future__ import annotations
@@ -12,7 +13,7 @@ import json
 import re
 from datetime import UTC, date, datetime, time
 from decimal import Decimal
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
@@ -51,7 +52,6 @@ _entries = Table(
     Column("document", JSONB, nullable=False),
     Column("sha256", String(64), nullable=False),
     UniqueConstraint("baseline_id", "ordinal"),
-    UniqueConstraint("baseline_id", "source_batch_id"),
 )
 _checks = Table(
     "broker_position_checks",
@@ -82,6 +82,20 @@ def initialize_broker_ledger(connection: Connection) -> None:
     if connection.dialect.name != "postgresql":
         raise ValueError("broker position ledger requires PostgreSQL")
     _metadata.create_all(connection)
+    # Queries and copied stream prefixes are distinct current source kinds. This
+    # changes uniqueness only; retained documents, amounts and hashes stay intact.
+    connection.exec_driver_sql("""
+        ALTER TABLE broker_position_entries DROP CONSTRAINT IF EXISTS
+            broker_position_entries_baseline_id_source_batch_id_key;
+        CREATE UNIQUE INDEX IF NOT EXISTS broker_position_query_source
+            ON broker_position_entries(baseline_id, source_batch_id)
+            WHERE NOT (document ? 'source_stream');
+        CREATE UNIQUE INDEX IF NOT EXISTS broker_position_stream_source
+            ON broker_position_entries(baseline_id,
+                (document->'source_stream'->>'stream_id'),
+                ((document->'source_stream'->>'through_sequence')::integer))
+            WHERE document ? 'source_stream'
+    """)
     connection.exec_driver_sql("""
         CREATE OR REPLACE FUNCTION broker_protect_position_ledger() RETURNS trigger AS $$
         BEGIN
@@ -200,7 +214,14 @@ def _economic(fill: dict[str, Any]) -> dict[str, Any]:
     return {
         key: value
         for key, value in fill.items()
-        if key not in {"contract_id", "source_batch_id", "source_sequence"}
+        if key
+        not in {
+            "contract_id",
+            "source_batch_id",
+            "source_sequence",
+            "source_stream_id",
+            "source_received_at",
+        }
     }
 
 
@@ -234,6 +255,78 @@ def _problems(batch: dict[str, Any], day: str) -> list[dict[str, Any]]:
     if batch["completeness"]["trading_day"] != day:
         reasons.append("SETTLEMENT_AND_NEW_TRADING_DAY_NOT_SUPPORTED")
     return [{"code": reason, "source_batch_id": batch["batch_id"]} for reason in reasons]
+
+
+def _stream_reference(prefix: dict[str, Any], after_sequence: int) -> dict[str, Any]:
+    return {
+        **{
+            key: prefix[key]
+            for key in (
+                "stream_id",
+                "through_sequence",
+                "prefix_hash",
+                "binding_hash",
+                "first_received_at",
+                "first_committed_at",
+                "segment_received_at",
+                "segment_committed_at",
+                "last_received_at",
+                "last_committed_at",
+            )
+        },
+        "after_sequence": after_sequence,
+    }
+
+
+def _stream_trades(
+    prefix: dict[str, Any], after_sequence: int, day: str
+) -> tuple[list[tuple[int, dict[str, Any]]], list[dict[str, Any]]]:
+    """Keep source problems separate from observed trades; never turn a stream into a query."""
+    binding = prefix["binding"]
+    observed, problems = [], []
+    confirmed_day = None
+    last_received = None
+    for item in prefix["events"]:
+        event, row = item["event"], item["event"]["data"] or {}
+        locator = {"source_stream_id": prefix["stream_id"], "sequence": event["sequence"]}
+        if event["channel"] == "TD" and event["callback"] == "OnRspUserLogin":
+            if (
+                not event["error_id"]
+                and row.get("UserID") == binding["account_id"]
+                and row.get("BrokerID") == binding["profile"]["broker_id"]
+                and row.get("TradingDay") == day
+            ):
+                confirmed_day = day
+            else:
+                confirmed_day = None
+                problems.append({"code": "STREAM_TD_IDENTITY_NOT_CONFIRMED", **locator})
+        if event["error_id"] or event["callback"] in {"OnFrontDisconnected", "OnHeartBeatWarning"}:
+            confirmed_day = None
+            problems.append({"code": "STREAM_ACCOUNT_CONNECTION_ERROR", **locator})
+        received = _time(event["received_at"])
+        if last_received is not None and received < last_received:
+            problems.append({"code": "STREAM_ACCOUNT_RECEIPT_TIME_REGRESSED", **locator})
+        last_received = received
+        if event["sequence"] <= after_sequence:
+            continue
+        if event["callback"] in {"OnRtnTrade", "OnRtnOrder"} and (
+            event["channel"] != "TD"
+            or row.get("BrokerID") != binding["profile"]["broker_id"]
+            or row.get("InvestorID") != binding["account_id"]
+            or row.get("TradingDay") != day
+            or confirmed_day != day
+        ):
+            problems.append({"code": "STREAM_ACCOUNT_CALLBACK_IDENTITY_NOT_CONFIRMED", **locator})
+        if event["callback"] == "OnRtnTrade":
+            if event["error_id"] or event["channel"] != "TD" or event["data"] is None:
+                problems.append({"code": "STREAM_TRADE_CALLBACK_NOT_CONFIRMED", **locator})
+            else:
+                observed.append((event["sequence"], row))
+    if confirmed_day is None:
+        problems.append(
+            {"code": "STREAM_TD_IDENTITY_NOT_CONFIRMED", "source_stream_id": prefix["stream_id"]}
+        )
+    return observed, problems
 
 
 class BrokerLedger:
@@ -305,9 +398,14 @@ class BrokerLedger:
                 or entry["previous_hash"] != (None if previous is None else _hash(previous))
             ):
                 raise ValueError("position ledger chain or source evidence is damaged")
+            prefix = self._entry_stream(entry)
             for fill in entry["added_fills"]:
                 if fill["contract_id"] is not None:
-                    instrument = source["completeness"]["sections"]["instrument"]["rows"][0]
+                    instrument = (
+                        source["completeness"]["sections"]["instrument"]["rows"][0]
+                        if prefix is None
+                        else prefix["binding"]["terms"]
+                    )
                     contract = verify_broker_contract(
                         self._engine, UUID(fill["contract_id"]), instrument
                     )
@@ -315,6 +413,26 @@ class BrokerLedger:
                         raise ValueError("position fill differs from its canonical contract")
             history.append(entry)
         return history
+
+    def _entry_stream(self, entry: dict[str, Any]) -> dict[str, Any] | None:
+        """Verify exactly the source segment fixed by this entry, not the stream's tail."""
+        source = entry.get("source_stream")
+        if source is None:
+            return None
+        from northstar_quant.broker.streams import read_stream_account_prefix
+
+        prefix: dict[str, Any] = read_stream_account_prefix(
+            self._engine,
+            UUID(source["stream_id"]),
+            source["through_sequence"],
+            after_sequence=source["after_sequence"],
+        )
+        if (
+            _stream_reference(prefix, source["after_sequence"]) != source
+            or prefix["binding"]["request"]["query_batch_id"] != entry["source_batch_id"]
+        ):
+            raise ValueError("position entry stream source differs from its fixed evidence")
+        return {**prefix, "after_sequence": source["after_sequence"]}
 
     def get(self, entry_id: UUID) -> dict[str, Any]:
         entry = self._raw(_entries, entry_id)
@@ -369,7 +487,10 @@ class BrokerLedger:
         parent = self.get_check(position_check_id)
         entry = self.get(UUID(parent["entry_id"]))
         history = self._history(UUID(entry["baseline_id"]), through=entry["ordinal"])
-        sources = [self._records.get(UUID(item["source_batch_id"])) for item in history]
+        sources = [
+            self._entry_stream(item) or self._records.get(UUID(item["source_batch_id"]))
+            for item in history
+        ]
         sources.append(self._records.get(UUID(parent["query_batch_id"])))
         known = [fill for item in history for fill in item["added_fills"]]
         result = inspect_orders(parent, sources, known)
@@ -433,6 +554,38 @@ class BrokerLedger:
     ) -> dict[str, Any]:
         if not all(isinstance(value, UUID) for value in (baseline_id, source_batch_id, request_id)):
             raise ValueError("position ledger commands require UUID identities")
+        return self._ingest(baseline_id, source_batch_id, request_id=request_id)
+
+    def ingest_stream(
+        self, baseline_id: UUID, stream_id: UUID, through_sequence: int, *, request_id: UUID
+    ) -> dict[str, Any]:
+        """Apply a retained callback prefix, including while shadow calculation is paused.
+
+        Later prefixes advance contiguously, sharing the existing account lock and
+        fill identity set with query ingestion. No query, connection, fee estimate,
+        fill synthesis or execution permission is created by this operation.
+        """
+        if not all(isinstance(value, UUID) for value in (baseline_id, stream_id, request_id)):
+            raise ValueError("stream ledger commands require UUID identities")
+        if type(through_sequence) is not int or not 1 <= through_sequence <= 100000:
+            raise ValueError("stream ledger requires a bounded retained prefix")
+        return self._ingest(
+            baseline_id,
+            None,
+            stream_id=stream_id,
+            through_sequence=through_sequence,
+            request_id=request_id,
+        )
+
+    def _ingest(
+        self,
+        baseline_id: UUID,
+        source_batch_id: UUID | None,
+        *,
+        request_id: UUID,
+        stream_id: UUID | None = None,
+        through_sequence: int | None = None,
+    ) -> dict[str, Any]:
         # Serialize both the deduplication set and its resulting projection.
         lock_key = int.from_bytes(
             hashlib.sha256(baseline_id.bytes + b"positions").digest()[:8], "big", signed=True
@@ -444,45 +597,124 @@ class BrokerLedger:
             except LookupError:
                 pass
             else:
-                if (saved["baseline_id"], saved["source_batch_id"]) != (
-                    str(baseline_id),
-                    str(source_batch_id),
+                saved_stream = saved.get("source_stream")
+                if saved["baseline_id"] != str(baseline_id) or (
+                    (saved_stream is not None or saved["source_batch_id"] != str(source_batch_id))
+                    if stream_id is None
+                    else saved_stream is None
+                    or saved_stream["stream_id"] != str(stream_id)
+                    or saved_stream["through_sequence"] != through_sequence
                 ):
                     raise ValueError("position command is already bound to different inputs")
                 return saved
             baseline = self._baselines.get_baseline(baseline_id)
+            history = self._history(baseline_id)
+            if len(history) >= _MAX_ENTRIES:
+                raise ValueError("position ledger reached its bounded daily entry limit")
+            previous = history[-1] if history else None
+            prefix: dict[str, Any] | None = None
+            after_sequence = 0
+            if stream_id is not None:
+                from northstar_quant.broker.streams import read_stream_account_prefix
+
+                after_sequence = max(
+                    (
+                        item["source_stream"]["through_sequence"]
+                        for item in history
+                        if item.get("source_stream", {}).get("stream_id") == str(stream_id)
+                    ),
+                    default=0,
+                )
+                if through_sequence is None or through_sequence <= after_sequence:
+                    raise ValueError("stream prefix already has a fixed entry or precedes it")
+                prefix = cast(
+                    dict[str, Any],
+                    read_stream_account_prefix(
+                        self._engine,
+                        stream_id,
+                        through_sequence,
+                        after_sequence=after_sequence,
+                    ),
+                )
+                source_batch_id = UUID(prefix["binding"]["request"]["query_batch_id"])
+            assert source_batch_id is not None
             batch: dict[str, Any] = self._records.get(source_batch_id)
             if (
                 batch["profile"] != baseline["profile"]
                 or batch["account_id"] != baseline["account_id"]
             ):
                 raise ValueError("position ledger requires the same environment and account")
-            self._after(batch, baseline["recorded_at"])
-            history = self._history(baseline_id)
-            if len(history) >= _MAX_ENTRIES:
-                raise ValueError("position ledger reached its bounded daily entry limit")
-            if any(item["source_batch_id"] == str(source_batch_id) for item in history):
-                raise ValueError("query already has a fixed ledger entry; read it instead")
-            previous = history[-1] if history else None
+            if prefix is None:
+                self._after(batch, baseline["recorded_at"])
+                if any(
+                    "source_stream" not in item and item["source_batch_id"] == str(source_batch_id)
+                    for item in history
+                ):
+                    raise ValueError("query already has a fixed ledger entry; read it instead")
+                source_start = _time(batch["created_at"])
+            else:
+                source_start = min(
+                    _time(prefix["segment_received_at"]),
+                    _time(prefix["segment_committed_at"]),
+                )
+                if source_start <= _time(baseline["recorded_at"]):
+                    raise ValueError("stream segment must begin after fixing the flat baseline")
+                if _time(prefix["last_committed_at"]) >= _time(_now()):
+                    raise ValueError("stream prefix must already have been committed")
             if previous is not None:
-                prior: dict[str, Any] = self._records.get(UUID(previous["source_batch_id"]))
-                if _time(batch["created_at"]) <= _time(prior["capture"]["finished_at"]):
-                    raise ValueError("ledger ingestion requires ordered non-overlapping queries")
+                prior_stream = previous.get("source_stream")
+                if prior_stream is None:
+                    prior: dict[str, Any] = self._records.get(UUID(previous["source_batch_id"]))
+                    source_end = _time(prior["capture"]["finished_at"])
+                else:
+                    source_end = max(
+                        _time(prior_stream["last_received_at"]),
+                        _time(prior_stream["last_committed_at"]),
+                    )
+                ordered_stream_segment = (
+                    prefix is not None
+                    and prior_stream is not None
+                    and _time(prefix["segment_received_at"])
+                    >= _time(prior_stream["last_received_at"])
+                    and _time(prefix["segment_committed_at"])
+                    > _time(prior_stream["last_committed_at"])
+                )
+                if not ordered_stream_segment and source_start <= source_end:
+                    raise ValueError("ledger ingestion requires ordered non-overlapping sources")
             known = {fill["fill_id"]: fill for item in history for fill in item["added_fills"]}
             previous_fill_ids = set(known)
             queried_fill_ids = set()
-            queried_sequences = {
-                event["sequence"]
-                for event in batch["capture"]["events"]
-                if event["callback"] == "OnRspQryTrade"
-            }
+            queried_sequences = (
+                set()
+                if prefix is not None
+                else {
+                    event["sequence"]
+                    for event in batch["capture"]["events"]
+                    if event["callback"] == "OnRspQryTrade"
+                }
+            )
             problems = [problem for item in history for problem in item["new_problems"]]
-            new_problems = _problems(batch, baseline["trading_day"])
+            if prefix is None:
+                observations = _observed_trades(batch)
+                new_problems = _problems(batch, baseline["trading_day"])
+            else:
+                observations, new_problems = _stream_trades(
+                    prefix, after_sequence, baseline["trading_day"]
+                )
             added, duplicate_count = [], 0
-            instruments = batch["completeness"]["sections"]["instrument"]
+            stream_receipts = (
+                {}
+                if prefix is None
+                else {
+                    item["event"]["sequence"]: item["event"]["received_at"]
+                    for item in prefix["events"]
+                }
+            )
             contract = None
-            for sequence, row in _observed_trades(batch):
+            for sequence, row in observations:
                 locator = {"source_batch_id": str(source_batch_id), "sequence": sequence}
+                if prefix is not None:
+                    locator["source_stream_id"] = str(stream_id)
                 try:
                     fill = _trade(row, batch)
                 except ValueError:
@@ -505,15 +737,20 @@ class BrokerLedger:
                     continue
                 contract_id = None
                 try:
-                    if (
-                        instruments["status"] != "COMPLETE"
-                        or len(instruments["rows"]) != 1
-                        or fill["exchange"] != "SHFE"
-                        or fill["symbol"] != batch["instrument"].upper()
-                    ):
+                    if fill["exchange"] != "SHFE" or fill["symbol"] != batch["instrument"].upper():
                         raise ValueError("trade has no confirmed supported contract")
                     if contract is None:
-                        contract = resolve_broker_contract(self._engine, instruments["rows"][0])
+                        if prefix is not None:
+                            contract = verify_broker_contract(
+                                self._engine,
+                                UUID(prefix["binding"]["contract_id"]),
+                                prefix["binding"]["terms"],
+                            )
+                        else:
+                            instruments = batch["completeness"]["sections"]["instrument"]
+                            if instruments["status"] != "COMPLETE" or len(instruments["rows"]) != 1:
+                                raise ValueError("trade has no confirmed supported contract")
+                            contract = resolve_broker_contract(self._engine, instruments["rows"][0])
                     contract_id = str(contract.contract_id)
                 except ValueError:
                     new_problems.append({"code": "CANONICAL_CONTRACT_NOT_CONFIRMED", **locator})
@@ -528,9 +765,14 @@ class BrokerLedger:
                     source_batch_id=str(source_batch_id),
                     source_sequence=sequence,
                 )
+                if prefix is not None:
+                    fill.update(
+                        source_stream_id=str(stream_id),
+                        source_received_at=stream_receipts[sequence],
+                    )
                 known[fill["fill_id"]] = fill
                 added.append(fill)
-            if previous_fill_ids - queried_fill_ids:
+            if prefix is None and previous_fill_ids - queried_fill_ids:
                 new_problems.append(
                     {
                         "code": "RECORDED_TRADES_MISSING_FROM_LATER_QUERY",
@@ -611,6 +853,8 @@ class BrokerLedger:
                 "reconciliation": "UNRECONCILED",
                 "execution": dict(_EXECUTION),
             }
+            if prefix is not None:
+                document["source_stream"] = _stream_reference(prefix, after_sequence)
             connection.execute(
                 _entries.insert().values(
                     entry_id=request_id,
@@ -785,7 +1029,13 @@ class BrokerLedger:
             "baseline_id": baseline["baseline_id"],
             "current": current,
             "source_entry": next(
-                (item for item in history if item["source_batch_id"] == str(query_batch_id)), None
+                (
+                    item
+                    for item in history
+                    if "source_stream" not in item
+                    and item["source_batch_id"] == str(query_batch_id)
+                ),
+                None,
             ),
             "current_check": None if current_id is None else self.get_check(current_id),
             "entries": list(reversed(history[-20:])),

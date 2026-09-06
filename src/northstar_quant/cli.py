@@ -162,6 +162,22 @@ def main(argv: Sequence[str] | None = None) -> int:
     broker_ingest.add_argument("baseline_id", type=UUID)
     broker_ingest.add_argument("source_batch_id", type=UUID)
     broker_ingest.add_argument("--request-id", type=UUID, required=True)
+    stream_ingest = commands.add_parser(
+        "broker-ingest-stream",
+        help="book confirmed trades from a saved stream prefix; no connection",
+    )
+    stream_ingest.add_argument("baseline_id", type=UUID)
+    stream_ingest.add_argument("stream_id", type=UUID)
+    stream_ingest.add_argument("--through-sequence", type=int, required=True)
+    stream_ingest.add_argument("--request-id", type=UUID, required=True)
+    funds_observe = commands.add_parser(
+        "broker-funds", help="record cumulative account money from a saved query; no connection"
+    )
+    funds_observe.add_argument("baseline_id", type=UUID)
+    funds_observe.add_argument("source_batch_id", type=UUID)
+    funds_observe.add_argument("--request-id", type=UUID, required=True)
+    funds_show = commands.add_parser("broker-funds-show", help="read a fixed account money entry")
+    funds_show.add_argument("entry_id", type=UUID)
     broker_ledger = commands.add_parser(
         "broker-ledger", help="read local fill entries and independent position comparisons"
     )
@@ -344,6 +360,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             "broker-compare",
             "broker-baseline-context",
             "broker-ingest",
+            "broker-ingest-stream",
+            "broker-funds",
+            "broker-funds-show",
             "broker-ledger",
             "broker-positions",
             "broker-orders",
@@ -392,6 +411,27 @@ def main(argv: Sequence[str] | None = None) -> int:
                 )
                 print(json.dumps(broker_result, ensure_ascii=False))
                 return 0 if broker_result["status"] == "READY" else 2
+            if arguments.command == "broker-ingest-stream":
+                broker_result = broker.ingest_stream_positions(
+                    arguments.baseline_id,
+                    arguments.stream_id,
+                    arguments.through_sequence,
+                    request_id=arguments.request_id,
+                )
+                print(json.dumps(broker_result, ensure_ascii=False))
+                return 0 if broker_result["status"] == "READY" else 2
+            if arguments.command in {"broker-funds", "broker-funds-show"}:
+                broker_result = (
+                    broker.get_funds_entry(arguments.entry_id)
+                    if arguments.command == "broker-funds-show"
+                    else broker.observe_funds(
+                        arguments.baseline_id,
+                        arguments.source_batch_id,
+                        request_id=arguments.request_id,
+                    )
+                )
+                print(json.dumps(broker_result, ensure_ascii=False))
+                return 0 if broker_result["status"] == "OBSERVED" else 2
             if arguments.command == "broker-ledger":
                 print(
                     json.dumps(broker.ledger_context(arguments.query_batch_id), ensure_ascii=False)

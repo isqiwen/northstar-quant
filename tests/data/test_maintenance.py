@@ -22,6 +22,7 @@ from test_live import OPEN, tick
 
 from northstar_quant.broker.baselines import BrokerBaselines
 from northstar_quant.broker.budgets import BrokerOpeningBudgets
+from northstar_quant.broker.funds import BrokerFunds
 from northstar_quant.broker.ledger import BrokerLedger
 from northstar_quant.broker.records import BrokerRecords
 from northstar_quant.broker.settings import get_profile
@@ -85,6 +86,10 @@ def test_initialization_and_restore_keep_all_interrupted_query_evidence(
         request_id=position_check_id,
     )
     order_check = ledger.check_orders(position_check_id, request_id=order_check_id)
+    funds_id = uuid4()
+    funds_entry = BrokerFunds(postgres_engine).observe(
+        baseline_id, UUID(position_check["query_batch_id"]), request_id=funds_id
+    )
     assert entry["status"] == "READY" and entry["fill_count"] == 1
     assert position_check["status"] == "MATCHED"
     assert order_check["status"] == "MATCHED" and len(order_check["orders"]) == 1
@@ -135,6 +140,7 @@ def test_initialization_and_restore_keep_all_interrupted_query_evidence(
     assert ledger.get(entry_id) == entry
     assert ledger.get_check(position_check_id) == position_check
     assert ledger.get_order_check(order_check_id) == order_check
+    assert BrokerFunds(postgres_engine).get(funds_id) == funds_entry
     assert streams.get(stream_id) == stream
     with _empty_restore_database(postgres_engine) as target:
         backup(postgres_engine, SourceFiles(tmp_path / "archive"), tmp_path / "backup")
@@ -160,6 +166,7 @@ def test_initialization_and_restore_keep_all_interrupted_query_evidence(
         assert restored_ledger.get(entry_id) == entry
         assert restored_ledger.get_check(position_check_id) == position_check
         assert restored_ledger.get_order_check(order_check_id) == order_check
+        assert BrokerFunds(target).get(funds_id) == funds_entry
         restored_streams = BrokerStreams(
             target, DataLibrary(target, SourceFiles(tmp_path / "restored"))
         )

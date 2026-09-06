@@ -10,6 +10,8 @@ from sqlalchemy.exc import DBAPIError
 from test_broker_ledger import ledger_query, position, position_baseline, trade
 
 from northstar_quant.broker.ledger import BrokerLedger
+from northstar_quant.broker.orders import inspect_orders
+from northstar_quant.broker.settings import get_profile
 
 
 def order(**changes: Any) -> dict[str, Any]:
@@ -39,6 +41,114 @@ def order(**changes: Any) -> dict[str, Any]:
         "OrderSubmitStatus": "3",
         **changes,
     }
+
+
+@pytest.mark.parametrize("regressed", [False, True])
+def test_fixed_stream_order_prefix_preserves_transitions_and_does_not_assert_query_absence(
+    regressed: bool,
+) -> None:
+    profile = get_profile("simnow_dev").identity()
+    instrument = {"InstrumentID": "rb2610", "ExchangeID": "SHFE", "ProductClass": "1"}
+    partial = order(VolumeTraded=1, VolumeTotal=1, OrderStatus="1")
+
+    def callback(sequence: int, name: str, data: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "sequence": sequence,
+            "channel": "TD",
+            "callback": name,
+            "request_id": 7,
+            "is_last": True,
+            "error_id": 0,
+            "received_at": "2026-09-07T01:30:00Z",
+            "data": data,
+        }
+
+    first: dict[str, Any] = {
+        "stream_id": str(uuid4()),
+        "through_sequence": 3,
+        "after_sequence": 0,
+        "binding": {
+            "profile": profile,
+            "account_id": "123456",
+            "terms": instrument,
+            "request": {"query_batch_id": str(uuid4())},
+        },
+        "events": [
+            {
+                "event": callback(
+                    1,
+                    "OnRspUserLogin",
+                    {
+                        "BrokerID": "9999",
+                        "UserID": "123456",
+                        "TradingDay": "20260907",
+                    },
+                )
+            },
+            {"event": callback(2, "OnRtnOrder", partial)},
+            {"event": callback(3, "OnRtnOrder", order())},
+        ],
+    }
+    second = {
+        **first,
+        "through_sequence": 4,
+        "after_sequence": 3,
+        "events": first["events"]
+        + [
+            {
+                "event": callback(
+                    4,
+                    "OnRtnOrder" if regressed else "OnRspQryInstrument",
+                    order(OrderStatus="5", VolumeTraded=1, VolumeTotal=1)
+                    if regressed
+                    else instrument,
+                )
+            }
+        ],
+    }
+    latest = {
+        "batch_id": str(uuid4()),
+        "profile": profile,
+        "account_id": "123456",
+        "completeness": {
+            "trading_day": "20260907",
+            "sections": {
+                "instrument": {"status": "COMPLETE", "rows": [instrument]},
+                "orders": {"request_id": 7},
+            },
+        },
+        "capture": {"events": [callback(1, "OnRspQryOrder", order())]},
+    }
+    fills = [
+        {
+            "fill_id": "retained-fill",
+            "exchange": "SHFE",
+            "order_sys_id": "O1",
+            "symbol": "RB2610",
+            "direction": "BUY",
+            "offset_flag": "0",
+            "hedge_flag": "1",
+            "trading_day": "20260907",
+            "quantity_lots": 2,
+            "contract_id": str(uuid4()),
+        }
+    ]
+    result = inspect_orders(
+        {"problems": [], "unrecorded_fills": []}, [first, second, latest], fills
+    )
+    assert result["status"] == ("UNKNOWN" if regressed else "MATCHED")
+    observed = result["orders"][0]
+    assert [item["reported_traded_lots"] for item in observed["observations"]] == (
+        [1, 2, 1, 2] if regressed else [1, 2, 2]
+    )
+    assert observed["observations"][0]["source_stream_id"] == first["stream_id"]
+    codes = {item["code"] for item in result["problems"]}
+    assert "PREVIOUS_ORDER_MISSING_FROM_QUERY" not in codes
+    if regressed:
+        assert "ORDER_CUMULATIVE_VOLUME_REGRESSED" in codes
+        assert "ORDER_TERMINAL_STATE_CHANGED" in codes and observed["active"] is None
+    else:
+        assert observed["active"] is False and observed["ledger_filled_lots"] == 2
 
 
 def _parent(

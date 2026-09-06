@@ -54,18 +54,37 @@ def _lots(value: object) -> int:
     return value
 
 
+def _scope(source: dict[str, Any]) -> tuple[dict[str, Any], str, str | None]:
+    if "stream_id" in source:
+        binding = source["binding"]
+        day = None
+        for item in source["events"]:
+            event = item["event"]
+            if event["channel"] == "TD" and event["callback"] == "OnRspUserLogin":
+                row = event["data"] or {}
+                if (
+                    not event["error_id"]
+                    and row.get("UserID") == binding["account_id"]
+                    and row.get("BrokerID") == binding["profile"]["broker_id"]
+                ):
+                    day = row.get("TradingDay")
+        return binding["profile"], binding["account_id"], day
+    return source["profile"], source["account_id"], source["completeness"]["trading_day"]
+
+
 def _key(exchange: str, identifier: str, batch: dict[str, Any]) -> str:
-    scope = [batch["profile"], batch["account_id"], batch["completeness"]["trading_day"]]
+    scope = _scope(batch)
     return hashlib.sha256(
         json.dumps([*scope, exchange, identifier], sort_keys=True, separators=(",", ":")).encode()
     ).hexdigest()
 
 
 def _order(row: dict[str, Any], batch: dict[str, Any]) -> dict[str, Any]:
+    profile, account, trading_day = _scope(batch)
     if (row.get("BrokerID"), row.get("InvestorID"), row.get("TradingDay")) != (
-        batch["profile"]["broker_id"],
-        batch["account_id"],
-        batch["completeness"]["trading_day"],
+        profile["broker_id"],
+        account,
+        trading_day,
     ):
         raise ValueError("order account or trading day differs")
     day = _text(row, "TradingDay")
@@ -125,13 +144,19 @@ def _order(row: dict[str, Any], batch: dict[str, Any]) -> dict[str, Any]:
     if exchange != "SHFE" or offset not in {"0", "3", "4"} or hedge != "1":
         problems.append({"code": "ORDER_SCOPE_NOT_SUPPORTED"})
         active = None
-    instruments = batch["completeness"]["sections"]["instrument"]
+    if "stream_id" in batch:
+        instrument = batch["binding"]["terms"]
+    else:
+        instruments = batch["completeness"]["sections"]["instrument"]
+        instrument = (
+            instruments["rows"][0]
+            if instruments["status"] == "COMPLETE" and len(instruments["rows"]) == 1
+            else {}
+        )
     if (
-        instruments["status"] != "COMPLETE"
-        or len(instruments["rows"]) != 1
-        or instruments["rows"][0].get("ProductClass") != "1"
-        or instruments["rows"][0].get("ExchangeID") != exchange
-        or instruments["rows"][0].get("InstrumentID") != row.get("InstrumentID")
+        instrument.get("ProductClass") != "1"
+        or instrument.get("ExchangeID") != exchange
+        or instrument.get("InstrumentID") != row.get("InstrumentID")
     ):
         problems.append({"code": "ORDER_INSTRUMENT_NOT_CONFIRMED"})
         active = None
@@ -187,6 +212,26 @@ def _terms(order: dict[str, Any]) -> dict[str, Any]:
 
 
 def _observations(batch: dict[str, Any]) -> list[tuple[dict[str, Any], dict[str, Any]]]:
+    if "stream_id" in batch:
+        return [
+            (
+                {
+                    "source_stream_id": batch["stream_id"],
+                    "source_batch_id": batch["binding"]["request"]["query_batch_id"],
+                    "sequence": event["sequence"],
+                    "callback": event["callback"],
+                    "received_at": event["received_at"],
+                },
+                event["data"],
+            )
+            for item in batch["events"]
+            for event in (item["event"],)
+            if event["sequence"] > batch["after_sequence"]
+            and event["channel"] == "TD"
+            and event["callback"] == "OnRtnOrder"
+            and not event["error_id"]
+            and event["data"] is not None
+        ]
     section = batch["completeness"]["sections"]["orders"]
     result = []
     terminated = False
@@ -220,7 +265,12 @@ def _observations(batch: dict[str, Any]) -> list[tuple[dict[str, Any], dict[str,
 def inspect_orders(
     check: dict[str, Any], batches: list[dict[str, Any]], fills: list[dict[str, Any]]
 ) -> dict[str, Any]:
-    """Use fixed position-check inputs; never import its new fills or change its result."""
+    """Use fixed query/stream sources and a final independent query, never newer fills.
+
+    Stream callbacks have their original local order, unlike rows gathered by a
+    query. Absence in a stream segment is not an absent queried order. All observed
+    states remain visible, including those preceding the latest cumulative value.
+    """
     latest = batches[-1]
     problems = list(check["problems"])
     observations: dict[str, list[dict[str, Any]]] = {}
@@ -257,7 +307,7 @@ def inspect_orders(
             for problem in order["problems"]:
                 problems.append({**problem, "order_id": key, **locator})
             earlier = current.get(key)
-            if earlier is not None and earlier != order:
+            if earlier is not None and earlier != order and "stream_id" not in batch:
                 problems.append(
                     {"code": "ORDER_OBSERVATIONS_AMBIGUOUS", "order_id": key, **locator}
                 )
@@ -272,7 +322,7 @@ def inspect_orders(
                     )
                 else:
                     aliases[alias] = key
-            prior = previous.get(key)
+            prior = earlier if "stream_id" in batch and earlier is not None else previous.get(key)
             if prior is not None:
                 if _terms(prior) != _terms(order):
                     problems.append({"code": "ORDER_IDENTITY_CONFLICT", "order_id": key, **locator})
@@ -297,7 +347,7 @@ def inspect_orders(
                         {"code": "ORDER_TERMINAL_STATE_CHANGED", "order_id": key, **locator}
                     )
             current[key] = order
-        for key in sorted(set(previous) - set(current)):
+        for key in sorted(set(previous) - set(current)) if "stream_id" not in batch else ():
             problems.append(
                 {
                     "code": "PREVIOUS_ORDER_MISSING_FROM_QUERY",

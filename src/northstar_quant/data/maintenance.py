@@ -221,6 +221,7 @@ def restore(engine: Engine, source_root: Path, directory: Path) -> dict[str, obj
     """
 
     from northstar_quant.broker.baselines import BrokerBaselines
+    from northstar_quant.broker.funds import BrokerFunds
     from northstar_quant.broker.ledger import BrokerLedger
     from northstar_quant.broker.records import BrokerRecords
     from northstar_quant.data.library import DataLibrary, manifest
@@ -312,6 +313,7 @@ def restore(engine: Engine, source_root: Path, directory: Path) -> dict[str, obj
             pending_queries_count += query["status"] == "PENDING"
     baselines = BrokerBaselines(engine).verify_all()
     positions = BrokerLedger(engine).verify_all()
+    BrokerFunds(engine).verify_all()
     from northstar_quant.broker.streams import BrokerStreams
 
     streams_count = BrokerStreams(engine, library).verify_all()

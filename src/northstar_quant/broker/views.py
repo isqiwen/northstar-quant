@@ -83,6 +83,7 @@ def report(
     batch: dict[str, object],
     baseline_context: dict[str, object],
     ledger_context: dict[str, object],
+    funds_context: dict[str, object],
 ) -> str:
     completeness = _object(batch["completeness"])
     sections = _object(completeness["sections"])
@@ -121,6 +122,7 @@ def report(
 不会把未知写成零，也不会覆盖研究或 Paper 账本。</p></aside>
 {_baseline_panel(batch, baseline_context)}
 {_ledger_panel(batch, baseline_context, ledger_context)}
+{_funds_panel(batch, funds_context)}
 {_orders_panel(batch, ledger_context)}
 <section class="panel"><h2>查询范围与证据</h2><p>命令身份 {_text(batch["batch_id"])}</p>
 <p>交易账户身份 {_text(completeness["identity"])} ·
@@ -320,7 +322,7 @@ data-query-batch-id="{query_id}" data-entry-id="{_text(latest["entry_id"])}">
 {action}{projection}{comparison}
 <p id="broker-ledger-status" class="status" role="status"></p>
 <p class="muted">这些按钮只处理本地证据，不连接柜台或触发新查询。
-费用、资金流和结算账本尚未建立；READY 仅表示该次持仓可推导，
+逐笔费用归属、资金流身份和结算尚未核清；READY 仅表示该次持仓可推导，
 MATCHED 仅表示有限数量相同。所有结果仍为 UNRECONCILED，不启用报单、撤单或实盘权限。</p>
 <h3>最近成交入账（最多 20 条）</h3>{entries or "<p>尚无固定入账记录。</p>"}
 <h3>最近持仓数量比较（最多 20 条）</h3>{checks or "<p>尚无独立数量比较。</p>"}
@@ -356,15 +358,139 @@ def _position_projection(projection: dict[str, object]) -> str:
 
 def _position_entry(entry: dict[str, object], current_query_id: object) -> str:
     opened = " open" if entry["source_batch_id"] == current_query_id else ""
+    source = _object(entry["source_stream"]) if "source_stream" in entry else None
+    stream_link = (
+        ""
+        if source is None
+        else (
+            f'<p><a href="/streams/{_text(source["stream_id"])}">实际持续回调来源</a> · '
+            f"固定至 {_text(source['through_sequence'])} 号，不含后续回调。</p>"
+        )
+    )
     return f"""<details{opened}><summary>第 {_text(entry["ordinal"])} 次入账 ·
 {_text(entry["status"])} · {_text(entry["recorded_at"])}</summary>
 <p>新识别 {_text(entry["new_fill_count"])} 笔，重复观察 {_text(entry["duplicate_count"])} 笔；
 累计 {_text(entry["fill_count"])} 笔。</p>
 <p><a href="/broker/{_text(entry["source_batch_id"])}">查看入账来源查询</a></p>
+{stream_link}
 {_position_projection(_object(entry["position_projection"]))}
 <h4>入账问题</h4>{_json(entry["problems"])}
 <details><summary>本次新增的已识别成交</summary>{_json(entry["added_fills"])}</details>
 <a href="/api/broker/position-entries/{_text(entry["entry_id"])}">查看固定入账证据</a></details>"""
+
+
+def stream_positions_panel(stream: dict[str, object], context: dict[str, object]) -> str:
+    baseline_id = context["baseline_id"]
+    binding = _object(stream["binding"])
+    query_id = _object(binding["request"])["query_batch_id"]
+    if baseline_id is None:
+        action = f'<p>先在<a href="/broker/{_text(query_id)}">查询页</a>固定账户空基准。</p>'
+    else:
+        disabled = "" if stream["received"] else " disabled"
+        action = f"""<form id="stream-ledger-form" data-stream-id="{_text(stream["stream_id"])}"
+data-baseline-id="{_text(baseline_id)}"><label>处理到已保存的来源序号
+<input name="through_sequence" type="number" min="1" step="1"
+value="{_text(stream["received"])}" required></label>
+<button type="submit"{disabled}>将已保存成交入账（仅本地）</button>
+<p id="stream-ledger-status" class="status" role="status"></p></form>"""
+    entries = "".join(
+        _position_entry(entry, query_id)
+        for entry in cast(list[dict[str, object]], context["entries"])
+    )
+    return f"""<section class="panel"><h2>持续成交 → 账户账簿</h2>
+<p>固定前缀中的柜台成交按同一账户身份去重；暂停影子策略不阻止登记已经发生的成交。
+后续查询再次返回同一成交不会重复加仓。未知、冲突及缺口保留，不补造费用或成交。</p>
+{action}<p><a href="/broker/{_text(query_id)}">查看账户查询、资金观察与独立核对</a></p>
+<p class="muted">这里只处理已存回调，不连接、报撤单或释放预占；不是自动接收后的连续账户核对。</p>
+<h3>最近账户入账</h3>{entries or "<p>尚无入账。</p>"}</section>"""
+
+
+def _funds_panel(batch: dict[str, object], context: dict[str, object]) -> str:
+    if context["baseline_id"] is None:
+        action = "<p>先固定完整空账户基准，不接受手工输入资金。</p>"
+    elif context["source_entry"] is not None:
+        entry = _object(context["source_entry"])
+        action = (
+            f'<p>本查询已登记：<a href="/broker/funds/{_text(entry["entry_id"])}">'
+            "查看固定资金账簿记录</a>。</p>"
+        )
+    else:
+        action = f"""<button type="button" data-broker-funds
+data-baseline-id="{_text(context["baseline_id"])}" data-query-batch-id="{_text(batch["batch_id"])}">
+登记本次账户资金与累计费用（仅本地）</button>
+<p id="broker-funds-status" class="status" role="status"></p>"""
+    entries = "".join(
+        f'<li><a href="/broker/funds/{_text(entry["entry_id"])}">第 {_text(entry["ordinal"])} 次 · '
+        f"{_text(entry['recorded_at'])} · {_text(entry['status'])}</a></li>"
+        for entry in cast(list[dict[str, object]], context["entries"])
+    )
+    displayed = context["source_entry"] or context["current"]
+    if displayed is None:
+        amounts = ""
+    else:
+        saved = _object(displayed)
+        label = (
+            "本查询的固定资金记录"
+            if context["source_entry"] is not None
+            else "账户最近记录（不是本查询）"
+        )
+        amounts = (
+            f'<h3>{label}</h3><p><a href="/broker/{_text(saved["source_batch_id"])}">'
+            f"实际来源查询</a> · 登记于 {_text(saved['recorded_at'])}。</p>" + _funds_amounts(saved)
+        )
+    return f"""<section class="panel"><h2>账户资金与累计费用账簿</h2>
+<p>按顺序保留柜台累计金额和相邻观察差额；同一查询只登记一次，不重复加总累计手续费。
+资金观察与逐笔成交分开，不按成交笔数分摊实际费用。</p>{action}{amounts}
+<p class="muted">余额与可用资金是柜台当时报告值，不再扣除已经计入的费用或冻结。
+观察区间不是精确资金事件时间，不能据此声明成交覆盖、完整对账或当前可执行资金。</p>
+<ul>{entries or "<li>尚无资金入账记录。</li>"}</ul></section>"""
+
+
+def _funds_amounts(entry: dict[str, object]) -> str:
+    amounts = _object(_object(entry["observation"])["amounts"])
+    deltas = _object(_object(entry["interval"])["deltas"])
+    names = {
+        "Balance": "报告余额",
+        "Available": "报告可用资金",
+        "Commission": "账户累计手续费",
+        "Deposit": "账户累计入金",
+        "Withdraw": "账户累计出金",
+        "CloseProfit": "报告平仓盈亏",
+        "PositionProfit": "报告持仓盈亏",
+        "CurrMargin": "持仓保证金",
+        "FrozenMargin": "冻结保证金",
+        "FrozenCommission": "冻结手续费",
+        "FrozenCash": "冻结资金",
+    }
+    rows = "".join(
+        f"<tr><td>{label}</td><td>{_text(amounts.get(name, '未知'))}</td>"
+        f"<td>{_text('未知' if deltas[name] is None else deltas[name])}</td></tr>"
+        for name, label in names.items()
+    )
+    return f"""<div class="table-scroll"><table><thead><tr><th>金额（CNY）</th>
+<th>本次柜台报告值</th><th>相邻观察变化（不是逐笔归因）</th></tr></thead><tbody>{rows}</tbody></table></div>"""
+
+
+def funds_report(entry: dict[str, object]) -> str:
+    observation = _object(entry["observation"])
+    changes = {name: entry[name] for name in ("interval_start", "interval", "since_baseline")}
+    scope = {name: entry[name] for name in ("position_reference", "limitations")}
+    return f"""<section class="intro"><h1>账户资金与累计费用 · 第 {_text(entry["ordinal"])} 次</h1>
+<p>{_text(entry["status"])} · {_text(entry["recorded_at"])}</p>
+<a href="/broker/{_text(entry["source_batch_id"])}">返回来源账户查询</a></section>
+<aside class="data-notice"><strong>柜台报告金额 · UNRECONCILED · 不允许报撤单</strong>
+<p>累计费用变化不是逐笔手续费；Balance 已包含柜台当时计算结果，不再叠加盈亏或扣费。</p></aside>
+<section class="panel"><h2>固定观察</h2>{_funds_amounts(entry)}
+<p>查询窗口 {_text(observation["query_started_at"])} →
+{_text(observation["query_finished_at"])}。</p>
+<p>查询期间存在成交/委托回报：{_text(observation["account_activity_during_query"])}；
+收到资金回包不代表取得与成交原子一致的账户截面。</p>
+<h3>缺项与待核对原因</h3>{_json(entry["problems"])}
+<details><summary>区间变化与自基准累计变化（不可重复相加）</summary>
+{_json(changes)}</details>
+<details><summary>固定持仓引用及能力限制</summary>
+{_json(scope)}</details>
+<a href="/api/broker/funds-entries/{_text(entry["entry_id"])}">查看本机私有完整证据</a></section>"""
 
 
 def _position_check(check: dict[str, object], current_query_id: object) -> str:

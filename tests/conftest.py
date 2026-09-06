@@ -74,6 +74,7 @@ def clean_database(postgres_engine: Engine) -> None:
             "broker_stream_steps",
             "broker_stream_commands",
             "broker_opening_budgets",
+            "broker_funds_entries",
         )
     )
     with postgres_engine.begin() as connection:

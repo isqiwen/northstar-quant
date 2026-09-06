@@ -31,6 +31,7 @@ def initialize_database(engine: Engine) -> None:
 
     from northstar_quant.broker.baselines import initialize_broker_baselines
     from northstar_quant.broker.budgets import initialize_opening_budgets
+    from northstar_quant.broker.funds import initialize_broker_funds
     from northstar_quant.broker.ledger import initialize_broker_ledger
     from northstar_quant.broker.records import initialize_broker_records
     from northstar_quant.broker.streams import initialize_streams
@@ -69,6 +70,7 @@ def initialize_database(engine: Engine) -> None:
         initialize_broker_ledger(connection)
         initialize_streams(connection)
         initialize_opening_budgets(connection)
+        initialize_broker_funds(connection)
 
 
 def require_current_database(engine: Engine) -> None:
@@ -103,6 +105,7 @@ def require_current_database(engine: Engine) -> None:
         "broker_stream_steps",
         "broker_stream_commands",
         "broker_opening_budgets",
+        "broker_funds_entries",
     }
     if actual != expected or not required <= present:
         raise ValueError("database does not have the current Northstar baseline")

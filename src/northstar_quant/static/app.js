@@ -325,6 +325,47 @@ document.querySelectorAll("[data-broker-ledger]").forEach((button) => {
   });
 });
 
+document.querySelectorAll("[data-broker-funds]").forEach((button) => {
+  button.addEventListener("click", async () => {
+    const payload = {baseline_id: button.dataset.baselineId, source_batch_id: button.dataset.queryBatchId};
+    const key = `northstar.broker.funds.${payload.source_batch_id}`;
+    const notice = document.querySelector("#broker-funds-status");
+    button.disabled = true;
+    status(notice, "正在固定已有资金观察与相邻区间，不连接柜台…");
+    try {
+      payload.request_id = workspaceCommand(key, payload);
+      const result = await api("/api/broker/funds-entries", payload);
+      sessionStorage.removeItem(key);
+      window.location.assign(`/broker/funds/${encodeURIComponent(result.entry_id)}`);
+    } catch (error) {
+      status(notice, `${error.message} 重试保持原命令，不重复加总累计金额。`, true);
+      button.disabled = false;
+    }
+  });
+});
+
+const streamLedgerForm = document.querySelector("#stream-ledger-form");
+streamLedgerForm?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const streamId = streamLedgerForm.dataset.streamId;
+  const payload = {baseline_id: streamLedgerForm.dataset.baselineId,
+    through_sequence: Number(new FormData(streamLedgerForm).get("through_sequence"))};
+  const key = `northstar.broker.stream-ledger.${streamId}`;
+  const notice = document.querySelector("#stream-ledger-status");
+  const button = streamLedgerForm.querySelector("button[type=submit]");
+  button.disabled = true;
+  status(notice, "正在登记固定前缀中的已确认成交，不推进影子策略或连接柜台…");
+  try {
+    payload.request_id = workspaceCommand(key, payload);
+    await api(`/api/streams/${encodeURIComponent(streamId)}/position-entries`, payload);
+    sessionStorage.removeItem(key);
+    window.location.reload();
+  } catch (error) {
+    status(notice, `${error.message} 重试复用同一命令。`, true);
+    button.disabled = false;
+  }
+});
+
 document.querySelectorAll("[data-broker-orders]").forEach((button) => {
   button.addEventListener("click", async () => {
     const payload = {position_check_id: button.dataset.positionCheckId};

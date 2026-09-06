@@ -15,6 +15,7 @@ from sqlalchemy import Engine, text
 
 from northstar_quant.broker import ctp
 from northstar_quant.broker.baselines import BrokerBaselines
+from northstar_quant.broker.funds import BrokerFunds
 from northstar_quant.broker.ledger import BrokerLedger
 from northstar_quant.broker.records import BrokerRecords, QueryCapture
 from northstar_quant.broker.settings import (
@@ -32,6 +33,7 @@ class BrokerWorkspace:
         self._records = BrokerRecords(engine)
         self._baselines = BrokerBaselines(engine)
         self._ledger = BrokerLedger(engine)
+        self._funds = BrokerFunds(engine)
 
     @staticmethod
     def status() -> dict[str, object]:
@@ -67,6 +69,24 @@ class BrokerWorkspace:
 
     def ledger_context(self, query_batch_id: UUID) -> dict[str, object]:
         return self._ledger.context(query_batch_id)
+
+    def funds_context(self, query_batch_id: UUID) -> dict[str, object]:
+        return self._funds.context(query_batch_id)
+
+    def observe_funds(
+        self, baseline_id: UUID, source_batch_id: UUID, *, request_id: UUID
+    ) -> dict[str, object]:
+        return self._funds.observe(baseline_id, source_batch_id, request_id=request_id)
+
+    def get_funds_entry(self, entry_id: UUID) -> dict[str, object]:
+        return self._funds.get(entry_id)
+
+    def ingest_stream_positions(
+        self, baseline_id: UUID, stream_id: UUID, through_sequence: int, *, request_id: UUID
+    ) -> dict[str, object]:
+        return self._ledger.ingest_stream(
+            baseline_id, stream_id, through_sequence, request_id=request_id
+        )
 
     def ingest_positions(
         self, baseline_id: UUID, source_batch_id: UUID, *, request_id: UUID

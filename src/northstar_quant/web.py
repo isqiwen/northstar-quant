@@ -291,6 +291,7 @@ def create_app(engine: Engine, library: DataLibrary) -> FastAPI:
                 broker.get(batch_id),
                 broker.baseline_context(batch_id),
                 broker.ledger_context(batch_id),
+                broker.funds_context(batch_id),
             )
 
         return workspace_page(
@@ -373,6 +374,51 @@ def create_app(engine: Engine, library: DataLibrary) -> FastAPI:
         require_workspace_session(request)
         return await run_in_threadpool(broker.get_position_entry, entry_id)
 
+    @app.post("/api/broker/funds-entries")
+    async def broker_observe_funds(request: Request) -> dict[str, object]:
+        protect_workspace_command(request)
+        payload = await _read_object(request)
+        if set(payload) != {"baseline_id", "source_batch_id", "request_id"}:
+            raise ValueError("资金登记只接受已存基准、查询与命令身份，不接受手工金额。")
+        return await run_in_threadpool(
+            broker.observe_funds,
+            _uuid_field(payload, "baseline_id"),
+            _uuid_field(payload, "source_batch_id"),
+            request_id=_uuid_field(payload, "request_id"),
+        )
+
+    @app.get("/api/broker/funds-entries/{entry_id}")
+    async def broker_funds_entry(request: Request, entry_id: UUID) -> dict[str, object]:
+        require_workspace_session(request)
+        return await run_in_threadpool(broker.get_funds_entry, entry_id)
+
+    @app.get("/broker/funds/{entry_id}", response_class=HTMLResponse)
+    async def broker_funds_detail(request: Request, entry_id: UUID) -> HTMLResponse:
+        result = await run_in_threadpool(broker.get_funds_entry, entry_id)
+        return workspace_page(
+            request,
+            "账户资金与累计费用",
+            broker_views.funds_report(result),
+            mode="SimNow · 固定账户事实",
+        )
+
+    @app.post("/api/streams/{stream_id}/position-entries")
+    async def broker_stream_positions(request: Request, stream_id: UUID) -> dict[str, object]:
+        protect_workspace_command(request)
+        payload = await _read_object(request)
+        if (
+            set(payload) != {"baseline_id", "through_sequence", "request_id"}
+            or type(payload.get("through_sequence")) is not int
+        ):
+            raise ValueError("流成交入账只接受基准、整数前缀序号和命令身份。")
+        return await run_in_threadpool(
+            broker.ingest_stream_positions,
+            _uuid_field(payload, "baseline_id"),
+            stream_id,
+            cast(int, payload["through_sequence"]),
+            request_id=_uuid_field(payload, "request_id"),
+        )
+
     @app.post("/api/broker/position-checks")
     async def broker_compare_positions(request: Request) -> dict[str, object]:
         protect_workspace_command(request)
@@ -435,7 +481,14 @@ def create_app(engine: Engine, library: DataLibrary) -> FastAPI:
     @app.get("/streams/{stream_id}", response_class=HTMLResponse)
     async def stream_detail(request: Request, stream_id: UUID) -> HTMLResponse:
         def content() -> str:
-            return stream_views.report(streams.get(stream_id), opening_budgets.context(stream_id))
+            stream = streams.get(stream_id)
+            binding = cast(dict[str, object], stream["binding"])
+            source = cast(dict[str, object], binding["request"])
+            return stream_views.report(
+                stream,
+                opening_budgets.context(stream_id),
+                broker.ledger_context(UUID(str(source["query_batch_id"]))),
+            )
 
         return workspace_page(
             request, "持续会话", await run_in_threadpool(content), mode="SimNow · 影子决策 / 不发单"

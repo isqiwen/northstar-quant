@@ -343,6 +343,40 @@ Source time, receipt time, query window and calculation time stay separate. Old
 observations do not become current through this operation. Execution blockers remain
 visible even when numerical budgeting succeeds: account-event reconciliation, actual
 cash/fee accounting, reservations and authorized sending are not yet established.
+
+### Book saved stream trades and account money
+
+The stream page can now append a chosen, already saved callback prefix to the
+same position book used by account queries. Pausing the shadow strategy does not
+prevent booking confirmed trades. Later prefixes process only their new portion;
+query and stream observations share fill identities, so repeated partial fills
+do not add positions twice. The source prefix, original receipt times and result
+remain fixed after more callbacks arrive or the process restarts.
+
+```sh
+northstar broker-ingest-stream BASELINE_UUID STREAM_UUID \
+  --through-sequence SEQUENCE --request-id REQUEST_UUID
+northstar broker-funds BASELINE_UUID QUERY_UUID --request-id MONEY_REQUEST_UUID
+northstar broker-funds-show MONEY_REQUEST_UUID
+```
+
+On a saved query page, record its account money observation. The money book
+retains reported balances, available funds, margin/freezes and cumulative amounts,
+with changes from the preceding observation and from the original baseline.
+Commission 0 → 5 → 7 produces interval changes 5 and 2, not charges of 5 and 7.
+`Balance` is not debited again, and `Available` is not reduced again by reported
+freezes. `OBSERVED` means valid reported amounts, not reconciliation or permission
+to spend them; unknown results use CLI exit code 2, observed results use 0.
+
+Source identity, currency, futures business, trading day and settlement scope must
+be confirmed before comparing. Missing fields remain unknown; cumulative reversals
+are unresolved adjustments, not inferred refunds. Account receipt time is not an
+atomic snapshot time or proof that particular trades are included. Actual per-fill
+fees remain unknown: rates and account cumulative commission are not substituted.
+These local commands require no credentials or new connection, do not advance
+shadow decisions, and create neither orders, simulated fills nor reservations.
+Current execution still requires automatic account-event convergence, complete
+funding/settlement reconciliation, persistent reservations and explicit authority.
 The page is `/broker/opening-budgets/REQUEST_UUID`; stream detail links saved results.
 Run explicit `northstar init-db` with the current version to add this Module's table;
 joint restore verifies its fixed parents without connecting or authorizing execution.

@@ -231,3 +231,49 @@ BUY 的 `P_trade` 取有效 limit，SELL 取同合约、同交易日、新鲜行
 明确为零时直接以 `Available` 比较新增需求，不从余额重建、也不再扣一遍已有冻结。
 非零冻结不按未核实公式继续；币种、条款有效性、费额舍入及实际收取仍需柜台后续证据。
 此处的预算成立不构成持续账户对账、实际成交费用确认或报单许可。
+
+## 账户资金观察与累计费用（#32 后续切片依据）
+
+2026-09-06 复核同一 `ctpwrapper==6.7.13`，仅查公开源码及交易所规则，未连接账户。
+同版本[TradingAccount 原生结构](https://github.com/nooperpudd/ctpwrapper/blob/f7e08c01e25359b5f4385c14388f8dfe5a1d6fd7/ctp/header/ThostFtdcUserApiStruct.h)
+及[Python 绑定](https://github.com/nooperpudd/ctpwrapper/blob/f7e08c01e25359b5f4385c14388f8dfe5a1d6fd7/ctpwrapper/ApiStructure.py)
+将 `PreBalance` 标为上次结算准备金，`Balance` 标为期货结算准备金；另有入金 `Deposit`、
+出金 `Withdraw`、平仓/持仓盈亏 `CloseProfit/PositionProfit`、手续费 `Commission`、
+占用保证金 `CurrMargin`、可用 `Available`、可取 `WithdrawQuota` 及三项 `Frozen*`。
+这些是带账户、币种、业务类型、交易日和结算编号的柜台金额观察，不是客户端增量事件。
+
+`Commission` 可以作为“柜台报告的账户级手续费累计观察”留证，但不能冒充某笔成交的
+最终已扣费用；`FrozenCommission` 是冻结项，不应并入已报告手续费总额。
+手续费率查询只是计算条款，不是实际费用流水；同一 SDK 的 `TradeField` 没有手续费字段。
+账户金额覆盖整个账户，不能因为本次另查了某个合约，就归属为该合约或当前策略的费用。
+因此保存累计观察与基准/前一观察的差额，不按成交数量分摊，也不重复扣除完整 `Commission`。
+
+按同版本[查询及成交通知 Interface](https://github.com/nooperpudd/ctpwrapper/blob/f7e08c01e25359b5f4385c14388f8dfe5a1d6fd7/ctp/header/ThostFtdcTraderApi.h)，
+`OnRspQryTradingAccount` 带请求编号、错误和终结标记，`OnRtnTrade` 是独立异步通知。
+资金结构没有柜台快照时间或可与成交序号对齐的水位；本机接收先后不是共同业务截面证明。
+故本地账簿应固定来源查询、资金回包序号/接收时刻、原值和摘要，不将“完整查询”或
+“查询期间没收到成交”解释成已经覆盖全部成交、实时可用资金或独立资金对账完成。
+
+可靠首版是不可变的账户资金观察链：可保留已结束但证据不足的查询为 UNKNOWN；
+仅完整、身份匹配且唯一的 CNY 期货资金回包，绑定同一环境/账户/`BizType='1'`/
+`TradingDay`/`SettlementID` 后才能相减，来源重复不再入账。
+同范围内保存 `差分=本次观察值−固定基准值` 及前一记录身份；后续观察不改写旧记录或旧结果。
+余额、占用和冻结是状态，入出金、手续费、已实现损益是区间累计观察；都不能将每次查询
+总值再次当增量累加。差分仍只是两端数值变化，没有转账或费用流水时不推断其具体成因。
+结算范围改变、缺项及 Commission/Deposit/Withdraw 下降明确待核查，观察倒序拒绝追加。
+PreBalance 变化只报告差额，CloseProfit 下降可以是正常损益变化；不据此推导完整资金公式。
+不能把累计费用或入出金下降自动当退款，也不能以绝对值、清零或新基准掩盖差异。
+
+字段名不足以证明唯一资金恒等式。原生结构还有利息、信用、质押、交割保证金、特殊产品、
+换汇等金额；`BrokerTradingParams` 另有盈亏算法与可用是否包含平仓盈利，见同版本
+[算法枚举](https://github.com/nooperpudd/ctpwrapper/blob/f7e08c01e25359b5f4385c14388f8dfe5a1d6fd7/ctp/header/ThostFtdcUserApiDataType.h)。
+当前七项查询没有取得该参数，旧白名单也未保留所有扩展金额，缺项不能假定零。
+若展示 `Balance − (PreBalance + Deposit − Withdraw + CloseProfit + PositionProfit − Commission)`，
+它只能标记为排除其他资金项的**条件残差**，而非已证实的 CTP 完整账户公式；
+残差为零仅说明所选字段算术吻合，不证明覆盖条件、真实转账、逐笔费用或独立账本正确。
+条件未知时相关核对保持未知；Available 继续保留柜台原值，不借此残差重建或覆盖它。
+
+[现行上期所结算规则第十五至十七条](https://www.shfe.cn/regulation/exchangerules/rules/202606/t20260603_831935.html)
+区分日常观察与每日结算数据、客户结算报告及日终净额结算。完整现金/费用账本仍需有来源的
+资金流、费用调整和结算证据；这一观察链不补造这些事实，不改写已有成交或持仓账簿，
+即使条件残差或后验比较匹配，也保持 `UNRECONCILED`，不提高开仓预算或执行权限。
