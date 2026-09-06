@@ -139,11 +139,14 @@ def budget_case(
         start(streams, source, configuration, identifier)
         assert calls["ready"].wait(3)
         logins(calls["accept"])
-        for sequence, seconds in enumerate(range(0, 181, 4), 3):
+        # Keep every prior source quote fresh while the real idle poll runs.
+        # The delayed case becomes stale only after its final explicit clock advance.
+        interval_ms = 500 if receipt_delay else 4000
+        for sequence, elapsed_ms in enumerate(range(0, 180_001, interval_ms), 3):
             event = tick(
                 sequence,
-                OPEN + timedelta(seconds=seconds),
-                price="3100" if seconds < 120 else "3110",
+                OPEN + timedelta(milliseconds=elapsed_ms),
+                price="3100" if elapsed_ms < 120_000 else "3110",
                 volume=100 + sequence,
             )
             event = replace(
@@ -239,7 +242,7 @@ def test_budget_freshness_checks_source_clock_not_only_later_receipt(
     result = BrokerOpeningBudgets(postgres_engine, library).create(
         stream, sequence, order, limit_price=Decimal("3110"), request_id=uuid4()
     )
-    assert result["status"] == "WITHIN_BUDGET"
+    assert result["status"] == "WITHIN_BUDGET", result
     assert "MARKET_OBSERVATION_NOT_CURRENT" in result["execution_blockers"]
     assert result["inputs"]["market_source_time"] == "2026-09-07T01:03:00+00:00"
 
