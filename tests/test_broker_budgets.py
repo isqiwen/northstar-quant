@@ -302,7 +302,7 @@ def test_browser_budget_uses_saved_inputs_rejects_account_injection_and_shows_un
     del clean_database
     library, stream, order, sequence = budget_case(postgres_engine, tmp_path, monkeypatch)
     with TestClient(create_app(postgres_engine, library), base_url="http://127.0.0.1") as client:
-        page = client.get(f"/streams/{stream}")
+        page = client.get("/streams")
         assert page.status_code == 200
         csrf = re.search(r'<meta name="northstar-csrf" content="([^"]+)"', page.text).group(1)
         payload = {

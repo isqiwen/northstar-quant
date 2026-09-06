@@ -6,6 +6,7 @@ import base64
 import hashlib
 import re
 import tomllib
+from contextlib import closing
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -236,7 +237,8 @@ def test_paper_commands_require_browser_session_and_preserve_fixed_state(
         assert saved_configuration.status_code == 201, saved_configuration.text
         configuration = saved_configuration.json()
         assert client.get("/api/configurations").json() == [configuration]
-        with TestClient(application, base_url="http://127.0.0.1") as stranger:
+        # A second browser shares the running server, not a second application lifespan.
+        with closing(TestClient(application, base_url="http://127.0.0.1")) as stranger:
             # A token copied from another browser without its session cookie is insufficient.
             stranger.get("/paper")
             assert (
@@ -353,7 +355,7 @@ def test_archived_bytes_failures_reprocessing_and_download_permissions(
         assert client.get(f"/api/sources/{source_id}/download").content == broken_bytes
         assert client.get(f"/attempts/{failed['attempt_id']}").status_code == 200
         assert client.get("/api/datasets").json() == []
-        with TestClient(application, base_url="http://127.0.0.1") as unauthenticated:
+        with closing(TestClient(application, base_url="http://127.0.0.1")) as unauthenticated:
             assert unauthenticated.get(f"/api/sources/{source_id}/download").status_code == 403
 
         forbidden_payload = _upload_request(b"\xffnot-permitted-to-download", specification)

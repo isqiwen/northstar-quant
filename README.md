@@ -45,6 +45,27 @@ restart, inspect its source and quality, then research without re-uploading the
 file. Reports show the saved equity curve, fills, costs, holdings and risk
 decisions alongside fixed input evidence. Empty state contains no invented results.
 
+### Web interface
+
+The application uses FastAPI for HTTP and NiceGUI 3.16.0 for the continuous
+reception detail page at `/streams/STREAM_UUID`. NiceGUI supplies Vue/Quasar
+controls and Socket.IO updates; Python page callbacks call the existing broker,
+account and Data interfaces directly. One `ui.run_with` mount serves this inside
+the same application process; there is no separate frontend service or build.
+
+Other workspace pages currently use their existing server-rendered HTML and
+JavaScript. The former continuous-detail HTML/JavaScript has been removed, not
+retained as a fallback page. This is the bounded #38 replacement, not a claim of
+whole-workspace migration. See [the implementation and acceptance evidence](https://github.com/isqiwen/northstar-quant/issues/38).
+
+Use `127.0.0.1` or `localhost` directly, without proxy forwarding. Connected UI
+events are bound to the page's short-lived browser session and same origin;
+HTTP commands retain CSRF checks. A disconnected detail page disables further
+actions: reopen it rather than replaying offline clicks. Polling never changes
+the selected evidence, saved-prefix bounds, UTC range or decimal price. The
+NiceGUI document has a narrowly scoped runtime CSP exception; other pages keep
+the default policy. See the [interface and security design](docs/ARCHITECTURE.md#一个工作台按实际行为逐步交付).
+
 ## SimNow connection
 
 The current deployment is one **Linux amd64** application with `ctpwrapper==6.7.13`.
@@ -243,8 +264,9 @@ Only a trusted preceding session-end observation permits a scheduled-break label
 otherwise silence remains stale/unknown, not assumed healthy market closure.
 
 The report shows persisted/processed sequence, source and receipt times, reasons,
-the latest ten minute/signal results and their callback evidence. One-second browser
-polling updates local records only, preserving the existing browser session and CSRF.
+the latest ten minute/signal results and their callback evidence. The NiceGUI page's
+one-second timer reads saved local state only, rechecking the bound browser session;
+it stops on read failure, disconnect or a terminal stream state.
 An available receiver or successful subscription does not establish market freshness
 or account reconciliation.
 

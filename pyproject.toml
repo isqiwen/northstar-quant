@@ -13,6 +13,7 @@ dependencies = [
   "ctpwrapper==6.7.13; sys_platform == 'linux' and platform_machine == 'x86_64'",
   "fastapi>=0.115,<1",
   "httpx2>=2.12,<3",
+  "nicegui==3.16.0",
   "packaging>=25,<27",
   "pydantic-settings>=2.6,<3",
   "pyarrow>=18,<22",

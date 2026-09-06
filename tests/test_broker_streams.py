@@ -370,7 +370,7 @@ def test_browser_stream_start_stop_requires_csrf_and_never_reconnects_on_reads(
         assert client.post("/api/streams", json=payload).status_code == 201
         assert calls["ready"].wait(3)
         logins(calls["accept"])
-        assert client.get(f"/streams/{identifier}").status_code == 200
+        assert client.get(f"/api/streams/{identifier}").status_code == 200
         assert len(client.get(f"/api/streams/{identifier}/events").json()) == 2
         stopped = client.post(
             f"/api/streams/{identifier}/control",
@@ -417,7 +417,7 @@ def test_identity_error_cannot_resume_and_stop_keeps_tail_callbacks(
     assert streams.events(identifier)[-1]["event"] == calls["tail"].to_dict()
     with TestClient(create_app(postgres_engine, library), base_url="http://127.0.0.1") as client:
         assert client.get(f"/api/streams/{identifier}").status_code == 403
-        assert client.get(f"/streams/{identifier}").status_code == 200
+        assert client.get("/streams").status_code == 200
         result = client.get(f"/api/streams/{identifier}").json()
         assert result["paused"] and result["connection"] == "NOT_ATTACHED"
         assert calls["count"] == 1

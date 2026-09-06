@@ -6,8 +6,6 @@ import base64
 import binascii
 import json
 import re
-import secrets
-import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from decimal import Decimal, InvalidOperation
@@ -34,12 +32,15 @@ from northstar_quant.data.library import AdmissionRejected, DataLibrary
 from northstar_quant.research import ResearchConfig, run_research
 from northstar_quant.runs import RunStore
 from northstar_quant.sessions import SessionStore
+from northstar_quant.web_access import (
+    LocalWorkspaceMiddleware,
+    WorkspaceAccess,
+    content_security_policy,
+)
 
 _MAX_BODY = 8 * 1024 * 1024
-_LOCAL_HOST = re.compile(r"(?:127\.0\.0\.1|localhost)(?::[1-9][0-9]{0,4})?\Z")
+_STREAM_PAGE = re.compile(r"/streams/[0-9a-f-]{36}\Z")
 _CSV_COLUMNS = "event_time,available_at,source_record_id,open,high,low,close,volume"
-_WORKSPACE_COOKIE = "northstar_workspace_session"
-_WORKSPACE_SESSION_SECONDS = 1800
 _INPUT_KIND_LABELS = {
     "RECEIVED_CSV": "实际收到的 CSV（不宣称供应商原文）",
     "CONVERTED_CSV": "外部转换后 CSV",
@@ -84,98 +85,90 @@ def application() -> FastAPI:
     from northstar_quant.db import open_database
 
     engine = open_database()
-    return create_app(engine, DataLibrary(engine, SourceFiles.from_environment()))
+    return create_workspace(engine, DataLibrary(engine, SourceFiles.from_environment()))
+
+
+def create_workspace(engine: Engine, library: DataLibrary) -> FastAPI:
+    """Compose the actual server once per process; HTTP behavior stays independently usable."""
+    from northstar_quant.nicegui_workspace import mount_workspace
+
+    app = create_app(engine, library)
+    mount_workspace(
+        app,
+        app.state.workspace_access,
+        app.state.streams,
+        app.state.broker,
+        app.state.opening_budgets,
+    )
+    return app
 
 
 def create_app(engine: Engine, library: DataLibrary) -> FastAPI:
+    """Build HTTP operations and static pages, without starting the UI socket runtime."""
     store = RunStore(engine)
     paper = SessionStore(engine, library)
     broker = BrokerWorkspace(engine)
     streams = BrokerStreams(engine, library)
     opening_budgets = BrokerOpeningBudgets(engine, library)
+    access = WorkspaceAccess()
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         yield
+        access.close()
         await run_in_threadpool(streams.close)
 
     app = FastAPI(
         title="Northstar · 个人量化工作台", docs_url=None, redoc_url=None, lifespan=lifespan
     )
-    browser_sessions: dict[str, tuple[str, float]] = {}
+    app.state.workspace_access = access
+    app.state.streams = streams
+    app.state.broker = broker
+    app.state.opening_budgets = opening_budgets
 
     def workspace_page(
         request: Request, title: str, content: str, *, mode: str = "历史研究 · 本机"
     ) -> HTMLResponse:
-        # Called on the event loop, as is command protection below. Tokens are
-        # process-local browser sessions, not broker execution authority.
-        now = time.monotonic()
-        for identifier, (_, deadline) in list(browser_sessions.items()):
-            if deadline <= now:
-                del browser_sessions[identifier]
-        identifier = request.cookies.get(_WORKSPACE_COOKIE, "")
-        if identifier not in browser_sessions:
-            if len(browser_sessions) >= 64:
-                del browser_sessions[next(iter(browser_sessions))]
-            identifier = secrets.token_urlsafe(32)
-            browser_sessions[identifier] = (
-                secrets.token_urlsafe(32),
-                now + _WORKSPACE_SESSION_SECONDS,
-            )
-        csrf, deadline = browser_sessions[identifier]
+        identifier = access.open(request)
+        csrf = access.require_id(identifier)
         response = HTMLResponse(_page(title, content, csrf=csrf, mode=mode))
-        response.set_cookie(
-            _WORKSPACE_COOKIE,
-            identifier,
-            max_age=max(1, int(deadline - now)),
-            httponly=True,
-            secure=request.url.scheme == "https",
-            samesite="strict",
-        )
+        access.set_cookie(request, response, identifier)
         return response
 
     def require_workspace_session(request: Request) -> str:
-        session = browser_sessions.get(request.cookies.get(_WORKSPACE_COOKIE, ""))
-        if session is None or session[1] <= time.monotonic():
-            raise HTTPException(
-                status_code=403,
-                detail="工作台会话缺失或已过期。请重新打开工作台页面后操作。",
-            )
-        return session[0]
+        return access.require_request(request)
 
     def protect_workspace_command(request: Request) -> None:
-        expected = require_workspace_session(request)
-        supplied = request.headers.get("x-northstar-csrf", "")
-        if not supplied.isascii() or not secrets.compare_digest(expected, supplied):
-            raise HTTPException(
-                status_code=403,
-                detail="工作台操作校验失败。请重新打开页面后操作。",
-            )
+        access.protect(request)
 
     @app.middleware("http")
     async def local_request(request: Request, call_next: RequestResponseEndpoint) -> Response:
-        authority = request.headers.get("host", "")
-        if _LOCAL_HOST.fullmatch(authority) is None:
-            return JSONResponse({"detail": "仅接受本机访问。"}, status_code=403)
-        if ":" in authority and int(authority.rsplit(":", 1)[1]) > 65535:
-            return JSONResponse({"detail": "无效的本机地址。"}, status_code=403)
-        if request.method not in {"GET", "HEAD"}:
-            origin = request.headers.get("origin")
-            expected_origin = f"{request.url.scheme}://{authority}"
-            if origin is not None and origin != expected_origin:
-                return JSONResponse({"detail": "仅接受同源操作。"}, status_code=403)
-            if request.headers.get("sec-fetch-site") not in {None, "same-origin", "none"}:
-                return JSONResponse({"detail": "仅接受同源操作。"}, status_code=403)
+        ui_session = None
+        if request.method == "GET" and _STREAM_PAGE.fullmatch(request.url.path):
+            ui_session = access.open(request)
         response = await call_next(request)
-        response.headers["Content-Security-Policy"] = (
-            "default-src 'self'; script-src 'self'; style-src 'self'; "
-            "connect-src 'self'; img-src 'self'; object-src 'none'; "
-            "base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
-        )
+        ui_html = None
+        if ui_session is not None and response.headers.get("content-type", "").startswith(
+            "text/html"
+        ):
+            if not hasattr(response, "body_iterator"):
+                raise RuntimeError("HTTP middleware did not return a streamed page")
+            ui_html = b"".join([chunk async for chunk in response.body_iterator])
+            response = Response(
+                ui_html,
+                status_code=response.status_code,
+                headers=dict(response.headers),
+                background=response.background,
+            )
+        if ui_session is not None:
+            access.set_cookie(request, response, ui_session)
+        response.headers["Content-Security-Policy"] = content_security_policy(ui_html)
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Referrer-Policy"] = "no-referrer"
         response.headers["Cache-Control"] = "no-store"
         return response
+
+    app.add_middleware(LocalWorkspaceMiddleware, access=access)
 
     @app.exception_handler(SQLAlchemyError)
     async def database_error(_request: Request, _error: SQLAlchemyError) -> JSONResponse:
@@ -492,22 +485,6 @@ def create_app(engine: Engine, library: DataLibrary) -> FastAPI:
 
         return workspace_page(
             request, "持续行情与影子策略", await run_in_threadpool(content), mode="SimNow · 不发单"
-        )
-
-    @app.get("/streams/{stream_id}", response_class=HTMLResponse)
-    async def stream_detail(request: Request, stream_id: UUID) -> HTMLResponse:
-        def content() -> str:
-            stream = streams.get(stream_id)
-            binding = cast(dict[str, object], stream["binding"])
-            source = cast(dict[str, object], binding["request"])
-            return stream_views.report(
-                stream,
-                opening_budgets.context(stream_id),
-                broker.ledger_context(UUID(str(source["query_batch_id"]))),
-            )
-
-        return workspace_page(
-            request, "持续会话", await run_in_threadpool(content), mode="SimNow · 影子决策 / 不发单"
         )
 
     @app.post("/api/streams/{stream_id}/opening-budgets")

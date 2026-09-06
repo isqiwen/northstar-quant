@@ -206,7 +206,7 @@ def test_browser_archive_requires_csrf_and_publishes_saved_prefix_without_connec
     monkeypatch.setenv("NORTHSTAR_DATA_DIR", str(tmp_path / "archive"))
     monkeypatch.setattr(stream_module, "load_credentials", lambda: pytest.fail("archive connected"))
     with TestClient(create_app(postgres_engine, library), base_url="http://127.0.0.1") as client:
-        page = client.get(f"/streams/{identifier}")
+        page = client.get("/streams")
         csrf = re.search(r'<meta name="northstar-csrf" content="([^"]+)"', page.text).group(1)
         payload = {
             "through_sequence": 48,
@@ -238,7 +238,7 @@ def test_browser_archive_requires_csrf_and_publishes_saved_prefix_without_connec
             },
         )
         assert failure.status_code == 200 and failure.json()["status"] == "FAILED"
-        assert client.get(f"/streams/{identifier}").status_code == 200
+        assert client.get(f"/api/streams/{identifier}").status_code == 200
         assert client.get(f"/attempts/{failure.json()['attempt_id']}").status_code == 200
         assert len(client.get(f"/api/streams/{identifier}").json()["archives"]) == 2
     assert calls["count"] == 1

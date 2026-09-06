@@ -615,9 +615,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                 raise ValueError("port must be between 1024 and 65535")
             import uvicorn
 
-            from northstar_quant.web import create_app
+            from northstar_quant.web import create_workspace
 
-            uvicorn.run(create_app(engine, library), host="127.0.0.1", port=arguments.port)
+            uvicorn.run(create_workspace(engine, library), host="127.0.0.1", port=arguments.port)
         return 0
     except SQLAlchemyError:
         print(
