@@ -380,28 +380,55 @@ def _position_entry(entry: dict[str, object], current_query_id: object) -> str:
 
 
 def stream_positions_panel(stream: dict[str, object], context: dict[str, object]) -> str:
-    baseline_id = context["baseline_id"]
+    progress = _object(stream["account_progress"])
+    baseline_id = progress["baseline_id"] or context["baseline_id"]
     binding = _object(stream["binding"])
     query_id = _object(binding["request"])["query_batch_id"]
+    entry_id = progress["entry_id"]
+    entry_link = (
+        "尚无本流固定入账记录。"
+        if entry_id is None
+        else f'<a href="/api/broker/position-entries/{_text(entry_id)}">查看本流固定入账证据</a>'
+    )
     if baseline_id is None:
         action = f'<p>先在<a href="/broker/{_text(query_id)}">查询页</a>固定账户空基准。</p>'
     else:
         disabled = "" if stream["received"] else " disabled"
-        action = f"""<form id="stream-ledger-form" data-stream-id="{_text(stream["stream_id"])}"
-data-baseline-id="{_text(baseline_id)}"><label>处理到已保存的来源序号
-<input name="through_sequence" type="number" min="1" step="1"
+        binding_note = (
+            "本流尚未绑定账户账簿；补处理将固定下列已有基准，不启动接收。"
+            if progress["baseline_id"] is None
+            else "补处理沿用本流固定基准，不更换账户或建立新基准。"
+        )
+        action = f"""<p>{binding_note}</p><form id="stream-account-form"
+data-stream-id="{_text(stream["stream_id"])}" data-baseline-id="{_text(baseline_id)}">
+<p>补处理基准 <code>{_text(baseline_id)}</code></p><label>处理到本页已保存的来源序号
+<input name="through_sequence" type="number" min="1" max="{_text(stream["received"])}" step="1"
 value="{_text(stream["received"])}" required></label>
-<button type="submit"{disabled}>将已保存成交入账（仅本地）</button>
-<p id="stream-ledger-status" class="status" role="status"></p></form>"""
+<p class="muted">所选上界不随轮询增加；需要后续回调时重新打开页面。
+重复处理同一上界不重复入账，也不重播历史影子决策。</p>
+<button type="submit"{disabled}>补处理已保存账户回报（仅本地）</button>
+<p id="stream-account-command-status" class="status" role="status"></p></form>"""
     entries = "".join(
         _position_entry(entry, query_id)
         for entry in cast(list[dict[str, object]], context["entries"])
     )
-    return f"""<section class="panel"><h2>持续成交 → 账户账簿</h2>
-<p>固定前缀中的柜台成交按同一账户身份去重；暂停影子策略不阻止登记已经发生的成交。
+    return f"""<section class="panel"><h2>账户回报入账与本机处理进度</h2>
+<dl class="identity"><dt>本流固定账户基准</dt>
+<dd id="stream-account-baseline">{_text(progress["baseline_id"] or "未绑定")}</dd>
+<dt>账户处理至来源序号</dt><dd id="stream-account-cursor">{_text(progress["through_sequence"])}</dd>
+<dt>尚待处理的已存回调</dt><dd id="stream-account-pending">{_text(progress["pending"])}</dd>
+<dt>本机账户处理状态</dt><dd id="stream-account-state">{_text(progress["status"])}</dd>
+<dt>处理原因</dt><dd id="stream-account-reason">{_text(progress["reason"])}</dd>
+<dt>本流最后固定入账</dt><dd id="stream-account-entry">{entry_link}</dd>
+<dt>完整账户核对</dt><dd>UNRECONCILED · 无报撤单权限</dd></dl>
+<p>已绑定的接收自动处理保存回报；暂停影子策略不停止登记已经发生的成交。
 后续查询再次返回同一成交不会重复加仓。未知、冲突及缺口保留，不补造费用或成交。</p>
+<p class="muted">账户游标只表示检查到哪条已保存回调，积压不是外部漏报数量。
+READY 或账户游标追平已接收序号，不表示资金、委托、持仓和完整账户已经对账。
+范围仅为已保存异步账户回报；启动查询、资金观察和委托完整核对仍分别留证，不推定已汇合。</p>
 {action}<p><a href="/broker/{_text(query_id)}">查看账户查询、资金观察与独立核对</a></p>
-<p class="muted">这里只处理已存回调，不连接、报撤单或释放预占；不是自动接收后的连续账户核对。</p>
+<p class="muted">补处理不连接柜台、不查询、不报撤单或释放预占；停止或重启后仍只处理已存事实，
+不会因此重新附着接收进程或取得执行权限。</p>
 <h3>最近账户入账</h3>{entries or "<p>尚无入账。</p>"}</section>"""
 
 

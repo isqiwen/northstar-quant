@@ -68,16 +68,16 @@ def test_stream_prefixes_share_query_dedup_and_fixed_order_history_while_paused(
         streams.control(identifier, "PAUSE", request_id=uuid4())
         accept(calls, 2, "OnRtnOrder", order(VolumeTraded=1, VolumeTotal=1, OrderStatus="1"))
         accept(calls, 3, "OnRtnTrade", first_fill)
-        command = uuid4()
         with ThreadPoolExecutor(max_workers=2) as pool:
             results = list(
                 pool.map(
-                    lambda _: ledger.ingest_stream(baseline, identifier, 3, request_id=command),
+                    lambda _: ledger.advance_stream(identifier, 3),
                     range(2),
                 )
             )
-        first = results[0]
-        assert first == results[1] and first["status"] == "READY"
+        assert results[0] == results[1] and results[0]["status"] == "READY"
+        command = UUID(results[0]["entry_id"])
+        first = ledger.get(command)
         assert first["fill_count"] == first["new_fill_count"] == 1
         assert first["source_batch_id"] == str(source)
         assert first["added_fills"][0]["source_stream_id"] == str(identifier)
@@ -87,9 +87,9 @@ def test_stream_prefixes_share_query_dedup_and_fixed_order_history_while_paused(
         accept(calls, 4, "OnRtnOrder", order())
         accept(calls, 5, "OnRtnTrade", second_fill)
         assert ledger.get(command) == first  # Reading the fixed prefix cannot import its new tail.
-        second = ledger.ingest_stream(baseline, identifier, 5, request_id=uuid4())
+        second = ledger.get(UUID(ledger.stream_progress(identifier)["entry_id"]))
         assert second["status"] == "READY" and second["new_fill_count"] == 1
-        assert second["source_stream"]["after_sequence"] == 3
+        assert second["source_stream"]["after_sequence"] == 4
         assert second["fill_count"] == 2
         assert ledger.ingest_stream(baseline, identifier, 3, request_id=command) == first
         with pytest.raises(ValueError, match="bound"):
@@ -119,7 +119,7 @@ def test_stream_prefixes_share_query_dedup_and_fixed_order_history_while_paused(
         ledger.get(command) == first and ledger.get_order_check(UUID(orders["check_id"])) == orders
     )
     assert ledger.verify_all() == {
-        "position_entries_count": 4,
+        "position_entries_count": 6,
         "position_checks_count": 1,
         "order_checks_count": 1,
     }
@@ -143,16 +143,16 @@ def test_stream_conflicts_unknown_identity_and_source_chronology_do_not_rewrite_
         assert calls["ready"].wait(3)
         login(calls)
         accept(calls, 2, "OnRtnTrade", trade())
-        first = ledger.ingest_stream(baseline, identifier, 2, request_id=uuid4())
+        first = ledger.get(UUID(ledger.stream_progress(identifier)["entry_id"]))
         assert first["status"] == "READY"
         # Same identity with different economics cannot replace the original observation.
         accept(calls, 3, "OnRtnTrade", trade(Price="3200"))
-        conflicted = ledger.ingest_stream(baseline, identifier, 3, request_id=uuid4())
+        conflicted = ledger.get(UUID(ledger.stream_progress(identifier)["entry_id"]))
         assert conflicted["fill_count"] == 1 and conflicted["added_fills"] == []
         assert conflicted["status"] == "UNKNOWN"
         assert "TRADE_IDENTITY_CONFLICT" in {item["code"] for item in conflicted["problems"]}
         accept(calls, 4, "OnRtnTrade", trade("FOREIGN", InvestorID="654321"))
-        unknown = ledger.ingest_stream(baseline, identifier, 4, request_id=uuid4())
+        unknown = ledger.get(UUID(ledger.stream_progress(identifier)["entry_id"]))
         assert unknown["position_projection"] == {"status": "UNKNOWN", "positions": []}
         assert unknown["fill_count"] == 1
         assert "STREAM_ACCOUNT_CALLBACK_IDENTITY_NOT_CONFIRMED" in {

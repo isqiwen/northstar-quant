@@ -20,6 +20,8 @@ from uuid import UUID
 from sqlalchemy import Connection, Engine, text
 
 from northstar_quant.broker import ctp
+from northstar_quant.broker.baselines import BrokerBaselines
+from northstar_quant.broker.ledger import BrokerLedger
 from northstar_quant.broker.records import BrokerEvent, BrokerRecords
 from northstar_quant.broker.settings import get_profile, load_credentials
 from northstar_quant.data.broker import resolve_broker_contract, verify_broker_contract
@@ -256,6 +258,7 @@ class BrokerStreams:
         self._engine = engine
         self._library = library
         self._configurations = SessionStore(engine, library)
+        self._ledger = BrokerLedger(engine)
         self._guard = threading.Lock()
         self._workers: dict[UUID, tuple[threading.Thread, threading.Event]] = {}
 
@@ -337,6 +340,7 @@ class BrokerStreams:
                 hashlib.sha256(scope.encode()).digest()[:8], "big", signed=True
             )
             locked: list[int] = []
+            created = False
             try:
                 for key in (_STREAM_LOCK, account_key):
                     if not owner.execute(
@@ -362,6 +366,12 @@ class BrokerStreams:
                             "state_hash": _hash({}),
                         },
                     )
+                created = True
+                baseline = BrokerBaselines(self._engine).context(query_batch_id)["baseline"]
+                if baseline is not None:
+                    # Fix the account before reception, never select a newer
+                    # baseline from inside a callback or change the saved binding.
+                    self._ledger.bind_stream(UUID(baseline["baseline_id"]), request_id)
                 stopped = threading.Event()
                 worker = threading.Thread(
                     target=self._run,
@@ -372,6 +382,11 @@ class BrokerStreams:
                 self._workers[request_id] = (worker, stopped)
                 worker.start()
             except BaseException:
+                if created:
+                    try:
+                        self._terminal(request_id, "FAILED", "START_FAILED", paused=True)
+                    except Exception:
+                        pass
                 self._unlock(owner, locked)
                 raise
         return self.get(request_id)
@@ -563,6 +578,10 @@ class BrokerStreams:
                 """),
                     {"id": identifier, "seq": event.sequence, "size": size},
                 )
+        # Durable reception, account application and shadow calculation have
+        # distinct commits. A failed application leaves the source for explicit
+        # local catch-up. Pausing shadow never prevents booking actual fills.
+        progress = self._ledger.advance_stream(identifier, event.sequence)
         with self._engine.begin() as connection:
             self._timeouts(connection)
             row = self._row(connection, identifier, lock=True)
@@ -573,6 +592,8 @@ class BrokerStreams:
             binding, state = _object(row["binding"]), dict(_object(row["state"]))
             data = event.data or {}
             reason: str | None = None
+            if progress["status"] == "UNKNOWN":
+                reason = "ACCOUNT_REPLIES_UNKNOWN"
             if event.callback == "OnRspUserLogin" and not event.error_id:
                 account, broker_id = binding["account_id"], _object(binding["profile"])["broker_id"]
                 if (
@@ -615,7 +636,7 @@ class BrokerStreams:
                 ):
                     reason = "CONTRACT_TERMS_CHANGED"
             result: dict[str, object] = {"event_hash": _hash(encoded), "bar": None, "intent": None}
-            if reason is not None:
+            if reason is not None and reason != "ACCOUNT_REPLIES_UNKNOWN":
                 state["connection_error"] = reason
             if event.callback == "OnRtnDepthMarketData" and not row["paused"] and reason is None:
                 day = state.get("TD_trading_day")
@@ -708,6 +729,12 @@ class BrokerStreams:
             if action == "RESUME":
                 if state.get("connection_error"):
                     raise ValueError("connection or identity error requires a new verified stream")
+                progress = self._ledger.stream_progress(identifier)
+                if progress["status"] != "UNBOUND" and (
+                    progress["status"] != "READY"
+                    or cast(int, progress["through_sequence"]) < cast(int, row["received"])
+                ):
+                    raise ValueError("resume requires caught-up, known saved account replies")
                 state.pop("market", None)
             status = (
                 "STOP_REQUESTED" if action == "STOP" and row["status"] in _ACTIVE else row["status"]
@@ -754,6 +781,24 @@ class BrokerStreams:
         worker = self._workers.get(identifier)
         return worker is not None and worker[0].is_alive()
 
+    def catchup_account(
+        self, identifier: UUID, baseline_id: UUID, through_sequence: int
+    ) -> dict[str, object]:
+        """Apply only retained account replies; never reconnect or replay decisions.
+
+        The first explicit catch-up may fix the account for an unbound stream.
+        Subsequent calls cannot replace that baseline. The requested upper bound
+        is never expanded to a newer received tail.
+        """
+        if type(through_sequence) is not int or not 1 <= through_sequence <= 100000:
+            raise ValueError("account catch-up requires a bounded retained prefix")
+        with self._engine.connect() as connection:
+            row = self._row(connection, identifier)
+            if through_sequence > cast(int, row["received"]):
+                raise ValueError("account catch-up cannot include unreceived callbacks")
+        self._ledger.bind_stream(baseline_id, identifier)
+        return self._ledger.advance_stream(identifier, through_sequence)
+
     def archive(
         self,
         identifier: UUID,
@@ -799,6 +844,7 @@ class BrokerStreams:
         if any(_hash(item["result"]) != item["result_hash"] for item in steps):
             raise ValueError("stream decision integrity failed")
         state = _object(row["state"])
+        account_progress = self._ledger.stream_progress(identifier)
         last = state.get("last_market_received_at")
         age = (
             None
@@ -812,7 +858,18 @@ class BrokerStreams:
             "connection": "RECEIVING"
             if attached and row["status"] == "RECEIVING"
             else "NOT_ATTACHED",
-            "paused": bool(row["paused"] or not attached or age is None or age > 5 or age < -1),
+            "paused": bool(
+                row["paused"]
+                or not attached
+                or age is None
+                or age > 5
+                or age < -1
+                or account_progress["status"] == "UNKNOWN"
+                or (
+                    account_progress["status"] != "UNBOUND"
+                    and cast(int, account_progress["through_sequence"]) < cast(int, row["received"])
+                )
+            ),
             "reason": "OWNER_NOT_ATTACHED"
             if not attached and row["status"] in _ACTIVE
             else row["reason"],
@@ -820,6 +877,7 @@ class BrokerStreams:
             "cursor": row["cursor"],
             "byte_count": row["byte_count"],
             "state": state,
+            "account_progress": account_progress,
             "market_age_seconds": age,
             "created_at": str(row["created_at"]),
             "updated_at": str(row["updated_at"]),

@@ -402,6 +402,22 @@ def create_app(engine: Engine, library: DataLibrary) -> FastAPI:
             mode="SimNow · 固定账户事实",
         )
 
+    @app.post("/api/streams/{stream_id}/account-catchup")
+    async def broker_stream_account_catchup(request: Request, stream_id: UUID) -> dict[str, object]:
+        protect_workspace_command(request)
+        payload = await _read_object(request)
+        if (
+            set(payload) != {"baseline_id", "through_sequence"}
+            or type(payload.get("through_sequence")) is not int
+        ):
+            raise ValueError("账户补处理只接受固定基准和整数来源上界，不接受资金、仓位或执行权限。")
+        return await run_in_threadpool(
+            streams.catchup_account,
+            stream_id,
+            _uuid_field(payload, "baseline_id"),
+            cast(int, payload["through_sequence"]),
+        )
+
     @app.post("/api/streams/{stream_id}/position-entries")
     async def broker_stream_positions(request: Request, stream_id: UUID) -> dict[str, object]:
         protect_workspace_command(request)

@@ -32,7 +32,9 @@ def test_paused_shadow_source_publishes_without_rewriting_decisions_and_reuses_a
     postgres_engine: Engine, clean_database: None, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     del clean_database
-    library, source, configuration, calls = prepare(postgres_engine, tmp_path, monkeypatch)
+    library, source, configuration, calls = prepare(
+        postgres_engine, tmp_path, monkeypatch, trading_day="20260904"
+    )
     streams, identifier = BrokerStreams(postgres_engine, library), uuid4()
     request_id = uuid4()
     try:
@@ -102,7 +104,9 @@ def test_incomplete_requested_range_stays_failed_then_reprocesses_same_original_
     postgres_engine: Engine, clean_database: None, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     del clean_database
-    library, source, configuration, calls = prepare(postgres_engine, tmp_path, monkeypatch)
+    library, source, configuration, calls = prepare(
+        postgres_engine, tmp_path, monkeypatch, trading_day="20260904"
+    )
     streams, identifier = BrokerStreams(postgres_engine, library), uuid4()
     try:
         start(streams, source, configuration, identifier)
@@ -158,7 +162,9 @@ def test_archive_rejects_forged_permission_and_does_not_truncate_oversized_prefi
     postgres_engine: Engine, clean_database: None, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     del clean_database
-    library, source, configuration, calls = prepare(postgres_engine, tmp_path, monkeypatch)
+    library, source, configuration, calls = prepare(
+        postgres_engine, tmp_path, monkeypatch, trading_day="20260904"
+    )
     streams, identifier = BrokerStreams(postgres_engine, library), uuid4()
     try:
         start(streams, source, configuration, identifier)
@@ -183,7 +189,9 @@ def test_browser_archive_requires_csrf_and_publishes_saved_prefix_without_connec
     postgres_engine: Engine, clean_database: None, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     del clean_database
-    library, source, configuration, calls = prepare(postgres_engine, tmp_path, monkeypatch)
+    library, source, configuration, calls = prepare(
+        postgres_engine, tmp_path, monkeypatch, trading_day="20260904"
+    )
     streams, identifier = BrokerStreams(postgres_engine, library), uuid4()
     try:
         start(streams, source, configuration, identifier)

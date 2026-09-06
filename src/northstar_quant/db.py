@@ -34,6 +34,7 @@ def initialize_database(engine: Engine) -> None:
     from northstar_quant.broker.funds import initialize_broker_funds
     from northstar_quant.broker.ledger import initialize_broker_ledger
     from northstar_quant.broker.records import initialize_broker_records
+    from northstar_quant.broker.stream_account import initialize_stream_accounts
     from northstar_quant.broker.streams import initialize_streams
     from northstar_quant.data.library import initialize_library
     from northstar_quant.data.maintenance import initialize_maintenance
@@ -69,6 +70,7 @@ def initialize_database(engine: Engine) -> None:
         initialize_broker_baselines(connection)
         initialize_broker_ledger(connection)
         initialize_streams(connection)
+        initialize_stream_accounts(connection)
         initialize_opening_budgets(connection)
         initialize_broker_funds(connection)
 
@@ -104,6 +106,7 @@ def require_current_database(engine: Engine) -> None:
         "broker_stream_events",
         "broker_stream_steps",
         "broker_stream_commands",
+        "broker_stream_accounts",
         "broker_opening_budgets",
         "broker_funds_entries",
     }

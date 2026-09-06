@@ -344,18 +344,31 @@ observations do not become current through this operation. Execution blockers re
 visible even when numerical budgeting succeeds: account-event reconciliation, actual
 cash/fee accounting, reservations and authorized sending are not yet established.
 
-### Book saved stream trades and account money
+### Automatic saved-reply booking and account money
 
-The stream page can now append a chosen, already saved callback prefix to the
-same position book used by account queries. Pausing the shadow strategy does not
-prevent booking confirmed trades. Later prefixes process only their new portion;
-query and stream observations share fill identities, so repeated partial fills
-do not add positions twice. The source prefix, original receipt times and result
-remain fixed after more callbacks arrive or the process restarts.
+A new receiver binds the account's existing flat baseline before connecting.
+Each callback commits first, then the account applies saved asynchronous replies,
+then shadow calculation may proceed. Pausing shadow does not stop trade booking.
+Without a baseline the receiver remains explicitly unbound and shadow-only; it
+cannot claim an account position. A fixed baseline cannot be replaced later.
+
+The stream page separates received, shadow-processed and account-processed
+sequences. Market ticks advance account progress without creating empty ledger
+entries. Trades, order observations and account errors use the same position book
+as query ingestion; repeated partial fills do not increase positions twice.
+Unknown account replies stop shadow decisions, but subsequent actual replies are
+still retained and booked. A persistence failure ends reception with its saved
+tail intact rather than silently skipping it.
+
+After interruption, “补处理已保存账户回报” processes only the selected retained
+upper bound. It may bind an unbound stream to the existing account baseline,
+never reconnects, replays old strategy targets or enables sending. Retrying the
+same bound cannot book a trade twice. Reads, startup and restore never catch up
+automatically. Pending account-changing replies must be handled before appending
+a later query to the ledger.
 
 ```sh
-northstar broker-ingest-stream BASELINE_UUID STREAM_UUID \
-  --through-sequence SEQUENCE --request-id REQUEST_UUID
+northstar broker-catchup-stream BASELINE_UUID STREAM_UUID --through-sequence SEQUENCE
 northstar broker-funds BASELINE_UUID QUERY_UUID --request-id MONEY_REQUEST_UUID
 northstar broker-funds-show MONEY_REQUEST_UUID
 ```
@@ -375,11 +388,14 @@ atomic snapshot time or proof that particular trades are included. Actual per-fi
 fees remain unknown: rates and account cumulative commission are not substituted.
 These local commands require no credentials or new connection, do not advance
 shadow decisions, and create neither orders, simulated fills nor reservations.
-Current execution still requires automatic account-event convergence, complete
-funding/settlement reconciliation, persistent reservations and explicit authority.
-The page is `/broker/opening-budgets/REQUEST_UUID`; stream detail links saved results.
-Run explicit `northstar init-db` with the current version to add this Module's table;
-joint restore verifies its fixed parents without connecting or authorizing execution.
+Account progress describes only local handling of saved asynchronous replies.
+It does not merge startup query results or prove missing replies were recovered;
+`READY` is still `UNRECONCILED`. Independent position/order checks and funds
+observations remain necessary. Funding/settlement reconciliation, persistent
+reservations and explicit execution authority are still unfinished.
+After backing up the running database, explicitly run `northstar init-db` with
+the current version to add the account-progress table. Joint restore verifies its
+fixed baseline, source prefix and ledger references without connecting or booking.
 This is an independent engineering slice of #32, not external simulation acceptance.
 
 ## Command line

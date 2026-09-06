@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 import time
 from dataclasses import replace
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from threading import Event
@@ -16,10 +16,11 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine, text
 from sqlalchemy.exc import DBAPIError
-from test_broker_ledger import ledger_query, position_baseline
+from test_broker_ledger import ledger_query, position_baseline, trade
 from test_live import OPEN, tick
 
 from northstar_quant.broker import streams as module
+from northstar_quant.broker.ledger import BrokerLedger
 from northstar_quant.broker.records import BrokerEvent
 from northstar_quant.broker.settings import Credentials
 from northstar_quant.broker.streams import BrokerStreams
@@ -39,11 +40,15 @@ class Clock(datetime):
 
 
 def prepare(
-    engine: Engine, root: Path, monkeypatch: pytest.MonkeyPatch
+    engine: Engine,
+    root: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    trading_day: str = "20260907",
 ) -> tuple[DataLibrary, UUID, str, dict[str, Any]]:
     library = DataLibrary(engine, SourceFiles(root / "archive"))
-    position_baseline(engine)
-    source = ledger_query(engine)
+    position_baseline(engine, day=trading_day)
+    source = ledger_query(engine, day=trading_day)
     configuration = SessionStore(engine, library).save_configuration(
         "shadow", ResearchConfig(threshold=Decimal("0.001"))
     )
@@ -63,7 +68,7 @@ def prepare(
     monkeypatch.setattr(
         module, "load_credentials", lambda: Credentials("123456", "secret", "test", "code")
     )
-    Clock.at = OPEN
+    Clock.at = datetime.combine(datetime.fromisoformat(trading_day).date(), OPEN.timetz())
     monkeypatch.setattr(module, "datetime", Clock)
     return library, source, str(configuration["configuration_id"]), calls
 
@@ -211,6 +216,122 @@ def test_stream_retains_unprocessed_source_and_retries_only_the_missing_projecti
         streams.close()
 
     assert streams.get(identifier)["state"]["last_pause_reason"] == "QUOTE_STALE"
+
+
+def test_account_failure_keeps_source_and_local_catchup_never_replays_shadow(
+    postgres_engine: Engine,
+    clean_database: None,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    del clean_database
+    library, source, configuration, calls = prepare(postgres_engine, tmp_path, monkeypatch)
+    ledger = BrokerLedger(postgres_engine)
+    baseline = UUID(ledger.context(source)["baseline_id"])
+    streams, identifier = BrokerStreams(postgres_engine, library), uuid4()
+    Clock.at = datetime.now(UTC)
+    try:
+        start(streams, source, configuration, identifier)
+        assert calls["ready"].wait(3)
+        calls["accept"](
+            BrokerEvent(
+                1,
+                "TD",
+                "OnRspUserLogin",
+                1,
+                True,
+                Clock.at.isoformat().replace("+00:00", "Z"),
+                0,
+                {"UserID": "123456", "BrokerID": "9999", "TradingDay": "20260907"},
+            )
+        )
+        event = BrokerEvent(
+            2,
+            "TD",
+            "OnRtnTrade",
+            None,
+            None,
+            datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+            0,
+            trade(),
+        )
+        with monkeypatch.context() as interrupted:
+
+            def fail_application(*args: Any, **kwargs: Any) -> None:
+                raise RuntimeError("interrupted after durable receipt")
+
+            interrupted.setattr(BrokerLedger, "advance_stream", fail_application)
+            with pytest.raises(RuntimeError, match="after durable"):
+                calls["accept"](event)
+        saved = streams.get(identifier)
+        assert saved["received"] == 2 and saved["cursor"] == 1
+        assert saved["account_progress"]["through_sequence"] == 1
+        assert saved["account_progress"]["pending"] == 1
+        assert saved["paused"]
+        assert streams.events(identifier)[-1]["event"] == event.to_dict()
+    finally:
+        streams.close()
+
+    reopened = BrokerStreams(postgres_engine, library)
+    assert reopened.get(identifier)["account_progress"]["through_sequence"] == 1
+    result = reopened.catchup_account(identifier, baseline, 2)
+    assert result["status"] == "READY" and result["pending"] == 0
+    entry = ledger.get(UUID(result["entry_id"]))
+    assert entry["new_fill_count"] == 1
+    assert reopened.catchup_account(identifier, baseline, 2) == result
+    assert reopened.get(identifier)["cursor"] == 1  # No historical shadow replay.
+    assert reopened.get(identifier)["connection"] == "NOT_ATTACHED"
+    assert reopened.get(identifier)["order_sending"] is False
+    assert calls["count"] == 1
+
+
+def test_query_cannot_overtake_pending_market_receipt_clock_regression(
+    postgres_engine: Engine,
+    clean_database: None,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    del clean_database
+    library, source, configuration, calls = prepare(postgres_engine, tmp_path, monkeypatch)
+    ledger = BrokerLedger(postgres_engine)
+    baseline = UUID(ledger.context(source)["baseline_id"])
+    streams, identifier = BrokerStreams(postgres_engine, library), uuid4()
+    try:
+        start(streams, source, configuration, identifier)
+        assert calls["ready"].wait(3)
+        # Independent application and database clocks are retained separately;
+        # regression within the application receipt sequence remains unsafe.
+        received = datetime.now(UTC) + timedelta(seconds=2)
+        logins(calls["accept"], at=received.replace(year=2026, month=9, day=7))
+        event = BrokerEvent(
+            3,
+            "MD",
+            "OnRtnDepthMarketData",
+            None,
+            None,
+            (received.replace(year=2026, month=9, day=7) - timedelta(seconds=1))
+            .isoformat()
+            .replace("+00:00", "Z"),
+            0,
+            {"InstrumentID": "rb2610", "TradingDay": "20260907"},
+        )
+        with monkeypatch.context() as interrupted:
+
+            def unavailable(*args: Any, **kwargs: Any) -> None:
+                raise RuntimeError("synthetic account processing unavailable")
+
+            interrupted.setattr(BrokerLedger, "advance_stream", unavailable)
+            with pytest.raises(RuntimeError, match="processing unavailable"):
+                calls["accept"](event)
+        later = ledger_query(postgres_engine)
+        with pytest.raises(ValueError, match="local catchup"):
+            ledger.ingest(baseline, later, request_id=uuid4())
+        result = streams.catchup_account(identifier, baseline, 3)
+        assert result["pending"] == 0 and result["status"] == "UNKNOWN"
+        assert result["reason"] == "STREAM_ACCOUNT_RECEIPT_TIME_REGRESSED"
+        assert ledger.verify_all()["position_entries_count"] == 1
+    finally:
+        streams.close()
 
 
 def test_browser_stream_start_stop_requires_csrf_and_never_reconnects_on_reads(

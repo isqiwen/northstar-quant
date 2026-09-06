@@ -170,6 +170,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     stream_ingest.add_argument("stream_id", type=UUID)
     stream_ingest.add_argument("--through-sequence", type=int, required=True)
     stream_ingest.add_argument("--request-id", type=UUID, required=True)
+    stream_catchup = commands.add_parser(
+        "broker-catchup-stream",
+        help="process saved asynchronous account callbacks to a fixed bound; no connection",
+    )
+    stream_catchup.add_argument("baseline_id", type=UUID)
+    stream_catchup.add_argument("stream_id", type=UUID)
+    stream_catchup.add_argument("--through-sequence", type=int, required=True)
     funds_observe = commands.add_parser(
         "broker-funds", help="record cumulative account money from a saved query; no connection"
     )
@@ -301,6 +308,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "stream-show",
             "stream-events",
             "stream-archive",
+            "broker-catchup-stream",
         }:
             from northstar_quant.broker.streams import BrokerStreams
             from northstar_quant.data.files import SourceFiles
@@ -318,6 +326,12 @@ def main(argv: Sequence[str] | None = None) -> int:
                         ensure_ascii=False,
                     )
                 )
+            elif arguments.command == "broker-catchup-stream":
+                progress = streams.catchup_account(
+                    arguments.stream_id, arguments.baseline_id, arguments.through_sequence
+                )
+                print(json.dumps(progress, ensure_ascii=False))
+                return 0 if progress["status"] == "READY" else 2
             elif arguments.command == "stream-archive":
                 attempt = streams.archive(
                     arguments.stream_id,

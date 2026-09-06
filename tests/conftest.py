@@ -73,6 +73,7 @@ def clean_database(postgres_engine: Engine) -> None:
             "broker_stream_events",
             "broker_stream_steps",
             "broker_stream_commands",
+            "broker_stream_accounts",
             "broker_opening_budgets",
             "broker_funds_entries",
         )

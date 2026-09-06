@@ -577,6 +577,24 @@ class BrokerLedger:
             request_id=request_id,
         )
 
+    def bind_stream(self, baseline_id: UUID, stream_id: UUID) -> dict[str, Any]:
+        """Fix one existing account baseline for local saved-callback processing."""
+        from northstar_quant.broker.stream_account import _StreamAccount
+
+        return _StreamAccount(self).bind(baseline_id, stream_id)
+
+    def advance_stream(self, stream_id: UUID, through_sequence: int) -> dict[str, Any]:
+        """Apply saved asynchronous account observations, never strategy or network work."""
+        from northstar_quant.broker.stream_account import _StreamAccount
+
+        return _StreamAccount(self).advance(stream_id, through_sequence)
+
+    def stream_progress(self, stream_id: UUID) -> dict[str, Any]:
+        """Read bounded local progress; this is not proof of external account coverage."""
+        from northstar_quant.broker.stream_account import _StreamAccount
+
+        return _StreamAccount(self).progress(stream_id)
+
     def _ingest(
         self,
         baseline_id: UUID,
@@ -585,6 +603,7 @@ class BrokerLedger:
         request_id: UUID,
         stream_id: UUID | None = None,
         through_sequence: int | None = None,
+        account_after_sequence: int | None = None,
     ) -> dict[str, Any]:
         # Serialize both the deduplication set and its resulting projection.
         lock_key = int.from_bytes(
@@ -608,6 +627,10 @@ class BrokerLedger:
                     raise ValueError("position command is already bound to different inputs")
                 return saved
             baseline = self._baselines.get_baseline(baseline_id)
+            if stream_id is None:
+                from northstar_quant.broker.stream_account import _StreamAccount
+
+                _StreamAccount(self).reject_pending_query(connection, baseline_id)
             history = self._history(baseline_id)
             if len(history) >= _MAX_ENTRIES:
                 raise ValueError("position ledger reached its bounded daily entry limit")
@@ -625,6 +648,8 @@ class BrokerLedger:
                     ),
                     default=0,
                 )
+                if account_after_sequence is not None:
+                    after_sequence = max(after_sequence, account_after_sequence)
                 if through_sequence is None or through_sequence <= after_sequence:
                     raise ValueError("stream prefix already has a fixed entry or precedes it")
                 prefix = cast(
@@ -1058,6 +1083,9 @@ class BrokerLedger:
             for check_id in connection.scalars(select(_order_checks.c.check_id)).yield_per(100):
                 self.get_order_check(check_id)
                 counts["order_checks_count"] += 1
+        from northstar_quant.broker.stream_account import _StreamAccount
+
+        _StreamAccount(self).verify_all()
         return counts
 
 

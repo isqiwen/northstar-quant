@@ -21,7 +21,7 @@ from northstar_quant.broker.settings import get_profile
 from northstar_quant.data.catalog.services import CatalogCommands
 
 
-def position_baseline(engine: Engine) -> UUID:
+def position_baseline(engine: Engine, *, day: str = "20260907") -> UUID:
     """Register explicitly synthetic product metadata, then fix a saved flat query."""
     with Session(engine) as session, session.begin():
         exchange = CatalogCommands.register_exchange(
@@ -37,7 +37,7 @@ def position_baseline(engine: Engine) -> UUID:
             quantity_unit="TON",
         )
     identifier = uuid4()
-    BrokerBaselines(engine).establish(saved_query(engine), request_id=identifier)
+    BrokerBaselines(engine).establish(saved_query(engine, day=day), request_id=identifier)
     return identifier
 
 

@@ -12,7 +12,7 @@ from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import Engine
+from sqlalchemy import Engine, create_engine
 from test_broker_baselines import saved_query
 from test_broker_ledger import ledger_query, position, position_baseline, trade
 from test_broker_orders import order
@@ -25,6 +25,31 @@ from northstar_quant.cli import main
 from northstar_quant.data.files import SourceFiles
 from northstar_quant.data.library import DataLibrary
 from northstar_quant.web import create_app
+
+
+def test_saved_stream_catchup_rejects_missing_session_before_database_or_broker_access(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def forbidden_access(*args: object, **kwargs: object) -> None:
+        pytest.fail("unauthenticated catchup must not access a database or broker")
+
+    monkeypatch.setattr(ctp, "query_account", forbidden_access)
+    monkeypatch.setattr(ctp, "stream_account", forbidden_access)
+    engine = create_engine("postgresql+psycopg://", creator=forbidden_access)
+    try:
+        library = DataLibrary(engine, SourceFiles(tmp_path / "archive"))
+        with TestClient(create_app(engine, library), base_url="http://127.0.0.1") as client:
+            path = f"/api/streams/{uuid4()}/account-catchup"
+            payload = {"baseline_id": str(uuid4()), "through_sequence": 3}
+            assert client.post(path, json=payload).status_code == 403
+            assert (
+                client.post(
+                    path, json=payload, headers={"X-Northstar-CSRF": "unbound-token"}
+                ).status_code
+                == 403
+            )
+    finally:
+        engine.dispose()
 
 
 def _credentials(path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

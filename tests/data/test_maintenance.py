@@ -66,7 +66,12 @@ def test_initialization_and_restore_keep_all_interrupted_query_evidence(
         )
         for number in range(1, 102)
     ]
-    library, stream_source, configuration, calls = prepare(postgres_engine, tmp_path, monkeypatch)
+    # Publication uses a completed synthetic session; its account observations
+    # and every login/position/trade must declare that same trading day.
+    trading_day = "20260904"
+    library, stream_source, configuration, calls = prepare(
+        postgres_engine, tmp_path, monkeypatch, trading_day=trading_day
+    )
     baselines = BrokerBaselines(postgres_engine)
     baseline_id = UUID(baselines.context(stream_source)["baseline"]["baseline_id"])
     check_id = uuid4()
@@ -74,15 +79,26 @@ def test_initialization_and_restore_keep_all_interrupted_query_evidence(
     comparison = baselines.compare(baseline_id, stream_source, request_id=check_id)
     ledger = BrokerLedger(postgres_engine)
     entry_id, position_check_id, order_check_id = uuid4(), uuid4(), uuid4()
-    fill = trade()
+    fill = trade(TradingDay=trading_day, TradeDate=trading_day)
     entry = ledger.ingest(
         baseline_id,
-        ledger_query(postgres_engine, trades=(fill,), positions=(position(),)),
+        ledger_query(
+            postgres_engine,
+            day=trading_day,
+            trades=(fill,),
+            positions=(position(TradingDay=trading_day),),
+        ),
         request_id=entry_id,
     )
     position_check = ledger.compare(
         entry_id,
-        ledger_query(postgres_engine, trades=(fill,), positions=(position(),), orders=(order(),)),
+        ledger_query(
+            postgres_engine,
+            day=trading_day,
+            trades=(fill,),
+            positions=(position(TradingDay=trading_day),),
+            orders=(order(TradingDay=trading_day),),
+        ),
         request_id=position_check_id,
     )
     order_check = ledger.check_orders(position_check_id, request_id=order_check_id)
@@ -289,7 +305,7 @@ def test_corrupt_stream_parent_source_keeps_restore_unactivated(
         assert damaged.rowcount == 1
     with _empty_restore_database(postgres_engine) as target:
         backup(postgres_engine, SourceFiles(tmp_path / "archive"), tmp_path / "backup")
-        with pytest.raises(ValueError, match="stream source sequence or digest"):
+        with pytest.raises(ValueError, match="stream (account )?source sequence or digest"):
             restore(target, tmp_path / "restored", tmp_path / "backup")
         assert (tmp_path / "restored/.restore-incomplete").is_file()
         assert calls["count"] == 1
@@ -319,6 +335,7 @@ def test_restore_installs_new_module_tables_without_replacing_existing_facts(
         # This isolated source models the same core baseline before these empty
         # Module tables existed. No existing account fact is removed.
         with source.begin() as connection:
+            connection.exec_driver_sql("DROP TABLE broker_stream_accounts")
             connection.exec_driver_sql("DROP TABLE broker_stream_commands")
             connection.exec_driver_sql("DROP TABLE broker_stream_steps")
             connection.exec_driver_sql("DROP TABLE broker_stream_events")

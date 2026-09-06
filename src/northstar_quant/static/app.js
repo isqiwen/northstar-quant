@@ -344,24 +344,25 @@ document.querySelectorAll("[data-broker-funds]").forEach((button) => {
   });
 });
 
-const streamLedgerForm = document.querySelector("#stream-ledger-form");
-streamLedgerForm?.addEventListener("submit", async (event) => {
+const streamAccountForm = document.querySelector("#stream-account-form");
+streamAccountForm?.addEventListener("submit", async (event) => {
   event.preventDefault();
-  const streamId = streamLedgerForm.dataset.streamId;
-  const payload = {baseline_id: streamLedgerForm.dataset.baselineId,
-    through_sequence: Number(new FormData(streamLedgerForm).get("through_sequence"))};
-  const key = `northstar.broker.stream-ledger.${streamId}`;
-  const notice = document.querySelector("#stream-ledger-status");
-  const button = streamLedgerForm.querySelector("button[type=submit]");
+  const streamId = streamAccountForm.dataset.streamId;
+  const notice = document.querySelector("#stream-account-command-status");
+  const button = streamAccountForm.querySelector("button[type=submit]");
   button.disabled = true;
-  status(notice, "正在登记固定前缀中的已确认成交，不推进影子策略或连接柜台…");
+  status(notice, "正在补处理已保存账户回报，不重播影子决策或连接柜台…");
   try {
-    payload.request_id = workspaceCommand(key, payload);
-    await api(`/api/streams/${encodeURIComponent(streamId)}/position-entries`, payload);
-    sessionStorage.removeItem(key);
+    const text = new FormData(streamAccountForm).get("through_sequence");
+    const through = Number(text);
+    if (!/^[0-9]+$/.test(text) || !Number.isSafeInteger(through) || through < 1) {
+      throw new Error("请选择一个已保存的正整数来源序号。");
+    }
+    const payload = {baseline_id: streamAccountForm.dataset.baselineId, through_sequence: through};
+    await api(`/api/streams/${encodeURIComponent(streamId)}/account-catchup`, payload);
     window.location.reload();
   } catch (error) {
-    status(notice, `${error.message} 重试复用同一命令。`, true);
+    status(notice, `${error.message} 相同基准和上界重试不重复入账，也不连接柜台。`, true);
     button.disabled = false;
   }
 });
@@ -652,16 +653,32 @@ if (streamReport) {
       "stream-last-pause-reason": state.last_pause_reason,
       "stream-last-pause-at": state.last_pause_at,
       "stream-trading-days": `${textOrUnknown(state.TD_trading_day)} / ${textOrUnknown(state.MD_trading_day)}`,
-      "stream-counts": `${stream.received} / ${stream.cursor}`,
+      "stream-received": stream.received,
+      "stream-shadow-cursor": stream.cursor,
       "stream-bytes": stream.byte_count,
       "stream-last-received": state.last_received_at,
       "stream-last-market": state.last_market_received_at,
       "stream-market-age": stream.market_age_seconds === null ? null :
         stream.market_age_seconds.toFixed(1),
       "stream-updated": stream.updated_at,
+      "stream-account-baseline": stream.account_progress.baseline_id ?? "未绑定",
+      "stream-account-cursor": stream.account_progress.through_sequence,
+      "stream-account-pending": stream.account_progress.pending,
+      "stream-account-state": stream.account_progress.status,
+      "stream-account-reason": stream.account_progress.reason,
     };
     for (const [id, value] of Object.entries(values)) {
       document.getElementById(id).textContent = textOrUnknown(value);
+    }
+    const accountEntry = document.querySelector("#stream-account-entry");
+    const entryId = stream.account_progress.entry_id;
+    if (entryId === null) {
+      accountEntry.textContent = "尚无本流固定入账记录。";
+    } else {
+      const link = document.createElement("a");
+      link.href = `/api/broker/position-entries/${encodeURIComponent(entryId)}`;
+      link.textContent = "查看本流固定入账证据";
+      accountEntry.replaceChildren(link);
     }
     document.querySelector("#stream-last-data").textContent =
       JSON.stringify(state.last_market_data ?? null, null, 2);

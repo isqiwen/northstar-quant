@@ -42,12 +42,15 @@ def workspace(
     rows = []
     for stream in streams:
         binding = _object(stream["binding"])
+        account = _object(stream["account_progress"])
+        account_cursor = "未绑定" if account["baseline_id"] is None else account["through_sequence"]
         rows.append(
             f'<tr><td><a href="/streams/{_text(stream["stream_id"])}">'
             f"{_text(stream['created_at'])}</a></td>"
             f"<td>{_text(_object(binding['profile'])['name'])}</td>"
             f"<td>{_text(binding['instrument'])}</td><td>{_text(stream['status'])}</td>"
-            f"<td>{_text(stream['received'])} / {_text(stream['cursor'])}</td>"
+            f"<td>{_text(stream['received'])} / {_text(stream['cursor'])} / "
+            f"{_text(account_cursor)}</td>"
             f'<td class="wrap-cell">{_text(stream["reason"])}</td></tr>'
         )
     if not rows:
@@ -80,6 +83,8 @@ placeholder="说明本次来源的用途与留存依据；不要填写密码、�
 <section class="panel"><h2>接收、暂停与停止各自意味着什么</h2>
 <p>启动会在已批准范围内建立 TD / MD 连接。暂停影子策略继续接收证据；
 恢复重新预热，不能补做暂停期间的信号。停止结束本次连接，重试原命令不会重连。</p>
+<p>若该环境/账户已有唯一固定基准，启动同时绑定本机账户入账；没有基准则保持未绑定，
+仍可接收和观察影子策略。入账只处理已存账户回报，处理进度不代表完整对账或执行许可。</p>
 <p>来源为 <code>COPIED_CTP_CALLBACKS_POSTGRESQL</code>：PostgreSQL 逐行保留实际复制的
 SDK 白名单回调，不是网络原始字节，也不是已发布研究 Snapshot。</p>
 <p>每段接收最多 7200 秒、100000 条回调、128 MiB。连接或持久化失败、
@@ -87,7 +92,7 @@ SDK 白名单回调，不是网络原始字节，也不是已发布研究 Snapsh
 <p class="muted">真实连续行情能力仍须在适当时段实证。应用在线、订阅成功或旧行情到达，
 均不证明当前价格可用；本轮不提供自动重连、执行所有权或预占释放。</p></section></div>
 <section class="panel"><h2>接收记录</h2><div class="table-scroll"><table><thead><tr>
-<th>创建时间（UTC）</th><th>环境</th><th>合约</th><th>持久状态</th><th>已收 / 已处理</th>
+<th>创建时间（UTC）</th><th>环境</th><th>合约</th><th>持久状态</th><th>已收 / 影子 / 账户序号</th>
 <th>当前原因</th></tr></thead><tbody>{"".join(rows)}</tbody></table></div></section>"""
 
 
@@ -126,8 +131,8 @@ data-stream-status="{_text(stream["status"])}">
 {_text(state.get("last_pause_at"))}</dd>
 <dt>TD / MD 交易日</dt><dd id="stream-trading-days">
 {_text(state.get("TD_trading_day"))} / {_text(state.get("MD_trading_day"))}</dd>
-<dt>已接收 / 已处理</dt><dd id="stream-counts">
-{_text(stream["received"])} / {_text(stream["cursor"])}</dd>
+<dt>已持久接收至序号</dt><dd id="stream-received">{_text(stream["received"])}</dd>
+<dt>影子输入检查至序号</dt><dd id="stream-shadow-cursor">{_text(stream["cursor"])}</dd>
 <dt>已存回调字节</dt><dd id="stream-bytes">{_text(stream["byte_count"])}</dd>
 <dt>末次回调接收</dt><dd id="stream-last-received">{_text(state.get("last_received_at"))}</dd>
 <dt>末次行情接收</dt><dd id="stream-last-market">{_text(state.get("last_market_received_at"))}</dd>
@@ -135,6 +140,7 @@ data-stream-status="{_text(stream["status"])}">
 <dt>持久更新时间</dt><dd id="stream-updated">{_text(stream["updated_at"])}</dd></dl>
 <p class="muted">接收间隔只描述本机收到时间，不证明来源行情新鲜。TD / MD 交易日与
 ActionDay / UpdateTime 分别保留；接收进程存在不等于当前身份、市场或账户已核对。
+影子输入检查序号不是账户入账序号，也不表示每条输入都产生了策略目标。
 最近保护暂停只记录自动保护触发，停止后仍保留，不代表最近一次操作者暂停或停止。</p>
 <div class="actions"><button type="button" data-stream-control="PAUSE"{pause_disabled}>
 暂停影子策略（继续接收）</button>
