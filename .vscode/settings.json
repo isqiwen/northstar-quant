@@ -171,7 +171,8 @@
     "truststore",
     "tzdata",
     "uvloop",
-    "watchfiles"
+    "watchfiles",
+    "nicegui"
   ],
   "mypy-type-checker.importStrategy": "fromEnvironment",
   "mypy-type-checker.cwd": "${workspaceFolder}",
