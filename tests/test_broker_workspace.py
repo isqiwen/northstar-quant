@@ -24,11 +24,10 @@ from northstar_quant.broker.workspace import BrokerWorkspace
 from northstar_quant.cli import main
 from northstar_quant.data.files import SourceFiles
 from northstar_quant.data.library import DataLibrary
-from northstar_quant.web import create_app
 
 
 def test_saved_stream_catchup_rejects_missing_session_before_database_or_broker_access(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    console_app, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     def forbidden_access(*args: object, **kwargs: object) -> None:
         pytest.fail("unauthenticated catchup must not access a database or broker")
@@ -38,7 +37,7 @@ def test_saved_stream_catchup_rejects_missing_session_before_database_or_broker_
     engine = create_engine("postgresql+psycopg://", creator=forbidden_access)
     try:
         library = DataLibrary(engine, SourceFiles(tmp_path / "archive"))
-        with TestClient(create_app(engine, library), base_url="http://127.0.0.1") as client:
+        with TestClient(console_app(engine, library), base_url="http://127.0.0.1") as client:
             path = f"/api/streams/{uuid4()}/account-catchup"
             payload = {"baseline_id": str(uuid4()), "through_sequence": 3}
             assert client.post(path, json=payload).status_code == 403
@@ -147,6 +146,7 @@ def test_query_failure_is_fixed_on_retry_and_blocks_concurrent_account_capture(
 
 
 def test_broker_browser_requires_explicit_command_and_keeps_failure_evidence(
+    console_app,
     postgres_engine: Engine,
     clean_database: None,
     tmp_path: Path,
@@ -163,7 +163,7 @@ def test_broker_browser_requires_explicit_command_and_keeps_failure_evidence(
         raise RuntimeError("native_secret_must_not_escape")
 
     monkeypatch.setattr(ctp, "query_account", capture)
-    application = create_app(
+    application = console_app(
         postgres_engine, DataLibrary(postgres_engine, SourceFiles(tmp_path / "archive"))
     )
     payload = {"profile": "simnow_dev", "instrument": "rb2610", "request_id": str(uuid4())}
@@ -177,6 +177,9 @@ def test_broker_browser_requires_explicit_command_and_keeps_failure_evidence(
         token = re.search(r'<meta name="northstar-csrf" content="([^"]+)">', page.text)
         assert token is not None
         client.headers["X-Northstar-CSRF"] = token.group(1)
+        client.headers["X-Live-Runtime-ID"] = re.search(
+            r'<meta name="northstar-live-runtime" content="([^"]+)"', page.text
+        ).group(1)
         assert client.post("/api/broker/queries", json=payload).status_code == 422
         assert calls == 0
         _credentials(tmp_path / "credentials", monkeypatch)
@@ -207,6 +210,7 @@ def test_broker_browser_requires_explicit_command_and_keeps_failure_evidence(
 
 
 def test_browser_baseline_commands_are_private_local_and_preserve_original_queries(
+    console_app,
     postgres_engine: Engine,
     clean_database: None,
     tmp_path: Path,
@@ -226,7 +230,7 @@ def test_browser_baseline_commands_are_private_local_and_preserve_original_queri
     baseline_payload = {"source_batch_id": str(source), "request_id": str(baseline_id)}
     library = DataLibrary(postgres_engine, SourceFiles(tmp_path / "archive"))
     context_url = f"/api/broker/queries/{source}/baseline-context"
-    with TestClient(create_app(postgres_engine, library), base_url="http://127.0.0.1") as client:
+    with TestClient(console_app(postgres_engine, library), base_url="http://127.0.0.1") as client:
         assert client.get(context_url).status_code == 403
         assert client.get(f"/api/broker/baseline-checks/{check_id}").status_code == 403
         assert client.post("/api/broker/baselines", json=baseline_payload).status_code == 403
@@ -243,6 +247,9 @@ def test_browser_baseline_commands_are_private_local_and_preserve_original_queri
         token = re.search(r'<meta name="northstar-csrf" content="([^"]+)">', page.text)
         assert token is not None
         client.headers["X-Northstar-CSRF"] = token.group(1)
+        client.headers["X-Live-Runtime-ID"] = re.search(
+            r'<meta name="northstar-live-runtime" content="([^"]+)"', page.text
+        ).group(1)
         assert (
             client.post(
                 "/api/broker/baselines",
@@ -267,7 +274,10 @@ def test_browser_baseline_commands_are_private_local_and_preserve_original_queri
             "query_batch_id": str(source),
             "request_id": str(check_id),
         }
-        assert client.post("/api/broker/baseline-checks", json=check_payload).status_code == 422
+        rejected = client.post(
+            "/api/broker/baseline-checks", json=check_payload | {"request_id": str(uuid4())}
+        )
+        assert rejected.status_code == 503 and rejected.json()["status"] == "UNKNOWN"
         later = saved_query(postgres_engine, money={"Balance": "99999.9"}, position=True)
         check_payload["query_batch_id"] = str(later)
         assert (
@@ -292,7 +302,9 @@ def test_browser_baseline_commands_are_private_local_and_preserve_original_queri
         assert 'data-broker-local="compare"' not in page.text
         assert client.get(f"/api/broker/queries/{source}").json() == original
         assert len(client.get("/api/broker/queries").json()) == 2
-    with TestClient(create_app(postgres_engine, library), base_url="http://127.0.0.1") as restarted:
+    with TestClient(
+        console_app(postgres_engine, library), base_url="http://127.0.0.1"
+    ) as restarted:
         assert restarted.get(context_url).status_code == 403
         assert restarted.get(f"/broker/{source}").status_code == 200
         context = restarted.get(context_url).json()
@@ -301,12 +313,19 @@ def test_browser_baseline_commands_are_private_local_and_preserve_original_queri
 
 
 def test_cli_baseline_and_comparison_use_saved_evidence_without_credentials(
+    live_client,
+    tmp_path: Path,
     postgres_engine: Engine,
     clean_database: None,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     del clean_database
+    library = DataLibrary(postgres_engine, SourceFiles(tmp_path / "archive"))
+    monkeypatch.setattr(
+        "northstar_quant.live.LiveClient.from_environment",
+        lambda: live_client(postgres_engine, library),
+    )
     monkeypatch.delenv("NORTHSTAR_SIMNOW_CONFIG", raising=False)
     monkeypatch.setenv(
         "NORTHSTAR_DATABASE_URL", postgres_engine.url.render_as_string(hide_password=False)
@@ -341,6 +360,7 @@ def test_cli_baseline_and_comparison_use_saved_evidence_without_credentials(
 
 
 def test_browser_position_ledger_requires_local_commands_and_independent_evidence(
+    console_app,
     postgres_engine: Engine,
     clean_database: None,
     tmp_path: Path,
@@ -375,7 +395,7 @@ def test_browser_position_ledger_requires_local_commands_and_independent_evidenc
     entry_url = f"/api/broker/position-entries/{entry_id}"
     check_url = f"/api/broker/position-checks/{check_id}"
     library = DataLibrary(postgres_engine, SourceFiles(tmp_path / "archive"))
-    with TestClient(create_app(postgres_engine, library), base_url="http://127.0.0.1") as client:
+    with TestClient(console_app(postgres_engine, library), base_url="http://127.0.0.1") as client:
         for url in (context_url, entry_url, check_url):
             assert client.get(url).status_code == 403
         assert client.post("/api/broker/position-entries", json=entry_payload).status_code == 403
@@ -391,6 +411,9 @@ def test_browser_position_ledger_requires_local_commands_and_independent_evidenc
         token = re.search(r'<meta name="northstar-csrf" content="([^"]+)">', page.text)
         assert token is not None
         client.headers["X-Northstar-CSRF"] = token.group(1)
+        client.headers["X-Live-Runtime-ID"] = re.search(
+            r'<meta name="northstar-live-runtime" content="([^"]+)"', page.text
+        ).group(1)
         assert (
             client.post(
                 "/api/broker/position-entries",
@@ -418,7 +441,10 @@ def test_browser_position_ledger_requires_local_commands_and_independent_evidenc
         earlier_page = client.get(f"/broker/{before_entry}")
         assert 'data-broker-ledger="compare"' not in earlier_page.text
         assert "在目标记录固定前已开始" in earlier_page.text
-        assert client.post("/api/broker/position-checks", json=check_payload).status_code == 422
+        rejected = client.post(
+            "/api/broker/position-checks", json=check_payload | {"request_id": str(uuid4())}
+        )
+        assert rejected.status_code == 503 and rejected.json()["status"] == "UNKNOWN"
         later = saved_query(postgres_engine)
         check_payload["query_batch_id"] = str(later)
         assert (
@@ -445,7 +471,9 @@ def test_browser_position_ledger_requires_local_commands_and_independent_evidenc
         assert context["source_entry"] is None
         assert client.get(f"/api/broker/queries/{source}").json() == original
         assert len(client.get("/api/broker/queries").json()) == 4
-    with TestClient(create_app(postgres_engine, library), base_url="http://127.0.0.1") as restarted:
+    with TestClient(
+        console_app(postgres_engine, library), base_url="http://127.0.0.1"
+    ) as restarted:
         assert restarted.get(context_url).status_code == 403
         assert restarted.get(f"/broker/{source}").status_code == 200
         context = restarted.get(context_url).json()
@@ -457,12 +485,19 @@ def test_browser_position_ledger_requires_local_commands_and_independent_evidenc
 
 
 def test_cli_position_ledger_does_not_turn_unknown_observations_into_success(
+    live_client,
+    tmp_path: Path,
     postgres_engine: Engine,
     clean_database: None,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     del clean_database
+    library = DataLibrary(postgres_engine, SourceFiles(tmp_path / "archive"))
+    monkeypatch.setattr(
+        "northstar_quant.live.LiveClient.from_environment",
+        lambda: live_client(postgres_engine, library),
+    )
     monkeypatch.delenv("NORTHSTAR_SIMNOW_CONFIG", raising=False)
     monkeypatch.setenv(
         "NORTHSTAR_DATABASE_URL", postgres_engine.url.render_as_string(hide_password=False)
@@ -514,6 +549,7 @@ def test_cli_position_ledger_does_not_turn_unknown_observations_into_success(
 
 
 def test_browser_order_check_uses_fixed_inputs_without_credentials_or_manual_facts(
+    console_app,
     postgres_engine: Engine,
     clean_database: None,
     tmp_path: Path,
@@ -543,7 +579,7 @@ def test_browser_order_check_uses_fixed_inputs_without_credentials_or_manual_fac
     check_url = f"/api/broker/order-checks/{order_check_id}"
     context_url = f"/api/broker/queries/{later}/ledger-context"
     library = DataLibrary(postgres_engine, SourceFiles(tmp_path / "archive"))
-    with TestClient(create_app(postgres_engine, library), base_url="http://127.0.0.1") as client:
+    with TestClient(console_app(postgres_engine, library), base_url="http://127.0.0.1") as client:
         assert client.get(check_url).status_code == 403
         assert client.post("/api/broker/order-checks", json=payload).status_code == 403
         page = client.get(f"/broker/{later}")
@@ -554,6 +590,9 @@ def test_browser_order_check_uses_fixed_inputs_without_credentials_or_manual_fac
         token = re.search(r'<meta name="northstar-csrf" content="([^"]+)">', page.text)
         assert token is not None
         client.headers["X-Northstar-CSRF"] = token.group(1)
+        client.headers["X-Live-Runtime-ID"] = re.search(
+            r'<meta name="northstar-live-runtime" content="([^"]+)"', page.text
+        ).group(1)
         assert (
             client.post(
                 "/api/broker/order-checks",
@@ -597,7 +636,9 @@ def test_browser_order_check_uses_fixed_inputs_without_credentials_or_manual_fac
             client.get(f"/api/broker/position-checks/{position_check_id}").json() == position_check
         )
         assert len(client.get("/api/broker/queries").json()) == 3
-    with TestClient(create_app(postgres_engine, library), base_url="http://127.0.0.1") as restarted:
+    with TestClient(
+        console_app(postgres_engine, library), base_url="http://127.0.0.1"
+    ) as restarted:
         assert restarted.get(check_url).status_code == 403
         assert restarted.get(f"/broker/{later}").status_code == 200
         assert restarted.get(check_url).json() == check

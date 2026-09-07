@@ -57,7 +57,7 @@ def probe(request: Request):
     ui.button('Record synthetic action', on_click=lambda: actions.append(owner))
 
 # No business pages are called; these values must never be used by this probe.
-mount_workspace(app, access, None, None, None)
+mount_workspace(app, access, None)
 
 def page(client):
     response = client.get('/probe')

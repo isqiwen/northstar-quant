@@ -21,14 +21,13 @@ from test_live import OPEN, tick
 
 from northstar_quant.broker import streams as module
 from northstar_quant.broker.ledger import BrokerLedger
-from northstar_quant.broker.records import BrokerEvent
+from northstar_quant.broker.records import BrokerEvent, BrokerRecords
 from northstar_quant.broker.settings import Credentials
 from northstar_quant.broker.streams import BrokerStreams
 from northstar_quant.data.files import SourceFiles
 from northstar_quant.data.library import DataLibrary
 from northstar_quant.research import ResearchConfig
 from northstar_quant.sessions import SessionStore
-from northstar_quant.web import create_app
 
 
 class Clock(datetime):
@@ -86,7 +85,8 @@ def start(
     )
 
 
-def logins(accept: Any, *, at: datetime = OPEN) -> None:
+def logins(accept: Any, *, at: datetime = OPEN, trading_day: str | None = None) -> None:
+    trading_day = at.strftime("%Y%m%d") if trading_day is None else trading_day
     for index, channel in enumerate(("TD", "MD"), 1):
         accept(
             BrokerEvent(
@@ -97,7 +97,7 @@ def logins(accept: Any, *, at: datetime = OPEN) -> None:
                 True,
                 at.isoformat().replace("+00:00", "Z"),
                 0,
-                {"UserID": "123456", "BrokerID": "9999", "TradingDay": at.strftime("%Y%m%d")},
+                {"UserID": "123456", "BrokerID": "9999", "TradingDay": trading_day},
             )
         )
 
@@ -335,6 +335,7 @@ def test_query_cannot_overtake_pending_market_receipt_clock_regression(
 
 
 def test_browser_stream_start_stop_requires_csrf_and_never_reconnects_on_reads(
+    console_app,
     postgres_engine: Engine,
     clean_database: None,
     tmp_path: Path,
@@ -351,13 +352,16 @@ def test_browser_stream_start_stop_requires_csrf_and_never_reconnects_on_reads(
         "allow_retention": True,
         "use_basis": "Synthetic engineering acceptance",
     }
-    with TestClient(create_app(postgres_engine, library), base_url="http://127.0.0.1") as client:
+    with TestClient(console_app(postgres_engine, library), base_url="http://127.0.0.1") as client:
         assert client.post("/api/streams", json=payload).status_code == 403
         page = client.get("/streams")
         assert page.status_code == 200 and calls["count"] == 0
         token = re.search(r'<meta name="northstar-csrf" content="([^"]+)">', page.text)
         assert token
         client.headers["X-Northstar-CSRF"] = token.group(1)
+        client.headers["X-Live-Runtime-ID"] = re.search(
+            r'<meta name="northstar-live-runtime" content="([^"]+)"', page.text
+        ).group(1)
         assert (
             client.post("/api/streams", json={**payload, "allow_retention": False}).status_code
             == 422
@@ -382,6 +386,7 @@ def test_browser_stream_start_stop_requires_csrf_and_never_reconnects_on_reads(
 
 
 def test_identity_error_cannot_resume_and_stop_keeps_tail_callbacks(
+    console_app,
     postgres_engine: Engine,
     clean_database: None,
     tmp_path: Path,
@@ -390,17 +395,21 @@ def test_identity_error_cannot_resume_and_stop_keeps_tail_callbacks(
     del clean_database
     library, source, configuration, calls = prepare(postgres_engine, tmp_path, monkeypatch)
     streams, identifier = BrokerStreams(postgres_engine, library), uuid4()
+    # Account callbacks follow the fixed baseline and source query, independently
+    # of the calendar date on which this synthetic trading day is replayed.
+    finished_at = BrokerRecords(postgres_engine).get(source)["capture"]["finished_at"]
+    Clock.at = datetime.fromisoformat(finished_at) + timedelta(microseconds=1)
     try:
         start(streams, source, configuration, identifier)
         assert calls["ready"].wait(3)
-        logins(calls["accept"])
+        logins(calls["accept"], at=Clock.at, trading_day="20260907")
         bad = BrokerEvent(
             3,
             "TD",
             "OnRtnTrade",
             None,
             None,
-            OPEN.isoformat().replace("+00:00", "Z"),
+            Clock.at.isoformat().replace("+00:00", "Z"),
             0,
             {"InvestorID": "654321", "BrokerID": "9999"},
         )
@@ -415,7 +424,7 @@ def test_identity_error_cannot_resume_and_stop_keeps_tail_callbacks(
     report = streams.get(identifier)
     assert report["status"] == "STOPPED" and report["received"] == report["cursor"] == 4
     assert streams.events(identifier)[-1]["event"] == calls["tail"].to_dict()
-    with TestClient(create_app(postgres_engine, library), base_url="http://127.0.0.1") as client:
+    with TestClient(console_app(postgres_engine, library), base_url="http://127.0.0.1") as client:
         assert client.get(f"/api/streams/{identifier}").status_code == 403
         assert client.get("/streams").status_code == 200
         result = client.get(f"/api/streams/{identifier}").json()

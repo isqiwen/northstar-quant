@@ -2,25 +2,50 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Northstar: Debug local workspace (port 18081)",
+      "name": "Northstar: Debug Console (port 18082)",
       "type": "debugpy",
       "request": "launch",
       "module": "northstar_quant.cli",
       "args": [
         "serve",
         "--port",
-        "18081"
+        "18082"
       ],
       "cwd": "${workspaceFolder}",
       "envFile": "${workspaceFolder}/.vscode/test.env",
       "env": {
         "NORTHSTAR_DATABASE_URL": "postgresql+psycopg://northstar:northstar_local@127.0.0.1:15432/northstar_quant_vscode",
         "NORTHSTAR_DATA_DIR": "${workspaceFolder}/.northstar/vscode-sources",
-        "NORTHSTAR_SIMNOW_CONFIG": ""
+        "NORTHSTAR_SIMNOW_CONFIG": "",
+        "NORTHSTAR_LIVE_URL": "http://127.0.0.1:18083",
+        "NORTHSTAR_LIVE_AUTH": "${workspaceFolder}/.northstar/vscode-runtime-auth/console.toml"
       },
       "console": "integratedTerminal",
       "justMyCode": true,
-      "preLaunchTask": "Northstar: initialize VS Code debug database"
+      "preLaunchTask": "Northstar: prepare debug runtimes"
+    },
+    {
+      "name": "Northstar: Debug Live (port 18083)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "northstar_quant.cli",
+      "args": [
+        "live",
+        "--port",
+        "18083"
+      ],
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.vscode/test.env",
+      "env": {
+        "NORTHSTAR_DATABASE_URL": "postgresql+psycopg://northstar:northstar_local@127.0.0.1:15432/northstar_quant_vscode",
+        "NORTHSTAR_DATA_DIR": "${workspaceFolder}/.northstar/vscode-sources",
+        "NORTHSTAR_SIMNOW_CONFIG": "",
+        "NORTHSTAR_LIVE_URL": "http://127.0.0.1:18083",
+        "NORTHSTAR_LIVE_AUTH": "${workspaceFolder}/.northstar/vscode-runtime-auth/live.toml"
+      },
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "preLaunchTask": "Northstar: prepare debug runtimes"
     },
     {
       "name": "Northstar: Debug current pytest file",
@@ -42,6 +67,17 @@
       "console": "integratedTerminal",
       "justMyCode": true,
       "preLaunchTask": "Northstar: prepare isolated development databases"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Northstar: Debug independent Live and Console",
+      "configurations": [
+        "Northstar: Debug Console (port 18082)",
+        "Northstar: Debug Live (port 18083)"
+      ],
+      "stopAll": false,
+      "preLaunchTask": "Northstar: prepare debug runtimes"
     }
   ]
 }

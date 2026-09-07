@@ -6,8 +6,10 @@ import sys
 from pathlib import Path
 
 
-def test_stream_page_keeps_fixed_commands_and_fails_closed_without_losing_stop(
+def test_stream_page_keeps_fixed_commands_and_disables_unknown_remote_actions(
     tmp_path: Path,
+    postgres_engine,
+    clean_database,
 ) -> None:
     result = subprocess.run(
         [sys.executable, str(Path(__file__).resolve())],
@@ -28,13 +30,17 @@ def _exercise_page() -> None:
     from copy import deepcopy
     from decimal import Decimal
     from threading import Event
-    from types import SimpleNamespace
     from urllib.parse import urlencode
     from uuid import uuid4
 
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
+    from sqlalchemy import create_engine
 
+    from northstar_quant.data.files import SourceFiles
+    from northstar_quant.data.library import DataLibrary
+    from northstar_quant.live import LiveAuth, LiveClient
+    from northstar_quant.live import create_app as create_live
     from northstar_quant.nicegui_workspace import mount_workspace
     from northstar_quant.web_access import COOKIE, LocalWorkspaceMiddleware, WorkspaceAccess
 
@@ -106,23 +112,25 @@ def _exercise_page() -> None:
         catchups.append((identifier, baseline, upper))
         return deepcopy(report["account_progress"])
 
-    streams = SimpleNamespace(get=get, control=control, catchup_account=catchup)
-    broker = SimpleNamespace(
-        ledger_context=lambda _: {"baseline_id": str(baseline_id), "entries": []}
-    )
-    budgets = SimpleNamespace(
-        context=lambda _: {
-            "order_checks": [
-                {
-                    "check_id": str(check_id),
-                    "recorded_at": "2026-09-07T01:00:00Z",
-                    "status": "MATCHED",
-                }
-            ],
-            "budgets": [],
-        },
-        create=create_budget,
-    )
+    engine = create_engine(os.environ["NORTHSTAR_TEST_DATABASE_URL"])
+    library = DataLibrary(engine, SourceFiles(Path(os.environ["NICEGUI_STORAGE_PATH"]) / "sources"))
+    auth = LiveAuth(read_token="r" * 48, control_token="c" * 48)
+    live_app = create_live(engine, library, auth)
+    owner = live_app.state.owner
+    owner.streams.get, owner.streams.control, owner.streams.catchup_account = get, control, catchup
+    owner.broker.ledger_context = lambda _: {"baseline_id": str(baseline_id), "entries": []}
+    owner.opening_budgets.context = lambda _: {
+        "order_checks": [
+            {
+                "check_id": str(check_id),
+                "recorded_at": "2026-09-07T01:00:00Z",
+                "status": "MATCHED",
+            }
+        ],
+        "budgets": [],
+    }
+    owner.opening_budgets.create = create_budget
+    live = LiveClient("http://127.0.0.1", auth, client=TestClient(live_app))
     access, app = WorkspaceAccess(), FastAPI()
     app.add_middleware(LocalWorkspaceMiddleware, access=access)
 
@@ -133,7 +141,7 @@ def _exercise_page() -> None:
         access.set_cookie(request, response, identifier)
         return response
 
-    mount_workspace(app, access, streams, broker, budgets)
+    mount_workspace(app, access, live)
 
     def page(client):
         response = client.get(f"/streams/{stream_id}")
@@ -215,7 +223,7 @@ def _exercise_page() -> None:
     def text(elements, identifier):
         return element(elements, identifier)[1].get("text", "")
 
-    with TestClient(app, base_url="http://127.0.0.1") as client:
+    with TestClient(live_app), TestClient(app, base_url="http://127.0.0.1") as client:
         elements, identifier, url = page(client)
         headers = {
             "origin": "http://127.0.0.1",
@@ -288,6 +296,16 @@ def _exercise_page() -> None:
             send(socket, elements, identifier, "stream-control-resume")
             assert controls == []
             send(socket, elements, identifier, "stream-control-pause")
+            send(socket, elements, identifier, "stream-control-stop")
+            assert props(elements, "stream-control-stop")["disable"] is True
+            assert controls == []
+        # A fresh document observes the owner again. Its commands remain actual
+        # HTTP requests to Live, not direct calls into the Console process.
+        read_failed = False
+        elements, identifier, url = page(client)
+        with client.websocket_connect(url, headers=headers) as socket:
+            connect(socket, elements)
+            send(socket, elements, identifier, "stream-control-pause")
             until(socket, elements, lambda: len(controls) == 1)
             until(
                 socket,
@@ -298,6 +316,8 @@ def _exercise_page() -> None:
             until(socket, elements, lambda: len(controls) == 2)
             assert [action for _, action, _ in controls] == ["PAUSE", "STOP"]
             assert len({command for _, _, command in controls}) == 2
+    live.close()
+    engine.dispose()
     print("stream page behavior passed")
 
 

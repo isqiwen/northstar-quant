@@ -40,6 +40,11 @@ broker integration, recovery or runtime topology; read
 - Keep types and invariant enforcement beside the behavior that owns them.
   Never create generic `contracts/`, `schemas/`, `validators/`, or `fixtures/`
   layers or renamed equivalents. Generate external descriptions only when used.
+- Split touched code into cohesive Modules and, where useful, module folders.
+  Keep runtime composition, transport, business behavior and presentation separate;
+  move a complete responsibility before extending an already multi-purpose file.
+  Prefer a small public Interface and local implementation details over arbitrary
+  line-count splits, pass-through layers or a shared catch-all utilities file.
 - Keep only tests for costly observable failures: causality, money, authorization,
   immutable data, reproducibility and real integration. Never test documents,
   Markdown, links, directory layout, trivial constants or private implementation.

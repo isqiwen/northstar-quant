@@ -1,7 +1,7 @@
-# Optional private configuration for the same application, not a second gateway.
+# Broker credentials belong only to Live; never mount them into Console.
 # Run scripts/setup_simnow.sh locally first; this file contains no account secrets.
 services:
-  app:
+  live:
     environment:
       NORTHSTAR_SIMNOW_CONFIG: /run/secrets/simnow
     secrets:

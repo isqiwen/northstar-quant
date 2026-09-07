@@ -23,7 +23,6 @@ from northstar_quant.broker.records import BrokerRecords, QueryCapture
 from northstar_quant.broker.settings import get_profile
 from northstar_quant.data.files import SourceFiles
 from northstar_quant.data.library import DataLibrary
-from northstar_quant.web import create_app
 
 
 def money_query(
@@ -225,7 +224,7 @@ def test_changed_money_or_source_evidence_is_refused_on_read(
 
 
 def test_browser_money_registration_requires_session_csrf_and_saved_inputs_only(
-    postgres_engine: Engine, clean_database: None, tmp_path: Path
+    console_app, postgres_engine: Engine, clean_database: None, tmp_path: Path
 ) -> None:
     del clean_database
     baseline = money_baseline(postgres_engine)
@@ -236,7 +235,7 @@ def test_browser_money_registration_requires_session_csrf_and_saved_inputs_only(
         "source_batch_id": str(source),
         "request_id": str(command),
     }
-    application = create_app(
+    application = console_app(
         postgres_engine, DataLibrary(postgres_engine, SourceFiles(tmp_path / "archive"))
     )
     with TestClient(application, base_url="http://127.0.0.1") as client:
@@ -249,6 +248,9 @@ def test_browser_money_registration_requires_session_csrf_and_saved_inputs_only(
         assert token is not None
         assert client.post("/api/broker/funds-entries", json=payload).status_code == 403
         client.headers["X-Northstar-CSRF"] = token.group(1)
+        client.headers["X-Live-Runtime-ID"] = re.search(
+            r'<meta name="northstar-live-runtime" content="([^"]+)"', page.text
+        ).group(1)
         assert (
             client.post(
                 "/api/broker/funds-entries", json={**payload, "Balance": "1000000"}

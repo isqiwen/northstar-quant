@@ -21,9 +21,7 @@ from fastapi.responses import JSONResponse, Response
 from nicegui import core, ui
 from nicegui.client import Client
 
-from northstar_quant.broker.budgets import BrokerOpeningBudgets
-from northstar_quant.broker.streams import BrokerStreams
-from northstar_quant.broker.workspace import BrokerWorkspace
+from northstar_quant.live import LiveClient
 from northstar_quant.web_access import WorkspaceAccess
 
 _mounted = False
@@ -114,9 +112,7 @@ def _guard_sockets() -> None:
 def mount_workspace(
     app: FastAPI,
     access: WorkspaceAccess,
-    streams: BrokerStreams,
-    broker: BrokerWorkspace,
-    budgets: BrokerOpeningBudgets,
+    live: LiveClient,
 ) -> None:
     """Mount the server workspace once; a server restart requires a new process.
 
@@ -135,7 +131,7 @@ def mount_workspace(
     # Interface only uses the inherited FastAPI router methods and prefix.
     @ui.page("/streams/{stream_id}", api_router=app.router)  # type: ignore[arg-type]
     async def stream_detail(request: Request, stream_id: UUID) -> Response | None:
-        from northstar_quant import stream_page
+        from northstar_quant.web import stream
 
         if getattr(request.state, "workspace_access", None) is not access:
             raise HTTPException(403, "工作台页面未通过授权。")
@@ -147,7 +143,7 @@ def mount_workspace(
             access.require_id(session_id)
 
         try:
-            await stream_page.show(stream_id, streams, broker, budgets, authorize=authorize)
+            await stream.show(stream_id, live, authorize=authorize)
         except LookupError:
             return JSONResponse({"detail": "没有找到这份持续接收记录。"}, status_code=404)
         return None

@@ -27,10 +27,7 @@ def _source_files(directory: Traversable, prefix: str = "") -> list[tuple[str, b
     return result
 
 
-@lru_cache(maxsize=1)
-def implementation_hash() -> str:
-    """Bind current sources, lock and actual runtime; never paths or build timestamps."""
-
+def _release_material() -> list[tuple[str, bytes]]:
     package = files("northstar_quant")
     packaged_lock = package.joinpath("uv.lock")
     if packaged_lock.is_file():
@@ -40,6 +37,30 @@ def implementation_hash() -> str:
         if not checkout_lock.is_file():
             raise ValueError("the installed application is missing its dependency lock")
         lock = checkout_lock.read_bytes()
+    return [*_source_files(package), ("uv.lock", lock)]
+
+
+def _hash_material(material: list[tuple[str, bytes]]) -> str:
+    digest = hashlib.sha256()
+    for name, contents in material:
+        encoded_name = name.encode("utf-8")
+        digest.update(len(encoded_name).to_bytes(8, "big"))
+        digest.update(encoded_name)
+        digest.update(len(contents).to_bytes(8, "big"))
+        digest.update(contents)
+    return digest.hexdigest()
+
+
+@lru_cache(maxsize=1)
+def release_hash() -> str:
+    """Require identical current code and lock across roles, not identical operating systems."""
+    return _hash_material(_release_material())
+
+
+@lru_cache(maxsize=1)
+def implementation_hash() -> str:
+    """Bind current sources, lock and actual runtime; never paths or build timestamps."""
+
     runtime = json.dumps(
         _runtime_identity(),
         sort_keys=True,
@@ -47,14 +68,7 @@ def implementation_hash() -> str:
         allow_nan=False,
         separators=(",", ":"),
     ).encode("utf-8")
-    digest = hashlib.sha256()
-    for name, contents in [*_source_files(package), ("uv.lock", lock), ("runtime", runtime)]:
-        encoded_name = name.encode("utf-8")
-        digest.update(len(encoded_name).to_bytes(8, "big"))
-        digest.update(encoded_name)
-        digest.update(len(contents).to_bytes(8, "big"))
-        digest.update(contents)
-    return digest.hexdigest()
+    return _hash_material([*_release_material(), ("runtime", runtime)])
 
 
 def _runtime_identity() -> dict[str, object]:

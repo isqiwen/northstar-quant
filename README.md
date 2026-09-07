@@ -32,15 +32,16 @@ The target keeps one codebase and separates four runtime roles:
 | Live | Domestic cloud host; independently supervised and explicitly controlled | Direct market/broker connections, strategy execution, Risk, orders, account facts and recovery |
 | Console | Local `core`; independent NiceGUI process | Status, job submission and authenticated control requests; no connection or compute ownership |
 
-This is the selected design, **not the deployed capability yet**. Current Compose
-still starts one `app` and PostgreSQL; the app owns web-started reception and runs
-web-started research in its thread pool. CTP already uses an isolated native child,
-but that child is not an independently managed Live deployment. The commands below
-run this current implementation, not the proposed four-role deployment.
+Compose now runs independent `live` and `console` processes with PostgreSQL and
+a one-shot initialization job. Live owns broker queries, bounded reception, account
+processing and shadow controls; Console uses authenticated HTTP, never owns a
+broker connection and can exit without shutting down Live. Native CTP children
+remain internal to Live. Data and research still use their current local modules;
+their independent services and durable workers remain #41 and #23, not completed roles.
 
-[The first split, #39](https://github.com/isqiwen/northstar-quant/issues/39), will keep
-reception and account processing alive through a full Console restart, using
-SimNow without granting order-sending authority. The
+[The first split, #39](https://github.com/isqiwen/northstar-quant/issues/39), separates
+process-isolation evidence from actual SimNow continuous-feed acceptance, without
+granting order-sending authority. The
 [cloud runtime foundation, #40](https://github.com/isqiwen/northstar-quant/issues/40),
 follows without waiting for order execution or the completed funds ledger; it
 does not itself enable trading or prove recovery. Live will
@@ -66,9 +67,13 @@ tracks implementation and acceptance rather than treating this design as complet
 docker compose up --build -d
 ```
 
-Open <http://127.0.0.1:18080>. The browser and database bind to local loopback;
-the Compose credentials are local development credentials. `docker compose down`
-stops the application and keeps its data volume.
+Open <http://127.0.0.1:18080>. Console, Live HTTP and PostgreSQL publish only on
+local loopback; this is a same-host deployment, not a public remote-control server.
+Initialization creates private, separate read/control tokens in the runtime-auth
+volume, without printing them. Those tokens are not broker credentials.
+`docker compose restart console` restarts only the workspace; `docker compose down`
+stops all roles and keeps persistent volumes. Restarting Live never reconnects or
+resumes old reception. Do not run multiple Live workers or Uvicorn auto-reload.
 Compose persists database, managed source and backup volumes separately; retain
 database records and their referenced files together. Container rebuilds do not
 discard sources. Neither uploaded market files nor backups belong in public Git.
@@ -88,13 +93,13 @@ decisions alongside fixed input evidence. Empty state contains no invented resul
 
 The current application uses FastAPI for HTTP and NiceGUI 3.16.0 for the continuous
 reception detail page at `/streams/STREAM_UUID`. NiceGUI supplies Vue/Quasar
-controls and Socket.IO updates; Python page callbacks call the existing broker,
-account and Data interfaces directly. One `ui.run_with` mount serves this inside
-the same application process; there is no separate frontend service or build.
-The target retains NiceGUI in a standalone Console, calling the owning runtime's
-narrow HTTP interface instead of creating its broker connections or compute workers.
-Remote deployment authentication and runtime-side authorization must be implemented
-before exposing those controls; the current loopback protection is not sufficient.
+controls and Socket.IO updates. One `ui.run_with` mount belongs to Console;
+there is no separate frontend build. Broker/account callbacks use the concrete
+Live HTTP client; Data, research and file-Paper still use their current local modules.
+The workspace keeps its same-origin/session protection. Live separately checks
+deployment credentials, the exact current release, target runtime, command identity
+and expiry. Read credentials cannot issue shadow-control commands. Do not expose
+either service to the public internet; protected cloud deployment remains #40.
 
 Other workspace pages currently use their existing server-rendered HTML and
 JavaScript. The former continuous-detail HTML/JavaScript has been removed, not
@@ -111,9 +116,9 @@ the default policy. See the [interface and security design](docs/ARCHITECTURE.md
 
 ## SimNow connection
 
-The current deployment is one **Linux amd64** application with `ctpwrapper==6.7.13`.
-Compose selects that architecture, including on an Apple Silicon host. Native
-macOS/arm64 remains usable for research and inspecting saved records, but not CTP.
+Live requires **Linux amd64** with `ctpwrapper==6.7.13`. The local Compose example
+uses that image for both roles, including on Apple Silicon. Console can instead
+run natively on macOS/arm64 and use Live HTTP; it does not load the native SDK.
 The [SDK evidence and limitations](docs/broker-source.md) separate offline native
 verification from actual authentication and account-query acceptance.
 
@@ -126,11 +131,11 @@ bash scripts/setup_simnow.sh
 It saves literal values in owner-only `.northstar/simnow.env`, excluded from Git
 and Docker build context. Do not source this file, paste its contents into chat,
 or add credentials to HTTP requests. The wizard does not connect or trade.
-For a database already on the current baseline, attach that file to the same app:
+For a database already on the current baseline, attach that file only to Live:
 
 ```sh
 docker compose -f compose.yaml -f compose.simnow.yaml up --build -d
-docker compose exec app northstar broker-sdk-check
+docker compose exec live northstar broker-sdk-check
 ```
 
 `broker-sdk-check` constructs the actual query structures with synthetic identifiers,
@@ -162,12 +167,13 @@ northstar broker-list
 northstar broker-show REQUEST_UUID
 ```
 
-For a native Linux amd64 installation, set `NORTHSTAR_SIMNOW_CONFIG` to the
-absolute private file path. Reusing a request UUID returns the fixed query,
+For a native Linux amd64 Live installation, set `NORTHSTAR_SIMNOW_CONFIG` only
+in Live's environment to the absolute private file path. Console and broker CLI
+commands use `NORTHSTAR_LIVE_URL` and `NORTHSTAR_LIVE_AUTH`, not broker secrets.
+Reusing a request UUID retrieves its fixed receipt and query,
 including a failed or interrupted one; a deliberate new query needs a new UUID.
 Only one query per environment/account runs at a time. A native crash or timeout
-is confined to a short-lived child inside the application, with no separate
-service. Saved final evidence survives restart; an interrupted parent leaves
+is confined to a short-lived child inside Live. Saved final evidence survives restart; an interrupted parent leaves
 `PENDING`, not a claimed complete or continuously journaled capture.
 
 ### Fixed account observations
@@ -264,7 +270,7 @@ order can still lack recorded fills; its unfilled quantity is not necessarily
 queued quantity. This is an external order observation, not a locally sent or
 owned order, continuous lifecycle recovery or permission to release reservations.
 `MATCHED` only describes this observation/fill scope; all results remain
-`UNRECONCILED`, with no sending authority. No command reads credentials or connects.
+`UNRECONCILED`, with no sending authority. These commands read no broker credentials and do not connect.
 After backing up the running database, `init-db` adds the single order-review
 table; original queries, position entries and comparisons remain unchanged.
 
@@ -308,7 +314,7 @@ otherwise silence remains stale/unknown, not assumed healthy market closure.
 
 The report shows persisted/processed sequence, source and receipt times, reasons,
 the latest ten minute/signal results and their callback evidence. The NiceGUI page's
-one-second timer reads saved local state only, rechecking the bound browser session;
+one-second timer reads the owning Live's state, rechecking the bound browser session;
 it stops on read failure, disconnect or a terminal stream state.
 An available receiver or successful subscription does not establish market freshness
 or account reconciliation.
@@ -317,16 +323,20 @@ or account reconciliation.
 northstar stream-list
 northstar stream-show STREAM_UUID
 northstar stream-events STREAM_UUID --after 0
-# Explicit connection; remains in the foreground for the bounded duration.
+# Explicit connection in Live; this CLI command returns without stopping reception.
 northstar stream-start QUERY_UUID --configuration CONFIGURATION_ID --seconds 300 \
   --allow-retention --use-basis 'YOUR_CONFIRMED_LOCAL_USE_AND_RETENTION_BASIS' \
   --request-id STREAM_UUID
+northstar stream-control STREAM_UUID PAUSE --request-id CONTROL_UUID
+northstar live-command-show CONTROL_UUID
 ```
 
-The read commands need no broker credentials. A new start requires the verified
-Linux amd64 SDK and matching private account configuration; use the Web controls
-for a Web-owned receiver. Reusing the start UUID reads the existing stream rather
-than opening a second connection. Before deployment, back up with the running
+The CLI needs Live deployment authentication, never broker credentials. A new start
+requires the verified Linux amd64 SDK and matching private account configuration
+in Live. Web and CLI observe/control the same owner. Commands bind their runtime,
+input, UUID and short expiry; uncertain outcomes are queried by the same UUID, not
+blindly resubmitted with new identities. A changed owner invalidates old controls.
+Reusing the start UUID cannot open a second connection. Before deployment, back up with the running
 version, then run the new version's `northstar init-db` to add the four stream
 tables and apply the current source-kind constraint; preserve the existing database
 and source directory. Restored stream
@@ -433,7 +443,8 @@ automatically. Pending account-changing replies must be handled before appending
 a later query to the ledger.
 
 ```sh
-northstar broker-catchup-stream BASELINE_UUID STREAM_UUID --through-sequence SEQUENCE
+northstar broker-catchup-stream BASELINE_UUID STREAM_UUID --through-sequence SEQUENCE \
+  --request-id CATCHUP_UUID
 northstar broker-funds BASELINE_UUID QUERY_UUID --request-id MONEY_REQUEST_UUID
 northstar broker-funds-show MONEY_REQUEST_UUID
 ```
@@ -451,7 +462,7 @@ be confirmed before comparing. Missing fields remain unknown; cumulative reversa
 are unresolved adjustments, not inferred refunds. Account receipt time is not an
 atomic snapshot time or proof that particular trades are included. Actual per-fill
 fees remain unknown: rates and account cumulative commission are not substituted.
-These local commands require no credentials or new connection, do not advance
+These commands require Live authentication but no broker credentials or new connection, do not advance
 shadow decisions, and create neither orders, simulated fills nor reservations.
 Account progress describes only local handling of saved asynchronous replies.
 It does not merge startup query results or prove missing replies were recovered;
@@ -476,6 +487,11 @@ uv run northstar import examples/intraday.toml
 uv run northstar datasets
 uv run northstar run examples/intraday.toml
 uv run northstar list
+uv run northstar init-live-auth /absolute/private/northstar/runtime-auth
+export NORTHSTAR_LIVE_AUTH='/absolute/private/northstar/runtime-auth/console.toml'
+export NORTHSTAR_LIVE_URL='http://127.0.0.1:18081'
+# In another terminal, with the same database and data directory:
+# NORTHSTAR_LIVE_AUTH=/absolute/private/northstar/runtime-auth/live.toml uv run northstar live
 uv run northstar serve
 ```
 
@@ -547,7 +563,7 @@ also needs compatible `pg_dump`, `pg_restore`, `createdb` and `dropdb` for the f
 installation acceptance. Normal app operation does not require a local server binary.
 
 ```sh
-docker compose exec app northstar backup /var/lib/northstar/backups/manual-001
+docker compose exec console northstar backup /var/lib/northstar/backups/manual-001
 ```
 
 This uses a maintenance gate for source processing and one exported PostgreSQL
@@ -695,10 +711,11 @@ debugging, never using the containerized application's `northstar_quant` data.
 Run “Northstar: prepare isolated development databases” once before using Test
 Explorer; the test and verify tasks run that preparation automatically.
 
-Use “Northstar: Debug local workspace (port 18081)” for breakpoints in a local
-process. It prepares the isolated database and its paired private archive at
+Use “Northstar: Debug independent Live and Console” or the individual Console
+(18082) and Live (18083) configurations for breakpoints in separate processes.
+They prepare private runtime authentication, the isolated database and its archive at
 `.northstar/vscode-sources`; this is intentionally separate from the Docker
-application and its managed volume on port 18080. The configuration leaves
+application and its managed volumes on ports 18080/18081. Both configurations leave
 `NORTHSTAR_SIMNOW_CONFIG` empty, so it neither loads broker credentials nor
 connects to a broker. Do not add a private SimNow file to `.vscode/test.env`.
 

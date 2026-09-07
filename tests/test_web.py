@@ -17,7 +17,6 @@ from sqlalchemy import Engine, create_engine
 
 from northstar_quant.data.files import SourceFiles
 from northstar_quant.data.library import DataLibrary
-from northstar_quant.web import create_app
 
 
 def _browser_session(client: TestClient, path: str = "/") -> None:
@@ -45,7 +44,7 @@ def _upload_request(content: bytes, specification: dict[str, object]) -> dict[st
 
 
 def test_import_research_and_reopen_preserve_complete_result(
-    postgres_engine: Engine, clean_database: None, tmp_path: Path
+    console_app, postgres_engine: Engine, clean_database: None, tmp_path: Path
 ) -> None:
     del clean_database
     start = datetime(2026, 1, 7, 1, 0, tzinfo=UTC)
@@ -76,7 +75,7 @@ def test_import_research_and_reopen_preserve_complete_result(
     }
     archive = SourceFiles(tmp_path / "archive")
     with TestClient(
-        create_app(postgres_engine, DataLibrary(postgres_engine, archive)),
+        console_app(postgres_engine, DataLibrary(postgres_engine, archive)),
         base_url="http://127.0.0.1",
     ) as client:
         assert client.get("/health/ready").status_code == 200
@@ -156,7 +155,7 @@ def test_import_research_and_reopen_preserve_complete_result(
     reopened = create_engine(postgres_engine.url)
     try:
         with TestClient(
-            create_app(reopened, DataLibrary(reopened, SourceFiles(tmp_path / "archive"))),
+            console_app(reopened, DataLibrary(reopened, SourceFiles(tmp_path / "archive"))),
             base_url="http://127.0.0.1",
         ) as client:
             assert client.get(f"/api/runs/{run_id}").json() == saved
@@ -178,7 +177,7 @@ def test_import_research_and_reopen_preserve_complete_result(
 
 
 def test_paper_commands_require_browser_session_and_preserve_fixed_state(
-    postgres_engine: Engine, clean_database: None, tmp_path: Path
+    console_app, postgres_engine: Engine, clean_database: None, tmp_path: Path
 ) -> None:
     del clean_database
     specification = {
@@ -205,7 +204,7 @@ def test_paper_commands_require_browser_session_and_preserve_fixed_state(
             f"paper-{index},{price},{price},{price},{price},100"
         )
     library = DataLibrary(postgres_engine, SourceFiles(tmp_path / "archive"))
-    application = create_app(postgres_engine, library)
+    application = console_app(postgres_engine, library)
     with TestClient(application, base_url="http://127.0.0.1") as client:
         _browser_session(client)
         imported = client.post(
@@ -301,7 +300,7 @@ def test_paper_commands_require_browser_session_and_preserve_fixed_state(
         assert cookie is not None
 
     # Recreating the application preserves DB progress but not browser command authority.
-    with TestClient(create_app(postgres_engine, library), base_url="http://127.0.0.1") as client:
+    with TestClient(console_app(postgres_engine, library), base_url="http://127.0.0.1") as client:
         client.cookies.set("northstar_workspace_session", cookie)
         client.headers["X-Northstar-CSRF"] = csrf
         assert client.get(f"/api/paper/{session_id}").json() == persisted
@@ -327,14 +326,14 @@ def test_paper_commands_require_browser_session_and_preserve_fixed_state(
 
 
 def test_archived_bytes_failures_reprocessing_and_download_permissions(
-    postgres_engine: Engine, clean_database: None, tmp_path: Path
+    console_app, postgres_engine: Engine, clean_database: None, tmp_path: Path
 ) -> None:
     del clean_database
     example = Path(__file__).resolve().parents[1] / "examples" / "intraday.toml"
     specification = dict(tomllib.loads(example.read_text())["source"])
     content = (example.parent / specification.pop("file")).read_bytes()
     library = DataLibrary(postgres_engine, SourceFiles(tmp_path / "archive"))
-    application = create_app(postgres_engine, library)
+    application = console_app(postgres_engine, library)
     with TestClient(application, base_url="http://127.0.0.1") as client:
         _browser_session(client)
         assert client.get("/api/sources").json() == []

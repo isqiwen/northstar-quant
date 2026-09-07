@@ -25,7 +25,6 @@ from northstar_quant.broker.records import BrokerRecords
 from northstar_quant.broker.settings import get_profile
 from northstar_quant.broker.streams import BrokerStreams
 from northstar_quant.data.library import DataLibrary
-from northstar_quant.web import create_app
 
 
 class AccountClock(datetime):
@@ -294,6 +293,7 @@ def test_missing_scope_relative_rates_freezes_and_one_cent_short_cannot_pass(
 
 
 def test_browser_budget_uses_saved_inputs_rejects_account_injection_and_shows_unknown(
+    console_app,
     postgres_engine: Engine,
     clean_database: None,
     tmp_path: Path,
@@ -301,7 +301,7 @@ def test_browser_budget_uses_saved_inputs_rejects_account_injection_and_shows_un
 ) -> None:
     del clean_database
     library, stream, order, sequence = budget_case(postgres_engine, tmp_path, monkeypatch)
-    with TestClient(create_app(postgres_engine, library), base_url="http://127.0.0.1") as client:
+    with TestClient(console_app(postgres_engine, library), base_url="http://127.0.0.1") as client:
         page = client.get("/streams")
         assert page.status_code == 200
         csrf = re.search(r'<meta name="northstar-csrf" content="([^"]+)"', page.text).group(1)
@@ -311,7 +311,15 @@ def test_browser_budget_uses_saved_inputs_rejects_account_injection_and_shows_un
             "limit_price": "3110",
             "request_id": str(uuid4()),
         }
-        url, headers = f"/api/streams/{stream}/opening-budgets", {"X-Northstar-CSRF": csrf}
+        url, headers = (
+            f"/api/streams/{stream}/opening-budgets",
+            {
+                "X-Northstar-CSRF": csrf,
+                "X-Live-Runtime-ID": re.search(
+                    r'<meta name="northstar-live-runtime" content="([^"]+)"', page.text
+                ).group(1),
+            },
+        )
         assert client.post(url, json=payload).status_code == 403
         for change in (
             {"limit_price": 3110},

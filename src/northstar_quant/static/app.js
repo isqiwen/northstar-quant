@@ -10,11 +10,23 @@ async function api(path, payload) {
   };
   const csrf = document.querySelector('meta[name="northstar-csrf"]');
   if (payload !== undefined && csrf) options.headers["X-Northstar-CSRF"] = csrf.content;
+  const runtime = document.querySelector('meta[name="northstar-live-runtime"]');
+  if (payload !== undefined && runtime) options.headers["X-Live-Runtime-ID"] = runtime.content;
   const response = await fetch(path, options);
   const result = await response.json();
   if (!response.ok) {
     const error = new Error(result.detail || "操作未完成，请稍后重试。");
     error.rejectionId = result.rejection_id;
+    if (result.status === "UNKNOWN") {
+      for (const button of document.querySelectorAll("button")) button.disabled = true;
+      const notice = document.createElement("p");
+      notice.textContent = `命令 ${result.request_id} 结果未知，已禁用本页操作。`;
+      const lookup = document.createElement("a");
+      lookup.textContent = "按固定命令身份只读查询结果";
+      lookup.href = `/live/commands/${encodeURIComponent(result.request_id)}`;
+      notice.append(lookup);
+      document.querySelector("main").prepend(notice);
+    }
     throw error;
   }
   return result;

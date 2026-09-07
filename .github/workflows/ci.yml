@@ -48,6 +48,6 @@ jobs:
           docker build -t northstar-local .
           docker run --rm --network host \
             --env NORTHSTAR_TEST_DATABASE_URL \
-            --mount "type=bind,source=$GITHUB_WORKSPACE/scripts/check_install.py,target=/tmp/check_install.py,readonly" \
+            --mount "type=bind,source=$GITHUB_WORKSPACE/scripts,target=/tmp/install-check,readonly" \
             --mount "type=bind,source=$GITHUB_WORKSPACE/examples,target=/tmp/examples,readonly" \
-            northstar-local /app/.venv/bin/python /tmp/check_install.py /tmp/examples/intraday.toml
+            northstar-local /app/.venv/bin/python /tmp/install-check/check_install.py /tmp/examples/intraday.toml

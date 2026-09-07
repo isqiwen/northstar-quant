@@ -73,6 +73,24 @@
       "problemMatcher": []
     },
     {
+      "label": "Northstar: prepare debug runtimes",
+      "type": "process",
+      "command": "uv",
+      "args": [
+        "run",
+        "--locked",
+        "northstar",
+        "init-live-auth",
+        "${workspaceFolder}/.northstar/vscode-runtime-auth"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "dependsOn": "Northstar: initialize VS Code debug database",
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
       "label": "Northstar: lint",
       "type": "process",
       "command": "uv",

@@ -3,13 +3,17 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Generator
+from collections.abc import Callable, Generator
+from contextlib import ExitStack
 
 import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 from sqlalchemy import Engine, create_engine, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session, sessionmaker
 
+from northstar_quant.data.library import DataLibrary
 from northstar_quant.db import initialize_database
 
 
@@ -76,6 +80,7 @@ def clean_database(postgres_engine: Engine) -> None:
             "broker_stream_accounts",
             "broker_opening_budgets",
             "broker_funds_entries",
+            "live_commands",
         )
     )
     with postgres_engine.begin() as connection:
@@ -93,3 +98,34 @@ def session_factory(postgres_engine: Engine, clean_database: None) -> sessionmak
 def db_session(session_factory: sessionmaker[Session]) -> Generator[Session, None, None]:
     with session_factory() as session:
         yield session
+
+
+@pytest.fixture
+def live_client() -> Generator[Callable[[Engine, DataLibrary], object], None, None]:
+    """Exercise the actual Live HTTP Interface; only this fixture stops its owner."""
+    from northstar_quant.live import LiveAuth, LiveClient, create_app
+
+    auth = LiveAuth(read_token="test-read-" + "r" * 40, control_token="test-control-" + "c" * 40)
+    applications: dict[tuple[Engine, DataLibrary], FastAPI] = {}
+    with ExitStack() as lifespans:
+
+        def connect(engine: Engine, library: DataLibrary) -> LiveClient:
+            key = engine, library
+            if key not in applications:
+                application = create_app(engine, library, auth)
+                lifespans.enter_context(TestClient(application, base_url="http://127.0.0.1"))
+                applications[key] = application
+            transport = TestClient(applications[key], base_url="http://127.0.0.1")
+            return LiveClient("http://127.0.0.1", auth, client=transport)
+
+        yield connect
+
+
+@pytest.fixture
+def console_app(live_client: Callable[[Engine, DataLibrary], object]) -> Callable[..., FastAPI]:
+    from northstar_quant.web import create_app
+
+    def compose(engine: Engine, library: DataLibrary) -> FastAPI:
+        return create_app(engine, library, live=live_client(engine, library))
+
+    return compose

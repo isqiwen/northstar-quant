@@ -15,22 +15,72 @@ services:
       interval: 2s
       timeout: 3s
       retries: 20
-  app:
+  initialize:
     platform: linux/amd64
     build: .
+    image: northstar-quant:local
     environment:
       NORTHSTAR_DATABASE_URL: postgresql+psycopg://northstar:northstar_local@postgres:5432/northstar_quant
-      NORTHSTAR_DATA_DIR: /var/lib/northstar/sources
     volumes:
-      - source-data:/var/lib/northstar/sources
-      - backup-data:/var/lib/northstar/backups
+      - runtime-auth:/var/lib/northstar/auth
     depends_on:
       postgres:
         condition: service_healthy
+    command: ["sh", "-c", "northstar init-db && northstar init-live-auth /var/lib/northstar/auth"]
+  live:
+    platform: linux/amd64
+    build: .
+    image: northstar-quant:local
+    restart: unless-stopped
+    environment:
+      NORTHSTAR_DATABASE_URL: postgresql+psycopg://northstar:northstar_local@postgres:5432/northstar_quant
+      NORTHSTAR_DATA_DIR: /var/lib/northstar/sources
+      NORTHSTAR_LIVE_AUTH: /var/lib/northstar/auth/live.toml
+      NORTHSTAR_LIVE_URL: http://127.0.0.1:18081
+    volumes:
+      - source-data:/var/lib/northstar/sources
+      - runtime-auth:/var/lib/northstar/auth:ro
+    depends_on:
+      initialize:
+        condition: service_completed_successfully
+    ports:
+      - "127.0.0.1:18081:18081"
+    command: ["uvicorn", "northstar_quant.live:application", "--factory", "--host", "0.0.0.0", "--port", "18081"]
+    healthcheck:
+      test: ["CMD", "northstar", "live-status"]
+      interval: 10s
+      timeout: 8s
+      retries: 3
+      start_period: 20s
+    stop_grace_period: 30s
+  console:
+    platform: linux/amd64
+    build: .
+    image: northstar-quant:local
+    restart: unless-stopped
+    environment:
+      NORTHSTAR_DATABASE_URL: postgresql+psycopg://northstar:northstar_local@postgres:5432/northstar_quant
+      NORTHSTAR_DATA_DIR: /var/lib/northstar/sources
+      NORTHSTAR_LIVE_URL: http://live:18081
+      NORTHSTAR_LIVE_AUTH: /var/lib/northstar/auth/console.toml
+    volumes:
+      - source-data:/var/lib/northstar/sources
+      - backup-data:/var/lib/northstar/backups
+      - runtime-auth:/var/lib/northstar/auth:ro
+    depends_on:
+      initialize:
+        condition: service_completed_successfully
     ports:
       - "127.0.0.1:18080:18080"
-    command: ["sh", "-c", "northstar init-db && exec uvicorn northstar_quant.web:application --factory --host 0.0.0.0 --port 18080"]
+    command: ["uvicorn", "northstar_quant.web:application", "--factory", "--host", "0.0.0.0", "--port", "18080"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:18080/health/ready', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
 volumes:
   postgres-data:
   source-data:
   backup-data:
+  runtime-auth:
