@@ -1,122 +1,101 @@
 # 开发顺序与交付管理
 
 最终目标：国内期货实盘，纵向尽早打通一个受限、可核对的真实交易闭环。
-研究与内部 Paper 服务于实盘验证，不先建设完整研究或模拟平台。
-详细职责、真实执行语义与准入条件见 [ARCHITECTURE.md](ARCHITECTURE.md)。
-所有开发任务都属于 [isqiwen/northstar-quant](https://github.com/isqiwen/northstar-quant)，
-[Project 1](https://github.com/users/isqiwen/projects/1) 是顺序、优先级与实时状态的唯一管理入口。
-本文只解释阶段和顺序，不复制动态任务状态。
+一个仓库、一套 Python 业务实现，按 Data、Research、Live、Console 四个运行角色交付。
+详细设计与当前能力见 [ARCHITECTURE.md](ARCHITECTURE.md)，取舍见 [ADR](adr/0001-runtime-roles.md)。
+[Project 1](https://github.com/users/isqiwen/projects/1) 是优先级、状态、Order 与原生依赖的管理入口；
+Issue 拥有实施范围、验收和证据，本文只维护交付顺序及职责，不复制每轮测试/运行日志。
 
 ## 阶段完成条件
 
 | 阶段 | 可运行结果 | 任务 |
 |---|---|---|
-| [M0 单仓库交付](https://github.com/isqiwen/northstar-quant/milestone/1) | GitHub 干净检出可启动、研究、精确重放；已有本地实现形成可复核远端交付 | #16 |
-| [M1 柜台仿真闭环](https://github.com/isqiwen/northstar-quant/milestone/2) | 真实数据、托管原文与处理发布、固定配置与持久会话、柜台只读账户/行情、仿真报撤单与账本 | #17、#24、#36、#25、#31、#32；工作台交互 #38 |
-| [M2 受限实盘闭环](https://github.com/isqiwen/northstar-quant/milestone/3) | 未知委托与断线恢复、安全控制、数据库与文件联合恢复、生产准入/只读核对、独立授权的真实开平仓 | #26、#27、#33–#35 |
-| [M3 研究与组合增强](https://github.com/isqiwen/northstar-quant/milestone/4) | 完整历史模拟、样本外比较、实际因子计算与复用、修订/长任务、多合约、换月、多策略 | #18–#23、#37、#28–#30 |
+| [M0 单仓库交付](https://github.com/isqiwen/northstar-quant/milestone/1) | 干净检出可启动、研究并核验固定结果 | #16 |
+| [M1 柜台仿真闭环](https://github.com/isqiwen/northstar-quant/milestone/2) | 固定数据/配置、独立 Live/Console、持续行情、仿真报撤单与账本 | #17、#24、#36、#38、#39、#31、#25、#32 |
+| [M2 受限实盘闭环](https://github.com/isqiwen/northstar-quant/milestone/3) | 云端运行、安全控制、未知结果与分域恢复、生产准入及独立授权的真实开平仓 | #40、#26、#33、#27、#34、#35 |
+| [M3 研究与组合增强](https://github.com/isqiwen/northstar-quant/milestone/4) | 独立 Data/Research、归档复用、大规模读取、完整评价、因子及组合 | #23、#41–#43、#18–#22、#37、#28–#30 |
 
-M2 是第一条真实执行技术闭环，不是策略已盈利、可扩大资金或可无人值守的声明。
-限定一个账户、一个真实合约、固定策略与风险配置、有人监督的日盘窗口；
-最小一手超限则拒绝执行，无法平仓时保留真实风险并人工接管。
-M3 不阻塞首个受限闭环，但实际交易日、今昨仓、费用保证金、待单预占、对账和执行安全不能后移。
-没有已确认的交付日期，不以虚构季度承诺代替依赖关系。
+里程碑按交付结果归类，不是阶段之间全部串行的依赖。M2 中的 #40 云端无发送基座先交付，
+随后 #32/#26/#33 在该部署验收交易与故障，不能让云基座反过来等待完整交易功能。
+M2 完成是限定账户、合约、配置和受监督日盘窗口的技术闭环，不是盈利、扩资或无人值守许可。
+最小一手超限则不交易；实际交易日、今昨仓、费用保证金、预占、执行安全与核对不能后移。
 
-## 建议执行顺序
+## 默认开发顺序
 
-| 顺序 | 用户可见结果 | 前置 Issue |
+| Order | 用户可见结果 | 原生 Blocked by |
 |---|---|---|
-| 1 | [#16 从单仓库干净检出启动并复现完整研究闭环](https://github.com/isqiwen/northstar-quant/issues/16) | — |
-| 2 | [#17 导入首份真实国内期货行情，并从已有数据继续研究](https://github.com/isqiwen/northstar-quant/issues/17) | [#16](https://github.com/isqiwen/northstar-quant/issues/16) |
-| 3 | [#24 保存并选择固定策略/Risk 配置，运行最小持久会话](https://github.com/isqiwen/northstar-quant/issues/24) | #17 |
-| 4 | [#36 上传原文后持久归档，追踪处理与发布并继续研究](https://github.com/isqiwen/northstar-quant/issues/36) | #17；无需外部账号，不阻塞 #24 |
-| 5 | [#31 具体柜台仿真只读连接、账户与行情核对](https://github.com/isqiwen/northstar-quant/issues/31) | —；本机配置与 dev TD 登录/查询已验证，继续核对与非空账户验收 |
-| 6 | [#34 开户、程序化准入、生产 API 权限与只读账户核对](https://github.com/isqiwen/northstar-quant/issues/34) | #31；外部准入与开发并行，不阻塞仿真 |
-| 7 | [#25 可追溯的持续行情驱动会话，解释新鲜度与断线缺口](https://github.com/isqiwen/northstar-quant/issues/25) | #24、#31、#36 |
-| 8 | [#32 在外部柜台仿真完成策略报撤单、部分成交与账本核对](https://github.com/isqiwen/northstar-quant/issues/32) | #24、#25、#31 |
-| 9 | [#26 确认实际配置与限额后安全启用、暂停和控制会话](https://github.com/isqiwen/northstar-quant/issues/26) | #25、#32 |
-| 10 | [#33 未知发送结果、断连重启与单执行权恢复](https://github.com/isqiwen/northstar-quant/issues/33) | #24、#32 |
-| 11 | [#27 联合恢复数据库与文件，保持暂停并核对柜台](https://github.com/isqiwen/northstar-quant/issues/27) | #24、#33、#36 |
-| 12 | [#35 独立授权与固定配置/限额的首次受限真实开平仓及对账](https://github.com/isqiwen/northstar-quant/issues/35) | #26、#27、#33、#34；另需明确实盘执行授权 |
-| 13 | [#18 完整历史夜盘、日盘和跨日时段研究](https://github.com/isqiwen/northstar-quant/issues/18) | #17 |
-| 14 | [#19 历史连续账户、跨日结算与费用保证金模拟](https://github.com/isqiwen/northstar-quant/issues/19) | #18 |
-| 15 | [#20 完善模拟成交的时段、价格和成交量约束](https://github.com/isqiwen/northstar-quant/issues/20) | #19 |
-| 16 | [#21 固定评价方案与样本外比较](https://github.com/isqiwen/northstar-quant/issues/21) | #20、#24 |
-| 17 | [#22 历史迟到与修订的可得性重放](https://github.com/isqiwen/northstar-quant/issues/22) | #18、#19 |
-| 18 | [#23 固定输入的持久长研究任务](https://github.com/isqiwen/northstar-quant/issues/23) | #21 |
-| 19 | [#37 计算并复用一个实际因子，追溯输入、策略使用与评价](https://github.com/isqiwen/northstar-quant/issues/37) | #36、#21 |
-| 20 | [#28 多合约共同资金与风险约束](https://github.com/isqiwen/northstar-quant/issues/28) | #19、#20、#21 |
-| 21 | [#29 真实合约换月与价差成本解释](https://github.com/isqiwen/northstar-quant/issues/29) | #28、#22 |
-| 22 | [#30 多策略配置、预算与目标净额](https://github.com/isqiwen/northstar-quant/issues/30) | #28 |
+| 1 | [#16 单仓库干净检出与研究基线](https://github.com/isqiwen/northstar-quant/issues/16) | — |
+| 2 | [#17 首份真实历史行情导入与复用](https://github.com/isqiwen/northstar-quant/issues/17) | #16 |
+| 3 | [#24 固定配置与可恢复文件 Paper](https://github.com/isqiwen/northstar-quant/issues/24) | #17 |
+| 4 | [#36 原文归档、失败解释、发布与研究](https://github.com/isqiwen/northstar-quant/issues/36) | #17 |
+| 5 | [#38 NiceGUI 持续接收详情](https://github.com/isqiwen/northstar-quant/issues/38) | — |
+| 6 | [#39 独立 Live/Console，工作台重启不影响接收](https://github.com/isqiwen/northstar-quant/issues/39) | #24、#36、#38 |
+| 7 | [#40 国内云无发送运行，本地离线与失联告警](https://github.com/isqiwen/northstar-quant/issues/40) | #39；另需云资源/访问与部署许可 |
+| 8 | [#31 柜台只读账户、持仓/委托与核对](https://github.com/isqiwen/northstar-quant/issues/31) | — |
+| 9 | [#34 生产开户、准入与只读核对](https://github.com/isqiwen/northstar-quant/issues/34) | #31、#40；开户与机构确认并行 |
+| 10 | [#25 持续真实行情、时段与缺口解释](https://github.com/isqiwen/northstar-quant/issues/25) | #24、#31、#36、#39 |
+| 11 | [#32 云端仿真报撤单、成交与账本](https://github.com/isqiwen/northstar-quant/issues/32) | #24、#25、#31、#39、#40 |
+| 12 | [#26 固定运行材料与远程受控启用/暂停/平仓](https://github.com/isqiwen/northstar-quant/issues/26) | #25、#32、#39、#40 |
+| 13 | [#33 云端未知结果、重启与单执行权恢复](https://github.com/isqiwen/northstar-quant/issues/33) | #24、#32、#39、#40 |
+| 14 | [#27 本地与 Live 分域一致备份及安全恢复](https://github.com/isqiwen/northstar-quant/issues/27) | #24、#36、#33 |
+| 15 | [#35 用户独立授权的首次受限真实开平仓](https://github.com/isqiwen/northstar-quant/issues/35) | #26、#27、#33、#34 |
+| 16 | [#23 独立 Research worker 与持久研究任务](https://github.com/isqiwen/northstar-quant/issues/23) | #17、#24 |
+| 17 | [#41 独立 Data 持久采集、加工与发布](https://github.com/isqiwen/northstar-quant/issues/41) | #36 |
+| 18 | [#42 云端市场段异步归档到 Data 并研究](https://github.com/isqiwen/northstar-quant/issues/42) | #39、#40、#41 |
+| 19 | [#18 真实交易日与跨日时段研究](https://github.com/isqiwen/northstar-quant/issues/18) | #17 |
+| 20 | [#19 连续历史账户、结算与保证金](https://github.com/isqiwen/northstar-quant/issues/19) | #18 |
+| 21 | [#20 保守模拟成交与未成交解释](https://github.com/isqiwen/northstar-quant/issues/20) | #19 |
+| 22 | [#21 固定评价方案、基准与样本外比较](https://github.com/isqiwen/northstar-quant/issues/21) | #20、#24 |
+| 23 | [#22 迟到与修订的可得性重放](https://github.com/isqiwen/northstar-quant/issues/22) | #18、#19 |
+| 24 | [#43 大体积行情/因子范围读取、容量与引用](https://github.com/isqiwen/northstar-quant/issues/43) | #36 |
+| 25 | [#37 实际因子计算、复用与评价](https://github.com/isqiwen/northstar-quant/issues/37) | #21、#36 |
+| 26 | [#28 多合约共同资金与风险](https://github.com/isqiwen/northstar-quant/issues/28) | #19、#20、#21 |
+| 27 | [#29 真实合约换月与成本](https://github.com/isqiwen/northstar-quant/issues/29) | #28、#22 |
+| 28 | [#30 多策略共同预算与目标净额](https://github.com/isqiwen/northstar-quant/issues/30) | #28 |
 
-Order 表示默认优先执行顺序，原生 Blocked by 表示真正依赖。
-依赖已完成的独立任务可以调整顺序；同一时间默认只推进一个主要纵向结果。
-每条 Issue 的实现范围、验收和外部条件位于 Issue 正文，不另建横向任务清单。
+Order 是默认选择顺序，只有 Blocked by 才是硬前置。外部条件未具备时继续独立工程工作：
+#39 复用 #31/#25/#32 已交付切片，不等待它们整体验收；#40 只依赖 #39 的无发送能力。
+#23 使用已有固定研究，不再依赖 #21 完整评价；#41 与 #23 可分别推进，不因共用 Console 串行化。
+#43 可在已有 #36 内容上开发，不需要先完成进程拆分或因子平台。
+#23/#41–#43 与完整历史研究不阻塞 #35，必要账户安全和真实外部验收仍是硬门槛。
 
-#31 的真实非空持仓/待单与完整联合核对仍未完成，不妨碍独立开发 #25 的无发送接收内核。
-当前切片为单账户单合约 TD/MD 逐事件留证、SHFE DAY 分钟影子目标和 Web 暂停/停止；
-不运行真实账户 Risk、模拟成交或报撤单。PostgreSQL 保存的不可变 SDK 回调是该有界流的
-权威来源，不是网络原文或已发布 Snapshot。当前联接 #36：固定 `1..through_sequence`
-且不超过 5 MiB 的 JSON 前缀 → Data 来源/加工 → 明确 UTC 完整范围的采样市场段 →
-已有 Snapshot、研究/文件 Paper；`LOCAL_CAPTURE_RECONSTRUCTED` 是按原接收时钟重建，
-不是原影子决策重放。失败可查、下载独立默认关闭；不新增柜台连接、查询或报撤单。
-实际外部连续新鲜行情验收仍待交付，不能因归档发布接通就关闭 #25。
-原生 #24 / #31 / #36 依赖保持不变，
-#32 / #26 的联合核对、账户安全与执行条件仍是硬门槛，不把独立开发解释为提前放行。
+## 每个角色交付什么，不重复建设什么
 
-#32 已交付固定事实的一手开仓预算：已有影子目标与配置 → 同账户已保存核对及柜台
-资金/费率 → 真实条款风险预算 → 持久记录与 Web/CLI。复用 Strategy、Data 和 Risk 的实际行为，
-不另建手工资金计算器；首版仅支持空仓、无活动、零冻结、同日 SHFE 投机和绝对账户级费率。
-预算不建立订单、资金预占或成交，也不重做历史影子决策。#31/#25 原生依赖仍保留；
-只有该无发送计算可独立交付，账户回报汇合、资金/费用账本、当前新鲜度与发送门禁不能后移。
+- Live/Console：#39 拥有独立生命周期和真实运行状态；#40 拥有云端无发送部署、同域存储、
+  受保护的基础查询/影子控制与告警。#32/#26/#33 分别拥有实际交易、执行授权与故障恢复。
+  #32 首次发送前就要具备最小授权、风险预占、唯一发送者和 UNKNOWN 保护，不能留到后续验收才实现。
+- Data：#41 拥有持久来源任务/采集调度与发布，#42 拥有有界异步复制，#43 拥有大规模范围读取。
+  Live 是交易事实权威写入者，Data 只接获准固定副本；积压/容量受控，禁止用归档副本改写账户。
+- Research：#23 拥有独立轻量接单/查询入口与任务尝试，计算 worker 按需启动，复用现有计算和结果；
+  无计算 worker 时仍可接单，不把任务控制放回 Console。#21 拥有评价，#37 拥有实际因子研究。
+  参数搜索和模型训练使用同一 Research 执行路径，按实际策略需要细化，不先建设训练平台。
+  有实际模型时，固定输出仍需 #26 的本地材料核验和受控启用，训练完成不授权交易。
+- Console：NiceGUI 逐入口改为调用拥有行为的角色，不持有柜台连接、研究 worker 或业务表写入权。
+  #39/#41/#23 各自连通真实页面与结果，不另建“前端架构平台”Issue。
+- 恢复：#27 按本地与云端事实所有权分别备份数据库及必要文件，核验跨域固定引用；
+  本地备份只协调本域写入，不暂停 Live；涉及 Live 维护/恢复才处理新增风险与未决委托。
+  不要求跨公网全局同一快照，不等 #41/#42 全平台才验证 Live 必需材料和执行权。
 
-已保存持续成交前缀已汇入同一账户成交账簿，查询/流共用身份去重；
-并从后续保存查询追加账户级资金、累计费用及相邻区间变化，在现有 Web/CLI 中使用。
-它不是重复资金差异看板，也不把查询伪装为连续资金流；累计金额不重复加总，费用不分摊到成交。
-现已接通保存异步回报的自动入账与独立处理进度：先持久回报、再入账、后影子计算，
-行情不产生空账簿记录；暂停仍登记成交，中断后显式补处理固定前缀，不重连或重做旧目标。
-本机游标追平不是完整账户对账，启动查询与异步回报的汇合、必要资金/结算核对仍待推进，
-再接持久委托身份与预占、受限仿真报撤单。合成数据或重启恢复仍不能替代 #31/#25 的实际外部验收。
+## 当前交付与外部条件
 
-## 管理能力随纵向结果交付
+当前 Compose 仍是单 app + PostgreSQL，CTP 已有原生子进程，CLI 可独立接收，
+但跨进程控制与四角色部署尚未实现；不能把本次设计或建单当成运行验收。
+#31/#25/#32 已交付的只读查询、有界接收、影子目标、固定预算与保存回报自动入账继续保留；
+实际持续新鲜行情、非空核对、启动查询汇合、必要资金/结算、预占和发送仍按各 Issue 的证据判断。
 
-#36 是来源到研究的独立切片，包含原文、失败处理、发布、引用和该范围的联合恢复；
-#25 复用它接入持续来源，#27 再扩展到交易会话、柜台事实与安全恢复。
-#24 提供固定策略/Risk 配置的保存、选择和运行绑定，#26/#35 负责受控生效与独立执行授权。
-#21/#23 固定研究配置和任务身份，#37 按实际计算交付因子结果管理，不先建设因子平台。
-这些能力都进入现有 Web 工作台；先做到可追溯、可选择、受控生效，再按真实需求扩展。
-
-当前 [#38](https://github.com/isqiwen/northstar-quant/issues/38) 按用户批准的范围，
-用 NiceGUI 替换实际持续接收详情页，保留控制、账户补处理、固定预算和归档的原有业务入口。
-同一应用进程挂载一次，移除原详情的 HTML/JS；其他页面暂不迁移，不新增独立前端部署。
-交付需验证真实浏览器交互、固定输入不被刷新覆盖、命令去重、断线失效及页面级安全策略；
-具体验收结果记在 Issue，不以页面实现宣称全站迁移完成，也不改变 #25/#31/#32 的交易验收缺口。
-
-## 外部条件与实盘门禁
-
-用户尚未开生产账户，已提供 SimNow 仿真账户及两套环境，同意先只读验收再推进受限仿真报撤单。
-采用 [CTP / SimNow](https://www.simnow.com.cn/product.action) 的一个具体接入；
-本机私密配置已就绪，2026-09-05 dev TD 实际认证/登录及七类查询已取得终结回包；
-#31 继续完成真实核对与剩余验收，生产期货公司与
-程序化报告确认、认证及行情权限在 #34 核实。密码、认证码和个人账户资料不进入公共 Issues。
-模拟环境和生产环境分别授权，能登录不等于允许报撤单，仿真通过不等于允许动用真实资金。
-
-不得用 SDK 加载、端口连通、固定返回值或内部 Paper 替代 #31/#32 的外部柜台验收。
-只读是连通验收阶段，后续 #25/#32 继续打通持续行情和受限报撤单，不以只读工具作为最终交付。
-没有生产准入和具体执行授权时，#35 保持未完成，不以目标声明授权代理下单。
-开户与协议签署由用户办理；首次真实执行由用户在已验证软件中亲自启用，开发代理不代发真实投资订单。
-首个受限实盘闭环不以完整历史研究为前置；但上线范围内的交易日、今昨仓开平、真实费用与保证金核对、损失及限频控制、
-UNKNOWN 与未决预占、单执行者、人工应急渠道和恢复后重新启用都必须先具备。
+用户已有 SimNow 私密配置，尚未开生产账户。#31/#25 记录实际样本、时段/环境及来源许可缺口，
+不索取新密码，不把工程未完成假装成缺少外部输入。
+#40 另需明确云主机/预算、运维访问与部署范围、告警接收渠道；规划不授权购买资源或部署。
+#34 的开户、协议与机构确认由用户办理；#35 首次真实投资执行由用户本人在已验证软件中启用，
+开发代理不代发真实订单。仿真成功、只读许可和进程在线均不是生产交易授权或盈利证据。
 
 ## Project 使用规则
 
-- 保留必要的 Status、Priority、Milestone、Order 和原生依赖；只有缺少外部输入时用 `needs-input`。
-- Backlog：尚未选择开始，或前置/外部条件未具备。Todo：依赖具备、范围明确、可以开始。
-- In Progress：正在实现完整行为。Review：代码和验收证据可检查。Done：验收满足且交付证据可复核。
-- 正常推进应先查看所选 Issue 和其前置，再更新状态；发现遗漏时修正同一任务或拆出实际可用行为。
-- 结束开发时写明可复核提交、相关运行/验证证据和已知限制；同步 Issue 与 Project。
-  本地运行、文档完成或 CI 全绿单独都不代表整个用户结果已交付。
-- 架构与代码可以在同一工作中修改；无需先合并一份架构文档才允许实施。
-- 外部条件只阻塞对应验收；开户不阻塞仿真开发，完整研究平台不阻塞受限实盘技术主线。
-- 每项任务都从输入走到持久结果和用户可见解释。兼容层、泛化 Contract/Schema/Validator/Fixture、
-  文档测试、空框架和目录建设均不作为独立任务或验收目标。
+- 使用 Status、Priority、Milestone、Order 与原生 Blocked by；缺少外部条件标 needs-input 并写具体缺口。
+- Backlog 是尚未选择或条件未满足，Todo 是下一项可实施任务；In Progress 只表示正在实施，
+  Review 表示等待验收，Done 必须有可复核实现与实际验收。规划建单保持 Open，不创建虚假的已完成功能。
+- 同一时间一个主要纵向结果。部分实现未整体验收的事项可以回到 Backlog，保留全部历史证据；
+  选择下一任务时读取该 Issue 及其真正前置，不把 Order 的全部前项当作串行依赖。
+- 架构与代码可一起修改，不以先合并文档为实施门槛；交付后记录提交、安装态/浏览器与相关真实集成证据。
+- 只维护当前架构、实现、存储与协议，不兼容旧系统。泛化 contracts/schema/validator/fixture、
+  文档测试、空目录和独立脚手架均不作为交付目标；验证聚焦资金、授权、因果、重复效果与故障恢复。

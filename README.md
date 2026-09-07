@@ -1,7 +1,7 @@
 # Northstar Quant
 
 A personal domestic-futures trading system targeting controlled live execution.
-One repository, one Python package, PostgreSQL and a managed private source directory. The delivery path is
+One repository, one Python package, PostgreSQL and managed private data files. The delivery path is
 read-only broker access → broker simulation → recovery and reconciliation → a
 bounded, explicitly authorized live round trip; advanced research comes later.
 
@@ -20,6 +20,45 @@ prefix into a reusable market segment. Fresh continuous external-market acceptan
 remains incomplete; archiving old records does not provide that evidence.
 Broker orders and live execution are not implemented. Research, Paper and successful queries never enable real
 orders; see the [architecture and live gates](docs/ARCHITECTURE.md#9-首个受限实盘闭环).
+
+## Selected architecture and current deployment
+
+The target keeps one codebase and separates four runtime roles:
+
+| Role | Location and lifetime | Owns |
+|---|---|---|
+| [Data #41](https://github.com/isqiwen/northstar-quant/issues/41) | Local `core`; independently running for continuous collection | Source ingestion, processing, quality, fixed data publication, queries and exports |
+| [Research #23](https://github.com/isqiwen/northstar-quant/issues/23) | Local `research`; independent lightweight task endpoint, on-demand bounded compute workers | Durable research jobs, factors, backtests, training, experiments and results |
+| Live | Domestic cloud host; independently supervised and explicitly controlled | Direct market/broker connections, strategy execution, Risk, orders, account facts and recovery |
+| Console | Local `core`; independent NiceGUI process | Status, job submission and authenticated control requests; no connection or compute ownership |
+
+This is the selected design, **not the deployed capability yet**. Current Compose
+still starts one `app` and PostgreSQL; the app owns web-started reception and runs
+web-started research in its thread pool. CTP already uses an isolated native child,
+but that child is not an independently managed Live deployment. The commands below
+run this current implementation, not the proposed four-role deployment.
+
+[The first split, #39](https://github.com/isqiwen/northstar-quant/issues/39), will keep
+reception and account processing alive through a full Console restart, using
+SimNow without granting order-sending authority. The
+[cloud runtime foundation, #40](https://github.com/isqiwen/northstar-quant/issues/40),
+follows without waiting for order execution or the completed funds ledger; it
+does not itself enable trading or prove recovery. Live will
+keep real-time inputs and authoritative trading records close to the broker
+connection, independent of local Data/Research/Console availability. Data receives
+fixed archives asynchronously; it does not become a second writable account ledger.
+Research consumes fixed published data, and Live activates only explicitly selected,
+verified configurations/artifacts. Console disconnection never grants unattended
+execution; existing authorization and supervision conditions still apply.
+
+Local Data/Research may share a PostgreSQL instance with separate record ownership.
+Cloud Live has its own nearby durable storage, not a public connection to the local
+database. Only Live receives broker credentials. Process separation does not create
+four repositories, duplicate Strategy/Risk/Accounting implementations, or introduce
+generic contracts, a message bus or a compatibility layer. See the
+[role and ownership design](docs/ARCHITECTURE.md#1-设计判断与交付边界) and
+[development order](docs/ROADMAP.md); [Project 1](https://github.com/users/isqiwen/projects/1)
+tracks implementation and acceptance rather than treating this design as completion.
 
 ## Run
 
@@ -47,11 +86,15 @@ decisions alongside fixed input evidence. Empty state contains no invented resul
 
 ### Web interface
 
-The application uses FastAPI for HTTP and NiceGUI 3.16.0 for the continuous
+The current application uses FastAPI for HTTP and NiceGUI 3.16.0 for the continuous
 reception detail page at `/streams/STREAM_UUID`. NiceGUI supplies Vue/Quasar
 controls and Socket.IO updates; Python page callbacks call the existing broker,
 account and Data interfaces directly. One `ui.run_with` mount serves this inside
 the same application process; there is no separate frontend service or build.
+The target retains NiceGUI in a standalone Console, calling the owning runtime's
+narrow HTTP interface instead of creating its broker connections or compute workers.
+Remote deployment authentication and runtime-side authorization must be implemented
+before exposing those controls; the current loopback protection is not sufficient.
 
 Other workspace pages currently use their existing server-rendered HTML and
 JavaScript. The former continuous-detail HTML/JavaScript has been removed, not
@@ -589,10 +632,14 @@ managed archive; current imports explicitly retain the received file in Data.
 
 ## Planned data and workspace management
 
-The [lifecycle design](docs/ARCHITECTURE.md#8-持久化界面与运行维护) extends the same
-application with managed source files, processing attempts, publication and usage
-tracking. PostgreSQL owns records and trading facts; durable files hold source
-bytes and large data products. The bounded source→processing→publication→research
+The [lifecycle design](docs/ARCHITECTURE.md#8-持久化界面与运行维护) assigns managed source
+files, processing attempts, publication and usage tracking to Data; Research owns
+jobs and experiments, and Live owns authoritative trading facts. PostgreSQL stores
+each owner's records; durable files hold source bytes and large data products.
+In the target deployment, local research storage and cloud Live storage are backed
+up independently with their referenced files; cross-role archives are fixed copies,
+not mutable truth.
+The bounded source→processing→publication→research
 path and its joint backup/restore are implemented, as are fixed strategy/Risk
 revisions and Paper bindings. Factor-result management, larger data products,
 broader policy management and live controls remain future work.
