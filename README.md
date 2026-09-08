@@ -23,16 +23,21 @@ orders; see the [architecture and live gates](docs/ARCHITECTURE.md#9-首个受�
 
 ## Selected architecture and current deployment
 
-The target keeps one codebase and separates four runtime roles:
+The target is three independently deployable applications, each with its own Web,
+configuration, startup/upgrade/shutdown and diagnostics:
 
-| Role | Location and lifetime | Owns |
+| Application | Location | Owns |
 |---|---|---|
-| [Data #41](https://github.com/isqiwen/northstar-quant/issues/41) | Local `core`; independently running for continuous collection | Source ingestion, processing, quality, fixed data publication, queries and exports |
-| [Research #23](https://github.com/isqiwen/northstar-quant/issues/23) | Local `research`; independent lightweight task endpoint, on-demand bounded compute workers | Durable research jobs, factors, backtests, training, experiments and results |
-| Live | Domestic cloud host; independently supervised and explicitly controlled | Direct market/broker connections, strategy execution, Risk, orders, account facts and recovery |
-| Console | Local `core`; independent NiceGUI process | Status, job submission and authenticated control requests; no connection or compute ownership |
+| [Data #41](https://github.com/isqiwen/northstar-quant/issues/41) | Resident on local `core` | Collection, processing, quality, snapshots, query/export and Data Web |
+| [Research #23](https://github.com/isqiwen/northstar-quant/issues/23) | Local workstation | Research Web, durable tasks, independently supervised execution and results |
+| [Live #40](https://github.com/isqiwen/northstar-quant/issues/40) | Resident on domestic cloud | Live Web and a separately supervised trading kernel with local authoritative storage |
 
-Compose now runs independent `live` and `console` processes with PostgreSQL and
+There is no required central Console. Shared UI components do not share business
+authority or task ownership. Applications may contain multiple processes.
+Research uses available CPUs and supported GPUs subject to measured memory/disk
+budgets and responsive management/cancellation, not a fixed core count.
+
+**Current implementation, not the completed target:** Compose now runs independent `live` and `console` processes with PostgreSQL and
 a one-shot initialization job. Live owns broker queries, bounded reception, account
 processing and shadow controls; Console uses authenticated HTTP, never owns a
 broker connection and can exit without shutting down Live. Native CTP children
@@ -46,16 +51,16 @@ granting order-sending authority. The
 follows without waiting for order execution or the completed funds ledger; it
 does not itself enable trading or prove recovery. Live will
 keep real-time inputs and authoritative trading records close to the broker
-connection, independent of local Data/Research/Console availability. Data receives
+connection, independent of local Data/Research availability. Data receives
 fixed archives asynchronously; it does not become a second writable account ledger.
 Research consumes fixed published data, and Live activates only explicitly selected,
-verified configurations/artifacts. Console disconnection never grants unattended
+verified configurations/artifacts. Web disconnection never grants unattended
 execution; existing authorization and supervision conditions still apply.
 
 Local Data/Research may share a PostgreSQL instance with separate record ownership.
 Cloud Live has its own nearby durable storage, not a public connection to the local
 database. Only Live receives broker credentials. Process separation does not create
-four repositories, duplicate Strategy/Risk/Accounting implementations, or introduce
+three repositories, duplicate Strategy/Risk/Accounting implementations, or introduce
 generic contracts, a message bus or a compatibility layer. See the
 [role and ownership design](docs/ARCHITECTURE.md#1-设计判断与交付边界) and
 [development order](docs/ROADMAP.md); [Project 1](https://github.com/users/isqiwen/projects/1)
@@ -89,7 +94,7 @@ restart, inspect its source and quality, then research without re-uploading the
 file. Reports show the saved equity curve, fills, costs, holdings and risk
 decisions alongside fixed input evidence. Empty state contains no invented results.
 
-### Container resource limits
+### Current local container limits (not production sizing)
 
 The current Compose deployment applies these per-container ceilings:
 
@@ -100,8 +105,12 @@ The current Compose deployment applies these per-container ceilings:
 | PostgreSQL | 1 CPU | 1 GiB | 128 |
 | One-shot initialization | 1 CPU | 512 MiB | 64 |
 
-These are bounded starting limits, not reserved resources or demonstrated peak-load
-capacity. Host memory must also cover Docker, the OS and other workloads. A memory
+These are existing local installation limits, not the selected Research resource
+policy or production Live sizing. They remain applied to the running deployment
+until controlled replacement; this architecture update does not alter containers.
+Application-specific deployment work in #40/#23/#41 must replace arbitrary default
+quotas with measured protection. CI may retain a deliberately bounded test profile.
+These limits are neither reserved resources nor demonstrated peak-load capacity. Host memory must also cover Docker, the OS and other workloads. A memory
 limit can cause OOM termination; CPU throttling can make quotes stale. Neither
 failure permits automatic broker reconnection or inherited execution authority.
 Do not disable OOM protection. Tune explicit limits against measured workloads
@@ -146,7 +155,7 @@ HTTP commands retain CSRF checks. A disconnected detail page disables further
 actions: reopen it rather than replaying offline clicks. Polling never changes
 the selected evidence, saved-prefix bounds, UTC range or decimal price. The
 NiceGUI document has a narrowly scoped runtime CSP exception; other pages keep
-the default policy. See the [interface and security design](docs/ARCHITECTURE.md#一个工作台按实际行为逐步交付).
+the default policy. See the [interface and security design](docs/ARCHITECTURE.md#各应用自有-web按实际行为逐步交付).
 
 ## Live runtime diagnostics
 

@@ -20,18 +20,24 @@ broker integration, recovery or runtime topology; read
   protocol. There is neither backward nor forward compatibility. Replace all
   affected callers atomically and remove superseded code, tests and active prose.
   Immutable content identities preserve reproducibility, not old implementations.
-- Keep one repository and one Python package, with four runtime roles: Data owns
-  local ingestion/publication; Research executes durable jobs in bounded worker
-  processes; Live owns cloud trading; Console is an independent NiceGUI workspace.
-  This is the selected target, not a claim that today's single-app deployment
-  already implements it. Deliver Live/Console isolation first, then the broker
-  simulation path; full Data/Research platforms are not live-trading prerequisites.
+- Deliver one repository and one Python package as three independent applications:
+  Data on core, Research on the workstation, Live on the cloud host. Each owns its
+  Web entry, configuration, deployment and diagnostics; no central Console is
+  required. Share presentation components, not application authority or lifecycle.
+  This is the target, not a claim that the current mixed workspace implements it.
+- Supervise Live Web and its trading kernel independently. Durable Research
+  execution and persistent Data collectors must survive browser/Web restart;
+  an application is not a fixed number of processes. Persist work before execution.
+- Research should use available CPUs and algorithm-supported GPUs, scheduling
+  against measured memory, disk and management responsiveness, not arbitrary core
+  counts or fixed resource percentages. Protect cancellation and host access.
+  Size production Live from measured needs; constrain noncritical management work.
 - Keep Strategy, Risk and Accounting as shared Python Modules. Cross-process
-  callers use the owning runtime's small Interface, not its tables or in-memory
-  workers. Live owns realtime inputs, execution authority and durable account
-  facts without depending on local Data, Research, Console or a WAN database.
-  Transfer fixed artifacts and archive copies asynchronously; each fact has one
-  authoritative writer. Console restart never owns a trading shutdown.
+  callers use the owner's small Interface, not its tables or in-memory workers.
+  Live owns realtime inputs, execution authority and durable account facts without
+  depending on Data, Research or a WAN database. Transfer fixed artifacts and
+  archives asynchronously; each fact has one authoritative writer. Web restart
+  never owns a trading shutdown. Full Data/Research platforms do not block live.
 - Deliver vertical behavior: accepted market/account facts → Strategy and Risk →
   authorized execution → confirmed fills and ledger → reconciliation and browser
   explanation. Distinguish research, internal Paper, broker simulation and live

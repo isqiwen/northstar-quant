@@ -1,7 +1,7 @@
 # 开发顺序与交付管理
 
 最终目标：国内期货实盘，纵向尽早打通一个受限、可核对的真实交易闭环。
-一个仓库、一套 Python 业务实现，按 Data、Research、Live、Console 四个运行角色交付。
+一个仓库、一套 Python 业务实现，交付自带 Web 的 Data、Research、Live 三个独立应用。
 详细设计与当前能力见 [ARCHITECTURE.md](ARCHITECTURE.md)，取舍见 [ADR](adr/0001-runtime-roles.md)。
 [Project 1](https://github.com/users/isqiwen/projects/1) 是优先级、状态、Order 与原生依赖的管理入口；
 Issue 拥有实施范围、验收和证据，本文只维护交付顺序及职责，不复制每轮测试/运行日志。
@@ -30,7 +30,7 @@ M2 完成是限定账户、合约、配置和受监督日盘窗口的技术闭�
 | 4 | [#36 原文归档、失败解释、发布与研究](https://github.com/isqiwen/northstar-quant/issues/36) | #17 |
 | 5 | [#38 NiceGUI 持续接收详情](https://github.com/isqiwen/northstar-quant/issues/38) | — |
 | 6 | [#39 独立 Live/Console，工作台重启不影响接收](https://github.com/isqiwen/northstar-quant/issues/39) | #24、#36、#38 |
-| 7 | [#40 国内云无发送运行，本地离线与失联告警](https://github.com/isqiwen/northstar-quant/issues/40) | #39；另需云资源/访问与部署许可 |
+| 7 | [#40 Live 自有 Web、独立内核与云端无发送运行](https://github.com/isqiwen/northstar-quant/issues/40) | #39；另需云资源/访问与部署许可 |
 | 8 | [#31 柜台只读账户、持仓/委托与核对](https://github.com/isqiwen/northstar-quant/issues/31) | — |
 | 9 | [#34 生产开户、准入与只读核对](https://github.com/isqiwen/northstar-quant/issues/34) | #31、#40；开户与机构确认并行 |
 | 10 | [#25 持续真实行情、时段与缺口解释](https://github.com/isqiwen/northstar-quant/issues/25) | #24、#31、#36、#39 |
@@ -39,8 +39,8 @@ M2 完成是限定账户、合约、配置和受监督日盘窗口的技术闭�
 | 13 | [#33 云端未知结果、重启与单执行权恢复](https://github.com/isqiwen/northstar-quant/issues/33) | #24、#32、#39、#40 |
 | 14 | [#27 本地与 Live 分域一致备份及安全恢复](https://github.com/isqiwen/northstar-quant/issues/27) | #24、#36、#33 |
 | 15 | [#35 用户独立授权的首次受限真实开平仓](https://github.com/isqiwen/northstar-quant/issues/35) | #26、#27、#33、#34 |
-| 16 | [#23 独立 Research worker 与持久研究任务](https://github.com/isqiwen/northstar-quant/issues/23) | #17、#24 |
-| 17 | [#41 独立 Data 持久采集、加工与发布](https://github.com/isqiwen/northstar-quant/issues/41) | #36 |
+| 16 | [#23 Research 自有 Web、持久任务与独立执行器](https://github.com/isqiwen/northstar-quant/issues/23) | #17、#24 |
+| 17 | [#41 Data 自有 Web、持久采集与加工发布](https://github.com/isqiwen/northstar-quant/issues/41) | #36 |
 | 18 | [#42 云端市场段异步归档到 Data 并研究](https://github.com/isqiwen/northstar-quant/issues/42) | #39、#40、#41 |
 | 19 | [#18 真实交易日与跨日时段研究](https://github.com/isqiwen/northstar-quant/issues/18) | #17 |
 | 20 | [#19 连续历史账户、结算与保证金](https://github.com/isqiwen/northstar-quant/issues/19) | #18 |
@@ -55,23 +55,26 @@ M2 完成是限定账户、合约、配置和受监督日盘窗口的技术闭�
 
 Order 是默认选择顺序，只有 Blocked by 才是硬前置。外部条件未具备时继续独立工程工作：
 #39 复用 #31/#25/#32 已交付切片，不等待它们整体验收；#40 只依赖 #39 的无发送能力。
-#23 使用已有固定研究，不再依赖 #21 完整评价；#41 与 #23 可分别推进，不因共用 Console 串行化。
+#23 使用已有固定研究，不再依赖 #21 完整评价；#41 与 #23 可分别推进，不因复用页面组件串行化。
 #43 可在已有 #36 内容上开发，不需要先完成进程拆分或因子平台。
 #23/#41–#43 与完整历史研究不阻塞 #35，必要账户安全和真实外部验收仍是硬门槛。
 
 ## 每个角色交付什么，不重复建设什么
 
-- Live/Console：#39 拥有独立生命周期和真实运行状态；#40 拥有云端无发送部署、同域存储、
+- Live：#39 提供已实现的 Web/内核隔离基础；#40 替换混合 Console 为 Live 自有 Web，
+  交付分别监管的管理端与内核、独立云端入口、同域存储、
   受保护的基础查询/影子控制与告警。#32/#26/#33 分别拥有实际交易、执行授权与故障恢复。
   #32 首次发送前就要具备最小授权、风险预占、唯一发送者和 UNKNOWN 保护，不能留到后续验收才实现。
-- Data：#41 拥有持久来源任务/采集调度与发布，#42 拥有有界异步复制，#43 拥有大规模范围读取。
+- Data：#41 拥有自己的 Web、启动/部署入口、持久来源任务/采集调度与发布，#42 拥有有界异步复制，#43 拥有大规模范围读取。
   Live 是交易事实权威写入者，Data 只接获准固定副本；积压/容量受控，禁止用归档副本改写账户。
-- Research：#23 拥有独立轻量接单/查询入口与任务尝试，计算 worker 按需启动，复用现有计算和结果；
-  无计算 worker 时仍可接单，不把任务控制放回 Console。#21 拥有评价，#37 拥有实际因子研究。
+- Research：#23 拥有自己的 Web、部署入口、独立执行器与任务尝试，计算 worker 按需启动，复用现有计算和结果；
+  无计算 worker 时仍可接单，Web 重启不终止已接受计算。#21 拥有评价，#37 拥有实际因子研究。
   参数搜索和模型训练使用同一 Research 执行路径，按实际策略需要细化，不先建设训练平台。
   有实际模型时，固定输出仍需 #26 的本地材料核验和受控启用，训练完成不授权交易。
-- Console：NiceGUI 逐入口改为调用拥有行为的角色，不持有柜台连接、研究 worker 或业务表写入权。
-  #39/#41/#23 各自连通真实页面与结果，不另建“前端架构平台”Issue。
+- 共享呈现：#40/#41/#23 各自交付应用 Web；只提取实际复用的布局、表格、图表和认证接入。
+  不再交付必经中央 Console，不共享应用权限或任务生命周期，不另建前端平台 Issue。
+- 资源：Research 按实测内存/磁盘和负载调度，尽量使用 CPU/受支持 GPU，不预设限核比例；
+  core 优先采集，Live 优先交易持久化，管理大查询和批处理受控；现有本地配额不是生产定额。
 - 恢复：#27 按本地与云端事实所有权分别备份数据库及必要文件，核验跨域固定引用；
   本地备份只协调本域写入，不暂停 Live；涉及 Live 维护/恢复才处理新增风险与未决委托。
   不要求跨公网全局同一快照，不等 #41/#42 全平台才验证 Live 必需材料和执行权。
@@ -80,7 +83,9 @@ Order 是默认选择顺序，只有 Blocked by 才是硬前置。外部条件�
 
 当前 #39 实施独立 Live + Console + PostgreSQL：Live 拥有接收与账户处理，
 Console/CLI 通过认证 HTTP 使用同一 owner，CTP 原生子进程留在 Live 内部。
-代码按运行服务、传输、页面及命令职责分组；Data/Research 独立进程仍属 #41/#23。
+代码按运行服务、传输、页面及命令职责分组；三应用目标尚未实现。
+下一工程切片先在 #40 交付 Live 自有 Web 与独立内核的本地安装验收，不等待云主机输入；
+随后固定运行材料与云端验收。Data/Research 自有 Web 和后台仍属 #41/#23。
 无凭据的进程/浏览器验收与实际 SimNow 连续行情分别记录；以 Issue 的可复核证据判定完成。
 #31/#25/#32 已交付的只读查询、有界接收、影子目标、固定预算与保存回报自动入账继续保留；
 实际持续新鲜行情、非空核对、启动查询汇合、必要资金/结算、预占和发送仍按各 Issue 的证据判断。
