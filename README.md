@@ -114,6 +114,25 @@ the selected evidence, saved-prefix bounds, UTC range or decimal price. The
 NiceGUI document has a narrowly scoped runtime CSP exception; other pages keep
 the default policy. See the [interface and security design](docs/ARCHITECTURE.md#一个工作台按实际行为逐步交付).
 
+## Live runtime diagnostics
+
+Open `/live` or run `northstar live-check` using the existing Live deployment
+authentication. This read-only observation checks PostgreSQL reachability and
+the **Live source filesystem's** available bytes/inodes, without scanning files,
+writing probes, repairing storage or connecting a broker. The CLI exits 2 on
+degradation or failure to obtain a current authenticated response; otherwise 0.
+The page is a timestamped observation, refreshed explicitly, not a live alarm.
+
+`OK` applies only to these checks. PostgreSQL filesystem capacity, archive quota
+usage, write durability, market freshness and account reconciliation are not
+established. In particular the database may reside on another filesystem: its
+disk capacity remains `UNKNOWN`, never inferred from the source directory.
+Missing source storage is reported without recreating it. Low available space
+uses the existing `NORTHSTAR_ARCHIVE_MIN_FREE_BYTES` threshold; it does not grant
+execution authority or add an automatic receiver shutdown policy.
+This is an engineering slice of #40, not cloud deployment or independently
+delivered whole-host alerts. `/health/ready` retains its database-only meaning.
+
 ## SimNow connection
 
 Live requires **Linux amd64** with `ctpwrapper==6.7.13`. The local Compose example

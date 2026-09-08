@@ -19,6 +19,8 @@ from northstar_quant.sessions import SessionStore
 from northstar_quant.web import broker_routes, data_routes, paper_routes, research_routes, security
 from northstar_quant.web_access import WorkspaceAccess
 
+from . import live_health
+
 
 def application() -> FastAPI:
     from northstar_quant.db import open_database
@@ -61,6 +63,7 @@ def create_app(engine: Engine, library: DataLibrary, *, live: LiveClient | None 
     paper_routes.register(app, access, library, paper)
     research_routes.register(app, access, library, store)
     broker_routes.register(app, access, live, paper)
+    live_health.register(app, access, live)
 
     @app.get("/health/ready")
     def ready() -> dict[str, str]:

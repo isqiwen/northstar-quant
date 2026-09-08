@@ -302,16 +302,14 @@ def test_query_cannot_overtake_pending_market_receipt_clock_regression(
         # Independent application and database clocks are retained separately;
         # regression within the application receipt sequence remains unsafe.
         received = datetime.now(UTC) + timedelta(seconds=2)
-        logins(calls["accept"], at=received.replace(year=2026, month=9, day=7))
+        logins(calls["accept"], at=received, trading_day="20260907")
         event = BrokerEvent(
             3,
             "MD",
             "OnRtnDepthMarketData",
             None,
             None,
-            (received.replace(year=2026, month=9, day=7) - timedelta(seconds=1))
-            .isoformat()
-            .replace("+00:00", "Z"),
+            (received - timedelta(seconds=1)).isoformat().replace("+00:00", "Z"),
             0,
             {"InstrumentID": "rb2610", "TradingDay": "20260907"},
         )

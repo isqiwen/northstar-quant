@@ -148,6 +148,9 @@ class LiveClient:
     def status(self) -> dict[str, Any]:
         return {**self.read("/runtime"), "control_available": self._auth.control_token is not None}
 
+    def diagnostics(self) -> dict[str, Any]:
+        return self.read("/diagnostics")
+
     def for_runtime(self, runtime_id: UUID) -> LiveClient:
         """Fix the owner observed by one page; restart cannot retarget its commands."""
         if not isinstance(runtime_id, UUID):

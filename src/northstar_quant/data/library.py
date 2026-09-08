@@ -195,6 +195,10 @@ class DataLibrary:
         self._engine = engine
         self._files = files
 
+    def storage_capacity(self) -> dict[str, object]:
+        """Read filesystem headroom only; this neither audits nor changes source records."""
+        return self._files.capacity()
+
     @contextmanager
     def _writer(self) -> Iterator[None]:
         # One bounded local processing operation at a time. Besides avoiding

@@ -201,6 +201,23 @@ class SourceFiles:
                 result.append(FileObject(path.name, path.stat().st_size))
         return sorted(result, key=lambda item: item.content_hash)
 
+    def capacity(self) -> dict[str, object]:
+        """Observe this filesystem without scanning objects, writing or repairing it."""
+        descriptor = os.open(self.root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        try:
+            usage = os.fstatvfs(descriptor)
+        finally:
+            os.close(descriptor)
+        free = usage.f_bavail * usage.f_frsize
+        inodes = usage.f_favail if usage.f_files else None
+        return {
+            "status": "LOW" if free <= self.min_free_bytes or inodes == 0 else "OK",
+            "free_bytes": free,
+            "total_bytes": usage.f_blocks * usage.f_frsize,
+            "min_free_bytes": self.min_free_bytes,
+            "free_inodes": inodes,
+        }
+
     def health(self) -> dict[str, object]:
         objects = self.inventory()
         staging = self.root / "staging"

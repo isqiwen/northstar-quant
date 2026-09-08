@@ -43,6 +43,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             try:
                 if arguments.command == "live-status":
                     print(json.dumps(client.status(), ensure_ascii=False))
+                elif arguments.command == "live-check":
+                    observation = client.diagnostics()
+                    print(json.dumps(observation, ensure_ascii=False))
+                    return 0 if observation["status"] == "OK" else 2
                 elif arguments.command == "live-command-show":
                     print(json.dumps(client.command(arguments.request_id), ensure_ascii=False))
                 elif arguments.command == "broker-status":

@@ -68,7 +68,7 @@ def _page(
 <header class="topbar"><a class="brand" href="/">NORTHSTAR<span>个人量化工作台</span></a>
 <nav aria-label="工作台"><a href="/">历史研究</a><a href="/sources">来源与处理</a>
 <a href="/paper">文件 Paper</a><a href="/broker">SimNow 连接</a>
-<a href="/streams">持续行情</a></nav>
+<a href="/streams">持续行情</a><a href="/live">Live 诊断</a></nav>
 <span class="mode">{_text(mode)}</span></header>
 <main>{content}</main><footer>研究、内部 Paper 与 SimNow 柜台证据分别保存。
 SimNow 接收与影子目标不授予交易权限；模拟结果不代表实盘表现。</footer>

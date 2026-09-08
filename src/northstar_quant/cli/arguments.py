@@ -210,6 +210,7 @@ def parse(argv: Sequence[str] | None) -> argparse.Namespace:
     live = commands.add_parser("live", help="serve Live without connecting or arming at startup")
     live.add_argument("--port", type=int, default=18081)
     commands.add_parser("live-status", help="read Live identity, freshness and capabilities")
+    commands.add_parser("live-check", help="read Live storage diagnostics; nonzero on degradation")
     receipt = commands.add_parser("live-command-show", help="query a fixed command; never resubmit")
     receipt.add_argument("request_id", type=UUID)
     setup = commands.add_parser(

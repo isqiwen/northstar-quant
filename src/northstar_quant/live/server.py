@@ -22,7 +22,7 @@ from northstar_quant.data.library import DataLibrary
 from northstar_quant.db import open_database, require_current_database
 from northstar_quant.runtime import release_hash
 
-from . import broker_routes, budget_routes, stream_routes
+from . import broker_routes, budget_routes, diagnostics, stream_routes
 from .auth import LiveAuth
 from .owner import LiveOwner
 
@@ -113,6 +113,10 @@ def create_app(engine: Engine, library: DataLibrary, auth: LiveAuth) -> FastAPI:
     @app.get("/commands/{command_id}")
     def command(command_id: UUID) -> dict[str, Any]:
         return owner.commands.get(command_id)
+
+    @app.get("/diagnostics")
+    def diagnostic_observation() -> dict[str, Any]:
+        return owner.read(diagnostics.observe(engine, library))
 
     app.include_router(stream_routes.routes(owner))
     app.include_router(broker_routes.routes(owner))
