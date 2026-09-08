@@ -44,7 +44,7 @@ Compose 同时启动独立的 `data-worker`，不开放 HTTP 端口。网页提�
 
 ```sh
 docker compose ps                      # 查看服务状态
-docker compose logs --tail=100 research-api # 查看后端日志
+docker compose exec research-api tail -n 100 /var/log/northstar/research/api.log # 查看研究日志
 docker compose restart live-web        # 仅重启 Live 管理网页
 make down                              # 停止服务，保留持久数据
 ```
@@ -87,7 +87,8 @@ make down                              # 停止服务，保留持久数据
 
 Compose 把日志保存在持久日志卷，容器内路径为 `/var/log/northstar/`，重建容器仍保留。
 例如 `docker compose exec live tail -n 50 /var/log/northstar/live/kernel.log`。
-每个文件默认 10 MiB，最多保留 5 份轮转文件（`.1`～`.5`）。不再把 Python 服务运行日志同步输出到控制台。
+每个文件默认 10 MiB，最多保留 5 份轮转文件（`.1`～`.5`）。Python 运行日志写文件；
+容器启动错误仍可通过 `docker compose logs --tail=100 research-api` 查看。
 
 可在启动前设置 `NORTHSTAR_LOG_DIR`（日志根目录）、`NORTHSTAR_LOG_MAX_BYTES`（单文件上限）、
 `NORTHSTAR_LOG_BACKUPS`（轮转份数）和 `NORTHSTAR_LOG_QUEUE`（队列容量，默认 1024 条）。
