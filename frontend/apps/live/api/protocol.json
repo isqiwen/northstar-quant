@@ -1,0 +1,2189 @@
+{
+  "messages": {
+    "northstar.live.AccountCatchupRequest": {
+      "fields": {
+        "baseline_id": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "request_id": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "through_sequence": {
+          "id": 3,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.live.AccountProgress": {
+      "fields": {
+        "status": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "evidence_fields": {
+          "id": 1000,
+          "presence": false,
+          "type": "google.protobuf.Value",
+          "required": false,
+          "nullable": false,
+          "keyType": "string"
+        }
+      },
+      "array": false,
+      "evidence": true
+    },
+    "northstar.live.ArchiveAttempt": {
+      "fields": {
+        "attempt_id": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "parameters": {
+          "id": 2,
+          "presence": true,
+          "type": "google.protobuf.Struct",
+          "required": true,
+          "nullable": false
+        },
+        "snapshot_id": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": true
+        },
+        "source_id": {
+          "id": 4,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "status": {
+          "id": 5,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "evidence_fields": {
+          "id": 1000,
+          "presence": false,
+          "type": "google.protobuf.Value",
+          "required": false,
+          "nullable": false,
+          "keyType": "string"
+        },
+        "null_fields": {
+          "id": 2046,
+          "presence": false,
+          "type": "string",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        }
+      },
+      "array": false,
+      "evidence": true
+    },
+    "northstar.live.ArchiveDataset": {
+      "fields": {
+        "availability_basis": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "availability_note": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "bar_count": {
+          "id": 3,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "content_hash": {
+          "id": 4,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "exchange": {
+          "id": 5,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "import_spec": {
+          "id": 6,
+          "presence": true,
+          "type": "northstar.live.ImportSpecification",
+          "required": true,
+          "nullable": false
+        },
+        "limitations": {
+          "id": 7,
+          "presence": false,
+          "type": "string",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "live_runtime": {
+          "id": 8,
+          "presence": true,
+          "type": "google.protobuf.Struct",
+          "required": true,
+          "nullable": false
+        },
+        "processing_provenance": {
+          "id": 9,
+          "presence": true,
+          "type": "google.protobuf.Struct",
+          "required": false,
+          "nullable": true
+        },
+        "product": {
+          "id": 10,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "published_at": {
+          "id": 11,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "quality": {
+          "id": 12,
+          "presence": true,
+          "type": "google.protobuf.Struct",
+          "required": true,
+          "nullable": false
+        },
+        "semantics": {
+          "id": 13,
+          "presence": true,
+          "type": "google.protobuf.Struct",
+          "required": true,
+          "nullable": false
+        },
+        "session_close": {
+          "id": 14,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "session_open": {
+          "id": 15,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "snapshot_id": {
+          "id": 16,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "source_reference": {
+          "id": 17,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "sources": {
+          "id": 18,
+          "presence": false,
+          "type": "google.protobuf.Struct",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "symbol": {
+          "id": 19,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "trading_day": {
+          "id": 20,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "null_fields": {
+          "id": 2046,
+          "presence": false,
+          "type": "string",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.live.ArchiveReprocessRequest": {
+      "fields": {
+        "request_id": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "spec": {
+          "id": 2,
+          "presence": true,
+          "type": "google.protobuf.Struct",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.live.ArchiveRequest": {
+      "fields": {
+        "allow_download": {
+          "id": 1,
+          "presence": true,
+          "type": "bool",
+          "required": true,
+          "nullable": false
+        },
+        "request_id": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "session_close": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "session_open": {
+          "id": 4,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "through_sequence": {
+          "id": 5,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.live.ArchiveSource": {
+      "fields": {
+        "allow_download": {
+          "id": 1,
+          "presence": true,
+          "type": "bool",
+          "required": true,
+          "nullable": false
+        },
+        "filename": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "source_id": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "evidence_fields": {
+          "id": 1000,
+          "presence": false,
+          "type": "google.protobuf.Value",
+          "required": false,
+          "nullable": false,
+          "keyType": "string"
+        }
+      },
+      "array": false,
+      "evidence": true
+    },
+    "northstar.live.BaselineCheckRequest": {
+      "fields": {
+        "baseline_id": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "query_batch_id": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "request_id": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.live.BaselineContext": {
+      "fields": {
+        "baseline": {
+          "id": 1,
+          "presence": true,
+          "type": "northstar.live.BaselineRecord",
+          "required": false,
+          "nullable": true
+        },
+        "evidence_fields": {
+          "id": 1000,
+          "presence": false,
+          "type": "google.protobuf.Value",
+          "required": false,
+          "nullable": false,
+          "keyType": "string"
+        },
+        "null_fields": {
+          "id": 2046,
+          "presence": false,
+          "type": "string",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        }
+      },
+      "array": false,
+      "evidence": true
+    },
+    "northstar.live.BaselineRecord": {
+      "fields": {
+        "baseline_id": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "evidence_fields": {
+          "id": 1000,
+          "presence": false,
+          "type": "google.protobuf.Value",
+          "required": false,
+          "nullable": false,
+          "keyType": "string"
+        }
+      },
+      "array": false,
+      "evidence": true
+    },
+    "northstar.live.BaselineRequest": {
+      "fields": {
+        "request_id": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "source_batch_id": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.live.BrokerStatus": {
+      "fields": {
+        "connection": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "credentials": {
+          "id": 2,
+          "presence": true,
+          "type": "google.protobuf.Struct",
+          "required": true,
+          "nullable": false
+        },
+        "execution": {
+          "id": 3,
+          "presence": false,
+          "type": "string",
+          "required": true,
+          "nullable": false,
+          "keyType": "string"
+        },
+        "profiles": {
+          "id": 4,
+          "presence": false,
+          "type": "google.protobuf.Struct",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "sdk": {
+          "id": 5,
+          "presence": true,
+          "type": "google.protobuf.Struct",
+          "required": true,
+          "nullable": false
+        },
+        "evidence_fields": {
+          "id": 1000,
+          "presence": false,
+          "type": "google.protobuf.Value",
+          "required": false,
+          "nullable": false,
+          "keyType": "string"
+        }
+      },
+      "array": false,
+      "evidence": true
+    },
+    "northstar.live.BrowserSession": {
+      "fields": {
+        "csrf": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.live.BudgetContext": {
+      "fields": {
+        "budgets": {
+          "id": 1,
+          "presence": false,
+          "type": "google.protobuf.Struct",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "live_runtime": {
+          "id": 2,
+          "presence": true,
+          "type": "google.protobuf.Struct",
+          "required": false,
+          "nullable": true
+        },
+        "order_checks": {
+          "id": 3,
+          "presence": false,
+          "type": "northstar.live.CheckRecord",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "null_fields": {
+          "id": 2046,
+          "presence": false,
+          "type": "string",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.live.CheckRecord": {
+      "fields": {
+        "check_id": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "evidence_fields": {
+          "id": 1000,
+          "presence": false,
+          "type": "google.protobuf.Value",
+          "required": false,
+          "nullable": false,
+          "keyType": "string"
+        }
+      },
+      "array": false,
+      "evidence": true
+    },
+    "northstar.live.CommandRecord": {
+      "fields": {
+        "request_id": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "status": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "evidence_fields": {
+          "id": 1000,
+          "presence": false,
+          "type": "google.protobuf.Value",
+          "required": false,
+          "nullable": false,
+          "keyType": "string"
+        }
+      },
+      "array": false,
+      "evidence": true
+    },
+    "northstar.live.CompletedMinute": {
+      "fields": {
+        "close": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "completed_at": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "evidence_fields": {
+          "id": 1000,
+          "presence": false,
+          "type": "google.protobuf.Value",
+          "required": false,
+          "nullable": false,
+          "keyType": "string"
+        }
+      },
+      "array": false,
+      "evidence": true
+    },
+    "northstar.live.ControlRequest": {
+      "fields": {
+        "action": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "request_id": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.live.Diagnostics": {
+      "fields": {
+        "database": {
+          "id": 1,
+          "presence": true,
+          "type": "google.protobuf.Struct",
+          "required": true,
+          "nullable": false
+        },
+        "duration_ms": {
+          "id": 2,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "observed_at": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "scope": {
+          "id": 4,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "source_filesystem": {
+          "id": 5,
+          "presence": true,
+          "type": "google.protobuf.Struct",
+          "required": true,
+          "nullable": false
+        },
+        "status": {
+          "id": 6,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "evidence_fields": {
+          "id": 1000,
+          "presence": false,
+          "type": "google.protobuf.Value",
+          "required": false,
+          "nullable": false,
+          "keyType": "string"
+        }
+      },
+      "array": false,
+      "evidence": true
+    },
+    "northstar.live.FundsContext": {
+      "fields": {
+        "entries": {
+          "id": 1,
+          "presence": false,
+          "type": "google.protobuf.Struct",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "evidence_fields": {
+          "id": 1000,
+          "presence": false,
+          "type": "google.protobuf.Value",
+          "required": false,
+          "nullable": false,
+          "keyType": "string"
+        }
+      },
+      "array": false,
+      "evidence": true
+    },
+    "northstar.live.FundsEntry": {
+      "fields": {
+        "entry_id": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "evidence_fields": {
+          "id": 1000,
+          "presence": false,
+          "type": "google.protobuf.Value",
+          "required": false,
+          "nullable": false,
+          "keyType": "string"
+        }
+      },
+      "array": false,
+      "evidence": true
+    },
+    "northstar.live.FundsEntryRequest": {
+      "fields": {
+        "baseline_id": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "request_id": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "source_batch_id": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.live.HttpError": {
+      "fields": {
+        "detail": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "rejection_id": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": false,
+          "nullable": true
+        },
+        "request_id": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": false,
+          "nullable": true
+        },
+        "runtime_id": {
+          "id": 4,
+          "presence": true,
+          "type": "string",
+          "required": false,
+          "nullable": true
+        },
+        "status": {
+          "id": 5,
+          "presence": true,
+          "type": "string",
+          "required": false,
+          "nullable": true
+        },
+        "url": {
+          "id": 6,
+          "presence": true,
+          "type": "string",
+          "required": false,
+          "nullable": true
+        },
+        "null_fields": {
+          "id": 2046,
+          "presence": false,
+          "type": "string",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.live.ImportSpecification": {
+      "fields": {
+        "availability_basis": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "availability_note": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "currency": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "exchange": {
+          "id": 4,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "multiplier": {
+          "id": 5,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "price_tick": {
+          "id": 6,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "product": {
+          "id": 7,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "quantity_unit": {
+          "id": 8,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "session_close": {
+          "id": 9,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "session_open": {
+          "id": 10,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "source_name": {
+          "id": 11,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "source_reference": {
+          "id": 12,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "symbol": {
+          "id": 13,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "timezone": {
+          "id": 14,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "trading_day": {
+          "id": 15,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.live.LedgerContext": {
+      "fields": {
+        "baseline": {
+          "id": 1,
+          "presence": true,
+          "type": "northstar.live.BaselineRecord",
+          "required": false,
+          "nullable": true
+        },
+        "baseline_id": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": false,
+          "nullable": true
+        },
+        "checks": {
+          "id": 3,
+          "presence": false,
+          "type": "northstar.live.CheckRecord",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "entries": {
+          "id": 4,
+          "presence": false,
+          "type": "northstar.live.PositionEntry",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "evidence_fields": {
+          "id": 1000,
+          "presence": false,
+          "type": "google.protobuf.Value",
+          "required": false,
+          "nullable": false,
+          "keyType": "string"
+        },
+        "null_fields": {
+          "id": 2046,
+          "presence": false,
+          "type": "string",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        }
+      },
+      "array": false,
+      "evidence": true
+    },
+    "northstar.live.LiveConfiguration": {
+      "fields": {
+        "config": {
+          "id": 1,
+          "presence": true,
+          "type": "google.protobuf.Struct",
+          "required": true,
+          "nullable": false
+        },
+        "configuration_id": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "name": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "evidence_fields": {
+          "id": 1000,
+          "presence": false,
+          "type": "google.protobuf.Value",
+          "required": false,
+          "nullable": false,
+          "keyType": "string"
+        }
+      },
+      "array": false,
+      "evidence": true
+    },
+    "northstar.live.MaterialRequest": {
+      "fields": {
+        "candidate": {
+          "id": 1,
+          "presence": true,
+          "type": "google.protobuf.Struct",
+          "required": true,
+          "nullable": false
+        },
+        "request_id": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.live.OpeningBudget": {
+      "fields": {
+        "budget_id": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "evidence_fields": {
+          "id": 1000,
+          "presence": false,
+          "type": "google.protobuf.Value",
+          "required": false,
+          "nullable": false,
+          "keyType": "string"
+        }
+      },
+      "array": false,
+      "evidence": true
+    },
+    "northstar.live.OpeningBudgetRequest": {
+      "fields": {
+        "limit_price": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "order_check_id": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "request_id": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "sequence": {
+          "id": 4,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.live.OrderCheckRequest": {
+      "fields": {
+        "position_check_id": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "request_id": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.live.PositionCheckRequest": {
+      "fields": {
+        "entry_id": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "query_batch_id": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "request_id": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.live.PositionEntry": {
+      "fields": {
+        "entry_id": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "evidence_fields": {
+          "id": 1000,
+          "presence": false,
+          "type": "google.protobuf.Value",
+          "required": false,
+          "nullable": false,
+          "keyType": "string"
+        }
+      },
+      "array": false,
+      "evidence": true
+    },
+    "northstar.live.PositionEntryRequest": {
+      "fields": {
+        "baseline_id": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "request_id": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "source_batch_id": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.live.QueryRecord": {
+      "fields": {
+        "batch_id": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "instrument": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "status": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "evidence_fields": {
+          "id": 1000,
+          "presence": false,
+          "type": "google.protobuf.Value",
+          "required": false,
+          "nullable": false,
+          "keyType": "string"
+        }
+      },
+      "array": false,
+      "evidence": true
+    },
+    "northstar.live.QueryRequest": {
+      "fields": {
+        "instrument": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "profile": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "request_id": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.live.Readiness": {
+      "fields": {
+        "status": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.live.RuntimeStatus": {
+      "fields": {
+        "cancel_sending": {
+          "id": 1,
+          "presence": true,
+          "type": "bool",
+          "required": true,
+          "nullable": false
+        },
+        "control_available": {
+          "id": 2,
+          "presence": true,
+          "type": "bool",
+          "required": false,
+          "nullable": false
+        },
+        "observed_at": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "order_sending": {
+          "id": 4,
+          "presence": true,
+          "type": "bool",
+          "required": true,
+          "nullable": false
+        },
+        "pid": {
+          "id": 5,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "protocol": {
+          "id": 6,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "release": {
+          "id": 7,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "runtime_id": {
+          "id": 8,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "started_at": {
+          "id": 9,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "status": {
+          "id": 10,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.live.StrategyMaterial": {
+      "fields": {
+        "candidate_id": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "evidence_fields": {
+          "id": 1000,
+          "presence": false,
+          "type": "google.protobuf.Value",
+          "required": false,
+          "nullable": false,
+          "keyType": "string"
+        }
+      },
+      "array": false,
+      "evidence": true
+    },
+    "northstar.live.StreamAccountProgress": {
+      "fields": {
+        "status": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "through_sequence": {
+          "id": 2,
+          "presence": true,
+          "type": "int64",
+          "required": false,
+          "nullable": true
+        },
+        "evidence_fields": {
+          "id": 1000,
+          "presence": false,
+          "type": "google.protobuf.Value",
+          "required": false,
+          "nullable": false,
+          "keyType": "string"
+        },
+        "null_fields": {
+          "id": 2046,
+          "presence": false,
+          "type": "string",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        }
+      },
+      "array": false,
+      "evidence": true
+    },
+    "northstar.live.StreamArchive": {
+      "fields": {
+        "source_id": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "evidence_fields": {
+          "id": 1000,
+          "presence": false,
+          "type": "google.protobuf.Value",
+          "required": false,
+          "nullable": false,
+          "keyType": "string"
+        }
+      },
+      "array": false,
+      "evidence": true
+    },
+    "northstar.live.StreamBinding": {
+      "fields": {
+        "request": {
+          "id": 1,
+          "presence": true,
+          "type": "northstar.live.StreamBindingRequest",
+          "required": true,
+          "nullable": false
+        },
+        "evidence_fields": {
+          "id": 1000,
+          "presence": false,
+          "type": "google.protobuf.Value",
+          "required": false,
+          "nullable": false,
+          "keyType": "string"
+        }
+      },
+      "array": false,
+      "evidence": true
+    },
+    "northstar.live.StreamBindingRequest": {
+      "fields": {
+        "query_batch_id": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "evidence_fields": {
+          "id": 1000,
+          "presence": false,
+          "type": "google.protobuf.Value",
+          "required": false,
+          "nullable": false,
+          "keyType": "string"
+        }
+      },
+      "array": false,
+      "evidence": true
+    },
+    "northstar.live.StreamControl": {
+      "fields": {
+        "stream_id": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "evidence_fields": {
+          "id": 1000,
+          "presence": false,
+          "type": "google.protobuf.Value",
+          "required": false,
+          "nullable": false,
+          "keyType": "string"
+        }
+      },
+      "array": false,
+      "evidence": true
+    },
+    "northstar.live.StreamDecision": {
+      "fields": {
+        "sequence": {
+          "id": 1,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "evidence_fields": {
+          "id": 1000,
+          "presence": false,
+          "type": "google.protobuf.Value",
+          "required": false,
+          "nullable": false,
+          "keyType": "string"
+        }
+      },
+      "array": false,
+      "evidence": true
+    },
+    "northstar.live.StreamDetail": {
+      "fields": {
+        "account_progress": {
+          "id": 1,
+          "presence": true,
+          "type": "northstar.live.StreamAccountProgress",
+          "required": true,
+          "nullable": false
+        },
+        "archives": {
+          "id": 2,
+          "presence": false,
+          "type": "google.protobuf.Struct",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "binding": {
+          "id": 3,
+          "presence": true,
+          "type": "northstar.live.StreamBinding",
+          "required": true,
+          "nullable": false
+        },
+        "connection": {
+          "id": 4,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "cursor": {
+          "id": 5,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "paused": {
+          "id": 6,
+          "presence": true,
+          "type": "bool",
+          "required": true,
+          "nullable": false
+        },
+        "received": {
+          "id": 7,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "steps": {
+          "id": 8,
+          "presence": false,
+          "type": "northstar.live.StreamStep",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "stream_id": {
+          "id": 9,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "evidence_fields": {
+          "id": 1000,
+          "presence": false,
+          "type": "google.protobuf.Value",
+          "required": false,
+          "nullable": false,
+          "keyType": "string"
+        }
+      },
+      "array": false,
+      "evidence": true
+    },
+    "northstar.live.StreamEvent": {
+      "fields": {
+        "committed_at": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "event": {
+          "id": 2,
+          "presence": true,
+          "type": "google.protobuf.Struct",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.live.StreamPositionsRequest": {
+      "fields": {
+        "baseline_id": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "request_id": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "through_sequence": {
+          "id": 3,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.live.StreamRequest": {
+      "fields": {
+        "allow_retention": {
+          "id": 1,
+          "presence": true,
+          "type": "bool",
+          "required": true,
+          "nullable": false
+        },
+        "configuration_id": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "duration_seconds": {
+          "id": 3,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "query_batch_id": {
+          "id": 4,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "request_id": {
+          "id": 5,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "use_basis": {
+          "id": 6,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.live.StreamStep": {
+      "fields": {
+        "committed_at": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "result": {
+          "id": 2,
+          "presence": true,
+          "type": "northstar.live.StreamStepResult",
+          "required": true,
+          "nullable": false
+        },
+        "sequence": {
+          "id": 3,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.live.StreamStepResult": {
+      "fields": {
+        "bar": {
+          "id": 1,
+          "presence": true,
+          "type": "northstar.live.CompletedMinute",
+          "required": true,
+          "nullable": true
+        },
+        "intent": {
+          "id": 2,
+          "presence": true,
+          "type": "google.protobuf.Struct",
+          "required": true,
+          "nullable": true
+        },
+        "evidence_fields": {
+          "id": 1000,
+          "presence": false,
+          "type": "google.protobuf.Value",
+          "required": false,
+          "nullable": false,
+          "keyType": "string"
+        },
+        "null_fields": {
+          "id": 2046,
+          "presence": false,
+          "type": "string",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        }
+      },
+      "array": false,
+      "evidence": true
+    },
+    "northstar.live.StreamSummary": {
+      "fields": {
+        "stream_id": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "evidence_fields": {
+          "id": 1000,
+          "presence": false,
+          "type": "google.protobuf.Value",
+          "required": false,
+          "nullable": false,
+          "keyType": "string"
+        }
+      },
+      "array": false,
+      "evidence": true
+    },
+    "northstar.live.GetApiBrokerQueriesResponse": {
+      "fields": {
+        "items": {
+          "id": 1,
+          "presence": false,
+          "type": "northstar.live.QueryRecord",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        }
+      },
+      "array": true,
+      "evidence": false
+    },
+    "northstar.live.GetApiConfigurationsResponse": {
+      "fields": {
+        "items": {
+          "id": 1,
+          "presence": false,
+          "type": "northstar.live.LiveConfiguration",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        }
+      },
+      "array": true,
+      "evidence": false
+    },
+    "northstar.live.GetApiStrategyMaterialsResponse": {
+      "fields": {
+        "items": {
+          "id": 1,
+          "presence": false,
+          "type": "northstar.live.StrategyMaterial",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        }
+      },
+      "array": true,
+      "evidence": false
+    },
+    "northstar.live.GetApiStreamsResponse": {
+      "fields": {
+        "items": {
+          "id": 1,
+          "presence": false,
+          "type": "northstar.live.StreamSummary",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        }
+      },
+      "array": true,
+      "evidence": false
+    },
+    "northstar.live.GetApiStreamsStreamIdEventsResponse": {
+      "fields": {
+        "items": {
+          "id": 1,
+          "presence": false,
+          "type": "northstar.live.StreamEvent",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        }
+      },
+      "array": true,
+      "evidence": false
+    },
+    "northstar.web.Empty": {
+      "fields": {},
+      "array": false,
+      "evidence": false
+    },
+    "northstar.web.Error": {
+      "fields": {
+        "detail": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": false,
+          "nullable": false
+        },
+        "status": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": false,
+          "nullable": false
+        },
+        "request_id": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": false,
+          "nullable": false
+        },
+        "runtime_id": {
+          "id": 4,
+          "presence": true,
+          "type": "string",
+          "required": false,
+          "nullable": false
+        },
+        "url": {
+          "id": 5,
+          "presence": true,
+          "type": "string",
+          "required": false,
+          "nullable": false
+        },
+        "rejection_id": {
+          "id": 6,
+          "presence": true,
+          "type": "string",
+          "required": false,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    }
+  },
+  "methods": [
+    {
+      "method": "GET",
+      "path": "/api/attempts/{attempt_id}",
+      "input": "northstar.web.Empty",
+      "output": "northstar.live.ArchiveAttempt",
+      "runtime": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/broker/baseline-checks",
+      "input": "northstar.live.BaselineCheckRequest",
+      "output": "northstar.live.CheckRecord",
+      "runtime": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/broker/baseline-checks/{check_id}",
+      "input": "northstar.web.Empty",
+      "output": "northstar.live.CheckRecord",
+      "runtime": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/broker/baselines",
+      "input": "northstar.live.BaselineRequest",
+      "output": "northstar.live.BaselineRecord",
+      "runtime": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/broker/funds-entries",
+      "input": "northstar.live.FundsEntryRequest",
+      "output": "northstar.live.FundsEntry",
+      "runtime": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/broker/funds-entries/{entry_id}",
+      "input": "northstar.web.Empty",
+      "output": "northstar.live.FundsEntry",
+      "runtime": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/broker/opening-budgets/{budget_id}",
+      "input": "northstar.web.Empty",
+      "output": "northstar.live.OpeningBudget",
+      "runtime": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/broker/order-checks",
+      "input": "northstar.live.OrderCheckRequest",
+      "output": "northstar.live.CheckRecord",
+      "runtime": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/broker/order-checks/{check_id}",
+      "input": "northstar.web.Empty",
+      "output": "northstar.live.CheckRecord",
+      "runtime": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/broker/position-checks",
+      "input": "northstar.live.PositionCheckRequest",
+      "output": "northstar.live.CheckRecord",
+      "runtime": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/broker/position-checks/{check_id}",
+      "input": "northstar.web.Empty",
+      "output": "northstar.live.CheckRecord",
+      "runtime": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/broker/position-entries",
+      "input": "northstar.live.PositionEntryRequest",
+      "output": "northstar.live.PositionEntry",
+      "runtime": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/broker/position-entries/{entry_id}",
+      "input": "northstar.web.Empty",
+      "output": "northstar.live.PositionEntry",
+      "runtime": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/broker/queries",
+      "input": "northstar.web.Empty",
+      "output": "northstar.live.GetApiBrokerQueriesResponse",
+      "runtime": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/broker/queries",
+      "input": "northstar.live.QueryRequest",
+      "output": "northstar.live.QueryRecord",
+      "runtime": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/broker/queries/{batch_id}",
+      "input": "northstar.web.Empty",
+      "output": "northstar.live.QueryRecord",
+      "runtime": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/broker/queries/{batch_id}/baseline-context",
+      "input": "northstar.web.Empty",
+      "output": "northstar.live.BaselineContext",
+      "runtime": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/broker/queries/{batch_id}/funds-context",
+      "input": "northstar.web.Empty",
+      "output": "northstar.live.FundsContext",
+      "runtime": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/broker/queries/{batch_id}/ledger-context",
+      "input": "northstar.web.Empty",
+      "output": "northstar.live.LedgerContext",
+      "runtime": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/broker/status",
+      "input": "northstar.web.Empty",
+      "output": "northstar.live.BrokerStatus",
+      "runtime": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/browser-session",
+      "input": "northstar.web.Empty",
+      "output": "northstar.live.BrowserSession",
+      "runtime": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/configurations",
+      "input": "northstar.web.Empty",
+      "output": "northstar.live.GetApiConfigurationsResponse",
+      "runtime": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/datasets/{snapshot_id}",
+      "input": "northstar.web.Empty",
+      "output": "northstar.live.ArchiveDataset",
+      "runtime": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/live/commands/{request_id}",
+      "input": "northstar.web.Empty",
+      "output": "northstar.live.CommandRecord",
+      "runtime": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/live/diagnostics",
+      "input": "northstar.web.Empty",
+      "output": "northstar.live.Diagnostics",
+      "runtime": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/live/status",
+      "input": "northstar.web.Empty",
+      "output": "northstar.live.RuntimeStatus",
+      "runtime": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/sources/{source_id}",
+      "input": "northstar.web.Empty",
+      "output": "northstar.live.ArchiveSource",
+      "runtime": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/sources/{source_id}/reprocess",
+      "input": "northstar.live.ArchiveReprocessRequest",
+      "output": "northstar.live.ArchiveAttempt",
+      "runtime": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/strategy-materials",
+      "input": "northstar.web.Empty",
+      "output": "northstar.live.GetApiStrategyMaterialsResponse",
+      "runtime": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/strategy-materials",
+      "input": "northstar.live.MaterialRequest",
+      "output": "northstar.live.StrategyMaterial",
+      "runtime": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/streams",
+      "input": "northstar.web.Empty",
+      "output": "northstar.live.GetApiStreamsResponse",
+      "runtime": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/streams",
+      "input": "northstar.live.StreamRequest",
+      "output": "northstar.live.StreamSummary",
+      "runtime": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/streams/{stream_id}",
+      "input": "northstar.web.Empty",
+      "output": "northstar.live.StreamDetail",
+      "runtime": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/streams/{stream_id}/account-catchup",
+      "input": "northstar.live.AccountCatchupRequest",
+      "output": "northstar.live.AccountProgress",
+      "runtime": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/streams/{stream_id}/archive",
+      "input": "northstar.live.ArchiveRequest",
+      "output": "northstar.live.StreamArchive",
+      "runtime": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/streams/{stream_id}/control",
+      "input": "northstar.live.ControlRequest",
+      "output": "northstar.live.StreamControl",
+      "runtime": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/streams/{stream_id}/decisions/{sequence}",
+      "input": "northstar.web.Empty",
+      "output": "northstar.live.StreamDecision",
+      "runtime": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/streams/{stream_id}/events",
+      "input": "northstar.web.Empty",
+      "output": "northstar.live.GetApiStreamsStreamIdEventsResponse",
+      "runtime": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/streams/{stream_id}/opening-budgets",
+      "input": "northstar.web.Empty",
+      "output": "northstar.live.BudgetContext",
+      "runtime": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/streams/{stream_id}/opening-budgets",
+      "input": "northstar.live.OpeningBudgetRequest",
+      "output": "northstar.live.OpeningBudget",
+      "runtime": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/streams/{stream_id}/position-entries",
+      "input": "northstar.live.StreamPositionsRequest",
+      "output": "northstar.live.PositionEntry",
+      "runtime": true
+    }
+  ]
+}

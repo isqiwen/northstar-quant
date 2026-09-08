@@ -1,0 +1,65 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "northstar-quant"
+version = "0.1.0"
+description = "A personal futures research application"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "alembic>=1.14,<2",
+  "ctpwrapper==6.7.13; sys_platform == 'linux' and platform_machine == 'x86_64'",
+  "fastapi>=0.115,<1",
+  "httpx2>=2.12,<3",
+  "pydantic>=2.11,<3",
+  "pydantic-settings>=2.6,<3",
+  "pyarrow>=18,<22",
+  "psycopg[binary]>=3.2,<4",
+  "SQLAlchemy>=2.0.36,<3",
+  "uvicorn[standard]>=0.30,<1",
+  "protobuf>=7.35.1,<8",
+]
+
+[project.scripts]
+northstar = "northstar_quant.cli:main"
+
+[dependency-groups]
+dev = [
+    "grpcio-tools>=1.83.1",
+    "mypy>=1.14,<2",
+    "pytest>=8.3,<9",
+    "ruff>=0.8,<1",
+    "types-protobuf>=7.35.1.20260906",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/northstar_quant"]
+
+[tool.hatch.build.hooks.custom]
+path = "scripts/build_identity.py"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+extend-exclude = ["*_pb2.py", "*_pb2.pyi"]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["northstar_quant", "tests"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+
+[[tool.mypy.overrides]]
+module = ["northstar_quant.web.api_options_pb2", "northstar_quant.web.common_pb2", "northstar_quant.apps.*.api_pb2"]
+ignore_errors = true

@@ -11,6 +11,10 @@ broker integration, recovery or runtime topology; read
 
 ## Permanent engineering rules
 
+- Python implementation, tests, dependencies and build live in `backend/`; Next.js lives
+  in `frontend/`; shared protocol sources live in `proto/`. Run root Python commands
+  with `uv run --project backend`; keep cross-application tooling in root `scripts/`.
+
 - Keep agent instructions in their owning Git repository. Never create
   `../AGENTS.md` in the non-repository workspace directory.
 - Maintain one current project. Complete replacements by removing superseded
@@ -54,9 +58,15 @@ broker integration, recovery or runtime topology; read
   move a complete responsibility before extending an already multi-purpose file.
   Prefer a small public Interface and local implementation details over arbitrary
   line-count splits, pass-through layers or a shared catch-all utilities file.
-- Build Web interfaces with mature NiceGUI/Quasar controls and library charts.
-  Share actual presentation needs; custom HTML/JavaScript/CSS is a small, justified
-  exception. Replace obsolete views and their scripts together, not dual UI paths.
+- Build three independent Next.js/React/TypeScript frontend services in `frontend/apps/`,
+  with shared presentation in `frontend/shared/` and test code in `frontend/tests/`.
+  Run them independently of Python APIs;
+  use owned Protobuf messages for browser/API communication. Keep authoritative `.proto`
+  sources in root `proto/`, organized by owner; generate Python and TypeScript code into
+  their respective implementation directories. Keep business rules with their owners.
+  Use mature Ant Design controls
+  and library charts. App-owned FastAPI APIs keep authority and business behavior.
+  Remove superseded pages and scripts together; do not keep another UI runtime.
 - Keep only tests for costly observable failures: causality, money, authorization,
   immutable data, reproducibility and real integration. Never test documents,
   Markdown, links, directory layout, trivial constants or private implementation.

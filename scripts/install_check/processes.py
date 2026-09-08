@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import socket
 import subprocess
 import time
@@ -16,6 +17,8 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import HTTPCookieProcessor, ProxyHandler, Request, build_opener
 
+from northstar_quant.web.protobuf import decode, methods, pack
+
 
 class InstalledApplication:
     """Keep Live independent while Live Web processes come and go in an empty directory."""
@@ -26,6 +29,8 @@ class InstalledApplication:
         self.environment = dict(environment)
         self.opener = build_opener(ProxyHandler({}), HTTPCookieProcessor(CookieJar()))
         self.web_pids: list[int] = []
+        self.protocols: dict[str, dict] = {}
+        self.api_processes: dict[str, subprocess.Popen[str]] = {}
         self.log_paths: list[Path] = []
 
     def command(self, *arguments: str) -> Any:
@@ -42,28 +47,39 @@ class InstalledApplication:
         return json.loads(completed.stdout)
 
     def request(self, url: str, payload: object = None) -> bytes:
-        body = None if payload is None else json.dumps(payload).encode("utf-8")
-        headers = {} if body is None else {"Content-Type": "application/json"}
+        parsed = urlsplit(url)
+        origin = f"{parsed.scheme}://{parsed.netloc}"
+        verb = "GET" if payload is None else "POST"
+        binding = next(
+            (
+                m
+                for (method, path), m in self.protocols.get(origin, {}).items()
+                if method == verb and re.fullmatch(re.sub(r"\{[^}]+\}", "[^/]+", path), parsed.path)
+            ),
+            None,
+        )
+        body = None if payload is None else pack(binding.input_type, payload).SerializeToString()
+        headers = {} if body is None else {"Content-Type": "application/protobuf"}
         if body is not None:
-            parsed = urlsplit(url)
-            with self.opener.open(
-                f"{parsed.scheme}://{parsed.netloc}/api/browser-session", timeout=15
-            ) as response:
-                headers["X-Northstar-CSRF"] = json.loads(response.read())["csrf"]
-        with self.opener.open(Request(url, data=body, headers=headers), timeout=15) as response:
-            return response.read()
+            session = json.loads(self.request(origin + "/api/browser-session"))
+            headers["X-Northstar-CSRF"] = session["csrf"]
+        with self.opener.open(Request(url, data=body, headers=headers), timeout=30) as response:
+            content = response.read()
+            if response.headers.get("Content-Type", "").startswith("application/protobuf"):
+                return json.dumps(decode(binding.output_type, content)).encode()
+            return content
 
     @contextmanager
     def live(self) -> Iterator[subprocess.Popen[str]]:
         auth = Path(self.environment["NORTHSTAR_LIVE_AUTH"])
         environment = dict(self.environment, NORTHSTAR_LIVE_AUTH=str(auth.with_name("live.toml")))
-        with self._running("live", environment) as (_, process):
+        with self._running("live-kernel", environment) as (_, process):
             yield process
 
     @contextmanager
-    def web(self, role: str = "live-web") -> Iterator[str]:
+    def api(self, role: str = "live-api") -> Iterator[str]:
         environment = dict(self.environment)
-        if role == "live-web":
+        if role == "live-api":
             environment.pop("NORTHSTAR_DATABASE_URL", None)
             environment.pop("NORTHSTAR_DATA_DIR", None)
         else:
@@ -71,14 +87,118 @@ class InstalledApplication:
             environment.pop("NORTHSTAR_LIVE_URL", None)
         with self._running(role, environment) as (base_url, process):
             self.web_pids.append(process.pid)
+            self.api_processes[base_url] = process
+            self.protocols[base_url] = methods(
+                {"data-api": "data_hub", "research-api": "research", "live-api": "live"}[role]
+            )
+            self.request(base_url + "/api/browser-session")
             yield base_url
+
+    @contextmanager
+    def web(self, role: str = "live-api") -> Iterator[str]:
+        application = {"data-api": "data_hub", "research-api": "research", "live-api": "live"}[role]
+        frontend = Path(__file__).resolve().parents[2] / "frontend"
+        with self.api(role) as backend:
+            with socket.socket() as listener:
+                listener.bind(("127.0.0.1", 0))
+                port = listener.getsockname()[1]
+            url = f"http://127.0.0.1:{port}"
+            environment = {
+                key: value
+                for key, value in self.environment.items()
+                if not key.startswith("NORTHSTAR_")
+            }
+            environment.update(
+                NORTHSTAR_API_URL=backend,
+                HOSTNAME="127.0.0.1",
+                PORT=str(port),
+                NODE_ENV="production",
+            )
+            log_path = self.directory / f"next-{application}-{port}.log"
+            self.log_paths.append(log_path)
+            with log_path.open("w") as log:
+                process = subprocess.Popen(
+                    [
+                        "node",
+                        str(
+                            frontend
+                            / "apps"
+                            / application
+                            / ".next/standalone/apps"
+                            / application
+                            / "server.js"
+                        ),
+                    ],
+                    env=environment,
+                    cwd=self.directory,
+                    stdout=log,
+                    stderr=subprocess.STDOUT,
+                )
+                try:
+                    deadline = time.monotonic() + 30
+                    while True:
+                        if process.poll() is not None or time.monotonic() > deadline:
+                            raise RuntimeError(
+                                "Next frontend did not become ready: " + log_path.read_text()
+                            )
+                        try:
+                            self.request(url + "/health/ready")
+                            break
+                        except URLError:
+                            time.sleep(0.1)
+                    self.protocols[url] = self.protocols[backend]
+                    yield url
+                    # Stop only the frontend, then observe the still-running API.
+                    process.terminate()
+                    process.wait(timeout=10)
+                    assert json.loads(self.request(backend + "/health/ready")) == {
+                        "status": "ready"
+                    }
+                    process = subprocess.Popen(
+                        process.args,
+                        env=environment,
+                        cwd=self.directory,
+                        stdout=log,
+                        stderr=subprocess.STDOUT,
+                    )
+                    deadline = time.monotonic() + 30
+                    while True:
+                        try:
+                            self.request(url + "/health/ready")
+                            break
+                        except URLError:
+                            if time.monotonic() >= deadline:
+                                raise RuntimeError("Next restart did not become ready")
+                            time.sleep(0.1)
+                    # Stop only the API: the independent page service must still respond.
+                    owner = self.api_processes[backend]
+                    owner.terminate()
+                    owner.wait(timeout=10)
+                    assert json.loads(self.request(url + "/health/ready")) == {"status": "ready"}
+                    assert self.request(url + "/")
+                    try:
+                        self.request(url + "/api/browser-session")
+                    except HTTPError as error:
+                        assert error.code == 503
+                    else:
+                        raise AssertionError("Stopped API must be unavailable")
+                    print(
+                        f"{application}: frontend/API stop and restart isolation passed", flush=True
+                    )
+                finally:
+                    process.terminate()
+                    try:
+                        process.wait(timeout=10)
+                    except subprocess.TimeoutExpired:
+                        process.kill()
+                        process.wait(timeout=10)
 
     def assert_live(
         self, process: subprocess.Popen[str], original: dict[str, Any], base_url: str | None = None
     ) -> None:
         """Observe the actual owning process, not Live Web-local thread state."""
         assert process.poll() is None, "Live Web shutdown must not stop Live"
-        current = self.command("live-status")
+        current = self.command("status")
         assert current["pid"] == original["pid"] == process.pid
         assert current["runtime_id"] == original["runtime_id"]
         assert current["started_at"] == original["started_at"]
@@ -88,7 +208,7 @@ class InstalledApplication:
         assert 0 <= (datetime.now(UTC) - observed).total_seconds() < 5
         assert not current["order_sending"] and not current["cancel_sending"]
         if base_url is not None:
-            self.request(f"{base_url}/")
+            self.request(f"{base_url}/health/ready")
             browser = json.loads(self.request(f"{base_url}/api/live/status"))
             assert browser["runtime_id"] == current["runtime_id"]
             assert browser["pid"] == current["pid"]
@@ -97,13 +217,13 @@ class InstalledApplication:
     def assert_unavailable(self) -> None:
         """A stopped Live must not turn into a new Live Web-owned runtime."""
         try:
-            self.command("live-status")
+            self.command("status")
         except RuntimeError:
             pass
         else:
             raise AssertionError("CLI must not report a stopped Live as available")
-        with self.web() as base_url:
-            self.request(f"{base_url}/")
+        with self.api() as base_url:
+            self.request(f"{base_url}/health/ready")
             for path in ("/api/live/status", "/api/broker/status"):
                 try:
                     self.request(f"{base_url}{path}")
@@ -120,13 +240,13 @@ class InstalledApplication:
             listener.bind(("127.0.0.1", 0))
             port = listener.getsockname()[1]
         base_url = f"http://127.0.0.1:{port}"
-        if role == "live":
+        if role == "live-kernel":
             self.environment["NORTHSTAR_LIVE_URL"] = base_url
         log_path = self.directory / f"{role}-{port}.log"
         self.log_paths.append(log_path)
         with log_path.open("a", encoding="utf-8") as log:
             process = subprocess.Popen(
-                [self.executable, role, "--port", str(port)],
+                [self.executable, "serve", role, "--port", str(port)],
                 cwd=self.directory,
                 env=environment,
                 stdout=log,
@@ -139,8 +259,8 @@ class InstalledApplication:
                     if process.poll() is not None or time.monotonic() >= deadline:
                         raise RuntimeError(f"installed {role} process did not become ready")
                     try:
-                        if role == "live":
-                            self.command("live-status")
+                        if role == "live-kernel":
+                            self.command("status")
                             break
                         if json.loads(self.request(f"{base_url}/health/ready")) == {
                             "status": "ready"

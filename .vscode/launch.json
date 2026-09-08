@@ -7,7 +7,8 @@
       "request": "launch",
       "module": "northstar_quant.cli",
       "args": [
-        "live-web",
+        "serve",
+        "live-api",
         "--port",
         "18180"
       ],
@@ -28,7 +29,8 @@
       "request": "launch",
       "module": "northstar_quant.cli",
       "args": [
-        "live",
+        "serve",
+        "live-kernel",
         "--port",
         "18181"
       ],

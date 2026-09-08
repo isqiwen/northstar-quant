@@ -26,6 +26,11 @@ jobs:
       - uses: astral-sh/setup-uv@v10.0.1
         with:
           version: "0.11.33"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
       - name: Install PostgreSQL 17 maintenance client
         run: |
           sudo apt-get update -qq
@@ -36,17 +41,24 @@ jobs:
         run: make verify
       - name: Build and verify the installed wheel
         run: |
-          uv build --wheel --out-dir "$RUNNER_TEMP/northstar-dist"
-          uv export --locked --no-dev --no-emit-project --output-file "$RUNNER_TEMP/northstar-runtime.txt"
+          uv build --project backend --wheel --out-dir "$RUNNER_TEMP/northstar-dist"
+          uv export --project backend --locked --no-dev --no-emit-project --output-file "$RUNNER_TEMP/northstar-runtime.txt"
           uv venv --no-project --python 3.12 "$RUNNER_TEMP/northstar-installed"
           uv pip install --python "$RUNNER_TEMP/northstar-installed/bin/python" --require-hashes --no-deps --requirements "$RUNNER_TEMP/northstar-runtime.txt"
           uv pip install --python "$RUNNER_TEMP/northstar-installed/bin/python" --no-deps "$RUNNER_TEMP"/northstar-dist/*.whl
           uv pip check --python "$RUNNER_TEMP/northstar-installed/bin/python"
           "$RUNNER_TEMP/northstar-installed/bin/python" scripts/check_install.py examples/intraday.toml
+      - name: Verify all three applications in an isolated browser
+        run: |
+          uv run --project backend --with playwright==1.62.0 python -m playwright install --with-deps chromium
+          uv run --project backend --with playwright==1.62.0 python scripts/check_browser.py --executable "$RUNNER_TEMP/northstar-installed/bin/northstar" --study examples/intraday.toml --screenshot "$RUNNER_TEMP/northstar-factor-browser.png"
       - name: Build and verify the runtime image
         run: |
+          export NORTHSTAR_GIT_REVISION="$(git rev-parse HEAD)"
+          test -z "$(git status --porcelain --untracked-files=all)"
           docker compose config --quiet
-          docker build -t northstar-local .
+          docker build -f backend/Dockerfile --build-arg NORTHSTAR_GIT_REVISION -t northstar-local .
+          docker build -f frontend/Dockerfile --build-arg APP=live -t northstar-live-frontend:check .
           docker run --rm --network host \
             --cpus 2 --memory 1g --memory-swap 1g --pids-limit 128 \
             --log-driver local --log-opt max-size=10m --log-opt max-file=3 \
@@ -55,4 +67,4 @@ jobs:
             --mount "type=bind,source=$GITHUB_WORKSPACE/examples,target=/tmp/examples,readonly" \
             northstar-local /app/.venv/bin/python /tmp/install-check/check_install.py /tmp/examples/intraday.toml
       - name: Verify the isolated Live deployment and failure behavior
-        run: uv run python scripts/check_live_deployment.py --image northstar-local
+        run: uv run --project backend python scripts/check_live_deployment.py --image northstar-local --frontend-image northstar-live-frontend:check

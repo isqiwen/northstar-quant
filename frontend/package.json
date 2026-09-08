@@ -1,0 +1,37 @@
+{
+  "name": "northstar-web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "next build apps/data_hub && next build apps/research && next build apps/live && node assemble.mjs",
+    "dev:data": "next dev apps/data_hub --hostname 127.0.0.1 --port 18082",
+    "dev:research": "next dev apps/research --hostname 127.0.0.1 --port 18084",
+    "dev:live": "next dev apps/live --hostname 127.0.0.1 --port 18080",
+    "check": "tsc --noEmit",
+    "test": "vitest run --config vitest.config.ts",
+    "format": "prettier --write apps shared tests *.ts *.json",
+    "api:generate": "uv run --project ../backend python ../scripts/generate_api.py",
+    "api:check": "uv run --project ../backend python ../scripts/generate_api.py --check",
+    "start:data": "HOSTNAME=127.0.0.1 PORT=18082 node apps/data_hub/.next/standalone/apps/data_hub/server.js",
+    "start:research": "HOSTNAME=127.0.0.1 PORT=18084 node apps/research/.next/standalone/apps/research/server.js",
+    "start:live": "HOSTNAME=127.0.0.1 PORT=18080 node apps/live/.next/standalone/apps/live/server.js"
+  },
+  "dependencies": {
+    "@ant-design/icons": "6.3.4",
+    "antd": "6.6.3",
+    "echarts": "6.1.0",
+    "next": "16.3.4",
+    "protobufjs": "8.8.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@types/node": "26.5.0",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.7",
+    "prettier": "3.9.6",
+    "protobufjs-cli": "2.7.0",
+    "typescript": "5.9.3",
+    "vitest": "3.2.7"
+  }
+}

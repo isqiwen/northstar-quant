@@ -45,7 +45,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    command: ["sh", "-c", "northstar init-db && northstar init-live-auth /var/lib/northstar/auth && python -c 'from northstar_quant.data_management.files import SourceFiles; SourceFiles.from_environment()'"]
+    command: ["sh", "-c", "northstar maintenance init-db && northstar maintenance init-auth /var/lib/northstar/auth && python -c 'from northstar_quant.data_management.files import SourceFiles; SourceFiles.from_environment()'"]
 
   live:
     <<: *runtime
@@ -65,15 +65,15 @@ services:
     depends_on:
       initialize:
         condition: service_completed_successfully
-    command: ["uvicorn", "northstar_quant.live:application", "--factory", "--host", "0.0.0.0", "--port", "18081"]
+    command: ["uvicorn", "northstar_quant.apps.live.kernel:application", "--factory", "--host", "0.0.0.0", "--port", "18081"]
     healthcheck:
-      test: ["CMD", "northstar", "live-status"]
+      test: ["CMD", "northstar", "status"]
       interval: 10s
       timeout: 8s
       retries: 3
       start_period: 20s
 
-  live-web:
+  live-api:
     <<: *runtime
     restart: unless-stopped
     cpus: 1.0
@@ -85,15 +85,29 @@ services:
       NORTHSTAR_LIVE_AUTH: /var/lib/northstar/auth/live-web.toml
     volumes:
       - authentication:/var/lib/northstar/auth:ro
-    networks: [management, ingress]
-    ports:
-      - "127.0.0.1:${NORTHSTAR_LIVE_WEB_PORT:-18080}:18080"
+    networks: [management, frontend]
     depends_on:
       initialize:
         condition: service_completed_successfully
-    command: ["uvicorn", "northstar_quant.apps.live:application", "--factory", "--host", "0.0.0.0", "--port", "18080"]
+    command: ["uvicorn", "northstar_quant.apps.live:application", "--factory", "--host", "0.0.0.0", "--port", "19080"]
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:18080/health/ready', timeout=3)"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:19080/health/ready', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  live-web:
+    image: ${NORTHSTAR_LIVE_FRONTEND_IMAGE:?Set the exact tested Next.js image reference}
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      NORTHSTAR_API_URL: http://live-api:19080
+    networks: [frontend, ingress]
+    ports:
+      - "127.0.0.1:${NORTHSTAR_LIVE_WEB_PORT:-18080}:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -103,6 +117,8 @@ networks:
   storage:
     internal: true
   management:
+    internal: true
+  frontend:
     internal: true
   egress:
   ingress:

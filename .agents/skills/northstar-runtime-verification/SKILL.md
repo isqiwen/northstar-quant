@@ -14,10 +14,10 @@ current commands and dependencies; do not copy stale test counts or image tags.
 
 | Claim | Existing path and meaning |
 |---|---|
-| Persisted business behavior | Affected tests against disposable PostgreSQL; inspect `tests/conftest.py` before selecting the database |
+| Persisted business behavior | Affected tests against disposable PostgreSQL; inspect `backend/tests/conftest.py` before selecting the database |
 | Clean installation and cross-app research/Paper flow | Build/install a fresh wheel as CI does; run `scripts/check_install.py` with the installed interpreter, not the source environment |
 | Standalone Live supervision/storage failure | Read `deploy/live/README.md`; run `scripts/check_live_deployment.py` with the image built from the change under verification |
-| User can operate a page | Actual browser interaction; HTTP 200 does not execute NiceGUI controls or verify WebSocket behavior |
+| User can operate a page | Actual browser interaction; HTTP 200 does not execute React controls or verify dynamic API interactions |
 | Current broker/cloud behavior | Explicitly scoped external acceptance; local containers, replay and stored callbacks cannot establish it |
 
 Inspect the selected script's side effects, inputs and cleanup targets before

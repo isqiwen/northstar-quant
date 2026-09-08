@@ -12,11 +12,13 @@ from pathlib import Path
 from time import monotonic, sleep
 from uuid import uuid4
 
-import httpx
+import httpx2 as httpx
+
+from northstar_quant.web.protobuf import decode, methods
 
 
 class Deployment:
-    def __init__(self, image: str) -> None:
+    def __init__(self, image: str, frontend_image: str) -> None:
         self.name = "northstar-live-check-" + uuid4().hex[:12]
         with socket.socket() as listener:
             listener.bind(("127.0.0.1", 0))
@@ -27,6 +29,7 @@ class Deployment:
         }
         self.environment.update(
             NORTHSTAR_LIVE_IMAGE=image,
+            NORTHSTAR_LIVE_FRONTEND_IMAGE=frontend_image,
             NORTHSTAR_LIVE_DATABASE_PASSWORD=self.password,
             NORTHSTAR_LIVE_KERNEL_MEMORY="1g",
             NORTHSTAR_LIVE_DATABASE_MEMORY="512m",
@@ -64,26 +67,42 @@ class Deployment:
             try:
                 response = client.get(path)
                 if response.status_code == code:
+                    if (
+                        response.headers.get("content-type", "").startswith("application/protobuf")
+                        and code == 200
+                    ):
+                        response._content = json.dumps(
+                            decode(methods("live")[("GET", path)].output_type, response.content)
+                        ).encode()
                     return response
             except httpx.TransportError:
                 pass
             sleep(0.5)
-        raise RuntimeError(f"isolated deployment did not return HTTP {code} for {path}")
+        raise RuntimeError(
+            f"isolated deployment did not return HTTP {code} for {path}: "
+            f"last={response.status_code} {response.text[:200]}"
+        )
 
     def exercise(self) -> None:
         self.run("up", "-d", "--no-build", "--wait", "--wait-timeout", "120")
         base = f"http://127.0.0.1:{self.port}"
         with httpx.Client(base_url=base, headers={"Origin": base}, timeout=4) as client:
             page = self.wait_http(client, "/")
-            assert "Northstar Live" in page.text and "_nicegui" in page.text
+            assert "NORTHSTAR" in page.text
+            self.wait_http(client, "/api/browser-session")
             before = self.wait_http(client, "/api/live/status").json()
             identity = before["runtime_id"]
             kernel = self.run("ps", "-q", "live").strip()
-            assert json.loads(self.run("exec", "-T", "live", "northstar", "stream-list")) == []
+            assert (
+                json.loads(
+                    self.run("exec", "-T", "live", "northstar", "advanced", "stream", "list")
+                )
+                == []
+            )
             self.run(
                 "exec",
                 "-T",
-                "live-web",
+                "live-api",
                 "python",
                 "-c",
                 "import os,socket\n"
@@ -95,13 +114,20 @@ class Deployment:
             )
             self.run("restart", "live-web")
             self.wait_http(client, "/health/ready")
-            assert client.get("/api/live/status").status_code == 403
-            client.cookies.clear()
-            self.wait_http(client, "/")
+            # Frontend restart keeps the API session and kernel alive.
+            self.wait_http(client, "/api/browser-session")
             after = self.wait_http(client, "/api/live/status").json()
             assert after["runtime_id"] == identity
             assert self.run("ps", "-q", "live").strip() == kernel
             print("Live-only installed page and Web restart: same independent kernel", flush=True)
+
+            self.run("stop", "live-api")
+            self.wait_http(client, "/health/ready")
+            self.wait_http(client, "/api/live/status", 503)
+            assert self.run("ps", "-q", "live").strip() == kernel
+            self.run("start", "live-api")
+            self.wait_http(client, "/api/browser-session")
+            self.wait_http(client, "/api/live/status")
 
             self.run("stop", "postgres")
             self.wait_http(client, "/api/live/status", 503)
@@ -121,7 +147,12 @@ class Deployment:
             self.run("start", "live")
             restarted = self.wait_http(client, "/api/live/status").json()
             assert restarted["runtime_id"] != identity
-            assert json.loads(self.run("exec", "-T", "live", "northstar", "stream-list")) == []
+            assert (
+                json.loads(
+                    self.run("exec", "-T", "live", "northstar", "advanced", "stream", "list")
+                )
+                == []
+            )
             print(
                 "Kernel stop/restart: no Web-owned replacement and no broker connection", flush=True
             )
@@ -131,10 +162,11 @@ class Deployment:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--image", required=True, help="Already-built Linux amd64 image")
+    parser.add_argument("--frontend-image", required=True)
     arguments = parser.parse_args()
     if not __debug__:
         parser.error("run without Python optimization; acceptance assertions must execute")
-    deployment = Deployment(arguments.image)
+    deployment = Deployment(arguments.image, arguments.frontend_image)
     try:
         deployment.exercise()
     finally:

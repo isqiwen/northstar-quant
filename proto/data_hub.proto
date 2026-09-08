@@ -1,0 +1,206 @@
+syntax = "proto3";
+package northstar.data_hub;
+import "google/protobuf/struct.proto";
+import "api_options.proto";
+import "common.proto";
+
+message AdmissionRejection {
+  option (northstar.web.evidence) = true;
+  optional string reason = 1 [json_name = "reason", (northstar.web.required_field) = true];
+  optional string rejection_id = 2 [json_name = "rejection_id", (northstar.web.required_field) = true];
+  map<string, google.protobuf.Value> evidence_fields = 1000;
+}
+
+message BrowserSession {
+  optional string csrf = 1 [json_name = "csrf", (northstar.web.required_field) = true];
+}
+
+message DatasetDetails {
+  optional string availability_basis = 1 [json_name = "availability_basis", (northstar.web.required_field) = true];
+  optional string availability_note = 2 [json_name = "availability_note", (northstar.web.required_field) = true];
+  optional int64 bar_count = 3 [json_name = "bar_count", (northstar.web.required_field) = true];
+  optional string content_hash = 4 [json_name = "content_hash", (northstar.web.required_field) = true];
+  optional string exchange = 5 [json_name = "exchange", (northstar.web.required_field) = true];
+  optional ImportSpecification import_spec = 6 [json_name = "import_spec", (northstar.web.required_field) = true];
+  repeated string limitations = 7 [json_name = "limitations", (northstar.web.required_field) = true];
+  optional google.protobuf.Struct processing_provenance = 8 [json_name = "processing_provenance", (northstar.web.nullable) = true];
+  optional string product = 9 [json_name = "product", (northstar.web.required_field) = true];
+  optional string published_at = 10 [json_name = "published_at", (northstar.web.required_field) = true];
+  optional google.protobuf.Struct quality = 11 [json_name = "quality", (northstar.web.required_field) = true];
+  optional google.protobuf.Struct semantics = 12 [json_name = "semantics", (northstar.web.required_field) = true];
+  optional string session_close = 13 [json_name = "session_close", (northstar.web.required_field) = true];
+  optional string session_open = 14 [json_name = "session_open", (northstar.web.required_field) = true];
+  optional string snapshot_id = 15 [json_name = "snapshot_id", (northstar.web.required_field) = true];
+  optional string source_reference = 16 [json_name = "source_reference", (northstar.web.required_field) = true];
+  repeated google.protobuf.Struct sources = 17 [json_name = "sources", (northstar.web.required_field) = true];
+  optional string symbol = 18 [json_name = "symbol", (northstar.web.required_field) = true];
+  optional string trading_day = 19 [json_name = "trading_day", (northstar.web.required_field) = true];
+  repeated string null_fields = 2046;
+}
+
+message DatasetLineage {
+  repeated google.protobuf.Struct attempts = 1 [json_name = "attempts", (northstar.web.required_field) = true];
+  optional string snapshot_id = 2 [json_name = "snapshot_id", (northstar.web.required_field) = true];
+  repeated google.protobuf.Struct sources = 3 [json_name = "sources", (northstar.web.required_field) = true];
+  repeated google.protobuf.Struct usages = 4 [json_name = "usages", (northstar.web.required_field) = true];
+}
+
+message DatasetSummary {
+  optional int64 bar_count = 1 [json_name = "bar_count", (northstar.web.required_field) = true];
+  optional string content_hash = 2 [json_name = "content_hash", (northstar.web.required_field) = true];
+  optional string exchange = 3 [json_name = "exchange", (northstar.web.required_field) = true];
+  optional string product = 4 [json_name = "product", (northstar.web.required_field) = true];
+  optional string published_at = 5 [json_name = "published_at", (northstar.web.required_field) = true];
+  optional string session_close = 6 [json_name = "session_close", (northstar.web.required_field) = true];
+  optional string session_open = 7 [json_name = "session_open", (northstar.web.required_field) = true];
+  optional string snapshot_id = 8 [json_name = "snapshot_id", (northstar.web.required_field) = true];
+  optional string symbol = 9 [json_name = "symbol", (northstar.web.required_field) = true];
+  optional string trading_day = 10 [json_name = "trading_day", (northstar.web.required_field) = true];
+}
+
+message HttpError {
+  optional string detail = 1 [json_name = "detail", (northstar.web.required_field) = true];
+  optional string rejection_id = 2 [json_name = "rejection_id", (northstar.web.nullable) = true];
+  optional string request_id = 3 [json_name = "request_id", (northstar.web.nullable) = true];
+  optional string runtime_id = 4 [json_name = "runtime_id", (northstar.web.nullable) = true];
+  optional string status = 5 [json_name = "status", (northstar.web.nullable) = true];
+  optional string url = 6 [json_name = "url", (northstar.web.nullable) = true];
+  repeated string null_fields = 2046;
+}
+
+message ImportRequest {
+  optional bool allow_download = 1 [json_name = "allow_download", (northstar.web.required_field) = true];
+  optional bool allow_retention = 2 [json_name = "allow_retention", (northstar.web.required_field) = true];
+  optional string content_base64 = 3 [json_name = "content_base64", (northstar.web.required_field) = true];
+  optional string filename = 4 [json_name = "filename", (northstar.web.required_field) = true];
+  optional string input_kind = 5 [json_name = "input_kind", (northstar.web.required_field) = true];
+  optional string request_id = 6 [json_name = "request_id", (northstar.web.required_field) = true];
+  optional string source_name = 7 [json_name = "source_name", (northstar.web.required_field) = true];
+  optional google.protobuf.Struct spec = 8 [json_name = "spec", (northstar.web.required_field) = true];
+  optional string transformation_note = 9 [json_name = "transformation_note", (northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  optional string upstream_source_id = 10 [json_name = "upstream_source_id", (northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  optional string use_basis = 11 [json_name = "use_basis", (northstar.web.required_field) = true];
+  repeated string null_fields = 2046;
+}
+
+message ImportSpecification {
+  optional string availability_basis = 1 [json_name = "availability_basis", (northstar.web.required_field) = true];
+  optional string availability_note = 2 [json_name = "availability_note", (northstar.web.required_field) = true];
+  optional string currency = 3 [json_name = "currency", (northstar.web.required_field) = true];
+  optional string exchange = 4 [json_name = "exchange", (northstar.web.required_field) = true];
+  optional string multiplier = 5 [json_name = "multiplier", (northstar.web.required_field) = true];
+  optional string price_tick = 6 [json_name = "price_tick", (northstar.web.required_field) = true];
+  optional string product = 7 [json_name = "product", (northstar.web.required_field) = true];
+  optional string quantity_unit = 8 [json_name = "quantity_unit", (northstar.web.required_field) = true];
+  optional string session_close = 9 [json_name = "session_close", (northstar.web.required_field) = true];
+  optional string session_open = 10 [json_name = "session_open", (northstar.web.required_field) = true];
+  optional string source_name = 11 [json_name = "source_name", (northstar.web.required_field) = true];
+  optional string source_reference = 12 [json_name = "source_reference", (northstar.web.required_field) = true];
+  optional string symbol = 13 [json_name = "symbol", (northstar.web.required_field) = true];
+  optional string timezone = 14 [json_name = "timezone", (northstar.web.required_field) = true];
+  optional string trading_day = 15 [json_name = "trading_day", (northstar.web.required_field) = true];
+}
+
+message ProcessingAttempt {
+  option (northstar.web.evidence) = true;
+  optional string attempt_id = 1 [json_name = "attempt_id", (northstar.web.required_field) = true];
+  optional string created_at = 2 [json_name = "created_at", (northstar.web.required_field) = true];
+  optional string error = 3 [json_name = "error", (northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  optional google.protobuf.Struct parameters = 4 [json_name = "parameters", (northstar.web.required_field) = true];
+  optional string snapshot_id = 5 [json_name = "snapshot_id", (northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  optional string source_id = 6 [json_name = "source_id", (northstar.web.required_field) = true];
+  optional string stage = 7 [json_name = "stage", (northstar.web.required_field) = true];
+  optional string status = 8 [json_name = "status", (northstar.web.required_field) = true];
+  map<string, google.protobuf.Value> evidence_fields = 1000;
+  repeated string null_fields = 2046;
+}
+
+message Readiness {
+  optional string status = 1 [json_name = "status", (northstar.web.required_field) = true, (northstar.web.allowed_values) = "[\"ready\"]"];
+}
+
+message ReprocessRequest {
+  optional string request_id = 1 [json_name = "request_id", (northstar.web.required_field) = true];
+  optional google.protobuf.Struct spec = 2 [json_name = "spec", (northstar.web.required_field) = true];
+}
+
+message SourceRecord {
+  option (northstar.web.evidence) = true;
+  optional bool allow_download = 1 [json_name = "allow_download", (northstar.web.required_field) = true];
+  optional bool allow_retention = 2 [json_name = "allow_retention", (northstar.web.required_field) = true];
+  optional int64 byte_count = 3 [json_name = "byte_count", (northstar.web.required_field) = true];
+  optional string content_hash = 4 [json_name = "content_hash", (northstar.web.required_field) = true];
+  optional string filename = 5 [json_name = "filename", (northstar.web.required_field) = true];
+  optional string input_kind = 6 [json_name = "input_kind", (northstar.web.required_field) = true];
+  optional string received_at = 7 [json_name = "received_at", (northstar.web.required_field) = true];
+  optional string source_id = 8 [json_name = "source_id", (northstar.web.required_field) = true];
+  optional string source_name = 9 [json_name = "source_name", (northstar.web.required_field) = true];
+  map<string, google.protobuf.Value> evidence_fields = 1000;
+}
+
+message GetApiAttemptsResponse {
+  option (northstar.web.root_array) = true;
+  repeated ProcessingAttempt items = 1;
+}
+
+message GetApiDatasetsResponse {
+  option (northstar.web.root_array) = true;
+  repeated DatasetSummary items = 1;
+}
+
+message GetApiRejectionsResponse {
+  option (northstar.web.root_array) = true;
+  repeated AdmissionRejection items = 1;
+}
+
+message GetApiSourcesResponse {
+  option (northstar.web.root_array) = true;
+  repeated SourceRecord items = 1;
+}
+
+service BrowserApi {
+  rpc GetApiAttempts (northstar.web.Empty) returns (GetApiAttemptsResponse) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/attempts";
+  }
+  rpc GetApiAttemptsAttemptId (northstar.web.Empty) returns (ProcessingAttempt) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/attempts/{attempt_id}";
+  }
+  rpc GetApiBrowserSession (northstar.web.Empty) returns (BrowserSession) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/browser-session";
+  }
+  rpc GetApiDatasets (northstar.web.Empty) returns (GetApiDatasetsResponse) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/datasets";
+  }
+  rpc GetApiDatasetsSnapshotId (northstar.web.Empty) returns (DatasetDetails) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/datasets/{snapshot_id}";
+  }
+  rpc GetApiDatasetsSnapshotIdLineage (northstar.web.Empty) returns (DatasetLineage) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/datasets/{snapshot_id}/lineage";
+  }
+  rpc PostApiImport (ImportRequest) returns (ProcessingAttempt) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/import";
+  }
+  rpc GetApiRejections (northstar.web.Empty) returns (GetApiRejectionsResponse) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/rejections";
+  }
+  rpc GetApiSources (northstar.web.Empty) returns (GetApiSourcesResponse) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/sources";
+  }
+  rpc GetApiSourcesSourceId (northstar.web.Empty) returns (SourceRecord) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/sources/{source_id}";
+  }
+  rpc PostApiSourcesSourceIdReprocess (ReprocessRequest) returns (ProcessingAttempt) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/sources/{source_id}/reprocess";
+  }
+}

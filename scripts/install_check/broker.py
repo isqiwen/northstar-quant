@@ -15,14 +15,14 @@ def check_broker_access(
     application: InstalledApplication, base_url: str, configuration: dict[str, Any]
 ) -> None:
     command, request, opener = application.command, application.request, application.opener
-    assert "SimNow" in request(f"{base_url}/broker").decode()
+    assert request(f"{base_url}/health/ready")
     broker_status = json.loads(request(f"{base_url}/api/broker/status"))
     assert not broker_status["credentials"]["configured"]
     assert broker_status["connection"] == "ON_DEMAND_READ_ONLY"
-    saved_queries = command("broker-list")
-    saved_streams = [item["stream_id"] for item in command("stream-list")]
-    assert "SHADOW_ONLY" in request(f"{base_url}/streams").decode()
-    assert [item["stream_id"] for item in command("stream-list")] == saved_streams
+    saved_queries = command("advanced", "broker", "list")
+    saved_streams = [item["stream_id"] for item in command("advanced", "stream", "list")]
+    assert request(f"{base_url}/api/streams")
+    assert [item["stream_id"] for item in command("advanced", "stream", "list")] == saved_streams
     missing_query = str(uuid4())
     anonymous = build_opener(ProxyHandler({}))
     for path in (
@@ -142,5 +142,5 @@ def check_broker_access(
                 assert error.code == 403
             else:
                 raise AssertionError("broker mutation requires a session and CSRF")
-    assert command("broker-list") == saved_queries
-    assert [item["stream_id"] for item in command("stream-list")] == saved_streams
+    assert command("advanced", "broker", "list") == saved_queries
+    assert [item["stream_id"] for item in command("advanced", "stream", "list")] == saved_streams

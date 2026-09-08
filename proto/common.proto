@@ -1,0 +1,12 @@
+syntax = "proto3";
+package northstar.web;
+
+message Empty {}
+message Error {
+  optional string detail = 1;
+  optional string status = 2;
+  optional string request_id = 3;
+  optional string runtime_id = 4;
+  optional string url = 5;
+  optional string rejection_id = 6;
+}

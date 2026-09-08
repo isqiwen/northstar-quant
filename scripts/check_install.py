@@ -21,6 +21,7 @@ from urllib.parse import urlsplit
 from uuid import uuid4
 
 from install_check.broker import check_broker_access
+from install_check.catalog import check_catalog
 from install_check.processes import InstalledApplication
 from install_check.restore import check_restore
 
@@ -64,40 +65,63 @@ def main() -> None:
         command, request = application.command, application.request
 
         try:
-            assert command("init-db") == {"status": "ready"}
-            assert command("init-db") == {"status": "ready"}
-            authentication = command("init-live-auth", str(runtime / "auth"))
+            assert command("maintenance", "init-db") == {"status": "ready"}
+            assert command("maintenance", "init-db") == {"status": "ready"}
+            authentication = command("maintenance", "init-auth", str(runtime / "auth"))
+            auth_bytes = {
+                name: Path(authentication[name]).read_bytes() for name in ("live_auth", "web_auth")
+            }
+            assert command("maintenance", "init-auth", str(runtime / "auth")) == authentication
+            assert all(
+                Path(authentication[name]).read_bytes() == value
+                for name, value in auth_bytes.items()
+            )
             application.environment["NORTHSTAR_LIVE_AUTH"] = authentication["web_auth"]
             with application.live() as live_process:
-                live_status = command("live-status")
+                live_status = command("status")
                 application.assert_live(live_process, live_status)
-                broker_setup = command("broker-status")
+                broker_setup = command("advanced", "broker", "status")
                 assert not broker_setup["credentials"]["configured"], broker_setup
                 assert broker_setup["execution"] == {
                     "order_sending": False,
                     "cancel_sending": False,
                 }
                 if broker_setup["sdk"]["supported"]:
-                    checked_sdk = command("broker-sdk-check")
+                    checked_sdk = command("advanced", "broker", "sdk-check")
                     assert checked_sdk["native_verified"], checked_sdk
                     assert checked_sdk["trader_api_version"] and checked_sdk["market_api_version"]
                     print(
                         "Installed native CTP: query structs, topics and release passed offline",
                         flush=True,
                     )
-                runs_before_import = command("list")
-                attempt = command("import", str(study))
+                runs_before_import = command("research", "list")
+                attempt = command("data", "import", str(study))
                 assert attempt["status"] == "PUBLISHED", attempt
                 snapshot_id = attempt["snapshot_id"]
-                data = command("dataset", snapshot_id)
-                assert command("list") == runs_before_import
-                repeated = command("import", str(study))
-                assert repeated["snapshot_id"] == snapshot_id
+                data = command("data", "dataset", snapshot_id)
+                assert command("research", "list") == runs_before_import
+                repeated = command("data", "import", str(study))
+                committed = not attempt["code_revision"].endswith("-dirty")
+                assert (repeated["snapshot_id"] == snapshot_id) is committed
                 assert repeated["attempt_id"] != attempt["attempt_id"]
-                assert sum(item["snapshot_id"] == snapshot_id for item in command("datasets")) == 1
-                assert command("dataset", snapshot_id) == data
-                saved = command("research", snapshot_id, "--study", str(research_study))
+                assert (
+                    sum(item["snapshot_id"] == snapshot_id for item in command("data", "datasets"))
+                    == 1
+                )
+                assert command("data", "dataset", snapshot_id) == data
+                saved = command("research", "run", snapshot_id, "--study", str(research_study))
                 run_id = saved["run_id"]
+                # Read-only result inspection must work when source storage is
+                # unavailable; it must not construct a data or Paper workspace.
+                unavailable_sources = runtime / "unavailable-sources"
+                unavailable_sources.write_text("not a source directory", encoding="utf-8")
+                source_root = application.environment["NORTHSTAR_DATA_DIR"]
+                try:
+                    application.environment["NORTHSTAR_DATA_DIR"] = str(unavailable_sources)
+                    assert command("research", "show", run_id) == saved
+                    assert any(item["run_id"] == run_id for item in command("research", "list"))
+                finally:
+                    application.environment["NORTHSTAR_DATA_DIR"] = source_root
                 assert saved["snapshot"]["id"] == snapshot_id
                 assert saved["result"]["data"] == data
                 summary = saved["result"]["summary"]
@@ -112,21 +136,27 @@ def main() -> None:
                     + Decimal(summary["unrealized_pnl"])
                     - Decimal(summary["total_fees"])
                 ), summary
-                assert command("research", snapshot_id, "--study", str(research_study)) == saved
-                assert command("run", str(study)) == saved
-                assert command("replay", run_id) == saved
+                assert (
+                    command("research", "run", snapshot_id, "--study", str(research_study)) == saved
+                )
+                reimported_run = command("research", "from-file", str(study))
+                assert (reimported_run["run_id"] == run_id) is saved["committed_code"]
+                assert reimported_run["result"]["summary"] == summary
+                assert command("research", "replay", run_id) == saved
                 print(
                     "Installed CLI: data library, source-free research, accounting, repeat and "
-                    "exact replay passed",
+                    "result replay passed (dirty builds provide development checks only)",
                     flush=True,
                 )
 
                 configuration = command(
-                    "configure", str(research_study), "--name", "Installed Paper"
+                    "research", "configure", str(research_study), "--name", "Installed Paper"
                 )
                 paper_id = str(uuid4())
                 paper = command(
-                    "paper-create",
+                    "research",
+                    "paper",
+                    "create",
                     snapshot_id,
                     configuration["configuration_id"],
                     "--request-id",
@@ -136,15 +166,20 @@ def main() -> None:
                 assert paper["input_type"] == "FILE_REPLAY"
                 assert paper["configuration"] == configuration
                 step_command = str(uuid4())
-                first_step = command("paper-next", paper_id, "--request-id", step_command)
-                assert command("paper-next", paper_id, "--request-id", step_command) == first_step
-                paused_paper = command("paper-show", paper_id)
+                first_step = command(
+                    "research", "paper", "next", paper_id, "--request-id", step_command
+                )
+                assert (
+                    command("research", "paper", "next", paper_id, "--request-id", step_command)
+                    == first_step
+                )
+                paused_paper = command("research", "paper", "show", paper_id)
                 assert paused_paper["cursor"] == 1 and paused_paper["status"] == "PAUSED"
 
                 with (
-                    application.web() as live_url,
-                    application.web("data-hub") as base_url,
-                    application.web("research-web") as research_url,
+                    application.api() as live_url,
+                    application.api("data-api") as base_url,
+                    application.api("research-api") as research_url,
                 ):
                     application.assert_live(live_process, live_status, live_url)
                     check_broker_access(application, live_url, configuration)
@@ -163,7 +198,7 @@ def main() -> None:
                     }
                     imported = json.loads(request(f"{base_url}/api/import", upload))
                     assert imported["status"] == "PUBLISHED", imported
-                    assert imported["snapshot_id"] == saved["snapshot"]["id"]
+                    assert (imported["snapshot_id"] == snapshot_id) is saved["committed_code"]
                     assert (
                         request(f"{base_url}/api/sources/{imported['source_id']}/download") == csv
                     )
@@ -173,16 +208,15 @@ def main() -> None:
                     )
                     failed = json.loads(request(f"{base_url}/api/import", invalid))
                     assert failed["status"] == "FAILED", failed
-                    assert request(f"{base_url}/attempts/{failed['attempt_id']}")
+                    assert request(f"{base_url}/api/attempts/{failed['attempt_id']}")
                     repaired = json.loads(
                         request(
                             f"{base_url}/api/sources/{failed['source_id']}/reprocess",
                             {"spec": source, "request_id": str(uuid4())},
                         )
                     )
-                    assert (
-                        repaired["status"] == "PUBLISHED" and repaired["snapshot_id"] == snapshot_id
-                    )
+                    assert repaired["status"] == "PUBLISHED"
+                    assert (repaired["snapshot_id"] == snapshot_id) is saved["committed_code"]
                     datasets = json.loads(request(f"{base_url}/api/datasets"))
                     assert sum(item["snapshot_id"] == snapshot_id for item in datasets) == 1
                     assert json.loads(request(f"{base_url}/api/datasets/{snapshot_id}")) == data
@@ -195,22 +229,18 @@ def main() -> None:
                             },
                         )
                     )
-                    assert submitted["run_id"] == run_id
+                    assert (submitted["run_id"] == run_id) is saved["committed_code"]
+                    submitted_run = json.loads(
+                        request(f"{research_url}/api/runs/{submitted['run_id']}")
+                    )
+                    assert submitted_run["result"]["summary"] == summary
+                    catalog_evidence = check_catalog(
+                        request, research_url, snapshot_id, configuration, run_id
+                    )
                     assert json.loads(request(f"{research_url}/api/runs/{run_id}")) == saved
-                    assert source["symbol"] in request(f"{base_url}/datasets/{snapshot_id}").decode(
-                        "utf-8"
-                    )
-                    assert source["symbol"] in request(f"{research_url}{submitted['url']}").decode(
-                        "utf-8"
-                    )
-                    assert request(f"{base_url}/")
-                    assert request(f"{base_url}/assets/app.js")
-                    assert request(f"{base_url}/assets/app.css")
+                    assert request(f"{base_url}/health/ready")
                     assert (
                         json.loads(request(f"{research_url}/api/paper/{paper_id}")) == paused_paper
-                    )
-                    assert source["symbol"] in request(f"{research_url}/paper/{paper_id}").decode(
-                        "utf-8"
                     )
                 application.assert_live(live_process, live_status)
                 print(
@@ -219,7 +249,7 @@ def main() -> None:
                     flush=True,
                 )
 
-                with application.web("research-web") as base_url:
+                with application.api("research-api") as base_url:
                     application.assert_live(live_process, live_status)
                     assert json.loads(request(f"{base_url}/api/paper/{paper_id}")) == paused_paper
                     datasets = json.loads(request(f"{base_url}/api/datasets"))
@@ -242,9 +272,9 @@ def main() -> None:
                     listed = json.loads(request(f"{base_url}/api/runs"))
                     assert sum(item["run_id"] == run_id for item in listed) == 1
                 application.assert_live(live_process, live_status)
-                with application.web() as base_url:
+                with application.api() as base_url:
                     application.assert_live(live_process, live_status, base_url)
-                    assert "SHADOW_ONLY" in request(f"{base_url}/streams").decode()
+                    assert request(f"{base_url}/health/ready")
                 application.assert_live(live_process, live_status)
                 assert len(set(application.web_pids)) == 5
                 assert live_process.pid not in application.web_pids
@@ -253,13 +283,15 @@ def main() -> None:
                     "same Live PID/runtime and fresh CLI/HTTP status; no broker connected",
                     flush=True,
                 )
-                assert command("show", run_id) == saved
-                assert command("replay", run_id) == saved
-                assert command("dataset", snapshot_id) == data
-                assert command("research", snapshot_id, "--study", str(research_study)) == saved
+                assert command("research", "show", run_id) == saved
+                assert command("research", "replay", run_id) == saved
+                assert command("data", "dataset", snapshot_id) == data
+                assert (
+                    command("research", "run", snapshot_id, "--study", str(research_study)) == saved
+                )
                 for _ in range(1, summary["bar_count"]):
-                    command("paper-next", paper_id, "--request-id", str(uuid4()))
-                complete_paper = command("paper-show", paper_id)
+                    command("research", "paper", "next", paper_id, "--request-id", str(uuid4()))
+                complete_paper = command("research", "paper", "show", paper_id)
                 assert complete_paper["status"] == "COMPLETED"
                 assert complete_paper["summary"] == summary
                 assert complete_paper["fills"] == saved["result"]["fills"]
@@ -270,14 +302,14 @@ def main() -> None:
                     flush=True,
                 )
                 print(
-                    "Process restart: dataset reuse, persisted source/result and exact "
+                    "Process restart: fixed dataset, persisted source/result and result "
                     "replay passed",
                     flush=True,
                 )
                 export = runtime / "retained.csv"
-                command("download", attempt["source_id"], str(export))
+                command("data", "download", attempt["source_id"], str(export))
                 assert export.read_bytes() == csv
-                backup = command("backup", str(runtime / "backup"))
+                backup = command("maintenance", "backup", str(runtime / "backup"))
                 assert backup["sources"]
                 assert (
                     hashlib.sha256((runtime / "backup/database.dump").read_bytes()).hexdigest()
@@ -291,8 +323,9 @@ def main() -> None:
                     run_id,
                     snapshot_id,
                     data,
-                    command("broker-list"),
-                    [item["stream_id"] for item in command("stream-list")],
+                    command("advanced", "broker", "list"),
+                    [item["stream_id"] for item in command("advanced", "stream", "list")],
+                    catalog_evidence,
                 )
                 print(json.dumps({"run_id": run_id, "summary": summary}, ensure_ascii=False))
             assert live_process.poll() is not None

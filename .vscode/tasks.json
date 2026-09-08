@@ -56,8 +56,11 @@
       "command": "uv",
       "args": [
         "run",
+        "--project",
+        "backend",
         "--locked",
         "northstar",
+        "maintenance",
         "init-db"
       ],
       "options": {
@@ -78,9 +81,12 @@
       "command": "uv",
       "args": [
         "run",
+        "--project",
+        "backend",
         "--locked",
         "northstar",
-        "init-live-auth",
+        "maintenance",
+        "init-auth",
         "${workspaceFolder}/.northstar/vscode-runtime-auth"
       ],
       "options": {
@@ -96,11 +102,16 @@
       "command": "uv",
       "args": [
         "run",
+        "--project",
+        "backend",
         "--locked",
         "ruff",
+        "--config",
+        "backend/pyproject.toml",
         "check",
-        "src",
-        "tests",
+        "backend/src",
+        "backend/tests",
+        "backend/scripts",
         "scripts"
       ],
       "options": {
@@ -114,12 +125,17 @@
       "command": "uv",
       "args": [
         "run",
+        "--project",
+        "backend",
         "--locked",
         "ruff",
+        "--config",
+        "backend/pyproject.toml",
         "format",
         "--check",
-        "src",
-        "tests",
+        "backend/src",
+        "backend/tests",
+        "backend/scripts",
         "scripts"
       ],
       "options": {
@@ -133,9 +149,13 @@
       "command": "uv",
       "args": [
         "run",
+        "--project",
+        "backend",
         "--locked",
         "mypy",
-        "src"
+        "--config-file",
+        "backend/pyproject.toml",
+        "backend/src"
       ],
       "options": {
         "cwd": "${workspaceFolder}"

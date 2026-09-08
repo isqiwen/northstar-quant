@@ -1,0 +1,595 @@
+syntax = "proto3";
+package northstar.live;
+import "google/protobuf/struct.proto";
+import "api_options.proto";
+import "common.proto";
+
+message AccountCatchupRequest {
+  optional string baseline_id = 1 [json_name = "baseline_id", (northstar.web.required_field) = true];
+  optional string request_id = 2 [json_name = "request_id", (northstar.web.required_field) = true];
+  optional int64 through_sequence = 3 [json_name = "through_sequence", (northstar.web.required_field) = true];
+}
+
+message AccountProgress {
+  option (northstar.web.evidence) = true;
+  optional string status = 1 [json_name = "status", (northstar.web.required_field) = true];
+  map<string, google.protobuf.Value> evidence_fields = 1000;
+}
+
+message ArchiveAttempt {
+  option (northstar.web.evidence) = true;
+  optional string attempt_id = 1 [json_name = "attempt_id", (northstar.web.required_field) = true];
+  optional google.protobuf.Struct parameters = 2 [json_name = "parameters", (northstar.web.required_field) = true];
+  optional string snapshot_id = 3 [json_name = "snapshot_id", (northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  optional string source_id = 4 [json_name = "source_id", (northstar.web.required_field) = true];
+  optional string status = 5 [json_name = "status", (northstar.web.required_field) = true];
+  map<string, google.protobuf.Value> evidence_fields = 1000;
+  repeated string null_fields = 2046;
+}
+
+message ArchiveDataset {
+  optional string availability_basis = 1 [json_name = "availability_basis", (northstar.web.required_field) = true];
+  optional string availability_note = 2 [json_name = "availability_note", (northstar.web.required_field) = true];
+  optional int64 bar_count = 3 [json_name = "bar_count", (northstar.web.required_field) = true];
+  optional string content_hash = 4 [json_name = "content_hash", (northstar.web.required_field) = true];
+  optional string exchange = 5 [json_name = "exchange", (northstar.web.required_field) = true];
+  optional ImportSpecification import_spec = 6 [json_name = "import_spec", (northstar.web.required_field) = true];
+  repeated string limitations = 7 [json_name = "limitations", (northstar.web.required_field) = true];
+  optional google.protobuf.Struct live_runtime = 8 [json_name = "live_runtime", (northstar.web.required_field) = true];
+  optional google.protobuf.Struct processing_provenance = 9 [json_name = "processing_provenance", (northstar.web.nullable) = true];
+  optional string product = 10 [json_name = "product", (northstar.web.required_field) = true];
+  optional string published_at = 11 [json_name = "published_at", (northstar.web.required_field) = true];
+  optional google.protobuf.Struct quality = 12 [json_name = "quality", (northstar.web.required_field) = true];
+  optional google.protobuf.Struct semantics = 13 [json_name = "semantics", (northstar.web.required_field) = true];
+  optional string session_close = 14 [json_name = "session_close", (northstar.web.required_field) = true];
+  optional string session_open = 15 [json_name = "session_open", (northstar.web.required_field) = true];
+  optional string snapshot_id = 16 [json_name = "snapshot_id", (northstar.web.required_field) = true];
+  optional string source_reference = 17 [json_name = "source_reference", (northstar.web.required_field) = true];
+  repeated google.protobuf.Struct sources = 18 [json_name = "sources", (northstar.web.required_field) = true];
+  optional string symbol = 19 [json_name = "symbol", (northstar.web.required_field) = true];
+  optional string trading_day = 20 [json_name = "trading_day", (northstar.web.required_field) = true];
+  repeated string null_fields = 2046;
+}
+
+message ArchiveReprocessRequest {
+  optional string request_id = 1 [json_name = "request_id", (northstar.web.required_field) = true];
+  optional google.protobuf.Struct spec = 2 [json_name = "spec", (northstar.web.required_field) = true];
+}
+
+message ArchiveRequest {
+  optional bool allow_download = 1 [json_name = "allow_download", (northstar.web.required_field) = true];
+  optional string request_id = 2 [json_name = "request_id", (northstar.web.required_field) = true];
+  optional string session_close = 3 [json_name = "session_close", (northstar.web.required_field) = true];
+  optional string session_open = 4 [json_name = "session_open", (northstar.web.required_field) = true];
+  optional int64 through_sequence = 5 [json_name = "through_sequence", (northstar.web.required_field) = true];
+}
+
+message ArchiveSource {
+  option (northstar.web.evidence) = true;
+  optional bool allow_download = 1 [json_name = "allow_download", (northstar.web.required_field) = true];
+  optional string filename = 2 [json_name = "filename", (northstar.web.required_field) = true];
+  optional string source_id = 3 [json_name = "source_id", (northstar.web.required_field) = true];
+  map<string, google.protobuf.Value> evidence_fields = 1000;
+}
+
+message BaselineCheckRequest {
+  optional string baseline_id = 1 [json_name = "baseline_id", (northstar.web.required_field) = true];
+  optional string query_batch_id = 2 [json_name = "query_batch_id", (northstar.web.required_field) = true];
+  optional string request_id = 3 [json_name = "request_id", (northstar.web.required_field) = true];
+}
+
+message BaselineContext {
+  option (northstar.web.evidence) = true;
+  optional BaselineRecord baseline = 1 [json_name = "baseline", (northstar.web.nullable) = true];
+  map<string, google.protobuf.Value> evidence_fields = 1000;
+  repeated string null_fields = 2046;
+}
+
+message BaselineRecord {
+  option (northstar.web.evidence) = true;
+  optional string baseline_id = 1 [json_name = "baseline_id", (northstar.web.required_field) = true];
+  map<string, google.protobuf.Value> evidence_fields = 1000;
+}
+
+message BaselineRequest {
+  optional string request_id = 1 [json_name = "request_id", (northstar.web.required_field) = true];
+  optional string source_batch_id = 2 [json_name = "source_batch_id", (northstar.web.required_field) = true];
+}
+
+message BrokerStatus {
+  option (northstar.web.evidence) = true;
+  optional string connection = 1 [json_name = "connection", (northstar.web.required_field) = true];
+  optional google.protobuf.Struct credentials = 2 [json_name = "credentials", (northstar.web.required_field) = true];
+  map<string, bool> execution = 3 [json_name = "execution", (northstar.web.required_field) = true];
+  repeated google.protobuf.Struct profiles = 4 [json_name = "profiles", (northstar.web.required_field) = true];
+  optional google.protobuf.Struct sdk = 5 [json_name = "sdk", (northstar.web.required_field) = true];
+  map<string, google.protobuf.Value> evidence_fields = 1000;
+}
+
+message BrowserSession {
+  optional string csrf = 1 [json_name = "csrf", (northstar.web.required_field) = true];
+}
+
+message BudgetContext {
+  repeated google.protobuf.Struct budgets = 1 [json_name = "budgets", (northstar.web.required_field) = true];
+  optional google.protobuf.Struct live_runtime = 2 [json_name = "live_runtime", (northstar.web.nullable) = true];
+  repeated CheckRecord order_checks = 3 [json_name = "order_checks", (northstar.web.required_field) = true];
+  repeated string null_fields = 2046;
+}
+
+message CheckRecord {
+  option (northstar.web.evidence) = true;
+  optional string check_id = 1 [json_name = "check_id", (northstar.web.required_field) = true];
+  map<string, google.protobuf.Value> evidence_fields = 1000;
+}
+
+message CommandRecord {
+  option (northstar.web.evidence) = true;
+  optional string request_id = 1 [json_name = "request_id", (northstar.web.required_field) = true];
+  optional string status = 2 [json_name = "status", (northstar.web.required_field) = true];
+  map<string, google.protobuf.Value> evidence_fields = 1000;
+}
+
+message CompletedMinute {
+  option (northstar.web.evidence) = true;
+  optional string close = 1 [json_name = "close", (northstar.web.required_field) = true];
+  optional string completed_at = 2 [json_name = "completed_at", (northstar.web.required_field) = true];
+  map<string, google.protobuf.Value> evidence_fields = 1000;
+}
+
+message ControlRequest {
+  optional string action = 1 [json_name = "action", (northstar.web.required_field) = true, (northstar.web.allowed_values) = "[\"PAUSE\", \"RESUME\", \"STOP\"]"];
+  optional string request_id = 2 [json_name = "request_id", (northstar.web.required_field) = true];
+}
+
+message Diagnostics {
+  option (northstar.web.evidence) = true;
+  optional google.protobuf.Struct database = 1 [json_name = "database", (northstar.web.required_field) = true];
+  optional int64 duration_ms = 2 [json_name = "duration_ms", (northstar.web.required_field) = true];
+  optional string observed_at = 3 [json_name = "observed_at", (northstar.web.required_field) = true];
+  optional string scope = 4 [json_name = "scope", (northstar.web.required_field) = true];
+  optional google.protobuf.Struct source_filesystem = 5 [json_name = "source_filesystem", (northstar.web.required_field) = true];
+  optional string status = 6 [json_name = "status", (northstar.web.required_field) = true];
+  map<string, google.protobuf.Value> evidence_fields = 1000;
+}
+
+message FundsContext {
+  option (northstar.web.evidence) = true;
+  repeated google.protobuf.Struct entries = 1 [json_name = "entries"];
+  map<string, google.protobuf.Value> evidence_fields = 1000;
+}
+
+message FundsEntry {
+  option (northstar.web.evidence) = true;
+  optional string entry_id = 1 [json_name = "entry_id", (northstar.web.required_field) = true];
+  map<string, google.protobuf.Value> evidence_fields = 1000;
+}
+
+message FundsEntryRequest {
+  optional string baseline_id = 1 [json_name = "baseline_id", (northstar.web.required_field) = true];
+  optional string request_id = 2 [json_name = "request_id", (northstar.web.required_field) = true];
+  optional string source_batch_id = 3 [json_name = "source_batch_id", (northstar.web.required_field) = true];
+}
+
+message HttpError {
+  optional string detail = 1 [json_name = "detail", (northstar.web.required_field) = true];
+  optional string rejection_id = 2 [json_name = "rejection_id", (northstar.web.nullable) = true];
+  optional string request_id = 3 [json_name = "request_id", (northstar.web.nullable) = true];
+  optional string runtime_id = 4 [json_name = "runtime_id", (northstar.web.nullable) = true];
+  optional string status = 5 [json_name = "status", (northstar.web.nullable) = true];
+  optional string url = 6 [json_name = "url", (northstar.web.nullable) = true];
+  repeated string null_fields = 2046;
+}
+
+message ImportSpecification {
+  optional string availability_basis = 1 [json_name = "availability_basis", (northstar.web.required_field) = true];
+  optional string availability_note = 2 [json_name = "availability_note", (northstar.web.required_field) = true];
+  optional string currency = 3 [json_name = "currency", (northstar.web.required_field) = true];
+  optional string exchange = 4 [json_name = "exchange", (northstar.web.required_field) = true];
+  optional string multiplier = 5 [json_name = "multiplier", (northstar.web.required_field) = true];
+  optional string price_tick = 6 [json_name = "price_tick", (northstar.web.required_field) = true];
+  optional string product = 7 [json_name = "product", (northstar.web.required_field) = true];
+  optional string quantity_unit = 8 [json_name = "quantity_unit", (northstar.web.required_field) = true];
+  optional string session_close = 9 [json_name = "session_close", (northstar.web.required_field) = true];
+  optional string session_open = 10 [json_name = "session_open", (northstar.web.required_field) = true];
+  optional string source_name = 11 [json_name = "source_name", (northstar.web.required_field) = true];
+  optional string source_reference = 12 [json_name = "source_reference", (northstar.web.required_field) = true];
+  optional string symbol = 13 [json_name = "symbol", (northstar.web.required_field) = true];
+  optional string timezone = 14 [json_name = "timezone", (northstar.web.required_field) = true];
+  optional string trading_day = 15 [json_name = "trading_day", (northstar.web.required_field) = true];
+}
+
+message LedgerContext {
+  option (northstar.web.evidence) = true;
+  optional BaselineRecord baseline = 1 [json_name = "baseline", (northstar.web.nullable) = true];
+  optional string baseline_id = 2 [json_name = "baseline_id", (northstar.web.nullable) = true];
+  repeated CheckRecord checks = 3 [json_name = "checks"];
+  repeated PositionEntry entries = 4 [json_name = "entries"];
+  map<string, google.protobuf.Value> evidence_fields = 1000;
+  repeated string null_fields = 2046;
+}
+
+message LiveConfiguration {
+  option (northstar.web.evidence) = true;
+  optional google.protobuf.Struct config = 1 [json_name = "config", (northstar.web.required_field) = true];
+  optional string configuration_id = 2 [json_name = "configuration_id", (northstar.web.required_field) = true];
+  optional string name = 3 [json_name = "name", (northstar.web.required_field) = true];
+  map<string, google.protobuf.Value> evidence_fields = 1000;
+}
+
+message MaterialRequest {
+  optional google.protobuf.Struct candidate = 1 [json_name = "candidate", (northstar.web.required_field) = true];
+  optional string request_id = 2 [json_name = "request_id", (northstar.web.required_field) = true];
+}
+
+message OpeningBudget {
+  option (northstar.web.evidence) = true;
+  optional string budget_id = 1 [json_name = "budget_id", (northstar.web.required_field) = true];
+  map<string, google.protobuf.Value> evidence_fields = 1000;
+}
+
+message OpeningBudgetRequest {
+  optional string limit_price = 1 [json_name = "limit_price", (northstar.web.required_field) = true];
+  optional string order_check_id = 2 [json_name = "order_check_id", (northstar.web.required_field) = true];
+  optional string request_id = 3 [json_name = "request_id", (northstar.web.required_field) = true];
+  optional int64 sequence = 4 [json_name = "sequence", (northstar.web.required_field) = true];
+}
+
+message OrderCheckRequest {
+  optional string position_check_id = 1 [json_name = "position_check_id", (northstar.web.required_field) = true];
+  optional string request_id = 2 [json_name = "request_id", (northstar.web.required_field) = true];
+}
+
+message PositionCheckRequest {
+  optional string entry_id = 1 [json_name = "entry_id", (northstar.web.required_field) = true];
+  optional string query_batch_id = 2 [json_name = "query_batch_id", (northstar.web.required_field) = true];
+  optional string request_id = 3 [json_name = "request_id", (northstar.web.required_field) = true];
+}
+
+message PositionEntry {
+  option (northstar.web.evidence) = true;
+  optional string entry_id = 1 [json_name = "entry_id", (northstar.web.required_field) = true];
+  map<string, google.protobuf.Value> evidence_fields = 1000;
+}
+
+message PositionEntryRequest {
+  optional string baseline_id = 1 [json_name = "baseline_id", (northstar.web.required_field) = true];
+  optional string request_id = 2 [json_name = "request_id", (northstar.web.required_field) = true];
+  optional string source_batch_id = 3 [json_name = "source_batch_id", (northstar.web.required_field) = true];
+}
+
+message QueryRecord {
+  option (northstar.web.evidence) = true;
+  optional string batch_id = 1 [json_name = "batch_id", (northstar.web.required_field) = true];
+  optional string instrument = 2 [json_name = "instrument", (northstar.web.required_field) = true];
+  optional string status = 3 [json_name = "status", (northstar.web.required_field) = true];
+  map<string, google.protobuf.Value> evidence_fields = 1000;
+}
+
+message QueryRequest {
+  optional string instrument = 1 [json_name = "instrument", (northstar.web.required_field) = true];
+  optional string profile = 2 [json_name = "profile", (northstar.web.required_field) = true];
+  optional string request_id = 3 [json_name = "request_id", (northstar.web.required_field) = true];
+}
+
+message Readiness {
+  optional string status = 1 [json_name = "status", (northstar.web.required_field) = true, (northstar.web.allowed_values) = "[\"ready\"]"];
+}
+
+message RuntimeStatus {
+  optional bool cancel_sending = 1 [json_name = "cancel_sending", (northstar.web.required_field) = true];
+  optional bool control_available = 2 [json_name = "control_available"];
+  optional string observed_at = 3 [json_name = "observed_at", (northstar.web.required_field) = true];
+  optional bool order_sending = 4 [json_name = "order_sending", (northstar.web.required_field) = true];
+  optional int64 pid = 5 [json_name = "pid", (northstar.web.required_field) = true];
+  optional string protocol = 6 [json_name = "protocol", (northstar.web.required_field) = true];
+  optional string release = 7 [json_name = "release", (northstar.web.required_field) = true];
+  optional string runtime_id = 8 [json_name = "runtime_id", (northstar.web.required_field) = true];
+  optional string started_at = 9 [json_name = "started_at", (northstar.web.required_field) = true];
+  optional string status = 10 [json_name = "status", (northstar.web.required_field) = true];
+}
+
+message StrategyMaterial {
+  option (northstar.web.evidence) = true;
+  optional string candidate_id = 1 [json_name = "candidate_id", (northstar.web.required_field) = true];
+  map<string, google.protobuf.Value> evidence_fields = 1000;
+}
+
+message StreamAccountProgress {
+  option (northstar.web.evidence) = true;
+  optional string status = 1 [json_name = "status", (northstar.web.required_field) = true];
+  optional int64 through_sequence = 2 [json_name = "through_sequence", (northstar.web.nullable) = true];
+  map<string, google.protobuf.Value> evidence_fields = 1000;
+  repeated string null_fields = 2046;
+}
+
+message StreamArchive {
+  option (northstar.web.evidence) = true;
+  optional string source_id = 1 [json_name = "source_id", (northstar.web.required_field) = true];
+  map<string, google.protobuf.Value> evidence_fields = 1000;
+}
+
+message StreamBinding {
+  option (northstar.web.evidence) = true;
+  optional StreamBindingRequest request = 1 [json_name = "request", (northstar.web.required_field) = true];
+  map<string, google.protobuf.Value> evidence_fields = 1000;
+}
+
+message StreamBindingRequest {
+  option (northstar.web.evidence) = true;
+  optional string query_batch_id = 1 [json_name = "query_batch_id", (northstar.web.required_field) = true];
+  map<string, google.protobuf.Value> evidence_fields = 1000;
+}
+
+message StreamControl {
+  option (northstar.web.evidence) = true;
+  optional string stream_id = 1 [json_name = "stream_id", (northstar.web.required_field) = true];
+  map<string, google.protobuf.Value> evidence_fields = 1000;
+}
+
+message StreamDecision {
+  option (northstar.web.evidence) = true;
+  optional int64 sequence = 1 [json_name = "sequence", (northstar.web.required_field) = true];
+  map<string, google.protobuf.Value> evidence_fields = 1000;
+}
+
+message StreamDetail {
+  option (northstar.web.evidence) = true;
+  optional StreamAccountProgress account_progress = 1 [json_name = "account_progress", (northstar.web.required_field) = true];
+  repeated google.protobuf.Struct archives = 2 [json_name = "archives", (northstar.web.required_field) = true];
+  optional StreamBinding binding = 3 [json_name = "binding", (northstar.web.required_field) = true];
+  optional string connection = 4 [json_name = "connection", (northstar.web.required_field) = true];
+  optional int64 cursor = 5 [json_name = "cursor", (northstar.web.required_field) = true];
+  optional bool paused = 6 [json_name = "paused", (northstar.web.required_field) = true];
+  optional int64 received = 7 [json_name = "received", (northstar.web.required_field) = true];
+  repeated StreamStep steps = 8 [json_name = "steps", (northstar.web.required_field) = true];
+  optional string stream_id = 9 [json_name = "stream_id", (northstar.web.required_field) = true];
+  map<string, google.protobuf.Value> evidence_fields = 1000;
+}
+
+message StreamEvent {
+  optional string committed_at = 1 [json_name = "committed_at", (northstar.web.required_field) = true];
+  optional google.protobuf.Struct event = 2 [json_name = "event", (northstar.web.required_field) = true];
+}
+
+message StreamPositionsRequest {
+  optional string baseline_id = 1 [json_name = "baseline_id", (northstar.web.required_field) = true];
+  optional string request_id = 2 [json_name = "request_id", (northstar.web.required_field) = true];
+  optional int64 through_sequence = 3 [json_name = "through_sequence", (northstar.web.required_field) = true];
+}
+
+message StreamRequest {
+  optional bool allow_retention = 1 [json_name = "allow_retention", (northstar.web.required_field) = true];
+  optional string configuration_id = 2 [json_name = "configuration_id", (northstar.web.required_field) = true];
+  optional int64 duration_seconds = 3 [json_name = "duration_seconds", (northstar.web.required_field) = true];
+  optional string query_batch_id = 4 [json_name = "query_batch_id", (northstar.web.required_field) = true];
+  optional string request_id = 5 [json_name = "request_id", (northstar.web.required_field) = true];
+  optional string use_basis = 6 [json_name = "use_basis", (northstar.web.required_field) = true];
+}
+
+message StreamStep {
+  optional string committed_at = 1 [json_name = "committed_at", (northstar.web.required_field) = true];
+  optional StreamStepResult result = 2 [json_name = "result", (northstar.web.required_field) = true];
+  optional int64 sequence = 3 [json_name = "sequence", (northstar.web.required_field) = true];
+}
+
+message StreamStepResult {
+  option (northstar.web.evidence) = true;
+  optional CompletedMinute bar = 1 [json_name = "bar", (northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  optional google.protobuf.Struct intent = 2 [json_name = "intent", (northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  map<string, google.protobuf.Value> evidence_fields = 1000;
+  repeated string null_fields = 2046;
+}
+
+message StreamSummary {
+  option (northstar.web.evidence) = true;
+  optional string stream_id = 1 [json_name = "stream_id", (northstar.web.required_field) = true];
+  map<string, google.protobuf.Value> evidence_fields = 1000;
+}
+
+message GetApiBrokerQueriesResponse {
+  option (northstar.web.root_array) = true;
+  repeated QueryRecord items = 1;
+}
+
+message GetApiConfigurationsResponse {
+  option (northstar.web.root_array) = true;
+  repeated LiveConfiguration items = 1;
+}
+
+message GetApiStrategyMaterialsResponse {
+  option (northstar.web.root_array) = true;
+  repeated StrategyMaterial items = 1;
+}
+
+message GetApiStreamsResponse {
+  option (northstar.web.root_array) = true;
+  repeated StreamSummary items = 1;
+}
+
+message GetApiStreamsStreamIdEventsResponse {
+  option (northstar.web.root_array) = true;
+  repeated StreamEvent items = 1;
+}
+
+service BrowserApi {
+  rpc GetApiAttemptsAttemptId (northstar.web.Empty) returns (ArchiveAttempt) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/attempts/{attempt_id}";
+  }
+  rpc PostApiBrokerBaselineChecks (BaselineCheckRequest) returns (CheckRecord) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/broker/baseline-checks";
+    option (northstar.web.runtime_required) = true;
+  }
+  rpc GetApiBrokerBaselineChecksCheckId (northstar.web.Empty) returns (CheckRecord) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/broker/baseline-checks/{check_id}";
+  }
+  rpc PostApiBrokerBaselines (BaselineRequest) returns (BaselineRecord) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/broker/baselines";
+    option (northstar.web.runtime_required) = true;
+  }
+  rpc PostApiBrokerFundsEntries (FundsEntryRequest) returns (FundsEntry) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/broker/funds-entries";
+    option (northstar.web.runtime_required) = true;
+  }
+  rpc GetApiBrokerFundsEntriesEntryId (northstar.web.Empty) returns (FundsEntry) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/broker/funds-entries/{entry_id}";
+  }
+  rpc GetApiBrokerOpeningBudgetsBudgetId (northstar.web.Empty) returns (OpeningBudget) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/broker/opening-budgets/{budget_id}";
+  }
+  rpc PostApiBrokerOrderChecks (OrderCheckRequest) returns (CheckRecord) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/broker/order-checks";
+    option (northstar.web.runtime_required) = true;
+  }
+  rpc GetApiBrokerOrderChecksCheckId (northstar.web.Empty) returns (CheckRecord) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/broker/order-checks/{check_id}";
+  }
+  rpc PostApiBrokerPositionChecks (PositionCheckRequest) returns (CheckRecord) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/broker/position-checks";
+    option (northstar.web.runtime_required) = true;
+  }
+  rpc GetApiBrokerPositionChecksCheckId (northstar.web.Empty) returns (CheckRecord) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/broker/position-checks/{check_id}";
+  }
+  rpc PostApiBrokerPositionEntries (PositionEntryRequest) returns (PositionEntry) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/broker/position-entries";
+    option (northstar.web.runtime_required) = true;
+  }
+  rpc GetApiBrokerPositionEntriesEntryId (northstar.web.Empty) returns (PositionEntry) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/broker/position-entries/{entry_id}";
+  }
+  rpc GetApiBrokerQueries (northstar.web.Empty) returns (GetApiBrokerQueriesResponse) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/broker/queries";
+  }
+  rpc PostApiBrokerQueries (QueryRequest) returns (QueryRecord) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/broker/queries";
+    option (northstar.web.runtime_required) = true;
+  }
+  rpc GetApiBrokerQueriesBatchId (northstar.web.Empty) returns (QueryRecord) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/broker/queries/{batch_id}";
+  }
+  rpc GetApiBrokerQueriesBatchIdBaselineContext (northstar.web.Empty) returns (BaselineContext) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/broker/queries/{batch_id}/baseline-context";
+  }
+  rpc GetApiBrokerQueriesBatchIdFundsContext (northstar.web.Empty) returns (FundsContext) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/broker/queries/{batch_id}/funds-context";
+  }
+  rpc GetApiBrokerQueriesBatchIdLedgerContext (northstar.web.Empty) returns (LedgerContext) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/broker/queries/{batch_id}/ledger-context";
+  }
+  rpc GetApiBrokerStatus (northstar.web.Empty) returns (BrokerStatus) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/broker/status";
+  }
+  rpc GetApiBrowserSession (northstar.web.Empty) returns (BrowserSession) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/browser-session";
+  }
+  rpc GetApiConfigurations (northstar.web.Empty) returns (GetApiConfigurationsResponse) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/configurations";
+  }
+  rpc GetApiDatasetsSnapshotId (northstar.web.Empty) returns (ArchiveDataset) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/datasets/{snapshot_id}";
+  }
+  rpc GetApiLiveCommandsRequestId (northstar.web.Empty) returns (CommandRecord) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/live/commands/{request_id}";
+  }
+  rpc GetApiLiveDiagnostics (northstar.web.Empty) returns (Diagnostics) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/live/diagnostics";
+  }
+  rpc GetApiLiveStatus (northstar.web.Empty) returns (RuntimeStatus) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/live/status";
+  }
+  rpc GetApiSourcesSourceId (northstar.web.Empty) returns (ArchiveSource) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/sources/{source_id}";
+  }
+  rpc PostApiSourcesSourceIdReprocess (ArchiveReprocessRequest) returns (ArchiveAttempt) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/sources/{source_id}/reprocess";
+    option (northstar.web.runtime_required) = true;
+  }
+  rpc GetApiStrategyMaterials (northstar.web.Empty) returns (GetApiStrategyMaterialsResponse) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/strategy-materials";
+  }
+  rpc PostApiStrategyMaterials (MaterialRequest) returns (StrategyMaterial) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/strategy-materials";
+    option (northstar.web.runtime_required) = true;
+  }
+  rpc GetApiStreams (northstar.web.Empty) returns (GetApiStreamsResponse) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/streams";
+  }
+  rpc PostApiStreams (StreamRequest) returns (StreamSummary) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/streams";
+    option (northstar.web.runtime_required) = true;
+  }
+  rpc GetApiStreamsStreamId (northstar.web.Empty) returns (StreamDetail) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/streams/{stream_id}";
+  }
+  rpc PostApiStreamsStreamIdAccountCatchup (AccountCatchupRequest) returns (AccountProgress) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/streams/{stream_id}/account-catchup";
+    option (northstar.web.runtime_required) = true;
+  }
+  rpc PostApiStreamsStreamIdArchive (ArchiveRequest) returns (StreamArchive) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/streams/{stream_id}/archive";
+    option (northstar.web.runtime_required) = true;
+  }
+  rpc PostApiStreamsStreamIdControl (ControlRequest) returns (StreamControl) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/streams/{stream_id}/control";
+    option (northstar.web.runtime_required) = true;
+  }
+  rpc GetApiStreamsStreamIdDecisionsSequence (northstar.web.Empty) returns (StreamDecision) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/streams/{stream_id}/decisions/{sequence}";
+  }
+  rpc GetApiStreamsStreamIdEvents (northstar.web.Empty) returns (GetApiStreamsStreamIdEventsResponse) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/streams/{stream_id}/events";
+  }
+  rpc GetApiStreamsStreamIdOpeningBudgets (northstar.web.Empty) returns (BudgetContext) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/streams/{stream_id}/opening-budgets";
+  }
+  rpc PostApiStreamsStreamIdOpeningBudgets (OpeningBudgetRequest) returns (OpeningBudget) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/streams/{stream_id}/opening-budgets";
+    option (northstar.web.runtime_required) = true;
+  }
+  rpc PostApiStreamsStreamIdPositionEntries (StreamPositionsRequest) returns (PositionEntry) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/streams/{stream_id}/position-entries";
+    option (northstar.web.runtime_required) = true;
+  }
+}

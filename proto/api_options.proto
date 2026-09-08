@@ -1,0 +1,19 @@
+syntax = "proto3";
+package northstar.web;
+import "google/protobuf/descriptor.proto";
+// HTTP bindings are transport metadata; business invariants stay with their owner.
+extend google.protobuf.MethodOptions {
+  string http_method = 51001;
+  string http_path = 51002;
+  bool runtime_required = 51003;
+}
+extend google.protobuf.FieldOptions {
+  bool required_field = 51011;
+  bool nullable = 51012;
+  string allowed_values = 51013;
+  bool string_or_integer = 51014;
+}
+extend google.protobuf.MessageOptions {
+  bool root_array = 51021;
+  bool evidence = 51022;
+}

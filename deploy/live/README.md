@@ -2,7 +2,7 @@
 
 This is the current Live-only topology, not a second implementation. It runs the
 same installed package as the local all-application Compose, but with its own
-database, source files and deployment authentication. It does not start or mount
+database, source files and deployment authentication. Next.js, the Python management API and the kernel run independently. It does not start or mount
 Data Hub or Research. Do not reuse the personal application's volumes or attach
 its database network. Never run two instances against one broker account.
 
@@ -18,6 +18,7 @@ Use a previously verified Linux amd64 image by registry digest. Local acceptance
 may instead pass an already-built local image; no source build occurs here.
 Set these variables in a private owner-only environment file outside Git:
 
+- `NORTHSTAR_LIVE_FRONTEND_IMAGE`: the exact tested Next.js frontend image.
 - `NORTHSTAR_LIVE_IMAGE`: the exact approved image reference.
 - `NORTHSTAR_LIVE_DATABASE_PASSWORD`: a generated URL-safe password (for example,
   `secrets.token_urlsafe(32)`); never place it in an Issue or shared command output.
@@ -37,14 +38,14 @@ Changing that variable does not rotate the password of an existing database.
 Keep the same project identity for its volumes; never use `down -v` on retained data.
 
 Only Live Web is published, on loopback. PostgreSQL and the kernel have no host
-ports; the Web has no storage network, database settings, sources or broker secrets.
+ports; the frontend and management API have no storage network, database settings, sources or broker secrets.
 For initial private management, use an authenticated SSH tunnel to that loopback
 port, preserving localhost Host/Origin for HTTP and WebSocket. Do not expose the
 raw Web publicly or weaken same-origin checks. A reverse proxy/public endpoint
 needs its own authentication, TLS and WebSocket verification before use.
 
 Web readiness only means its HTTP process is serving. Query `/api/live/status`
-through the normal same-origin session or run `northstar live-status` inside the
+through the normal same-origin session or run `northstar status` inside the
 kernel for its actual identity/storage availability. Neither proves tradability.
 Web restart is independent; kernel/database restart never restores sending authority.
 Automatic container restart is not an external host-loss alert.
@@ -52,7 +53,7 @@ Automatic container restart is not an external host-loss alert.
 ## Reproducible local acceptance
 
 ```sh
-uv run python scripts/check_live_deployment.py --image northstar-quant:local
+uv run --project backend python scripts/check_live_deployment.py --image northstar-quant:local --frontend-image northstar-live-frontend:local
 ```
 
 The check creates a uniquely named, isolated Compose project with generated test

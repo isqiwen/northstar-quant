@@ -7,6 +7,7 @@ import subprocess
 from pathlib import Path
 from uuid import uuid4
 
+from install_check.catalog import check_restored_catalog
 from install_check.processes import InstalledApplication
 
 
@@ -20,6 +21,7 @@ def check_restore(
     data,
     saved_queries,
     saved_streams,
+    catalog_evidence,
 ):
     """Use a generated disposable restore database; never overwrite the source database."""
 
@@ -67,7 +69,7 @@ def check_restore(
             )
         finally:
             unavailable.rename(referenced)
-        result = command("restore", str(runtime / "backup"))
+        result = command("maintenance", "restore", str(runtime / "backup"))
         assert result["status"] == "restored" and result["execution"] == "PAUSED"
         evidence = result["evidence"]
         assert set(evidence) == {
@@ -96,11 +98,14 @@ def check_restore(
             }
         # Remote broker reads must target this restored database, not the original Live.
         with application.live():
-            assert command("broker-list") == saved_queries
-            assert [item["stream_id"] for item in command("stream-list")] == saved_streams
-        assert command("dataset", snapshot_id) == data
-        assert command("replay", run_id)["run_id"] == run_id
-        assert all(item["file_status"] == "AVAILABLE" for item in command("sources"))
+            assert command("advanced", "broker", "list") == saved_queries
+            assert [
+                item["stream_id"] for item in command("advanced", "stream", "list")
+            ] == saved_streams
+        check_restored_catalog(application, catalog_evidence)
+        assert command("data", "dataset", snapshot_id) == data
+        assert command("research", "replay", run_id)["run_id"] == run_id
+        assert all(item["file_status"] == "AVAILABLE" for item in command("data", "sources"))
         print(
             "Joint restore: empty database, retained bytes, source/processing/publication "
             "and exact research reuse plus saved broker evidence verification passed",

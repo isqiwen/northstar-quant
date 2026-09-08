@@ -6,6 +6,7 @@ x-logging: &bounded-logging
     max-file: "3"
 services:
   postgres:
+    networks: [storage]
     image: postgres:17-alpine
     cpus: 1.0
     mem_limit: 1g
@@ -26,8 +27,14 @@ services:
       timeout: 3s
       retries: 20
   initialize:
+    networks: [storage]
     platform: linux/amd64
-    build: .
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      args:
+        NORTHSTAR_GIT_REVISION: ${NORTHSTAR_GIT_REVISION:-}
+        NORTHSTAR_DEVELOPMENT_BUILD: ${NORTHSTAR_DEVELOPMENT_BUILD:-0}
     image: northstar-quant:local
     cpus: 1.0
     mem_limit: 512m
@@ -43,10 +50,15 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    command: ["sh", "-c", "northstar init-db && northstar init-live-auth /var/lib/northstar/auth && python -c 'from northstar_quant.data_management.files import SourceFiles; SourceFiles.from_environment()'"]
+    command: ["sh", "-c", "northstar maintenance init-db && northstar maintenance init-auth /var/lib/northstar/auth && python -c 'from northstar_quant.data_management.files import SourceFiles; SourceFiles.from_environment()'"]
   live:
+    networks: [storage, management, egress]
     platform: linux/amd64
-    build: .
+    build:
+      context: .
+      args:
+        NORTHSTAR_GIT_REVISION: ${NORTHSTAR_GIT_REVISION:-}
+        NORTHSTAR_DEVELOPMENT_BUILD: ${NORTHSTAR_DEVELOPMENT_BUILD:-0}
     image: northstar-quant:local
     restart: unless-stopped
     cpus: 2.0
@@ -67,17 +79,22 @@ services:
         condition: service_completed_successfully
     ports:
       - "127.0.0.1:18081:18081"
-    command: ["uvicorn", "northstar_quant.live:application", "--factory", "--host", "0.0.0.0", "--port", "18081"]
+    command: ["uvicorn", "northstar_quant.apps.live.kernel:application", "--factory", "--host", "0.0.0.0", "--port", "18081"]
     healthcheck:
-      test: ["CMD", "northstar", "live-status"]
+      test: ["CMD", "northstar", "status"]
       interval: 10s
       timeout: 8s
       retries: 3
       start_period: 20s
     stop_grace_period: 30s
-  live-web:
+  live-api:
+    networks: [management, live-frontend]
     platform: linux/amd64
-    build: .
+    build:
+      context: .
+      args:
+        NORTHSTAR_GIT_REVISION: ${NORTHSTAR_GIT_REVISION:-}
+        NORTHSTAR_DEVELOPMENT_BUILD: ${NORTHSTAR_DEVELOPMENT_BUILD:-0}
     image: northstar-quant:local
     restart: unless-stopped
     cpus: 1.0
@@ -94,17 +111,22 @@ services:
       initialize:
         condition: service_completed_successfully
     ports:
-      - "127.0.0.1:18080:18080"
-    command: ["uvicorn", "northstar_quant.apps.live:application", "--factory", "--host", "0.0.0.0", "--port", "18080"]
+      - "127.0.0.1:19080:19080"
+    command: ["uvicorn", "northstar_quant.apps.live:application", "--factory", "--host", "0.0.0.0", "--port", "19080"]
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:18080/health/ready', timeout=3)"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:19080/health/ready', timeout=3)"]
       interval: 10s
       timeout: 5s
       retries: 3
       start_period: 20s
-  data-hub:
+  data-api:
+    networks: [storage, data-frontend]
     platform: linux/amd64
-    build: .
+    build:
+      context: .
+      args:
+        NORTHSTAR_GIT_REVISION: ${NORTHSTAR_GIT_REVISION:-}
+        NORTHSTAR_DEVELOPMENT_BUILD: ${NORTHSTAR_DEVELOPMENT_BUILD:-0}
     image: northstar-quant:local
     restart: unless-stopped
     logging: *bounded-logging
@@ -118,18 +140,23 @@ services:
       initialize:
         condition: service_completed_successfully
     ports:
-      - "127.0.0.1:18082:18082"
-    command: ["uvicorn", "northstar_quant.apps.data_hub:application", "--factory", "--host", "0.0.0.0", "--port", "18082"]
+      - "127.0.0.1:19082:19082"
+    command: ["uvicorn", "northstar_quant.apps.data_hub:application", "--factory", "--host", "0.0.0.0", "--port", "19082"]
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:18082/health/ready', timeout=3)"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:19082/health/ready', timeout=3)"]
       interval: 10s
       timeout: 5s
       retries: 3
       start_period: 20s
 
-  research:
+  research-api:
+    networks: [storage, research-frontend]
     platform: linux/amd64
-    build: .
+    build:
+      context: .
+      args:
+        NORTHSTAR_GIT_REVISION: ${NORTHSTAR_GIT_REVISION:-}
+        NORTHSTAR_DEVELOPMENT_BUILD: ${NORTHSTAR_DEVELOPMENT_BUILD:-0}
     image: northstar-quant:local
     restart: unless-stopped
     logging: *bounded-logging
@@ -142,10 +169,73 @@ services:
       initialize:
         condition: service_completed_successfully
     ports:
-      - "127.0.0.1:18084:18084"
-    command: ["uvicorn", "northstar_quant.apps.research:application", "--factory", "--host", "0.0.0.0", "--port", "18084"]
+      - "127.0.0.1:19084:19084"
+    command: ["uvicorn", "northstar_quant.apps.research:application", "--factory", "--host", "0.0.0.0", "--port", "19084"]
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:18084/health/ready', timeout=3)"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:19084/health/ready', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  data-hub:
+    networks: [data-frontend, ingress]
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        APP: data_hub
+    image: northstar-data_hub-frontend:local
+    restart: unless-stopped
+    logging: *bounded-logging
+    environment:
+      NORTHSTAR_API_URL: http://data-api:19082
+    ports:
+      - "127.0.0.1:18082:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  research:
+    networks: [research-frontend, ingress]
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        APP: research
+    image: northstar-research-frontend:local
+    restart: unless-stopped
+    logging: *bounded-logging
+    environment:
+      NORTHSTAR_API_URL: http://research-api:19084
+    ports:
+      - "127.0.0.1:18084:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  live-web:
+    networks: [live-frontend, ingress]
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        APP: live
+    image: northstar-live-frontend:local
+    restart: unless-stopped
+    logging: *bounded-logging
+    environment:
+      NORTHSTAR_API_URL: http://live-api:19080
+    ports:
+      - "127.0.0.1:18080:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -156,3 +246,17 @@ volumes:
   source-data:
   backup-data:
   runtime-auth:
+
+networks:
+  storage:
+    internal: true
+  management:
+    internal: true
+  live-frontend:
+    internal: true
+  data-frontend:
+    internal: true
+  research-frontend:
+    internal: true
+  egress:
+  ingress:

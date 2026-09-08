@@ -1,0 +1,8 @@
+apps/*/.next/
+apps/*/api/generated.ts
+apps/*/api/client.ts
+apps/*/api/protocol.json
+shared/api/generated.ts
+apps/*/next-env.d.ts
+apps/*/api/codec.js
+apps/*/api/codec.d.ts
