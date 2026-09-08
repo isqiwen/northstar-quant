@@ -1,10 +1,15 @@
 # Northstar Quant
 
 This repository is the sole maintained personal domestic-futures trading system.
-The ultimate objective is controlled live trading. Deliver the shortest safe
-vertical path through a concrete broker simulation to a bounded real-account
-round trip; research and internal Paper support that path, not a prerequisite
-platform to finish in full. Read `docs/ARCHITECTURE.md` for changes to data
+The ultimate objective is controlled live trading. Round one must deliver a complete
+single-strategy, single-real-contract cross-day backtest and a concrete broker
+Live Sim round trip with simulated funds. Data collection, cleaning, visual inspection,
+fixed publication and durable research execution are part of that outcome. Live Sim
+uses the same Live kernel, Strategy/Risk/Execution/Broker/Accounting rules and recovery
+path intended for production; only the explicitly bound environment, credentials,
+account and effective terms differ. Never substitute internal Paper fills for broker
+facts. Production funding/admission, mandatory cloud deployment, multi-contract
+portfolios and advanced mining follow this first-round acceptance. Read `docs/ARCHITECTURE.md` for changes to data
 lifecycle, factor/strategy/risk configuration, workspace controls, trading,
 broker integration, recovery or runtime topology; read
 `README.md` to run the application. Code documents implemented details.
@@ -26,7 +31,8 @@ broker integration, recovery or runtime topology; read
   Immutable content identities preserve reproducibility, not old implementations.
 - Deliver one repository and one Python package as three independent applications:
   Northstar Data Hub (`apps/data_hub/`) on core, Northstar Research
-  (`apps/research/`) on the workstation, Northstar Live (`apps/live/`) on the cloud.
+  (`apps/research/`) on the workstation, Northstar Live (`apps/live/`) on its own host.
+  Cloud is the later production target, not a prerequisite for first-round Live Sim.
   Each owns its Web, configuration, deployment and diagnostics. There is no Console
   application. Share presentation components, not authority or lifecycle.
   `data_management/` owns data business behavior; `apps/data_hub/` composes its app.
@@ -44,12 +50,13 @@ broker integration, recovery or runtime topology; read
   Live owns realtime inputs, execution authority and durable account facts without
   depending on Data, Research or a WAN database. Transfer fixed artifacts and
   archives asynchronously; each fact has one authoritative writer. Web restart
-  never owns a trading shutdown. Full Data/Research platforms do not block live.
+  never owns a trading shutdown. Deliver the first-round Data/Research workflow;
+  unbounded platform expansion is not a prerequisite for Live Sim.
 - Deliver vertical behavior: accepted market/account facts → Strategy and Risk →
   authorized execution → confirmed fills and ledger → reconciliation and browser
   explanation. Distinguish research, internal Paper, broker simulation and live
   evidence. Advanced research and portfolio features do not block the first
-  bounded live path; account safety and explicit trading authority do.
+  Live Sim acceptance; account safety and explicit simulation authority do.
 - Keep types and invariant enforcement beside the behavior that owns them.
   Never create generic `contracts/`, `schemas/`, `validators/`, or `fixtures/`
   layers or renamed equivalents. Generate external descriptions only when used.
