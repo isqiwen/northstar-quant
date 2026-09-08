@@ -2,23 +2,21 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Northstar: Debug Console (port 18082)",
+      "name": "Northstar: Debug Live Web (port 18082)",
       "type": "debugpy",
       "request": "launch",
       "module": "northstar_quant.cli",
       "args": [
-        "serve",
+        "live-web",
         "--port",
         "18082"
       ],
       "cwd": "${workspaceFolder}",
       "envFile": "${workspaceFolder}/.vscode/test.env",
       "env": {
-        "NORTHSTAR_DATABASE_URL": "postgresql+psycopg://northstar:northstar_local@127.0.0.1:15432/northstar_quant_vscode",
-        "NORTHSTAR_DATA_DIR": "${workspaceFolder}/.northstar/vscode-sources",
         "NORTHSTAR_SIMNOW_CONFIG": "",
         "NORTHSTAR_LIVE_URL": "http://127.0.0.1:18083",
-        "NORTHSTAR_LIVE_AUTH": "${workspaceFolder}/.northstar/vscode-runtime-auth/console.toml"
+        "NORTHSTAR_LIVE_AUTH": "${workspaceFolder}/.northstar/vscode-runtime-auth/live-web.toml"
       },
       "console": "integratedTerminal",
       "justMyCode": true,
@@ -71,9 +69,9 @@
   ],
   "compounds": [
     {
-      "name": "Northstar: Debug independent Live and Console",
+      "name": "Northstar: Debug independent Live and Live Web",
       "configurations": [
-        "Northstar: Debug Console (port 18082)",
+        "Northstar: Debug Live Web (port 18082)",
         "Northstar: Debug Live (port 18083)"
       ],
       "stopAll": false,

@@ -12,7 +12,7 @@ import pytest
 from sqlalchemy import func, insert, select, update
 from sqlalchemy.orm import Session
 
-from northstar_quant.data.catalog.models import (
+from northstar_quant.data_management.catalog.models import (
     CanonicalBar,
     ImportQualityEvaluation,
     ImportQualityFinding,
@@ -20,16 +20,16 @@ from northstar_quant.data.catalog.models import (
     ImportRun,
     SourceReceipt,
 )
-from northstar_quant.data.quality import import_service
-from northstar_quant.data.quality.evaluations import (
+from northstar_quant.data_management.quality import import_service
+from northstar_quant.data_management.quality.evaluations import (
     ImportQualityEvaluationCommand,
     ImportQualityEvaluationError,
     ImportQualityEvaluationResult,
 )
-from northstar_quant.data.quality.import_applicability_service import (
+from northstar_quant.data_management.quality.import_applicability_service import (
     ImportQualityApplicabilityService,
 )
-from northstar_quant.data.quality.import_service import ImportQualityEvaluationService
+from northstar_quant.data_management.quality.import_service import ImportQualityEvaluationService
 
 from .catalog_support import SyntheticCatalog, seed_synthetic_catalog
 

@@ -36,15 +36,15 @@ def initialize_database(engine: Engine) -> None:
     from northstar_quant.broker.records import initialize_broker_records
     from northstar_quant.broker.stream_account import initialize_stream_accounts
     from northstar_quant.broker.streams import initialize_streams
-    from northstar_quant.data.library import initialize_library
-    from northstar_quant.data.maintenance import initialize_maintenance
+    from northstar_quant.data_management.library import initialize_library
+    from northstar_quant.data_management.maintenance import initialize_maintenance
     from northstar_quant.live.commands import initialize_live_commands
     from northstar_quant.runs import initialize_run_store
     from northstar_quant.sessions import initialize_session_store
 
     configuration = Config()
     configuration.set_main_option(
-        "script_location", str(files("northstar_quant.data").joinpath("migrations"))
+        "script_location", str(files("northstar_quant.data_management").joinpath("migrations"))
     )
     with engine.begin() as connection:
         configuration.attributes["connection"] = connection
@@ -82,7 +82,7 @@ def require_current_database(engine: Engine) -> None:
 
     configuration = Config()
     configuration.set_main_option(
-        "script_location", str(files("northstar_quant.data").joinpath("migrations"))
+        "script_location", str(files("northstar_quant.data_management").joinpath("migrations"))
     )
     expected = set(ScriptDirectory.from_config(configuration).get_heads())
     with engine.connect() as connection:

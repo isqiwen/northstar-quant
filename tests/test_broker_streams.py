@@ -24,8 +24,8 @@ from northstar_quant.broker.ledger import BrokerLedger
 from northstar_quant.broker.records import BrokerEvent, BrokerRecords
 from northstar_quant.broker.settings import Credentials
 from northstar_quant.broker.streams import BrokerStreams
-from northstar_quant.data.files import SourceFiles
-from northstar_quant.data.library import DataLibrary
+from northstar_quant.data_management.files import SourceFiles
+from northstar_quant.data_management.library import DataLibrary
 from northstar_quant.research import ResearchConfig
 from northstar_quant.sessions import SessionStore
 
@@ -333,7 +333,7 @@ def test_query_cannot_overtake_pending_market_receipt_clock_regression(
 
 
 def test_browser_stream_start_stop_requires_csrf_and_never_reconnects_on_reads(
-    console_app,
+    live_web_app,
     postgres_engine: Engine,
     clean_database: None,
     tmp_path: Path,
@@ -350,7 +350,7 @@ def test_browser_stream_start_stop_requires_csrf_and_never_reconnects_on_reads(
         "allow_retention": True,
         "use_basis": "Synthetic engineering acceptance",
     }
-    with TestClient(console_app(postgres_engine, library), base_url="http://127.0.0.1") as client:
+    with TestClient(live_web_app(postgres_engine, library), base_url="http://127.0.0.1") as client:
         assert client.post("/api/streams", json=payload).status_code == 403
         page = client.get("/streams")
         assert page.status_code == 200 and calls["count"] == 0
@@ -384,7 +384,7 @@ def test_browser_stream_start_stop_requires_csrf_and_never_reconnects_on_reads(
 
 
 def test_identity_error_cannot_resume_and_stop_keeps_tail_callbacks(
-    console_app,
+    live_web_app,
     postgres_engine: Engine,
     clean_database: None,
     tmp_path: Path,
@@ -422,7 +422,7 @@ def test_identity_error_cannot_resume_and_stop_keeps_tail_callbacks(
     report = streams.get(identifier)
     assert report["status"] == "STOPPED" and report["received"] == report["cursor"] == 4
     assert streams.events(identifier)[-1]["event"] == calls["tail"].to_dict()
-    with TestClient(console_app(postgres_engine, library), base_url="http://127.0.0.1") as client:
+    with TestClient(live_web_app(postgres_engine, library), base_url="http://127.0.0.1") as client:
         assert client.get(f"/api/streams/{identifier}").status_code == 403
         assert client.get("/streams").status_code == 200
         result = client.get(f"/api/streams/{identifier}").json()

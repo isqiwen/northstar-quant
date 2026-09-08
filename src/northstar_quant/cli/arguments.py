@@ -11,7 +11,7 @@ from uuid import UUID
 def parse(argv: Sequence[str] | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="northstar",
-        description="Personal futures data, research and independently managed Live/Console",
+        description="Personal futures data, research and independently managed Live/Live Web",
     )
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("init-db", help="initialize or verify the current PostgreSQL baseline")
@@ -89,8 +89,9 @@ def parse(argv: Sequence[str] | None) -> argparse.Namespace:
     paper_next.add_argument(
         "--request-id", type=UUID, required=True, help="reuse this UUID on retry"
     )
-    serve = commands.add_parser("serve", help="serve the independent personal Console")
-    serve.add_argument("--port", type=int, default=18080)
+    for name, port in (("live-web", 18080), ("data-hub", 18082), ("research-web", 18083)):
+        application = commands.add_parser(name, help=f"serve the independent {name} application")
+        application.add_argument("--port", type=int, default=port)
     commands.add_parser("broker-status", help="inspect SimNow setup without connecting")
     commands.add_parser("broker-sdk-check", help="load and release native SDK without network")
     commands.add_parser("broker-list", help="list persisted SimNow query evidence")

@@ -21,8 +21,8 @@ from northstar_quant.broker.funds import BrokerFunds
 from northstar_quant.broker.ledger import BrokerLedger
 from northstar_quant.broker.records import BrokerRecords, QueryCapture
 from northstar_quant.broker.settings import get_profile
-from northstar_quant.data.files import SourceFiles
-from northstar_quant.data.library import DataLibrary
+from northstar_quant.data_management.files import SourceFiles
+from northstar_quant.data_management.library import DataLibrary
 
 
 def money_query(
@@ -224,7 +224,7 @@ def test_changed_money_or_source_evidence_is_refused_on_read(
 
 
 def test_browser_money_registration_requires_session_csrf_and_saved_inputs_only(
-    console_app, postgres_engine: Engine, clean_database: None, tmp_path: Path
+    live_web_app, postgres_engine: Engine, clean_database: None, tmp_path: Path
 ) -> None:
     del clean_database
     baseline = money_baseline(postgres_engine)
@@ -235,7 +235,7 @@ def test_browser_money_registration_requires_session_csrf_and_saved_inputs_only(
         "source_batch_id": str(source),
         "request_id": str(command),
     }
-    application = console_app(
+    application = live_web_app(
         postgres_engine, DataLibrary(postgres_engine, SourceFiles(tmp_path / "archive"))
     )
     with TestClient(application, base_url="http://127.0.0.1") as client:

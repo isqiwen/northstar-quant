@@ -13,8 +13,8 @@ from fastapi.testclient import TestClient
 from sqlalchemy import Engine
 from test_broker_baselines import saved_query
 
-from northstar_quant.data.files import SourceFiles
-from northstar_quant.data.library import DataLibrary
+from northstar_quant.data_management.files import SourceFiles
+from northstar_quant.data_management.library import DataLibrary
 from northstar_quant.live import (
     CommandUnknown,
     LiveAuth,

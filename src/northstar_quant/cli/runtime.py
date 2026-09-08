@@ -20,7 +20,7 @@ def initialize_auth(directory: Path) -> dict[str, str]:
         raise ValueError(
             "runtime authentication directory must be owned and not writable by others"
         )
-    paths = [directory / "live.toml", directory / "console.toml"]
+    paths = [directory / "live.toml", directory / "live-web.toml"]
     if any(path.exists() or path.is_symlink() for path in paths):
         saved = []
         for path in paths:
@@ -35,7 +35,7 @@ def initialize_auth(directory: Path) -> dict[str, str]:
                 raise ValueError("existing runtime authentication bundle is incomplete")
             saved.append(LiveAuth(**values))
         if saved[0] != saved[1]:
-            raise ValueError("existing Live and Console authentication files do not match")
+            raise ValueError("existing Live and Live Web authentication files do not match")
     else:
         read_token, control_token = secrets.token_urlsafe(48), secrets.token_urlsafe(48)
         content = f'read_token = "{read_token}"\ncontrol_token = "{control_token}"\n'
@@ -50,7 +50,7 @@ def initialize_auth(directory: Path) -> dict[str, str]:
             os.fsync(descriptor)
         finally:
             os.close(descriptor)
-    return {"status": "ready", "live_auth": str(paths[0]), "console_auth": str(paths[1])}
+    return {"status": "ready", "live_auth": str(paths[0]), "web_auth": str(paths[1])}
 
 
 def serve(role: str, port: int) -> None:
@@ -58,5 +58,10 @@ def serve(role: str, port: int) -> None:
 
     if not 1024 <= port <= 65535:
         raise ValueError("port must be between 1024 and 65535")
-    module = "live" if role == "live" else "web"
+    module = {
+        "live": "live",
+        "live-web": "apps.live",
+        "data-hub": "apps.data_hub",
+        "research-web": "apps.research",
+    }[role]
     uvicorn.run(f"northstar_quant.{module}:application", factory=True, host="127.0.0.1", port=port)

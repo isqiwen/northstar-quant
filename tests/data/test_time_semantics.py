@@ -6,8 +6,8 @@ from uuid import UUID
 import pytest
 from sqlalchemy.orm import Session
 
-from northstar_quant.data.catalog.models import TradingSession
-from northstar_quant.data.catalog.time import (
+from northstar_quant.data_management.catalog.models import TradingSession
+from northstar_quant.data_management.catalog.time import (
     AmbiguousTradingSessionError,
     resolve_trading_day,
 )

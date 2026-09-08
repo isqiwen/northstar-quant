@@ -2,7 +2,7 @@
 .PHONY: help install up down verify test
 
 help:
-	@echo 'make up       Start independent Live, Console and PostgreSQL'
+	@echo 'make up       Start independent Live, three application Webs and PostgreSQL'
 	@echo 'make down     Stop containers, keeping data'
 	@echo 'make verify   Verify source and behavior (NORTHSTAR_TEST_DATABASE_URL required)'
 

@@ -14,7 +14,7 @@ from sqlalchemy import Engine
 from northstar_quant.broker.budgets import BrokerOpeningBudgets
 from northstar_quant.broker.streams import BrokerStreams
 from northstar_quant.broker.workspace import BrokerWorkspace
-from northstar_quant.data.library import DataLibrary
+from northstar_quant.data_management.library import DataLibrary
 from northstar_quant.runtime import release_hash
 
 from .auth import LiveAuth

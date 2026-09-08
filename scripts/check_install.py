@@ -67,7 +67,7 @@ def main() -> None:
             assert command("init-db") == {"status": "ready"}
             assert command("init-db") == {"status": "ready"}
             authentication = command("init-live-auth", str(runtime / "auth"))
-            application.environment["NORTHSTAR_LIVE_AUTH"] = authentication["console_auth"]
+            application.environment["NORTHSTAR_LIVE_AUTH"] = authentication["web_auth"]
             with application.live() as live_process:
                 live_status = command("live-status")
                 application.assert_live(live_process, live_status)
@@ -141,9 +141,13 @@ def main() -> None:
                 paused_paper = command("paper-show", paper_id)
                 assert paused_paper["cursor"] == 1 and paused_paper["status"] == "PAUSED"
 
-                with application.console() as base_url:
-                    application.assert_live(live_process, live_status, base_url)
-                    check_broker_access(application, base_url, configuration)
+                with (
+                    application.web() as live_url,
+                    application.web("data-hub") as base_url,
+                    application.web("research-web") as research_url,
+                ):
+                    application.assert_live(live_process, live_status, live_url)
+                    check_broker_access(application, live_url, configuration)
                     upload = {
                         "content_base64": base64.b64encode(csv).decode("ascii"),
                         "filename": source_file,
@@ -184,7 +188,7 @@ def main() -> None:
                     assert json.loads(request(f"{base_url}/api/datasets/{snapshot_id}")) == data
                     submitted = json.loads(
                         request(
-                            f"{base_url}/api/runs",
+                            f"{research_url}/api/runs",
                             {
                                 "snapshot_id": imported["snapshot_id"],
                                 "config": settings["research"],
@@ -192,18 +196,20 @@ def main() -> None:
                         )
                     )
                     assert submitted["run_id"] == run_id
-                    assert json.loads(request(f"{base_url}/api/runs/{run_id}")) == saved
+                    assert json.loads(request(f"{research_url}/api/runs/{run_id}")) == saved
                     assert source["symbol"] in request(f"{base_url}/datasets/{snapshot_id}").decode(
                         "utf-8"
                     )
-                    assert source["symbol"] in request(f"{base_url}{submitted['url']}").decode(
+                    assert source["symbol"] in request(f"{research_url}{submitted['url']}").decode(
                         "utf-8"
                     )
                     assert request(f"{base_url}/")
                     assert request(f"{base_url}/assets/app.js")
                     assert request(f"{base_url}/assets/app.css")
-                    assert json.loads(request(f"{base_url}/api/paper/{paper_id}")) == paused_paper
-                    assert source["symbol"] in request(f"{base_url}/paper/{paper_id}").decode(
+                    assert (
+                        json.loads(request(f"{research_url}/api/paper/{paper_id}")) == paused_paper
+                    )
+                    assert source["symbol"] in request(f"{research_url}/paper/{paper_id}").decode(
                         "utf-8"
                     )
                 application.assert_live(live_process, live_status)
@@ -213,8 +219,8 @@ def main() -> None:
                     flush=True,
                 )
 
-                with application.console() as base_url:
-                    application.assert_live(live_process, live_status, base_url)
+                with application.web("research-web") as base_url:
+                    application.assert_live(live_process, live_status)
                     assert json.loads(request(f"{base_url}/api/paper/{paper_id}")) == paused_paper
                     datasets = json.loads(request(f"{base_url}/api/datasets"))
                     selected = next(item for item in datasets if item["snapshot_id"] == snapshot_id)
@@ -236,14 +242,14 @@ def main() -> None:
                     listed = json.loads(request(f"{base_url}/api/runs"))
                     assert sum(item["run_id"] == run_id for item in listed) == 1
                 application.assert_live(live_process, live_status)
-                with application.console() as base_url:
+                with application.web() as base_url:
                     application.assert_live(live_process, live_status, base_url)
                     assert "SHADOW_ONLY" in request(f"{base_url}/streams").decode()
                 application.assert_live(live_process, live_status)
-                assert len(set(application.console_pids)) == 3
-                assert live_process.pid not in application.console_pids
+                assert len(set(application.web_pids)) == 5
+                assert live_process.pid not in application.web_pids
                 print(
-                    "Installed process isolation: two full Console restarts preserved the "
+                    "Installed process isolation: independent application restarts preserved the "
                     "same Live PID/runtime and fresh CLI/HTTP status; no broker connected",
                     flush=True,
                 )
@@ -292,7 +298,7 @@ def main() -> None:
             assert live_process.poll() is not None
             application.assert_unavailable()
             print(
-                "Installed offline state: Console remains available but reports stopped Live "
+                "Installed offline state: Live Web remains available but reports stopped Live "
                 "as unavailable; no replacement owner is started",
                 flush=True,
             )

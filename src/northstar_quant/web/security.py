@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse, Response
 from sqlalchemy.exc import SQLAlchemyError
 from starlette.middleware.base import RequestResponseEndpoint
 
-from northstar_quant.data.library import AdmissionRejected
+from northstar_quant.data_management.library import AdmissionRejected
 from northstar_quant.live import CommandUnknown, RuntimeUnavailable
 from northstar_quant.web_access import (
     LocalWorkspaceMiddleware,
@@ -15,7 +15,7 @@ from northstar_quant.web_access import (
     content_security_policy,
 )
 
-_STREAM_PAGE = re.compile(r"/streams/[0-9a-f-]{36}\Z")
+_UI_PAGE = re.compile(r"/(?:streams/[0-9a-f-]{36})?\Z")
 
 
 def install(app: FastAPI, access: WorkspaceAccess) -> None:
@@ -45,7 +45,7 @@ def install(app: FastAPI, access: WorkspaceAccess) -> None:
     @app.middleware("http")
     async def local_request(request: Request, call_next: RequestResponseEndpoint) -> Response:
         ui_session = None
-        if request.method == "GET" and _STREAM_PAGE.fullmatch(request.url.path):
+        if request.method == "GET" and _UI_PAGE.fullmatch(request.url.path):
             ui_session = access.open(request)
         response = await call_next(request)
         ui_html = None

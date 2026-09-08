@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from northstar_quant.data.files import SourceFiles
+from northstar_quant.data_management.files import SourceFiles
 
 
 def test_retained_bytes_survive_original_loss_and_corruption_never_gets_replaced(

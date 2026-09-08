@@ -31,9 +31,9 @@ from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from northstar_quant.broker.ledger import BrokerLedger
 from northstar_quant.broker.records import BrokerRecords
 from northstar_quant.broker.streams import BrokerStreams
-from northstar_quant.data.broker import verify_broker_contract
-from northstar_quant.data.library import DataLibrary
-from northstar_quant.data.live import ctp_day_quote_time
+from northstar_quant.data_management.broker import verify_broker_contract
+from northstar_quant.data_management.library import DataLibrary
+from northstar_quant.data_management.live import ctp_day_quote_time
 from northstar_quant.risk import (
     OpeningAccount,
     OpeningCandidate,

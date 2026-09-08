@@ -98,7 +98,7 @@ class LiveClient:
         control = method != "GET"
         token = self._auth.control_token if control else self._auth.read_token
         if token is None:
-            raise ValueError("This Console has read permission only")
+            raise ValueError("This Live Web has read permission only")
         headers = {"Authorization": "Bearer " + token, "X-Northstar-Release": release_hash()}
         headers.update(command_headers or {})
         try:
@@ -174,10 +174,10 @@ class LiveClient:
 
     def mutate(self, path: str, body: dict[str, Any], request_id: UUID) -> dict[str, Any]:
         if self._auth.control_token is None:
-            raise ValueError("This Console has read permission only")
+            raise ValueError("This Live Web has read permission only")
         if not isinstance(request_id, UUID):
             raise ValueError("Live commands require a fixed UUID")
-        # Includes a new Console process after response loss: inspect the durable
+        # Includes a new Live Web process after response loss: inspect the durable
         # identity before allocating any new deadline or observing a new owner.
         try:
             receipt = self.command(request_id)

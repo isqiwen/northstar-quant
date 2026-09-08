@@ -9,7 +9,7 @@ from decimal import ROUND_HALF_EVEN, Decimal, localcontext
 from uuid import UUID
 
 from northstar_quant.accounting import FillFact
-from northstar_quant.data.research import Market, ResearchBar
+from northstar_quant.data_management.research import Market, ResearchBar
 from northstar_quant.risk import Side
 from northstar_quant.strategy import decimal_text
 

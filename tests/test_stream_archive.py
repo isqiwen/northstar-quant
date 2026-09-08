@@ -18,7 +18,7 @@ from test_live import tick
 
 from northstar_quant.broker import streams as stream_module
 from northstar_quant.broker.streams import BrokerStreams, read_stream_archive
-from northstar_quant.data.library import AdmissionRejected
+from northstar_quant.data_management.library import AdmissionRejected
 from northstar_quant.research import ResearchConfig, run_research
 from northstar_quant.runs import RunStore
 from northstar_quant.sessions import SessionStore
@@ -185,7 +185,7 @@ def test_archive_rejects_forged_permission_and_does_not_truncate_oversized_prefi
 
 
 def test_browser_archive_requires_csrf_and_publishes_saved_prefix_without_connecting(
-    console_app,
+    live_web_app,
     postgres_engine: Engine,
     clean_database: None,
     tmp_path: Path,
@@ -208,7 +208,7 @@ def test_browser_archive_requires_csrf_and_publishes_saved_prefix_without_connec
         streams.close()
     monkeypatch.setenv("NORTHSTAR_DATA_DIR", str(tmp_path / "archive"))
     monkeypatch.setattr(stream_module, "load_credentials", lambda: pytest.fail("archive connected"))
-    with TestClient(console_app(postgres_engine, library), base_url="http://127.0.0.1") as client:
+    with TestClient(live_web_app(postgres_engine, library), base_url="http://127.0.0.1") as client:
         page = client.get("/streams")
         csrf = re.search(r'<meta name="northstar-csrf" content="([^"]+)"', page.text).group(1)
         payload = {

@@ -15,16 +15,16 @@ from uuid import uuid4
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine, create_engine
 
-from northstar_quant.data.files import SourceFiles
-from northstar_quant.data.library import DataLibrary
+from northstar_quant.apps.data_hub import create_app as data_app
+from northstar_quant.apps.research import create_app as research_app
+from northstar_quant.data_management.files import SourceFiles
+from northstar_quant.data_management.library import DataLibrary
 
 
 def _browser_session(client: TestClient, path: str = "/") -> None:
-    page = client.get(path)
-    assert page.status_code == 200, page.text
-    token = re.search(r'<meta name="northstar-csrf" content="([^"]+)">', page.text)
-    assert token is not None
-    client.headers["X-Northstar-CSRF"] = token.group(1)
+    session = client.get("/api/browser-session")
+    assert session.status_code == 200
+    client.headers["X-Northstar-CSRF"] = session.json()["csrf"]
 
 
 def _upload_request(content: bytes, specification: dict[str, object]) -> dict[str, object]:
@@ -44,7 +44,7 @@ def _upload_request(content: bytes, specification: dict[str, object]) -> dict[st
 
 
 def test_import_research_and_reopen_preserve_complete_result(
-    console_app, postgres_engine: Engine, clean_database: None, tmp_path: Path
+    postgres_engine: Engine, clean_database: None, tmp_path: Path
 ) -> None:
     del clean_database
     start = datetime(2026, 1, 7, 1, 0, tzinfo=UTC)
@@ -74,37 +74,43 @@ def test_import_research_and_reopen_preserve_complete_result(
         "availability_note": "Generated bars become available two seconds after completion.",
     }
     archive = SourceFiles(tmp_path / "archive")
-    with TestClient(
-        console_app(postgres_engine, DataLibrary(postgres_engine, archive)),
-        base_url="http://127.0.0.1",
-    ) as client:
+    with (
+        TestClient(
+            research_app(postgres_engine, DataLibrary(postgres_engine, archive)),
+            base_url="http://127.0.0.1",
+        ) as client,
+        TestClient(
+            data_app(postgres_engine, DataLibrary(postgres_engine, archive)),
+            base_url="http://127.0.0.1",
+        ) as data,
+    ):
         assert client.get("/health/ready").status_code == 200
         assert client.get("/api/runs").json() == []
         assert client.get("/api/datasets").json() == []
         content = ("\n".join(lines) + "\n").encode("utf-8")
         upload_request = _upload_request(content, specification)
-        assert client.post("/api/import", json=upload_request).status_code == 403
+        assert data.post("/api/import", json=upload_request).status_code == 403
         _browser_session(client)
-        imported = client.post("/api/import", json=upload_request)
+        _browser_session(data)
+        assert client.post("/api/import", json=upload_request).status_code == 404
+        assert data.post("/api/runs", json={}).status_code == 404
+        imported = data.post("/api/import", json=upload_request)
         assert imported.status_code == 200, imported.text
         attempt = imported.json()
         assert attempt["status"] == "PUBLISHED"
         dataset = client.get(f"/api/datasets/{attempt['snapshot_id']}").json()
         assert dataset["bar_count"] == len(prices)
         source_id = attempt["source_id"]
-        assert client.get(f"/api/sources/{source_id}/download").content == content
-        assert client.get(f"/sources/{source_id}").status_code == 200
-        assert client.get(f"/attempts/{attempt['attempt_id']}").status_code == 200
+        assert data.get(f"/api/sources/{source_id}/download").content == content
+        assert data.get(f"/sources/{source_id}").status_code == 200
+        assert data.get(f"/attempts/{attempt['attempt_id']}").status_code == 200
         assert (
-            client.post("/api/import", json=upload_request).json()["attempt_id"]
+            data.post("/api/import", json=upload_request).json()["attempt_id"]
             == attempt["attempt_id"]
         )
         # Acceptance itself persists a selectable dataset; no research run is required.
         assert client.get("/api/runs").json() == []
         assert client.get("/api/datasets").json()[0]["snapshot_id"] == dataset["snapshot_id"]
-        selected = client.get("/", params={"dataset": dataset["snapshot_id"]})
-        assert selected.status_code == 200
-        assert f'<option value="{dataset["snapshot_id"]}" selected>' in selected.text
         details = client.get(f"/api/datasets/{dataset['snapshot_id']}").json()
         assert details["import_spec"] == specification
         assert details["sources"][0]["source_name"] == specification["source_name"].upper()
@@ -154,13 +160,20 @@ def test_import_research_and_reopen_preserve_complete_result(
 
     reopened = create_engine(postgres_engine.url)
     try:
-        with TestClient(
-            console_app(reopened, DataLibrary(reopened, SourceFiles(tmp_path / "archive"))),
-            base_url="http://127.0.0.1",
-        ) as client:
+        with (
+            TestClient(
+                research_app(reopened, DataLibrary(reopened, SourceFiles(tmp_path / "archive"))),
+                base_url="http://127.0.0.1",
+            ) as client,
+            TestClient(
+                data_app(reopened, DataLibrary(reopened, SourceFiles(tmp_path / "archive"))),
+                base_url="http://127.0.0.1",
+            ) as data,
+        ):
             assert client.get(f"/api/runs/{run_id}").json() == saved
             _browser_session(client)
-            assert client.get(f"/api/sources/{source_id}/download").content == content
+            _browser_session(data)
+            assert data.get(f"/api/sources/{source_id}/download").content == content
             assert client.get("/api/datasets").json()[0]["snapshot_id"] == dataset["snapshot_id"]
             assert client.get(f"/api/datasets/{dataset['snapshot_id']}").json() == details
             changed = client.post(
@@ -177,7 +190,7 @@ def test_import_research_and_reopen_preserve_complete_result(
 
 
 def test_paper_commands_require_browser_session_and_preserve_fixed_state(
-    console_app, postgres_engine: Engine, clean_database: None, tmp_path: Path
+    postgres_engine: Engine, clean_database: None, tmp_path: Path
 ) -> None:
     del clean_database
     specification = {
@@ -204,12 +217,15 @@ def test_paper_commands_require_browser_session_and_preserve_fixed_state(
             f"paper-{index},{price},{price},{price},{price},100"
         )
     library = DataLibrary(postgres_engine, SourceFiles(tmp_path / "archive"))
-    application = console_app(postgres_engine, library)
+    application = research_app(postgres_engine, library)
     with TestClient(application, base_url="http://127.0.0.1") as client:
         _browser_session(client)
-        imported = client.post(
-            "/api/import", json=_upload_request(("\n".join(lines) + "\n").encode(), specification)
-        )
+        with TestClient(data_app(postgres_engine, library), base_url="http://127.0.0.1") as data:
+            _browser_session(data)
+            imported = data.post(
+                "/api/import",
+                json=_upload_request(("\n".join(lines) + "\n").encode(), specification),
+            )
         assert imported.status_code == 200, imported.text
         assert imported.json()["status"] == "PUBLISHED"
         del client.headers["X-Northstar-CSRF"]
@@ -296,11 +312,11 @@ def test_paper_commands_require_browser_session_and_preserve_fixed_state(
         assert changed.status_code == 201, changed.text
         assert changed.json()["configuration_id"] != configuration["configuration_id"]
         assert client.get(f"/api/paper/{session_id}").json() == persisted
-        cookie = client.cookies.get("northstar_workspace_session")
+        cookie = client.cookies.get("northstar_research_session")
         assert cookie is not None
 
     # Recreating the application preserves DB progress but not browser command authority.
-    with TestClient(console_app(postgres_engine, library), base_url="http://127.0.0.1") as client:
+    with TestClient(research_app(postgres_engine, library), base_url="http://127.0.0.1") as client:
         client.cookies.set("northstar_workspace_session", cookie)
         client.headers["X-Northstar-CSRF"] = csrf
         assert client.get(f"/api/paper/{session_id}").json() == persisted
@@ -326,14 +342,14 @@ def test_paper_commands_require_browser_session_and_preserve_fixed_state(
 
 
 def test_archived_bytes_failures_reprocessing_and_download_permissions(
-    console_app, postgres_engine: Engine, clean_database: None, tmp_path: Path
+    postgres_engine: Engine, clean_database: None, tmp_path: Path
 ) -> None:
     del clean_database
     example = Path(__file__).resolve().parents[1] / "examples" / "intraday.toml"
     specification = dict(tomllib.loads(example.read_text())["source"])
     content = (example.parent / specification.pop("file")).read_bytes()
     library = DataLibrary(postgres_engine, SourceFiles(tmp_path / "archive"))
-    application = console_app(postgres_engine, library)
+    application = data_app(postgres_engine, library)
     with TestClient(application, base_url="http://127.0.0.1") as client:
         _browser_session(client)
         assert client.get("/api/sources").json() == []

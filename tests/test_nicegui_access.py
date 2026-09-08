@@ -33,6 +33,8 @@ now = 0.0
 web_access.time = SimpleNamespace(monotonic=lambda: now)
 access = WorkspaceAccess()
 actions = []
+uploads = []
+upload_paths = {}
 lifecycle = []
 
 @asynccontextmanager
@@ -55,9 +57,11 @@ async def session(request, call_next):
 def probe(request: Request):
     owner = request.state.workspace_session_id
     ui.button('Record synthetic action', on_click=lambda: actions.append(owner))
+    uploader = ui.upload(on_upload=lambda event: uploads.append(event.file.name))
+    upload_paths[ui.context.client.id] = uploader._props['url']
 
 # No business pages are called; these values must never be used by this probe.
-mount_workspace(app, access, None)
+mount_workspace(app, access, lambda: None)
 
 def page(client):
     response = client.get('/probe')
@@ -108,6 +112,20 @@ with TestClient(app, base_url='http://127.0.0.1') as client:
                'upgrade': 'websocket'}
     other_headers = {'origin': 'http://127.0.0.1', 'cookie': COOKIE + '=' + second[1],
                      'upgrade': 'websocket'}
+    upload_path = upload_paths[first[0]]
+    for rejected in (other_headers, {'origin': 'https://other.invalid'},
+                     {'origin': 'http://127.0.0.1', 'cookie': COOKIE + '=missing'}):
+        response = client.post(upload_path, files={'file': ('probe.csv', b'bounded')},
+                               headers=rejected)
+        assert response.status_code == 403, response.text
+        assert uploads == []
+    response = client.post(upload_path, files={'file': ('large.csv', b'x' * (6 * 1024 * 1024 + 1))},
+                           headers=headers)
+    assert response.status_code in {400, 413}, response.text
+    assert uploads == []
+    response = client.post(upload_path, files={'file': ('probe.csv', b'bounded')}, headers=headers)
+    assert response.status_code == 200, response.text
+    assert uploads == ['probe.csv']
     for rejected in ({'origin': 'https://other.invalid'},
                      {'origin': 'http://127.0.0.1', 'cookie': COOKIE + '=missing'},
                      {'origin': 'http://127.0.0.1', 'host': 'other.invalid'}):

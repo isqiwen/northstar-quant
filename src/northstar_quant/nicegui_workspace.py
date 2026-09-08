@@ -11,17 +11,14 @@ import inspect
 import threading
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
-from html import escape
 from typing import Any
 from urllib.parse import parse_qs
-from uuid import UUID
 
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse, Response
+from fastapi import FastAPI, HTTPException
 from nicegui import core, ui
 from nicegui.client import Client
+from starlette.types import Scope
 
-from northstar_quant.live import LiveClient
 from northstar_quant.web_access import WorkspaceAccess
 
 _mounted = False
@@ -51,6 +48,16 @@ def _owner(client: Client, scope: dict[str, Any]) -> tuple[WorkspaceAccess, str]
         raise HTTPException(403, "工作台连接不属于此页面。")
     access.require_id(session_id)
     return access, session_id
+
+
+def authorize_upload(scope: Scope, access: WorkspaceAccess) -> None:
+    """NiceGUI's upload route must belong to the requesting app/browser session."""
+    parts = scope["path"].split("/")
+    if len(parts) != 6 or parts[1:3] != ["_nicegui", "client"] or parts[4] != "upload":
+        raise HTTPException(403, "上传地址无效。")
+    client = Client.instances.get(parts[3])
+    if client is None or _owner(client, dict(scope))[0] is not access:
+        raise HTTPException(403, "上传不属于当前页面。")
 
 
 def _guard_sockets() -> None:
@@ -112,7 +119,7 @@ def _guard_sockets() -> None:
 def mount_workspace(
     app: FastAPI,
     access: WorkspaceAccess,
-    live: LiveClient,
+    register_pages: Callable[[], None],
 ) -> None:
     """Mount the server workspace once; a server restart requires a new process.
 
@@ -127,26 +134,7 @@ def mount_workspace(
         _mounted = True
     parent_lifespan = app.router.lifespan_context
 
-    # NiceGUI's annotation narrows this to its APIRouter subclass, but its page
-    # Interface only uses the inherited FastAPI router methods and prefix.
-    @ui.page("/streams/{stream_id}", api_router=app.router)  # type: ignore[arg-type]
-    async def stream_detail(request: Request, stream_id: UUID) -> Response | None:
-        from northstar_quant.web import stream
-
-        if getattr(request.state, "workspace_access", None) is not access:
-            raise HTTPException(403, "工作台页面未通过授权。")
-        session_id = request.state.workspace_session_id
-        csrf = access.require_id(session_id)
-        ui.add_head_html(f'<meta name="northstar-csrf" content="{escape(csrf, quote=True)}">')
-
-        def authorize() -> None:
-            access.require_id(session_id)
-
-        try:
-            await stream.show(stream_id, live, authorize=authorize)
-        except LookupError:
-            return JSONResponse({"detail": "没有找到这份持续接收记录。"}, status_code=404)
-        return None
+    register_pages()
 
     @asynccontextmanager
     async def lifespan(parent: FastAPI) -> AsyncIterator[Any]:
@@ -172,6 +160,7 @@ def mount_workspace(
     app.router.lifespan_context = lifespan
     ui.run_with(
         app,
+        title=app.title,
         gzip_middleware_factory=None,
         tailwind=False,
         prod_js=True,

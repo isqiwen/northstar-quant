@@ -18,7 +18,7 @@ from northstar_quant.broker.baselines import BrokerBaselines
 from northstar_quant.broker.ledger import BrokerLedger
 from northstar_quant.broker.records import BrokerRecords
 from northstar_quant.broker.settings import get_profile
-from northstar_quant.data.catalog.services import CatalogCommands
+from northstar_quant.data_management.catalog.services import CatalogCommands
 
 
 def position_baseline(engine: Engine, *, day: str = "20260907") -> UUID:
@@ -434,7 +434,7 @@ def test_missing_canonical_contract_is_detected_without_repairing_catalog(
         baseline, ledger_query(postgres_engine, trades=(trade(),)), request_id=uuid4()
     )
     contract_id = UUID(entry["added_fills"][0]["contract_id"])
-    from northstar_quant.data.catalog.models import FuturesContract
+    from northstar_quant.data_management.catalog.models import FuturesContract
 
     with Session(postgres_engine) as session, session.begin():
         session.execute(text("SET LOCAL session_replication_role = replica"))

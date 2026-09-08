@@ -25,8 +25,9 @@ broker integration, recovery or runtime topology; read
   (`apps/research/`) on the workstation, Northstar Live (`apps/live/`) on the cloud.
   Each owns its Web, configuration, deployment and diagnostics. There is no Console
   application. Share presentation components, not authority or lifecycle.
-  `data/` remains the data business Module, distinct from Data Hub app composition.
-  This is the target, not a claim that the current mixed workspace implements it.
+  `data_management/` owns data business behavior; `apps/data_hub/` composes its app.
+  App entries exist; durable Research execution, collectors and cloud delivery
+  require their own acceptance and are not implied by separate Web processes.
 - Supervise Live Web and its trading kernel independently. Durable Research
   execution and persistent Data collectors must survive browser/Web restart;
   an application is not a fixed number of processes. Persist work before execution.
@@ -53,6 +54,9 @@ broker integration, recovery or runtime topology; read
   move a complete responsibility before extending an already multi-purpose file.
   Prefer a small public Interface and local implementation details over arbitrary
   line-count splits, pass-through layers or a shared catch-all utilities file.
+- Build Web interfaces with mature NiceGUI/Quasar controls and library charts.
+  Share actual presentation needs; custom HTML/JavaScript/CSS is a small, justified
+  exception. Replace obsolete views and their scripts together, not dual UI paths.
 - Keep only tests for costly observable failures: causality, money, authorization,
   immutable data, reproducibility and real integration. Never test documents,
   Markdown, links, directory layout, trivial constants or private implementation.

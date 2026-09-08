@@ -9,9 +9,9 @@ import pytest
 from sqlalchemy import Engine, func, select
 from sqlalchemy.orm import Session
 
-from northstar_quant.data.broker import resolve_broker_contract, verify_broker_contract
-from northstar_quant.data.catalog.models import Exchange, FuturesContract, FuturesProduct
-from northstar_quant.data.catalog.services import CatalogCommands
+from northstar_quant.data_management.broker import resolve_broker_contract, verify_broker_contract
+from northstar_quant.data_management.catalog.models import Exchange, FuturesContract, FuturesProduct
+from northstar_quant.data_management.catalog.services import CatalogCommands
 
 
 def _instrument(**changes: object) -> dict[str, object]:

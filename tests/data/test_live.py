@@ -11,7 +11,7 @@ from zoneinfo import ZoneInfo
 import pytest
 
 from northstar_quant.broker.records import BrokerEvent
-from northstar_quant.data.live import advance_market
+from northstar_quant.data_management.live import advance_market
 from northstar_quant.research import ResearchConfig
 
 CONTRACT = UUID("10000000-0000-0000-0000-000000000001")
@@ -271,7 +271,7 @@ def test_explicit_next_day_is_not_silently_rebound_to_existing_session() -> None
 def test_idle_input_distinguishes_observed_session_tails_from_missing_quotes(
     quote_offset: int, now_offset: int, reason: str | None
 ) -> None:
-    from northstar_quant.data.live import idle_reason
+    from northstar_quant.data_management.live import idle_reason
 
     state = advance({}, tick(1, OPEN + timedelta(seconds=quote_offset)))
     original = json.loads(json.dumps(state))
@@ -280,7 +280,7 @@ def test_idle_input_distinguishes_observed_session_tails_from_missing_quotes(
 
 
 def test_idle_input_never_invents_trading_day_or_clears_known_failure() -> None:
-    from northstar_quant.data.live import idle_reason
+    from northstar_quant.data_management.live import idle_reason
 
     now = OPEN + timedelta(hours=7)
     assert idle_reason(None, now=now) is None

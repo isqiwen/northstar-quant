@@ -27,9 +27,9 @@ from northstar_quant.broker.ledger import BrokerLedger
 from northstar_quant.broker.records import BrokerRecords
 from northstar_quant.broker.settings import get_profile
 from northstar_quant.broker.streams import BrokerStreams
-from northstar_quant.data.files import SourceFiles
-from northstar_quant.data.library import DataLibrary
-from northstar_quant.data.maintenance import backup, restore
+from northstar_quant.data_management.files import SourceFiles
+from northstar_quant.data_management.library import DataLibrary
+from northstar_quant.data_management.maintenance import backup, restore
 from northstar_quant.db import initialize_database
 
 

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import re
 import socket
 import subprocess
 import time
@@ -19,14 +18,14 @@ from urllib.request import HTTPCookieProcessor, ProxyHandler, Request, build_ope
 
 
 class InstalledApplication:
-    """Keep Live independent while Console processes come and go in an empty directory."""
+    """Keep Live independent while Live Web processes come and go in an empty directory."""
 
     def __init__(self, executable: str, directory: Path, environment: dict[str, str]) -> None:
         self.executable = executable
         self.directory = directory
         self.environment = dict(environment)
         self.opener = build_opener(ProxyHandler({}), HTTPCookieProcessor(CookieJar()))
-        self.console_pids: list[int] = []
+        self.web_pids: list[int] = []
         self.log_paths: list[Path] = []
 
     def command(self, *arguments: str) -> Any:
@@ -47,11 +46,10 @@ class InstalledApplication:
         headers = {} if body is None else {"Content-Type": "application/json"}
         if body is not None:
             parsed = urlsplit(url)
-            with self.opener.open(f"{parsed.scheme}://{parsed.netloc}/", timeout=15) as page:
-                html = page.read().decode()
-            token = re.search(r'<meta name="northstar-csrf" content="([^"]+)"', html)
-            assert token is not None, "workspace must provide a CSRF token"
-            headers["X-Northstar-CSRF"] = token.group(1)
+            with self.opener.open(
+                f"{parsed.scheme}://{parsed.netloc}/api/browser-session", timeout=15
+            ) as response:
+                headers["X-Northstar-CSRF"] = json.loads(response.read())["csrf"]
         with self.opener.open(Request(url, data=body, headers=headers), timeout=15) as response:
             return response.read()
 
@@ -63,16 +61,23 @@ class InstalledApplication:
             yield process
 
     @contextmanager
-    def console(self) -> Iterator[str]:
-        with self._running("serve", self.environment) as (base_url, process):
-            self.console_pids.append(process.pid)
+    def web(self, role: str = "live-web") -> Iterator[str]:
+        environment = dict(self.environment)
+        if role == "live-web":
+            environment.pop("NORTHSTAR_DATABASE_URL", None)
+            environment.pop("NORTHSTAR_DATA_DIR", None)
+        else:
+            environment.pop("NORTHSTAR_LIVE_AUTH", None)
+            environment.pop("NORTHSTAR_LIVE_URL", None)
+        with self._running(role, environment) as (base_url, process):
+            self.web_pids.append(process.pid)
             yield base_url
 
     def assert_live(
         self, process: subprocess.Popen[str], original: dict[str, Any], base_url: str | None = None
     ) -> None:
-        """Observe the actual owning process, not Console-local thread state."""
-        assert process.poll() is None, "Console shutdown must not stop Live"
+        """Observe the actual owning process, not Live Web-local thread state."""
+        assert process.poll() is None, "Live Web shutdown must not stop Live"
         current = self.command("live-status")
         assert current["pid"] == original["pid"] == process.pid
         assert current["runtime_id"] == original["runtime_id"]
@@ -90,14 +95,14 @@ class InstalledApplication:
             assert browser["status"] == "AVAILABLE"
 
     def assert_unavailable(self) -> None:
-        """A stopped Live must not turn into a new Console-owned runtime."""
+        """A stopped Live must not turn into a new Live Web-owned runtime."""
         try:
             self.command("live-status")
         except RuntimeError:
             pass
         else:
             raise AssertionError("CLI must not report a stopped Live as available")
-        with self.console() as base_url:
+        with self.web() as base_url:
             self.request(f"{base_url}/")
             for path in ("/api/live/status", "/api/broker/status"):
                 try:
@@ -105,7 +110,7 @@ class InstalledApplication:
                 except HTTPError as error:
                     assert error.code == 503, "unavailable Live must be explicit"
                 else:
-                    raise AssertionError("Console must not invent an available Live owner")
+                    raise AssertionError("Live Web must not invent an available Live owner")
 
     @contextmanager
     def _running(

@@ -33,18 +33,19 @@ configuration, startup/upgrade/shutdown and diagnostics:
 | [Northstar Live · 实盘交易系统 #40](https://github.com/isqiwen/northstar-quant/issues/40) | Domestic cloud; `apps/live/` | Live Web and a separately supervised trading kernel with local authoritative storage |
 
 Application paths are relative to `src/northstar_quant/`. There is no Console application.
-The existing `data/` business Module is distinct from Data Hub composition.
+The `data_management/` business Module is distinct from Data Hub composition.
 Shared UI components do not share business
 authority or task ownership. Applications may contain multiple processes.
 Research uses available CPUs and supported GPUs subject to measured memory/disk
 budgets and responsive management/cancellation, not a fixed core count.
 
-**Current implementation, not the completed target:** Compose now runs independent `live` and `console` processes with PostgreSQL and
-a one-shot initialization job. Live owns broker queries, bounded reception, account
-processing and shadow controls; Console uses authenticated HTTP, never owns a
-broker connection and can exit without shutting down Live. Native CTP children
-remain internal to Live. Data and research still use their current local modules;
-their independent services and durable workers remain #41 and #23, not completed roles.
+**Current implementation:** three independent Web entrypoints and an independently
+supervised Live kernel. The central Console factory and `serve` command are removed.
+Live Web uses authenticated kernel HTTP without opening a database or source directory.
+Data Hub owns ingestion routes; Research owns research/configuration/Paper routes.
+Local Data Hub and Research currently share fixed local data and PostgreSQL;
+independent durable execution, continuous collectors and cross-host snapshot
+delivery remain #23/#41/#42, not completed by this entrypoint split.
 
 [The first split, #39](https://github.com/isqiwen/northstar-quant/issues/39), separates
 process-isolation evidence from actual SimNow continuous-feed acceptance, without
@@ -74,11 +75,14 @@ tracks implementation and acceptance rather than treating this design as complet
 docker compose up --build -d
 ```
 
-Open <http://127.0.0.1:18080>. Console, Live HTTP and PostgreSQL publish only on
+Open Live at <http://127.0.0.1:18080>, Data Hub at <http://127.0.0.1:18082>,
+and Research at <http://127.0.0.1:18083>.
+Run individually with `northstar live-web`, `northstar data-hub`, or
+`northstar research-web`; `northstar live` starts only the trading kernel. Live Web, Live HTTP and PostgreSQL publish only on
 local loopback; this is a same-host deployment, not a public remote-control server.
 Initialization creates private, separate read/control tokens in the runtime-auth
 volume, without printing them. Those tokens are not broker credentials.
-`docker compose restart console` restarts only the workspace; `docker compose down`
+`docker compose restart live-web` restarts only the workspace; `docker compose down`
 stops all roles and keeps persistent volumes. Restarting Live never reconnects or
 resumes old reception. Do not run multiple Live workers or Uvicorn auto-reload.
 Compose persists database, managed source and backup volumes separately; retain
@@ -90,7 +94,7 @@ tables when existing fact shapes are unchanged. A replacement of existing storag
 shapes requires explicitly preserving needed evidence and preparing the current
 storage, not an in-place legacy compatibility path.
 
-The workspace imports a bounded CSV with explicit source, contract and session
+Data Hub imports a bounded CSV with explicit source, contract and session
 metadata. Select accepted data directly from the library, including after a
 restart, inspect its source and quality, then research without re-uploading the
 file. Reports show the saved equity curve, fills, costs, holdings and risk
@@ -103,13 +107,13 @@ The current Compose deployment applies these per-container ceilings:
 | Role | CPU quota | Memory (no additional swap) | Processes/threads |
 |---|---:|---:|---:|
 | Live | 2 CPUs | 1 GiB | 128 |
-| Console | 1 CPU | 1 GiB | 128 |
+| Live Web | 1 CPU | 1 GiB | 128 |
+| Data Hub / Research | No fixed CPU/memory quota | Budget-aware execution remains #41/#23 | — |
 | PostgreSQL | 1 CPU | 1 GiB | 128 |
 | One-shot initialization | 1 CPU | 512 MiB | 64 |
 
-These are existing local installation limits, not the selected Research resource
-policy or production Live sizing. They remain applied to the running deployment
-until controlled replacement; this architecture update does not alter containers.
+The bounded limits above belong to the local Live installation profile, not the selected Research resource
+policy or production Live sizing. Change these limits only through controlled replacement and measured capacity checks.
 Application-specific deployment work in #40/#23/#41 must replace arbitrary default
 quotas with measured protection. CI may retain a deliberately bounded test profile.
 These limits are neither reserved resources nor demonstrated peak-load capacity. Host memory must also cover Docker, the OS and other workloads. A memory
@@ -118,9 +122,9 @@ failure permits automatic broker reconnection or inherited execution authority.
 Do not disable OOM protection. Tune explicit limits against measured workloads
 before cloud acceptance; native processes outside Compose are not constrained here.
 
-All four containers use Docker's `local` log driver with rotation at 10 MB and
+All containers use Docker's `local` log driver with rotation at 10 MB and
 three retained files per container. Read logs through `docker compose logs`; rotated
-console logs are disposable diagnostics, **not the durable account/callback ledger**.
+process logs are disposable diagnostics, **not the durable account/callback ledger**.
 Rotation is not a volume or database disk quota, and does not replace capacity
 monitoring or backups. Existing containers need controlled recreation to apply these
 settings; `restart` alone does not apply changed resource/log configuration.
@@ -136,20 +140,19 @@ independent alerting or disk-capacity acceptance.
 
 ### Web interface
 
-The current application uses FastAPI for HTTP and NiceGUI 3.16.0 for the continuous
-reception detail page at `/streams/STREAM_UUID`. NiceGUI supplies Vue/Quasar
-controls and Socket.IO updates. One `ui.run_with` mount belongs to Console;
-there is no separate frontend build. Broker/account callbacks use the concrete
-Live HTTP client; Data, research and file-Paper still use their current local modules.
-The workspace keeps its same-origin/session protection. Live separately checks
-deployment credentials, the exact current release, target runtime, command identity
-and expiry. Read credentials cannot issue shadow-control commands. Do not expose
-either service to the public internet; protected cloud deployment remains #40.
+Each application uses FastAPI and NiceGUI 3.16.0, with one NiceGUI mount per
+process. All three home pages and the Live continuous-detail page use native
+library controls; shared HTTP/security/presentation in `web/` is not an application.
+The obsolete combined import/research HTML and corresponding JavaScript are removed.
+Existing source, research-result, Paper and broker detail views still use their
+current HTML rendering, now routed by their owning application. This is not a claim
+that every detail view is already converted. New pages should use NiceGUI/Quasar
+and library charts, with only small justified custom HTML/JS/CSS.
 
-Other workspace pages currently use their existing server-rendered HTML and
-JavaScript. The former continuous-detail HTML/JavaScript has been removed, not
-retained as a fallback page. This is the bounded #38 replacement, not a claim of
-whole-workspace migration. See [the implementation and acceptance evidence](https://github.com/isqiwen/northstar-quant/issues/38).
+Each app uses a distinct browser session cookie. Live credentials authorize kernel
+queries and fixed commands, not broker execution. Data Hub uploads are bound to
+their originating browser page and have a server-side request-size limit.
+The current entrypoints remain loopback-only; protected remote deployment is #40.
 
 Use `127.0.0.1` or `localhost` directly, without proxy forwarding. Connected UI
 events are bound to the page's short-lived browser session and same origin;
@@ -181,7 +184,7 @@ delivered whole-host alerts. `/health/ready` retains its database-only meaning.
 ## SimNow connection
 
 Live requires **Linux amd64** with `ctpwrapper==6.7.13`. The local Compose example
-uses that image for both roles, including on Apple Silicon. Console can instead
+uses that image for the current same-host development services, including on Apple Silicon. Live Web can instead
 run natively on macOS/arm64 and use Live HTTP; it does not load the native SDK.
 The [SDK evidence and limitations](docs/broker-source.md) separate offline native
 verification from actual authentication and account-query acceptance.
@@ -232,7 +235,7 @@ northstar broker-show REQUEST_UUID
 ```
 
 For a native Linux amd64 Live installation, set `NORTHSTAR_SIMNOW_CONFIG` only
-in Live's environment to the absolute private file path. Console and broker CLI
+in Live's environment to the absolute private file path. Live Web and broker CLI
 commands use `NORTHSTAR_LIVE_URL` and `NORTHSTAR_LIVE_AUTH`, not broker secrets.
 Reusing a request UUID retrieves its fixed receipt and query,
 including a failed or interrupted one; a deliberate new query needs a new UUID.
@@ -552,11 +555,11 @@ uv run northstar datasets
 uv run northstar run examples/intraday.toml
 uv run northstar list
 uv run northstar init-live-auth /absolute/private/northstar/runtime-auth
-export NORTHSTAR_LIVE_AUTH='/absolute/private/northstar/runtime-auth/console.toml'
+export NORTHSTAR_LIVE_AUTH='/absolute/private/northstar/runtime-auth/live-web.toml'
 export NORTHSTAR_LIVE_URL='http://127.0.0.1:18081'
 # In another terminal, with the same database and data directory:
 # NORTHSTAR_LIVE_AUTH=/absolute/private/northstar/runtime-auth/live.toml uv run northstar live
-uv run northstar serve
+uv run northstar live-web
 ```
 
 `northstar show RUN_ID` reads a persisted result; `northstar replay RUN_ID`
@@ -627,7 +630,7 @@ also needs compatible `pg_dump`, `pg_restore`, `createdb` and `dropdb` for the f
 installation acceptance. Normal app operation does not require a local server binary.
 
 ```sh
-docker compose exec console northstar backup /var/lib/northstar/backups/manual-001
+docker compose exec data-hub northstar backup /var/lib/northstar/backups/manual-001
 ```
 
 This uses a maintenance gate for source processing and one exported PostgreSQL
@@ -775,7 +778,7 @@ debugging, never using the containerized application's `northstar_quant` data.
 Run “Northstar: prepare isolated development databases” once before using Test
 Explorer; the test and verify tasks run that preparation automatically.
 
-Use “Northstar: Debug independent Live and Console” or the individual Console
+Use “Northstar: Debug independent Live and Live Web” or the individual Live Web
 (18082) and Live (18083) configurations for breakpoints in separate processes.
 They prepare private runtime authentication, the isolated database and its archive at
 `.northstar/vscode-sources`; this is intentionally separate from the Docker

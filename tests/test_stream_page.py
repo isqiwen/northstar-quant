@@ -37,8 +37,8 @@ def _exercise_page() -> None:
     from fastapi.testclient import TestClient
     from sqlalchemy import create_engine
 
-    from northstar_quant.data.files import SourceFiles
-    from northstar_quant.data.library import DataLibrary
+    from northstar_quant.data_management.files import SourceFiles
+    from northstar_quant.data_management.library import DataLibrary
     from northstar_quant.live import LiveAuth, LiveClient
     from northstar_quant.live import create_app as create_live
     from northstar_quant.nicegui_workspace import mount_workspace
@@ -141,7 +141,10 @@ def _exercise_page() -> None:
         access.set_cookie(request, response, identifier)
         return response
 
-    mount_workspace(app, access, live)
+    from northstar_quant.apps.live.pages import register
+
+    app.state.navigation = ()
+    mount_workspace(app, access, lambda: register(app, live))
 
     def page(client):
         response = client.get(f"/streams/{stream_id}")

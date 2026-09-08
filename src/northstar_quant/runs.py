@@ -10,7 +10,7 @@ from typing import cast
 from sqlalchemy import Column, Connection, DateTime, Engine, MetaData, String, Table, func, select
 from sqlalchemy.dialects.postgresql import JSONB, UUID, insert
 
-from northstar_quant.data.research import ResearchDataset
+from northstar_quant.data_management.research import ResearchDataset
 from northstar_quant.research import ResearchConfig, ResearchResult
 from northstar_quant.runtime import implementation_hash
 

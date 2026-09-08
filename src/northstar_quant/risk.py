@@ -8,7 +8,7 @@ from decimal import ROUND_CEILING, ROUND_FLOOR, ROUND_HALF_EVEN, Decimal, localc
 from enum import StrEnum
 from math import lcm
 
-from northstar_quant.data.research import Market
+from northstar_quant.data_management.research import Market
 from northstar_quant.strategy import StrategyIntent, decimal_text
 
 _MAX_FINANCIAL = Decimal("9" * 34)

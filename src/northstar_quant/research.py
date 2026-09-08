@@ -13,7 +13,12 @@ from decimal import ROUND_HALF_EVEN, Decimal, localcontext
 from uuid import UUID
 
 from northstar_quant.accounting import Account, AppliedFill, FillFact
-from northstar_quant.data.research import DatasetDetails, Market, ResearchBar, ResearchDataset
+from northstar_quant.data_management.research import (
+    DatasetDetails,
+    Market,
+    ResearchBar,
+    ResearchDataset,
+)
 from northstar_quant.execution import PendingOrder, simulate_fill
 from northstar_quant.risk import PortfolioState, RiskPolicy, evaluate_risk
 from northstar_quant.strategy import decimal_text, momentum_intent, validate_momentum_parameters

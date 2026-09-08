@@ -87,7 +87,7 @@ def _attempt_list(attempts: list[dict[str, object]]) -> str:
         product = (
             "—"
             if snapshot is None
-            else (f'<a href="/?dataset={_text(snapshot)}#research-form">选用已发布数据</a>')
+            else (f'<a href="/datasets/{_text(snapshot)}">查看已发布数据</a>')
         )
         rows.append(
             f'<tr><td><a href="/attempts/{_text(attempt["attempt_id"])}">'
@@ -204,7 +204,7 @@ def _attempt_page(attempt: dict[str, object]) -> str:
         '<p class="muted">尚无已发布快照，不能用于研究。原文和失败证据仍保留。</p>'
         if snapshot is None
         else f'<div class="actions"><a class="button" '
-        f'href="/?dataset={_text(snapshot)}#research-form">使用已发布数据继续研究</a>'
+        f'href="/datasets/{_text(snapshot)}">查看已发布数据</a>'
         f'<a class="button secondary" href="/datasets/{_text(snapshot)}">'
         "查看质量与数据详情</a></div>"
     )
@@ -288,7 +288,7 @@ def _dataset_list(datasets: list[dict[str, object]]) -> str:
         f"<td>{_text(data['trading_day'])}</td>"
         f"<td>{_text(data['session_open'])}<br>{_text(data['session_close'])}</td>"
         f"<td>{_text(data['bar_count'])}</td>"
-        f'<td><a href="/?dataset={_text(data["snapshot_id"])}#research-form">'
+        f'<td><a href="/datasets/{_text(data["snapshot_id"])}">'
         "选用此数据</a></td></tr>"
         for data in datasets
     ]
@@ -328,7 +328,7 @@ def _dataset_page(data: dict[str, object]) -> str:
 <p class="eyebrow">ACCEPTED DATA</p><h1>{_text(data["symbol"])} · 数据详情</h1>
 <p>{_text(data["trading_day"])} · {_text(data["bar_count"])} 个 bars · 接受时的固定证据</p>
 <div class="actions"><a class="button"
-href="/?dataset={_text(data["snapshot_id"])}#research-form">用此数据研究</a>
+href="/datasets/{_text(data["snapshot_id"])}">查看固定数据</a>
 <a class="button secondary" href="/api/datasets/{_text(data["snapshot_id"])}"
 download="dataset-{_text(data["snapshot_id"])}.json">下载数据说明</a></div></section>
 {_availability_notice(data)}{_data_evidence(data)}"""

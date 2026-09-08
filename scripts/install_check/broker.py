@@ -1,4 +1,4 @@
-"""Installed Console authorization must still protect remote broker evidence and commands."""
+"""Installed Live Web authorization must still protect remote broker evidence and commands."""
 
 from __future__ import annotations
 

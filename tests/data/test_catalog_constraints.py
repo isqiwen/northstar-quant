@@ -9,8 +9,8 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from northstar_quant.data.catalog.models import CanonicalBar
-from northstar_quant.data.catalog.services import CatalogCommands
+from northstar_quant.data_management.catalog.models import CanonicalBar
+from northstar_quant.data_management.catalog.services import CatalogCommands
 
 from .catalog_support import at_local, seed_synthetic_catalog
 

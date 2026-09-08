@@ -41,8 +41,8 @@ def _study(path: Path) -> tuple[Path, dict[str, object], dict[str, object], dict
 
 
 def execute(arguments: argparse.Namespace, engine: Engine) -> int:
-    from northstar_quant.data.files import SourceFiles
-    from northstar_quant.data.library import DataLibrary
+    from northstar_quant.data_management.files import SourceFiles
+    from northstar_quant.data_management.library import DataLibrary
     from northstar_quant.research import ResearchConfig, run_research
     from northstar_quant.runs import RunStore
     from northstar_quant.runtime import implementation_hash
@@ -167,7 +167,7 @@ def execute(arguments: argparse.Namespace, engine: Engine) -> int:
     elif arguments.command == "audit-data":
         print(json.dumps(library.reconcile(), ensure_ascii=False))
     elif arguments.command == "backup":
-        from northstar_quant.data.maintenance import backup
+        from northstar_quant.data_management.maintenance import backup
 
         print(
             json.dumps(backup(engine, files, arguments.destination.resolve()), ensure_ascii=False)

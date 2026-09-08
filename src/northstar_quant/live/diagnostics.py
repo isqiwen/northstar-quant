@@ -8,7 +8,7 @@ from time import monotonic
 from sqlalchemy import Engine, text
 from sqlalchemy.exc import SQLAlchemyError
 
-from northstar_quant.data.library import DataLibrary
+from northstar_quant.data_management.library import DataLibrary
 
 
 def observe(engine: Engine, library: DataLibrary) -> dict[str, object]:

@@ -12,17 +12,17 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from northstar_quant.data.catalog.models import (
+from northstar_quant.data_management.catalog.models import (
     CanonicalBar,
     QualityEvaluation,
     QualityFinding,
 )
-from northstar_quant.data.catalog.services import CatalogCommands
-from northstar_quant.data.quality.evaluations import (
+from northstar_quant.data_management.catalog.services import CatalogCommands
+from northstar_quant.data_management.quality.evaluations import (
     MinuteQualityEvaluationCommand,
     MinuteQualityEvaluationError,
 )
-from northstar_quant.data.quality.minute_service import MinuteQualityEvaluationService
+from northstar_quant.data_management.quality.minute_service import MinuteQualityEvaluationService
 
 from .catalog_support import SyntheticCatalog, at_local, seed_synthetic_catalog
 
@@ -386,7 +386,8 @@ def test_minute_quality_rejects_wrong_series_and_reused_key_and_hard_bounds(
         )
 
     monkeypatch.setattr(
-        "northstar_quant.data.quality.minute_service.MAX_MINUTE_QUALITY_EXPECTED_SLOTS", 1
+        "northstar_quant.data_management.quality.minute_service.MAX_MINUTE_QUALITY_EXPECTED_SLOTS",
+        1,
     )
     db_session.rollback()
     with pytest.raises(MinuteQualityEvaluationError, match="expected-session grid input bound"):
@@ -431,7 +432,7 @@ def test_minute_quality_rejects_excessive_session_rows_before_grid_materializati
 
     catalog = seed_synthetic_catalog(db_session)
     monkeypatch.setattr(
-        "northstar_quant.data.quality.minute_service.MAX_MINUTE_QUALITY_SESSION_ROWS", 1
+        "northstar_quant.data_management.quality.minute_service.MAX_MINUTE_QUALITY_SESSION_ROWS", 1
     )
 
     with pytest.raises(MinuteQualityEvaluationError, match="trading-session input bound"):

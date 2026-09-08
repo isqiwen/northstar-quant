@@ -17,12 +17,12 @@ from starlette.middleware.base import RequestResponseEndpoint
 from starlette.responses import Response
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from northstar_quant.data.files import SourceFiles
-from northstar_quant.data.library import DataLibrary
+from northstar_quant.data_management.files import SourceFiles
+from northstar_quant.data_management.library import DataLibrary
 from northstar_quant.db import open_database, require_current_database
 from northstar_quant.runtime import release_hash
 
-from . import broker_routes, budget_routes, diagnostics, stream_routes
+from . import broker_routes, budget_routes, diagnostics, material_routes, stream_routes
 from .auth import LiveAuth
 from .owner import LiveOwner
 
@@ -68,7 +68,7 @@ def create_app(engine: Engine, library: DataLibrary, auth: LiveAuth) -> FastAPI:
             try:
                 auth.authorize(request, control=request.method != "GET")
                 if request.headers.get("x-northstar-release") != release_hash():
-                    raise HTTPException(409, "Live and Console must use the same current release")
+                    raise HTTPException(409, "Live and Live Web must use the same current release")
                 if request.method not in {"GET", "POST"}:
                     raise HTTPException(405, "Live operation is not supported")
             except HTTPException as error:
@@ -118,6 +118,7 @@ def create_app(engine: Engine, library: DataLibrary, auth: LiveAuth) -> FastAPI:
     def diagnostic_observation() -> dict[str, Any]:
         return owner.read(diagnostics.observe(engine, library))
 
+    app.include_router(material_routes.routes(owner, engine, library))
     app.include_router(stream_routes.routes(owner))
     app.include_router(broker_routes.routes(owner))
     app.include_router(budget_routes.routes(owner))

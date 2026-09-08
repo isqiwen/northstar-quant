@@ -12,7 +12,7 @@ from html.parser import HTMLParser
 from fastapi import HTTPException, Request
 from starlette.requests import HTTPConnection
 from starlette.responses import JSONResponse, Response
-from starlette.types import ASGIApp, Receive, Scope, Send
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 COOKIE = "northstar_workspace_session"
 _LOCAL_HOST = re.compile(r"(?:127\.0\.0\.1|localhost)(?::[1-9][0-9]{0,4})?\Z")
@@ -23,13 +23,14 @@ _DENIED = "工作台会话缺失或已过期。请重新打开工作台页面后
 class WorkspaceAccess:
     """Process-local browser identity, never broker credentials or execution authority."""
 
-    def __init__(self) -> None:
+    def __init__(self, cookie: str = COOKIE) -> None:
+        self.cookie = cookie
         self._sessions: dict[str, tuple[str, float]] = {}
 
     def open(self, request: Request) -> str:
         now = time.monotonic()
         self._sessions = {key: value for key, value in self._sessions.items() if value[1] > now}
-        identifier = request.cookies.get(COOKIE, "")
+        identifier = request.cookies.get(self.cookie, "")
         if identifier not in self._sessions:
             if len(self._sessions) >= 64:
                 del self._sessions[next(iter(self._sessions))]
@@ -42,7 +43,7 @@ class WorkspaceAccess:
     def set_cookie(self, request: Request, response: Response, identifier: str) -> None:
         self.require_id(identifier)
         response.set_cookie(
-            COOKIE,
+            self.cookie,
             identifier,
             max_age=max(1, int(self._sessions[identifier][1] - time.monotonic())),
             httponly=True,
@@ -57,7 +58,7 @@ class WorkspaceAccess:
         return session[0]
 
     def session_id(self, scope: Scope) -> str:
-        identifier = HTTPConnection(scope).cookies.get(COOKIE, "")
+        identifier = HTTPConnection(scope).cookies.get(self.cookie, "")
         self.require_id(identifier)
         return identifier
 
@@ -102,12 +103,19 @@ class LocalWorkspaceMiddleware:
         self.access = access
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        upload = scope.get("method") == "POST" and scope.get("path", "").startswith(
+            "/_nicegui/client/"
+        )
         if scope["type"] in {"http", "websocket"}:
             socket = scope["type"] == "websocket" or "/_nicegui_ws/" in scope["path"]
             try:
                 self.access.check_scope(scope, socket=socket)
                 if socket:
                     self.access.session_id(scope)
+                if upload:
+                    from northstar_quant.nicegui_workspace import authorize_upload
+
+                    authorize_upload(scope, self.access)
             except HTTPException as error:
                 if scope["type"] == "websocket":
                     await send({"type": "websocket.close", "code": 1008})
@@ -116,6 +124,37 @@ class LocalWorkspaceMiddleware:
                         scope, receive, send
                     )
                 return
+        if upload:
+            # Bound the whole multipart request before the library parses/spools
+            # files. Return directly instead of throwing through nested receivers.
+            chunks: list[bytes] = []
+            size = 0
+            while True:
+                message = await receive()
+                if message["type"] == "http.disconnect":
+                    return
+                chunk = message.get("body", b"")
+                size += len(chunk)
+                if size > 6 * 1024 * 1024:
+                    await JSONResponse({"detail": "上传请求超过大小限制。"}, status_code=413)(
+                        scope, receive, send
+                    )
+                    return
+                chunks.append(chunk)
+                if not message.get("more_body", False):
+                    break
+            body = b"".join(chunks)
+            original_receive = receive
+            delivered = False
+
+            async def bounded_receive() -> Message:
+                nonlocal delivered
+                if not delivered:
+                    delivered = True
+                    return {"type": "http.request", "body": body, "more_body": False}
+                return await original_receive()
+
+            receive = bounded_receive
         await self.app(scope, receive, send)
 
 

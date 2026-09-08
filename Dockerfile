@@ -13,5 +13,5 @@ RUN apt-get update && apt-get install -y --no-install-recommends postgresql-clie
 WORKDIR /app
 COPY --from=build /app/.venv /app/.venv
 ENV PATH="/app/.venv/bin:$PATH"
-EXPOSE 18080 18081
-CMD ["uvicorn", "northstar_quant.web:application", "--factory", "--host", "0.0.0.0", "--port", "18080"]
+EXPOSE 18080 18081 18082 18083
+CMD ["uvicorn", "northstar_quant.apps.live:application", "--factory", "--host", "0.0.0.0", "--port", "18080"]

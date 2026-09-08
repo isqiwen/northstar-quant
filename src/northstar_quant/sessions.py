@@ -39,9 +39,9 @@ from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.engine import RowMapping
 
 from northstar_quant.accounting import Account, FillFact
-from northstar_quant.data.catalog.models import DatasetSnapshotManifest
-from northstar_quant.data.library import DataLibrary
-from northstar_quant.data.research import ResearchBar, ResearchDataset
+from northstar_quant.data_management.catalog.models import DatasetSnapshotManifest
+from northstar_quant.data_management.library import DataLibrary
+from northstar_quant.data_management.research import ResearchBar, ResearchDataset
 from northstar_quant.research import ResearchConfig, TradingSession
 from northstar_quant.runtime import implementation_hash
 from northstar_quant.strategy import decimal_text

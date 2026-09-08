@@ -36,12 +36,14 @@ services:
     logging: *bounded-logging
     environment:
       NORTHSTAR_DATABASE_URL: postgresql+psycopg://northstar:northstar_local@postgres:5432/northstar_quant
+      NORTHSTAR_DATA_DIR: /var/lib/northstar/sources
     volumes:
+      - source-data:/var/lib/northstar/sources
       - runtime-auth:/var/lib/northstar/auth
     depends_on:
       postgres:
         condition: service_healthy
-    command: ["sh", "-c", "northstar init-db && northstar init-live-auth /var/lib/northstar/auth"]
+    command: ["sh", "-c", "northstar init-db && northstar init-live-auth /var/lib/northstar/auth && python -c 'from northstar_quant.data_management.files import SourceFiles; SourceFiles.from_environment()'"]
   live:
     platform: linux/amd64
     build: .
@@ -73,7 +75,7 @@ services:
       retries: 3
       start_period: 20s
     stop_grace_period: 30s
-  console:
+  live-web:
     platform: linux/amd64
     build: .
     image: northstar-quant:local
@@ -84,26 +86,71 @@ services:
     pids_limit: 128
     logging: *bounded-logging
     environment:
-      NORTHSTAR_DATABASE_URL: postgresql+psycopg://northstar:northstar_local@postgres:5432/northstar_quant
-      NORTHSTAR_DATA_DIR: /var/lib/northstar/sources
       NORTHSTAR_LIVE_URL: http://live:18081
-      NORTHSTAR_LIVE_AUTH: /var/lib/northstar/auth/console.toml
+      NORTHSTAR_LIVE_AUTH: /var/lib/northstar/auth/live-web.toml
     volumes:
-      - source-data:/var/lib/northstar/sources
-      - backup-data:/var/lib/northstar/backups
       - runtime-auth:/var/lib/northstar/auth:ro
     depends_on:
       initialize:
         condition: service_completed_successfully
     ports:
       - "127.0.0.1:18080:18080"
-    command: ["uvicorn", "northstar_quant.web:application", "--factory", "--host", "0.0.0.0", "--port", "18080"]
+    command: ["uvicorn", "northstar_quant.apps.live:application", "--factory", "--host", "0.0.0.0", "--port", "18080"]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:18080/health/ready', timeout=3)"]
       interval: 10s
       timeout: 5s
       retries: 3
       start_period: 20s
+  data-hub:
+    platform: linux/amd64
+    build: .
+    image: northstar-quant:local
+    restart: unless-stopped
+    logging: *bounded-logging
+    environment:
+      NORTHSTAR_DATABASE_URL: postgresql+psycopg://northstar:northstar_local@postgres:5432/northstar_quant
+      NORTHSTAR_DATA_DIR: /var/lib/northstar/sources
+    volumes:
+      - source-data:/var/lib/northstar/sources
+      - backup-data:/var/lib/northstar/backups
+    depends_on:
+      initialize:
+        condition: service_completed_successfully
+    ports:
+      - "127.0.0.1:18082:18082"
+    command: ["uvicorn", "northstar_quant.apps.data_hub:application", "--factory", "--host", "0.0.0.0", "--port", "18082"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:18082/health/ready', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  research:
+    platform: linux/amd64
+    build: .
+    image: northstar-quant:local
+    restart: unless-stopped
+    logging: *bounded-logging
+    environment:
+      NORTHSTAR_DATABASE_URL: postgresql+psycopg://northstar:northstar_local@postgres:5432/northstar_quant
+      NORTHSTAR_DATA_DIR: /var/lib/northstar/sources
+    volumes:
+      - source-data:/var/lib/northstar/sources:ro
+    depends_on:
+      initialize:
+        condition: service_completed_successfully
+    ports:
+      - "127.0.0.1:18083:18083"
+    command: ["uvicorn", "northstar_quant.apps.research:application", "--factory", "--host", "0.0.0.0", "--port", "18083"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:18083/health/ready', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
 volumes:
   postgres-data:
   source-data:

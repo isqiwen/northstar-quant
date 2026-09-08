@@ -1,4 +1,4 @@
-# Broker credentials belong only to Live; never mount them into Console.
+# Broker credentials belong only to Live; never mount them into any Web process.
 # Run scripts/setup_simnow.sh locally first; this file contains no account secrets.
 services:
   live:

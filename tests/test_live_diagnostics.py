@@ -7,11 +7,11 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine, create_engine
 
+from northstar_quant.apps.live import create_app as live_web_app
 from northstar_quant.cli import main
-from northstar_quant.data.files import SourceFiles
-from northstar_quant.data.library import DataLibrary
+from northstar_quant.data_management.files import SourceFiles
+from northstar_quant.data_management.library import DataLibrary
 from northstar_quant.live import LiveAuth, LiveClient, create_app
-from northstar_quant.web.application import create_app as console_app
 
 
 def test_readonly_diagnostics_report_capacity_and_missing_storage(
@@ -35,9 +35,7 @@ def test_readonly_diagnostics_report_capacity_and_missing_storage(
         root.rename(tmp_path / "retained")
         assert client.diagnostics()["source_filesystem"]["status"] == "UNAVAILABLE"
         assert not root.exists()  # Observation must not repair or recreate missing storage.
-        with TestClient(
-            console_app(postgres_engine, library, live=borrowed), base_url="http://localhost"
-        ) as console:
+        with TestClient(live_web_app(live=borrowed), base_url="http://localhost") as console:
             page = console.get("/live")
             assert page.status_code == 200 and "UNAVAILABLE" in page.text
             assert "DEGRADED" in page.text and "未知（未测量" in page.text

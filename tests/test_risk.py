@@ -5,7 +5,7 @@ from uuid import UUID
 
 import pytest
 
-from northstar_quant.data.research import Market
+from northstar_quant.data_management.research import Market
 from northstar_quant.risk import (
     OpeningAccount,
     OpeningCandidate,

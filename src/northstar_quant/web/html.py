@@ -56,19 +56,24 @@ def _decision_text(value: object) -> str:
 
 
 def _page(
-    title: str, content: str, *, csrf: str | None = None, mode: str = "历史研究 · 本机"
+    title: str,
+    content: str,
+    *,
+    csrf: str | None = None,
+    mode: str = "历史研究 · 本机",
+    application_name: str = "Northstar",
+    navigation: tuple[tuple[str, str], ...] = (),
 ) -> str:
     csrf_meta = "" if csrf is None else f'<meta name="northstar-csrf" content="{_text(csrf)}">'
+    links = "".join(f'<a href="{_text(url)}">{_text(label)}</a>' for label, url in navigation)
     return f"""<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 {csrf_meta}
 <title>{_text(title)} · Northstar</title><link rel="stylesheet" href="/assets/app.css">
 <script src="/assets/app.js" defer></script></head><body>
-<header class="topbar"><a class="brand" href="/">NORTHSTAR<span>个人量化工作台</span></a>
-<nav aria-label="工作台"><a href="/">历史研究</a><a href="/sources">来源与处理</a>
-<a href="/paper">文件 Paper</a><a href="/broker">SimNow 连接</a>
-<a href="/streams">持续行情</a><a href="/live">Live 诊断</a></nav>
+<header class="topbar"><a class="brand" href="/">{_text(application_name)}</a>
+<nav aria-label="应用">{links}</nav>
 <span class="mode">{_text(mode)}</span></header>
 <main>{content}</main><footer>研究、内部 Paper 与 SimNow 柜台证据分别保存。
 SimNow 接收与影子目标不授予交易权限；模拟结果不代表实盘表现。</footer>
@@ -108,7 +113,14 @@ def workspace_page(
 ) -> HTMLResponse:
     identifier = access.open(request)
     csrf = access.require_id(identifier)
-    document = _page(title, content, csrf=csrf, mode=mode)
+    document = _page(
+        title,
+        content,
+        csrf=csrf,
+        mode=mode,
+        application_name=request.app.title,
+        navigation=request.app.state.navigation,
+    )
     if runtime_id is not None:
         document = document.replace(
             "</head>", f'<meta name="northstar-live-runtime" content="{runtime_id}"></head>', 1

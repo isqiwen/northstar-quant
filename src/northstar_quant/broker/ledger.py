@@ -36,7 +36,7 @@ from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from northstar_quant.accounting import PositionChange, project_intraday_positions
 from northstar_quant.broker.baselines import BrokerBaselines
 from northstar_quant.broker.records import BrokerRecords
-from northstar_quant.data.broker import resolve_broker_contract, verify_broker_contract
+from northstar_quant.data_management.broker import resolve_broker_contract, verify_broker_contract
 from northstar_quant.runtime import implementation_hash
 from northstar_quant.strategy import decimal_text
 

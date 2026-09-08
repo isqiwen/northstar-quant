@@ -11,10 +11,10 @@ import pytest
 from sqlalchemy import Engine, text
 from sqlalchemy.exc import DBAPIError
 
-import northstar_quant.data.library as library_module
-from northstar_quant.data.files import SourceFiles
-from northstar_quant.data.library import AdmissionRejected, DataLibrary, manifest
-from northstar_quant.data.research import ImportSpec, ResearchDataset
+import northstar_quant.data_management.library as library_module
+from northstar_quant.data_management.files import SourceFiles
+from northstar_quant.data_management.library import AdmissionRejected, DataLibrary, manifest
+from northstar_quant.data_management.research import ImportSpec, ResearchDataset
 from northstar_quant.research import ResearchConfig, run_research
 from northstar_quant.runs import RunStore
 from northstar_quant.sessions import SessionStore

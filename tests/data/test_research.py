@@ -13,10 +13,14 @@ from sqlalchemy import Engine, func, select, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from northstar_quant.data.catalog.models import CanonicalBar, DatasetSnapshotManifest, SourceReceipt
-from northstar_quant.data.files import SourceFiles
-from northstar_quant.data.library import DataLibrary
-from northstar_quant.data.research import ImportSpec, ResearchDataset
+from northstar_quant.data_management.catalog.models import (
+    CanonicalBar,
+    DatasetSnapshotManifest,
+    SourceReceipt,
+)
+from northstar_quant.data_management.files import SourceFiles
+from northstar_quant.data_management.library import DataLibrary
+from northstar_quant.data_management.research import ImportSpec, ResearchDataset
 
 
 def _receive(library: DataLibrary, path: Path, spec: ImportSpec) -> ResearchDataset:

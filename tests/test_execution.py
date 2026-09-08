@@ -6,7 +6,7 @@ from uuid import UUID
 import pytest
 
 from northstar_quant.accounting import Account, FillFact
-from northstar_quant.data.research import Market, ResearchBar
+from northstar_quant.data_management.research import Market, ResearchBar
 from northstar_quant.execution import PendingOrder, simulate_fill
 from northstar_quant.risk import Side
 

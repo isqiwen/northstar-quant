@@ -9,13 +9,13 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session
 
-from northstar_quant.data.catalog.models import (
+from northstar_quant.data_management.catalog.models import (
     DataSeries,
     FuturesContract,
     TradingCalendar,
     TradingSession,
 )
-from northstar_quant.data.catalog.services import CatalogCommands
+from northstar_quant.data_management.catalog.services import CatalogCommands
 
 ASIA_SHANGHAI = ZoneInfo("Asia/Shanghai")
 

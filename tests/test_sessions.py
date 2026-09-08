@@ -13,9 +13,9 @@ import pytest
 from sqlalchemy import Engine, create_engine, event, text
 from sqlalchemy.exc import DBAPIError
 
-from northstar_quant.data.files import SourceFiles
-from northstar_quant.data.library import DataLibrary
-from northstar_quant.data.research import ResearchDataset
+from northstar_quant.data_management.files import SourceFiles
+from northstar_quant.data_management.library import DataLibrary
+from northstar_quant.data_management.research import ResearchDataset
 from northstar_quant.research import ResearchConfig, run_research
 from northstar_quant.sessions import SessionStore
 

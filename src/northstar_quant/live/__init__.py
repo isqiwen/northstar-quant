@@ -1,4 +1,4 @@
-"""Independent Live ownership and the concrete Console/CLI HTTP Interface."""
+"""Independent Live ownership and the concrete Live Web/CLI HTTP Interface."""
 
 from .auth import LiveAuth
 from .client import CommandUnknown, LiveClient, RuntimeUnavailable

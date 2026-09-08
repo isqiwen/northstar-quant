@@ -17,28 +17,28 @@ import pyarrow.parquet as pq  # type: ignore[import-untyped]
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from northstar_quant.data.catalog.models import (
+from northstar_quant.data_management.catalog.models import (
     CanonicalBar,
     ImportRecord,
     ImportRun,
     JobRun,
     SourceReceipt,
 )
-from northstar_quant.data.ingestion.imports import (
+from northstar_quant.data_management.ingestion.imports import (
     PARQUET_MAPPING_VERSION,
     PARQUET_PROFILE_NAME,
     PARQUET_PROFILE_VERSION,
     OhlcvImportCommand,
 )
-from northstar_quant.data.ingestion.parquet_adapter import CanonicalOhlcvParquetAdapter
-from northstar_quant.data.ingestion.service import OhlcvImportService
+from northstar_quant.data_management.ingestion.parquet_adapter import CanonicalOhlcvParquetAdapter
+from northstar_quant.data_management.ingestion.service import OhlcvImportService
 
 from .catalog_support import SyntheticCatalog, at_local, seed_synthetic_catalog
 
 _SOURCE_TIMEZONE = ZoneInfo("Asia/Shanghai")
 _PROFILE_METADATA = {
-    b"northstar_quant.data.profile": PARQUET_PROFILE_NAME.encode("ascii"),
-    b"northstar_quant.data.profile_version": PARQUET_PROFILE_VERSION.encode("ascii"),
+    b"northstar_quant.data_management.profile": PARQUET_PROFILE_NAME.encode("ascii"),
+    b"northstar_quant.data_management.profile_version": PARQUET_PROFILE_VERSION.encode("ascii"),
 }
 
 

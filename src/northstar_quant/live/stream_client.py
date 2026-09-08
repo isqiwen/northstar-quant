@@ -1,4 +1,4 @@
-"""Console/CLI access to Live-owned reception without local worker ownership."""
+"""Live Web/CLI access to Live-owned reception without local worker ownership."""
 
 from __future__ import annotations
 

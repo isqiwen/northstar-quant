@@ -8,15 +8,17 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from northstar_quant.data.catalog.models import CanonicalBar
-from northstar_quant.data.quality.applicability_service import QualityApplicabilityService
-from northstar_quant.data.quality.evaluations import (
+from northstar_quant.data_management.catalog.models import CanonicalBar
+from northstar_quant.data_management.quality.applicability_service import (
+    QualityApplicabilityService,
+)
+from northstar_quant.data_management.quality.evaluations import (
     DailyQualityEvaluationCommand,
     MinuteQualityEvaluationCommand,
     QualityApplicabilityResult,
 )
-from northstar_quant.data.quality.minute_service import MinuteQualityEvaluationService
-from northstar_quant.data.quality.service import DailyQualityEvaluationService
+from northstar_quant.data_management.quality.minute_service import MinuteQualityEvaluationService
+from northstar_quant.data_management.quality.service import DailyQualityEvaluationService
 
 from .catalog_support import SyntheticCatalog, at_local, seed_synthetic_catalog
 

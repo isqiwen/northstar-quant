@@ -24,9 +24,9 @@ from northstar_quant.broker.baselines import BrokerBaselines
 from northstar_quant.broker.ledger import BrokerLedger
 from northstar_quant.broker.records import BrokerEvent, BrokerRecords
 from northstar_quant.broker.settings import get_profile, load_credentials
-from northstar_quant.data.broker import resolve_broker_contract, verify_broker_contract
-from northstar_quant.data.library import DataLibrary
-from northstar_quant.data.live import advance_market, idle_reason
+from northstar_quant.data_management.broker import resolve_broker_contract, verify_broker_contract
+from northstar_quant.data_management.library import DataLibrary
+from northstar_quant.data_management.live import advance_market, idle_reason
 from northstar_quant.research import ResearchConfig
 from northstar_quant.runtime import implementation_hash
 from northstar_quant.sessions import SessionStore

@@ -7,7 +7,7 @@ from uuid import UUID
 import pytest
 
 from northstar_quant.accounting import Account, FillFact
-from northstar_quant.data.research import Market, ResearchBar, ResearchDataset
+from northstar_quant.data_management.research import Market, ResearchBar, ResearchDataset
 from northstar_quant.research import ResearchConfig, TradingSession, TradingStep, run_research
 
 AT = datetime(2026, 1, 5, 1, tzinfo=UTC)

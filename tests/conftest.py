@@ -13,7 +13,7 @@ from sqlalchemy import Engine, create_engine, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session, sessionmaker
 
-from northstar_quant.data.library import DataLibrary
+from northstar_quant.data_management.library import DataLibrary
 from northstar_quant.db import initialize_database
 
 
@@ -49,7 +49,7 @@ def postgres_engine() -> Generator[Engine, None, None]:
 
 @pytest.fixture
 def clean_database(postgres_engine: Engine) -> None:
-    from northstar_quant.data.db.base import Base
+    from northstar_quant.data_management.db.base import Base
 
     quoted = [
         postgres_engine.dialect.identifier_preparer.quote(t.name)
@@ -122,10 +122,10 @@ def live_client() -> Generator[Callable[[Engine, DataLibrary], object], None, No
 
 
 @pytest.fixture
-def console_app(live_client: Callable[[Engine, DataLibrary], object]) -> Callable[..., FastAPI]:
-    from northstar_quant.web import create_app
+def live_web_app(live_client: Callable[[Engine, DataLibrary], object]) -> Callable[..., FastAPI]:
+    from northstar_quant.apps.live import create_app
 
     def compose(engine: Engine, library: DataLibrary) -> FastAPI:
-        return create_app(engine, library, live=live_client(engine, library))
+        return create_app(live=live_client(engine, library))
 
     return compose

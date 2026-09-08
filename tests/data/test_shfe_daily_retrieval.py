@@ -15,7 +15,7 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from northstar_quant.data.catalog.models import (
+from northstar_quant.data_management.catalog.models import (
     CanonicalBar,
     ImportRun,
     JobRun,
@@ -25,20 +25,23 @@ from northstar_quant.data.catalog.models import (
     ShfeDailySourceAdmissionReview,
     SourceReceipt,
 )
-from northstar_quant.data.core.config import Settings
-from northstar_quant.data.ingestion import provider_service
-from northstar_quant.data.ingestion.imports import ImportInProgressError, OhlcvImportError
-from northstar_quant.data.ingestion.provider_commands import (
+from northstar_quant.data_management.core.config import Settings
+from northstar_quant.data_management.ingestion import provider_service
+from northstar_quant.data_management.ingestion.imports import (
+    ImportInProgressError,
+    OhlcvImportError,
+)
+from northstar_quant.data_management.ingestion.provider_commands import (
     RecoverShfeDailyRetrievalCommand,
     ShfeDailyFetchCommand,
 )
-from northstar_quant.data.ingestion.provider_http import ShfeDailyHttpClient
-from northstar_quant.data.ingestion.provider_service import ShfeDailyRetrievalService
-from northstar_quant.data.ingestion.providers.shfe import (
+from northstar_quant.data_management.ingestion.provider_http import ShfeDailyHttpClient
+from northstar_quant.data_management.ingestion.provider_service import ShfeDailyRetrievalService
+from northstar_quant.data_management.ingestion.providers.shfe import (
     SHFE_DAILY_MAPPING_VERSION,
     ShfeDailyJsonAdapter,
 )
-from northstar_quant.data.ingestion.source_admission import (
+from northstar_quant.data_management.ingestion.source_admission import (
     SHFE_DAILY_ACQUISITION_USE,
     SHFE_DAILY_ADAPTER_NAME,
     SHFE_DAILY_ADAPTER_VERSION,
@@ -48,7 +51,7 @@ from northstar_quant.data.ingestion.source_admission import (
     SHFE_DAILY_RETENTION_POLICY,
     SHFE_DAILY_SOURCE_NAME,
 )
-from northstar_quant.data.ingestion.source_admission import (
+from northstar_quant.data_management.ingestion.source_admission import (
     SHFE_DAILY_MAPPING_VERSION as SHFE_DAILY_REVIEW_MAPPING_VERSION,
 )
 

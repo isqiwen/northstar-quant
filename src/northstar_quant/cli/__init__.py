@@ -25,7 +25,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
             print(json.dumps(initialize_auth(arguments.directory), ensure_ascii=False))
             return 0
-        if arguments.command in {"live", "serve"}:
+        if arguments.command in {"live", "live-web", "data-hub", "research-web"}:
             from northstar_quant.cli.runtime import serve
 
             serve(arguments.command, arguments.port)
@@ -70,7 +70,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(json.dumps({"status": "ready"}))
             return 0
         if arguments.command == "restore":
-            from northstar_quant.data.maintenance import restore
+            from northstar_quant.data_management.maintenance import restore
 
             data_root = os.environ.get("NORTHSTAR_DATA_DIR")
             if not data_root:

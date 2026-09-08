@@ -24,7 +24,7 @@ from northstar_quant.broker.ledger import BrokerLedger
 from northstar_quant.broker.records import BrokerRecords
 from northstar_quant.broker.settings import get_profile
 from northstar_quant.broker.streams import BrokerStreams
-from northstar_quant.data.library import DataLibrary
+from northstar_quant.data_management.library import DataLibrary
 
 
 class AccountClock(datetime):
@@ -293,7 +293,7 @@ def test_missing_scope_relative_rates_freezes_and_one_cent_short_cannot_pass(
 
 
 def test_browser_budget_uses_saved_inputs_rejects_account_injection_and_shows_unknown(
-    console_app,
+    live_web_app,
     postgres_engine: Engine,
     clean_database: None,
     tmp_path: Path,
@@ -301,7 +301,7 @@ def test_browser_budget_uses_saved_inputs_rejects_account_injection_and_shows_un
 ) -> None:
     del clean_database
     library, stream, order, sequence = budget_case(postgres_engine, tmp_path, monkeypatch)
-    with TestClient(console_app(postgres_engine, library), base_url="http://127.0.0.1") as client:
+    with TestClient(live_web_app(postgres_engine, library), base_url="http://127.0.0.1") as client:
         page = client.get("/streams")
         assert page.status_code == 200
         csrf = re.search(r'<meta name="northstar-csrf" content="([^"]+)"', page.text).group(1)

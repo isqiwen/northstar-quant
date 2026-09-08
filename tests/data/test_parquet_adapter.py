@@ -11,7 +11,7 @@ import pyarrow as pa  # type: ignore[import-untyped]
 import pyarrow.parquet as pq  # type: ignore[import-untyped]
 import pytest
 
-from northstar_quant.data.ingestion.imports import (
+from northstar_quant.data_management.ingestion.imports import (
     PARQUET_MAPPING_VERSION,
     PARQUET_PROFILE_NAME,
     PARQUET_PROFILE_VERSION,
@@ -19,12 +19,12 @@ from northstar_quant.data.ingestion.imports import (
     ParsedOhlcvRows,
     RawOhlcvRow,
 )
-from northstar_quant.data.ingestion.parquet_adapter import CanonicalOhlcvParquetAdapter
+from northstar_quant.data_management.ingestion.parquet_adapter import CanonicalOhlcvParquetAdapter
 
 _SOURCE_TIMEZONE = ZoneInfo("Asia/Shanghai")
 _PROFILE_METADATA = {
-    b"northstar_quant.data.profile": PARQUET_PROFILE_NAME.encode("ascii"),
-    b"northstar_quant.data.profile_version": PARQUET_PROFILE_VERSION.encode("ascii"),
+    b"northstar_quant.data_management.profile": PARQUET_PROFILE_NAME.encode("ascii"),
+    b"northstar_quant.data_management.profile_version": PARQUET_PROFILE_VERSION.encode("ascii"),
 }
 _FIELD_TYPES: dict[str, pa.DataType] = {
     "symbol": pa.string(),
