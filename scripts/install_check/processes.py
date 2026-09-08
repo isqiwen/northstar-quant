@@ -202,7 +202,13 @@ class InstalledApplication:
                     yield url
                     # Stop only the frontend, then observe the still-running API.
                     process.terminate()
-                    process.wait(timeout=10)
+                    try:
+                        process.wait(timeout=10)
+                    except subprocess.TimeoutExpired:
+                        # Browser keep-alive requests can delay Next shutdown. This
+                        # checks failure isolation, not graceful connection draining.
+                        process.kill()
+                        process.wait(timeout=10)
                     assert json.loads(self.request(backend + "/health/ready")) == {
                         "status": "ready"
                     }
