@@ -3,6 +3,7 @@
 from fastapi import FastAPI
 from starlette.concurrency import run_in_threadpool
 
+from northstar_quant.apps.logging import logged_application
 from northstar_quant.live import LiveClient
 from northstar_quant.web.host import create_host
 from northstar_quant.web.protobuf import bind
@@ -33,9 +34,6 @@ def create_app(*, live: LiveClient) -> FastAPI:
     return app
 
 
+@logged_application("live", "api")
 def application() -> FastAPI:
-    from northstar_quant.apps.logging import attach
-    from northstar_quant.logs import configure
-
-    runtime_logs = configure("live", "api")
-    return attach(create_app(live=LiveClient.from_environment()), runtime_logs)
+    return create_app(live=LiveClient.from_environment())

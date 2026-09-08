@@ -17,6 +17,7 @@ from starlette.middleware.base import RequestResponseEndpoint
 from starlette.responses import Response
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from northstar_quant.apps.logging import logged_application
 from northstar_quant.apps.storage import open_database, require_current_database
 from northstar_quant.data_management.files import SourceFiles
 from northstar_quant.data_management.library import DataLibrary
@@ -145,14 +146,9 @@ def create_app(engine: Engine, library: DataLibrary, auth: LiveAuth) -> FastAPI:
     return app
 
 
+@logged_application("live", "kernel")
 def application() -> FastAPI:
-    from northstar_quant.apps.logging import attach
-    from northstar_quant.logs import configure
-
-    runtime_logs = configure("live", "kernel")
     auth = LiveAuth.from_environment(require_control=True)
     engine = open_database()
     require_current_database(engine)
-    return attach(
-        create_app(engine, DataLibrary(engine, SourceFiles.from_environment()), auth), runtime_logs
-    )
+    return create_app(engine, DataLibrary(engine, SourceFiles.from_environment()), auth)

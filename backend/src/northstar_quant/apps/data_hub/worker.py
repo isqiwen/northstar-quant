@@ -16,8 +16,9 @@ def run() -> None:
     stop = Event()
     signal.signal(signal.SIGTERM, lambda *_: stop.set())
     signal.signal(signal.SIGINT, lambda *_: stop.set())
-    engine = open_database()
+    engine = None
     try:
+        engine = open_database()
         require_current_database(engine)
         library = DataLibrary(engine, SourceFiles.from_environment())
         # One bounded operation holds the existing publication lock. Pending
@@ -34,6 +35,7 @@ def run() -> None:
         logging.getLogger(__name__).exception("Data worker failed")
         raise
     finally:
-        engine.dispose()
+        if engine is not None:
+            engine.dispose()
         logging.getLogger(__name__).info("Data worker stopped")
         runtime_logs.close()

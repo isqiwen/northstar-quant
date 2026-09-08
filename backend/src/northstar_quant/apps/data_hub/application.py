@@ -3,6 +3,7 @@
 from fastapi import FastAPI
 from sqlalchemy import Engine
 
+from northstar_quant.apps.logging import logged_application
 from northstar_quant.data_management.files import SourceFiles
 from northstar_quant.data_management.library import DataLibrary
 from northstar_quant.web import datasets
@@ -22,15 +23,10 @@ def create_app(engine: Engine, library: DataLibrary) -> FastAPI:
     return app
 
 
+@logged_application("data_hub", "api")
 def application() -> FastAPI:
-    from northstar_quant.apps.logging import attach
-    from northstar_quant.logs import configure
-
-    runtime_logs = configure("data_hub", "api")
     from northstar_quant.apps.storage import open_database, require_current_database
 
     engine = open_database()
     require_current_database(engine)
-    return attach(
-        create_app(engine, DataLibrary(engine, SourceFiles.from_environment())), runtime_logs
-    )
+    return create_app(engine, DataLibrary(engine, SourceFiles.from_environment()))

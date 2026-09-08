@@ -175,3 +175,37 @@ def test_normal_standard_logging_call_cost_and_confirmed_file_output(tmp_path: P
     assert sum(r.get("message", "").startswith("command accepted") for r in records) == 1000
     elapsed.sort()
     print({"normal_log_call_p99_us": elapsed[990] / 1000})
+
+
+def test_factory_failure_is_logged_without_exception_parameters(tmp_path: Path) -> None:
+    import os
+    import subprocess
+
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "\n".join(
+                [
+                    "from northstar_quant.apps.logging import logged_application",
+                    "@logged_application('live', 'kernel')",
+                    "def application():",
+                    "    raise ValueError('private configuration value')",
+                    "try:",
+                    "    application()",
+                    "except ValueError:",
+                    "    pass",
+                ]
+            ),
+        ],
+        env=dict(os.environ, NORTHSTAR_LOG_DIR=str(tmp_path)),
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=True,
+    )
+    assert not completed.stderr
+    content = (tmp_path / "live/kernel.log").read_text()
+    assert "application initialization failed" in content
+    assert '"type": "ValueError"' in content
+    assert "private configuration value" not in content

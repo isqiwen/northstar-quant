@@ -1,13 +1,14 @@
 """Application lifecycle and safe HTTP diagnostics, independent of domain behavior."""
 
 import logging
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
+from functools import wraps
 
 from fastapi import FastAPI
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from northstar_quant.logs import LogRuntime
+from northstar_quant.logs import LogRuntime, configure
 
 _LOG = logging.getLogger(__name__)
 
@@ -73,3 +74,23 @@ def attach(app: FastAPI, runtime: LogRuntime) -> FastAPI:
         return runtime.status()
 
     return app
+
+
+def logged_application(
+    application: str, component: str
+) -> Callable[[Callable[[], FastAPI]], Callable[[], FastAPI]]:
+    """Include failures before ASGI startup, for CLI and direct Uvicorn factories."""
+
+    def decorate(factory: Callable[[], FastAPI]) -> Callable[[], FastAPI]:
+        @wraps(factory)
+        def initialize() -> FastAPI:
+            runtime = configure(application, component)
+            try:
+                return attach(factory(), runtime)
+            except Exception:
+                _LOG.exception("application initialization failed")
+                raise
+
+        return initialize
+
+    return decorate
