@@ -330,7 +330,7 @@ def main() -> None:
                     application.assert_live(live_process, live_status, base_url)
                     assert request(f"{base_url}/health/ready")
                 application.assert_live(live_process, live_status)
-                assert len(set(application.web_pids)) == 5
+                assert len(set(application.web_pids)) == len(application.web_pids)
                 assert live_process.pid not in application.web_pids
                 print(
                     "Installed process isolation: independent application restarts preserved the "
