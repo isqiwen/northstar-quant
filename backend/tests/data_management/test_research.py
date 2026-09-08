@@ -82,6 +82,9 @@ def test_import_pins_complete_session_replays_and_accepts_another_contract(
 ) -> None:
     del clean_database
     monkeypatch.setattr("northstar_quant.data_management.library.code_revision", lambda: "a" * 40)
+    monkeypatch.setattr(
+        "northstar_quant.data_management.processing.code_revision", lambda: "a" * 40
+    )
     library = DataLibrary(postgres_engine, SourceFiles(tmp_path / "archive"))
     path = _csv(tmp_path / "bars.csv")
     first = _receive(library, path, _spec())
