@@ -112,6 +112,12 @@ lease expiry alone does not authorize failover. Unresolved facts stop new risk.
 
 ## Workflow
 
+Repository-owned skills live in `.agents/skills/` with `northstar-` names.
+External skill exclusions belong to the operator's user-level Codex configuration;
+audit them on each development host when the client/plugins change. Start Codex
+at this repository root to discover local skills. See `.agents/skills/README.md`
+for scope and verification; this prose cannot unload host/session instructions.
+
 Inspect the worktree first and preserve unrelated user edits. Architecture and
 implementation may change together in the same local work package; a separate
 documentation merge is never an implementation dependency.
