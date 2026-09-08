@@ -83,12 +83,16 @@ def test_factor_revisions_causal_results_references_and_candidate_survive_reopen
             with postgres_engine.begin() as connection:
                 connection.execute(text(sql))
 
+    # Use an uncached binding: a clean build may reuse the successful calculation
+    # above without invoking the evaluator, even after its failure is injected.
+    failing_id = catalog.register(Binding.create("trend.return", {"window_bars": 3}))
+
     # Terminal failed attempts stay visible; they expose no result.
     def broken(*args, **kwargs):
         raise ValueError("bounded calculation failed")
 
     monkeypatch.setattr("northstar_quant.research.factor_catalog.evaluate", broken)
-    failed = catalog.calculate(changed_id, dataset.snapshot_id)
+    failed = catalog.calculate(failing_id, dataset.snapshot_id)
     assert failed["status"] == "FAILED" and failed["result"] is None
     with pytest.raises(LookupError):
         operations.run(uuid4(), config)
