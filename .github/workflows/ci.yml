@@ -39,6 +39,14 @@ jobs:
           sudo apt-get install -y --no-install-recommends postgresql-client-17
       - name: Verify source and behavior
         run: make verify
+      - name: Verify checks leave the source tree clean
+        run: |
+          changes="$(git status --porcelain --untracked-files=all)"
+          if [ -n "$changes" ]; then
+            echo 'Verification changed the source tree:'
+            printf '%s\n' "$changes"
+            exit 1
+          fi
       - name: Build and verify the installed wheel
         run: |
           uv build --project backend --wheel --out-dir "$RUNNER_TEMP/northstar-dist"
