@@ -1,7 +1,9 @@
 # 开发顺序与交付管理
 
 最终目标：国内期货实盘，纵向尽早打通一个受限、可核对的真实交易闭环。
-一个仓库、一套 Python 业务实现，交付自带 Web 的 Data、Research、Live 三个独立应用。
+一个仓库、一套 Python 业务实现，交付自带 Web 的 Northstar Data Hub（数据管理中心）、
+Northstar Research（量化研究工作台）、Northstar Live（实盘交易系统）。
+应用目录固定为 `apps/data_hub/`、`apps/research/`、`apps/live/`，不设置 Console 应用。
 详细设计与当前能力见 [ARCHITECTURE.md](ARCHITECTURE.md)，取舍见 [ADR](adr/0001-runtime-roles.md)。
 [Project 1](https://github.com/users/isqiwen/projects/1) 是优先级、状态、Order 与原生依赖的管理入口；
 Issue 拥有实施范围、验收和证据，本文只维护交付顺序及职责，不复制每轮测试/运行日志。

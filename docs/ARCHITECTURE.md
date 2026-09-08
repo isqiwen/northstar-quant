@@ -7,7 +7,7 @@
 
 ## 1. 设计判断与交付边界
 
-采用单仓库、单 Python 包、三个独立交付应用：Data、Research、Live；每个应用自带 Web。
+采用单仓库、单 Python 包、三个独立交付应用：Data Hub、Research、Live；每个应用自带 Web。
 按生命周期、资源和故障影响拆进程，不按每个业务 Module 拆部署，不建立三套业务实现。
 Strategy、Risk、Accounting 等计算仍通过进程内 Python Interface 协作；
 Research 与 Live 复用这些计算，但不共用模拟成交假设或可变账户状态。
@@ -28,6 +28,17 @@ Research 与 Live 复用这些计算，但不共用模拟成交假设或可变�
 不要求 macOS 与 Linux 的环境摘要相同。固定历史事实不等于维护旧代码。
 
 ### 三个应用与内部进程
+
+以下目录均相对于 `src/northstar_quant/`，为唯一正式应用命名：
+
+| 应用目录 | 应用名称 | 中文名称 | 部署位置 |
+|---|---|---|---|
+| `apps/data_hub/` | Northstar Data Hub | 数据管理中心 | core |
+| `apps/research/` | Northstar Research | 量化研究工作台 | research |
+| `apps/live/` | Northstar Live | 实盘交易系统 | 国内云服务器 |
+
+不设置 Console 应用或 `apps/console/`。下文 Data 表示数据职责，应用正式名称为 Data Hub；
+现有 `data/` 是数据业务模块，不随应用命名机械改成 `data_hub/`。
 
 | 应用 | 部署与生命周期 | 自有 Web 和事实所有权 | 内部运行方式 |
 |---|---|---|---|
@@ -143,7 +154,7 @@ Compose 有数据库、来源和备份持久卷；已交付该切片的一致数
 
 ## 3. Module 与职责所有权
 
-目标装配入口为 `apps/data/`、`apps/research/`、`apps/live/`，各自拥有启动、Web、
+目标装配入口为 `apps/data_hub/`、`apps/research/`、`apps/live/`，各自拥有启动、Web、
 配置与依赖装配；部署文件按应用组织，并为需要独立生命周期的内核/执行器提供监管单元。
 现有 `data/`、研究计算、`broker/`、Strategy、Risk、Accounting 保持业务所有权。
 页面布局、表格、图表和认证接入按实际复用提取共享呈现组件；应用自身挂载页面、验证会话与业务权限。

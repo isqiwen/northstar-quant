@@ -21,9 +21,11 @@ broker integration, recovery or runtime topology; read
   affected callers atomically and remove superseded code, tests and active prose.
   Immutable content identities preserve reproducibility, not old implementations.
 - Deliver one repository and one Python package as three independent applications:
-  Data on core, Research on the workstation, Live on the cloud host. Each owns its
-  Web entry, configuration, deployment and diagnostics; no central Console is
-  required. Share presentation components, not application authority or lifecycle.
+  Northstar Data Hub (`apps/data_hub/`) on core, Northstar Research
+  (`apps/research/`) on the workstation, Northstar Live (`apps/live/`) on the cloud.
+  Each owns its Web, configuration, deployment and diagnostics. There is no Console
+  application. Share presentation components, not authority or lifecycle.
+  `data/` remains the data business Module, distinct from Data Hub app composition.
   This is the target, not a claim that the current mixed workspace implements it.
 - Supervise Live Web and its trading kernel independently. Durable Research
   execution and persistent Data collectors must survive browser/Web restart;

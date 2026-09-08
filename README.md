@@ -28,11 +28,13 @@ configuration, startup/upgrade/shutdown and diagnostics:
 
 | Application | Location | Owns |
 |---|---|---|
-| [Data #41](https://github.com/isqiwen/northstar-quant/issues/41) | Resident on local `core` | Collection, processing, quality, snapshots, query/export and Data Web |
-| [Research #23](https://github.com/isqiwen/northstar-quant/issues/23) | Local workstation | Research Web, durable tasks, independently supervised execution and results |
-| [Live #40](https://github.com/isqiwen/northstar-quant/issues/40) | Resident on domestic cloud | Live Web and a separately supervised trading kernel with local authoritative storage |
+| [Northstar Data Hub · 数据管理中心 #41](https://github.com/isqiwen/northstar-quant/issues/41) | Local `core`; `apps/data_hub/` | Collection, processing, quality, snapshots, query/export and Data Hub Web |
+| [Northstar Research · 量化研究工作台 #23](https://github.com/isqiwen/northstar-quant/issues/23) | Workstation; `apps/research/` | Research Web, durable tasks, independently supervised execution and results |
+| [Northstar Live · 实盘交易系统 #40](https://github.com/isqiwen/northstar-quant/issues/40) | Domestic cloud; `apps/live/` | Live Web and a separately supervised trading kernel with local authoritative storage |
 
-There is no required central Console. Shared UI components do not share business
+Application paths are relative to `src/northstar_quant/`. There is no Console application.
+The existing `data/` business Module is distinct from Data Hub composition.
+Shared UI components do not share business
 authority or task ownership. Applications may contain multiple processes.
 Research uses available CPUs and supported GPUs subject to measured memory/disk
 budgets and responsive management/cancellation, not a fixed core count.
