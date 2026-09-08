@@ -384,6 +384,7 @@ def main() -> None:
                 print(json.dumps({"run_id": run_id, "summary": summary}, ensure_ascii=False))
             assert live_process.poll() is not None
             application.assert_unavailable()
+            application.assert_file_logs()
             print(
                 "Installed offline state: Live Web remains available but reports stopped Live "
                 "as unavailable; no replacement owner is started",

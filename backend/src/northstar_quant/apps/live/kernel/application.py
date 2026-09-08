@@ -24,6 +24,7 @@ from northstar_quant.live import diagnostics
 from northstar_quant.live.auth import LiveAuth
 from northstar_quant.live.client import PROTOCOL_VERSION
 from northstar_quant.live.owner import LiveOwner
+from northstar_quant.logs import status as log_status
 
 from . import broker_routes, budget_routes, material_routes, stream_routes
 
@@ -125,7 +126,17 @@ def create_app(engine: Engine, library: DataLibrary, auth: LiveAuth) -> FastAPI:
 
     @app.get("/diagnostics")
     def diagnostic_observation() -> dict[str, Any]:
-        return owner.read(diagnostics.observe(engine, library))
+        observation = diagnostics.observe(engine, library)
+        logs = log_status()
+        if logs["status"] == "DEGRADED":
+            observation["status"] = "DEGRADED"
+        return owner.read(
+            {
+                **observation,
+                "logging": logs,
+                "scope": "DATABASE_SOURCE_FILESYSTEM_AND_OPERATIONAL_LOGGING",
+            }
+        )
 
     app.include_router(material_routes.routes(owner, engine, library))
     app.include_router(stream_routes.routes(owner))
@@ -135,7 +146,13 @@ def create_app(engine: Engine, library: DataLibrary, auth: LiveAuth) -> FastAPI:
 
 
 def application() -> FastAPI:
+    from northstar_quant.apps.logging import attach
+    from northstar_quant.logs import configure
+
+    runtime_logs = configure("live", "kernel")
     auth = LiveAuth.from_environment(require_control=True)
     engine = open_database()
     require_current_database(engine)
-    return create_app(engine, DataLibrary(engine, SourceFiles.from_environment()), auth)
+    return attach(
+        create_app(engine, DataLibrary(engine, SourceFiles.from_environment()), auth), runtime_logs
+    )

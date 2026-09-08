@@ -156,6 +156,25 @@ class Deployment:
             print(
                 "Kernel stop/restart: no Web-owned replacement and no broker connection", flush=True
             )
+            self.run(
+                "exec",
+                "-T",
+                "live",
+                "python",
+                "-c",
+                "import json,pathlib,time; time.sleep(0.2); "
+                "root=pathlib.Path('/var/log/northstar/live'); "
+                "rows={name:[json.loads(x) for x in (root/(name+'.log')).read_text().splitlines()] "
+                "for name in ('api','kernel')}; "
+                "assert all(len({r['session'] for r in records if 'session' in r})>=2 "
+                "for records in rows.values()); "
+                "assert all(all(r['component']==name and r['application']=='live' "
+                "for r in records) "
+                "for name,records in rows.items())",
+            )
+            print(
+                "Live file logs: separate API/kernel files survived container restarts", flush=True
+            )
             print(json.dumps({"project": self.name, "status": "passed", "broker_connected": False}))
 
 

@@ -8,9 +8,11 @@ from northstar_quant.apps.storage import open_database, require_current_database
 from northstar_quant.data_management.files import SourceFiles
 from northstar_quant.data_management.library import DataLibrary
 from northstar_quant.data_management.processing import process_attempt
+from northstar_quant.logs import configure
 
 
 def run() -> None:
+    runtime_logs = configure("data_hub", "worker")
     stop = Event()
     signal.signal(signal.SIGTERM, lambda *_: stop.set())
     signal.signal(signal.SIGINT, lambda *_: stop.set())
@@ -28,5 +30,10 @@ def run() -> None:
                 logging.getLogger(__name__).info(
                     "Data attempt %s: %s", result["attempt_id"], result["status"]
                 )
+    except Exception:
+        logging.getLogger(__name__).exception("Data worker failed")
+        raise
     finally:
         engine.dispose()
+        logging.getLogger(__name__).info("Data worker stopped")
+        runtime_logs.close()

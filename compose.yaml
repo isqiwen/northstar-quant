@@ -68,11 +68,13 @@ services:
     pids_limit: 128
     logging: *bounded-logging
     environment:
+      NORTHSTAR_LOG_DIR: /var/log/northstar
       NORTHSTAR_DATABASE_URL: postgresql+psycopg://northstar:northstar_local@postgres:5432/northstar_quant
       NORTHSTAR_DATA_DIR: /var/lib/northstar/sources
       NORTHSTAR_LIVE_AUTH: /var/lib/northstar/auth/live.toml
       NORTHSTAR_LIVE_URL: http://127.0.0.1:18081
     volumes:
+      - application-logs:/var/log/northstar
       - source-data:/var/lib/northstar/sources
       - runtime-auth:/var/lib/northstar/auth:ro
     depends_on:
@@ -105,9 +107,11 @@ services:
     pids_limit: 128
     logging: *bounded-logging
     environment:
+      NORTHSTAR_LOG_DIR: /var/log/northstar
       NORTHSTAR_LIVE_URL: http://live:18081
       NORTHSTAR_LIVE_AUTH: /var/lib/northstar/auth/live-web.toml
     volumes:
+      - application-logs:/var/log/northstar
       - runtime-auth:/var/lib/northstar/auth:ro
     depends_on:
       initialize:
@@ -134,9 +138,11 @@ services:
     restart: unless-stopped
     logging: *bounded-logging
     environment:
+      NORTHSTAR_LOG_DIR: /var/log/northstar
       NORTHSTAR_DATABASE_URL: postgresql+psycopg://northstar:northstar_local@postgres:5432/northstar_quant
       NORTHSTAR_DATA_DIR: /var/lib/northstar/sources
     volumes:
+      - application-logs:/var/log/northstar
       - source-data:/var/lib/northstar/sources
       - backup-data:/var/lib/northstar/backups
     depends_on:
@@ -165,9 +171,11 @@ services:
     restart: unless-stopped
     logging: *bounded-logging
     environment:
+      NORTHSTAR_LOG_DIR: /var/log/northstar
       NORTHSTAR_DATABASE_URL: postgresql+psycopg://northstar:northstar_local@postgres:5432/northstar_quant
       NORTHSTAR_DATA_DIR: /var/lib/northstar/sources
     volumes:
+      - application-logs:/var/log/northstar
       - source-data:/var/lib/northstar/sources
     depends_on:
       initialize:
@@ -188,9 +196,11 @@ services:
     restart: unless-stopped
     logging: *bounded-logging
     environment:
+      NORTHSTAR_LOG_DIR: /var/log/northstar
       NORTHSTAR_DATABASE_URL: postgresql+psycopg://northstar:northstar_local@postgres:5432/northstar_quant
       NORTHSTAR_DATA_DIR: /var/lib/northstar/sources
     volumes:
+      - application-logs:/var/log/northstar
       - source-data:/var/lib/northstar/sources:ro
     depends_on:
       initialize:
@@ -269,6 +279,7 @@ services:
       start_period: 20s
 
 volumes:
+  application-logs:
   postgres-data:
   source-data:
   backup-data:

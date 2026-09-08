@@ -108,6 +108,7 @@ def test_killed_worker_leaves_input_and_requires_explicit_retry(
         os.environ,
         NORTHSTAR_DATABASE_URL=postgres_engine.url.render_as_string(hide_password=False),
         NORTHSTAR_DATA_DIR=str(tmp_path / "sources"),
+        NORTHSTAR_LOG_DIR=str(tmp_path / "logs"),
     )
     # Hold a real storage dependency, so the worker is killed during processing,
     # not after an already completed tiny sample. No sleep-based race injection.

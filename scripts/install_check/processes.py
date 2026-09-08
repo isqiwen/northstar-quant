@@ -26,9 +26,10 @@ class InstalledApplication:
     def __init__(self, executable: str, directory: Path, environment: dict[str, str]) -> None:
         self.executable = executable
         self.directory = directory
-        self.environment = dict(environment)
+        self.environment = dict(environment, NORTHSTAR_LOG_DIR=str(directory / "logs"))
         self.opener = build_opener(ProxyHandler({}), HTTPCookieProcessor(CookieJar()))
         self.web_pids: list[int] = []
+        self.backend_starts: dict[str, int] = {}
         self.protocols: dict[str, dict] = {}
         self.api_processes: dict[str, subprocess.Popen[str]] = {}
         self.log_paths: list[Path] = []
@@ -83,6 +84,7 @@ class InstalledApplication:
                 stderr=subprocess.STDOUT,
                 text=True,
             )
+            self.backend_starts["data-worker"] = self.backend_starts.get("data-worker", 0) + 1
             try:
                 yield process
                 assert process.poll() is None, log_path.read_text()
@@ -132,6 +134,12 @@ class InstalledApplication:
                 }[role]
             )
             self.request(base_url + "/api/browser-session")
+            log_health = json.loads(self.request(base_url + "/health/logging"))
+            assert log_health["status"] == "OK", log_health
+            assert (
+                log_health["application"]
+                == {"data-api": "data_hub", "research-api": "research", "live-api": "live"}[role]
+            )
             yield base_url
 
     @contextmanager
@@ -301,6 +309,7 @@ class InstalledApplication:
                 stderr=subprocess.STDOUT,
                 text=True,
             )
+            self.backend_starts[role] = self.backend_starts.get(role, 0) + 1
             try:
                 deadline = time.monotonic() + 30
                 while True:
@@ -328,5 +337,36 @@ class InstalledApplication:
                         process.wait(timeout=10)
                         raise RuntimeError(f"installed {role} process did not stop") from None
 
+    def assert_file_logs(self) -> None:
+        root = Path(self.environment["NORTHSTAR_LOG_DIR"])
+        for application, component in (
+            ("data_hub", "api"),
+            ("data_hub", "worker"),
+            ("research", "api"),
+            ("live", "api"),
+            ("live", "kernel"),
+        ):
+            path = root / application / f"{component}.log"
+            records = [json.loads(line) for line in path.read_text().splitlines()]
+            assert records
+            assert all(
+                r["application"] == application and r["component"] == component for r in records
+            )
+            sessions = {r["session"] for r in records if "session" in r}
+            role = {
+                ("data_hub", "api"): "data-api",
+                ("data_hub", "worker"): "data-worker",
+                ("research", "api"): "research-api",
+                ("live", "api"): "live-api",
+                ("live", "kernel"): "live-kernel",
+            }[(application, component)]
+            assert len(sessions) == self.backend_starts[role], (role, sessions)
+            assert any(r.get("message") == "application logging started" for r in records)
+        print(
+            "Installed file logs: five isolated writers retained records across restarts",
+            flush=True,
+        )
+
     def logs(self) -> str:
-        return "\n".join(path.read_text("utf-8") for path in self.log_paths if path.exists())
+        paths = [*self.log_paths, *Path(self.environment["NORTHSTAR_LOG_DIR"]).glob("**/*.log")]
+        return "\n".join(path.read_text("utf-8")[-16000:] for path in paths if path.exists())

@@ -34,9 +34,15 @@ def create_app(engine: Engine, library: DataLibrary) -> FastAPI:
 
 
 def application() -> FastAPI:
+    from northstar_quant.apps.logging import attach
+    from northstar_quant.logs import configure
+
+    runtime_logs = configure("research", "api")
     from northstar_quant.apps.storage import open_database, require_current_database
     from northstar_quant.data_management.files import SourceFiles
 
     engine = open_database()
     require_current_database(engine)
-    return create_app(engine, DataLibrary(engine, SourceFiles.from_environment()))
+    return attach(
+        create_app(engine, DataLibrary(engine, SourceFiles.from_environment())), runtime_logs
+    )

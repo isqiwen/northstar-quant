@@ -50,6 +50,22 @@ kernel for its actual identity/storage availability. Neither proves tradability.
 Web restart is independent; kernel/database restart never restores sending authority.
 Automatic container restart is not an external host-loss alert.
 
+## Operational logs
+
+The persistent `logs` volume is mounted at `/var/log/northstar` in the API and kernel.
+They write `live/api.log` and `live/kernel.log` independently, each rotating at 10 MiB
+with five backups. Read the kernel file with:
+
+```sh
+docker compose --env-file /absolute/private/live.env -f deploy/live/compose.yaml exec live tail -n 50 /var/log/northstar/live/kernel.log
+```
+
+The bounded asynchronous writer drops operational records when saturated, counts
+loss and disk errors, and never falls back to synchronous kernel disk writes.
+`northstar check` includes log health; it does not grant or revoke trading authority.
+Log retention and CPU/disk contention must be measured on the deployed host. Keep
+trading facts in their durable business stores; log files are not an audit ledger.
+
 ## Reproducible local acceptance
 
 ```sh

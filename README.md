@@ -75,7 +75,36 @@ make down                              # 停止服务，保留持久数据
 当前本机 Compose 共用 PostgreSQL 和来源存储；独立持久研究 worker 与持续采集仍待实现。
 进程隔离不代表已经完成任务检查点恢复，也不能隔离整台主机故障。
 
-### 本机开发
+### 后端日志
+
+三个 Python 后端自动写入独立 JSON 行日志。默认根目录是当前工作目录下的 `.northstar/logs/`：
+
+| 应用 | 文件 |
+|---|---|
+| Data Hub | `data_hub/api.log`、`data_hub/worker.log` |
+| Research | `research/api.log` |
+| Live | `live/api.log`、`live/kernel.log` |
+
+Compose 把日志保存在持久日志卷，容器内路径为 `/var/log/northstar/`，重建容器仍保留。
+例如 `docker compose exec live tail -n 50 /var/log/northstar/live/kernel.log`。
+每个文件默认 10 MiB，最多保留 5 份轮转文件（`.1`～`.5`）。不再把 Python 服务运行日志同步输出到控制台。
+
+可在启动前设置 `NORTHSTAR_LOG_DIR`（日志根目录）、`NORTHSTAR_LOG_MAX_BYTES`（单文件上限）、
+`NORTHSTAR_LOG_BACKUPS`（轮转份数）和 `NORTHSTAR_LOG_QUEUE`（队列容量，默认 1024 条）。
+同一应用角色的日志文件只有一个写者；运行多个实例时分别设置日志根目录。
+日志目录不可写或已有写者时拒绝启动，运行期间的磁盘故障不会转为业务线程同步写盘。
+
+Live 调用线程只提交有界记录，格式化、写盘与轮转在后台完成；队列满时丢弃运行日志并计数。
+内核后台每 50 ms 最多处理 8 条，避免日志洪峰持续占用 GIL；不逐笔记录行情或每步策略计算。
+后台线程仍有 CPU/GIL 开销，容量与交易延迟须在部署机器实测；这不是零开销或硬实时保证。
+正常退出最多等待 1 秒排空，强制退出或磁盘故障可能丢失末尾日志。成交、授权与订单事实仍以业务持久化记录为准。
+
+各管理 API 的 `/health/logging` 提供队列、丢弃、写入错误和写线程状态；
+Live 内核通过 `northstar check` 和现有运行诊断提供日志健康，不把日志状态当作交易授权或停止指令。
+日志保留应用、组件、进程、启动身份、时间、级别和消息；不写请求体、查询字符串、认证头或异常参数。
+业务代码使用标准 `logging.getLogger(__name__)`，传入固定模板和少量标量；不要先构造大字符串或传行情/账户对象。
+
+## 本机开发
 
 需要 Python 3.12、uv 和 Node.js 22.12+。在仓库根目录安装依赖：
 

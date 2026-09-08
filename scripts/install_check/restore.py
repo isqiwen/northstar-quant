@@ -46,6 +46,7 @@ def check_restore(
     )
 
     application = InstalledApplication(executable, runtime, restored)
+    application.environment["NORTHSTAR_LOG_DIR"] = str(runtime / "restored-logs")
     command = application.command
 
     try:

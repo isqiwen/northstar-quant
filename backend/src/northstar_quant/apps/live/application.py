@@ -34,4 +34,8 @@ def create_app(*, live: LiveClient) -> FastAPI:
 
 
 def application() -> FastAPI:
-    return create_app(live=LiveClient.from_environment())
+    from northstar_quant.apps.logging import attach
+    from northstar_quant.logs import configure
+
+    runtime_logs = configure("live", "api")
+    return attach(create_app(live=LiveClient.from_environment()), runtime_logs)

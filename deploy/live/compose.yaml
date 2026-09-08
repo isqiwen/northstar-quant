@@ -56,9 +56,11 @@ services:
     stop_grace_period: 30s
     environment:
       <<: *database
+      NORTHSTAR_LOG_DIR: /var/log/northstar
       NORTHSTAR_LIVE_AUTH: /var/lib/northstar/auth/live.toml
       NORTHSTAR_LIVE_URL: http://127.0.0.1:18081
     volumes:
+      - logs:/var/log/northstar
       - sources:/var/lib/northstar/sources
       - authentication:/var/lib/northstar/auth:ro
     networks: [storage, management, egress]
@@ -81,9 +83,11 @@ services:
     memswap_limit: 512m
     pids_limit: 128
     environment:
+      NORTHSTAR_LOG_DIR: /var/log/northstar
       NORTHSTAR_LIVE_URL: http://live:18081
       NORTHSTAR_LIVE_AUTH: /var/lib/northstar/auth/live-web.toml
     volumes:
+      - logs:/var/log/northstar
       - authentication:/var/lib/northstar/auth:ro
     networks: [management, frontend]
     depends_on:
@@ -124,6 +128,7 @@ networks:
   ingress:
 
 volumes:
+  logs:
   database:
   sources:
   authentication:
