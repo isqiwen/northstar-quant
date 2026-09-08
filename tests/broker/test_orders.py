@@ -7,11 +7,11 @@ from uuid import UUID, uuid4
 import pytest
 from sqlalchemy import Engine, text
 from sqlalchemy.exc import DBAPIError
-from test_broker_ledger import ledger_query, position, position_baseline, trade
 
 from northstar_quant.broker.ledger import BrokerLedger
 from northstar_quant.broker.orders import inspect_orders
 from northstar_quant.broker.settings import get_profile
+from tests.broker.test_ledger import ledger_query, position, position_baseline, trade
 
 
 def order(**changes: Any) -> dict[str, Any]:

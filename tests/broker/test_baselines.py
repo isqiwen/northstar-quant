@@ -11,11 +11,11 @@ from uuid import UUID, uuid4
 import pytest
 from sqlalchemy import Engine, text
 from sqlalchemy.exc import DBAPIError
-from test_broker_records import _capture
 
 from northstar_quant.broker.baselines import BrokerBaselines
 from northstar_quant.broker.records import BrokerRecords
 from northstar_quant.broker.settings import get_profile
+from tests.broker.test_records import _capture
 
 
 def saved_query(

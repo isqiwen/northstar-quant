@@ -764,6 +764,16 @@ This greenfield application has neither backward nor forward compatibility.
 data. `uv build` produces one installable application wheel with its current
 migrations and dependency-lock identity.
 
+Tests follow behavior ownership: `tests/data_management/` covers data business,
+`tests/broker/` broker behavior, `tests/live/` the independent Live kernel, and
+`tests/apps/{data_hub,research,live}/` each application's Web behavior.
+`tests/web/` covers shared Web security; `tests/integration/` covers cross-application
+publication, research and archive workflows. Shared computation tests stay beside
+one another at the test root, matching the current flat business modules.
+Use explicit test-package imports, not a directory-specific Python search path.
+For a focused run, use e.g. `uv run pytest tests/data_management` with the same
+disposable database setting. Directory organization itself is not a test target.
+
 ### VS Code
 
 The checked-in `.vscode` setup uses the repository's locked `uv` environment,

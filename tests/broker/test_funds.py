@@ -13,8 +13,6 @@ from uuid import UUID, uuid4
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine, text
-from test_broker_baselines import saved_query
-from test_broker_ledger import ledger_query, position_baseline, trade
 
 from northstar_quant.broker.baselines import BrokerBaselines
 from northstar_quant.broker.funds import BrokerFunds
@@ -23,6 +21,8 @@ from northstar_quant.broker.records import BrokerRecords, QueryCapture
 from northstar_quant.broker.settings import get_profile
 from northstar_quant.data_management.files import SourceFiles
 from northstar_quant.data_management.library import DataLibrary
+from tests.broker.test_baselines import saved_query
+from tests.broker.test_ledger import ledger_query, position_baseline, trade
 
 
 def money_query(

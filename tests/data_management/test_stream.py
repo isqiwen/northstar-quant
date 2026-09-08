@@ -8,11 +8,11 @@ from typing import Any
 from uuid import UUID
 
 import pytest
-from test_live import CONTRACT, OPEN, tick
 
 from northstar_quant.broker.records import BrokerEvent
 from northstar_quant.broker.settings import get_profile
 from northstar_quant.data_management.stream import reconstruct_stream
+from tests.data_management.test_live import CONTRACT, OPEN, tick
 
 STREAM = UUID("20000000-0000-0000-0000-000000000001")
 

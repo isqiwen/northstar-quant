@@ -11,7 +11,6 @@ import httpx2 as httpx
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine
-from test_broker_baselines import saved_query
 
 from northstar_quant.data_management.files import SourceFiles
 from northstar_quant.data_management.library import DataLibrary
@@ -23,6 +22,7 @@ from northstar_quant.live import (
     create_app,
 )
 from northstar_quant.runtime import release_hash
+from tests.broker.test_baselines import saved_query
 
 
 def test_live_auth_expiry_and_target_rejection_have_no_account_effect(

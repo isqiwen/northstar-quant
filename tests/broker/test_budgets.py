@@ -13,9 +13,6 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine, text
 from sqlalchemy.exc import DBAPIError
-from test_broker_records import _capture
-from test_broker_streams import Clock, logins, prepare, start
-from test_live import OPEN, tick
 
 from northstar_quant.broker import budgets as budget_module
 from northstar_quant.broker.baselines import BrokerBaselines
@@ -25,6 +22,9 @@ from northstar_quant.broker.records import BrokerRecords
 from northstar_quant.broker.settings import get_profile
 from northstar_quant.broker.streams import BrokerStreams
 from northstar_quant.data_management.library import DataLibrary
+from tests.broker.test_records import _capture
+from tests.broker.test_streams import Clock, logins, prepare, start
+from tests.data_management.test_live import OPEN, tick
 
 
 class AccountClock(datetime):
@@ -120,9 +120,9 @@ def budget_case(
         "northstar_quant.broker.records",
         "northstar_quant.broker.baselines",
         "northstar_quant.broker.ledger",
-        "test_broker_records",
-        "test_broker_baselines",
-        "test_broker_ledger",
+        "tests.broker.test_records",
+        "tests.broker.test_baselines",
+        "tests.broker.test_ledger",
         __name__,
     ):
         monkeypatch.setattr(f"{module}.datetime", AccountClock)
