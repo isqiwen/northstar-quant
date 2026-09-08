@@ -54,3 +54,5 @@ jobs:
             --mount "type=bind,source=$GITHUB_WORKSPACE/scripts,target=/tmp/install-check,readonly" \
             --mount "type=bind,source=$GITHUB_WORKSPACE/examples,target=/tmp/examples,readonly" \
             northstar-local /app/.venv/bin/python /tmp/install-check/check_install.py /tmp/examples/intraday.toml
+      - name: Verify the isolated Live deployment and failure behavior
+        run: uv run python scripts/check_live_deployment.py --image northstar-local

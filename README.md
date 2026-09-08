@@ -758,6 +758,11 @@ This greenfield application has neither backward nor forward compatibility.
 
 ## Development
 
+For a Live-only installation with its own database and no Data Hub/Research
+processes, see [standalone Live deployment](deploy/live/README.md). This separately
+verified topology is an engineering baseline, not evidence of cloud deployment,
+broker acceptance, external alerting or permission to trade.
+
 `make verify` runs the checks that protect implemented behavior.
 `NORTHSTAR_TEST_DATABASE_URL` must point to a disposable PostgreSQL database named
 `northstar_quant_test`; tests replace its data. Never point tests at application

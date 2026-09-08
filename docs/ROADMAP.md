@@ -13,7 +13,7 @@ Issue 拥有实施范围、验收和证据，本文只维护交付顺序及职�
 | 阶段 | 可运行结果 | 任务 |
 |---|---|---|
 | [M0 单仓库交付](https://github.com/isqiwen/northstar-quant/milestone/1) | 干净检出可启动、研究并核验固定结果 | #16 |
-| [M1 柜台仿真闭环](https://github.com/isqiwen/northstar-quant/milestone/2) | 固定数据/配置、独立 Live/Console、持续行情、仿真报撤单与账本 | #17、#24、#36、#38、#39、#31、#25、#32 |
+| [M1 柜台仿真闭环](https://github.com/isqiwen/northstar-quant/milestone/2) | 固定数据/配置、独立 Live Web/内核、持续行情、仿真报撤单与账本 | #17、#24、#36、#38、#39、#31、#25、#32 |
 | [M2 受限实盘闭环](https://github.com/isqiwen/northstar-quant/milestone/3) | 云端运行、安全控制、未知结果与分域恢复、生产准入及独立授权的真实开平仓 | #40、#26、#33、#27、#34、#35 |
 | [M3 研究与组合增强](https://github.com/isqiwen/northstar-quant/milestone/4) | 独立 Data/Research、归档复用、大规模读取、完整评价、因子及组合 | #23、#41–#43、#18–#22、#37、#28–#30 |
 
@@ -31,7 +31,7 @@ M2 完成是限定账户、合约、配置和受监督日盘窗口的技术闭�
 | 3 | [#24 固定配置与可恢复文件 Paper](https://github.com/isqiwen/northstar-quant/issues/24) | #17 |
 | 4 | [#36 原文归档、失败解释、发布与研究](https://github.com/isqiwen/northstar-quant/issues/36) | #17 |
 | 5 | [#38 NiceGUI 持续接收详情](https://github.com/isqiwen/northstar-quant/issues/38) | — |
-| 6 | [#39 独立 Live/Console，工作台重启不影响接收](https://github.com/isqiwen/northstar-quant/issues/39) | #24、#36、#38 |
+| 6 | [#39 Live Web 与内核独立，管理端重启不影响接收](https://github.com/isqiwen/northstar-quant/issues/39) | #24、#36、#38 |
 | 7 | [#40 Live 自有 Web、独立内核与云端无发送运行](https://github.com/isqiwen/northstar-quant/issues/40) | #39；另需云资源/访问与部署许可 |
 | 8 | [#31 柜台只读账户、持仓/委托与核对](https://github.com/isqiwen/northstar-quant/issues/31) | — |
 | 9 | [#34 生产开户、准入与只读核对](https://github.com/isqiwen/northstar-quant/issues/34) | #31、#40；开户与机构确认并行 |
@@ -43,7 +43,7 @@ M2 完成是限定账户、合约、配置和受监督日盘窗口的技术闭�
 | 15 | [#35 用户独立授权的首次受限真实开平仓](https://github.com/isqiwen/northstar-quant/issues/35) | #26、#27、#33、#34 |
 | 16 | [#23 Research 自有 Web、持久任务与独立执行器](https://github.com/isqiwen/northstar-quant/issues/23) | #17、#24 |
 | 17 | [#41 Data 自有 Web、持久采集与加工发布](https://github.com/isqiwen/northstar-quant/issues/41) | #36 |
-| 18 | [#42 云端市场段异步归档到 Data 并研究](https://github.com/isqiwen/northstar-quant/issues/42) | #39、#40、#41 |
+| 18 | [#42 云端市场段异步归档到 Data Hub 并研究](https://github.com/isqiwen/northstar-quant/issues/42) | #39、#40、#41 |
 | 19 | [#18 真实交易日与跨日时段研究](https://github.com/isqiwen/northstar-quant/issues/18) | #17 |
 | 20 | [#19 连续历史账户、结算与保证金](https://github.com/isqiwen/northstar-quant/issues/19) | #18 |
 | 21 | [#20 保守模拟成交与未成交解释](https://github.com/isqiwen/northstar-quant/issues/20) | #19 |
@@ -63,7 +63,7 @@ Order 是默认选择顺序，只有 Blocked by 才是硬前置。外部条件�
 
 ## 每个角色交付什么，不重复建设什么
 
-- Live：#39 提供已实现的 Web/内核隔离基础；#40 替换混合 Console 为 Live 自有 Web，
+- Live：#39 提供已实现的 Web/内核隔离基础；#40 复用已交付的 Live 自有 Web，
   交付分别监管的管理端与内核、独立云端入口、同域存储、
   受保护的基础查询/影子控制与告警。#32/#26/#33 分别拥有实际交易、执行授权与故障恢复。
   #32 首次发送前就要具备最小授权、风险预占、唯一发送者和 UNKNOWN 保护，不能留到后续验收才实现。
@@ -86,7 +86,10 @@ Order 是默认选择顺序，只有 Blocked by 才是硬前置。外部条件�
 当前代码已移除中央 Console，提供 Data Hub、Research、Live 自有 Web 入口及独立 Live 内核。
 数据业务模块统一为 `data_management/`；Live Web 不打开业务数据库，只通过内核读取配置和事实。
 首页使用 NiceGUI，既有详情按应用复用；完整原生页面替换、持久执行器与持续采集不冒称完成。
-本轮验收覆盖独立入口、权限隔离与安装运行；之后继续 #40 的固定运行材料和云端验收。
+#40 的 [Live-only 部署包](../deploy/live/README.md) 使用独立卷及存储网络，不启动 Data Hub/Research；
+安装态故障验收覆盖 Web 重启、数据库中断与内核消失，不将进程健康或本机容器等同云端完成。
+#16/#17 原基线与真实历史来源保持 Done，后续只补充当前实现回归，不重复开发或重开。
+之后继续 #40 的固定运行材料、独立告警渠道和真实云端验收。
 无凭据的进程/浏览器验收与实际 SimNow 连续行情分别记录；以 Issue 的可复核证据判定完成。
 #31/#25/#32 已交付的只读查询、有界接收、影子目标、固定预算与保存回报自动入账继续保留；
 实际持续新鲜行情、非空核对、启动查询汇合、必要资金/结算、预占和发送仍按各 Issue 的证据判断。

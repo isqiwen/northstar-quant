@@ -109,6 +109,10 @@ HTTP 成功只说明请求层结果，页面区分已接收、拒绝、运行时
 `apps/live/` 只调用 Live HTTP，不创建数据库、DataLibrary、SessionStore 或柜台连接。
 Data Hub 拥有来源接收/加工路由，Research 拥有研究、配置和文件 Paper 路由；
 二者暂使用同一本地数据与数据库，持久任务/独立执行器、持续采集和跨主机固定材料仍待 #23/#41/#42。
+根 Compose 用于同机三应用开发；`deploy/live/compose.yaml` 是同一安装包的 Live-only 部署，
+只启动独立 Web、内核和本域 PostgreSQL，使用自己的数据卷；Web 不在存储网络中，
+数据库与内核无主机发布端口，仅 Web 映射回环端口。该无凭据基座通过真实容器故障检查，
+不代表已选云主机、材料传输或外部失联告警完成，不能直接开放公网或继承交易权限。
 应用首页与持续详情采用 NiceGUI 原生控件；原混合导入/研究 HTML 及对应 JS 已删除。
 既有详情呈现复用但按应用路由，不能将此次入口拆分当成全部页面迁移或后台任务平台完成。
 首个结构调整 [#39](https://github.com/isqiwen/northstar-quant/issues/39) 按以下结果验收：

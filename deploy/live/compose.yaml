@@ -1,0 +1,113 @@
+name: northstar-live
+
+x-runtime: &runtime
+  image: ${NORTHSTAR_LIVE_IMAGE:?Set the exact tested image reference}
+  platform: linux/amd64
+  logging: &logging
+    driver: local
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+x-database: &database
+  NORTHSTAR_DATABASE_URL: postgresql+psycopg://northstar:${NORTHSTAR_LIVE_DATABASE_PASSWORD:?Set a private URL-safe database password}@postgres:5432/northstar_quant
+  NORTHSTAR_DATA_DIR: /var/lib/northstar/sources
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    mem_limit: ${NORTHSTAR_LIVE_DATABASE_MEMORY:?Set a measured database memory budget}
+    pids_limit: 128
+    logging: *logging
+    environment:
+      POSTGRES_DB: northstar_quant
+      POSTGRES_USER: northstar
+      POSTGRES_PASSWORD: ${NORTHSTAR_LIVE_DATABASE_PASSWORD}
+    volumes:
+      - database:/var/lib/postgresql/data
+    networks: [storage]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U northstar -d northstar_quant"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  initialize:
+    <<: *runtime
+    mem_limit: 512m
+    pids_limit: 64
+    environment: *database
+    volumes:
+      - sources:/var/lib/northstar/sources
+      - authentication:/var/lib/northstar/auth
+    networks: [storage]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["sh", "-c", "northstar init-db && northstar init-live-auth /var/lib/northstar/auth && python -c 'from northstar_quant.data_management.files import SourceFiles; SourceFiles.from_environment()'"]
+
+  live:
+    <<: *runtime
+    restart: unless-stopped
+    mem_limit: ${NORTHSTAR_LIVE_KERNEL_MEMORY:?Set a measured kernel memory budget}
+    memswap_limit: ${NORTHSTAR_LIVE_KERNEL_MEMORY}
+    pids_limit: 128
+    stop_grace_period: 30s
+    environment:
+      <<: *database
+      NORTHSTAR_LIVE_AUTH: /var/lib/northstar/auth/live.toml
+      NORTHSTAR_LIVE_URL: http://127.0.0.1:18081
+    volumes:
+      - sources:/var/lib/northstar/sources
+      - authentication:/var/lib/northstar/auth:ro
+    networks: [storage, management, egress]
+    depends_on:
+      initialize:
+        condition: service_completed_successfully
+    command: ["uvicorn", "northstar_quant.live:application", "--factory", "--host", "0.0.0.0", "--port", "18081"]
+    healthcheck:
+      test: ["CMD", "northstar", "live-status"]
+      interval: 10s
+      timeout: 8s
+      retries: 3
+      start_period: 20s
+
+  live-web:
+    <<: *runtime
+    restart: unless-stopped
+    cpus: 1.0
+    mem_limit: 512m
+    memswap_limit: 512m
+    pids_limit: 128
+    environment:
+      NORTHSTAR_LIVE_URL: http://live:18081
+      NORTHSTAR_LIVE_AUTH: /var/lib/northstar/auth/live-web.toml
+    volumes:
+      - authentication:/var/lib/northstar/auth:ro
+    networks: [management, ingress]
+    ports:
+      - "127.0.0.1:${NORTHSTAR_LIVE_WEB_PORT:-18080}:18080"
+    depends_on:
+      initialize:
+        condition: service_completed_successfully
+    command: ["uvicorn", "northstar_quant.apps.live:application", "--factory", "--host", "0.0.0.0", "--port", "18080"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:18080/health/ready', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+networks:
+  storage:
+    internal: true
+  management:
+    internal: true
+  egress:
+  ingress:
+
+volumes:
+  database:
+  sources:
+  authentication:
