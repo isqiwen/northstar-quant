@@ -89,6 +89,40 @@ restart, inspect its source and quality, then research without re-uploading the
 file. Reports show the saved equity curve, fills, costs, holdings and risk
 decisions alongside fixed input evidence. Empty state contains no invented results.
 
+### Container resource limits
+
+The current Compose deployment applies these per-container ceilings:
+
+| Role | CPU quota | Memory (no additional swap) | Processes/threads |
+|---|---:|---:|---:|
+| Live | 2 CPUs | 1 GiB | 128 |
+| Console | 1 CPU | 1 GiB | 128 |
+| PostgreSQL | 1 CPU | 1 GiB | 128 |
+| One-shot initialization | 1 CPU | 512 MiB | 64 |
+
+These are bounded starting limits, not reserved resources or demonstrated peak-load
+capacity. Host memory must also cover Docker, the OS and other workloads. A memory
+limit can cause OOM termination; CPU throttling can make quotes stale. Neither
+failure permits automatic broker reconnection or inherited execution authority.
+Do not disable OOM protection. Tune explicit limits against measured workloads
+before cloud acceptance; native processes outside Compose are not constrained here.
+
+All four containers use Docker's `local` log driver with rotation at 10 MB and
+three retained files per container. Read logs through `docker compose logs`; rotated
+console logs are disposable diagnostics, **not the durable account/callback ledger**.
+Rotation is not a volume or database disk quota, and does not replace capacity
+monitoring or backups. Existing containers need controlled recreation to apply these
+settings; `restart` alone does not apply changed resource/log configuration.
+See [Docker resource limits](https://docs.docker.com/engine/containers/resource_constraints/)
+and [local log rotation](https://docs.docker.com/engine/logging/drivers/local/).
+
+Before recreating containers, stop bounded reception explicitly, confirm it has
+ended, and complete a joint backup. Then use the same Compose files used to start
+the deployment (including `compose.simnow.yaml` when configured). Verify the applied
+limits with `docker inspect`, service health, and that saved streams remain unattached;
+never use `down -v`. These local controls do not complete #40's cloud isolation,
+independent alerting or disk-capacity acceptance.
+
 ### Web interface
 
 The current application uses FastAPI for HTTP and NiceGUI 3.16.0 for the continuous

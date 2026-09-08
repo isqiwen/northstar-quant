@@ -45,8 +45,11 @@ jobs:
           "$RUNNER_TEMP/northstar-installed/bin/python" scripts/check_install.py examples/intraday.toml
       - name: Build and verify the runtime image
         run: |
+          docker compose config --quiet
           docker build -t northstar-local .
           docker run --rm --network host \
+            --cpus 2 --memory 1g --memory-swap 1g --pids-limit 128 \
+            --log-driver local --log-opt max-size=10m --log-opt max-file=3 \
             --env NORTHSTAR_TEST_DATABASE_URL \
             --mount "type=bind,source=$GITHUB_WORKSPACE/scripts,target=/tmp/install-check,readonly" \
             --mount "type=bind,source=$GITHUB_WORKSPACE/examples,target=/tmp/examples,readonly" \
