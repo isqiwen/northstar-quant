@@ -15,7 +15,7 @@ Issue 拥有实施范围、验收和证据，本文只维护交付顺序及职�
 | [M0 单仓库交付](https://github.com/isqiwen/northstar-quant/milestone/1) | 干净检出可启动、研究并核验固定结果 | #16 |
 | [M1 柜台仿真闭环](https://github.com/isqiwen/northstar-quant/milestone/2) | 固定数据/配置、独立 Live Web/内核、持续行情、仿真报撤单与账本 | #17、#24、#36、#38、#39、#31、#25、#32 |
 | [M2 受限实盘闭环](https://github.com/isqiwen/northstar-quant/milestone/3) | 云端运行、安全控制、未知结果与分域恢复、生产准入及独立授权的真实开平仓 | #40、#26、#33、#27、#34、#35 |
-| [M3 研究与组合增强](https://github.com/isqiwen/northstar-quant/milestone/4) | 独立 Data/Research、归档复用、大规模读取、完整评价、因子及组合 | #23、#41–#43、#18–#22、#37、#28–#30 |
+| [M3 研究与组合增强](https://github.com/isqiwen/northstar-quant/milestone/4) | 独立 Data/Research、因子与策略版本、实验评价/发布、归档复用及组合 | #23、#41–#45、#18–#22、#37、#28–#30 |
 
 里程碑按交付结果归类，不是阶段之间全部串行的依赖。M2 中的 #40 云端无发送基座先交付，
 随后 #32/#26/#33 在该部署验收交易与故障，不能让云基座反过来等待完整交易功能。
@@ -50,7 +50,9 @@ M2 完成是限定账户、合约、配置和受监督日盘窗口的技术闭�
 | 22 | [#21 固定评价方案、基准与样本外比较](https://github.com/isqiwen/northstar-quant/issues/21) | #20、#24 |
 | 23 | [#22 迟到与修订的可得性重放](https://github.com/isqiwen/northstar-quant/issues/22) | #18、#19 |
 | 24 | [#43 大体积行情/因子范围读取、容量与引用](https://github.com/isqiwen/northstar-quant/issues/43) | #36 |
-| 25 | [#37 实际因子计算、复用与评价](https://github.com/isqiwen/northstar-quant/issues/37) | #21、#36 |
+| 25 | [#37 固定因子版本→策略引用→可复核回测](https://github.com/isqiwen/northstar-quant/issues/37) | #24、#36 |
+| 25.1 | [#44 策略版本、研究证据与显式发布候选](https://github.com/isqiwen/northstar-quant/issues/44) | #37 |
+| 25.2 | [#45 有限因子挖掘、稳定性与冗余评价](https://github.com/isqiwen/northstar-quant/issues/45) | #37、#21 |
 | 26 | [#28 多合约共同资金与风险](https://github.com/isqiwen/northstar-quant/issues/28) | #19、#20、#21 |
 | 27 | [#29 真实合约换月与成本](https://github.com/isqiwen/northstar-quant/issues/29) | #28、#22 |
 | 28 | [#30 多策略共同预算与目标净额](https://github.com/isqiwen/northstar-quant/issues/30) | #28 |
@@ -60,6 +62,9 @@ Order 是默认选择顺序，只有 Blocked by 才是硬前置。外部条件�
 #23 使用已有固定研究，不再依赖 #21 完整评价；#41 与 #23 可分别推进，不因复用页面组件串行化。
 #43 可在已有 #36 内容上开发，不需要先完成进程拆分或因子平台。
 #23/#41–#43 与完整历史研究不阻塞 #35，必要账户安全和真实外部验收仍是硬门槛。
+#37 最小研究链不再硬依赖 #21 完整评价，可在已有 #24/#36 上提前选择；默认 Order 不等于阻塞。
+#44 复用 #40 的具体材料 Interface，但不依赖整个云端交付；#40 也不等待策略目录，避免循环。
+#45 在真实因子链和评价之上增加有限挖掘。三项都不成为首个受限实盘的前置。
 
 ## 每个角色交付什么，不重复建设什么
 
@@ -70,7 +75,10 @@ Order 是默认选择顺序，只有 Blocked by 才是硬前置。外部条件�
 - Data：#41 拥有自己的 Web、启动/部署入口、持久来源任务/采集调度与发布，#42 拥有有界异步复制，#43 拥有大规模范围读取。
   Live 是交易事实权威写入者，Data 只接获准固定副本；积压/容量受控，禁止用归档副本改写账户。
 - Research：#23 拥有自己的 Web、部署入口、独立执行器与任务尝试，计算 worker 按需启动，复用现有计算和结果；
-  无计算 worker 时仍可接单，Web 重启不终止已接受计算。#21 拥有评价，#37 拥有实际因子研究。
+  无计算 worker 时仍可接单，Web 重启不终止已接受计算。Research 不只是回测执行器：
+  #37 交付实际因子版本/引用和最小回测链，#44 管策略版本/候选发布，#21 管实验比较与完整验证，
+  #45 管有限因子挖掘。共享 factors/strategies/ 只拥有计算，目录按实际行为落地，不先创建空包。
+  Research Web 提供这些业务入口；Live 的部署接受、运行实例和执行授权分别属于 #40/#26。
   参数搜索和模型训练使用同一 Research 执行路径，按实际策略需要细化，不先建设训练平台。
   有实际模型时，固定输出仍需 #26 的本地材料核验和受控启用，训练完成不授权交易。
 - 共享呈现：#40/#41/#23 各自交付应用 Web；只提取实际复用的布局、表格、图表和认证接入。

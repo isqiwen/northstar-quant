@@ -90,6 +90,14 @@ Save strategy and Risk parameters as immutable configuration revisions; bind run
 to exact revisions and implementation identities. Editing a template never changes
 an active session or grants execution authority. Factor management starts with
 actual strategy calculations and their data, not a separate platform.
+Research owns factor mining/catalogs, strategy versions, experiments, evaluation
+and release candidates, not just backtest execution. Shared factor and strategy
+Modules own computation; Live owns deployments, instances and execution authority.
+Keep evaluation labels out of decision inputs and fitted parameters fixed outside
+training. For these changes read architecture sections 3 and 6 and `CONTEXT.md`.
+Grow actual behavior into packages atomically; target directories are not empty
+scaffolding. Evaluation, deployment acceptance and execution authorization remain
+separate facts.
 
 Live safety: default to no order sending. Bind explicit runtime authorization to the
 broker environment, account, instrument, strategy/configuration, time window and

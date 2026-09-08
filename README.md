@@ -29,7 +29,7 @@ configuration, startup/upgrade/shutdown and diagnostics:
 | Application | Location | Owns |
 |---|---|---|
 | [Northstar Data Hub · 数据管理中心 #41](https://github.com/isqiwen/northstar-quant/issues/41) | Local `core`; `apps/data_hub/` | Collection, processing, quality, snapshots, query/export and Data Hub Web |
-| [Northstar Research · 量化研究工作台 #23](https://github.com/isqiwen/northstar-quant/issues/23) | Workstation; `apps/research/` | Research Web, durable tasks, independently supervised execution and results |
+| [Northstar Research · 量化研究工作台 #23](https://github.com/isqiwen/northstar-quant/issues/23) | Workstation; `apps/research/` | Factor mining/catalogs, strategy versions, backtests, experiments, evaluation and release candidates; independent task execution |
 | [Northstar Live · 实盘交易系统 #40](https://github.com/isqiwen/northstar-quant/issues/40) | Domestic cloud; `apps/live/` | Live Web and a separately supervised trading kernel with local authoritative storage |
 
 Application paths are relative to `src/northstar_quant/`. There is no Console application.
@@ -46,6 +46,10 @@ Data Hub owns ingestion routes; Research owns research/configuration/Paper route
 Local Data Hub and Research currently share fixed local data and PostgreSQL;
 independent durable execution, continuous collectors and cross-host snapshot
 delivery remain #23/#41/#42, not completed by this entrypoint split.
+Factor and strategy catalogs, experiment comparison and candidate publication are
+also target capabilities, not existing screens. Shared computation is distinct from
+Research version management and Live deployment/authorization; see the
+[business Module responsibilities](docs/ARCHITECTURE.md#3-module-与职责所有权).
 
 [The first split, #39](https://github.com/isqiwen/northstar-quant/issues/39), separates
 process-isolation evidence from actual SimNow continuous-feed acceptance, without
