@@ -76,7 +76,7 @@ docker compose up --build -d
 ```
 
 Open Live at <http://127.0.0.1:18080>, Data Hub at <http://127.0.0.1:18082>,
-and Research at <http://127.0.0.1:18083>.
+and Research at <http://127.0.0.1:18084>.
 Run individually with `northstar live-web`, `northstar data-hub`, or
 `northstar research-web`; `northstar live` starts only the trading kernel. Live Web, Live HTTP and PostgreSQL publish only on
 local loopback; this is a same-host deployment, not a public remote-control server.
@@ -779,7 +779,7 @@ Run “Northstar: prepare isolated development databases” once before using Te
 Explorer; the test and verify tasks run that preparation automatically.
 
 Use “Northstar: Debug independent Live and Live Web” or the individual Live Web
-(18082) and Live (18083) configurations for breakpoints in separate processes.
+(18180) and Live (18181) configurations for breakpoints in separate processes.
 They prepare private runtime authentication, the isolated database and its archive at
 `.northstar/vscode-sources`; this is intentionally separate from the Docker
 application and its managed volumes on ports 18080/18081. Both configurations leave

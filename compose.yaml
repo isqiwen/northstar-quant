@@ -142,10 +142,10 @@ services:
       initialize:
         condition: service_completed_successfully
     ports:
-      - "127.0.0.1:18083:18083"
-    command: ["uvicorn", "northstar_quant.apps.research:application", "--factory", "--host", "0.0.0.0", "--port", "18083"]
+      - "127.0.0.1:18084:18084"
+    command: ["uvicorn", "northstar_quant.apps.research:application", "--factory", "--host", "0.0.0.0", "--port", "18084"]
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:18083/health/ready', timeout=3)"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:18084/health/ready', timeout=3)"]
       interval: 10s
       timeout: 5s
       retries: 3

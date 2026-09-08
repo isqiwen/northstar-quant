@@ -89,7 +89,7 @@ def parse(argv: Sequence[str] | None) -> argparse.Namespace:
     paper_next.add_argument(
         "--request-id", type=UUID, required=True, help="reuse this UUID on retry"
     )
-    for name, port in (("live-web", 18080), ("data-hub", 18082), ("research-web", 18083)):
+    for name, port in (("live-web", 18080), ("data-hub", 18082), ("research-web", 18084)):
         application = commands.add_parser(name, help=f"serve the independent {name} application")
         application.add_argument("--port", type=int, default=port)
     commands.add_parser("broker-status", help="inspect SimNow setup without connecting")
