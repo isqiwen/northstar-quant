@@ -8,8 +8,9 @@ External skills are disabled in the operator's user-level Codex configuration,
 not by this directory. The current local client ignores project-level skill
 exclusions when listing skills; do not add a project config that claims otherwise.
 User-level exclusions affect every repository on that machine, preserve skill
-files and leave plugin tools enabled. Built-in skills are disabled with
-`skills.bundled.enabled = false`; installed external names use `skills.config`.
+files and leave plugin tools enabled. Official Codex built-in skills stay enabled
+with `skills.bundled.enabled = true` and no per-name exclusions; installed external
+skill names use `skills.config` exclusions.
 The latter is an explicit list, not a wildcard: audit new or renamed skills when
 the client/plugins change. This machine-local setting is not deployed by Git;
 configure and verify it separately on the remote development host.
@@ -20,7 +21,8 @@ to confirm no external skill remains enabled. Hosted/managed clients may inject
 skills independently; local configuration is not proof of their behavior.
 
 Verified locally on 2026-09-08 with Codex `0.151.0-alpha.7.2`: all 46 discovered
-external skills disabled, six bundled skills no longer loaded, zero enabled skills.
+external skills disabled and six official built-ins enabled: `imagegen`,
+`openai-docs`, `plugin-creator`, `review-agent`, `skill-creator`, `skill-installer`.
 This describes that installed catalog, not future plugins or remote hosts.
 Restart the client after changing user settings, as described in the
 [official skill configuration guide](https://learn.chatgpt.com/docs/build-skills#enable-or-disable-local-codex-skills).
