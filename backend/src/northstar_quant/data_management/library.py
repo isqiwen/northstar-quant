@@ -46,11 +46,8 @@ from northstar_quant.data_management.maintenance import library_write
 from northstar_quant.data_management.research import (
     DatasetDetails,
     DatasetSummary,
-    ImportSpec,
     ResearchDataset,
     _digest,
-    _import_csv,
-    _import_stream,
     _load_dataset,
     _source_evidence,
     _timestamp,
@@ -113,7 +110,7 @@ _rejections = Table(
     Column("created_at", DateTime(timezone=True), nullable=False),
     Column("reason", String(512), nullable=False),
 )
-_PROCESSING_LOCK = 0x4E535150524F43
+_ADMISSION_LOCK = 0x4E535141444D49
 _REJECTION_LIMIT = 1000
 
 
@@ -205,13 +202,47 @@ class DataLibrary:
         # catalog races this lets a new owner identify crashed, incomplete work.
         with library_write(self._engine), self._engine.begin() as connection:
             connection.execute(text("SET LOCAL lock_timeout = '5s'"))
-            connection.execute(
-                text("SELECT pg_advisory_xact_lock(:key)"), {"key": _PROCESSING_LOCK}
-            )
-            self._interrupt_unfinished()
+            connection.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": _ADMISSION_LOCK})
             yield
 
     def receive(
+        self,
+        content: bytes,
+        *,
+        filename: str,
+        source_name: str,
+        use_basis: str,
+        allow_retention: bool,
+        allow_download: bool,
+        spec: dict[str, object],
+        request_id: str,
+        input_kind: str = "RECEIVED_CSV",
+        upstream_source_id: UUID | None = None,
+        transformation_note: str | None = None,
+    ) -> dict[str, object]:
+        """Receive and execute one bounded input using the durable processing queue.
+
+        Used by one-shot local commands. Web admission uses submit so its process
+        never owns processing. Both routes share admission, claims and publication.
+        """
+        from .processing import process_attempt
+
+        attempt = self.submit(
+            content,
+            filename=filename,
+            source_name=source_name,
+            use_basis=use_basis,
+            allow_retention=allow_retention,
+            allow_download=allow_download,
+            spec=spec,
+            request_id=request_id,
+            input_kind=input_kind,
+            upstream_source_id=upstream_source_id,
+            transformation_note=transformation_note,
+        )
+        return process_attempt(self, UUID(str(attempt["attempt_id"])))
+
+    def submit(
         self,
         content: bytes,
         *,
@@ -230,8 +261,8 @@ class DataLibrary:
 
         A repeated request UUID retrieves its original outcome. A different UUID
         creates a new attempt; equivalent successful products may be reused.
-        Admission failures raise AdmissionRejected, processing failures return a
-        FAILED attempt whose source remains inspectable and reprocessable.
+        Admission failures raise AdmissionRejected. New work returns PENDING; the
+        processor records publication or failure against this retained source.
         """
 
         with self._writer():
@@ -303,7 +334,10 @@ class DataLibrary:
                 )
             except (ValueError, LookupError, OSError) as error:
                 self._reject(request_id, _safe_admission_error(error))
-            return self._receive(content, declaration, parameters, request_id)
+            attempt = self._receive(content, declaration, parameters, request_id)
+        from .processing import process_attempt
+
+        return process_attempt(self, UUID(str(attempt["attempt_id"])))
 
     def _receive(
         self,
@@ -348,9 +382,18 @@ class DataLibrary:
         with self._engine.begin() as connection:
             connection.execute(_sources.insert().values(**source))
             connection.execute(_attempts.insert().values(**attempt))
-        return self._process(source, attempt)
+        return self.attempt(cast(UUID, attempt["attempt_id"]))
 
     def reprocess(
+        self, source_id: UUID, *, spec: dict[str, object], request_id: str
+    ) -> dict[str, object]:
+        """Explicit one-shot retry through the same persisted queue as the worker."""
+        from .processing import process_attempt
+
+        attempt = self.submit_reprocess(source_id, spec=spec, request_id=request_id)
+        return process_attempt(self, UUID(str(attempt["attempt_id"])))
+
+    def submit_reprocess(
         self, source_id: UUID, *, spec: dict[str, object], request_id: str
     ) -> dict[str, object]:
         """Create a distinct processing attempt without accepting replacement bytes."""
@@ -384,7 +427,7 @@ class DataLibrary:
             attempt = self._new_attempt(source, parameters, request_id, identity)
             with self._engine.begin() as connection:
                 connection.execute(_attempts.insert().values(**attempt))
-            return self._process(source, attempt)
+            return self.attempt(cast(UUID, attempt["attempt_id"]))
 
     def _declaration(
         self,
@@ -487,95 +530,6 @@ class DataLibrary:
             "created_at": now,
             "updated_at": now,
         }
-
-    def _process(self, source: dict[str, object], attempt: dict[str, object]) -> dict[str, object]:
-        attempt_id = cast(UUID, attempt["attempt_id"])
-        current_stage = "VALIDATING"
-        evidence: dict[str, object] = {}
-
-        def stage(name: str, details: dict[str, object]) -> None:
-            nonlocal current_stage
-            current_stage = name
-            evidence.update(details)
-            self._update(attempt_id, status="RUNNING", stage=name, quality=dict(evidence))
-
-        try:
-            stage("VALIDATING", {})
-            self._verify_source(source)
-            parameters = cast(dict[str, object], attempt["parameters"])
-            spec = None
-            if source["input_kind"] != "CTP_CALLBACK_SEGMENT":
-                spec = ImportSpec.from_mapping(parameters)
-                if spec.source_name.upper() != str(source["source_name"]).upper():
-                    raise ValueError(
-                        "data.source_name differs from the retained source declaration"
-                    )
-            with self._engine.connect() as connection:
-                previous = connection.scalar(
-                    select(_attempts.c.snapshot_id)
-                    .where(
-                        _attempts.c.processing_hash == attempt["processing_hash"],
-                        _attempts.c.status == "PUBLISHED",
-                    )
-                    .order_by(_attempts.c.created_at)
-                    .limit(1)
-                )
-            if previous is not None and not str(attempt["code_revision"]).endswith("-dirty"):
-                dataset = self.load_dataset(previous)
-                reused = True
-            else:
-                content = self._files.read(
-                    str(source["content_hash"]), cast(int, source["byte_count"])
-                )
-                archive = {
-                    "source_id": str(source["source_id"]),
-                    "evidence_hash": source["evidence_hash"],
-                }
-                if source["input_kind"] == "CTP_CALLBACK_SEGMENT":
-                    dataset = _import_stream(
-                        self._engine,
-                        content,
-                        parameters=parameters,
-                        archive=archive,
-                        processing_hash=str(attempt["processing_hash"]),
-                        stage=stage,
-                    )
-                else:
-                    assert spec is not None
-                    dataset = _import_csv(
-                        self._engine,
-                        content,
-                        spec,
-                        archive=archive,
-                        processing_hash=str(attempt["processing_hash"]),
-                        stage=stage,
-                    )
-                self._verify_dataset_sources(dataset)
-                reused = False
-            assert dataset.details is not None
-            self._update(
-                attempt_id,
-                status="PUBLISHED",
-                stage="PUBLISHED",
-                error=None,
-                snapshot_id=dataset.snapshot_id,
-                quality=dataset.details.to_dict()["quality"],
-                reused_product=reused,
-            )
-        except (ValueError, LookupError, OSError) as error:
-            self._update(attempt_id, status="FAILED", stage=current_stage, error=str(error)[:1024])
-        except Exception:
-            # Persistence failures must never be mislabeled as successful publication.
-            # If the database is unavailable the last durable stage remains RUNNING;
-            # the next writer/maintenance audit marks it interrupted.
-            self._update(
-                attempt_id,
-                status="FAILED",
-                stage=current_stage,
-                error="Processing interrupted by an internal failure; inspect application logs.",
-            )
-            raise
-        return self.attempt(attempt_id)
 
     def _update(self, attempt_id: UUID, **values: object) -> None:
         with self._engine.begin() as connection:
@@ -953,25 +907,12 @@ class DataLibrary:
             )
         return [_json_row(row) for row in rows]
 
-    def _interrupt_unfinished(self) -> None:
-        with self._engine.begin() as connection:
-            connection.execute(
-                update(_attempts)
-                .where(_attempts.c.status.in_(["PENDING", "RUNNING"]))
-                .values(
-                    status="FAILED",
-                    updated_at=datetime.now(UTC),
-                    error=(
-                        "Processing interrupted before a confirmed outcome; "
-                        "explicitly retry as a new attempt."
-                    ),
-                )
-            )
-
     def reconcile(self) -> dict[str, object]:
         """Acquire write admission, mark interrupted work and inspect retained files."""
 
-        with self._writer():
+        from .processing import processing_claim
+
+        with self._writer(), processing_claim(self):
             with self._engine.connect() as connection:
                 expected = manifest(connection)
             identities = {str(item["content_hash"]) for item in expected}

@@ -247,7 +247,7 @@ export function Import() {
           </Form.Item>
         </Card>
         <Button type="primary" htmlType="submit" loading={busy}>
-          接收并检查数据
+          接收并排队检查
         </Button>
       </Form>
     </>
@@ -291,7 +291,7 @@ export function SourceDetail() {
 }
 export function Attempt() {
   const { id } = useParams<{ id: string }>();
-  const q = useData(query(`/api/attempts/${id}`));
+  const q = useData(query(`/api/attempts/${id}`), 1500);
   const { message } = App.useApp();
   const navigate = useRouter().push;
   const [busy, setBusy] = useState(false);
@@ -299,7 +299,7 @@ export function Attempt() {
     <>
       <Heading
         title="处理尝试"
-        description="成功发布、失败与重新处理分别形成记录，原文不会被替换。"
+        description="接收后由独立执行器加工，关闭页面不停止任务。排队、成功与失败会自动刷新；中断后请明确重新处理。"
       />
       <Failure error={q.error} />
       {q.data && (

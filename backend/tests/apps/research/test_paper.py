@@ -5,7 +5,7 @@ from __future__ import annotations
 from contextlib import closing
 from decimal import Decimal
 from pathlib import Path
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from sqlalchemy import Engine
 
@@ -13,6 +13,7 @@ from northstar_quant.apps.data_hub import create_app as data_app
 from northstar_quant.apps.research import create_app as research_app
 from northstar_quant.data_management.files import SourceFiles
 from northstar_quant.data_management.library import DataLibrary
+from northstar_quant.data_management.processing import process_attempt
 from tests.apps.browser import ProtocolClient as TestClient
 from tests.apps.browser import _browser_session, _upload_request
 
@@ -55,7 +56,9 @@ def test_paper_commands_require_browser_session_and_preserve_fixed_state(
                 json=_upload_request(("\n".join(lines) + "\n").encode(), specification),
             )
         assert imported.status_code == 200, imported.text
-        assert imported.json()["status"] == "PUBLISHED"
+        assert imported.json()["status"] == "PENDING"
+        attempt = process_attempt(library, UUID(imported.json()["attempt_id"]))
+        assert attempt["status"] == "PUBLISHED"
         del client.headers["X-Northstar-CSRF"]
         configuration_request = {"name": "fixed momentum", "config": {}}
         # Loopback and even an explicit same-origin header do not authorize a command.
@@ -92,7 +95,7 @@ def test_paper_commands_require_browser_session_and_preserve_fixed_state(
             )
 
         create_request = {
-            "snapshot_id": imported.json()["snapshot_id"],
+            "snapshot_id": attempt["snapshot_id"],
             "configuration_id": configuration["configuration_id"],
             "request_id": str(uuid4()),
         }

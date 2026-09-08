@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
+from uuid import UUID
 
 from sqlalchemy import Engine, create_engine
 
@@ -13,6 +14,7 @@ from northstar_quant.apps.data_hub import create_app as data_app
 from northstar_quant.apps.research import create_app as research_app
 from northstar_quant.data_management.files import SourceFiles
 from northstar_quant.data_management.library import DataLibrary
+from northstar_quant.data_management.processing import process_attempt
 from tests.apps.browser import ProtocolClient as TestClient
 from tests.apps.browser import _browser_session, _upload_request
 
@@ -70,7 +72,10 @@ def test_import_research_and_reopen_preserve_complete_result(
         assert data.post("/api/runs", json={}).status_code in {404, 405}
         imported = data.post("/api/import", json=upload_request)
         assert imported.status_code == 200, imported.text
-        attempt = imported.json()
+        assert imported.json()["status"] == "PENDING"
+        attempt = process_attempt(
+            DataLibrary(postgres_engine, archive), UUID(imported.json()["attempt_id"])
+        )
         assert attempt["status"] == "PUBLISHED"
         dataset = client.get(f"/api/datasets/{attempt['snapshot_id']}").json()
         assert dataset["bar_count"] == len(prices)

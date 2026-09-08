@@ -7,7 +7,7 @@
 
 | 应用 | 已实现的主要功能 |
 |---|---|
-| Data Hub · 数据管理中心 | 原始文件留存、分钟数据导入、加工与失败记录、质量检查、不可变快照、查询与导出 |
+| Data Hub · 数据管理中心 | 原始文件留存、分钟数据导入、独立持久加工与失败记录、质量检查、不可变快照、查询与导出 |
 | Research · 研究工作台 | 因子与策略目录、因子计算、固定配置、回测与结果比较、策略版本与候选发布、可恢复的文件回放 Paper 账户 |
 | Live · 交易管理 | 独立运行内核、运行诊断、SimNow 只读查询、有时限的行情与账户回报接收、影子信号、账户与委托观察核对、归档与候选接收 |
 
@@ -35,6 +35,9 @@ NORTHSTAR_DEVELOPMENT_BUILD=1 make up
 | Data Hub | <http://127.0.0.1:18082> |
 | Research | <http://127.0.0.1:18084> |
 | Live | <http://127.0.0.1:18080> |
+
+Compose 同时启动独立的 `data-worker`，不开放 HTTP 端口。网页提交后返回排队记录，
+执行器完成检查与发布；关闭前端或 Data API 不停止加工。
 
 首次启动会初始化 PostgreSQL、来源文件目录及 Live 内部认证文件。认证文件不是柜台凭据。
 默认 Compose 仅向本机开放端口，另有 Python API `19080/19082/19084`、Live 内核 `18081` 和 PostgreSQL `15432`。
@@ -93,6 +96,7 @@ Data Hub 对应 `dev:data`、后端 `19082`；Live 对应 `dev:live`、后端 `1
 
 本机 Python 入口为 `uv run --project backend northstar serve data-api`、`uv run --project backend northstar serve research-api`、
 `uv run --project backend northstar serve live-api`（Live 管理 API）和 `uv run --project backend northstar serve live-kernel`（内核）。
+`uv run --project backend northstar serve data-worker` 启动独立数据执行器，需要与 Data API 使用相同数据库、来源目录和代码版本。
 前三个默认监听表中的 `190xx` 端口；不要与同端口容器同时启动。
 Data Hub、Research 和内核需要当前数据库、`NORTHSTAR_DATABASE_URL` 与 `NORTHSTAR_DATA_DIR`；
 Live 管理 API 使用 `NORTHSTAR_LIVE_URL` 与 `NORTHSTAR_LIVE_AUTH` 访问内核。

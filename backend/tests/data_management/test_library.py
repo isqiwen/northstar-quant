@@ -12,6 +12,7 @@ from sqlalchemy import Engine, text
 from sqlalchemy.exc import DBAPIError
 
 import northstar_quant.data_management.library as library_module
+import northstar_quant.data_management.processing as processing_module
 from northstar_quant.data_management.files import SourceFiles
 from northstar_quant.data_management.library import AdmissionRejected, DataLibrary, manifest
 from northstar_quant.data_management.research import ImportSpec, ResearchDataset
@@ -20,6 +21,11 @@ from northstar_quant.research.configuration import ResearchConfig
 from northstar_quant.research.configurations import ConfigurationStore
 from northstar_quant.research.paper import PaperStore
 from northstar_quant.research.runs import RunStore
+
+
+@pytest.fixture(autouse=True)
+def processing_identity(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(processing_module, "code_revision", lambda: library_module.code_revision())
 
 
 def _study() -> tuple[bytes, dict[str, object], ResearchConfig]:
@@ -260,7 +266,7 @@ def test_interrupted_publication_is_not_offered_and_retry_recovers_without_dupli
     files = SourceFiles(tmp_path / "sources")
     library = DataLibrary(postgres_engine, files)
     content, spec, _ = _study()
-    original = library_module._import_csv
+    original = processing_module._import_csv
 
     def lose_completion(
         engine: Engine,
@@ -277,7 +283,7 @@ def test_interrupted_publication_is_not_offered_and_retry_recovers_without_dupli
         raise KeyboardInterrupt("process terminated before library publication acknowledgement")
 
     with monkeypatch.context() as context:
-        context.setattr(library_module, "_import_csv", lose_completion)
+        context.setattr(processing_module, "_import_csv", lose_completion)
         with pytest.raises(KeyboardInterrupt):
             _receive(library, content, spec)
     interrupted = library.list_attempts()[0]

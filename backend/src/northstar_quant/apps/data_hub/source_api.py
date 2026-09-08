@@ -89,7 +89,7 @@ def register(app: FastAPI, access: WorkspaceAccess, library: DataLibrary) -> Non
         if note is not None and not isinstance(note, str):
             raise ValueError("transformation_note 必须是文本或 null。")
         return await run_in_threadpool(
-            library.receive,
+            library.submit,
             content,
             filename=_string_field(payload, "filename"),
             source_name=_string_field(payload, "source_name"),
@@ -152,7 +152,7 @@ def register(app: FastAPI, access: WorkspaceAccess, library: DataLibrary) -> Non
         access.protect(request)
         payload = document.model_dump(mode="json", exclude_unset=True)
         return await run_in_threadpool(
-            library.reprocess,
+            library.submit_reprocess,
             source_id,
             spec=_object(payload["spec"]),
             request_id=str(_uuid_field(payload, "request_id")),

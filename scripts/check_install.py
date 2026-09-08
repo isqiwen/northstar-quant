@@ -128,8 +128,8 @@ def main() -> None:
                 assert summary["bar_count"] == 12, summary
                 assert summary["decision_count"] == 11, summary
                 assert summary["fill_count"] == 7, summary
-                assert Decimal(summary["total_fees"]) == Decimal("70"), summary
-                assert Decimal(summary["ending_equity"]) == Decimal("94580"), summary
+                assert Decimal(summary["total_fees"]) == Decimal(70), summary
+                assert Decimal(summary["ending_equity"]) == Decimal(94580), summary
                 assert Decimal(summary["ending_equity"]) == (
                     Decimal(summary["initial_cash"])
                     + Decimal(summary["realized_pnl"])
@@ -150,7 +150,11 @@ def main() -> None:
                 )
 
                 configuration = command(
-                    "research", "configure", str(research_study), "--name", "Installed Paper"
+                    "research",
+                    "configure",
+                    str(research_study),
+                    "--name",
+                    "Installed Paper",
                 )
                 paper_id = str(uuid4())
                 paper = command(
@@ -170,13 +174,59 @@ def main() -> None:
                     "research", "paper", "next", paper_id, "--request-id", step_command
                 )
                 assert (
-                    command("research", "paper", "next", paper_id, "--request-id", step_command)
+                    command(
+                        "research",
+                        "paper",
+                        "next",
+                        paper_id,
+                        "--request-id",
+                        step_command,
+                    )
                     == first_step
                 )
                 paused_paper = command("research", "paper", "show", paper_id)
                 assert paused_paper["cursor"] == 1 and paused_paper["status"] == "PAUSED"
 
+                # Admit while no worker exists, close the entire API, then process.
+                with application.api("data-api") as intake:
+                    pending = json.loads(
+                        request(
+                            intake + "/api/import",
+                            {
+                                "content_base64": base64.b64encode(csv).decode("ascii"),
+                                "filename": source_file,
+                                "source_name": source["source_name"],
+                                "use_basis": settings["archive"]["use_basis"],
+                                "allow_retention": True,
+                                "allow_download": True,
+                                "input_kind": "RECEIVED_CSV",
+                                "upstream_source_id": None,
+                                "transformation_note": None,
+                                "spec": source,
+                                "request_id": str(uuid4()),
+                            },
+                        )
+                    )
+                    assert pending["status"] == "PENDING"
+                assert application.api_processes[intake].poll() is not None
+                with application.data_worker() as owner:
+                    completed = application.await_attempt(pending)
+                    assert completed["status"] == "PUBLISHED"
+                    with application.api("data-api") as restarted:
+                        assert owner.poll() is None
+                        assert (
+                            json.loads(
+                                request(restarted + f"/api/attempts/{completed['attempt_id']}")
+                            )
+                            == completed
+                        )
+                print(
+                    "Installed Data: persisted admission completed with API stopped",
+                    flush=True,
+                )
+
                 with (
+                    application.data_worker(),
                     application.api() as live_url,
                     application.api("data-api") as base_url,
                     application.api("research-api") as research_url,
@@ -197,6 +247,8 @@ def main() -> None:
                         "request_id": str(uuid4()),
                     }
                     imported = json.loads(request(f"{base_url}/api/import", upload))
+                    assert imported["status"] in {"PENDING", "RUNNING", "PUBLISHED"}, imported
+                    imported = application.await_attempt(imported)
                     assert imported["status"] == "PUBLISHED", imported
                     assert (imported["snapshot_id"] == snapshot_id) is saved["committed_code"]
                     assert (
@@ -207,6 +259,7 @@ def main() -> None:
                         upload, request_id=str(uuid4()), spec=dict(source, price_tick="invalid")
                     )
                     failed = json.loads(request(f"{base_url}/api/import", invalid))
+                    failed = application.await_attempt(failed)
                     assert failed["status"] == "FAILED", failed
                     assert request(f"{base_url}/api/attempts/{failed['attempt_id']}")
                     repaired = json.loads(
@@ -215,6 +268,7 @@ def main() -> None:
                             {"spec": source, "request_id": str(uuid4())},
                         )
                     )
+                    repaired = application.await_attempt(repaired)
                     assert repaired["status"] == "PUBLISHED"
                     assert (repaired["snapshot_id"] == snapshot_id) is saved["committed_code"]
                     datasets = json.loads(request(f"{base_url}/api/datasets"))

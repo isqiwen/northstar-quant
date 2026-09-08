@@ -123,14 +123,32 @@ def main() -> None:
                     with page.expect_response(
                         lambda r: r.url.endswith("/api/import") and r.request.method == "POST"
                     ) as response:
-                        page.get_by_role("button", name="接收并检查数据", exact=True).click()
+                        page.get_by_role("button", name="接收并排队检查", exact=True).click()
                     imported = decode(
                         methods("data_hub")[("POST", "/api/import")].output_type,
                         response.value.body(),
                     )
-                    assert imported["status"] == "PUBLISHED", imported
+                    assert imported["status"] == "PENDING", imported
                     page.wait_for_url(re.compile("/attempts/"))
-                    expect(page.get_by_text("PUBLISHED", exact=True)).to_be_visible()
+                    expect(page.get_by_text("PENDING", exact=True)).to_be_visible()
+                    page.goto("about:blank")
+                # Both frontend and API have exited. Only the independent processor
+                # now owns completion; reopening the Web reads its durable outcome.
+                with app.data_worker() as processor:
+                    imported = app.await_attempt(imported)
+                    assert imported["status"] == "PUBLISHED", imported
+                    assert processor.poll() is None
+                    with app.api("data-api") as restarted:
+                        assert (
+                            json.loads(
+                                app.request(restarted + f"/api/attempts/{imported['attempt_id']}")
+                            )
+                            == imported
+                        )
+                        assert processor.poll() is None
+                with app.web("data-api") as data_url:
+                    page.goto(data_url + f"/attempts/{imported['attempt_id']}")
+                    expect(page.get_by_text("PUBLISHED", exact=True)).to_be_visible(timeout=30000)
                     page.get_by_role("link", name="查看原文来源", exact=True).click()
                     with page.expect_download() as downloaded:
                         page.get_by_role("link", name="下载归档原文", exact=True).click()

@@ -6,13 +6,14 @@ import hashlib
 import tomllib
 from contextlib import closing
 from pathlib import Path
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from sqlalchemy import Engine
 
 from northstar_quant.apps.data_hub import create_app as data_app
 from northstar_quant.data_management.files import SourceFiles
 from northstar_quant.data_management.library import DataLibrary
+from northstar_quant.data_management.processing import process_attempt
 from tests.apps.browser import ProtocolClient as TestClient
 from tests.apps.browser import _browser_session, _upload_request
 
@@ -35,7 +36,8 @@ def test_archived_bytes_failures_reprocessing_and_download_permissions(
         broken_bytes = b"\xef\xbb\xbfevent_time,close\r\n\xff\x00\r\n"
         broken = client.post("/api/import", json=_upload_request(broken_bytes, specification))
         assert broken.status_code == 200, broken.text
-        failed = broken.json()
+        assert broken.json()["status"] == "PENDING"
+        failed = process_attempt(library, UUID(broken.json()["attempt_id"]))
         assert failed["status"] == "FAILED"
         assert failed["snapshot_id"] is None
         assert failed["error"]
@@ -70,7 +72,8 @@ def test_archived_bytes_failures_reprocessing_and_download_permissions(
         invalid_spec = {**specification, "price_tick": "0"}
         received = client.post("/api/import", json=_upload_request(content, invalid_spec))
         assert received.status_code == 200, received.text
-        rejected = received.json()
+        assert received.json()["status"] == "PENDING"
+        rejected = process_attempt(library, UUID(received.json()["attempt_id"]))
         assert rejected["status"] == "FAILED"
         assert rejected["snapshot_id"] is None
         source_id = rejected["source_id"]
@@ -83,7 +86,8 @@ def test_archived_bytes_failures_reprocessing_and_download_permissions(
         )
         repaired = client.post(endpoint, json=corrected_request)
         assert repaired.status_code == 200, repaired.text
-        published = repaired.json()
+        assert repaired.json()["status"] == "PENDING"
+        published = process_attempt(library, UUID(repaired.json()["attempt_id"]))
         assert published["status"] == "PUBLISHED"
         assert published["source_id"] == source_id
         assert published["attempt_id"] != rejected["attempt_id"]

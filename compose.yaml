@@ -149,6 +149,28 @@ services:
       retries: 3
       start_period: 20s
 
+  data-worker:
+    networks: [storage]
+    platform: linux/amd64
+    build:
+      context: .
+      args:
+        NORTHSTAR_GIT_REVISION: ${NORTHSTAR_GIT_REVISION:-}
+        NORTHSTAR_DEVELOPMENT_BUILD: ${NORTHSTAR_DEVELOPMENT_BUILD:-0}
+    image: northstar-quant:local
+    restart: unless-stopped
+    logging: *bounded-logging
+    environment:
+      NORTHSTAR_DATABASE_URL: postgresql+psycopg://northstar:northstar_local@postgres:5432/northstar_quant
+      NORTHSTAR_DATA_DIR: /var/lib/northstar/sources
+    volumes:
+      - source-data:/var/lib/northstar/sources
+    depends_on:
+      initialize:
+        condition: service_completed_successfully
+    command: ["northstar", "serve", "data-worker"]
+    stop_grace_period: 60s
+
   research-api:
     networks: [storage, research-frontend]
     platform: linux/amd64

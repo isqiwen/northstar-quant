@@ -70,6 +70,42 @@ class InstalledApplication:
             return content
 
     @contextmanager
+    def data_worker(self) -> Iterator[subprocess.Popen[str]]:
+        """Start the installed Data processor without an API or frontend parent."""
+        log_path = self.directory / "data-worker.log"
+        self.log_paths.append(log_path)
+        with log_path.open("a") as log:
+            process = subprocess.Popen(
+                [self.executable, "serve", "data-worker"],
+                cwd=self.directory,
+                env=self.environment,
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                text=True,
+            )
+            try:
+                yield process
+                assert process.poll() is None, log_path.read_text()
+            finally:
+                if process.poll() is None:
+                    process.terminate()
+                    try:
+                        process.wait(timeout=15)
+                    except subprocess.TimeoutExpired:
+                        process.kill()
+                        process.wait(timeout=10)
+
+    def await_attempt(self, attempt: dict[str, Any]) -> dict[str, Any]:
+        """Inspect persisted completion through the installed CLI with a bounded wait."""
+        deadline = time.monotonic() + 30
+        while attempt["status"] in {"PENDING", "RUNNING"}:
+            if time.monotonic() > deadline:
+                raise AssertionError(f"Data attempt did not complete: {attempt}")
+            time.sleep(0.1)
+            attempt = self.command("data", "attempt", attempt["attempt_id"])
+        return attempt
+
+    @contextmanager
     def live(self) -> Iterator[subprocess.Popen[str]]:
         auth = Path(self.environment["NORTHSTAR_LIVE_AUTH"])
         environment = dict(self.environment, NORTHSTAR_LIVE_AUTH=str(auth.with_name("live.toml")))
@@ -89,14 +125,22 @@ class InstalledApplication:
             self.web_pids.append(process.pid)
             self.api_processes[base_url] = process
             self.protocols[base_url] = methods(
-                {"data-api": "data_hub", "research-api": "research", "live-api": "live"}[role]
+                {
+                    "data-api": "data_hub",
+                    "research-api": "research",
+                    "live-api": "live",
+                }[role]
             )
             self.request(base_url + "/api/browser-session")
             yield base_url
 
     @contextmanager
     def web(self, role: str = "live-api") -> Iterator[str]:
-        application = {"data-api": "data_hub", "research-api": "research", "live-api": "live"}[role]
+        application = {
+            "data-api": "data_hub",
+            "research-api": "research",
+            "live-api": "live",
+        }[role]
         frontend = Path(__file__).resolve().parents[2] / "frontend"
         with self.api(role) as backend:
             with socket.socket() as listener:
@@ -183,7 +227,8 @@ class InstalledApplication:
                     else:
                         raise AssertionError("Stopped API must be unavailable")
                     print(
-                        f"{application}: frontend/API stop and restart isolation passed", flush=True
+                        f"{application}: frontend/API stop and restart isolation passed",
+                        flush=True,
                     )
                 finally:
                     process.terminate()
@@ -194,7 +239,10 @@ class InstalledApplication:
                         process.wait(timeout=10)
 
     def assert_live(
-        self, process: subprocess.Popen[str], original: dict[str, Any], base_url: str | None = None
+        self,
+        process: subprocess.Popen[str],
+        original: dict[str, Any],
+        base_url: str | None = None,
     ) -> None:
         """Observe the actual owning process, not Live Web-local thread state."""
         assert process.poll() is None, "Live Web shutdown must not stop Live"

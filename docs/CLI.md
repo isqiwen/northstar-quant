@@ -7,6 +7,7 @@ CLI 用于启动、检查、维护和自动化。日常数据管理、研究与 
 
 | 命令 | 用途 |
 |---|---|
+| `northstar serve data-worker` | 独立执行已接收的数据加工任务，无监听端口 |
 | `northstar serve data-api` | 启动 Data Hub API，默认端口 19082 |
 | `northstar serve research-api` | 启动 Research API，默认端口 19084 |
 | `northstar serve live-api` | 启动 Live 管理 API，默认端口 19080 |
@@ -14,7 +15,7 @@ CLI 用于启动、检查、维护和自动化。日常数据管理、研究与 
 | `northstar status` | 查看 Live 内核身份、状态和能力 |
 | `northstar check` | 检查 Live 内核与存储，异常时返回非零退出码 |
 
-`serve` 支持 `--port`，仅监听本机。Next.js 前端使用 Compose 或前端 npm 命令启动；
+API 和内核的 `serve` 命令支持 `--port`，仅监听本机；`data-worker` 不接收端口参数。Next.js 前端使用 Compose 或前端 npm 命令启动；
 一次启动完整环境仍使用根目录的 `make up`，环境配置见 [README](../README.md)。
 `status`、`check` 使用 LiveClient；内核不可用时明确失败，不会替你启动内核。
 
@@ -31,7 +32,8 @@ northstar research replay <run-id>
 ```
 
 `research run` 使用已发布的固定快照；`research from-file <study.toml>` 明确执行导入后研究。
-导入和重新加工通过所属数据业务保留来源及失败证据，CLI 不另建采集或回测实现。
+CLI 导入和重新加工调用数据业务的持久接收、认领和加工，等待结果退出；网页仅排队，由 `data-worker` 执行。
+两者复用来源及失败证据，不另建采集或回测实现。
 `research configure` / `research configurations` 管理固定配置；
 `research paper` 下的 `create`、`list`、`show`、`next` 操作文件回放模拟账户。
 

@@ -29,6 +29,11 @@ def main(argv: Sequence[str] | None = None) -> int:
 
             print(json.dumps(initialize_auth(arguments.directory), ensure_ascii=False))
             return 0
+        if arguments.operation == "data-worker":
+            from northstar_quant.apps.data_hub.worker import run
+
+            run()
+            return 0
         if arguments.scope == "serve":
             from northstar_quant.apps.launch import serve
 
