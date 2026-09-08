@@ -65,7 +65,8 @@ jobs:
           export NORTHSTAR_GIT_REVISION="$(git rev-parse HEAD)"
           test -z "$(git status --porcelain --untracked-files=all)"
           docker compose config --quiet
-          docker build -f backend/Dockerfile --build-arg NORTHSTAR_GIT_REVISION -t northstar-local .
+          docker compose build initialize live live-api data-api data-worker research-api
+          docker tag northstar-quant:local northstar-local
           docker build -f frontend/Dockerfile --build-arg APP=live -t northstar-live-frontend:check .
           docker run --rm --network host \
             --cpus 2 --memory 1g --memory-swap 1g --pids-limit 128 \
