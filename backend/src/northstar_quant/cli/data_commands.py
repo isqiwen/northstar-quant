@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import tomllib
 from pathlib import Path
 from typing import cast
 from uuid import UUID, uuid4
@@ -49,6 +50,10 @@ def register(commands: argparse._SubParsersAction[argparse.ArgumentParser]) -> N
     parser.set_defaults(scope="data", operation="import")
     parser.add_argument("study", type=Path, help="TOML study with [source] and [research]")
     parser.add_argument("--request-id", type=UUID, help="重试时复用同一请求 UUID")
+    parser = commands.add_parser("collect-edb", help="下载一个免费 EDB 日盘时段并排队加工")
+    parser.set_defaults(scope="data", operation="collect-edb")
+    parser.add_argument("config", type=Path, help="仅包含 [source] 市场和时段参数的 TOML")
+    parser.add_argument("--request-id", required=True, type=UUID, help="本次接收的固定请求 UUID")
     parser = commands.add_parser("sources", help="列出来源文件")
     parser.set_defaults(scope="data", operation="sources")
     parser = commands.add_parser("source", help="查看来源文件及使用记录")
@@ -76,6 +81,22 @@ def register(commands: argparse._SubParsersAction[argparse.ArgumentParser]) -> N
 def execute(arguments: argparse.Namespace, engine: Engine) -> int:
     files = SourceFiles.from_environment()
     library = DataLibrary(engine, files)
+    if arguments.operation == "collect-edb":
+        from northstar_quant.data_management.edb import collect
+        from northstar_quant.data_management.research import ImportSpec
+
+        with arguments.config.open("rb") as stream:
+            content = stream.read(65537)
+        if len(content) > 65536:
+            raise ValueError("EDB configuration exceeds 64 KiB")
+        document = tomllib.loads(content.decode("utf-8"))
+        if set(document) != {"source"}:
+            raise ValueError("EDB configuration requires only [source]")
+        result = collect(
+            library, ImportSpec.from_mapping(document["source"]), request_id=arguments.request_id
+        )
+        print(json.dumps(result, ensure_ascii=False))
+        return 0
     if arguments.operation == "import":
         attempt, _ = receive(arguments, library, files)
         print(json.dumps(attempt, ensure_ascii=False))

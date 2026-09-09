@@ -278,12 +278,19 @@ def test_interrupted_publication_is_not_offered_and_retry_recovers_without_dupli
         content: bytes,
         spec: ImportSpec,
         *,
+        edb: bool,
         archive: dict[str, object],
         processing_hash: str,
         stage: Callable[[str, dict[str, object]], None],
     ) -> ResearchDataset:
         original(
-            engine, content, spec, archive=archive, processing_hash=processing_hash, stage=stage
+            engine,
+            content,
+            spec,
+            edb=edb,
+            archive=archive,
+            processing_hash=processing_hash,
+            stage=stage,
         )
         raise KeyboardInterrupt("process terminated before library publication acknowledgement")
 

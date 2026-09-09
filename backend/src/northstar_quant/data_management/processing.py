@@ -153,6 +153,7 @@ def _process(
                     library._engine,
                     content,
                     spec,
+                    edb=source["input_kind"] == "EDB_CSV",
                     archive=archive,
                     processing_hash=str(attempt["processing_hash"]),
                     stage=stage,
