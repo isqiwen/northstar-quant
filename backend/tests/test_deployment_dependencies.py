@@ -31,6 +31,7 @@ def bootstrap(tmp_path, monkeypatch):
         "env_file": str(private),
         "directory": str(tmp_path),
         "directory_program": "# directory preparation",
+        "docker_program": "# Docker configuration",
     }
 
 
@@ -42,7 +43,8 @@ def test_prepared_host_does_not_install_or_restart_services(bootstrap, monkeypat
     monkeypatch.setattr(module, "admin", lambda *args: calls.append(args))
     monkeypatch.setattr(module, "run", lambda *args: calls.append(args))
     module.prepare(request)
-    assert len(calls) == 1 and calls[0][1:3] == ("-c", request["directory_program"])
+    assert len(calls) == 2 and calls[1][1:3] == ("-c", request["docker_program"])
+    assert calls[0][1:3] == ("-c", request["directory_program"])
 
 
 @pytest.mark.parametrize("app", ["data-hub", "live", "database"])

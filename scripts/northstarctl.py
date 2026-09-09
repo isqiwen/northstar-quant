@@ -233,7 +233,10 @@ def main() -> int:
                         | {
                             "directory_program": (
                                 ROOT / "scripts/operations/host_directories.py"
-                            ).read_text()
+                            ).read_text(),
+                            "docker_program": (
+                                ROOT / "scripts/operations/docker_configuration.py"
+                            ).read_text(),
                         }
                     ),
                 ]

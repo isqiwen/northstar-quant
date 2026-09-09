@@ -34,7 +34,9 @@ Tushare 定时增量/分片补数、15 分钟到日线完整研究输入、持�
 ./scripts/northstarctl.py deploy live
 ```
 
-远程 `deploy` 自动安装目标 Ubuntu/Debian 主机缺失的 Git、uv、Docker/Compose/Buildx；
+远程 `deploy` 自动安装目标 Ubuntu/Debian 主机缺失的 Git、uv、Docker/Compose/Buildx。
+同时将仓库 `scripts/operations/docker_configuration.py` 中的四个镜像源合并到 `/etc/docker/daemon.json`，
+保留其他 Docker 设置，校验后热加载并确认生效，不重启容器。
 `hosts.toml` 填写 host/user/port；user 仅供 `init-host` 登录和提权，创建 northstar 用户、配置 SSH 公钥及免密码 sudo。
 之后部署固定使用 northstar，首次运行配置自动上传，默认保留已有配置；目标先具备 SSH、Python 3.11+。
 脚本部署当前已提交版本；可用 `deploy data-hub --env-file /本地路径/data-hub.env` 指定应用配置并更新远程运行副本。

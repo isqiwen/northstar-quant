@@ -30,6 +30,7 @@ def deployment(tmp_path: Path) -> tuple[Path, Path, dict]:
         source.write_text(
             source.read_text()
             .replace("/opt/northstar", str(tmp_path))
+            .replace("/etc/docker/daemon.json", str(tmp_path / "daemon.json"))
             .replace('Path.home() / ".ssh/', f'Path({str(tmp_path)!r}) / ".ssh/')
         )
     for app in ("database", "data_hub", "research", "live"):
@@ -91,12 +92,15 @@ if name == 'ssh':
     sys.exit(subprocess.run(sys.argv[-1], shell=True).returncode)
 if name == 'docker' and sys.argv[1:] == ['info']:
     sys.exit(int(os.environ.get('DOCKER_INFO_RESULT', '0')))
+if name == 'docker' and '--format' in sys.argv:
+    config = json.loads(Path({str(tmp_path / "daemon.json")!r}).read_text())
+    print(json.dumps(config['registry-mirrors']))
 if name == 'uv':
     if 'scripts/operations/check_storage.py' in sys.argv: print('{{}}')
     sys.exit(int(os.environ.get('MOUNT_RESULT', '0')))
 if name == 'docker' and 'up' in sys.argv: sys.exit(int(os.environ.get('DEPLOY_UP_RESULT', '0')))
 """
-    for tool in ("ssh", "sudo", "docker", "make", "uv", "curl"):
+    for tool in ("ssh", "sudo", "docker", "make", "uv", "curl", "dockerd", "systemctl"):
         file = binaries / tool
         file.write_text(stub)
         file.chmod(0o755)
@@ -274,7 +278,7 @@ def test_interactive_elevation_keeps_password_out_of_transport_and_bundle(deploy
             env,
         )
     output = b""
-    answered = False
+    answered = 0
     status = None
     try:
         deadline = time.monotonic() + 45
@@ -285,9 +289,9 @@ def test_interactive_elevation_keeps_password_out_of_transport_and_bundle(deploy
                 except OSError:
                     chunk = b""
                 output += chunk
-                if b"sudo password:" in output and not answered:
+                if output.count(b"sudo password:") > answered:
                     os.write(terminal, (env["ASK_SUDO"] + "\n").encode())
-                    answered = True
+                    answered += 1
             done, result = os.waitpid(pid, os.WNOHANG)
             if done:
                 status = result

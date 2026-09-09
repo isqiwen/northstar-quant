@@ -201,6 +201,7 @@ def prepare(request: dict) -> None:
             admin("docker", "info")
         else:
             raise ValueError("Docker 不可访问，请检查服务状态和部署用户权限")
+    admin(sys.executable, "-c", request["docker_program"])
     for command in (
         ("git", "--version"),
         ("uv", "--version"),
