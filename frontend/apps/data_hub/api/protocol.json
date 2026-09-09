@@ -939,6 +939,333 @@
       "array": false,
       "evidence": false
     },
+    "northstar.data_hub.ExplorerCatalog": {
+      "fields": {
+        "datasets": {
+          "id": 1,
+          "presence": false,
+          "type": "google.protobuf.Struct",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "exchanges": {
+          "id": 2,
+          "presence": false,
+          "type": "string",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "products": {
+          "id": 3,
+          "presence": false,
+          "type": "google.protobuf.Struct",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.data_hub.ContractSearch": {
+      "fields": {
+        "exchange": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "product": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "search": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "offset": {
+          "id": 4,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.data_hub.ExplorerList": {
+      "fields": {
+        "rows": {
+          "id": 1,
+          "presence": false,
+          "type": "google.protobuf.Struct",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "total": {
+          "id": 2,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.data_hub.ExplorerRange": {
+      "fields": {
+        "dataset": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "scope": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "start": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "end": {
+          "id": 4,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "offset": {
+          "id": 5,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.data_hub.ExplorerQuery": {
+      "fields": {
+        "dataset": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "scope": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "start": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "end": {
+          "id": 4,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "offset": {
+          "id": 5,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "receipt_ids": {
+          "id": 6,
+          "presence": false,
+          "type": "string",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "limit": {
+          "id": 7,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.data_hub.ExplorerCoverage": {
+      "fields": {
+        "days": {
+          "id": 1,
+          "presence": false,
+          "type": "google.protobuf.Struct",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "jobs": {
+          "id": 2,
+          "presence": false,
+          "type": "google.protobuf.Struct",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "note": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.data_hub.ExplorerRows": {
+      "fields": {
+        "sources": {
+          "id": 14,
+          "presence": false,
+          "type": "google.protobuf.Struct",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "export_allowed": {
+          "id": 15,
+          "presence": true,
+          "type": "bool",
+          "required": true,
+          "nullable": false
+        },
+        "dataset": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "scope": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "start": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "end": {
+          "id": 4,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "receipt_ids": {
+          "id": 5,
+          "presence": false,
+          "type": "string",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "view_id": {
+          "id": 6,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "rows": {
+          "id": 7,
+          "presence": false,
+          "type": "google.protobuf.Struct",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "total": {
+          "id": 8,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "offset": {
+          "id": 9,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "limit": {
+          "id": 10,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "fields": {
+          "id": 11,
+          "presence": false,
+          "type": "google.protobuf.Struct",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "versions": {
+          "id": 12,
+          "presence": false,
+          "type": "google.protobuf.Struct",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "note": {
+          "id": 13,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
     "northstar.web.Empty": {
       "fields": {},
       "array": false,
@@ -994,6 +1321,48 @@
     }
   },
   "methods": [
+    {
+      "method": "POST",
+      "path": "/api/explorer/export",
+      "input": "northstar.data_hub.ExplorerQuery",
+      "output": "northstar.data_hub.ExplorerRows",
+      "runtime": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/explorer/query",
+      "input": "northstar.data_hub.ExplorerQuery",
+      "output": "northstar.data_hub.ExplorerRows",
+      "runtime": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/explorer/versions",
+      "input": "northstar.data_hub.ExplorerRange",
+      "output": "northstar.data_hub.ExplorerList",
+      "runtime": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/explorer/coverage",
+      "input": "northstar.data_hub.ExplorerRange",
+      "output": "northstar.data_hub.ExplorerCoverage",
+      "runtime": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/explorer/contracts",
+      "input": "northstar.data_hub.ContractSearch",
+      "output": "northstar.data_hub.ExplorerList",
+      "runtime": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/explorer",
+      "input": "northstar.web.Empty",
+      "output": "northstar.data_hub.ExplorerCatalog",
+      "runtime": false
+    },
     {
       "method": "GET",
       "path": "/api/publications",

@@ -74,6 +74,9 @@ def initialize(connection: Connection) -> None:
             created_at timestamptz NOT NULL DEFAULT now(),
             UNIQUE(request_id, content_hash)
         );
+        CREATE INDEX IF NOT EXISTS data_sync_scope ON data_sync_jobs(dataset,scope,start_at,end_at);
+        CREATE INDEX IF NOT EXISTS data_sync_revisions
+            ON data_sync_receipts(request_id,created_at DESC);
         CREATE TABLE IF NOT EXISTS data_sync_coverage (
             request_id uuid PRIMARY KEY REFERENCES data_sync_jobs,
             receipt_id uuid NOT NULL REFERENCES data_sync_receipts,

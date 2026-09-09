@@ -11,8 +11,9 @@ import {
   Space,
   Table,
   Tag,
+  Descriptions,
 } from "antd";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { query, mutate } from "./api/client";
 import { useData, fetchQuery } from "../../shared/data";
 import { Evidence, Failure, Heading } from "../../shared/ui";
@@ -33,6 +34,13 @@ export function TushareSync() {
   const [form] = Form.useForm();
   const [busy, setBusy] = useState(false);
   const [detail, setDetail] = useState<Row>();
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("request");
+    if (id)
+      void fetchQuery(query(`/api/sync/jobs/${id}`))
+        .then(setDetail)
+        .catch((e) => message.error((e as Error).message));
+  }, [message]);
   const data = current.error ? undefined : current.data;
   const config = data?.settings;
   const groups = data?.progress ?? [];
@@ -287,7 +295,41 @@ export function TushareSync() {
         footer={null}
         width={1000}
       >
-        {detail && <Evidence value={detail} />}
+        {detail && (
+          <>
+            <Descriptions
+              column={1}
+              items={[
+                {
+                  key: "request",
+                  label: "记录身份",
+                  children: String(detail.request_id),
+                },
+                {
+                  key: "scope",
+                  label: "合约 / 范围",
+                  children: String(detail.scope || "—"),
+                },
+                {
+                  key: "range",
+                  label: "时间区间",
+                  children: `${detail.start_at || "目录"} — ${detail.end_at || ""}`,
+                },
+                {
+                  key: "status",
+                  label: "状态",
+                  children: labels[String(detail.status)] || "固定发布版本",
+                },
+                {
+                  key: "reason",
+                  label: "原因",
+                  children: String(detail.error || "无已记录异常"),
+                },
+              ]}
+            />
+            <Evidence value={detail} />
+          </>
+        )}
       </Modal>
     </>
   );

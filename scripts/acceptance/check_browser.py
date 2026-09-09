@@ -15,6 +15,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 from uuid import uuid4
 
+from installed.market import seed_market
 from installed.processes import InstalledApplication
 from playwright.sync_api import expect, sync_playwright
 
@@ -153,7 +154,58 @@ def main() -> None:
                             == imported
                         )
                         assert processor.poll() is None
+                market = seed_market(app)
                 with app.web("data-api") as data_url:
+                    page.goto(data_url)
+                    expect(page.get_by_role("heading", name="期货数据工作台")).to_be_visible()
+                    expect(page.get_by_text("已发现合约", exact=True)).to_be_visible()
+                    screenshot("overview")
+                    page.goto(
+                        data_url
+                        + "/browse?dataset=1min&scope=RB2610.SHF&start=2026-09-01&end=2026-09-03"
+                    )
+                    expect(page.get_by_role("button", name="查询数据", exact=True)).to_be_enabled()
+                    page.get_by_role("button", name="查询数据", exact=True).click()
+                    expect(page.get_by_text("440 条记录", exact=True)).to_be_visible()
+                    expect(
+                        page.get_by_role("img", name="固定数据 K 线、成交量与持仓量")
+                    ).to_be_visible()
+                    expect(page.get_by_role("button", name="导出所选范围")).to_be_disabled()
+                    expect(page.get_by_text("行情图 · 当前第 1–200 条", exact=True)).to_be_visible()
+                    page.locator(".ant-pagination-item-2").first.click()
+                    expect(
+                        page.get_by_text("行情图 · 当前第 201–400 条", exact=True)
+                    ).to_be_visible()
+                    screenshot("browse")
+                    page.goto(
+                        data_url
+                        + "/quality?dataset=1min&scope=RB2610.SHF&start=2026-09-01&end=2026-09-04"
+                    )
+                    page.get_by_role("button", name="查询数据", exact=True).click()
+                    expect(page.locator(".coverage-days button")).to_have_count(4)
+                    expect(
+                        page.locator(".coverage-days").get_by_text("响应已校验", exact=True)
+                    ).to_have_count(3)
+                    page.locator(".coverage-days button").filter(has_text="2026-09-01").click()
+                    screenshot("quality")
+                    page.get_by_role("link", name="查看同步任务", exact=True).click()
+                    expect(page.get_by_role("dialog")).to_be_visible()
+                    expect(
+                        page.get_by_role("dialog")
+                        .get_by_text(market["request_id"], exact=False)
+                        .first
+                    ).to_be_visible()
+                    page.goto(
+                        data_url
+                        + "/versions?dataset=1min&scope=RB2610.SHF&start=2026-09-01&end=2026-09-03"
+                    )
+                    page.get_by_role("button", name="查询数据", exact=True).click()
+                    page.get_by_role("link", name="浏览此版本", exact=True).click()
+                    page.get_by_role("button", name="查询数据", exact=True).click()
+                    expect(page.get_by_text("440 条记录", exact=True)).to_be_visible()
+                    page.reload()
+                    page.get_by_role("button", name="查询数据", exact=True).click()
+                    expect(page.get_by_text("440 条记录", exact=True)).to_be_visible()
                     page.goto(data_url + "/sync")
                     expect(
                         page.get_by_text(
@@ -171,9 +223,9 @@ def main() -> None:
                     assert destination.read_bytes() == (args.study.parent / filename).read_bytes()
                     page.goto(data_url + "/")
                     expect(
-                        page.get_by_role("heading", name="数据管理中心", exact=True)
+                        page.get_by_role("heading", name="期货数据工作台", exact=True)
                     ).to_be_visible()
-                    expect(page.get_by_text("无排队任务", exact=True)).to_be_visible()
+                    expect(page.get_by_text("后台自动同步已启用", exact=False)).to_be_visible()
                     screenshot("data")
                 with app.api("data-api"), app.web("research-api") as url:
                     page.goto(url + "/factors/trend.return")
@@ -357,12 +409,17 @@ def main() -> None:
                     ),
                     flush=True,
                 )
-            except Exception:
+            except Exception as failure:
+                try:
+                    storage = page.evaluate("Object.fromEntries(Object.entries(sessionStorage))")
+                except Exception:
+                    storage = {"unavailable_at": page.url}
                 print(
                     "BROWSER DIAGNOSTICS",
+                    repr(failure),
                     errors,
                     network,
-                    page.evaluate("Object.fromEntries(Object.entries(sessionStorage))"),
+                    storage,
                     flush=True,
                 )
                 screenshot("failure")

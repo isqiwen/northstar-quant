@@ -10,13 +10,14 @@ from northstar_quant.web import datasets
 from northstar_quant.web.host import create_host
 from northstar_quant.web.protobuf import bind
 
-from . import processing_api, publication_api, source_api, sync_api
+from . import exploration_api, processing_api, publication_api, source_api, sync_api
 
 
 def create_app(engine: Engine, library: DataLibrary) -> FastAPI:
     app = create_host(
         "Northstar Data Hub · 数据管理中心", (("数据管理", "/"), ("来源与处理", "/sources"))
     )
+    exploration_api.register(app, engine)
     publication_api.register(app, library)
     sync_api.register(app, app.state.workspace_access, engine)
     source_api.register(app, app.state.workspace_access, library)

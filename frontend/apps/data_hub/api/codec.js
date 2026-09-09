@@ -11167,6 +11167,3424 @@ export const northstar = $root.northstar = (() => {
             return PublicationCatalog;
         })();
 
+        data_hub.ExplorerCatalog = (function() {
+
+            /**
+             * Properties of an ExplorerCatalog.
+             * @typedef {Object} northstar.data_hub.ExplorerCatalog.$Properties
+             * @property {Array.<google.protobuf.Struct.$Properties>|null} [datasets] ExplorerCatalog datasets
+             * @property {Array.<string>|null} [exchanges] ExplorerCatalog exchanges
+             * @property {Array.<google.protobuf.Struct.$Properties>|null} [products] ExplorerCatalog products
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of an ExplorerCatalog.
+             * @memberof northstar.data_hub
+             * @interface IExplorerCatalog
+             * @augments northstar.data_hub.ExplorerCatalog.$Properties
+             * @deprecated Use northstar.data_hub.ExplorerCatalog.$Properties instead.
+             */
+
+            /**
+             * Shape of an ExplorerCatalog.
+             * @typedef {{
+             *   datasets?: Array.<google.protobuf.Struct.$Shape>|null;
+             *   exchanges?: Array.<string>|null;
+             *   products?: Array.<google.protobuf.Struct.$Shape>|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * }} northstar.data_hub.ExplorerCatalog.$Shape
+             */
+
+            /**
+             * Constructs a new ExplorerCatalog.
+             * @memberof northstar.data_hub
+             * @classdesc Represents an ExplorerCatalog.
+             * @constructor
+             * @param {northstar.data_hub.ExplorerCatalog.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const ExplorerCatalog = function (properties) {
+                this.datasets = [];
+                this.exchanges = [];
+                this.products = [];
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * ExplorerCatalog datasets.
+             * @member {Array.<google.protobuf.Struct.$Properties>} datasets
+             * @memberof northstar.data_hub.ExplorerCatalog
+             * @instance
+             */
+            ExplorerCatalog.prototype.datasets = $util.emptyArray;
+
+            /**
+             * ExplorerCatalog exchanges.
+             * @member {Array.<string>} exchanges
+             * @memberof northstar.data_hub.ExplorerCatalog
+             * @instance
+             */
+            ExplorerCatalog.prototype.exchanges = $util.emptyArray;
+
+            /**
+             * ExplorerCatalog products.
+             * @member {Array.<google.protobuf.Struct.$Properties>} products
+             * @memberof northstar.data_hub.ExplorerCatalog
+             * @instance
+             */
+            ExplorerCatalog.prototype.products = $util.emptyArray;
+
+            /**
+             * Creates a new ExplorerCatalog instance using the specified properties.
+             * @function create
+             * @memberof northstar.data_hub.ExplorerCatalog
+             * @static
+             * @param {northstar.data_hub.ExplorerCatalog.$Properties=} [properties] Properties to set
+             * @returns {northstar.data_hub.ExplorerCatalog} ExplorerCatalog instance
+             * @type {{
+             *   (properties: northstar.data_hub.ExplorerCatalog.$Shape): northstar.data_hub.ExplorerCatalog & northstar.data_hub.ExplorerCatalog.$Shape;
+             *   (properties?: northstar.data_hub.ExplorerCatalog.$Properties): northstar.data_hub.ExplorerCatalog;
+             * }}
+             */
+            ExplorerCatalog.create = function(properties) {
+                return new ExplorerCatalog(properties);
+            };
+
+            /**
+             * Encodes the specified ExplorerCatalog message. Does not implicitly {@link northstar.data_hub.ExplorerCatalog.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.data_hub.ExplorerCatalog
+             * @static
+             * @param {northstar.data_hub.ExplorerCatalog.$Properties} message ExplorerCatalog message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            ExplorerCatalog.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.datasets != null && message.datasets.length)
+                    for (let i = 0; i < message.datasets.length; ++i)
+                        $root.google.protobuf.Struct.encode(message.datasets[i], writer.uint32(/* id 1, wireType 2 =*/10).fork(), _depth + 1).ldelim();
+                if (message.exchanges != null && message.exchanges.length)
+                    for (let i = 0; i < message.exchanges.length; ++i)
+                        writer.uint32(/* id 2, wireType 2 =*/18).string(message.exchanges[i]);
+                if (message.products != null && message.products.length)
+                    for (let i = 0; i < message.products.length; ++i)
+                        $root.google.protobuf.Struct.encode(message.products[i], writer.uint32(/* id 3, wireType 2 =*/26).fork(), _depth + 1).ldelim();
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes an ExplorerCatalog message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.data_hub.ExplorerCatalog
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.data_hub.ExplorerCatalog & northstar.data_hub.ExplorerCatalog.$Shape} ExplorerCatalog
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            ExplorerCatalog.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.data_hub.ExplorerCatalog();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.datasets && message.datasets.length))
+                                message.datasets = [];
+                            message.datasets.push($root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1));
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.exchanges && message.exchanges.length))
+                                message.exchanges = [];
+                            message.exchanges.push(reader.stringVerify());
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.products && message.products.length))
+                                message.products = [];
+                            message.products.push($root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1));
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies an ExplorerCatalog message.
+             * @function verify
+             * @memberof northstar.data_hub.ExplorerCatalog
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            ExplorerCatalog.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                if (message.datasets != null && $Object.hasOwnProperty.call(message, "datasets")) {
+                    if (!$Array.isArray(message.datasets))
+                        return "datasets: array expected";
+                    for (let i = 0; i < message.datasets.length; ++i) {
+                        let error = $root.google.protobuf.Struct.verify(message.datasets[i], _depth + 1);
+                        if (error)
+                            return "datasets." + error;
+                    }
+                }
+                if (message.exchanges != null && $Object.hasOwnProperty.call(message, "exchanges")) {
+                    if (!$Array.isArray(message.exchanges))
+                        return "exchanges: array expected";
+                    for (let i = 0; i < message.exchanges.length; ++i)
+                        if (!$util.isString(message.exchanges[i]))
+                            return "exchanges: string[] expected";
+                }
+                if (message.products != null && $Object.hasOwnProperty.call(message, "products")) {
+                    if (!$Array.isArray(message.products))
+                        return "products: array expected";
+                    for (let i = 0; i < message.products.length; ++i) {
+                        let error = $root.google.protobuf.Struct.verify(message.products[i], _depth + 1);
+                        if (error)
+                            return "products." + error;
+                    }
+                }
+                return null;
+            };
+
+            /**
+             * Creates an ExplorerCatalog message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.data_hub.ExplorerCatalog
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.data_hub.ExplorerCatalog} ExplorerCatalog
+             */
+            ExplorerCatalog.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.data_hub.ExplorerCatalog)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.data_hub.ExplorerCatalog: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.data_hub.ExplorerCatalog();
+                if (object.datasets) {
+                    if (!$Array.isArray(object.datasets))
+                        throw $TypeError(".northstar.data_hub.ExplorerCatalog.datasets: array expected");
+                    message.datasets = $Array(object.datasets.length);
+                    for (let i = 0; i < object.datasets.length; ++i) {
+                        if (!$util.isObject(object.datasets[i]))
+                            throw $TypeError(".northstar.data_hub.ExplorerCatalog.datasets: object expected");
+                        message.datasets[i] = $root.google.protobuf.Struct.fromObject(object.datasets[i], _depth + 1);
+                    }
+                }
+                if (object.exchanges) {
+                    if (!$Array.isArray(object.exchanges))
+                        throw $TypeError(".northstar.data_hub.ExplorerCatalog.exchanges: array expected");
+                    message.exchanges = $Array(object.exchanges.length);
+                    for (let i = 0; i < object.exchanges.length; ++i)
+                        message.exchanges[i] = $String(object.exchanges[i]);
+                }
+                if (object.products) {
+                    if (!$Array.isArray(object.products))
+                        throw $TypeError(".northstar.data_hub.ExplorerCatalog.products: array expected");
+                    message.products = $Array(object.products.length);
+                    for (let i = 0; i < object.products.length; ++i) {
+                        if (!$util.isObject(object.products[i]))
+                            throw $TypeError(".northstar.data_hub.ExplorerCatalog.products: object expected");
+                        message.products[i] = $root.google.protobuf.Struct.fromObject(object.products[i], _depth + 1);
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from an ExplorerCatalog message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.data_hub.ExplorerCatalog
+             * @static
+             * @param {northstar.data_hub.ExplorerCatalog} message ExplorerCatalog
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            ExplorerCatalog.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.arrays || options.defaults) {
+                    object.datasets = [];
+                    object.exchanges = [];
+                    object.products = [];
+                }
+                if (message.datasets && message.datasets.length) {
+                    object.datasets = $Array(message.datasets.length);
+                    for (let j = 0; j < message.datasets.length; ++j)
+                        object.datasets[j] = $root.google.protobuf.Struct.toObject(message.datasets[j], options, _depth + 1);
+                }
+                if (message.exchanges && message.exchanges.length) {
+                    object.exchanges = $Array(message.exchanges.length);
+                    for (let j = 0; j < message.exchanges.length; ++j)
+                        object.exchanges[j] = message.exchanges[j];
+                }
+                if (message.products && message.products.length) {
+                    object.products = $Array(message.products.length);
+                    for (let j = 0; j < message.products.length; ++j)
+                        object.products[j] = $root.google.protobuf.Struct.toObject(message.products[j], options, _depth + 1);
+                }
+                return object;
+            };
+
+            /**
+             * Converts this ExplorerCatalog to JSON.
+             * @function toJSON
+             * @memberof northstar.data_hub.ExplorerCatalog
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            ExplorerCatalog.prototype.toJSON = function() {
+                return ExplorerCatalog.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for ExplorerCatalog
+             * @function getTypeUrl
+             * @memberof northstar.data_hub.ExplorerCatalog
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            ExplorerCatalog.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.data_hub.ExplorerCatalog";
+            };
+
+            return ExplorerCatalog;
+        })();
+
+        data_hub.ContractSearch = (function() {
+
+            /**
+             * Properties of a ContractSearch.
+             * @typedef {Object} northstar.data_hub.ContractSearch.$Properties
+             * @property {string|null} [exchange] ContractSearch exchange
+             * @property {string|null} [product] ContractSearch product
+             * @property {string|null} [search] ContractSearch search
+             * @property {number|Long|null} [offset] ContractSearch offset
+             * @property {"exchange"} [_exchange] ContractSearch _exchange
+             * @property {"product"} [_product] ContractSearch _product
+             * @property {"search"} [_search] ContractSearch _search
+             * @property {"offset"} [_offset] ContractSearch _offset
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a ContractSearch.
+             * @memberof northstar.data_hub
+             * @interface IContractSearch
+             * @augments northstar.data_hub.ContractSearch.$Properties
+             * @deprecated Use northstar.data_hub.ContractSearch.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a ContractSearch.
+             * @typedef {{
+             *   exchange?: string|null;
+             *   product?: string|null;
+             *   search?: string|null;
+             *   offset?: number|Long|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _exchange?: undefined; exchange?: null }|{ _exchange?: "exchange"; exchange: string })
+             * ) & (
+             *   ({ _product?: undefined; product?: null }|{ _product?: "product"; product: string })
+             * ) & (
+             *   ({ _search?: undefined; search?: null }|{ _search?: "search"; search: string })
+             * ) & (
+             *   ({ _offset?: undefined; offset?: null }|{ _offset?: "offset"; offset: number|Long })
+             * )} northstar.data_hub.ContractSearch.$Shape
+             */
+
+            /**
+             * Constructs a new ContractSearch.
+             * @memberof northstar.data_hub
+             * @classdesc Represents a ContractSearch.
+             * @constructor
+             * @param {northstar.data_hub.ContractSearch.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const ContractSearch = function (properties) {
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * ContractSearch exchange.
+             * @member {string|null|undefined} exchange
+             * @memberof northstar.data_hub.ContractSearch
+             * @instance
+             */
+            ContractSearch.prototype.exchange = null;
+
+            /**
+             * ContractSearch product.
+             * @member {string|null|undefined} product
+             * @memberof northstar.data_hub.ContractSearch
+             * @instance
+             */
+            ContractSearch.prototype.product = null;
+
+            /**
+             * ContractSearch search.
+             * @member {string|null|undefined} search
+             * @memberof northstar.data_hub.ContractSearch
+             * @instance
+             */
+            ContractSearch.prototype.search = null;
+
+            /**
+             * ContractSearch offset.
+             * @member {number|Long|null|undefined} offset
+             * @memberof northstar.data_hub.ContractSearch
+             * @instance
+             */
+            ContractSearch.prototype.offset = null;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * ContractSearch _exchange.
+             * @member {"exchange"|undefined} _exchange
+             * @memberof northstar.data_hub.ContractSearch
+             * @instance
+             */
+            $Object.defineProperty(ContractSearch.prototype, "_exchange", {
+                get: $util.oneOfGetter($oneOfFields = ["exchange"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ContractSearch _product.
+             * @member {"product"|undefined} _product
+             * @memberof northstar.data_hub.ContractSearch
+             * @instance
+             */
+            $Object.defineProperty(ContractSearch.prototype, "_product", {
+                get: $util.oneOfGetter($oneOfFields = ["product"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ContractSearch _search.
+             * @member {"search"|undefined} _search
+             * @memberof northstar.data_hub.ContractSearch
+             * @instance
+             */
+            $Object.defineProperty(ContractSearch.prototype, "_search", {
+                get: $util.oneOfGetter($oneOfFields = ["search"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ContractSearch _offset.
+             * @member {"offset"|undefined} _offset
+             * @memberof northstar.data_hub.ContractSearch
+             * @instance
+             */
+            $Object.defineProperty(ContractSearch.prototype, "_offset", {
+                get: $util.oneOfGetter($oneOfFields = ["offset"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new ContractSearch instance using the specified properties.
+             * @function create
+             * @memberof northstar.data_hub.ContractSearch
+             * @static
+             * @param {northstar.data_hub.ContractSearch.$Properties=} [properties] Properties to set
+             * @returns {northstar.data_hub.ContractSearch} ContractSearch instance
+             * @type {{
+             *   (properties: northstar.data_hub.ContractSearch.$Shape): northstar.data_hub.ContractSearch & northstar.data_hub.ContractSearch.$Shape;
+             *   (properties?: northstar.data_hub.ContractSearch.$Properties): northstar.data_hub.ContractSearch;
+             * }}
+             */
+            ContractSearch.create = function(properties) {
+                return new ContractSearch(properties);
+            };
+
+            /**
+             * Encodes the specified ContractSearch message. Does not implicitly {@link northstar.data_hub.ContractSearch.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.data_hub.ContractSearch
+             * @static
+             * @param {northstar.data_hub.ContractSearch.$Properties} message ContractSearch message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            ContractSearch.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.exchange != null && $Object.hasOwnProperty.call(message, "exchange"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.exchange);
+                if (message.product != null && $Object.hasOwnProperty.call(message, "product"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.product);
+                if (message.search != null && $Object.hasOwnProperty.call(message, "search"))
+                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.search);
+                if (message.offset != null && $Object.hasOwnProperty.call(message, "offset"))
+                    writer.uint32(/* id 4, wireType 0 =*/32).int64(message.offset);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a ContractSearch message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.data_hub.ContractSearch
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.data_hub.ContractSearch & northstar.data_hub.ContractSearch.$Shape} ContractSearch
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            ContractSearch.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.data_hub.ContractSearch();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.exchange = reader.stringVerify();
+                            message._exchange = "exchange";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.product = reader.stringVerify();
+                            message._product = "product";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 2)
+                                break;
+                            message.search = reader.stringVerify();
+                            message._search = "search";
+                            continue;
+                        }
+                    case 4: {
+                            if (wireType !== 0)
+                                break;
+                            message.offset = reader.int64();
+                            message._offset = "offset";
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a ContractSearch message.
+             * @function verify
+             * @memberof northstar.data_hub.ContractSearch
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            ContractSearch.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.exchange != null && $Object.hasOwnProperty.call(message, "exchange")) {
+                    properties._exchange = 1;
+                    if (!$util.isString(message.exchange))
+                        return "exchange: string expected";
+                }
+                if (message.product != null && $Object.hasOwnProperty.call(message, "product")) {
+                    properties._product = 1;
+                    if (!$util.isString(message.product))
+                        return "product: string expected";
+                }
+                if (message.search != null && $Object.hasOwnProperty.call(message, "search")) {
+                    properties._search = 1;
+                    if (!$util.isString(message.search))
+                        return "search: string expected";
+                }
+                if (message.offset != null && $Object.hasOwnProperty.call(message, "offset")) {
+                    properties._offset = 1;
+                    if (!$util.isInteger(message.offset) && !(message.offset && $util.isInteger(message.offset.low) && $util.isInteger(message.offset.high)))
+                        return "offset: integer|Long expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a ContractSearch message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.data_hub.ContractSearch
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.data_hub.ContractSearch} ContractSearch
+             */
+            ContractSearch.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.data_hub.ContractSearch)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.data_hub.ContractSearch: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.data_hub.ContractSearch();
+                if (object.exchange != null)
+                    message.exchange = $String(object.exchange);
+                if (object.product != null)
+                    message.product = $String(object.product);
+                if (object.search != null)
+                    message.search = $String(object.search);
+                if (object.offset != null)
+                    if ($util.Long)
+                        message.offset = $util.Long.fromValue(object.offset, false);
+                    else if (typeof object.offset === "string")
+                        message.offset = $parseInt(object.offset, 10);
+                    else if (typeof object.offset === "number")
+                        message.offset = object.offset;
+                    else if (typeof object.offset === "object")
+                        message.offset = new $util.LongBits(object.offset.low >>> 0, object.offset.high >>> 0).toNumber();
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a ContractSearch message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.data_hub.ContractSearch
+             * @static
+             * @param {northstar.data_hub.ContractSearch} message ContractSearch
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            ContractSearch.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (message.exchange != null && $Object.hasOwnProperty.call(message, "exchange")) {
+                    object.exchange = message.exchange;
+                    if (options.oneofs)
+                        object._exchange = "exchange";
+                }
+                if (message.product != null && $Object.hasOwnProperty.call(message, "product")) {
+                    object.product = message.product;
+                    if (options.oneofs)
+                        object._product = "product";
+                }
+                if (message.search != null && $Object.hasOwnProperty.call(message, "search")) {
+                    object.search = message.search;
+                    if (options.oneofs)
+                        object._search = "search";
+                }
+                if (message.offset != null && $Object.hasOwnProperty.call(message, "offset")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.offset = typeof message.offset === "number" ? $BigInt(message.offset) : $util.Long.fromBits(message.offset.low >>> 0, message.offset.high >>> 0, false).toBigInt();
+                    else if (typeof message.offset === "number")
+                        object.offset = options.longs === $String ? $String(message.offset) : message.offset;
+                    else
+                        object.offset = options.longs === $String ? $util.Long.prototype.toString.call(message.offset) : options.longs === $Number ? new $util.LongBits(message.offset.low >>> 0, message.offset.high >>> 0).toNumber() : message.offset;
+                    if (options.oneofs)
+                        object._offset = "offset";
+                }
+                return object;
+            };
+
+            /**
+             * Converts this ContractSearch to JSON.
+             * @function toJSON
+             * @memberof northstar.data_hub.ContractSearch
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            ContractSearch.prototype.toJSON = function() {
+                return ContractSearch.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for ContractSearch
+             * @function getTypeUrl
+             * @memberof northstar.data_hub.ContractSearch
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            ContractSearch.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.data_hub.ContractSearch";
+            };
+
+            return ContractSearch;
+        })();
+
+        data_hub.ExplorerList = (function() {
+
+            /**
+             * Properties of an ExplorerList.
+             * @typedef {Object} northstar.data_hub.ExplorerList.$Properties
+             * @property {Array.<google.protobuf.Struct.$Properties>|null} [rows] ExplorerList rows
+             * @property {number|Long|null} [total] ExplorerList total
+             * @property {"total"} [_total] ExplorerList _total
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of an ExplorerList.
+             * @memberof northstar.data_hub
+             * @interface IExplorerList
+             * @augments northstar.data_hub.ExplorerList.$Properties
+             * @deprecated Use northstar.data_hub.ExplorerList.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of an ExplorerList.
+             * @typedef {{
+             *   rows?: Array.<google.protobuf.Struct.$Shape>|null;
+             *   total?: number|Long|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _total?: undefined; total?: null }|{ _total?: "total"; total: number|Long })
+             * )} northstar.data_hub.ExplorerList.$Shape
+             */
+
+            /**
+             * Constructs a new ExplorerList.
+             * @memberof northstar.data_hub
+             * @classdesc Represents an ExplorerList.
+             * @constructor
+             * @param {northstar.data_hub.ExplorerList.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const ExplorerList = function (properties) {
+                this.rows = [];
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * ExplorerList rows.
+             * @member {Array.<google.protobuf.Struct.$Properties>} rows
+             * @memberof northstar.data_hub.ExplorerList
+             * @instance
+             */
+            ExplorerList.prototype.rows = $util.emptyArray;
+
+            /**
+             * ExplorerList total.
+             * @member {number|Long|null|undefined} total
+             * @memberof northstar.data_hub.ExplorerList
+             * @instance
+             */
+            ExplorerList.prototype.total = null;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * ExplorerList _total.
+             * @member {"total"|undefined} _total
+             * @memberof northstar.data_hub.ExplorerList
+             * @instance
+             */
+            $Object.defineProperty(ExplorerList.prototype, "_total", {
+                get: $util.oneOfGetter($oneOfFields = ["total"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new ExplorerList instance using the specified properties.
+             * @function create
+             * @memberof northstar.data_hub.ExplorerList
+             * @static
+             * @param {northstar.data_hub.ExplorerList.$Properties=} [properties] Properties to set
+             * @returns {northstar.data_hub.ExplorerList} ExplorerList instance
+             * @type {{
+             *   (properties: northstar.data_hub.ExplorerList.$Shape): northstar.data_hub.ExplorerList & northstar.data_hub.ExplorerList.$Shape;
+             *   (properties?: northstar.data_hub.ExplorerList.$Properties): northstar.data_hub.ExplorerList;
+             * }}
+             */
+            ExplorerList.create = function(properties) {
+                return new ExplorerList(properties);
+            };
+
+            /**
+             * Encodes the specified ExplorerList message. Does not implicitly {@link northstar.data_hub.ExplorerList.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.data_hub.ExplorerList
+             * @static
+             * @param {northstar.data_hub.ExplorerList.$Properties} message ExplorerList message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            ExplorerList.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.rows != null && message.rows.length)
+                    for (let i = 0; i < message.rows.length; ++i)
+                        $root.google.protobuf.Struct.encode(message.rows[i], writer.uint32(/* id 1, wireType 2 =*/10).fork(), _depth + 1).ldelim();
+                if (message.total != null && $Object.hasOwnProperty.call(message, "total"))
+                    writer.uint32(/* id 2, wireType 0 =*/16).int64(message.total);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes an ExplorerList message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.data_hub.ExplorerList
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.data_hub.ExplorerList & northstar.data_hub.ExplorerList.$Shape} ExplorerList
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            ExplorerList.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.data_hub.ExplorerList();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.rows && message.rows.length))
+                                message.rows = [];
+                            message.rows.push($root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1));
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 0)
+                                break;
+                            message.total = reader.int64();
+                            message._total = "total";
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies an ExplorerList message.
+             * @function verify
+             * @memberof northstar.data_hub.ExplorerList
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            ExplorerList.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.rows != null && $Object.hasOwnProperty.call(message, "rows")) {
+                    if (!$Array.isArray(message.rows))
+                        return "rows: array expected";
+                    for (let i = 0; i < message.rows.length; ++i) {
+                        let error = $root.google.protobuf.Struct.verify(message.rows[i], _depth + 1);
+                        if (error)
+                            return "rows." + error;
+                    }
+                }
+                if (message.total != null && $Object.hasOwnProperty.call(message, "total")) {
+                    properties._total = 1;
+                    if (!$util.isInteger(message.total) && !(message.total && $util.isInteger(message.total.low) && $util.isInteger(message.total.high)))
+                        return "total: integer|Long expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates an ExplorerList message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.data_hub.ExplorerList
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.data_hub.ExplorerList} ExplorerList
+             */
+            ExplorerList.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.data_hub.ExplorerList)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.data_hub.ExplorerList: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.data_hub.ExplorerList();
+                if (object.rows) {
+                    if (!$Array.isArray(object.rows))
+                        throw $TypeError(".northstar.data_hub.ExplorerList.rows: array expected");
+                    message.rows = $Array(object.rows.length);
+                    for (let i = 0; i < object.rows.length; ++i) {
+                        if (!$util.isObject(object.rows[i]))
+                            throw $TypeError(".northstar.data_hub.ExplorerList.rows: object expected");
+                        message.rows[i] = $root.google.protobuf.Struct.fromObject(object.rows[i], _depth + 1);
+                    }
+                }
+                if (object.total != null)
+                    if ($util.Long)
+                        message.total = $util.Long.fromValue(object.total, false);
+                    else if (typeof object.total === "string")
+                        message.total = $parseInt(object.total, 10);
+                    else if (typeof object.total === "number")
+                        message.total = object.total;
+                    else if (typeof object.total === "object")
+                        message.total = new $util.LongBits(object.total.low >>> 0, object.total.high >>> 0).toNumber();
+                return message;
+            };
+
+            /**
+             * Creates a plain object from an ExplorerList message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.data_hub.ExplorerList
+             * @static
+             * @param {northstar.data_hub.ExplorerList} message ExplorerList
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            ExplorerList.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.arrays || options.defaults)
+                    object.rows = [];
+                if (message.rows && message.rows.length) {
+                    object.rows = $Array(message.rows.length);
+                    for (let j = 0; j < message.rows.length; ++j)
+                        object.rows[j] = $root.google.protobuf.Struct.toObject(message.rows[j], options, _depth + 1);
+                }
+                if (message.total != null && $Object.hasOwnProperty.call(message, "total")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.total = typeof message.total === "number" ? $BigInt(message.total) : $util.Long.fromBits(message.total.low >>> 0, message.total.high >>> 0, false).toBigInt();
+                    else if (typeof message.total === "number")
+                        object.total = options.longs === $String ? $String(message.total) : message.total;
+                    else
+                        object.total = options.longs === $String ? $util.Long.prototype.toString.call(message.total) : options.longs === $Number ? new $util.LongBits(message.total.low >>> 0, message.total.high >>> 0).toNumber() : message.total;
+                    if (options.oneofs)
+                        object._total = "total";
+                }
+                return object;
+            };
+
+            /**
+             * Converts this ExplorerList to JSON.
+             * @function toJSON
+             * @memberof northstar.data_hub.ExplorerList
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            ExplorerList.prototype.toJSON = function() {
+                return ExplorerList.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for ExplorerList
+             * @function getTypeUrl
+             * @memberof northstar.data_hub.ExplorerList
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            ExplorerList.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.data_hub.ExplorerList";
+            };
+
+            return ExplorerList;
+        })();
+
+        data_hub.ExplorerRange = (function() {
+
+            /**
+             * Properties of an ExplorerRange.
+             * @typedef {Object} northstar.data_hub.ExplorerRange.$Properties
+             * @property {string|null} [dataset] ExplorerRange dataset
+             * @property {string|null} [scope] ExplorerRange scope
+             * @property {string|null} [start] ExplorerRange start
+             * @property {string|null} [end] ExplorerRange end
+             * @property {number|Long|null} [offset] ExplorerRange offset
+             * @property {"dataset"} [_dataset] ExplorerRange _dataset
+             * @property {"scope"} [_scope] ExplorerRange _scope
+             * @property {"start"} [_start] ExplorerRange _start
+             * @property {"end"} [_end] ExplorerRange _end
+             * @property {"offset"} [_offset] ExplorerRange _offset
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of an ExplorerRange.
+             * @memberof northstar.data_hub
+             * @interface IExplorerRange
+             * @augments northstar.data_hub.ExplorerRange.$Properties
+             * @deprecated Use northstar.data_hub.ExplorerRange.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of an ExplorerRange.
+             * @typedef {{
+             *   dataset?: string|null;
+             *   scope?: string|null;
+             *   start?: string|null;
+             *   end?: string|null;
+             *   offset?: number|Long|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _dataset?: undefined; dataset?: null }|{ _dataset?: "dataset"; dataset: string })
+             * ) & (
+             *   ({ _scope?: undefined; scope?: null }|{ _scope?: "scope"; scope: string })
+             * ) & (
+             *   ({ _start?: undefined; start?: null }|{ _start?: "start"; start: string })
+             * ) & (
+             *   ({ _end?: undefined; end?: null }|{ _end?: "end"; end: string })
+             * ) & (
+             *   ({ _offset?: undefined; offset?: null }|{ _offset?: "offset"; offset: number|Long })
+             * )} northstar.data_hub.ExplorerRange.$Shape
+             */
+
+            /**
+             * Constructs a new ExplorerRange.
+             * @memberof northstar.data_hub
+             * @classdesc Represents an ExplorerRange.
+             * @constructor
+             * @param {northstar.data_hub.ExplorerRange.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const ExplorerRange = function (properties) {
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * ExplorerRange dataset.
+             * @member {string|null|undefined} dataset
+             * @memberof northstar.data_hub.ExplorerRange
+             * @instance
+             */
+            ExplorerRange.prototype.dataset = null;
+
+            /**
+             * ExplorerRange scope.
+             * @member {string|null|undefined} scope
+             * @memberof northstar.data_hub.ExplorerRange
+             * @instance
+             */
+            ExplorerRange.prototype.scope = null;
+
+            /**
+             * ExplorerRange start.
+             * @member {string|null|undefined} start
+             * @memberof northstar.data_hub.ExplorerRange
+             * @instance
+             */
+            ExplorerRange.prototype.start = null;
+
+            /**
+             * ExplorerRange end.
+             * @member {string|null|undefined} end
+             * @memberof northstar.data_hub.ExplorerRange
+             * @instance
+             */
+            ExplorerRange.prototype.end = null;
+
+            /**
+             * ExplorerRange offset.
+             * @member {number|Long|null|undefined} offset
+             * @memberof northstar.data_hub.ExplorerRange
+             * @instance
+             */
+            ExplorerRange.prototype.offset = null;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * ExplorerRange _dataset.
+             * @member {"dataset"|undefined} _dataset
+             * @memberof northstar.data_hub.ExplorerRange
+             * @instance
+             */
+            $Object.defineProperty(ExplorerRange.prototype, "_dataset", {
+                get: $util.oneOfGetter($oneOfFields = ["dataset"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ExplorerRange _scope.
+             * @member {"scope"|undefined} _scope
+             * @memberof northstar.data_hub.ExplorerRange
+             * @instance
+             */
+            $Object.defineProperty(ExplorerRange.prototype, "_scope", {
+                get: $util.oneOfGetter($oneOfFields = ["scope"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ExplorerRange _start.
+             * @member {"start"|undefined} _start
+             * @memberof northstar.data_hub.ExplorerRange
+             * @instance
+             */
+            $Object.defineProperty(ExplorerRange.prototype, "_start", {
+                get: $util.oneOfGetter($oneOfFields = ["start"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ExplorerRange _end.
+             * @member {"end"|undefined} _end
+             * @memberof northstar.data_hub.ExplorerRange
+             * @instance
+             */
+            $Object.defineProperty(ExplorerRange.prototype, "_end", {
+                get: $util.oneOfGetter($oneOfFields = ["end"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ExplorerRange _offset.
+             * @member {"offset"|undefined} _offset
+             * @memberof northstar.data_hub.ExplorerRange
+             * @instance
+             */
+            $Object.defineProperty(ExplorerRange.prototype, "_offset", {
+                get: $util.oneOfGetter($oneOfFields = ["offset"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new ExplorerRange instance using the specified properties.
+             * @function create
+             * @memberof northstar.data_hub.ExplorerRange
+             * @static
+             * @param {northstar.data_hub.ExplorerRange.$Properties=} [properties] Properties to set
+             * @returns {northstar.data_hub.ExplorerRange} ExplorerRange instance
+             * @type {{
+             *   (properties: northstar.data_hub.ExplorerRange.$Shape): northstar.data_hub.ExplorerRange & northstar.data_hub.ExplorerRange.$Shape;
+             *   (properties?: northstar.data_hub.ExplorerRange.$Properties): northstar.data_hub.ExplorerRange;
+             * }}
+             */
+            ExplorerRange.create = function(properties) {
+                return new ExplorerRange(properties);
+            };
+
+            /**
+             * Encodes the specified ExplorerRange message. Does not implicitly {@link northstar.data_hub.ExplorerRange.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.data_hub.ExplorerRange
+             * @static
+             * @param {northstar.data_hub.ExplorerRange.$Properties} message ExplorerRange message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            ExplorerRange.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.dataset != null && $Object.hasOwnProperty.call(message, "dataset"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.dataset);
+                if (message.scope != null && $Object.hasOwnProperty.call(message, "scope"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.scope);
+                if (message.start != null && $Object.hasOwnProperty.call(message, "start"))
+                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.start);
+                if (message.end != null && $Object.hasOwnProperty.call(message, "end"))
+                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.end);
+                if (message.offset != null && $Object.hasOwnProperty.call(message, "offset"))
+                    writer.uint32(/* id 5, wireType 0 =*/40).int64(message.offset);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes an ExplorerRange message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.data_hub.ExplorerRange
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.data_hub.ExplorerRange & northstar.data_hub.ExplorerRange.$Shape} ExplorerRange
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            ExplorerRange.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.data_hub.ExplorerRange();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.dataset = reader.stringVerify();
+                            message._dataset = "dataset";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.scope = reader.stringVerify();
+                            message._scope = "scope";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 2)
+                                break;
+                            message.start = reader.stringVerify();
+                            message._start = "start";
+                            continue;
+                        }
+                    case 4: {
+                            if (wireType !== 2)
+                                break;
+                            message.end = reader.stringVerify();
+                            message._end = "end";
+                            continue;
+                        }
+                    case 5: {
+                            if (wireType !== 0)
+                                break;
+                            message.offset = reader.int64();
+                            message._offset = "offset";
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies an ExplorerRange message.
+             * @function verify
+             * @memberof northstar.data_hub.ExplorerRange
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            ExplorerRange.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.dataset != null && $Object.hasOwnProperty.call(message, "dataset")) {
+                    properties._dataset = 1;
+                    if (!$util.isString(message.dataset))
+                        return "dataset: string expected";
+                }
+                if (message.scope != null && $Object.hasOwnProperty.call(message, "scope")) {
+                    properties._scope = 1;
+                    if (!$util.isString(message.scope))
+                        return "scope: string expected";
+                }
+                if (message.start != null && $Object.hasOwnProperty.call(message, "start")) {
+                    properties._start = 1;
+                    if (!$util.isString(message.start))
+                        return "start: string expected";
+                }
+                if (message.end != null && $Object.hasOwnProperty.call(message, "end")) {
+                    properties._end = 1;
+                    if (!$util.isString(message.end))
+                        return "end: string expected";
+                }
+                if (message.offset != null && $Object.hasOwnProperty.call(message, "offset")) {
+                    properties._offset = 1;
+                    if (!$util.isInteger(message.offset) && !(message.offset && $util.isInteger(message.offset.low) && $util.isInteger(message.offset.high)))
+                        return "offset: integer|Long expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates an ExplorerRange message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.data_hub.ExplorerRange
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.data_hub.ExplorerRange} ExplorerRange
+             */
+            ExplorerRange.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.data_hub.ExplorerRange)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.data_hub.ExplorerRange: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.data_hub.ExplorerRange();
+                if (object.dataset != null)
+                    message.dataset = $String(object.dataset);
+                if (object.scope != null)
+                    message.scope = $String(object.scope);
+                if (object.start != null)
+                    message.start = $String(object.start);
+                if (object.end != null)
+                    message.end = $String(object.end);
+                if (object.offset != null)
+                    if ($util.Long)
+                        message.offset = $util.Long.fromValue(object.offset, false);
+                    else if (typeof object.offset === "string")
+                        message.offset = $parseInt(object.offset, 10);
+                    else if (typeof object.offset === "number")
+                        message.offset = object.offset;
+                    else if (typeof object.offset === "object")
+                        message.offset = new $util.LongBits(object.offset.low >>> 0, object.offset.high >>> 0).toNumber();
+                return message;
+            };
+
+            /**
+             * Creates a plain object from an ExplorerRange message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.data_hub.ExplorerRange
+             * @static
+             * @param {northstar.data_hub.ExplorerRange} message ExplorerRange
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            ExplorerRange.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (message.dataset != null && $Object.hasOwnProperty.call(message, "dataset")) {
+                    object.dataset = message.dataset;
+                    if (options.oneofs)
+                        object._dataset = "dataset";
+                }
+                if (message.scope != null && $Object.hasOwnProperty.call(message, "scope")) {
+                    object.scope = message.scope;
+                    if (options.oneofs)
+                        object._scope = "scope";
+                }
+                if (message.start != null && $Object.hasOwnProperty.call(message, "start")) {
+                    object.start = message.start;
+                    if (options.oneofs)
+                        object._start = "start";
+                }
+                if (message.end != null && $Object.hasOwnProperty.call(message, "end")) {
+                    object.end = message.end;
+                    if (options.oneofs)
+                        object._end = "end";
+                }
+                if (message.offset != null && $Object.hasOwnProperty.call(message, "offset")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.offset = typeof message.offset === "number" ? $BigInt(message.offset) : $util.Long.fromBits(message.offset.low >>> 0, message.offset.high >>> 0, false).toBigInt();
+                    else if (typeof message.offset === "number")
+                        object.offset = options.longs === $String ? $String(message.offset) : message.offset;
+                    else
+                        object.offset = options.longs === $String ? $util.Long.prototype.toString.call(message.offset) : options.longs === $Number ? new $util.LongBits(message.offset.low >>> 0, message.offset.high >>> 0).toNumber() : message.offset;
+                    if (options.oneofs)
+                        object._offset = "offset";
+                }
+                return object;
+            };
+
+            /**
+             * Converts this ExplorerRange to JSON.
+             * @function toJSON
+             * @memberof northstar.data_hub.ExplorerRange
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            ExplorerRange.prototype.toJSON = function() {
+                return ExplorerRange.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for ExplorerRange
+             * @function getTypeUrl
+             * @memberof northstar.data_hub.ExplorerRange
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            ExplorerRange.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.data_hub.ExplorerRange";
+            };
+
+            return ExplorerRange;
+        })();
+
+        data_hub.ExplorerQuery = (function() {
+
+            /**
+             * Properties of an ExplorerQuery.
+             * @typedef {Object} northstar.data_hub.ExplorerQuery.$Properties
+             * @property {string|null} [dataset] ExplorerQuery dataset
+             * @property {string|null} [scope] ExplorerQuery scope
+             * @property {string|null} [start] ExplorerQuery start
+             * @property {string|null} [end] ExplorerQuery end
+             * @property {number|Long|null} [offset] ExplorerQuery offset
+             * @property {Array.<string>|null} [receipt_ids] ExplorerQuery receipt_ids
+             * @property {number|Long|null} [limit] ExplorerQuery limit
+             * @property {"dataset"} [_dataset] ExplorerQuery _dataset
+             * @property {"scope"} [_scope] ExplorerQuery _scope
+             * @property {"start"} [_start] ExplorerQuery _start
+             * @property {"end"} [_end] ExplorerQuery _end
+             * @property {"offset"} [_offset] ExplorerQuery _offset
+             * @property {"limit"} [_limit] ExplorerQuery _limit
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of an ExplorerQuery.
+             * @memberof northstar.data_hub
+             * @interface IExplorerQuery
+             * @augments northstar.data_hub.ExplorerQuery.$Properties
+             * @deprecated Use northstar.data_hub.ExplorerQuery.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of an ExplorerQuery.
+             * @typedef {{
+             *   dataset?: string|null;
+             *   scope?: string|null;
+             *   start?: string|null;
+             *   end?: string|null;
+             *   offset?: number|Long|null;
+             *   receipt_ids?: Array.<string>|null;
+             *   limit?: number|Long|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _dataset?: undefined; dataset?: null }|{ _dataset?: "dataset"; dataset: string })
+             * ) & (
+             *   ({ _scope?: undefined; scope?: null }|{ _scope?: "scope"; scope: string })
+             * ) & (
+             *   ({ _start?: undefined; start?: null }|{ _start?: "start"; start: string })
+             * ) & (
+             *   ({ _end?: undefined; end?: null }|{ _end?: "end"; end: string })
+             * ) & (
+             *   ({ _offset?: undefined; offset?: null }|{ _offset?: "offset"; offset: number|Long })
+             * ) & (
+             *   ({ _limit?: undefined; limit?: null }|{ _limit?: "limit"; limit: number|Long })
+             * )} northstar.data_hub.ExplorerQuery.$Shape
+             */
+
+            /**
+             * Constructs a new ExplorerQuery.
+             * @memberof northstar.data_hub
+             * @classdesc Represents an ExplorerQuery.
+             * @constructor
+             * @param {northstar.data_hub.ExplorerQuery.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const ExplorerQuery = function (properties) {
+                this.receipt_ids = [];
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * ExplorerQuery dataset.
+             * @member {string|null|undefined} dataset
+             * @memberof northstar.data_hub.ExplorerQuery
+             * @instance
+             */
+            ExplorerQuery.prototype.dataset = null;
+
+            /**
+             * ExplorerQuery scope.
+             * @member {string|null|undefined} scope
+             * @memberof northstar.data_hub.ExplorerQuery
+             * @instance
+             */
+            ExplorerQuery.prototype.scope = null;
+
+            /**
+             * ExplorerQuery start.
+             * @member {string|null|undefined} start
+             * @memberof northstar.data_hub.ExplorerQuery
+             * @instance
+             */
+            ExplorerQuery.prototype.start = null;
+
+            /**
+             * ExplorerQuery end.
+             * @member {string|null|undefined} end
+             * @memberof northstar.data_hub.ExplorerQuery
+             * @instance
+             */
+            ExplorerQuery.prototype.end = null;
+
+            /**
+             * ExplorerQuery offset.
+             * @member {number|Long|null|undefined} offset
+             * @memberof northstar.data_hub.ExplorerQuery
+             * @instance
+             */
+            ExplorerQuery.prototype.offset = null;
+
+            /**
+             * ExplorerQuery receipt_ids.
+             * @member {Array.<string>} receipt_ids
+             * @memberof northstar.data_hub.ExplorerQuery
+             * @instance
+             */
+            ExplorerQuery.prototype.receipt_ids = $util.emptyArray;
+
+            /**
+             * ExplorerQuery limit.
+             * @member {number|Long|null|undefined} limit
+             * @memberof northstar.data_hub.ExplorerQuery
+             * @instance
+             */
+            ExplorerQuery.prototype.limit = null;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * ExplorerQuery _dataset.
+             * @member {"dataset"|undefined} _dataset
+             * @memberof northstar.data_hub.ExplorerQuery
+             * @instance
+             */
+            $Object.defineProperty(ExplorerQuery.prototype, "_dataset", {
+                get: $util.oneOfGetter($oneOfFields = ["dataset"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ExplorerQuery _scope.
+             * @member {"scope"|undefined} _scope
+             * @memberof northstar.data_hub.ExplorerQuery
+             * @instance
+             */
+            $Object.defineProperty(ExplorerQuery.prototype, "_scope", {
+                get: $util.oneOfGetter($oneOfFields = ["scope"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ExplorerQuery _start.
+             * @member {"start"|undefined} _start
+             * @memberof northstar.data_hub.ExplorerQuery
+             * @instance
+             */
+            $Object.defineProperty(ExplorerQuery.prototype, "_start", {
+                get: $util.oneOfGetter($oneOfFields = ["start"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ExplorerQuery _end.
+             * @member {"end"|undefined} _end
+             * @memberof northstar.data_hub.ExplorerQuery
+             * @instance
+             */
+            $Object.defineProperty(ExplorerQuery.prototype, "_end", {
+                get: $util.oneOfGetter($oneOfFields = ["end"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ExplorerQuery _offset.
+             * @member {"offset"|undefined} _offset
+             * @memberof northstar.data_hub.ExplorerQuery
+             * @instance
+             */
+            $Object.defineProperty(ExplorerQuery.prototype, "_offset", {
+                get: $util.oneOfGetter($oneOfFields = ["offset"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ExplorerQuery _limit.
+             * @member {"limit"|undefined} _limit
+             * @memberof northstar.data_hub.ExplorerQuery
+             * @instance
+             */
+            $Object.defineProperty(ExplorerQuery.prototype, "_limit", {
+                get: $util.oneOfGetter($oneOfFields = ["limit"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new ExplorerQuery instance using the specified properties.
+             * @function create
+             * @memberof northstar.data_hub.ExplorerQuery
+             * @static
+             * @param {northstar.data_hub.ExplorerQuery.$Properties=} [properties] Properties to set
+             * @returns {northstar.data_hub.ExplorerQuery} ExplorerQuery instance
+             * @type {{
+             *   (properties: northstar.data_hub.ExplorerQuery.$Shape): northstar.data_hub.ExplorerQuery & northstar.data_hub.ExplorerQuery.$Shape;
+             *   (properties?: northstar.data_hub.ExplorerQuery.$Properties): northstar.data_hub.ExplorerQuery;
+             * }}
+             */
+            ExplorerQuery.create = function(properties) {
+                return new ExplorerQuery(properties);
+            };
+
+            /**
+             * Encodes the specified ExplorerQuery message. Does not implicitly {@link northstar.data_hub.ExplorerQuery.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.data_hub.ExplorerQuery
+             * @static
+             * @param {northstar.data_hub.ExplorerQuery.$Properties} message ExplorerQuery message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            ExplorerQuery.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.dataset != null && $Object.hasOwnProperty.call(message, "dataset"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.dataset);
+                if (message.scope != null && $Object.hasOwnProperty.call(message, "scope"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.scope);
+                if (message.start != null && $Object.hasOwnProperty.call(message, "start"))
+                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.start);
+                if (message.end != null && $Object.hasOwnProperty.call(message, "end"))
+                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.end);
+                if (message.offset != null && $Object.hasOwnProperty.call(message, "offset"))
+                    writer.uint32(/* id 5, wireType 0 =*/40).int64(message.offset);
+                if (message.receipt_ids != null && message.receipt_ids.length)
+                    for (let i = 0; i < message.receipt_ids.length; ++i)
+                        writer.uint32(/* id 6, wireType 2 =*/50).string(message.receipt_ids[i]);
+                if (message.limit != null && $Object.hasOwnProperty.call(message, "limit"))
+                    writer.uint32(/* id 7, wireType 0 =*/56).int64(message.limit);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes an ExplorerQuery message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.data_hub.ExplorerQuery
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.data_hub.ExplorerQuery & northstar.data_hub.ExplorerQuery.$Shape} ExplorerQuery
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            ExplorerQuery.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.data_hub.ExplorerQuery();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.dataset = reader.stringVerify();
+                            message._dataset = "dataset";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.scope = reader.stringVerify();
+                            message._scope = "scope";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 2)
+                                break;
+                            message.start = reader.stringVerify();
+                            message._start = "start";
+                            continue;
+                        }
+                    case 4: {
+                            if (wireType !== 2)
+                                break;
+                            message.end = reader.stringVerify();
+                            message._end = "end";
+                            continue;
+                        }
+                    case 5: {
+                            if (wireType !== 0)
+                                break;
+                            message.offset = reader.int64();
+                            message._offset = "offset";
+                            continue;
+                        }
+                    case 6: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.receipt_ids && message.receipt_ids.length))
+                                message.receipt_ids = [];
+                            message.receipt_ids.push(reader.stringVerify());
+                            continue;
+                        }
+                    case 7: {
+                            if (wireType !== 0)
+                                break;
+                            message.limit = reader.int64();
+                            message._limit = "limit";
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies an ExplorerQuery message.
+             * @function verify
+             * @memberof northstar.data_hub.ExplorerQuery
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            ExplorerQuery.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.dataset != null && $Object.hasOwnProperty.call(message, "dataset")) {
+                    properties._dataset = 1;
+                    if (!$util.isString(message.dataset))
+                        return "dataset: string expected";
+                }
+                if (message.scope != null && $Object.hasOwnProperty.call(message, "scope")) {
+                    properties._scope = 1;
+                    if (!$util.isString(message.scope))
+                        return "scope: string expected";
+                }
+                if (message.start != null && $Object.hasOwnProperty.call(message, "start")) {
+                    properties._start = 1;
+                    if (!$util.isString(message.start))
+                        return "start: string expected";
+                }
+                if (message.end != null && $Object.hasOwnProperty.call(message, "end")) {
+                    properties._end = 1;
+                    if (!$util.isString(message.end))
+                        return "end: string expected";
+                }
+                if (message.offset != null && $Object.hasOwnProperty.call(message, "offset")) {
+                    properties._offset = 1;
+                    if (!$util.isInteger(message.offset) && !(message.offset && $util.isInteger(message.offset.low) && $util.isInteger(message.offset.high)))
+                        return "offset: integer|Long expected";
+                }
+                if (message.receipt_ids != null && $Object.hasOwnProperty.call(message, "receipt_ids")) {
+                    if (!$Array.isArray(message.receipt_ids))
+                        return "receipt_ids: array expected";
+                    for (let i = 0; i < message.receipt_ids.length; ++i)
+                        if (!$util.isString(message.receipt_ids[i]))
+                            return "receipt_ids: string[] expected";
+                }
+                if (message.limit != null && $Object.hasOwnProperty.call(message, "limit")) {
+                    properties._limit = 1;
+                    if (!$util.isInteger(message.limit) && !(message.limit && $util.isInteger(message.limit.low) && $util.isInteger(message.limit.high)))
+                        return "limit: integer|Long expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates an ExplorerQuery message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.data_hub.ExplorerQuery
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.data_hub.ExplorerQuery} ExplorerQuery
+             */
+            ExplorerQuery.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.data_hub.ExplorerQuery)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.data_hub.ExplorerQuery: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.data_hub.ExplorerQuery();
+                if (object.dataset != null)
+                    message.dataset = $String(object.dataset);
+                if (object.scope != null)
+                    message.scope = $String(object.scope);
+                if (object.start != null)
+                    message.start = $String(object.start);
+                if (object.end != null)
+                    message.end = $String(object.end);
+                if (object.offset != null)
+                    if ($util.Long)
+                        message.offset = $util.Long.fromValue(object.offset, false);
+                    else if (typeof object.offset === "string")
+                        message.offset = $parseInt(object.offset, 10);
+                    else if (typeof object.offset === "number")
+                        message.offset = object.offset;
+                    else if (typeof object.offset === "object")
+                        message.offset = new $util.LongBits(object.offset.low >>> 0, object.offset.high >>> 0).toNumber();
+                if (object.receipt_ids) {
+                    if (!$Array.isArray(object.receipt_ids))
+                        throw $TypeError(".northstar.data_hub.ExplorerQuery.receipt_ids: array expected");
+                    message.receipt_ids = $Array(object.receipt_ids.length);
+                    for (let i = 0; i < object.receipt_ids.length; ++i)
+                        message.receipt_ids[i] = $String(object.receipt_ids[i]);
+                }
+                if (object.limit != null)
+                    if ($util.Long)
+                        message.limit = $util.Long.fromValue(object.limit, false);
+                    else if (typeof object.limit === "string")
+                        message.limit = $parseInt(object.limit, 10);
+                    else if (typeof object.limit === "number")
+                        message.limit = object.limit;
+                    else if (typeof object.limit === "object")
+                        message.limit = new $util.LongBits(object.limit.low >>> 0, object.limit.high >>> 0).toNumber();
+                return message;
+            };
+
+            /**
+             * Creates a plain object from an ExplorerQuery message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.data_hub.ExplorerQuery
+             * @static
+             * @param {northstar.data_hub.ExplorerQuery} message ExplorerQuery
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            ExplorerQuery.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.arrays || options.defaults)
+                    object.receipt_ids = [];
+                if (message.dataset != null && $Object.hasOwnProperty.call(message, "dataset")) {
+                    object.dataset = message.dataset;
+                    if (options.oneofs)
+                        object._dataset = "dataset";
+                }
+                if (message.scope != null && $Object.hasOwnProperty.call(message, "scope")) {
+                    object.scope = message.scope;
+                    if (options.oneofs)
+                        object._scope = "scope";
+                }
+                if (message.start != null && $Object.hasOwnProperty.call(message, "start")) {
+                    object.start = message.start;
+                    if (options.oneofs)
+                        object._start = "start";
+                }
+                if (message.end != null && $Object.hasOwnProperty.call(message, "end")) {
+                    object.end = message.end;
+                    if (options.oneofs)
+                        object._end = "end";
+                }
+                if (message.offset != null && $Object.hasOwnProperty.call(message, "offset")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.offset = typeof message.offset === "number" ? $BigInt(message.offset) : $util.Long.fromBits(message.offset.low >>> 0, message.offset.high >>> 0, false).toBigInt();
+                    else if (typeof message.offset === "number")
+                        object.offset = options.longs === $String ? $String(message.offset) : message.offset;
+                    else
+                        object.offset = options.longs === $String ? $util.Long.prototype.toString.call(message.offset) : options.longs === $Number ? new $util.LongBits(message.offset.low >>> 0, message.offset.high >>> 0).toNumber() : message.offset;
+                    if (options.oneofs)
+                        object._offset = "offset";
+                }
+                if (message.receipt_ids && message.receipt_ids.length) {
+                    object.receipt_ids = $Array(message.receipt_ids.length);
+                    for (let j = 0; j < message.receipt_ids.length; ++j)
+                        object.receipt_ids[j] = message.receipt_ids[j];
+                }
+                if (message.limit != null && $Object.hasOwnProperty.call(message, "limit")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.limit = typeof message.limit === "number" ? $BigInt(message.limit) : $util.Long.fromBits(message.limit.low >>> 0, message.limit.high >>> 0, false).toBigInt();
+                    else if (typeof message.limit === "number")
+                        object.limit = options.longs === $String ? $String(message.limit) : message.limit;
+                    else
+                        object.limit = options.longs === $String ? $util.Long.prototype.toString.call(message.limit) : options.longs === $Number ? new $util.LongBits(message.limit.low >>> 0, message.limit.high >>> 0).toNumber() : message.limit;
+                    if (options.oneofs)
+                        object._limit = "limit";
+                }
+                return object;
+            };
+
+            /**
+             * Converts this ExplorerQuery to JSON.
+             * @function toJSON
+             * @memberof northstar.data_hub.ExplorerQuery
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            ExplorerQuery.prototype.toJSON = function() {
+                return ExplorerQuery.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for ExplorerQuery
+             * @function getTypeUrl
+             * @memberof northstar.data_hub.ExplorerQuery
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            ExplorerQuery.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.data_hub.ExplorerQuery";
+            };
+
+            return ExplorerQuery;
+        })();
+
+        data_hub.ExplorerCoverage = (function() {
+
+            /**
+             * Properties of an ExplorerCoverage.
+             * @typedef {Object} northstar.data_hub.ExplorerCoverage.$Properties
+             * @property {Array.<google.protobuf.Struct.$Properties>|null} [days] ExplorerCoverage days
+             * @property {Array.<google.protobuf.Struct.$Properties>|null} [jobs] ExplorerCoverage jobs
+             * @property {string|null} [note] ExplorerCoverage note
+             * @property {"note"} [_note] ExplorerCoverage _note
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of an ExplorerCoverage.
+             * @memberof northstar.data_hub
+             * @interface IExplorerCoverage
+             * @augments northstar.data_hub.ExplorerCoverage.$Properties
+             * @deprecated Use northstar.data_hub.ExplorerCoverage.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of an ExplorerCoverage.
+             * @typedef {{
+             *   days?: Array.<google.protobuf.Struct.$Shape>|null;
+             *   jobs?: Array.<google.protobuf.Struct.$Shape>|null;
+             *   note?: string|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _note?: undefined; note?: null }|{ _note?: "note"; note: string })
+             * )} northstar.data_hub.ExplorerCoverage.$Shape
+             */
+
+            /**
+             * Constructs a new ExplorerCoverage.
+             * @memberof northstar.data_hub
+             * @classdesc Represents an ExplorerCoverage.
+             * @constructor
+             * @param {northstar.data_hub.ExplorerCoverage.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const ExplorerCoverage = function (properties) {
+                this.days = [];
+                this.jobs = [];
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * ExplorerCoverage days.
+             * @member {Array.<google.protobuf.Struct.$Properties>} days
+             * @memberof northstar.data_hub.ExplorerCoverage
+             * @instance
+             */
+            ExplorerCoverage.prototype.days = $util.emptyArray;
+
+            /**
+             * ExplorerCoverage jobs.
+             * @member {Array.<google.protobuf.Struct.$Properties>} jobs
+             * @memberof northstar.data_hub.ExplorerCoverage
+             * @instance
+             */
+            ExplorerCoverage.prototype.jobs = $util.emptyArray;
+
+            /**
+             * ExplorerCoverage note.
+             * @member {string|null|undefined} note
+             * @memberof northstar.data_hub.ExplorerCoverage
+             * @instance
+             */
+            ExplorerCoverage.prototype.note = null;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * ExplorerCoverage _note.
+             * @member {"note"|undefined} _note
+             * @memberof northstar.data_hub.ExplorerCoverage
+             * @instance
+             */
+            $Object.defineProperty(ExplorerCoverage.prototype, "_note", {
+                get: $util.oneOfGetter($oneOfFields = ["note"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new ExplorerCoverage instance using the specified properties.
+             * @function create
+             * @memberof northstar.data_hub.ExplorerCoverage
+             * @static
+             * @param {northstar.data_hub.ExplorerCoverage.$Properties=} [properties] Properties to set
+             * @returns {northstar.data_hub.ExplorerCoverage} ExplorerCoverage instance
+             * @type {{
+             *   (properties: northstar.data_hub.ExplorerCoverage.$Shape): northstar.data_hub.ExplorerCoverage & northstar.data_hub.ExplorerCoverage.$Shape;
+             *   (properties?: northstar.data_hub.ExplorerCoverage.$Properties): northstar.data_hub.ExplorerCoverage;
+             * }}
+             */
+            ExplorerCoverage.create = function(properties) {
+                return new ExplorerCoverage(properties);
+            };
+
+            /**
+             * Encodes the specified ExplorerCoverage message. Does not implicitly {@link northstar.data_hub.ExplorerCoverage.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.data_hub.ExplorerCoverage
+             * @static
+             * @param {northstar.data_hub.ExplorerCoverage.$Properties} message ExplorerCoverage message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            ExplorerCoverage.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.days != null && message.days.length)
+                    for (let i = 0; i < message.days.length; ++i)
+                        $root.google.protobuf.Struct.encode(message.days[i], writer.uint32(/* id 1, wireType 2 =*/10).fork(), _depth + 1).ldelim();
+                if (message.jobs != null && message.jobs.length)
+                    for (let i = 0; i < message.jobs.length; ++i)
+                        $root.google.protobuf.Struct.encode(message.jobs[i], writer.uint32(/* id 2, wireType 2 =*/18).fork(), _depth + 1).ldelim();
+                if (message.note != null && $Object.hasOwnProperty.call(message, "note"))
+                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.note);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes an ExplorerCoverage message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.data_hub.ExplorerCoverage
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.data_hub.ExplorerCoverage & northstar.data_hub.ExplorerCoverage.$Shape} ExplorerCoverage
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            ExplorerCoverage.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.data_hub.ExplorerCoverage();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.days && message.days.length))
+                                message.days = [];
+                            message.days.push($root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1));
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.jobs && message.jobs.length))
+                                message.jobs = [];
+                            message.jobs.push($root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1));
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 2)
+                                break;
+                            message.note = reader.stringVerify();
+                            message._note = "note";
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies an ExplorerCoverage message.
+             * @function verify
+             * @memberof northstar.data_hub.ExplorerCoverage
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            ExplorerCoverage.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.days != null && $Object.hasOwnProperty.call(message, "days")) {
+                    if (!$Array.isArray(message.days))
+                        return "days: array expected";
+                    for (let i = 0; i < message.days.length; ++i) {
+                        let error = $root.google.protobuf.Struct.verify(message.days[i], _depth + 1);
+                        if (error)
+                            return "days." + error;
+                    }
+                }
+                if (message.jobs != null && $Object.hasOwnProperty.call(message, "jobs")) {
+                    if (!$Array.isArray(message.jobs))
+                        return "jobs: array expected";
+                    for (let i = 0; i < message.jobs.length; ++i) {
+                        let error = $root.google.protobuf.Struct.verify(message.jobs[i], _depth + 1);
+                        if (error)
+                            return "jobs." + error;
+                    }
+                }
+                if (message.note != null && $Object.hasOwnProperty.call(message, "note")) {
+                    properties._note = 1;
+                    if (!$util.isString(message.note))
+                        return "note: string expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates an ExplorerCoverage message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.data_hub.ExplorerCoverage
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.data_hub.ExplorerCoverage} ExplorerCoverage
+             */
+            ExplorerCoverage.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.data_hub.ExplorerCoverage)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.data_hub.ExplorerCoverage: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.data_hub.ExplorerCoverage();
+                if (object.days) {
+                    if (!$Array.isArray(object.days))
+                        throw $TypeError(".northstar.data_hub.ExplorerCoverage.days: array expected");
+                    message.days = $Array(object.days.length);
+                    for (let i = 0; i < object.days.length; ++i) {
+                        if (!$util.isObject(object.days[i]))
+                            throw $TypeError(".northstar.data_hub.ExplorerCoverage.days: object expected");
+                        message.days[i] = $root.google.protobuf.Struct.fromObject(object.days[i], _depth + 1);
+                    }
+                }
+                if (object.jobs) {
+                    if (!$Array.isArray(object.jobs))
+                        throw $TypeError(".northstar.data_hub.ExplorerCoverage.jobs: array expected");
+                    message.jobs = $Array(object.jobs.length);
+                    for (let i = 0; i < object.jobs.length; ++i) {
+                        if (!$util.isObject(object.jobs[i]))
+                            throw $TypeError(".northstar.data_hub.ExplorerCoverage.jobs: object expected");
+                        message.jobs[i] = $root.google.protobuf.Struct.fromObject(object.jobs[i], _depth + 1);
+                    }
+                }
+                if (object.note != null)
+                    message.note = $String(object.note);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from an ExplorerCoverage message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.data_hub.ExplorerCoverage
+             * @static
+             * @param {northstar.data_hub.ExplorerCoverage} message ExplorerCoverage
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            ExplorerCoverage.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.arrays || options.defaults) {
+                    object.days = [];
+                    object.jobs = [];
+                }
+                if (message.days && message.days.length) {
+                    object.days = $Array(message.days.length);
+                    for (let j = 0; j < message.days.length; ++j)
+                        object.days[j] = $root.google.protobuf.Struct.toObject(message.days[j], options, _depth + 1);
+                }
+                if (message.jobs && message.jobs.length) {
+                    object.jobs = $Array(message.jobs.length);
+                    for (let j = 0; j < message.jobs.length; ++j)
+                        object.jobs[j] = $root.google.protobuf.Struct.toObject(message.jobs[j], options, _depth + 1);
+                }
+                if (message.note != null && $Object.hasOwnProperty.call(message, "note")) {
+                    object.note = message.note;
+                    if (options.oneofs)
+                        object._note = "note";
+                }
+                return object;
+            };
+
+            /**
+             * Converts this ExplorerCoverage to JSON.
+             * @function toJSON
+             * @memberof northstar.data_hub.ExplorerCoverage
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            ExplorerCoverage.prototype.toJSON = function() {
+                return ExplorerCoverage.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for ExplorerCoverage
+             * @function getTypeUrl
+             * @memberof northstar.data_hub.ExplorerCoverage
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            ExplorerCoverage.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.data_hub.ExplorerCoverage";
+            };
+
+            return ExplorerCoverage;
+        })();
+
+        data_hub.ExplorerRows = (function() {
+
+            /**
+             * Properties of an ExplorerRows.
+             * @typedef {Object} northstar.data_hub.ExplorerRows.$Properties
+             * @property {Array.<google.protobuf.Struct.$Properties>|null} [sources] ExplorerRows sources
+             * @property {boolean|null} [export_allowed] ExplorerRows export_allowed
+             * @property {string|null} [dataset] ExplorerRows dataset
+             * @property {string|null} [scope] ExplorerRows scope
+             * @property {string|null} [start] ExplorerRows start
+             * @property {string|null} [end] ExplorerRows end
+             * @property {Array.<string>|null} [receipt_ids] ExplorerRows receipt_ids
+             * @property {string|null} [view_id] ExplorerRows view_id
+             * @property {Array.<google.protobuf.Struct.$Properties>|null} [rows] ExplorerRows rows
+             * @property {number|Long|null} [total] ExplorerRows total
+             * @property {number|Long|null} [offset] ExplorerRows offset
+             * @property {number|Long|null} [limit] ExplorerRows limit
+             * @property {Array.<google.protobuf.Struct.$Properties>|null} [fields] ExplorerRows fields
+             * @property {Array.<google.protobuf.Struct.$Properties>|null} [versions] ExplorerRows versions
+             * @property {string|null} [note] ExplorerRows note
+             * @property {"export_allowed"} [_export_allowed] ExplorerRows _export_allowed
+             * @property {"dataset"} [_dataset] ExplorerRows _dataset
+             * @property {"scope"} [_scope] ExplorerRows _scope
+             * @property {"start"} [_start] ExplorerRows _start
+             * @property {"end"} [_end] ExplorerRows _end
+             * @property {"view_id"} [_view_id] ExplorerRows _view_id
+             * @property {"total"} [_total] ExplorerRows _total
+             * @property {"offset"} [_offset] ExplorerRows _offset
+             * @property {"limit"} [_limit] ExplorerRows _limit
+             * @property {"note"} [_note] ExplorerRows _note
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of an ExplorerRows.
+             * @memberof northstar.data_hub
+             * @interface IExplorerRows
+             * @augments northstar.data_hub.ExplorerRows.$Properties
+             * @deprecated Use northstar.data_hub.ExplorerRows.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of an ExplorerRows.
+             * @typedef {{
+             *   sources?: Array.<google.protobuf.Struct.$Shape>|null;
+             *   export_allowed?: boolean|null;
+             *   dataset?: string|null;
+             *   scope?: string|null;
+             *   start?: string|null;
+             *   end?: string|null;
+             *   receipt_ids?: Array.<string>|null;
+             *   view_id?: string|null;
+             *   rows?: Array.<google.protobuf.Struct.$Shape>|null;
+             *   total?: number|Long|null;
+             *   offset?: number|Long|null;
+             *   limit?: number|Long|null;
+             *   fields?: Array.<google.protobuf.Struct.$Shape>|null;
+             *   versions?: Array.<google.protobuf.Struct.$Shape>|null;
+             *   note?: string|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _export_allowed?: undefined; export_allowed?: null }|{ _export_allowed?: "export_allowed"; export_allowed: boolean })
+             * ) & (
+             *   ({ _dataset?: undefined; dataset?: null }|{ _dataset?: "dataset"; dataset: string })
+             * ) & (
+             *   ({ _scope?: undefined; scope?: null }|{ _scope?: "scope"; scope: string })
+             * ) & (
+             *   ({ _start?: undefined; start?: null }|{ _start?: "start"; start: string })
+             * ) & (
+             *   ({ _end?: undefined; end?: null }|{ _end?: "end"; end: string })
+             * ) & (
+             *   ({ _view_id?: undefined; view_id?: null }|{ _view_id?: "view_id"; view_id: string })
+             * ) & (
+             *   ({ _total?: undefined; total?: null }|{ _total?: "total"; total: number|Long })
+             * ) & (
+             *   ({ _offset?: undefined; offset?: null }|{ _offset?: "offset"; offset: number|Long })
+             * ) & (
+             *   ({ _limit?: undefined; limit?: null }|{ _limit?: "limit"; limit: number|Long })
+             * ) & (
+             *   ({ _note?: undefined; note?: null }|{ _note?: "note"; note: string })
+             * )} northstar.data_hub.ExplorerRows.$Shape
+             */
+
+            /**
+             * Constructs a new ExplorerRows.
+             * @memberof northstar.data_hub
+             * @classdesc Represents an ExplorerRows.
+             * @constructor
+             * @param {northstar.data_hub.ExplorerRows.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const ExplorerRows = function (properties) {
+                this.sources = [];
+                this.receipt_ids = [];
+                this.rows = [];
+                this.fields = [];
+                this.versions = [];
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * ExplorerRows sources.
+             * @member {Array.<google.protobuf.Struct.$Properties>} sources
+             * @memberof northstar.data_hub.ExplorerRows
+             * @instance
+             */
+            ExplorerRows.prototype.sources = $util.emptyArray;
+
+            /**
+             * ExplorerRows export_allowed.
+             * @member {boolean|null|undefined} export_allowed
+             * @memberof northstar.data_hub.ExplorerRows
+             * @instance
+             */
+            ExplorerRows.prototype.export_allowed = null;
+
+            /**
+             * ExplorerRows dataset.
+             * @member {string|null|undefined} dataset
+             * @memberof northstar.data_hub.ExplorerRows
+             * @instance
+             */
+            ExplorerRows.prototype.dataset = null;
+
+            /**
+             * ExplorerRows scope.
+             * @member {string|null|undefined} scope
+             * @memberof northstar.data_hub.ExplorerRows
+             * @instance
+             */
+            ExplorerRows.prototype.scope = null;
+
+            /**
+             * ExplorerRows start.
+             * @member {string|null|undefined} start
+             * @memberof northstar.data_hub.ExplorerRows
+             * @instance
+             */
+            ExplorerRows.prototype.start = null;
+
+            /**
+             * ExplorerRows end.
+             * @member {string|null|undefined} end
+             * @memberof northstar.data_hub.ExplorerRows
+             * @instance
+             */
+            ExplorerRows.prototype.end = null;
+
+            /**
+             * ExplorerRows receipt_ids.
+             * @member {Array.<string>} receipt_ids
+             * @memberof northstar.data_hub.ExplorerRows
+             * @instance
+             */
+            ExplorerRows.prototype.receipt_ids = $util.emptyArray;
+
+            /**
+             * ExplorerRows view_id.
+             * @member {string|null|undefined} view_id
+             * @memberof northstar.data_hub.ExplorerRows
+             * @instance
+             */
+            ExplorerRows.prototype.view_id = null;
+
+            /**
+             * ExplorerRows rows.
+             * @member {Array.<google.protobuf.Struct.$Properties>} rows
+             * @memberof northstar.data_hub.ExplorerRows
+             * @instance
+             */
+            ExplorerRows.prototype.rows = $util.emptyArray;
+
+            /**
+             * ExplorerRows total.
+             * @member {number|Long|null|undefined} total
+             * @memberof northstar.data_hub.ExplorerRows
+             * @instance
+             */
+            ExplorerRows.prototype.total = null;
+
+            /**
+             * ExplorerRows offset.
+             * @member {number|Long|null|undefined} offset
+             * @memberof northstar.data_hub.ExplorerRows
+             * @instance
+             */
+            ExplorerRows.prototype.offset = null;
+
+            /**
+             * ExplorerRows limit.
+             * @member {number|Long|null|undefined} limit
+             * @memberof northstar.data_hub.ExplorerRows
+             * @instance
+             */
+            ExplorerRows.prototype.limit = null;
+
+            /**
+             * ExplorerRows fields.
+             * @member {Array.<google.protobuf.Struct.$Properties>} fields
+             * @memberof northstar.data_hub.ExplorerRows
+             * @instance
+             */
+            ExplorerRows.prototype.fields = $util.emptyArray;
+
+            /**
+             * ExplorerRows versions.
+             * @member {Array.<google.protobuf.Struct.$Properties>} versions
+             * @memberof northstar.data_hub.ExplorerRows
+             * @instance
+             */
+            ExplorerRows.prototype.versions = $util.emptyArray;
+
+            /**
+             * ExplorerRows note.
+             * @member {string|null|undefined} note
+             * @memberof northstar.data_hub.ExplorerRows
+             * @instance
+             */
+            ExplorerRows.prototype.note = null;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * ExplorerRows _export_allowed.
+             * @member {"export_allowed"|undefined} _export_allowed
+             * @memberof northstar.data_hub.ExplorerRows
+             * @instance
+             */
+            $Object.defineProperty(ExplorerRows.prototype, "_export_allowed", {
+                get: $util.oneOfGetter($oneOfFields = ["export_allowed"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ExplorerRows _dataset.
+             * @member {"dataset"|undefined} _dataset
+             * @memberof northstar.data_hub.ExplorerRows
+             * @instance
+             */
+            $Object.defineProperty(ExplorerRows.prototype, "_dataset", {
+                get: $util.oneOfGetter($oneOfFields = ["dataset"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ExplorerRows _scope.
+             * @member {"scope"|undefined} _scope
+             * @memberof northstar.data_hub.ExplorerRows
+             * @instance
+             */
+            $Object.defineProperty(ExplorerRows.prototype, "_scope", {
+                get: $util.oneOfGetter($oneOfFields = ["scope"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ExplorerRows _start.
+             * @member {"start"|undefined} _start
+             * @memberof northstar.data_hub.ExplorerRows
+             * @instance
+             */
+            $Object.defineProperty(ExplorerRows.prototype, "_start", {
+                get: $util.oneOfGetter($oneOfFields = ["start"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ExplorerRows _end.
+             * @member {"end"|undefined} _end
+             * @memberof northstar.data_hub.ExplorerRows
+             * @instance
+             */
+            $Object.defineProperty(ExplorerRows.prototype, "_end", {
+                get: $util.oneOfGetter($oneOfFields = ["end"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ExplorerRows _view_id.
+             * @member {"view_id"|undefined} _view_id
+             * @memberof northstar.data_hub.ExplorerRows
+             * @instance
+             */
+            $Object.defineProperty(ExplorerRows.prototype, "_view_id", {
+                get: $util.oneOfGetter($oneOfFields = ["view_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ExplorerRows _total.
+             * @member {"total"|undefined} _total
+             * @memberof northstar.data_hub.ExplorerRows
+             * @instance
+             */
+            $Object.defineProperty(ExplorerRows.prototype, "_total", {
+                get: $util.oneOfGetter($oneOfFields = ["total"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ExplorerRows _offset.
+             * @member {"offset"|undefined} _offset
+             * @memberof northstar.data_hub.ExplorerRows
+             * @instance
+             */
+            $Object.defineProperty(ExplorerRows.prototype, "_offset", {
+                get: $util.oneOfGetter($oneOfFields = ["offset"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ExplorerRows _limit.
+             * @member {"limit"|undefined} _limit
+             * @memberof northstar.data_hub.ExplorerRows
+             * @instance
+             */
+            $Object.defineProperty(ExplorerRows.prototype, "_limit", {
+                get: $util.oneOfGetter($oneOfFields = ["limit"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ExplorerRows _note.
+             * @member {"note"|undefined} _note
+             * @memberof northstar.data_hub.ExplorerRows
+             * @instance
+             */
+            $Object.defineProperty(ExplorerRows.prototype, "_note", {
+                get: $util.oneOfGetter($oneOfFields = ["note"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new ExplorerRows instance using the specified properties.
+             * @function create
+             * @memberof northstar.data_hub.ExplorerRows
+             * @static
+             * @param {northstar.data_hub.ExplorerRows.$Properties=} [properties] Properties to set
+             * @returns {northstar.data_hub.ExplorerRows} ExplorerRows instance
+             * @type {{
+             *   (properties: northstar.data_hub.ExplorerRows.$Shape): northstar.data_hub.ExplorerRows & northstar.data_hub.ExplorerRows.$Shape;
+             *   (properties?: northstar.data_hub.ExplorerRows.$Properties): northstar.data_hub.ExplorerRows;
+             * }}
+             */
+            ExplorerRows.create = function(properties) {
+                return new ExplorerRows(properties);
+            };
+
+            /**
+             * Encodes the specified ExplorerRows message. Does not implicitly {@link northstar.data_hub.ExplorerRows.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.data_hub.ExplorerRows
+             * @static
+             * @param {northstar.data_hub.ExplorerRows.$Properties} message ExplorerRows message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            ExplorerRows.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.dataset != null && $Object.hasOwnProperty.call(message, "dataset"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.dataset);
+                if (message.scope != null && $Object.hasOwnProperty.call(message, "scope"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.scope);
+                if (message.start != null && $Object.hasOwnProperty.call(message, "start"))
+                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.start);
+                if (message.end != null && $Object.hasOwnProperty.call(message, "end"))
+                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.end);
+                if (message.receipt_ids != null && message.receipt_ids.length)
+                    for (let i = 0; i < message.receipt_ids.length; ++i)
+                        writer.uint32(/* id 5, wireType 2 =*/42).string(message.receipt_ids[i]);
+                if (message.view_id != null && $Object.hasOwnProperty.call(message, "view_id"))
+                    writer.uint32(/* id 6, wireType 2 =*/50).string(message.view_id);
+                if (message.rows != null && message.rows.length)
+                    for (let i = 0; i < message.rows.length; ++i)
+                        $root.google.protobuf.Struct.encode(message.rows[i], writer.uint32(/* id 7, wireType 2 =*/58).fork(), _depth + 1).ldelim();
+                if (message.total != null && $Object.hasOwnProperty.call(message, "total"))
+                    writer.uint32(/* id 8, wireType 0 =*/64).int64(message.total);
+                if (message.offset != null && $Object.hasOwnProperty.call(message, "offset"))
+                    writer.uint32(/* id 9, wireType 0 =*/72).int64(message.offset);
+                if (message.limit != null && $Object.hasOwnProperty.call(message, "limit"))
+                    writer.uint32(/* id 10, wireType 0 =*/80).int64(message.limit);
+                if (message.fields != null && message.fields.length)
+                    for (let i = 0; i < message.fields.length; ++i)
+                        $root.google.protobuf.Struct.encode(message.fields[i], writer.uint32(/* id 11, wireType 2 =*/90).fork(), _depth + 1).ldelim();
+                if (message.versions != null && message.versions.length)
+                    for (let i = 0; i < message.versions.length; ++i)
+                        $root.google.protobuf.Struct.encode(message.versions[i], writer.uint32(/* id 12, wireType 2 =*/98).fork(), _depth + 1).ldelim();
+                if (message.note != null && $Object.hasOwnProperty.call(message, "note"))
+                    writer.uint32(/* id 13, wireType 2 =*/106).string(message.note);
+                if (message.sources != null && message.sources.length)
+                    for (let i = 0; i < message.sources.length; ++i)
+                        $root.google.protobuf.Struct.encode(message.sources[i], writer.uint32(/* id 14, wireType 2 =*/114).fork(), _depth + 1).ldelim();
+                if (message.export_allowed != null && $Object.hasOwnProperty.call(message, "export_allowed"))
+                    writer.uint32(/* id 15, wireType 0 =*/120).bool(message.export_allowed);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes an ExplorerRows message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.data_hub.ExplorerRows
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.data_hub.ExplorerRows & northstar.data_hub.ExplorerRows.$Shape} ExplorerRows
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            ExplorerRows.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.data_hub.ExplorerRows();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 14: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.sources && message.sources.length))
+                                message.sources = [];
+                            message.sources.push($root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1));
+                            continue;
+                        }
+                    case 15: {
+                            if (wireType !== 0)
+                                break;
+                            message.export_allowed = reader.bool();
+                            message._export_allowed = "export_allowed";
+                            continue;
+                        }
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.dataset = reader.stringVerify();
+                            message._dataset = "dataset";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.scope = reader.stringVerify();
+                            message._scope = "scope";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 2)
+                                break;
+                            message.start = reader.stringVerify();
+                            message._start = "start";
+                            continue;
+                        }
+                    case 4: {
+                            if (wireType !== 2)
+                                break;
+                            message.end = reader.stringVerify();
+                            message._end = "end";
+                            continue;
+                        }
+                    case 5: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.receipt_ids && message.receipt_ids.length))
+                                message.receipt_ids = [];
+                            message.receipt_ids.push(reader.stringVerify());
+                            continue;
+                        }
+                    case 6: {
+                            if (wireType !== 2)
+                                break;
+                            message.view_id = reader.stringVerify();
+                            message._view_id = "view_id";
+                            continue;
+                        }
+                    case 7: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.rows && message.rows.length))
+                                message.rows = [];
+                            message.rows.push($root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1));
+                            continue;
+                        }
+                    case 8: {
+                            if (wireType !== 0)
+                                break;
+                            message.total = reader.int64();
+                            message._total = "total";
+                            continue;
+                        }
+                    case 9: {
+                            if (wireType !== 0)
+                                break;
+                            message.offset = reader.int64();
+                            message._offset = "offset";
+                            continue;
+                        }
+                    case 10: {
+                            if (wireType !== 0)
+                                break;
+                            message.limit = reader.int64();
+                            message._limit = "limit";
+                            continue;
+                        }
+                    case 11: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.fields && message.fields.length))
+                                message.fields = [];
+                            message.fields.push($root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1));
+                            continue;
+                        }
+                    case 12: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.versions && message.versions.length))
+                                message.versions = [];
+                            message.versions.push($root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1));
+                            continue;
+                        }
+                    case 13: {
+                            if (wireType !== 2)
+                                break;
+                            message.note = reader.stringVerify();
+                            message._note = "note";
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies an ExplorerRows message.
+             * @function verify
+             * @memberof northstar.data_hub.ExplorerRows
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            ExplorerRows.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.sources != null && $Object.hasOwnProperty.call(message, "sources")) {
+                    if (!$Array.isArray(message.sources))
+                        return "sources: array expected";
+                    for (let i = 0; i < message.sources.length; ++i) {
+                        let error = $root.google.protobuf.Struct.verify(message.sources[i], _depth + 1);
+                        if (error)
+                            return "sources." + error;
+                    }
+                }
+                if (message.export_allowed != null && $Object.hasOwnProperty.call(message, "export_allowed")) {
+                    properties._export_allowed = 1;
+                    if (typeof message.export_allowed !== "boolean")
+                        return "export_allowed: boolean expected";
+                }
+                if (message.dataset != null && $Object.hasOwnProperty.call(message, "dataset")) {
+                    properties._dataset = 1;
+                    if (!$util.isString(message.dataset))
+                        return "dataset: string expected";
+                }
+                if (message.scope != null && $Object.hasOwnProperty.call(message, "scope")) {
+                    properties._scope = 1;
+                    if (!$util.isString(message.scope))
+                        return "scope: string expected";
+                }
+                if (message.start != null && $Object.hasOwnProperty.call(message, "start")) {
+                    properties._start = 1;
+                    if (!$util.isString(message.start))
+                        return "start: string expected";
+                }
+                if (message.end != null && $Object.hasOwnProperty.call(message, "end")) {
+                    properties._end = 1;
+                    if (!$util.isString(message.end))
+                        return "end: string expected";
+                }
+                if (message.receipt_ids != null && $Object.hasOwnProperty.call(message, "receipt_ids")) {
+                    if (!$Array.isArray(message.receipt_ids))
+                        return "receipt_ids: array expected";
+                    for (let i = 0; i < message.receipt_ids.length; ++i)
+                        if (!$util.isString(message.receipt_ids[i]))
+                            return "receipt_ids: string[] expected";
+                }
+                if (message.view_id != null && $Object.hasOwnProperty.call(message, "view_id")) {
+                    properties._view_id = 1;
+                    if (!$util.isString(message.view_id))
+                        return "view_id: string expected";
+                }
+                if (message.rows != null && $Object.hasOwnProperty.call(message, "rows")) {
+                    if (!$Array.isArray(message.rows))
+                        return "rows: array expected";
+                    for (let i = 0; i < message.rows.length; ++i) {
+                        let error = $root.google.protobuf.Struct.verify(message.rows[i], _depth + 1);
+                        if (error)
+                            return "rows." + error;
+                    }
+                }
+                if (message.total != null && $Object.hasOwnProperty.call(message, "total")) {
+                    properties._total = 1;
+                    if (!$util.isInteger(message.total) && !(message.total && $util.isInteger(message.total.low) && $util.isInteger(message.total.high)))
+                        return "total: integer|Long expected";
+                }
+                if (message.offset != null && $Object.hasOwnProperty.call(message, "offset")) {
+                    properties._offset = 1;
+                    if (!$util.isInteger(message.offset) && !(message.offset && $util.isInteger(message.offset.low) && $util.isInteger(message.offset.high)))
+                        return "offset: integer|Long expected";
+                }
+                if (message.limit != null && $Object.hasOwnProperty.call(message, "limit")) {
+                    properties._limit = 1;
+                    if (!$util.isInteger(message.limit) && !(message.limit && $util.isInteger(message.limit.low) && $util.isInteger(message.limit.high)))
+                        return "limit: integer|Long expected";
+                }
+                if (message.fields != null && $Object.hasOwnProperty.call(message, "fields")) {
+                    if (!$Array.isArray(message.fields))
+                        return "fields: array expected";
+                    for (let i = 0; i < message.fields.length; ++i) {
+                        let error = $root.google.protobuf.Struct.verify(message.fields[i], _depth + 1);
+                        if (error)
+                            return "fields." + error;
+                    }
+                }
+                if (message.versions != null && $Object.hasOwnProperty.call(message, "versions")) {
+                    if (!$Array.isArray(message.versions))
+                        return "versions: array expected";
+                    for (let i = 0; i < message.versions.length; ++i) {
+                        let error = $root.google.protobuf.Struct.verify(message.versions[i], _depth + 1);
+                        if (error)
+                            return "versions." + error;
+                    }
+                }
+                if (message.note != null && $Object.hasOwnProperty.call(message, "note")) {
+                    properties._note = 1;
+                    if (!$util.isString(message.note))
+                        return "note: string expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates an ExplorerRows message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.data_hub.ExplorerRows
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.data_hub.ExplorerRows} ExplorerRows
+             */
+            ExplorerRows.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.data_hub.ExplorerRows)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.data_hub.ExplorerRows: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.data_hub.ExplorerRows();
+                if (object.sources) {
+                    if (!$Array.isArray(object.sources))
+                        throw $TypeError(".northstar.data_hub.ExplorerRows.sources: array expected");
+                    message.sources = $Array(object.sources.length);
+                    for (let i = 0; i < object.sources.length; ++i) {
+                        if (!$util.isObject(object.sources[i]))
+                            throw $TypeError(".northstar.data_hub.ExplorerRows.sources: object expected");
+                        message.sources[i] = $root.google.protobuf.Struct.fromObject(object.sources[i], _depth + 1);
+                    }
+                }
+                if (object.export_allowed != null)
+                    message.export_allowed = $Boolean(object.export_allowed);
+                if (object.dataset != null)
+                    message.dataset = $String(object.dataset);
+                if (object.scope != null)
+                    message.scope = $String(object.scope);
+                if (object.start != null)
+                    message.start = $String(object.start);
+                if (object.end != null)
+                    message.end = $String(object.end);
+                if (object.receipt_ids) {
+                    if (!$Array.isArray(object.receipt_ids))
+                        throw $TypeError(".northstar.data_hub.ExplorerRows.receipt_ids: array expected");
+                    message.receipt_ids = $Array(object.receipt_ids.length);
+                    for (let i = 0; i < object.receipt_ids.length; ++i)
+                        message.receipt_ids[i] = $String(object.receipt_ids[i]);
+                }
+                if (object.view_id != null)
+                    message.view_id = $String(object.view_id);
+                if (object.rows) {
+                    if (!$Array.isArray(object.rows))
+                        throw $TypeError(".northstar.data_hub.ExplorerRows.rows: array expected");
+                    message.rows = $Array(object.rows.length);
+                    for (let i = 0; i < object.rows.length; ++i) {
+                        if (!$util.isObject(object.rows[i]))
+                            throw $TypeError(".northstar.data_hub.ExplorerRows.rows: object expected");
+                        message.rows[i] = $root.google.protobuf.Struct.fromObject(object.rows[i], _depth + 1);
+                    }
+                }
+                if (object.total != null)
+                    if ($util.Long)
+                        message.total = $util.Long.fromValue(object.total, false);
+                    else if (typeof object.total === "string")
+                        message.total = $parseInt(object.total, 10);
+                    else if (typeof object.total === "number")
+                        message.total = object.total;
+                    else if (typeof object.total === "object")
+                        message.total = new $util.LongBits(object.total.low >>> 0, object.total.high >>> 0).toNumber();
+                if (object.offset != null)
+                    if ($util.Long)
+                        message.offset = $util.Long.fromValue(object.offset, false);
+                    else if (typeof object.offset === "string")
+                        message.offset = $parseInt(object.offset, 10);
+                    else if (typeof object.offset === "number")
+                        message.offset = object.offset;
+                    else if (typeof object.offset === "object")
+                        message.offset = new $util.LongBits(object.offset.low >>> 0, object.offset.high >>> 0).toNumber();
+                if (object.limit != null)
+                    if ($util.Long)
+                        message.limit = $util.Long.fromValue(object.limit, false);
+                    else if (typeof object.limit === "string")
+                        message.limit = $parseInt(object.limit, 10);
+                    else if (typeof object.limit === "number")
+                        message.limit = object.limit;
+                    else if (typeof object.limit === "object")
+                        message.limit = new $util.LongBits(object.limit.low >>> 0, object.limit.high >>> 0).toNumber();
+                if (object.fields) {
+                    if (!$Array.isArray(object.fields))
+                        throw $TypeError(".northstar.data_hub.ExplorerRows.fields: array expected");
+                    message.fields = $Array(object.fields.length);
+                    for (let i = 0; i < object.fields.length; ++i) {
+                        if (!$util.isObject(object.fields[i]))
+                            throw $TypeError(".northstar.data_hub.ExplorerRows.fields: object expected");
+                        message.fields[i] = $root.google.protobuf.Struct.fromObject(object.fields[i], _depth + 1);
+                    }
+                }
+                if (object.versions) {
+                    if (!$Array.isArray(object.versions))
+                        throw $TypeError(".northstar.data_hub.ExplorerRows.versions: array expected");
+                    message.versions = $Array(object.versions.length);
+                    for (let i = 0; i < object.versions.length; ++i) {
+                        if (!$util.isObject(object.versions[i]))
+                            throw $TypeError(".northstar.data_hub.ExplorerRows.versions: object expected");
+                        message.versions[i] = $root.google.protobuf.Struct.fromObject(object.versions[i], _depth + 1);
+                    }
+                }
+                if (object.note != null)
+                    message.note = $String(object.note);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from an ExplorerRows message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.data_hub.ExplorerRows
+             * @static
+             * @param {northstar.data_hub.ExplorerRows} message ExplorerRows
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            ExplorerRows.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.arrays || options.defaults) {
+                    object.receipt_ids = [];
+                    object.rows = [];
+                    object.fields = [];
+                    object.versions = [];
+                    object.sources = [];
+                }
+                if (message.dataset != null && $Object.hasOwnProperty.call(message, "dataset")) {
+                    object.dataset = message.dataset;
+                    if (options.oneofs)
+                        object._dataset = "dataset";
+                }
+                if (message.scope != null && $Object.hasOwnProperty.call(message, "scope")) {
+                    object.scope = message.scope;
+                    if (options.oneofs)
+                        object._scope = "scope";
+                }
+                if (message.start != null && $Object.hasOwnProperty.call(message, "start")) {
+                    object.start = message.start;
+                    if (options.oneofs)
+                        object._start = "start";
+                }
+                if (message.end != null && $Object.hasOwnProperty.call(message, "end")) {
+                    object.end = message.end;
+                    if (options.oneofs)
+                        object._end = "end";
+                }
+                if (message.receipt_ids && message.receipt_ids.length) {
+                    object.receipt_ids = $Array(message.receipt_ids.length);
+                    for (let j = 0; j < message.receipt_ids.length; ++j)
+                        object.receipt_ids[j] = message.receipt_ids[j];
+                }
+                if (message.view_id != null && $Object.hasOwnProperty.call(message, "view_id")) {
+                    object.view_id = message.view_id;
+                    if (options.oneofs)
+                        object._view_id = "view_id";
+                }
+                if (message.rows && message.rows.length) {
+                    object.rows = $Array(message.rows.length);
+                    for (let j = 0; j < message.rows.length; ++j)
+                        object.rows[j] = $root.google.protobuf.Struct.toObject(message.rows[j], options, _depth + 1);
+                }
+                if (message.total != null && $Object.hasOwnProperty.call(message, "total")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.total = typeof message.total === "number" ? $BigInt(message.total) : $util.Long.fromBits(message.total.low >>> 0, message.total.high >>> 0, false).toBigInt();
+                    else if (typeof message.total === "number")
+                        object.total = options.longs === $String ? $String(message.total) : message.total;
+                    else
+                        object.total = options.longs === $String ? $util.Long.prototype.toString.call(message.total) : options.longs === $Number ? new $util.LongBits(message.total.low >>> 0, message.total.high >>> 0).toNumber() : message.total;
+                    if (options.oneofs)
+                        object._total = "total";
+                }
+                if (message.offset != null && $Object.hasOwnProperty.call(message, "offset")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.offset = typeof message.offset === "number" ? $BigInt(message.offset) : $util.Long.fromBits(message.offset.low >>> 0, message.offset.high >>> 0, false).toBigInt();
+                    else if (typeof message.offset === "number")
+                        object.offset = options.longs === $String ? $String(message.offset) : message.offset;
+                    else
+                        object.offset = options.longs === $String ? $util.Long.prototype.toString.call(message.offset) : options.longs === $Number ? new $util.LongBits(message.offset.low >>> 0, message.offset.high >>> 0).toNumber() : message.offset;
+                    if (options.oneofs)
+                        object._offset = "offset";
+                }
+                if (message.limit != null && $Object.hasOwnProperty.call(message, "limit")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.limit = typeof message.limit === "number" ? $BigInt(message.limit) : $util.Long.fromBits(message.limit.low >>> 0, message.limit.high >>> 0, false).toBigInt();
+                    else if (typeof message.limit === "number")
+                        object.limit = options.longs === $String ? $String(message.limit) : message.limit;
+                    else
+                        object.limit = options.longs === $String ? $util.Long.prototype.toString.call(message.limit) : options.longs === $Number ? new $util.LongBits(message.limit.low >>> 0, message.limit.high >>> 0).toNumber() : message.limit;
+                    if (options.oneofs)
+                        object._limit = "limit";
+                }
+                if (message.fields && message.fields.length) {
+                    object.fields = $Array(message.fields.length);
+                    for (let j = 0; j < message.fields.length; ++j)
+                        object.fields[j] = $root.google.protobuf.Struct.toObject(message.fields[j], options, _depth + 1);
+                }
+                if (message.versions && message.versions.length) {
+                    object.versions = $Array(message.versions.length);
+                    for (let j = 0; j < message.versions.length; ++j)
+                        object.versions[j] = $root.google.protobuf.Struct.toObject(message.versions[j], options, _depth + 1);
+                }
+                if (message.note != null && $Object.hasOwnProperty.call(message, "note")) {
+                    object.note = message.note;
+                    if (options.oneofs)
+                        object._note = "note";
+                }
+                if (message.sources && message.sources.length) {
+                    object.sources = $Array(message.sources.length);
+                    for (let j = 0; j < message.sources.length; ++j)
+                        object.sources[j] = $root.google.protobuf.Struct.toObject(message.sources[j], options, _depth + 1);
+                }
+                if (message.export_allowed != null && $Object.hasOwnProperty.call(message, "export_allowed")) {
+                    object.export_allowed = message.export_allowed;
+                    if (options.oneofs)
+                        object._export_allowed = "export_allowed";
+                }
+                return object;
+            };
+
+            /**
+             * Converts this ExplorerRows to JSON.
+             * @function toJSON
+             * @memberof northstar.data_hub.ExplorerRows
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            ExplorerRows.prototype.toJSON = function() {
+                return ExplorerRows.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for ExplorerRows
+             * @function getTypeUrl
+             * @memberof northstar.data_hub.ExplorerRows
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            ExplorerRows.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.data_hub.ExplorerRows";
+            };
+
+            return ExplorerRows;
+        })();
+
         return data_hub;
     })();
 

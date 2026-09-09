@@ -143,6 +143,59 @@ export type PublicationManifest = {
 export type PublicationCatalog = {
   snapshots: (string)[];
 };
+export type ExplorerCatalog = {
+  datasets: (Record<string, JsonValue>)[];
+  exchanges: (string)[];
+  products: (Record<string, JsonValue>)[];
+};
+export type ContractSearch = {
+  exchange: string;
+  product: string;
+  search: string;
+  offset: number;
+};
+export type ExplorerList = {
+  rows: (Record<string, JsonValue>)[];
+  total: number;
+};
+export type ExplorerRange = {
+  dataset: string;
+  scope: string;
+  start: string;
+  end: string;
+  offset: number;
+};
+export type ExplorerQuery = {
+  dataset: string;
+  scope: string;
+  start: string;
+  end: string;
+  offset: number;
+  receipt_ids: (string)[];
+  limit: number;
+};
+export type ExplorerCoverage = {
+  days: (Record<string, JsonValue>)[];
+  jobs: (Record<string, JsonValue>)[];
+  note: string;
+};
+export type ExplorerRows = {
+  sources: (Record<string, JsonValue>)[];
+  export_allowed: boolean;
+  dataset: string;
+  scope: string;
+  start: string;
+  end: string;
+  receipt_ids: (string)[];
+  view_id: string;
+  rows: (Record<string, JsonValue>)[];
+  total: number;
+  offset: number;
+  limit: number;
+  fields: (Record<string, JsonValue>)[];
+  versions: (Record<string, JsonValue>)[];
+  note: string;
+};
 export type Empty = {
 };
 export type Error = {

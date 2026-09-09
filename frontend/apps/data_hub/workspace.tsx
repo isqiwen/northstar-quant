@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 import {
   DashboardOutlined,
   DatabaseOutlined,
+  LineChartOutlined,
+  CheckCircleOutlined,
   FolderOpenOutlined,
   SyncOutlined,
 } from "@ant-design/icons";
@@ -16,7 +18,13 @@ export default function Workspace({ children }: { children: ReactNode }) {
         subtitle="来源证据 · 固定快照"
         items={[
           { key: "/", label: "数据概览", icon: <DashboardOutlined /> },
-          { key: "/datasets", label: "数据快照", icon: <DatabaseOutlined /> },
+          { key: "/browse", label: "数据浏览", icon: <LineChartOutlined /> },
+          {
+            key: "/quality",
+            label: "覆盖与质量",
+            icon: <CheckCircleOutlined />,
+          },
+          { key: "/versions", label: "版本与来源", icon: <DatabaseOutlined /> },
           {
             key: "/sources",
             label: "来源与处理",

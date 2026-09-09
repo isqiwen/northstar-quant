@@ -4,7 +4,6 @@ import { Button, Card, Tabs } from "antd";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useData } from "../../shared/data";
-import { datasetColumns } from "../../shared/datasets";
 import {
   Evidence,
   Failure,
@@ -14,69 +13,7 @@ import {
   Records,
   Status,
 } from "../../shared/ui";
-import { ProcessingStatus } from "./processing-status";
-export function DataHome() {
-  const syncing = useData(query("/api/sync"), 5000);
-  const ds = useData(query("/api/datasets"));
-  const sources = useData(query("/api/sources"));
-  const attempts = useData(query("/api/attempts"), 5000);
-  return (
-    <>
-      <Heading
-        title="数据管理中心"
-        description="保留来源原文，检查数据质量，发布固定快照。"
-        actions={
-          <>
-            <Link href="/sync">
-              <Button>Tushare 历史同步</Button>
-            </Link>
-          </>
-        }
-      />
-      <Failure
-        error={ds.error || sources.error || attempts.error || syncing.error}
-      />
-      <Card title="Tushare 自动同步">
-        <p>
-          {syncing.data?.settings.enabled
-            ? "已启用全部期货历史同步"
-            : "尚未启用或已暂停"}
-        </p>
-        <p>
-          {String(
-            syncing.data?.settings.error ||
-              "分片进度、等待发布和权限异常请查看历史同步页面。",
-          )}
-        </p>
-        <Link href="/sync">
-          <Button type="primary">查看同步进度</Button>
-        </Link>
-      </Card>
-      <Card>
-        <Fields
-          value={{
-            最近已发布快照: ds.data?.length ?? "—",
-            最近归档来源: sources.data?.length ?? "—",
-          }}
-        />
-      </Card>
-      <ProcessingStatus />
-      <Records
-        title="已发布数据"
-        rows={ds.data}
-        loading={ds.loading}
-        columns={datasetColumns}
-        rowKey="snapshot_id"
-      />
-      <Records
-        title="最近处理"
-        rows={attempts.data}
-        rowKey="attempt_id"
-        columns={attemptColumns}
-      />
-    </>
-  );
-}
+export { DataOverview as DataHome } from "./exploration/home";
 const attemptColumns = [
   {
     title: "处理尝试",

@@ -69,3 +69,14 @@ Data Hub 的 `/api/publications` 返回固定快照目录，`/api/publications/{
 协议仍由 `proto/data_hub.proto` 定义；Research 后端使用独立 Bearer 凭据获取清单，不获取 core 数据库凭据。
 Docker 仅通过 core 私网 `19083` 的只读网关开放这些 GET；`19082` 管理 API 保持本机绑定。
 Research 按清单校验 NAS 文件，在本机 DuckDB 查询；不扫描目录拼接新旧版本。凭据、网络或文件校验失败明确报错。
+
+## Data Hub 浏览接口
+
+- `GET /api/explorer`：数据类型、交易所、品种与分片概况。
+- `POST /api/explorer/contracts`：受限合约搜索。
+- `POST /api/explorer/coverage`：自然日期窗口、当前任务、日历及校验依据。
+- `POST /api/explorer/versions`：范围内不可变发布版本，按页返回。
+- `POST /api/explorer/query`：首次选择固定分片，后续以 receipt_ids 复用相同数据；返回精确明细、字段统计和血缘。
+- `POST /api/explorer/export`：固定版本的受控分页导出，来源未许可返回 403。
+
+这些 POST 是带浏览器会话保护的只读查询，不更改下载范围或任务状态。源协议在 `proto/data_hub.proto`。

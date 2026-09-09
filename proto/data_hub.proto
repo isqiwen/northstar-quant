@@ -186,7 +186,73 @@ message PublicationManifest {
 message PublicationCatalog {
   repeated string snapshots = 1 [(northstar.web.required_field) = true];
 }
+message ExplorerCatalog {
+  repeated google.protobuf.Struct datasets = 1 [(northstar.web.required_field) = true];
+  repeated string exchanges = 2 [(northstar.web.required_field) = true];
+  repeated google.protobuf.Struct products = 3 [(northstar.web.required_field) = true];
+}
+
+message ContractSearch {
+  optional string exchange = 1 [(northstar.web.required_field) = true];
+  optional string product = 2 [(northstar.web.required_field) = true];
+  optional string search = 3 [(northstar.web.required_field) = true];
+  optional int64 offset = 4 [(northstar.web.required_field) = true];
+}
+
+message ExplorerList {
+  repeated google.protobuf.Struct rows = 1 [(northstar.web.required_field) = true];
+  optional int64 total = 2 [(northstar.web.required_field) = true];
+}
+
+message ExplorerRange {
+  optional string dataset = 1 [(northstar.web.required_field) = true];
+  optional string scope = 2 [(northstar.web.required_field) = true];
+  optional string start = 3 [(northstar.web.required_field) = true];
+  optional string end = 4 [(northstar.web.required_field) = true];
+  optional int64 offset = 5 [(northstar.web.required_field) = true];
+}
+
+message ExplorerQuery {
+  optional string dataset = 1 [(northstar.web.required_field) = true];
+  optional string scope = 2 [(northstar.web.required_field) = true];
+  optional string start = 3 [(northstar.web.required_field) = true];
+  optional string end = 4 [(northstar.web.required_field) = true];
+  optional int64 offset = 5 [(northstar.web.required_field) = true];
+  repeated string receipt_ids = 6 [(northstar.web.required_field) = true];
+  optional int64 limit = 7 [(northstar.web.required_field) = true];
+}
+
+message ExplorerCoverage {
+  repeated google.protobuf.Struct days = 1 [(northstar.web.required_field) = true];
+  repeated google.protobuf.Struct jobs = 2 [(northstar.web.required_field) = true];
+  optional string note = 3 [(northstar.web.required_field) = true];
+}
+
+message ExplorerRows {
+  repeated google.protobuf.Struct sources = 14 [(northstar.web.required_field) = true];
+  optional bool export_allowed = 15 [(northstar.web.required_field) = true];
+  optional string dataset = 1 [(northstar.web.required_field) = true];
+  optional string scope = 2 [(northstar.web.required_field) = true];
+  optional string start = 3 [(northstar.web.required_field) = true];
+  optional string end = 4 [(northstar.web.required_field) = true];
+  repeated string receipt_ids = 5 [(northstar.web.required_field) = true];
+  optional string view_id = 6 [(northstar.web.required_field) = true];
+  repeated google.protobuf.Struct rows = 7 [(northstar.web.required_field) = true];
+  optional int64 total = 8 [(northstar.web.required_field) = true];
+  optional int64 offset = 9 [(northstar.web.required_field) = true];
+  optional int64 limit = 10 [(northstar.web.required_field) = true];
+  repeated google.protobuf.Struct fields = 11 [(northstar.web.required_field) = true];
+  repeated google.protobuf.Struct versions = 12 [(northstar.web.required_field) = true];
+  optional string note = 13 [(northstar.web.required_field) = true];
+}
+
 service BrowserApi {
+  rpc ExportRows(ExplorerQuery) returns (ExplorerRows) { option (northstar.web.http_method) = "POST"; option (northstar.web.http_path) = "/api/explorer/export"; }
+  rpc QueryRows(ExplorerQuery) returns (ExplorerRows) { option (northstar.web.http_method) = "POST"; option (northstar.web.http_path) = "/api/explorer/query"; }
+  rpc QueryVersions(ExplorerRange) returns (ExplorerList) { option (northstar.web.http_method) = "POST"; option (northstar.web.http_path) = "/api/explorer/versions"; }
+  rpc QueryCoverage(ExplorerRange) returns (ExplorerCoverage) { option (northstar.web.http_method) = "POST"; option (northstar.web.http_path) = "/api/explorer/coverage"; }
+  rpc FindContracts(ContractSearch) returns (ExplorerList) { option (northstar.web.http_method) = "POST"; option (northstar.web.http_path) = "/api/explorer/contracts"; }
+  rpc GetExplorer(northstar.web.Empty) returns (ExplorerCatalog) { option (northstar.web.http_method) = "GET"; option (northstar.web.http_path) = "/api/explorer"; }
   rpc GetApiPublications (northstar.web.Empty) returns (PublicationCatalog) {
     option (northstar.web.http_method) = "GET";
     option (northstar.web.http_path) = "/api/publications";

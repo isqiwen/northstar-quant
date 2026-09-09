@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 import type { ReactNode } from "react";
 import Workspace from "../workspace";
 import "../../../shared/theme.css";
+import "../exploration/style.css";
 export const metadata = { title: "Northstar data_hub" };
 export default function Layout({ children }: { children: ReactNode }) {
   return (
