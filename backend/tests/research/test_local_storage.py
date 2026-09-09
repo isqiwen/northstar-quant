@@ -1,5 +1,6 @@
 """SQLite preserves research identities, Paper concurrency and complete recovery."""
 
+import json
 import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor
@@ -89,12 +90,20 @@ PaperStore(engine,PublishedDatasets(Path(sys.argv[2]))).advance(UUID(sys.argv[3]
     restarted = open_store(tmp_path / "research.sqlite3")
     assert RunStore(restarted).get(run_id) == expected
     restarted.dispose()
+    original_bindings = json.loads((target / "storage-bindings.json").read_text())
     for name in ("MARKET", "RESEARCH"):
         monkeypatch.setenv(f"NORTHSTAR_{name}_DIR", str(tmp_path / ("restored-" + name)))
         monkeypatch.setenv(f"NORTHSTAR_{name}_STORAGE_ID", str(uuid4()))
     recovered = open_store(tmp_path / "recovered.sqlite3")
     assert restore(recovered, target)["status"] == "restored"
     assert RunStore(recovered).get(run_id) == expected
+    assert json.loads((tmp_path / "bindings/storage.json").read_text()) == original_bindings
+    from northstar_quant.data_management.storage_identity import read_identity
+
+    for name in ("MARKET", "RESEARCH"):
+        assert (
+            read_identity(tmp_path / ("restored-" + name)) == original_bindings["identities"][name]
+        )
     recovered.dispose()
 
 

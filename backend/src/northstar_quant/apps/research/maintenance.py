@@ -76,6 +76,22 @@ def backup(engine: Engine, destination: Path) -> dict[str, object]:
                 shutil.copyfile(source, target / "research" / source.name)
     finally:
         frozen.dispose()
+    identities = {
+        name: os.environ[f"NORTHSTAR_{name}_STORAGE_ID"]
+        for name in ("MARKET", "RESEARCH", "BACKUP")
+        if os.environ.get(f"NORTHSTAR_{name}_STORAGE_ID")
+    }
+    _write_record(
+        target / "storage-bindings.json",
+        json.dumps(
+            {
+                "version": 1,
+                "initialized": True,
+                "identities": identities,
+            },
+            sort_keys=True,
+        ).encode(),
+    )
     manifest = {str(p.relative_to(target)): _file_hash(p) for p in target.rglob("*") if p.is_file()}
     document: dict[str, object] = {"owner": "research", "files": manifest}
     for path in manifest:
@@ -99,11 +115,16 @@ def restore(engine: Engine, destination: Path) -> dict[str, object]:
         relative = Path(name)
         if relative.is_absolute() or ".." in relative.parts or len(relative.parts) not in {1, 2}:
             raise ValueError("invalid backup file path")
-        if relative.parts[0] not in {"database.sqlite3", "market", "research"}:
+        if relative.parts[0] not in {
+            "database.sqlite3",
+            "storage-bindings.json",
+            "market",
+            "research",
+        }:
             raise ValueError("invalid Research backup component")
         if _file_hash(destination / relative) != digest:
             raise ValueError("backup checksum mismatch")
-    if "database.sqlite3" not in document["files"]:
+    if not {"database.sqlite3", "storage-bindings.json"} <= document["files"].keys():
         raise ValueError("missing database dump")
     with engine.connect() as connection:
         if (
@@ -116,6 +137,14 @@ def restore(engine: Engine, destination: Path) -> dict[str, object]:
     }
     if any(root.exists() or root.is_symlink() or not root.is_absolute() for root in roots.values()):
         raise ValueError("restore requires new market and research directories")
+    bindings = json.loads((destination / "storage-bindings.json").read_text())
+    identities = bindings["identities"]
+    if bindings.get("version") != 1 or bindings.get("initialized") is not True:
+        raise ValueError("invalid backup storage bindings")
+    for name in ("MARKET", "RESEARCH"):
+        if str(UUID(identities[name])) != identities[name]:
+            raise ValueError("invalid backup storage identity")
+        os.environ[f"NORTHSTAR_{name}_STORAGE_ID"] = identities[name]
     for name, root in roots.items():
         root.mkdir(parents=True, mode=0o700)
         initialize(root, os.environ[f"NORTHSTAR_{name.upper()}_STORAGE_ID"])
@@ -163,6 +192,9 @@ def restore(engine: Engine, destination: Path) -> dict[str, object]:
     factors = FactorCatalog(engine, market)
     for identity in factor_ids:
         factors.get(UUID(str(identity)))
+    state = Path(engine.url.database).parent / "bindings"
+    state.mkdir(mode=0o700, exist_ok=True)
+    _write_record(state / "storage.json", json.dumps(bindings, sort_keys=True).encode())
     for root in roots.values():
         (root / ".restore-incomplete").unlink()
         from northstar_quant.data_management.files import SourceFiles

@@ -13,9 +13,13 @@ ROOT = Path(__file__).resolve().parents[2]
 
 @pytest.fixture
 def bootstrap(tmp_path, monkeypatch):
-    spec = importlib.util.spec_from_file_location(
-        "dependencies", ROOT / "scripts/operations/dependencies.py"
+    source = tmp_path / "dependencies.py"
+    source.write_text(
+        (ROOT / "scripts/operations/dependencies.py")
+        .read_text()
+        .replace("/opt/northstar", str(tmp_path))
     )
+    spec = importlib.util.spec_from_file_location("dependencies", source)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     private = tmp_path / "private.env"

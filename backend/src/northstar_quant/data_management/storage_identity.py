@@ -11,9 +11,8 @@ from uuid import UUID
 _MARKER = ".northstar-storage-id"
 
 
-def require_identity(root: Path, identity: str) -> None:
-    if str(UUID(identity)) != identity:
-        raise ValueError("NORTHSTAR_STORAGE_ID must be a canonical UUID")
+def read_identity(root: Path) -> str:
+    """Read the canonical identity without creating or repairing a marker."""
     try:
         descriptor = os.open(root / _MARKER, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
         with os.fdopen(descriptor, "rb") as stream:
@@ -24,8 +23,18 @@ def require_identity(root: Path, identity: str) -> None:
         raise ValueError(
             "Source mount is missing or inaccessible; storage not initialized"
         ) from error
-    if content != (identity + "\n").encode("ascii"):
-        raise ValueError("Source mount identity does not match NORTHSTAR_STORAGE_ID")
+    try:
+        identity = content.decode("ascii").rstrip("\n")
+        if content != (str(UUID(identity)) + "\n").encode("ascii"):
+            raise ValueError("Storage identity is not a canonical UUID")
+    except (UnicodeError, ValueError) as error:
+        raise ValueError("Storage identity is invalid") from error
+    return identity
+
+
+def require_identity(root: Path, identity: str) -> None:
+    if read_identity(root) != identity:
+        raise ValueError("Source mount identity does not match the bound storage identity")
 
 
 def initialize(root: Path, identity: str) -> None:
@@ -44,6 +53,7 @@ def initialize(root: Path, identity: str) -> None:
         descriptor, temporary = tempfile.mkstemp(prefix=".identity-", dir=root)
         try:
             with os.fdopen(descriptor, "wb") as stream:
+                os.fchmod(stream.fileno(), 0o644)
                 stream.write((identity + "\n").encode("ascii"))
                 stream.flush()
                 os.fsync(stream.fileno())

@@ -61,6 +61,21 @@ def run() -> None:
     except subprocess.CalledProcessError:
         raise ValueError("role backup failed; no complete backup is declared") from None
     (target / "roles.sql").chmod(0o600)
+    identities = {
+        name: os.environ[f"NORTHSTAR_{name}_STORAGE_ID"]
+        for name in ("SOURCE", "MARKET", "RESEARCH", "BACKUP")
+    }
+    _write_record(
+        target / "storage-bindings.json",
+        json.dumps(
+            {
+                "version": 1,
+                "initialized": True,
+                "identities": identities,
+            },
+            sort_keys=True,
+        ).encode(),
+    )
     document = {
         str(path.relative_to(target)): _file_hash(path)
         for path in target.rglob("*")

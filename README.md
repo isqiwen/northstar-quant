@@ -22,7 +22,7 @@ Tushare 定时增量/分片补数、15 分钟到日线完整研究输入、持�
 三个应用的前端、API、worker/内核分别运行在独立容器中。
 应用持久目录固定在 `/opt/northstar/`；本机磁盘或主机预先挂载的共享使用同一套配置。
 配置文件在 `deploy/{database,data_hub,research,live}/.env`，凭据留空，实际口令放私有运行副本。
-首次准备目录和存储 UUID，详见[部署说明](deploy/README.md)。
+首次准备目录，存储 UUID 由部署程序自动生成并持久保存，详见[部署说明](deploy/README.md)。
 
 可使用统一远程入口（先填写仓库外的主机配置，详见[部署说明](deploy/README.md)）：
 

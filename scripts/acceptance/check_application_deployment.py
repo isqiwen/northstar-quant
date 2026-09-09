@@ -10,6 +10,7 @@ import base64
 import json
 import os
 import re
+import runpy
 import secrets
 import subprocess
 import tempfile
@@ -59,9 +60,6 @@ class Deployment:
             NORTHSTAR_RESEARCH_WEB_PORT="0",
         )
 
-        for share in ("SOURCE", "MARKET", "RESEARCH", "BACKUP"):
-            self.environment[f"NORTHSTAR_{share}_STORAGE_ID"] = str(uuid4())
-
         self.bindings = {
             f"/opt/northstar/files/{share}": self.root / share
             for share in ("source", "market", "research", "backup")
@@ -76,6 +74,17 @@ class Deployment:
             self.environment,
             self.bindings,
         )
+        binder = runpy.run_path(str(ROOT / "scripts/operations/storage_bindings.py"))["bind"]
+        owner = "research" if app == "research" else "data-hub"
+        registry = self.root / "state" / owner / "bindings/storage.json"
+        config = json.loads(compose.read_text())
+        try:
+            identities, _ = binder(config, app, registry)
+        except ValueError as error:
+            raise RuntimeError(str(error)) from error
+        for service in config["services"].values():
+            service.setdefault("environment", {}).update(identities)
+        compose.write_text(json.dumps(config))
         result = subprocess.run(
             [
                 "docker",
@@ -96,6 +105,8 @@ class Deployment:
         )
         if result.returncode:
             raise RuntimeError(result.stderr[-3000:].replace(self.password, "<REDACTED>"))
+        if app == "database" and arguments == ("run", "--rm", "initialize"):
+            binder(config, app, registry, complete=True)
         return result.stdout
 
     def up(self, app: str) -> None:

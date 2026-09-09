@@ -15,16 +15,13 @@ services:
         application password}@postgres:5432/northstar_data_hub?connect_timeout=5
       NORTHSTAR_DATABASE_OWNER: data_hub
       NORTHSTAR_SOURCE_DIR: /var/lib/northstar/source
-      NORTHSTAR_SOURCE_STORAGE_ID: ${NORTHSTAR_SOURCE_STORAGE_ID:?Set source storage
-        UUID}
+      NORTHSTAR_SOURCE_STORAGE_ID: ${NORTHSTAR_SOURCE_STORAGE_ID:-}
       NORTHSTAR_MARKET_DIR: /var/lib/northstar/market
-      NORTHSTAR_MARKET_STORAGE_ID: ${NORTHSTAR_MARKET_STORAGE_ID:?Set market storage
-        UUID}
+      NORTHSTAR_MARKET_STORAGE_ID: ${NORTHSTAR_MARKET_STORAGE_ID:-}
       NORTHSTAR_RESEARCH_DIR: /var/lib/northstar/research
-      NORTHSTAR_RESEARCH_STORAGE_ID: ${NORTHSTAR_RESEARCH_STORAGE_ID:?Set research
-        storage UUID}
+      NORTHSTAR_RESEARCH_STORAGE_ID: ${NORTHSTAR_RESEARCH_STORAGE_ID:-}
       NORTHSTAR_DATA_DIR: /var/lib/northstar/source
-      NORTHSTAR_STORAGE_ID: ${NORTHSTAR_SOURCE_STORAGE_ID:?Set source storage UUID}
+      NORTHSTAR_STORAGE_ID: ${NORTHSTAR_SOURCE_STORAGE_ID:-}
     extra_hosts:
     - host.docker.internal:host-gateway
     volumes:
@@ -79,16 +76,13 @@ services:
         application password}@postgres:5432/northstar_data_hub?connect_timeout=5
       NORTHSTAR_DATABASE_OWNER: data_hub
       NORTHSTAR_SOURCE_DIR: /var/lib/northstar/source
-      NORTHSTAR_SOURCE_STORAGE_ID: ${NORTHSTAR_SOURCE_STORAGE_ID:?Set source storage
-        UUID}
+      NORTHSTAR_SOURCE_STORAGE_ID: ${NORTHSTAR_SOURCE_STORAGE_ID:-}
       NORTHSTAR_MARKET_DIR: /var/lib/northstar/market
-      NORTHSTAR_MARKET_STORAGE_ID: ${NORTHSTAR_MARKET_STORAGE_ID:?Set market storage
-        UUID}
+      NORTHSTAR_MARKET_STORAGE_ID: ${NORTHSTAR_MARKET_STORAGE_ID:-}
       NORTHSTAR_RESEARCH_DIR: /var/lib/northstar/research
-      NORTHSTAR_RESEARCH_STORAGE_ID: ${NORTHSTAR_RESEARCH_STORAGE_ID:?Set research
-        storage UUID}
+      NORTHSTAR_RESEARCH_STORAGE_ID: ${NORTHSTAR_RESEARCH_STORAGE_ID:-}
       NORTHSTAR_DATA_DIR: /var/lib/northstar/source
-      NORTHSTAR_STORAGE_ID: ${NORTHSTAR_SOURCE_STORAGE_ID:?Set source storage UUID}
+      NORTHSTAR_STORAGE_ID: ${NORTHSTAR_SOURCE_STORAGE_ID:-}
       NORTHSTAR_PUBLICATION_TOKEN: ${NORTHSTAR_PUBLICATION_TOKEN:?Set shared read-only
         publication token}
     volumes:
@@ -168,16 +162,13 @@ services:
         application password}@postgres:5432/northstar_data_hub?connect_timeout=5
       NORTHSTAR_DATABASE_OWNER: data_hub
       NORTHSTAR_SOURCE_DIR: /var/lib/northstar/source
-      NORTHSTAR_SOURCE_STORAGE_ID: ${NORTHSTAR_SOURCE_STORAGE_ID:?Set source storage
-        UUID}
+      NORTHSTAR_SOURCE_STORAGE_ID: ${NORTHSTAR_SOURCE_STORAGE_ID:-}
       NORTHSTAR_MARKET_DIR: /var/lib/northstar/market
-      NORTHSTAR_MARKET_STORAGE_ID: ${NORTHSTAR_MARKET_STORAGE_ID:?Set market storage
-        UUID}
+      NORTHSTAR_MARKET_STORAGE_ID: ${NORTHSTAR_MARKET_STORAGE_ID:-}
       NORTHSTAR_RESEARCH_DIR: /var/lib/northstar/research
-      NORTHSTAR_RESEARCH_STORAGE_ID: ${NORTHSTAR_RESEARCH_STORAGE_ID:?Set research
-        storage UUID}
+      NORTHSTAR_RESEARCH_STORAGE_ID: ${NORTHSTAR_RESEARCH_STORAGE_ID:-}
       NORTHSTAR_DATA_DIR: /var/lib/northstar/source
-      NORTHSTAR_STORAGE_ID: ${NORTHSTAR_SOURCE_STORAGE_ID:?Set source storage UUID}
+      NORTHSTAR_STORAGE_ID: ${NORTHSTAR_SOURCE_STORAGE_ID:-}
     volumes:
     - type: bind
       source: /opt/northstar/credentials/data-hub
@@ -272,19 +263,15 @@ services:
         application password}@postgres:5432/northstar_data_hub?connect_timeout=5
       NORTHSTAR_DATABASE_OWNER: data_hub
       NORTHSTAR_SOURCE_DIR: /var/lib/northstar/source
-      NORTHSTAR_SOURCE_STORAGE_ID: ${NORTHSTAR_SOURCE_STORAGE_ID:?Set source storage
-        UUID}
+      NORTHSTAR_SOURCE_STORAGE_ID: ${NORTHSTAR_SOURCE_STORAGE_ID:-}
       NORTHSTAR_MARKET_DIR: /var/lib/northstar/market
-      NORTHSTAR_MARKET_STORAGE_ID: ${NORTHSTAR_MARKET_STORAGE_ID:?Set market storage
-        UUID}
+      NORTHSTAR_MARKET_STORAGE_ID: ${NORTHSTAR_MARKET_STORAGE_ID:-}
       NORTHSTAR_RESEARCH_DIR: /var/lib/northstar/research
-      NORTHSTAR_RESEARCH_STORAGE_ID: ${NORTHSTAR_RESEARCH_STORAGE_ID:?Set research
-        storage UUID}
+      NORTHSTAR_RESEARCH_STORAGE_ID: ${NORTHSTAR_RESEARCH_STORAGE_ID:-}
       NORTHSTAR_BACKUP_DIR: /var/lib/northstar/backup
-      NORTHSTAR_BACKUP_STORAGE_ID: ${NORTHSTAR_BACKUP_STORAGE_ID:?Set backup storage
-        UUID}
+      NORTHSTAR_BACKUP_STORAGE_ID: ${NORTHSTAR_BACKUP_STORAGE_ID:-}
       NORTHSTAR_DATA_DIR: /var/lib/northstar/source
-      NORTHSTAR_STORAGE_ID: ${NORTHSTAR_SOURCE_STORAGE_ID:?Set source storage UUID}
+      NORTHSTAR_STORAGE_ID: ${NORTHSTAR_SOURCE_STORAGE_ID:-}
     volumes:
     - type: bind
       source: /opt/northstar/logs/data-hub

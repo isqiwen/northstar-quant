@@ -71,7 +71,9 @@ if name == 'ssh':
     sys.exit(subprocess.run(sys.argv[-1], shell=True).returncode)
 if name == 'docker' and sys.argv[1:] == ['info']:
     sys.exit(int(os.environ.get('DOCKER_INFO_RESULT', '0')))
-if name == 'uv': sys.exit(int(os.environ.get('MOUNT_RESULT', '0')))
+if name == 'uv':
+    if 'scripts/operations/check_storage.py' in sys.argv: print('{{}}')
+    sys.exit(int(os.environ.get('MOUNT_RESULT', '0')))
 if name == 'docker' and 'up' in sys.argv: sys.exit(int(os.environ.get('DEPLOY_UP_RESULT', '0')))
 """
     for tool in ("ssh", "docker", "make", "uv", "curl"):

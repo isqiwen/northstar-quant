@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import subprocess
+import sys
 from pathlib import Path
 from uuid import UUID
 
@@ -13,7 +14,9 @@ from northstar_quant.data_management.storage_identity import require_identity
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def check_directories(config: dict, app: str, *, maintenance: bool = False) -> None:
+def check_directories(
+    config: dict, app: str, *, maintenance: bool = False, initializing: bool = False
+) -> None:
     # Check every runtime bind, including credentials/logs/state, before creating containers.
     seen = set()
     for item in config["services"].values():
@@ -31,17 +34,17 @@ def check_directories(config: dict, app: str, *, maintenance: bool = False) -> N
         "initialize" if app == "database" else "maintenance" if maintenance else "storage-check"
     ]
     roots: list[Path] = []
-    first_install = False
+    first_install = initializing
     if app == "database":
         root = Path(config["services"]["postgres"]["volumes"][0]["source"])
         require_directory(root)
         roots.append(root.resolve())
         try:
-            first_install = not any(root.iterdir())
+            first_install = initializing or not any(root.iterdir())
         except PermissionError:
             # PostgreSQL owns PGDATA (usually mode 0700); do not inspect its contents.
             # Existing storage identities are still required in this case.
-            first_install = False
+            first_install = initializing
     identities: set[str] = set()
     for volume in service["volumes"]:
         if volume.get("type") != "bind":
@@ -64,7 +67,7 @@ def check_directories(config: dict, app: str, *, maintenance: bool = False) -> N
             require_identity(root, identity)
         if (root / ".restore-incomplete").exists():
             raise ValueError("Storage restore is incomplete")
-        print(f"Storage directory verified for {app}: {root}")
+        print(f"Storage directory verified for {app}: {root}", file=sys.stderr)
 
 
 def require_directory(root: Path) -> None:
@@ -80,11 +83,14 @@ def require_directory(root: Path) -> None:
 
 
 def main() -> None:
+    from storage_bindings import bind
+
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--app", required=True, choices=["database", "data_hub", "research", "live"]
     )
     parser.add_argument("--maintenance", action="store_true")
+    parser.add_argument("--complete", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
     env_file = f"/opt/northstar/config/{args.app.replace('_', '-')}.env"
     command = ["docker", "compose", "--profile", "*", "--env-file", env_file]
@@ -93,7 +99,16 @@ def main() -> None:
     )
     try:
         result = subprocess.run(command, capture_output=True, text=True, check=True)
-        check_directories(json.loads(result.stdout), args.app, maintenance=args.maintenance)
+        config = json.loads(result.stdout)
+        environment, pending = {}, False
+        if args.app != "live":
+            owner = "data-hub" if args.app in {"data_hub", "database"} else "research"
+            path = Path(f"/opt/northstar/state/{owner}/bindings/storage.json")
+            environment, pending = bind(config, args.app, path, complete=args.complete)
+            for service in config["services"].values():
+                service.setdefault("environment", {}).update(environment)
+        check_directories(config, args.app, maintenance=args.maintenance, initializing=pending)
+        print(json.dumps(environment))
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
         parser.exit(
             2, f"Storage not ready: {error}\nNothing started. Prepare directories explicitly.\n"

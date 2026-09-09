@@ -178,6 +178,24 @@ def prepare(request: dict) -> None:
                 str(os.getgid()),
                 str(root),
             )
+    if request["app"] != "live":
+        owner = "research" if request["app"] == "research" else "data-hub"
+        bindings = Path(f"/opt/northstar/state/{owner}/bindings")
+        if not bindings.exists():
+            try:
+                bindings.mkdir(parents=True, mode=0o700)
+            except PermissionError:
+                admin(
+                    "install",
+                    "-d",
+                    "-m",
+                    "0700",
+                    "-o",
+                    str(os.getuid()),
+                    "-g",
+                    str(os.getgid()),
+                    str(bindings),
+                )
     print("部署依赖已就绪", flush=True)
 
 

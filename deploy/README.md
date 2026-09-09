@@ -17,9 +17,9 @@
 权限 600，所属用户为 SSH 部署用户；真实口令不提交到 Git。
 `northstarctl` 更新代码不会覆盖运行副本。
 
-- `database/.env`：管理员口令、Data Hub 应用口令与存储 UUID。
-- `data_hub/.env`：相同应用口令和数据库网络名称、相同存储 UUID、发布接口地址与 token。
-- `research/.env`：Data Hub URL/token、市场与研究产物存储 UUID。
+- `database/.env`：管理员口令、Data Hub 应用口令。
+- `data_hub/.env`：相同应用口令和数据库网络名称、发布接口地址与 token。
+- `research/.env`：Data Hub URL/token、连接与凭据。
 - `live/.env`：独立运行配置，见 [Live 部署](live/README.md)。
 
 数据库管理员与应用口令至少 16 字符且不同。core PostgreSQL 不发布宿主机端口，
@@ -72,14 +72,16 @@ sudo mkdir -p /opt/northstar/{config,state/live/postgresql,state/live/sources,cr
 目录须已存在、非符号链接、互不包含；缺失时不自动创建替代目录。
 PostgreSQL、SQLite、Live 状态和凭据在各自主机本地持久存储，Live 不挂载 Data Hub/Research 的文件目录。
 
-四个存储目录各有一个 UUID。生成后，把同一组值填入 database 和 Data Hub 的运行配置：
+存储编号由程序自动管理，无需在 `.env` 填写 UUID。
+首次 `deploy database` 为四个空目录自动分配身份，数据库初始化将标记写入各目录。
+Data Hub 使用同一份绑定；Research 首次部署读取共享目录标记并保存自己的绑定，
+读取行情时还会与 Data Hub 的固定发布清单核对。
 
-```sh
-python3 -c 'from uuid import uuid4; [print(f"NORTHSTAR_{name}_STORAGE_ID={uuid4()}") for name in ("SOURCE", "MARKET", "RESEARCH", "BACKUP")]'
-```
+绑定保存在 `/opt/northstar/state/{data-hub,research}/bindings/storage.json`，目录由远程部署脚本准备，
+文件为程序状态，不是用户配置。重试和重新部署复用已保存编号；已有数据库缺少绑定、目录标记缺失或编号改变都会报错，
+不会自动换号或修复成新空目录。目录标记可读，绑定状态仅部署用户可读写。
+直接使用本机 Make 前需确保对应 `bindings/` 目录由执行用户拥有。
 
-首次部署在空数据库、空目录上初始化 `.northstar-storage-id`。以后启动或重新部署都必须匹配该身份；
-目录缺失、身份不符或恢复未完成会报错，不自动创建替代目录、不重新初始化已使用的存储。
 容器另外验证实际文件读写、同步和身份；底层文件系统须支持应用使用的 POSIX 文件操作。
 
 跨主机 Research 必须看到相同发布文件和对应存储 UUID，路径固定相同，实际目录内容须一致。
@@ -136,8 +138,11 @@ Research 使用本机 DuckDB 计算，不扫描目录追踪最新文件、不共
 
 在 core 执行 `make backup-database`，
 把 Data Hub 数据库、角色和固定文件保存到备份目录的新时间/UUID 子目录，`complete.json` 表示完成。
-Research 用自己的维护容器执行 `northstar maintenance backup <新的备份绝对目录>`。
+Research 在目标主机运行 `uv run --project backend python scripts/operations/compose.py backup research`，
+自动加载存储绑定并在维护容器内写入新的备份子目录。
 正常 API/worker 不挂载备份目录；定时备份由各主机调度器调用。
 
 数据库与引用文件必须联合备份，恢复仅接受空数据库和全新目录，不覆盖原有数据。
+core 联合备份包含 `storage-bindings.json`；恢复 core 时连同目录标记一起还原到上述绑定状态位置。
+Research 备份也保存绑定，恢复时自动还原，不需要手工生成新 UUID。
 备份与原数据放在同一块磁盘不能抵御磁盘故障，应另存独立副本。

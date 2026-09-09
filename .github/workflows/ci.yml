@@ -67,10 +67,6 @@ jobs:
           NORTHSTAR_DATABASE_ADMIN_PASSWORD: isolated-config-admin-password
           NORTHSTAR_DATA_HUB_DATABASE_PASSWORD: isolated-config-data-password
           NORTHSTAR_LIVE_DATABASE_PASSWORD: isolated-config-live-password
-          NORTHSTAR_SOURCE_STORAGE_ID: 75b37e93-e22e-4087-b53e-963f53c00d21
-          NORTHSTAR_MARKET_STORAGE_ID: 75b37e93-e22e-4087-b53e-963f53c00d22
-          NORTHSTAR_RESEARCH_STORAGE_ID: 75b37e93-e22e-4087-b53e-963f53c00d23
-          NORTHSTAR_BACKUP_STORAGE_ID: 75b37e93-e22e-4087-b53e-963f53c00d24
         run: |
           export NORTHSTAR_GIT_REVISION="$(git rev-parse HEAD)"
           test -z "$(git status --porcelain --untracked-files=all)"

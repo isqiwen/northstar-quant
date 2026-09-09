@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import subprocess
 import sys
 from collections.abc import Callable
 from pathlib import Path
+from uuid import uuid4
 
 ROOT = Path(__file__).resolve().parents[2]
 FOLDERS = {"database": "database", "data-hub": "data_hub", "research": "research", "live": "live"}
@@ -61,7 +63,7 @@ def manage(app: str, action: str, *, follow: bool = False) -> None:
     if project := os.environ.get("COMPOSE_PROJECT_NAME"):
         compose[2:2] = ["-p", project]
     if action in ("deploy", "start", "restart", "backup"):
-        run(
+        bindings = run(
             "uv",
             "run",
             "--project",
@@ -71,7 +73,9 @@ def manage(app: str, action: str, *, follow: bool = False) -> None:
             "--app",
             folder,
             cwd=ROOT,
+            capture=True,
         )
+        os.environ.update(json.loads(bindings))
     if action == "deploy":
         os.environ["NORTHSTAR_GIT_REVISION"] = run(
             "uv",
@@ -88,6 +92,19 @@ def manage(app: str, action: str, *, follow: bool = False) -> None:
             run(*compose, "build", "initialize")
             run(*compose, "up", "-d", "--wait", "--wait-timeout", "180", "postgres")
             run(*compose, "run", "--rm", "initialize")
+            run(
+                "uv",
+                "run",
+                "--project",
+                "backend",
+                "python",
+                "scripts/operations/check_storage.py",
+                "--app",
+                "database",
+                "--complete",
+                cwd=ROOT,
+                capture=True,
+            )
         else:
             run(*compose, "up", "--build", "-d", "--wait", "--wait-timeout", "180")
     elif action in ("start", "restart", "stop"):
@@ -99,7 +116,20 @@ def manage(app: str, action: str, *, follow: bool = False) -> None:
     elif action == "logs":
         run(*compose, "logs", "--tail=100", *(["--follow"] if follow else []))
     elif action == "backup":
-        run(*compose, "run", "--rm", "--no-deps", "backup")
+        if app == "database":
+            run(*compose, "run", "--rm", "--no-deps", "backup")
+        else:
+            run(
+                *compose,
+                "run",
+                "--rm",
+                "--no-deps",
+                "maintenance",
+                "northstar",
+                "maintenance",
+                "backup",
+                f"/var/lib/northstar/backup/research-{uuid4()}",
+            )
 
 
 def main() -> int:
@@ -112,8 +142,8 @@ def main() -> int:
     args = parser.parse_args()
     if args.follow and args.action != "logs":
         parser.error("--follow 仅用于 logs")
-    if args.action == "backup" and args.app != "database":
-        parser.error("backup 仅用于 database")
+    if args.action == "backup" and args.app not in ("database", "research"):
+        parser.error("backup 仅用于 database 或 research")
     try:
         manage(args.app, args.action, follow=args.follow)
     except (OSError, ValueError, subprocess.CalledProcessError):
