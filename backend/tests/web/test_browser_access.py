@@ -43,7 +43,8 @@ def test_ip_access_keeps_csrf_origin_and_explicit_app_policy() -> None:
         "core.local",
         "datahub.wangqiwen.me",
         "research.local",
-        "quant.wangqiwen.me",
+        "research.wangqiwen.me",
+        "live.wangqiwen.me",
         "192.168.50.10",
         "198.51.100.10",
         "[2001:db8::10]",
@@ -52,7 +53,11 @@ def test_ip_access_keeps_csrf_origin_and_explicit_app_policy() -> None:
             "IP workspace",
             (),
             allowed_hosts=(
-                "research.local", "core.local", "quant.wangqiwen.me", "datahub.wangqiwen.me"
+                "research.local",
+                "research.wangqiwen.me",
+                "core.local",
+                "live.wangqiwen.me",
+                "datahub.wangqiwen.me",
             ),
             allow_ip_hosts=True,
         )

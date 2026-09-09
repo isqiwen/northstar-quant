@@ -70,11 +70,11 @@ Data Hub 只通过 Tushare 自动同步全部期货历史数据，不提供文�
 三个应用部署后可通过所属主机直接访问；也可使用所属主机的局域网 IP（例如 `http://192.168.50.10:18082`）。
 部署自动开放三个前端端口，不限制来源 IP，也不需要登记访问 IP；保留同源和会话校验。
 
-| 应用 | 浏览器地址 |
-|---|---|
-| Data Hub | <http://core.local:18082> |
-| Research | <http://research.local:18084> |
-| Live | <http://quant.wangqiwen.me:18080> |
+| 应用 | 公网地址（Caddy/FRP） | 直接访问 |
+|---|---|---|
+| Data Hub | <https://datahub.wangqiwen.me> | <http://core.local:18082> |
+| Research | <https://research.wangqiwen.me> | <http://research.local:18084> |
+| Live | <https://live.wangqiwen.me> | Live 主机 IP:18080 |
 
 三个应用仍支持本机 `127.0.0.1` 和 SSH 隧道；Python API 端口不向局域网开放。
 

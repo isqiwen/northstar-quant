@@ -21,7 +21,8 @@ test("LAN requests retain Host, cookie, CSRF and protobuf bytes upstream", async
     for (const host of [
       "core.local:18082",
       "research.local:18084",
-      "quant.wangqiwen.me:18080",
+      "research.wangqiwen.me:18084",
+      "live.wangqiwen.me:18080",
       "192.168.50.10:18082",
       "198.51.100.10:18082",
       "[2001:db8::10]:18082",
@@ -39,7 +40,12 @@ test("LAN requests retain Host, cookie, CSRF and protobuf bytes upstream", async
       });
       const response = await forward(
         request,
-        ["research.local", "core.local", "quant.wangqiwen.me"],
+        [
+          "research.local",
+          "research.wangqiwen.me",
+          "core.local",
+          "live.wangqiwen.me",
+        ],
         true,
       );
       expect(response.status).toBe(200);
@@ -77,68 +83,79 @@ test("LAN allowance never permits foreign origins or arbitrary hostnames", async
   }
 });
 
-test("HTTPS proxy origin is checked publicly then translated to the internal HTTP hop", async () => {
-  const received: Record<string, unknown>[] = [];
-  const server = createServer((request, response) => {
-    received.push(request.headers);
-    response.setHeader("set-cookie", "session=test; HttpOnly; SameSite=Strict");
-    response.end("ok");
-  });
-  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  try {
-    const address = server.address() as { port: number };
-    process.env.NORTHSTAR_API_URL = `http://127.0.0.1:${address.port}`;
-    const host = "datahub.wangqiwen.me";
-    for (const method of ["GET", "POST"]) {
-      const response = await forward(
-        new NextRequest("http://internal:3000/api/change", {
-          method,
-          headers: {
-            host,
-            ...(method === "POST" ? { origin: `https://${host}` } : {}),
-            "x-forwarded-proto": "https",
-            "x-forwarded-host": "untrusted.example",
-            "x-forwarded-for": "198.51.100.10",
-            cookie: "session=test",
-            "x-northstar-csrf": "csrf",
-          },
-        }),
-        [host],
-        true,
+test.each([
+  "datahub.wangqiwen.me",
+  "research.wangqiwen.me",
+  "live.wangqiwen.me",
+])(
+  "HTTPS proxy for %s checks public origin before the internal HTTP hop",
+  async (host) => {
+    const received: Record<string, unknown>[] = [];
+    const server = createServer((request, response) => {
+      received.push(request.headers);
+      response.setHeader(
+        "set-cookie",
+        "session=test; HttpOnly; SameSite=Strict",
       );
-      expect(response.status).toBe(200);
-      expect(response.headers.get("set-cookie")).toContain("; Secure");
-      expect(received.at(-1)).toMatchObject({
-        host,
-        cookie: "session=test",
-        "x-northstar-csrf": "csrf",
-      });
-      expect(received.at(-1)?.origin).toBe(
-        method === "POST" ? `http://${host}` : undefined,
-      );
-      expect(received.at(-1)?.["x-forwarded-host"]).toBeUndefined();
-      expect(received.at(-1)?.["x-forwarded-proto"]).toBeUndefined();
+      response.end("ok");
+    });
+    await new Promise<void>((resolve) =>
+      server.listen(0, "127.0.0.1", resolve),
+    );
+    try {
+      const address = server.address() as { port: number };
+      process.env.NORTHSTAR_API_URL = `http://127.0.0.1:${address.port}`;
+      for (const method of ["GET", "POST"]) {
+        const response = await forward(
+          new NextRequest("http://internal:3000/api/change", {
+            method,
+            headers: {
+              host,
+              ...(method === "POST" ? { origin: `https://${host}` } : {}),
+              "x-forwarded-proto": "https",
+              "x-forwarded-host": "untrusted.example",
+              "x-forwarded-for": "198.51.100.10",
+              cookie: "session=test",
+              "x-northstar-csrf": "csrf",
+            },
+          }),
+          [host],
+          true,
+        );
+        expect(response.status).toBe(200);
+        expect(response.headers.get("set-cookie")).toContain("; Secure");
+        expect(received.at(-1)).toMatchObject({
+          host,
+          cookie: "session=test",
+          "x-northstar-csrf": "csrf",
+        });
+        expect(received.at(-1)?.origin).toBe(
+          method === "POST" ? `http://${host}` : undefined,
+        );
+        expect(received.at(-1)?.["x-forwarded-host"]).toBeUndefined();
+        expect(received.at(-1)?.["x-forwarded-proto"]).toBeUndefined();
+      }
+      for (const headers of [
+        { host, origin: "https://untrusted.example", "x-forwarded-host": host },
+        {
+          host: "untrusted.example",
+          origin: `https://${host}`,
+          "x-forwarded-host": host,
+        },
+      ]) {
+        const response = await forward(
+          new NextRequest("http://internal/api/change", {
+            method: "POST",
+            headers,
+          }),
+          [host],
+          true,
+        );
+        expect(response.status).toBe(403);
+      }
+      expect(received).toHaveLength(2);
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
     }
-    for (const headers of [
-      { host, origin: "https://untrusted.example", "x-forwarded-host": host },
-      {
-        host: "untrusted.example",
-        origin: `https://${host}`,
-        "x-forwarded-host": host,
-      },
-    ]) {
-      const response = await forward(
-        new NextRequest("http://internal/api/change", {
-          method: "POST",
-          headers,
-        }),
-        [host],
-        true,
-      );
-      expect(response.status).toBe(403);
-    }
-    expect(received).toHaveLength(2);
-  } finally {
-    await new Promise<void>((resolve) => server.close(() => resolve()));
-  }
-});
+  },
+);

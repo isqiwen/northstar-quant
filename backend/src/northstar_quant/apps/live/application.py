@@ -24,7 +24,7 @@ def create_app(*, live: LiveClient) -> FastAPI:
             ("运行诊断", "/live"),
         ),
         close=close,
-        allowed_hosts=("quant.wangqiwen.me",),
+        allowed_hosts=("live.wangqiwen.me",),
         allow_ip_hosts=True,
     )
     app.state.live = live

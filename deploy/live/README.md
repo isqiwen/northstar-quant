@@ -51,7 +51,7 @@ Changing that variable does not rotate the password of an existing database.
 Persistent host paths are fixed; changing the Compose project name does not create a separate Live instance.
 
 Live Web is published on `0.0.0.0:18080` by default, accessible through the host IP
-or `quant.wangqiwen.me`, without source IP restrictions. Deployment opens its frontend
+or `live.wangqiwen.me`, without source IP restrictions. Deployment opens its frontend
 port; same-origin, browser-session and trading authorization checks remain in place.
 The API (default 19080) is bound to loopback. PostgreSQL and the kernel have no host
 ports; the frontend and management API have no storage network, database settings,

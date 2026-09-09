@@ -148,7 +148,7 @@ python3 scripts/northstarctl.py deploy live --env-file ~/.config/northstar/live.
 
 打开 <http://core.local:18082>，在历史同步页设置 Tushare token 并启动同步。
 Research 网页为 <http://research.local:18084>。也可使用所属主机的局域网 IPv4 地址（例如 `http://192.168.50.10:18082`）。
-Live 网页为 <http://quant.wangqiwen.me:18080>。三个应用不限制来源 IP，支持任意合法 IP 地址及默认主机名访问，无需配置 IP 白名单；保留同源和会话校验。
+Live 公网网页为 <https://live.wangqiwen.me>，直连使用 Live 主机 IP:18080。三个应用不限制来源 IP，支持任意合法 IP 地址及默认主机名访问，无需配置 IP 白名单；保留同源和会话校验。
 前端发布到 `0.0.0.0`，API 仍仅绑定本机。`deploy/start/restart` 自动开放对应前端端口，
 通过 iptables 的 `INPUT` 和 `DOCKER-USER` 两个入口兼容 UFW 与 Docker 转发，只维护各应用自己的规则。
 重复执行不追加重复规则，不修改 SSH、数据库或其他应用规则。
@@ -200,10 +200,18 @@ Research 备份也保存绑定，恢复时自动还原，不需要手工生成�
 
 所属应用 `.env` 可保留未提交的本地凭据修改；部署捕获该文件并通过独立 SSH 流传输，不进入 Git 源码包。其他源码仍必须干净。默认仅首次安装配置，更新已有配置须显式传 `--env-file`。
 
-### Caddy / FRP 访问 Data Hub
+### Caddy / FRP 访问三个应用
 
-Data Hub 同时允许 `core.local`、合法 IP 和 `datahub.wangqiwen.me`。外部代理应指向
-Next.js 前端端口 18082，保留浏览器的 Host 和 Origin；不要直接转发到 Python API 或发布清单端口。
+公网域名与所属 Next.js 前端对应如下；保留浏览器的 Host 和 Origin，不直接转发到 Python API 或发布清单端口。
+
+| 域名 | 所属主机的前端端口 |
+|---|---|
+| datahub.wangqiwen.me | 18082 |
+| research.wangqiwen.me | 18084 |
+| live.wangqiwen.me | 18080 |
+
+三个应用继续允许合法 IP；Data Hub/Research 也支持 core.local/research.local。
+网页域名与 deploy/hosts.toml 的 SSH 部署地址是两种用途，不必相同。
 Caddy 到 FRP 的 HTTP 上游须保留 `Host: datahub.wangqiwen.me`；若配置曾重写 Host，移除该重写，
 或在 reverse_proxy 中使用 `header_up Host {http.request.hostport}`。FRP 也不要改写 Host。
 

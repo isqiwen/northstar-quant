@@ -21,7 +21,7 @@ def create_app(engine: Engine, library: DatasetReader) -> FastAPI:
     app = create_host(
         "Northstar Research · 量化研究工作台",
         (("研究", "/"), ("因子与策略", "/catalog"), ("文件 Paper", "/paper")),
-        allowed_hosts=("research.local",),
+        allowed_hosts=("research.local", "research.wangqiwen.me"),
         allow_ip_hosts=True,
     )
     catalog_api.register(
