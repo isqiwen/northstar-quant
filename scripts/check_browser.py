@@ -144,9 +144,7 @@ def main() -> None:
                     page.goto(data_url + "/")
                     expect(page.get_by_text("加工队列", exact=True)).to_be_visible()
                     expect(page.get_by_text("最早排队任务：", exact=False)).to_be_visible()
-                    page.get_by_role(
-                        "link", name=imported["attempt_id"][:8], exact=True
-                    ).first.click()
+                    page.locator(f'a[href="/attempts/{imported["attempt_id"]}"]').first.click()
                     page.wait_for_url(re.compile("/attempts/"))
                     page.goto("about:blank")
                 # Both frontend and API have exited. Only the independent processor
