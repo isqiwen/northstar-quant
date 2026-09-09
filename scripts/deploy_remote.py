@@ -27,6 +27,16 @@ def run(*args: str, cwd: Path | None = None, capture: bool = False) -> str:
     return result.stdout.strip() if capture else ""
 
 
+def image_environment(app: str, revision: str) -> None:
+    # Separate tags prevent two applications building on one host from racing :local.
+    backend = f"northstar-{app}-backend:{revision}"
+    os.environ["NORTHSTAR_BACKEND_IMAGE"] = backend
+    os.environ["NORTHSTAR_LIVE_IMAGE"] = backend
+    key = {"data-hub": "DATA", "research": "RESEARCH", "live": "LIVE"}.get(app)
+    if key:
+        os.environ[f"NORTHSTAR_{key}_FRONTEND_IMAGE"] = f"northstar-{app}-frontend:{revision}"
+
+
 def live_guard(project: str) -> None:
     # No deployment-owned check can atomically drain/authorize a trading session yet.
     # Refuse running, restarting and paused kernels; an absent/stopped kernel is never killed.
@@ -113,6 +123,7 @@ def execute(request: dict) -> None:
                 "-f",
                 str(release / "deploy" / folder / "compose.yaml"),
             ]
+            image_environment(app, revision)
             run(*compose, "config", "--quiet")
             if app == "live":
                 live_guard(project)
@@ -141,6 +152,7 @@ def execute(request: dict) -> None:
                 "-f",
                 str(release / "deploy" / folder / "compose.yaml"),
             ]
+            image_environment(app, release.name)
             print(f"当前配置版本：{release.name}", flush=True)
             if action == "status":
                 successful = root / "successful-revision"
