@@ -4,24 +4,22 @@ import { NextRequest } from "next/server";
 import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
 const MAX_BODY = 8 * 1024 * 1024;
-export function lanHosts(hostname: string): string[] {
-  const addresses = (process.env.NORTHSTAR_WEB_HOSTS || "")
-    .split(",")
-    .filter(Boolean);
-  if (addresses.some((address) => isIP(address) !== 4))
-    throw new Error("无效的主机 IPv4 地址配置");
-  return [hostname, ...addresses];
-}
 export async function forward(
   request: NextRequest,
   allowedHosts: readonly string[] = [],
+  allowIpHosts = false,
 ): Promise<Response> {
   const authority = request.headers.get("host") || "";
-  const host = /^([a-zA-Z0-9.-]+):([1-9][0-9]{0,4})$/.exec(authority);
+  const host =
+    /^(\[[0-9a-fA-F:]+\]|[a-zA-Z0-9.-]+)(?::([1-9][0-9]{0,4}))?$/.exec(
+      authority,
+    );
+  const hostname = host?.[1].replace(/^\[|\]$/g, "").toLowerCase() || "";
   if (
     !host ||
     Number(host[2]) > 65535 ||
-    !["127.0.0.1", "localhost", ...allowedHosts].includes(host[1].toLowerCase())
+    (!["127.0.0.1", "localhost", ...allowedHosts].includes(hostname) &&
+      !(allowIpHosts && isIP(hostname)))
   )
     return new Response("未允许的工作台地址", { status: 403 });
   const origin = request.headers.get("origin");

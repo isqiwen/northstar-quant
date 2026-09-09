@@ -148,15 +148,13 @@ python3 scripts/northstarctl.py deploy live --env-file ~/.config/northstar/live.
 
 打开 <http://core.local:18082>，在历史同步页设置 Tushare token 并启动同步。
 Research 网页为 <http://research.local:18084>。也可使用所属主机的局域网 IPv4 地址（例如 `http://192.168.50.10:18082`）。
-部署自动登记主机实际局域网 IP，并传给前端和 API，无需填写 `.env`；IP 变化后重新部署或重启应用。
-未登记的 IP 和任意 Host 别名仍会被拒绝。
-前端发布到 `0.0.0.0`，API 仍仅绑定本机。`deploy/start/restart` 自动识别物理网卡或默认路由网卡上的
-IPv4 私有网段（排除 Docker/VPN 接口）；未识别到局域网时明确报错，不开放端口。
-部署使用 iptables 的 `INPUT` 和 `DOCKER-USER` 两个入口，允许匹配网卡和网段的前端连接、拒绝其他来源，
-只维护各应用自己的规则；重复执行不追加重复规则，也不修改 SSH 或其他服务规则。
-对应 `northstar-<应用>-firewall.service` 在开机/Docker 重启后重新应用；网段变化后重新运行部署或启动命令。
+Data Hub/Research 不限制来源 IP，支持任意合法 IP 地址及默认主机名访问，无需配置 IP 白名单；保留同源和会话校验。
+前端发布到 `0.0.0.0`，API 仍仅绑定本机。`deploy/start/restart` 自动开放对应前端端口，
+通过 iptables 的 `INPUT` 和 `DOCKER-USER` 两个入口兼容 UFW 与 Docker 转发，只维护各应用自己的规则。
+重复执行不追加重复规则，不修改 SSH、数据库或 Live 规则。
+对应 `northstar-<应用>-firewall.service` 在开机/Docker 重启后重新应用。
 要求 Docker 使用 iptables 防火墙后端（当前默认），不关闭或重置现有 UFW。
-可用 `sudo unshare --net python3 scripts/acceptance/check_lan_firewall.py` 在隔离网络中验证规则。
+可用 `sudo unshare --net python3 scripts/acceptance/check_web_firewall.py` 在隔离网络中验证规则。
 仅测试 Data Hub 时无需部署 Research/Live。
 前端/API 与同步 worker 独立，关闭管理界面不停止已提交任务。
 

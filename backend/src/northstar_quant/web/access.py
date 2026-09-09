@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-import os
 import re
 import secrets
 import time
-from ipaddress import IPv4Address
+from ipaddress import ip_address
 
 from fastapi import HTTPException, Request
 from starlette.requests import HTTPConnection
@@ -18,21 +17,18 @@ _SESSION_SECONDS = 1800
 _DENIED = "工作台会话缺失或已过期。请重新打开工作台页面后操作。"
 
 
-def lan_hosts(hostname: str) -> tuple[str, ...]:
-    """Deployment supplies actual host IPs; never trust arbitrary browser Host values."""
-    addresses = tuple(
-        str(IPv4Address(value))
-        for value in os.environ.get("NORTHSTAR_WEB_HOSTS", "").split(",")
-        if value
-    )
-    return (hostname, *addresses)
-
-
 class WorkspaceAccess:
     """Process-local browser identity, never broker credentials or execution authority."""
 
-    def __init__(self, cookie: str = COOKIE, *, allowed_hosts: tuple[str, ...] = ()) -> None:
+    def __init__(
+        self,
+        cookie: str = COOKIE,
+        *,
+        allowed_hosts: tuple[str, ...] = (),
+        allow_ip_hosts: bool = False,
+    ) -> None:
         self.cookie = cookie
+        self.allow_ip_hosts = allow_ip_hosts
         self.allowed_hosts = {"127.0.0.1", "localhost", *allowed_hosts}
         self._sessions: dict[str, tuple[str, float]] = {}
 
@@ -89,10 +85,18 @@ class WorkspaceAccess:
                 raise HTTPException(status_code=403, detail="Publication access is read-only")
             return
         authority = headers.get("host", "")
-        match = re.fullmatch(r"([a-zA-Z0-9.-]+)(?::([1-9][0-9]{0,4}))?", authority)
-        if match is None or match[1].lower() not in self.allowed_hosts:
+        match = re.fullmatch(
+            r"(\[[0-9a-fA-F:]+\]|[a-zA-Z0-9.-]+)(?::([1-9][0-9]{0,4}))?", authority
+        )
+        host = match[1].strip("[]").lower() if match else ""
+        try:
+            ip_address(host)
+            permitted_ip = self.allow_ip_hosts
+        except ValueError:
+            permitted_ip = False
+        if match is None or (host not in self.allowed_hosts and not permitted_ip):
             raise HTTPException(status_code=403, detail="未允许的工作台地址。")
-        if ":" in authority and int(authority.rsplit(":", 1)[1]) > 65535:
+        if match[2] and int(match[2]) > 65535:
             raise HTTPException(status_code=403, detail="无效的工作台地址。")
         # The frontend passes checked Host/Origin directly; forwarded headers grant no trust.
         if any(name == "forwarded" or name.startswith("x-forwarded-") for name in headers):

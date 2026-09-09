@@ -38,13 +38,16 @@ def test_browser_commands_require_same_app_csrf_origin_and_unexpired_session() -
         assert accepted == [True]
 
 
-def test_lan_host_keeps_csrf_origin_and_live_isolation(monkeypatch) -> None:
-    from northstar_quant.web.access import lan_hosts
-
-    monkeypatch.setenv("NORTHSTAR_WEB_HOSTS", "192.168.50.10,192.168.50.20")
-    for host in ("core.local", "research.local", "192.168.50.10", "192.168.50.20"):
+def test_ip_access_keeps_csrf_origin_and_live_isolation() -> None:
+    for host in (
+        "core.local",
+        "research.local",
+        "192.168.50.10",
+        "198.51.100.10",
+        "[2001:db8::10]",
+    ):
         app = create_host(
-            "LAN workspace", (), allowed_hosts=lan_hosts("research.local") + ("core.local",)
+            "IP workspace", (), allowed_hosts=("research.local", "core.local"), allow_ip_hosts=True
         )
         access = app.state.workspace_access
 
@@ -53,7 +56,9 @@ def test_lan_host_keeps_csrf_origin_and_live_isolation(monkeypatch) -> None:
             access.protect(request)
             return {"ok": True}
 
-        with TestClient(app, base_url=f"http://{host}:18082") as client:
+        with TestClient(
+            app, base_url="http://127.0.0.1:18082", headers={"Host": f"{host}:18082"}
+        ) as client:
             token = client.get("/api/browser-session").json()["csrf"]
             assert client.post("/api/change").status_code == 403
             headers = {"X-Northstar-CSRF": token, "Origin": f"http://{host}:18082"}
@@ -61,11 +66,15 @@ def test_lan_host_keeps_csrf_origin_and_live_isolation(monkeypatch) -> None:
             for override in (
                 {"Origin": "http://evil.example"},
                 {"Host": "evil.example"},
-                {"Host": "192.168.50.99:18082"},
+                {"Host": "999.999.999.999:18082"},
                 {"Host": f"{host}:99999"},
                 {"Sec-Fetch-Site": "cross-site"},
                 {"X-Forwarded-Host": host},
             ):
                 assert client.post("/api/change", headers=headers | override).status_code == 403
-        with TestClient(create_host("Northstar Live", ()), base_url=f"http://{host}:18080") as live:
+        with TestClient(
+            create_host("Northstar Live", ()),
+            base_url="http://127.0.0.1:18080",
+            headers={"Host": f"{host}:18080"},
+        ) as live:
             assert live.get("/api/browser-session").status_code == 403

@@ -35,10 +35,12 @@ def create_host(
     *,
     close: Callable[[], Awaitable[None]] | None = None,
     allowed_hosts: tuple[str, ...] = (),
+    allow_ip_hosts: bool = False,
 ) -> FastAPI:
     access = WorkspaceAccess(
         cookie=title.split(" · ")[0].lower().replace(" ", "_") + "_session",
         allowed_hosts=allowed_hosts,
+        allow_ip_hosts=allow_ip_hosts,
     )
 
     @asynccontextmanager

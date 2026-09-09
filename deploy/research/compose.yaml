@@ -66,7 +66,6 @@ services:
         max-size: 10m
         max-file: '3'
     environment:
-      NORTHSTAR_WEB_HOSTS: ${NORTHSTAR_WEB_HOSTS:-}
       NORTHSTAR_LOG_DIR: /var/log/northstar
       TMPDIR: /var/lib/northstar/work
       NORTHSTAR_DATABASE_OWNER: research
@@ -150,7 +149,6 @@ services:
         max-size: 10m
         max-file: '3'
     environment:
-      NORTHSTAR_WEB_HOSTS: ${NORTHSTAR_WEB_HOSTS:-}
       NORTHSTAR_API_URL: http://research-api:19084
     ports:
     - 0.0.0.0:${NORTHSTAR_RESEARCH_WEB_PORT:-18084}:3000

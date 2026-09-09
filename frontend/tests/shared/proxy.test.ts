@@ -1,11 +1,10 @@
 import { afterEach, expect, test } from "vitest";
 import { createServer } from "node:http";
 import { NextRequest } from "next/server";
-import { forward, lanHosts } from "../../shared/proxy";
+import { forward } from "../../shared/proxy";
 
 afterEach(() => {
   delete process.env.NORTHSTAR_API_URL;
-  delete process.env.NORTHSTAR_WEB_HOSTS;
 });
 
 test("LAN requests retain Host, cookie, CSRF and protobuf bytes upstream", async () => {
@@ -19,11 +18,12 @@ test("LAN requests retain Host, cookie, CSRF and protobuf bytes upstream", async
   try {
     const address = server.address() as { port: number };
     process.env.NORTHSTAR_API_URL = `http://127.0.0.1:${address.port}`;
-    process.env.NORTHSTAR_WEB_HOSTS = "192.168.50.10";
     for (const host of [
       "core.local:18082",
       "research.local:18084",
       "192.168.50.10:18082",
+      "198.51.100.10:18082",
+      "[2001:db8::10]:18082",
     ]) {
       const request = new NextRequest(`http://${host}/api/change`, {
         method: "POST",
@@ -38,7 +38,8 @@ test("LAN requests retain Host, cookie, CSRF and protobuf bytes upstream", async
       });
       const response = await forward(
         request,
-        lanHosts(host.startsWith("research") ? "research.local" : "core.local"),
+        [host.startsWith("research") ? "research.local" : "core.local"],
+        true,
       );
       expect(response.status).toBe(200);
       expect(new Uint8Array(await response.arrayBuffer())).toEqual(
@@ -60,7 +61,7 @@ test("LAN requests retain Host, cookie, CSRF and protobuf bytes upstream", async
 test("LAN allowance never permits foreign origins or arbitrary hostnames", async () => {
   const cases: Record<string, string>[] = [
     { host: "evil.example:18082" },
-    { host: "192.168.50.99:18082" },
+    { host: "999.999.999.999:18082" },
     { host: "core.local:18082", origin: "http://evil.example" },
     { host: "core.local:18082", "sec-fetch-site": "cross-site" },
     { host: "core.local:18082", forwarded: "host=core.local" },
@@ -71,6 +72,6 @@ test("LAN allowance never permits foreign origins or arbitrary hostnames", async
       method: "POST",
       headers,
     });
-    expect((await forward(request, ["core.local"])).status).toBe(403);
+    expect((await forward(request, ["core.local"], true)).status).toBe(403);
   }
 });

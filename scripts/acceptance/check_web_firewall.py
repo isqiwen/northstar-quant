@@ -1,6 +1,6 @@
-"""Exercise LAN filtering with real TCP/DNAT inside a disposable Linux network namespace.
+"""Exercise frontend port access with real TCP/DNAT inside a disposable Linux network namespace.
 
-Run: sudo unshare --net python3 scripts/acceptance/check_lan_firewall.py
+Run: sudo unshare --net python3 scripts/acceptance/check_web_firewall.py
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ def run(*args: str, **kwargs):
 def verify() -> None:
     if os.geteuid() != 0 or os.readlink("/proc/self/ns/net") == os.readlink("/proc/1/ns/net"):
         raise SystemExit("Run as root inside an isolated network namespace, never the host network")
-    source = Path(__file__).resolve().parents[1] / "operations/lan_firewall.py"
+    source = Path(__file__).resolve().parents[1] / "operations/web_firewall.py"
     children = []
     with tempfile.TemporaryDirectory(prefix="northstar-firewall-check-") as folder:
         copied = Path(folder) / "firewall.py"
@@ -64,6 +64,8 @@ def verify() -> None:
             run("iptables", "-A", "FORWARD", "-j", "DOCKER-USER")
             run("iptables", "-A", "FORWARD", "-j", "ACCEPT")
             run("iptables", "-P", "INPUT", "DROP")
+            run("iptables", "-N", "NS-DATA-WEB")
+            run("iptables", "-A", "NS-DATA-WEB", "-j", "DROP")
             firewall["apply"]("data-hub", 18082)
 
             def rules():
@@ -73,7 +75,6 @@ def verify() -> None:
                     if not line.startswith("#")
                 ]
 
-            assert firewall["local_addresses"]() == ["192.168.50.10"]
             before = rules()
             firewall["apply"]("data-hub", 18082)
             assert rules() == before, "repeat application changed rules"
@@ -124,15 +125,13 @@ def verify() -> None:
                         "172.18.0.2:3000",
                     )
                 probe("192.168.50.20", True)
-                probe("198.51.100.20", False)
+                probe("198.51.100.20", True)
             firewall["apply"]("research", 18084)
             assert "NS-DATA-WEB" in run("iptables", "-S", "DOCKER-USER").stdout
             firewall["apply"]("data-hub", 18083)
             hooks = run("iptables", "-S", "DOCKER-USER").stdout
             assert "--ctorigdstport 18082" not in hooks and "--ctorigdstport 18083" in hooks
-            print(
-                "PASS: INPUT/Docker DNAT LAN allow, non-LAN deny, repeat/update and app isolation"
-            )
+            print("PASS: INPUT/Docker DNAT LAN/non-LAN allow, repeat/update and app isolation")
         finally:
             for child in reversed(children):
                 if child.poll() is None:

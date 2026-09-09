@@ -13,7 +13,7 @@ export function sessionToken(): Promise<string> {
       if (!r.ok)
         throw new Error(
           r.status === 403
-            ? "当前访问地址或来源未获允许，无法建立浏览器会话。请使用部署登记的主机名或 IP。"
+            ? "当前访问地址或来源未获允许，无法建立浏览器会话。请检查访问地址和同源请求。"
             : `无法建立浏览器会话（HTTP ${r.status}），请检查后端服务。`,
         );
       return (
