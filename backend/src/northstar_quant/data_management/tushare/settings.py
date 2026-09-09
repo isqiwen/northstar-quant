@@ -65,6 +65,10 @@ def status(engine: Engine) -> dict[str, Any]:
             ),
             {"r": config["revision"]},
         )
+        config["catalog_ready"] = connection.scalar(
+            text("""SELECT coalesce(bool_and(status='VALIDATED'),false)
+            FROM data_sync_jobs WHERE dataset='contracts'""")
+        )
         config["catalog_errors"] = [
             serial(row)
             for row in connection.execute(

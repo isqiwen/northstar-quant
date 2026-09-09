@@ -44,7 +44,10 @@ export function TushareSync() {
   const done = groups
     .filter((r) => r.status === "VALIDATED")
     .reduce((n, r) => n + Number(r.windows), 0);
-  const planned = !!config?.planned_at && data?.unplanned_contracts === 0;
+  const planned =
+    !!config?.catalog_ready &&
+    !!config?.planned_at &&
+    data?.unplanned_contracts === 0;
   const names = Object.fromEntries(
     (data?.datasets ?? []).map((r) => [String(r.key), String(r.label)]),
   );

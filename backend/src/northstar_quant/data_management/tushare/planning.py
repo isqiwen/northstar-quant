@@ -122,6 +122,13 @@ def plan(engine: Engine) -> None:
                     if end_text
                     else target
                 )
+                if start > target:
+                    connection.execute(
+                        text("""UPDATE data_sync_contracts SET planned_revision=:r,
+                        planning_error=NULL WHERE ts_code=:code"""),
+                        {"r": config["revision"], "code": contract["ts_code"]},
+                    )
+                    continue
                 if start > end:
                     raise ValueError("invalid lifetime")
             except (ValueError, TypeError):

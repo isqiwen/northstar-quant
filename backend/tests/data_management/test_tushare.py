@@ -107,17 +107,6 @@ def ready(library):
         )
 
 
-def mock_download(monkeypatch, content):
-    def fetch(api, parameters, token):
-        def handle(request):
-            assert json.loads(request.content)["token"] == TOKEN
-            return httpx2.Response(200, content=content)
-
-        return acquisition.fetch(api, parameters, token, transport=httpx2.MockTransport(handle))
-
-    monkeypatch.setattr(jobs.acquisition, "fetch", fetch)
-
-
 def test_commit_retry_revision_and_backup_pins(automatic, monkeypatch):
     library = automatic
     pending(library)
