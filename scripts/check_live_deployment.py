@@ -13,6 +13,7 @@ from time import monotonic, sleep
 from uuid import uuid4
 
 import httpx2 as httpx
+from deploy_remote import lifecycle
 
 from northstar_quant.web.protobuf import decode, methods
 
@@ -113,14 +114,21 @@ class Deployment:
                 "except OSError: print('Web cannot reach storage')\n"
                 "else: raise RuntimeError('Web unexpectedly reached storage')",
             )
-            self.run("restart", "live-web")
+            lifecycle([], "live", "restart", True, runner=self.run)
             self.wait_http(client, "/health/ready")
-            # Frontend restart keeps the API session and kernel alive.
+            # Recreated management containers preserve the independent kernel identity.
             self.wait_http(client, "/api/browser-session")
             after = self.wait_http(client, "/api/live/status").json()
             assert after["runtime_id"] == identity
             assert self.run("ps", "-q", "live").strip() == kernel
-            print("Live-only installed page and Web restart: same independent kernel", flush=True)
+            print("Live management restart: same independent kernel", flush=True)
+
+            lifecycle([], "live", "stop", True, runner=self.run)
+            assert self.run("ps", "-q", "live").strip() == kernel
+            lifecycle([], "live", "start", True, runner=self.run)
+            self.wait_http(client, "/api/browser-session")
+            assert self.wait_http(client, "/api/live/status").json()["runtime_id"] == identity
+            print("Live management stop/start: same independent kernel", flush=True)
 
             self.run("stop", "live-api")
             self.wait_http(client, "/health/ready")

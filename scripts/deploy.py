@@ -52,8 +52,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="通过 SSH 独立部署数据库或应用，传送当前 Git 提交")
     parser.add_argument(
         "action",
-        choices=("deploy", "status", "logs", "stop"),
-        help="部署、状态、容器日志、停止（保留数据）",
+        choices=("deploy", "start", "restart", "status", "logs", "stop"),
+        help="部署、启动、重启、状态、容器日志、停止（保留数据）",
     )
     parser.add_argument("app", choices=APPLICATIONS)
     parser.add_argument(
@@ -64,7 +64,14 @@ def main() -> int:
     )
     parser.add_argument("--dry-run", action="store_true", help="仅显示目标，不连接 SSH")
     parser.add_argument("--follow", action="store_true", help="持续查看容器标准输出（仅 logs）")
+    parser.add_argument(
+        "--management-only", action="store_true", help="仅启停 Live 前端/API，不操作内核和数据库"
+    )
     args = parser.parse_args()
+    if args.management_only and (
+        args.app != "live" or args.action not in ("start", "restart", "stop")
+    ):
+        parser.error("--management-only 仅用于 Live 的 start/restart/stop")
     if args.follow and args.action != "logs":
         parser.error("--follow 仅用于 logs")
     try:
@@ -79,6 +86,7 @@ def main() -> int:
             "action": args.action,
             "revision": revision,
             "follow": args.follow,
+            "management_only": args.management_only,
         }
         print(
             f"{args.action} {args.app} → {config['user']}@{config['host']}:{config['port']} "

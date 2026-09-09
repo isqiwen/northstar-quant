@@ -64,6 +64,7 @@ if name == 'docker' and 'inspect' in sys.argv:
     print(json.dumps(dict(Running=True)))
 elif name == 'docker' and 'ps' in sys.argv and '-aq' in sys.argv:
     if os.environ.get('KERNEL_RUNNING'): print('kernel-id')
+if name == 'uv': sys.exit(int(os.environ.get('MOUNT_RESULT', '0')))
 if name == 'make': sys.exit(int(os.environ.get('MAKE_RESULT', '0')))
 """
     for tool in ("ssh", "docker", "make", "uv"):
@@ -79,11 +80,19 @@ if name == 'make': sys.exit(int(os.environ.get('MAKE_RESULT', '0')))
 
 
 def invoke(
-    deployment: tuple[Path, Path, dict], action: str, app: str
+    deployment: tuple[Path, Path, dict], action: str, app: str, *options: str
 ) -> subprocess.CompletedProcess:
     repo, config, env = deployment
     return subprocess.run(
-        [sys.executable, str(repo / "scripts/deploy.py"), action, app, "--config", str(config)],
+        [
+            sys.executable,
+            str(repo / "scripts/deploy.py"),
+            action,
+            app,
+            "--config",
+            str(config),
+            *options,
+        ],
         env=env,
         text=True,
         capture_output=True,
@@ -103,7 +112,7 @@ def test_transfer_committed_release_and_isolated_lifecycle(deployment, app, targ
     ).strip()
     assert revision in result.stdout
     assert "not-for-output" not in result.stdout + result.stderr
-    for action in ("status", "logs", "stop"):
+    for action in ("status", "logs", "stop", "start", "restart"):
         result = invoke(deployment, action, app)
         assert result.returncode == 0, result.stderr
     calls = [json.loads(line) for line in Path(env["RECORD"]).read_text().splitlines()]
@@ -124,7 +133,7 @@ def test_failed_up_remains_inspectable_without_false_success(deployment):
     assert "最后成功版本：无" in result.stdout
 
 
-@pytest.mark.parametrize("action", ["deploy", "stop"])
+@pytest.mark.parametrize("action", ["deploy", "start", "restart", "stop"])
 def test_running_live_refuses_mutation(deployment, action):
     _, config, env = deployment
     (config.parent / "live").mkdir()
@@ -172,3 +181,32 @@ def test_make_interpolation_in_configuration_is_rejected_before_ssh(deployment):
     config.write_text(config.read_text().replace("private.env", "$(touch injected).env"))
     assert invoke(deployment, "deploy", "database").returncode != 0
     assert not Path(env["RECORD"]).exists()
+
+
+@pytest.mark.parametrize("action", ["start", "restart", "stop"])
+def test_live_management_never_operates_kernel_dependencies(deployment, action):
+    _, _, env = deployment
+    assert invoke(deployment, "deploy", "live").returncode == 0
+    Path(env["RECORD"]).write_text("")
+    env["KERNEL_RUNNING"] = "1"
+    result = invoke(deployment, action, "live", "--management-only")
+    assert result.returncode == 0, result.stderr
+    calls = [json.loads(line) for line in Path(env["RECORD"]).read_text().splitlines()]
+    mutations = [c for c in calls if c[:2] == ["docker", "compose"] and ("up" in c or "stop" in c)]
+    assert len(mutations) == 1
+    assert mutations[0][-2:] == ["live-api", "live-web"]
+    if action != "stop":
+        assert "--no-deps" in mutations[0]
+        assert "--no-build" in mutations[0]
+        assert mutations[0][mutations[0].index("--pull") + 1] == "never"
+
+
+@pytest.mark.parametrize("action", ["start", "restart"])
+def test_mount_failure_prevents_start_or_restart(deployment, action):
+    _, _, env = deployment
+    assert invoke(deployment, "deploy", "research").returncode == 0
+    Path(env["RECORD"]).write_text("")
+    env["MOUNT_RESULT"] = "1"
+    assert invoke(deployment, action, "research").returncode != 0
+    calls = [json.loads(line) for line in Path(env["RECORD"]).read_text().splitlines()]
+    assert not any(c[:2] == ["docker", "compose"] and "up" in c for c in calls)

@@ -10,6 +10,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+from collections.abc import Callable
 from pathlib import Path
 
 TARGETS = {
@@ -56,13 +57,46 @@ def live_guard(project: str) -> None:
         )
         if state.get("Running") or state.get("Restarting") or state.get("Paused"):
             raise ValueError(
-                "Live 内核运行中：拒绝部署/停止。须先在主机完成会话核对和维护停机；无强制选项。"
+                "Live 内核运行中：拒绝整套部署/启停。须先在主机完成会话核对和维护停机；无强制选项。"
             )
+
+
+def lifecycle(
+    compose: list[str],
+    app: str,
+    action: str,
+    management_only: bool,
+    *,
+    runner: Callable[..., str] = run,
+) -> None:
+    """Operate existing images; management operations never traverse Live dependencies."""
+    services = (
+        ["live-api", "live-web"] if management_only else (["postgres"] if app == "database" else [])
+    )
+    if action == "stop":
+        runner(*compose, "stop", *services) if management_only else runner(*compose, "down")
+        return
+    options = ["--no-deps"] if management_only else []
+    runner(
+        *compose,
+        "up",
+        "--no-build",
+        "--pull",
+        "never",
+        "-d",
+        "--wait",
+        "--wait-timeout",
+        "180",
+        "--force-recreate" if action == "restart" else "--no-recreate",
+        *options,
+        *services,
+    )
 
 
 def execute(request: dict) -> None:
     app, action = request["app"], request["action"]
     folder, target, project = TARGETS[app]
+    management_only = request.get("management_only", False)
     root = Path(request["directory"])
     env_file = Path(request["env_file"])
     if action == "deploy":
@@ -89,7 +123,11 @@ def execute(request: dict) -> None:
         os.environ["COMPOSE_PROJECT_NAME"] = project
         run("docker", "info", capture=True)
         run("docker", "compose", "version", capture=True)
-        if app == "live" and action in ("deploy", "stop"):
+        if (
+            app == "live"
+            and action in ("deploy", "start", "restart", "stop")
+            and not management_only
+        ):
             live_guard(project)
         active = root / "current"
         if action == "deploy":
@@ -165,8 +203,40 @@ def execute(request: dict) -> None:
             elif action == "logs":
                 fcntl.flock(lock, fcntl.LOCK_UN)
                 run(*compose, "logs", "--tail=100", *(["--follow"] if request["follow"] else []))
-            elif action == "stop":
-                run(*compose, "down")
+            elif action in ("start", "restart", "stop"):
+                if action != "stop":
+                    successful = root / "successful-revision"
+                    if not successful.exists() or successful.read_text().strip() != release.name:
+                        raise ValueError("当前版本尚未成功部署，请先重试 deploy")
+                    if run(
+                        "git", "rev-parse", "HEAD", cwd=release, capture=True
+                    ) != release.name or run(
+                        "git",
+                        "status",
+                        "--porcelain",
+                        "--untracked-files=all",
+                        cwd=release,
+                        capture=True,
+                    ):
+                        raise ValueError("已部署版本有修改，拒绝启动；请通过 deploy 更新")
+                    if app in ("data-hub", "research"):
+                        run(
+                            "uv",
+                            "run",
+                            "--project",
+                            "backend",
+                            "python",
+                            "scripts/check_nfs_mount.py",
+                            "--app",
+                            folder,
+                            "--env-file",
+                            str(env_file),
+                            cwd=release,
+                        )
+                        run(
+                            *compose, "run", "--rm", "--no-deps", "--pull", "never", "storage-check"
+                        )
+                lifecycle(compose, app, action, management_only)
 
 
 if __name__ == "__main__":

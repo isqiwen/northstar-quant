@@ -34,7 +34,9 @@
 ./scripts/deploy.py deploy live --config ~/.config/northstar/hosts.toml
 ```
 
-脚本部署当前已提交版本，支持 `status`、`logs`、`stop` 和 `--help`。Live 内核运行时拒绝整套更新/停止。
+脚本部署当前已提交版本，支持 `start`、`restart`、`stop`、`status`、`logs` 和 `--help`。
+`start`/`restart` 使用已部署版本，不重新构建。Live 内核运行时拒绝整套启停；
+使用 `restart live --management-only` 可单独重启前端/API。
 也可以在对应主机的仓库根目录执行（需要 Git、uv、Make、Docker；Linux 客户端还需 NFS 客户端与 `findmnt`）：
 
 ```sh
