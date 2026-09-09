@@ -64,10 +64,12 @@ with open(os.environ['RECORD'], 'a') as file:
     file.write(json.dumps([name, *sys.argv[1:]]) + '\\n')
 if name == 'ssh':
     sys.exit(subprocess.run(sys.argv[-1], shell=True).returncode)
+if name == 'docker' and sys.argv[1:] == ['info']:
+    sys.exit(int(os.environ.get('DOCKER_INFO_RESULT', '0')))
 if name == 'uv': sys.exit(int(os.environ.get('MOUNT_RESULT', '0')))
 if name == 'docker' and 'up' in sys.argv: sys.exit(int(os.environ.get('DEPLOY_UP_RESULT', '0')))
 """
-    for tool in ("ssh", "docker", "make", "uv"):
+    for tool in ("ssh", "docker", "make", "uv", "findmnt", "mount.nfs", "curl"):
         file = binaries / tool
         file.write_text(stub)
         file.chmod(0o755)
@@ -205,3 +207,14 @@ def test_mount_failure_prevents_start_or_restart(deployment, action, app):
     assert invoke(deployment, action, app).returncode != 0
     calls = [json.loads(line) for line in Path(env["RECORD"]).read_text().splitlines()]
     assert not any(c[:2] == ["docker", "compose"] and "up" in c for c in calls)
+
+
+def test_dependency_failure_prevents_source_transfer_and_application_mutation(deployment):
+    _, config, env = deployment
+    env["DOCKER_INFO_RESULT"] = "1"
+    result = invoke(deployment, "deploy", "live")
+    assert result.returncode != 0
+    assert not (config.parent / "live/current").exists()
+    calls = [json.loads(line) for line in Path(env["RECORD"]).read_text().splitlines()]
+    assert len([call for call in calls if call[0] == "ssh"]) == 1
+    assert not any("up" in call or "down" in call for call in calls)

@@ -66,7 +66,7 @@ def manage(app: str, action: str, env_file: Path, *, follow: bool = False) -> No
             "--project",
             "backend",
             "python",
-            "scripts/operations/check_nfs_mount.py",
+            "scripts/operations/check_storage.py",
             "--app",
             folder,
             "--env-file",

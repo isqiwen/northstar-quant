@@ -55,7 +55,7 @@ def main() -> int:
     parser.add_argument(
         "action",
         choices=("deploy", "start", "restart", "status", "logs", "stop"),
-        help="部署、启动、重启、状态、容器日志、停止（保留数据）",
+        help="部署（自动准备主机依赖）、启动、重启、状态、容器日志、停止（保留数据）",
     )
     parser.add_argument("app", choices=APPLICATIONS)
     parser.add_argument(
@@ -96,6 +96,8 @@ def main() -> int:
             "-o",
             "BatchMode=yes",
             "-o",
+            "ControlPath=none",
+            "-o",
             "StrictHostKeyChecking=yes",
             "-o",
             "ConnectTimeout=10",
@@ -119,6 +121,18 @@ def main() -> int:
         ]
         if args.action != "deploy":
             return subprocess.run(command, stdin=subprocess.DEVNULL, check=False).returncode
+        bootstrap = command[:-1] + [
+            shlex.join(
+                [
+                    "python3",
+                    "-c",
+                    (ROOT / "scripts/operations/dependencies.py").read_text(),
+                    json.dumps(request),
+                ]
+            )
+        ]
+        subprocess.run(bootstrap, stdin=subprocess.DEVNULL, check=True)
+        # Reconnect so Docker group membership from first installation takes effect.
         with tempfile.TemporaryDirectory(prefix="northstar-deploy-") as temporary:
             bundle = Path(temporary) / "source.bundle"
             subprocess.run(

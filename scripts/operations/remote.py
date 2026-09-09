@@ -38,6 +38,7 @@ def image_environment(app: str, revision: str) -> None:
 
 
 def execute(request: dict) -> None:
+    os.environ["PATH"] += os.pathsep + str(Path.home() / ".local/bin") + ":/usr/sbin:/sbin"
     app, action = request["app"], request["action"]
     folder, project = TARGETS[app]
     root = Path(request["directory"])

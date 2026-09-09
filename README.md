@@ -20,6 +20,8 @@ Tushare 定时增量/分片补数、15 分钟到日线完整研究输入、持�
 
 部署位置：Data Hub 在 `core.local`，Research 在 `research.local`，PostgreSQL 在 core，文件/备份在 QNAP `nas.local`。
 三个应用的前端、API、worker/内核分别运行在独立容器中。
+暂未购置 NAS 时，可用 `NORTHSTAR_STORAGE_MODE=local` 将 Data Hub 文件与备份保存在 core 本地，
+具体目录、UUID 与命令见[单机测试部署](deploy/README.md#暂无-nascore-单机测试)。
 
 配置文件在 `deploy/{database,data_hub,research,live}/.env`，随仓库维护非敏感配置，凭据留空。
 按[跨主机部署说明](deploy/README.md) 准备各主机运行副本并填写口令，确认 QNAP 实际 NFS 导出路径。
@@ -35,6 +37,8 @@ Tushare 定时增量/分片补数、15 分钟到日线完整研究输入、持�
 ./scripts/northstarctl.py deploy live --config ~/.config/northstar/hosts.toml
 ```
 
+远程 `deploy` 自动安装目标 Ubuntu/Debian 主机缺失的 Git、uv、Docker/Compose/Buildx 和所需 NFS 工具；
+目标仍需 SSH、Python 3.11+、root 或免交互 sudo，NAS 挂载与私有配置提前准备。
 脚本部署当前已提交版本，支持 `start`、`restart`、`stop`、`status`、`logs` 和 `--help`。
 `start`/`restart` 使用已部署版本，不重新构建。所有应用统一操作整个部署对象；`restart live` 会重启前端、API、内核和本地数据库。
 也可以在对应主机的仓库根目录执行（需要 Git、uv、Make、Docker；Linux 客户端还需 NFS 客户端与 `findmnt`）：

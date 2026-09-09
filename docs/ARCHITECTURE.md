@@ -31,6 +31,11 @@ Data Hub 与独立 PostgreSQL 部署在 `core.local`；数据库活跃数据放 
 Research 在 `research.local`，其本机 SQLite 保存研究任务/结果元数据，不连接 core 数据库。
 Research 通过带独立只读凭据的 Data Hub Protobuf API 取得固定清单，再按存储 UUID 与相对路径
 读取 NAS Parquet，由本机内嵌 DuckDB 计算。发布内容不可原地覆盖，不共享可写 DuckDB 文件。
+存储部署显式选择 `NORTHSTAR_STORAGE_MODE=nfs|local`，默认 `nfs`。
+暂无 NAS 时可在 core 使用 `local`：来源、发布、研究产物和备份保存在独立本机持久目录，
+使用相同的内容身份、存储 UUID、权限和初始化规则；不要求 NFS，也不解析 NAS 地址。
+本地模式不是网络故障回退，另一台 Research 主机不能直接读取 core 本地目录。
+迁入 NAS 须停止写入、保全数据库与文件、保留存储身份并显式切换配置。
 QNAP 导出路径须现场确认，优先 NFSv4；来源、市场发布、研究产物和备份分开挂载。
 Research 不挂载来源，市场只读；备份仅挂载到维护容器。挂载或身份不符时拒绝启动。
 Research 临时目录、数据库和应用日志在本机；持久 SSD 行情缓存尚未实现。

@@ -38,6 +38,57 @@ Research 的 SQLite 文件使用本机 `state` 持久卷，不部署 PostgreSQL 
 SQLite 使用 WAL、FULL 同步及事务串行写入；DuckDB 只承担行情查询。
 应用账号没有超级用户、建库、建角色或 DDL 权限；管理凭据仅交给初始化/维护容器。
 
+## 暂无 NAS：core 单机测试
+
+同一套 Compose 支持 `NORTHSTAR_STORAGE_MODE=local`；默认仍为 `nfs`。
+将 `deploy/database/.env`、`deploy/data_hub/.env` 复制到 core 的
+`/etc/northstar/database.env`、`/etc/northstar/data-hub.env`，权限 600。
+在这两份运行配置中设置相同的本机路径：
+
+```dotenv
+NORTHSTAR_STORAGE_MODE=local
+NORTHSTAR_SOURCE_MOUNT=/var/lib/northstar/files/source
+NORTHSTAR_MARKET_MOUNT=/var/lib/northstar/files/market
+NORTHSTAR_RESEARCH_MOUNT=/var/lib/northstar/files/research
+NORTHSTAR_BACKUP_MOUNT=/var/lib/northstar/files/backup
+```
+
+首次在 core 准备空目录：
+
+```sh
+sudo mkdir -p /var/lib/northstar/files/{source,market,research,backup}
+sudo mkdir -p /var/lib/northstar/postgresql
+```
+
+目录必须在 core 的 ext4/xfs/btrfs/zfs 持久文件系统上，不能是符号链接、NFS、SMB、tmpfs 或容器临时层。
+按容器运行身份准备读写权限；不要使用 777。各目录不能相同或互相包含。
+数据库 `PGDATA` 仍为 `/var/lib/northstar/postgresql`，与文件目录分离。
+
+四个 `NORTHSTAR_*_STORAGE_ID` 各生成一个 UUID，并将同一组值填入两份运行配置；例如在自己的终端运行：
+
+```sh
+python3 -c 'from uuid import uuid4; [print(f"NORTHSTAR_{name}_STORAGE_ID={uuid4()}") for name in ("SOURCE", "MARKET", "RESEARCH", "BACKUP")]'
+```
+
+数据库口令、Docker 数据库网络和发布 token 按上节填写；仅本机测试时，
+`NORTHSTAR_PUBLICATION_BIND_ADDRESS=127.0.0.1` 即可。NFS 导出路径可以留空，NAS 地址不使用。
+`local` 模式只安装本地检查所需工具，不要求 NFS 客户端。然后从本机仓库执行：
+
+```sh
+./scripts/northstarctl.py deploy database --config ~/.config/northstar/hosts.toml
+./scripts/northstarctl.py deploy data-hub --config ~/.config/northstar/hosts.toml
+ssh -N -L 18082:127.0.0.1:18082 用户名@core.local
+```
+
+打开 <http://127.0.0.1:18082>，在历史同步页设置 Tushare token 并启动全量同步。
+来源、行情和备份此时都在 core；本机备份不能抵御 core 磁盘损坏。
+Research 暂不需要部署；以后若也在 core 测试，可选择相同本地目录，市场仍以只读方式挂入其容器。
+另一台主机不能直接读取 core 本地路径。
+
+购买 NAS 后需显式迁移：停止数据写入，备份数据库与文件，将完整文件和身份标记迁移到已核验的 NAS 共享，
+保留对应存储 UUID，再把运行配置切换为 `nfs` 并填写挂载/导出信息。脚本不自动搬迁或覆盖数据。
+`nfs` 模式缺失挂载仍报错，绝不自动回退到 `local`。
+
 ## NAS 挂载
 
 | 共享 | 挂载点示例 | core | research |
@@ -72,7 +123,18 @@ make up-data ENV_FILE=/etc/northstar/data-hub.env
 make up-research ENV_FILE=/etc/northstar/research.env
 ```
 
-远程统一入口（本机 Python/Git/SSH；目标 Linux 需要 Python 3.11+/Git/uv/Docker Compose/findmnt）：
+远程统一入口：本机需要 Python 3.11+/Git/SSH；目标主机先具备 SSH、Python 3.11+。
+`deploy` 在传送代码前自动检测并安装 Git、uv、Docker Engine、Compose 和 Buildx；
+非 Live 对象另安装 NFS 客户端与 findmnt。自动安装支持 Ubuntu/Debian amd64，
+需要 root 或免交互 `sudo -n`，以及软件源网络访问。已有可用工具直接复用，不主动升级或重启已有 Docker。
+Docker 使用官方 apt 源，uv 0.11.6 安装到部署用户的独立工具环境。
+首次安装 Docker 自动加入部署用户组，再重新连接 SSH 生效。
+已有 Docker 不可访问或发行版运行时缺少插件时明确报错，不自动替换运行时。
+其他系统须预装依赖；`start/restart/stop/status/logs` 不安装软件。
+
+私有 env 文件、NAS 共享与挂载、PGDATA 仍需提前准备；脚本不生成口令或猜测挂载路径。
+部署目录不存在时自动创建并交给部署用户。`--dry-run` 不连接主机，也不安装依赖。
+本机 Make 入口不执行主机自动安装，首次远程部署使用下列命令：
 
 ```sh
 ./scripts/northstarctl.py deploy database

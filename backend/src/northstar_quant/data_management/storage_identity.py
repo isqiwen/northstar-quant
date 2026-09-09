@@ -1,4 +1,4 @@
-"""Bind a mounted source directory to the explicitly configured NAS storage identity."""
+"""Bind retained files to an explicit storage identity, on local disk or NFS."""
 
 from __future__ import annotations
 
@@ -19,33 +19,29 @@ def require_identity(root: Path, identity: str) -> None:
         descriptor = os.open(root / _MARKER, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
         with os.fdopen(descriptor, "rb") as stream:
             if not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):
-                raise ValueError("NAS storage identity is not a regular file")
+                raise ValueError("Storage identity is not a regular file")
             content = stream.read(38)
     except OSError as error:
         raise ValueError(
-            "NAS source mount is missing or inaccessible; storage not initialized"
+            "Source mount is missing or inaccessible; storage not initialized"
         ) from error
     if content != (identity + "\n").encode("ascii"):
-        raise ValueError("NAS source mount identity does not match NORTHSTAR_STORAGE_ID")
+        raise ValueError("Source mount identity does not match NORTHSTAR_STORAGE_ID")
 
 
 def initialize(root: Path, identity: str) -> None:
-    """Run on NAS only; never adopt a nonempty or differently identified directory."""
+    """Initialize prepared storage; never adopt unidentified existing data."""
     from .files import SourceFiles
 
     if str(UUID(identity)) != identity:
         raise ValueError("NORTHSTAR_STORAGE_ID must be a canonical UUID")
     if not root.is_absolute() or not root.is_dir() or root.is_symlink():
-        raise ValueError(
-            "NAS source directory must already exist as a dedicated absolute directory"
-        )
+        raise ValueError("Source directory must already exist as a dedicated absolute directory")
     if (root / _MARKER).exists():
         require_identity(root, identity)
     else:
         if any(root.iterdir()):
-            raise ValueError(
-                "NAS source directory is not empty; explicit data migration is required"
-            )
+            raise ValueError("Source directory is not empty; explicit data migration is required")
         descriptor, temporary = tempfile.mkstemp(prefix=".identity-", dir=root)
         try:
             with os.fdopen(descriptor, "wb") as stream:
@@ -69,7 +65,7 @@ def probe(root: Path, identity: str) -> None:
         content = b"Northstar source mount write/link/fsync/read probe\n"
         stored = files.store(content)
         if files.read(stored.content_hash, stored.byte_count) != content:
-            raise ValueError("NAS source mount failed source-file round trip")
+            raise ValueError("Source mount failed source-file round trip")
 
 
 def verify_mount(expected: dict[str, str], observed: dict[str, str]) -> None:
@@ -101,3 +97,16 @@ def verify_mount(expected: dict[str, str], observed: dict[str, str]) -> None:
         or "softerr" in options
     ):
         raise ValueError("NFS requires hard mounts and the configured read/write access mode")
+
+
+def verify_local_directory(root: Path, observed: dict[str, str], *, writable: bool) -> None:
+    """Local mode admits dedicated persistent directories, never a failed network mount."""
+    if not root.is_absolute() or not root.is_dir() or root.resolve() != root:
+        raise ValueError("Local storage must be an existing absolute directory without symlinks")
+    if root == Path("/"):
+        raise ValueError("Local storage requires a dedicated directory")
+    if observed.get("fstype") not in {"ext4", "xfs", "btrfs", "zfs"}:
+        raise ValueError("Local storage requires ext4/xfs/btrfs/zfs, not NFS/SMB/tmpfs/overlay")
+    options = observed.get("options", "").split(",")
+    if writable and "rw" not in options:
+        raise ValueError("Local storage filesystem is read-only")
