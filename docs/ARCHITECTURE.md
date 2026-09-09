@@ -25,7 +25,8 @@
 前端只提供交互和同源转发，不持有数据库或柜台凭据。前端、API 与内核故障分别处理，
 页面关闭或管理端重启不拥有交易内核的停止权。
 
-根目录 Compose 提供本机完整环境，共用 PostgreSQL 和来源存储；
+三个应用各有 `deploy/<应用>/compose.yaml`，独立构建、启停和查看状态。
+Data Hub/Research 当前共用 `deploy/storage/` 配套项目中的 PostgreSQL 和来源存储，应用停止不停止存储；
 [Live 独立部署](../deploy/live/README.md) 只运行 Live 所需服务，使用自己的持久卷。
 目标部署位置为 Data Hub 在 core、Research 在工作站、Live 在独立运行域；生产云部署后置。
 第一轮 Live Sim 可在符合 SDK 要求的本机或独立主机运行，沿用同一部署结构；本机验收不代表云端已交付。

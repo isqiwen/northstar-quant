@@ -1,0 +1,69 @@
+name: ${NORTHSTAR_STORAGE_PROJECT:-northstar-storage}
+services:
+  postgres:
+    networks:
+    - storage
+    image: postgres:17-alpine
+    cpus: 1.0
+    mem_limit: 1g
+    memswap_limit: 1g
+    pids_limit: 128
+    logging:
+      driver: local
+      options:
+        max-size: 10m
+        max-file: '3'
+    environment:
+      POSTGRES_DB: northstar_quant
+      POSTGRES_USER: northstar
+      POSTGRES_PASSWORD: ${NORTHSTAR_STORAGE_DATABASE_PASSWORD:-northstar_local}
+    ports:
+    - 127.0.0.1:${NORTHSTAR_STORAGE_PORT:-15432}:5432
+    volumes:
+    - database:/var/lib/postgresql/data
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U northstar -d northstar_quant
+      interval: 2s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+  initialize:
+    networks:
+    - storage
+    platform: linux/amd64
+    build:
+      context: ../..
+      dockerfile: backend/Dockerfile
+      args:
+        NORTHSTAR_GIT_REVISION: ${NORTHSTAR_GIT_REVISION:-}
+        NORTHSTAR_DEVELOPMENT_BUILD: ${NORTHSTAR_DEVELOPMENT_BUILD:-0}
+    image: ${NORTHSTAR_BACKEND_IMAGE:-northstar-quant:local}
+    cpus: 1.0
+    mem_limit: 512m
+    memswap_limit: 512m
+    pids_limit: 64
+    logging:
+      driver: local
+      options:
+        max-size: 10m
+        max-file: '3'
+    environment:
+      NORTHSTAR_DATABASE_URL: postgresql+psycopg://northstar:${NORTHSTAR_STORAGE_DATABASE_PASSWORD:-northstar_local}@postgres:5432/northstar_quant
+      NORTHSTAR_DATA_DIR: /var/lib/northstar/sources
+    volumes:
+    - sources:/var/lib/northstar/sources
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command:
+    - sh
+    - -c
+    - northstar maintenance init-db && python -c 'from northstar_quant.data_management.files import SourceFiles; SourceFiles.from_environment()'
+volumes:
+  database: null
+  sources: null
+networks:
+  storage:
+    internal: true

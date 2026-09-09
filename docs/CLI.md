@@ -16,7 +16,7 @@ CLI 用于启动、检查、维护和自动化。日常数据管理、研究与 
 | `northstar check` | 检查 Live 内核与存储，异常时返回非零退出码 |
 
 API 和内核的 `serve` 命令支持 `--port`，仅监听本机；`data-worker` 不接收端口参数。Next.js 前端使用 Compose 或前端 npm 命令启动；
-一次启动完整环境仍使用根目录的 `make up`，环境配置见 [README](../README.md)。
+应用分别使用根目录的 `make up-data`、`make up-research`、`make up-live` 启动，环境配置见 [README](../README.md)。
 `status`、`check` 使用 LiveClient；内核不可用时明确失败，不会替你启动内核。
 
 ## 数据与研究自动化

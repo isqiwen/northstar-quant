@@ -34,6 +34,7 @@ class Deployment:
             NORTHSTAR_LIVE_KERNEL_MEMORY="1g",
             NORTHSTAR_LIVE_DATABASE_MEMORY="512m",
             NORTHSTAR_LIVE_WEB_PORT=str(self.port),
+            NORTHSTAR_LIVE_API_PORT="0",
         )
         self.compose = Path(__file__).resolve().parents[1] / "deploy/live/compose.yaml"
 

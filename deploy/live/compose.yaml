@@ -1,7 +1,13 @@
 name: northstar-live
 
 x-runtime: &runtime
-  image: ${NORTHSTAR_LIVE_IMAGE:?Set the exact tested image reference}
+  image: ${NORTHSTAR_LIVE_IMAGE:-northstar-quant:local}
+  build:
+    context: ../..
+    dockerfile: backend/Dockerfile
+    args:
+      NORTHSTAR_GIT_REVISION: ${NORTHSTAR_GIT_REVISION:-}
+      NORTHSTAR_DEVELOPMENT_BUILD: ${NORTHSTAR_DEVELOPMENT_BUILD:-0}
   platform: linux/amd64
   logging: &logging
     driver: local
@@ -10,20 +16,20 @@ x-runtime: &runtime
       max-file: "3"
 
 x-database: &database
-  NORTHSTAR_DATABASE_URL: postgresql+psycopg://northstar:${NORTHSTAR_LIVE_DATABASE_PASSWORD:?Set a private URL-safe database password}@postgres:5432/northstar_quant
+  NORTHSTAR_DATABASE_URL: postgresql+psycopg://northstar:${NORTHSTAR_LIVE_DATABASE_PASSWORD:-northstar_local}@postgres:5432/northstar_quant
   NORTHSTAR_DATA_DIR: /var/lib/northstar/sources
 
 services:
   postgres:
     image: postgres:17-alpine
     restart: unless-stopped
-    mem_limit: ${NORTHSTAR_LIVE_DATABASE_MEMORY:?Set a measured database memory budget}
+    mem_limit: ${NORTHSTAR_LIVE_DATABASE_MEMORY:-1g}
     pids_limit: 128
     logging: *logging
     environment:
       POSTGRES_DB: northstar_quant
       POSTGRES_USER: northstar
-      POSTGRES_PASSWORD: ${NORTHSTAR_LIVE_DATABASE_PASSWORD}
+      POSTGRES_PASSWORD: ${NORTHSTAR_LIVE_DATABASE_PASSWORD:-northstar_local}
     volumes:
       - database:/var/lib/postgresql/data
     networks: [storage]
@@ -50,8 +56,8 @@ services:
   live:
     <<: *runtime
     restart: unless-stopped
-    mem_limit: ${NORTHSTAR_LIVE_KERNEL_MEMORY:?Set a measured kernel memory budget}
-    memswap_limit: ${NORTHSTAR_LIVE_KERNEL_MEMORY}
+    mem_limit: ${NORTHSTAR_LIVE_KERNEL_MEMORY:-1g}
+    memswap_limit: ${NORTHSTAR_LIVE_KERNEL_MEMORY:-1g}
     pids_limit: 128
     stop_grace_period: 30s
     environment:
@@ -90,6 +96,8 @@ services:
       - logs:/var/log/northstar
       - authentication:/var/lib/northstar/auth:ro
     networks: [management, frontend]
+    ports:
+      - "127.0.0.1:${NORTHSTAR_LIVE_API_PORT:-19080}:19080"
     depends_on:
       initialize:
         condition: service_completed_successfully
@@ -102,7 +110,12 @@ services:
       start_period: 20s
 
   live-web:
-    image: ${NORTHSTAR_LIVE_FRONTEND_IMAGE:?Set the exact tested Next.js image reference}
+    build:
+      context: ../..
+      dockerfile: frontend/Dockerfile
+      args:
+        APP: live
+    image: ${NORTHSTAR_LIVE_FRONTEND_IMAGE:-northstar-live-frontend:local}
     restart: unless-stopped
     logging: *logging
     environment:

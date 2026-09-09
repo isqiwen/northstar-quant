@@ -1,0 +1,115 @@
+name: northstar-data-hub
+services:
+  data-api:
+    networks:
+    - storage
+    - frontend
+    platform: linux/amd64
+    build: &id001
+      context: ../..
+      dockerfile: backend/Dockerfile
+      args:
+        NORTHSTAR_GIT_REVISION: ${NORTHSTAR_GIT_REVISION:-}
+        NORTHSTAR_DEVELOPMENT_BUILD: ${NORTHSTAR_DEVELOPMENT_BUILD:-0}
+    image: ${NORTHSTAR_BACKEND_IMAGE:-northstar-quant:local}
+    restart: unless-stopped
+    logging:
+      driver: local
+      options:
+        max-size: 10m
+        max-file: '3'
+    environment:
+      NORTHSTAR_LOG_DIR: /var/log/northstar
+      NORTHSTAR_DATABASE_URL: postgresql+psycopg://northstar:${NORTHSTAR_STORAGE_DATABASE_PASSWORD:-northstar_local}@postgres:5432/northstar_quant
+      NORTHSTAR_DATA_DIR: /var/lib/northstar/sources
+    volumes:
+    - logs:/var/log/northstar
+    - sources:/var/lib/northstar/sources
+    - backups:/var/lib/northstar/backups
+    ports:
+    - 127.0.0.1:${NORTHSTAR_DATA_API_PORT:-19082}:19082
+    command:
+    - uvicorn
+    - northstar_quant.apps.data_hub:application
+    - --factory
+    - --host
+    - 0.0.0.0
+    - --port
+    - '19082'
+    healthcheck:
+      test:
+      - CMD
+      - python
+      - -c
+      - import urllib.request; urllib.request.urlopen('http://127.0.0.1:19082/health/ready', timeout=3)
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+  data-worker:
+    networks:
+    - storage
+    platform: linux/amd64
+    build: *id001
+    image: ${NORTHSTAR_BACKEND_IMAGE:-northstar-quant:local}
+    restart: unless-stopped
+    logging:
+      driver: local
+      options:
+        max-size: 10m
+        max-file: '3'
+    environment:
+      NORTHSTAR_LOG_DIR: /var/log/northstar
+      NORTHSTAR_DATABASE_URL: postgresql+psycopg://northstar:${NORTHSTAR_STORAGE_DATABASE_PASSWORD:-northstar_local}@postgres:5432/northstar_quant
+      NORTHSTAR_DATA_DIR: /var/lib/northstar/sources
+    volumes:
+    - logs:/var/log/northstar
+    - sources:/var/lib/northstar/sources
+    command:
+    - northstar
+    - serve
+    - data-worker
+    stop_grace_period: 60s
+  data-hub:
+    networks:
+    - frontend
+    - ingress
+    build:
+      context: ../..
+      dockerfile: frontend/Dockerfile
+      args:
+        APP: data_hub
+    image: ${NORTHSTAR_DATA_FRONTEND_IMAGE:-northstar-data_hub-frontend:local}
+    restart: unless-stopped
+    logging:
+      driver: local
+      options:
+        max-size: 10m
+        max-file: '3'
+    environment:
+      NORTHSTAR_API_URL: http://data-api:19082
+    ports:
+    - 127.0.0.1:${NORTHSTAR_DATA_WEB_PORT:-18082}:3000
+    healthcheck:
+      test:
+      - CMD
+      - node
+      - -e
+      - fetch('http://127.0.0.1:3000/health/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+volumes:
+  logs: null
+  sources:
+    external: true
+    name: ${NORTHSTAR_STORAGE_PROJECT:-northstar-storage}_sources
+  backups: null
+networks:
+  storage:
+    external: true
+    name: ${NORTHSTAR_STORAGE_PROJECT:-northstar-storage}_storage
+  frontend:
+    internal: true
+  ingress: null
