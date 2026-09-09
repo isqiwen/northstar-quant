@@ -28,16 +28,14 @@ No existing named volumes or personal data are migrated automatically.
 Use a previously verified Linux amd64 image by registry digest. Local acceptance
 may instead use `make up-live` to build from the current source. Compose has build definitions;
 use `up --no-build` for deployment of already-verified images. The default password
-`123456` and 1 GiB memory budgets are local development defaults, not production sizing.
+`123456` is the local development database password. Live containers have no Docker
+CPU, memory, swap or process-count limits configured.
 The repository maintains defaults in [live/.env](.env). The deployment script uploads it on first deployment as a private owner-only file; keep real passwords out of Git.
 The supported settings are:
 
 - `NORTHSTAR_LIVE_FRONTEND_IMAGE`: the exact tested Next.js frontend image.
 - `NORTHSTAR_LIVE_IMAGE`: the exact approved image reference.
 - `NORTHSTAR_LIVE_DATABASE_PASSWORD`: the local database password, default `123456`.
-- `NORTHSTAR_LIVE_KERNEL_MEMORY`, `NORTHSTAR_LIVE_DATABASE_MEMORY`: explicit memory
-  budgets established from the intended workload. The kernel has no fixed CPU quota.
-- `NORTHSTAR_LIVE_WEB_PORT`: optional frontend port, default 18080.
 
 Run on the intended host after deployment authorization:
 
@@ -50,10 +48,10 @@ Do not print rendered Compose configuration: it contains the database password.
 Changing that variable does not rotate the password of an existing database.
 Persistent host paths are fixed; changing the Compose project name does not create a separate Live instance.
 
-Live Web is published on `0.0.0.0:18080` by default, accessible through the host IP
+Live Web is published on the fixed address `0.0.0.0:18080`, accessible through the host IP
 or `live.wangqiwen.me`, without source IP restrictions. Deployment opens its frontend
 port; same-origin, browser-session and trading authorization checks remain in place.
-The API (default 19080) is bound to loopback. PostgreSQL and the kernel have no host
+The API uses the fixed loopback address `127.0.0.1:19080`. Neither port is configurable. PostgreSQL and the kernel have no host
 ports; the frontend and management API have no storage network, database settings,
 sources or broker secrets.
 

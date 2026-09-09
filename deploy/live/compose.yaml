@@ -23,8 +23,6 @@ services:
   postgres:
     image: postgres:17-alpine
     restart: unless-stopped
-    mem_limit: ${NORTHSTAR_LIVE_DATABASE_MEMORY:-1g}
-    pids_limit: 128
     logging: *logging
     environment:
       POSTGRES_DB: northstar_quant
@@ -46,8 +44,6 @@ services:
 
   initialize:
     <<: *runtime
-    mem_limit: 512m
-    pids_limit: 64
     environment: *database
     volumes:
       - type: bind
@@ -71,9 +67,6 @@ services:
   live:
     <<: *runtime
     restart: unless-stopped
-    mem_limit: ${NORTHSTAR_LIVE_KERNEL_MEMORY:-1g}
-    memswap_limit: ${NORTHSTAR_LIVE_KERNEL_MEMORY:-1g}
-    pids_limit: 128
     stop_grace_period: 30s
     environment:
       <<: *database
@@ -119,10 +112,6 @@ services:
   live-api:
     <<: *runtime
     restart: unless-stopped
-    cpus: 1.0
-    mem_limit: 512m
-    memswap_limit: 512m
-    pids_limit: 128
     environment:
       NORTHSTAR_LOG_DIR: /var/log/northstar
       NORTHSTAR_LIVE_URL: http://live:18081
@@ -142,7 +131,7 @@ services:
           create_host_path: false
     networks: [management, frontend]
     ports:
-      - "127.0.0.1:${NORTHSTAR_LIVE_API_PORT:-19080}:19080"
+      - "127.0.0.1:19080:19080"
     depends_on:
       initialize:
         condition: service_completed_successfully
@@ -167,7 +156,7 @@ services:
       NORTHSTAR_API_URL: http://live-api:19080
     networks: [frontend, ingress]
     ports:
-      - "0.0.0.0:${NORTHSTAR_LIVE_WEB_PORT:-18080}:3000"
+      - "0.0.0.0:18080:3000"
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
       interval: 10s

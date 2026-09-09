@@ -256,5 +256,5 @@ CLI 按用户操作分组，高级证据处理不堆到顶层，具体见 [CLI](
 | Live 独立部署与故障行为 | `scripts/acceptance/check_live_deployment.py` |
 
 具体环境与调用见根目录 README 和 CI。合成输入、历史研究、柜台模拟与真实账户证据分别记录。
-Research 持久 worker 应按实测资源调度并保护取消与主机响应；生产 Live 配额按实际需求测量，
-不把本地验收的固定资源上限当作生产容量结论。
+Research 持久 worker 应按实测资源调度并保护取消与主机响应；Live Compose 不设置 CPU、内存、交换空间或进程数限制，
+主机容量与管理工作对内核的影响按实际负载测量。

@@ -38,10 +38,6 @@ class Deployment:
             NORTHSTAR_LIVE_IMAGE=image,
             NORTHSTAR_LIVE_FRONTEND_IMAGE=frontend_image,
             NORTHSTAR_LIVE_DATABASE_PASSWORD=self.password,
-            NORTHSTAR_LIVE_KERNEL_MEMORY="1g",
-            NORTHSTAR_LIVE_DATABASE_MEMORY="512m",
-            NORTHSTAR_LIVE_WEB_PORT=str(self.port),
-            NORTHSTAR_LIVE_API_PORT="0",
         )
         self.files = tempfile.TemporaryDirectory(prefix="northstar-live-files-")
         self.root = Path(self.files.name)
@@ -52,6 +48,14 @@ class Deployment:
             self.root,
             self.environment,
         )
+
+        # Remap only the disposable acceptance project, never production configuration.
+        config = json.loads(self.compose.read_text())
+        config["services"]["live-web"]["ports"] = [
+            {"target": 3000, "published": str(self.port), "host_ip": "127.0.0.1"}
+        ]
+        config["services"]["live-api"].pop("ports", None)
+        self.compose.write_text(json.dumps(config))
 
     def run(self, *arguments: str) -> str:
         completed = subprocess.run(
