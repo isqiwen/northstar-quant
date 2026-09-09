@@ -1,116 +1,85 @@
-# Standalone Live deployment
+# Live 部署
 
-This is the current Live-only topology, not a second implementation. It runs the
-same installed Python package as Data Hub and Research, with its own
-database, source files and deployment authentication. Next.js, the Python management API and the kernel run independently. It does not start or mount
-Data Hub or Research. Do not reuse the personal application's directories or attach
-its database network. Never run two instances against one broker account.
+Live 在自己的主机上运行，包含独立的 Next.js 前端、Python 管理 API、交易内核和本地 PostgreSQL。
+运行不依赖 Data Hub、Research 或远程存储；容器不设置 CPU、内存、交换空间或进程数限制。
 
-This is a **no-broker-credentials engineering baseline**, not cloud or trading
-acceptance. Fixed strategy/contract/warm-up material delivery, a selected cloud
-host and external alert channel remain #40 work. Startup does not connect a
-broker, reconcile an account or authorize orders. Do not attach broker secrets
-until the deployment and connection scope are separately approved.
+## 配置
 
-## Fixed host directories
+在 `deploy/hosts.toml` 填写 Live 主机的 `host`、`user` 和 SSH `port`。
+`user` 仅用于首次登录和提权，初始化后由脚本创建的 `northstar` 用户管理部署。
+目标主机需具备 SSH 和 Python 3.11+；部署脚本自动安装缺失的部署依赖。
 
-Live uses `/opt/northstar/apps/live` for releases and `/opt/northstar/config/live.env` for configuration.
-Persistent database and sources reside in `/opt/northstar/state/live/{postgresql,sources}`;
-authentication resides in `/opt/northstar/credentials/live`, and logs in `/opt/northstar/logs/live`.
-`northstarctl init-host live` connects as the configured user, elevates via sudo when non-root, and prepares the northstar account, public key and passwordless sudo.
-`northstarctl deploy live` then connects as northstar and prepares local directories and permissions.
-The initial `live.env` is uploaded automatically from the committed repository. Existing configuration is preserved unless `deploy live --env-file <local-file>` explicitly supplies a replacement; retained data is not overwritten.
-Paths are fixed, without environment overrides. All Live state remains on its own host.
-No existing named volumes or personal data are migrated automatically.
+应用配置统一放在 [deploy/live/.env](.env)：
 
-## Start from an installed image
+| 参数 | 用途 |
+|---|---|
+| `NORTHSTAR_LIVE_ENVIRONMENT` | `simnow_trading`：第一套模拟环境（默认）；`simnow_dev`：接口联调环境，不提供结算；`production` 当前尚未开放，启动会报错 |
+| `NORTHSTAR_LIVE_DATABASE_PASSWORD` | Live 本地数据库密码，默认 `123456`；修改配置不会自动更改已有数据库密码 |
+| `NORTHSTAR_SIMNOW_USER_ID` | SimNow 账号 |
+| `NORTHSTAR_SIMNOW_APP_ID` | SimNow 应用标识 |
+| `NORTHSTAR_SIMNOW_AUTH_CODE` | SimNow 认证码 |
+| `NORTHSTAR_SIMNOW_PASSWORD` | SimNow 密码 |
 
-Use a previously verified Linux amd64 image by registry digest. Local acceptance
-may instead use `make up-live` to build from the current source. Compose has build definitions;
-use `up --no-build` for deployment of already-verified images. The default password
-`123456` is the local development database password. Live containers have no Docker
-CPU, memory, swap or process-count limits configured.
-The repository maintains defaults in [live/.env](.env). The deployment script uploads it on first deployment as a private owner-only file; keep real passwords out of Git.
-northstarctl selects backend and frontend images from the application and Git revision;
-image selection is not part of the application .env configuration.
-The supported settings are:
+凭据使用单引号包裹，避免密码中的 `$` 被 Compose 展开；实际凭据保留在本地，不提交 Git。
+只有内核接收柜台凭据。镜像版本由部署脚本根据应用和 Git 提交自动选择。
 
-- `NORTHSTAR_LIVE_DATABASE_PASSWORD`: the local database password, default `123456`.
+## 部署与管理
 
-Run on the intended host after deployment authorization:
+在仓库根目录执行：
 
 ```sh
-docker compose --env-file /opt/northstar/config/live.env -f deploy/live/compose.yaml up -d --no-build
-docker compose --env-file /opt/northstar/config/live.env -f deploy/live/compose.yaml ps
+# 首次初始化主机
+./scripts/northstarctl.py init-host live
+
+# 部署已提交代码，首次自动上传本地 deploy/live/.env
+./scripts/northstarctl.py deploy live
+
+# 已部署后，明确更新远程配置
+./scripts/northstarctl.py deploy live --env-file deploy/live/.env
+
+# 日常管理
+./scripts/northstarctl.py status live
+./scripts/northstarctl.py logs live --follow
+./scripts/northstarctl.py start live
+./scripts/northstarctl.py restart live
+./scripts/northstarctl.py stop live
 ```
 
-Do not print rendered Compose configuration: it contains the database password.
-Changing that variable does not rotate the password of an existing database.
-Persistent host paths are fixed; changing the Compose project name does not create a separate Live instance.
+默认保留已有远程配置；`start`、`restart` 使用已部署版本，不重新构建。
+整套 `restart`、`stop` 会影响内核和数据库，`stop` 保留持久数据。
+前端和管理 API 单独重启不负责停止内核。
 
-Live Web is published on the fixed address `0.0.0.0:18080`, accessible through the host IP
-or `live.wangqiwen.me`, without source IP restrictions. Deployment opens its frontend
-port; same-origin, browser-session and trading authorization checks remain in place.
-The API uses the fixed loopback address `127.0.0.1:19080`. Neither port is configurable. PostgreSQL and the kernel have no host
-ports; the frontend and management API have no storage network, database settings,
-sources or broker secrets.
+## 访问与目录
 
-Web readiness only means its HTTP process is serving. Query `/api/live/status`
-through the normal same-origin session or run `northstar status` inside the
-kernel for its actual identity/storage availability. Neither proves tradability.
-Web restart is independent; kernel/database restart never restores sending authority.
-Automatic container restart is not an external host-loss alert.
+- 前端固定为 `http://<Live 主机>:18080`，不限制来源 IP；`live.wangqiwen.me` 需由 Caddy/FRP 转发到该端口。
+- 管理 API 固定绑定 `127.0.0.1:19080`；内核和 PostgreSQL 不向宿主机发布端口。
+- 同源、浏览器会话和交易授权检查仍然生效。
 
-## Operational logs
+目录由部署脚本创建并设置权限，固定在 `/opt/northstar`：
 
-The fixed host directory `/opt/northstar/logs/live` is mounted at `/var/log/northstar/live` in the API and kernel.
-They write `live/northstar-live-api-YYYY-MM-DD.log` and
-`live/northstar-live-kernel-YYYY-MM-DD.log` independently. The date follows the process
-timezone and switches on the first background write after midnight. Files rotate at
-10 MiB; each program retains at most five historical files across dates and size
-rotations, ordered by modification time. Replace `YYYY-MM-DD` below with the log date:
+| 路径 | 内容 |
+|---|---|
+| `apps/live` | 程序版本与部署文件 |
+| `config/live.env` | 私有运行配置 |
+| `state/live/postgresql` | 本地数据库 |
+| `state/live/sources` | 本地数据文件 |
+| `credentials/live` | 内核与管理 API 的访问凭据 |
+| `logs/live` | 按日期分别保存 API、内核日志 |
+
+日志名为 `northstar-live-api-YYYY-MM-DD.log` 和 `northstar-live-kernel-YYYY-MM-DD.log`。
+内核运行日志异步写入；日志不代替订单、成交和恢复记录。
+
+## 当前边界与验收
+
+启动应用不会自动连接柜台或授权下单；重启、恢复后也不会自动恢复发送权限。
+模拟与未来实盘使用同一应用，通过运行环境区分；切换环境不能复用另一环境的接收记录。
+网页可访问不代表账户已核对或可以交易，完整柜台仿真往返仍需单独验收。
+
+使用已构建的 Linux amd64 镜像执行隔离部署验收：
 
 ```sh
-docker compose --env-file /opt/northstar/config/live.env -f deploy/live/compose.yaml exec live tail -n 50 /var/log/northstar/live/northstar-live-kernel-YYYY-MM-DD.log
+uv run --project backend python scripts/acceptance/check_live_deployment.py \
+  --image northstar-quant:local --frontend-image northstar-live-frontend:local
 ```
 
-The bounded asynchronous writer drops operational records when saturated, counts
-loss and disk errors, and never falls back to synchronous kernel disk writes.
-`northstar check` includes log health; it does not grant or revoke trading authority.
-Log retention and CPU/disk contention must be measured on the deployed host. Keep
-trading facts in their durable business stores; log files are not an audit ledger.
-
-## Reproducible local acceptance
-
-```sh
-uv run --project backend python scripts/acceptance/check_live_deployment.py --image northstar-quant:local --frontend-image northstar-live-frontend:local
-```
-
-The check creates a uniquely named, isolated Compose project with generated test
-authentication and an ephemeral loopback port. It verifies installed pages,
-runtime identity across Web restart, database failure and kernel disappearance,
-then deletes **only its own disposable containers, networks and temporary directories**.
-It never loads SimNow credentials, invokes broker operations or stops the personal
-application. This is actual Docker/HTTP acceptance, not a YAML/layout test and not
-evidence that a cloud host or real browser session was tested.
-
-## Broker environment
-
-Live Sim and future production use this same application and Compose on the Live host.
-`NORTHSTAR_LIVE_ENVIRONMENT=simnow_trading` selects SimNow’s first environment (default).
-`simnow_dev` selects its API-development environment, which does not provide settlement.
-There is no separate NORTHSTAR_SIMNOW_PROFILE setting. Browser/CLI queries use the kernel
-environment, not a caller-supplied profile; saved receptions from another environment are rejected.
-Production trading is not implemented/admitted: `production` or an unknown value fails kernel
-startup before opening its database or reading broker credentials. Configuration never grants sending authority.
-
-Set NORTHSTAR_SIMNOW_USER_ID, NORTHSTAR_SIMNOW_APP_ID, NORTHSTAR_SIMNOW_AUTH_CODE
-and NORTHSTAR_SIMNOW_PASSWORD in deploy/live/.env. Keep actual values local and single-quoted
-so Compose preserves literal dollar signs. Only the kernel receives these variables;
-the frontend, API and database do not. There is no separate broker.env or setup script.
-Use northstarctl.py deploy live --env-file deploy/live/.env to update an existing remote
-configuration. Empty credentials leave broker setup unconfigured; startup never connects.
-
-Future production admission must bind environment/account, segregate ledger/order/recovery
-state and reconcile before explicitly enabling sending. Switching a configuration value must
-not reuse simulation account facts as production facts; that transition is not yet supported.
+验收使用临时目录、独立容器和端口，不读取个人柜台凭据；检查 Web 与内核生命周期隔离及故障响应，结束后清理自己的测试资源。
