@@ -2,56 +2,209 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Northstar: Debug Live Web (port 18180)",
+      "name": "Data Hub API",
       "type": "debugpy",
       "request": "launch",
       "module": "northstar_quant.cli",
+      "python": "${workspaceFolder}/backend/.venv/bin/python",
       "args": [
         "serve",
-        "live-api",
-        "--port",
-        "18180"
+        "data-api"
       ],
       "cwd": "${workspaceFolder}",
       "envFile": "${workspaceFolder}/.vscode/test.env",
       "env": {
-        "NORTHSTAR_SIMNOW_CONFIG": "",
-        "NORTHSTAR_LIVE_URL": "http://127.0.0.1:18181",
-        "NORTHSTAR_LIVE_AUTH": "${workspaceFolder}/.northstar/vscode-runtime-auth/live-web.toml"
+        "NORTHSTAR_DATABASE_URL": "postgresql+psycopg://northstar:northstar_local@127.0.0.1:15432/northstar_data_hub_vscode",
+        "NORTHSTAR_DATABASE_OWNER": "data_hub",
+        "NORTHSTAR_DATA_DIR": "${workspaceFolder}/.northstar/vscode/files/source",
+        "NORTHSTAR_LIVE_ENVIRONMENT": "simnow_trading",
+        "NORTHSTAR_SIMNOW_USER_ID": "",
+        "NORTHSTAR_SIMNOW_APP_ID": "",
+        "NORTHSTAR_SIMNOW_AUTH_CODE": "",
+        "NORTHSTAR_SIMNOW_PASSWORD": "",
+        "NORTHSTAR_SOURCE_DIR": "${workspaceFolder}/.northstar/vscode/files/source",
+        "NORTHSTAR_SOURCE_STORAGE_ID": "00000000-0000-4000-8000-000000000001",
+        "NORTHSTAR_MARKET_DIR": "${workspaceFolder}/.northstar/vscode/files/market",
+        "NORTHSTAR_MARKET_STORAGE_ID": "00000000-0000-4000-8000-000000000002",
+        "NORTHSTAR_RESEARCH_DIR": "${workspaceFolder}/.northstar/vscode/files/research",
+        "NORTHSTAR_RESEARCH_STORAGE_ID": "00000000-0000-4000-8000-000000000003",
+        "NORTHSTAR_STORAGE_ID": "00000000-0000-4000-8000-000000000001",
+        "NORTHSTAR_LOG_DIR": "${workspaceFolder}/.northstar/vscode/logs",
+        "NORTHSTAR_DATA_SECRET_DIR": "${workspaceFolder}/.northstar/vscode/data-credentials"
       },
       "console": "integratedTerminal",
       "justMyCode": true,
-      "preLaunchTask": "Northstar: prepare debug runtimes"
+      "preLaunchTask": "Northstar: 初始化 Data Hub"
     },
     {
-      "name": "Northstar: Debug Live (port 18181)",
+      "name": "Data Hub Worker",
       "type": "debugpy",
       "request": "launch",
       "module": "northstar_quant.cli",
+      "python": "${workspaceFolder}/backend/.venv/bin/python",
       "args": [
         "serve",
-        "live-kernel",
-        "--port",
-        "18181"
+        "data-worker"
       ],
       "cwd": "${workspaceFolder}",
       "envFile": "${workspaceFolder}/.vscode/test.env",
       "env": {
-        "NORTHSTAR_DATABASE_URL": "postgresql+psycopg://northstar:northstar_local@127.0.0.1:15432/northstar_quant_vscode",
-        "NORTHSTAR_DATA_DIR": "${workspaceFolder}/.northstar/vscode-sources",
-        "NORTHSTAR_SIMNOW_CONFIG": "",
-        "NORTHSTAR_LIVE_URL": "http://127.0.0.1:18181",
-        "NORTHSTAR_LIVE_AUTH": "${workspaceFolder}/.northstar/vscode-runtime-auth/live.toml"
+        "NORTHSTAR_DATABASE_URL": "postgresql+psycopg://northstar:northstar_local@127.0.0.1:15432/northstar_data_hub_vscode",
+        "NORTHSTAR_DATABASE_OWNER": "data_hub",
+        "NORTHSTAR_DATA_DIR": "${workspaceFolder}/.northstar/vscode/files/source",
+        "NORTHSTAR_LIVE_ENVIRONMENT": "simnow_trading",
+        "NORTHSTAR_SIMNOW_USER_ID": "",
+        "NORTHSTAR_SIMNOW_APP_ID": "",
+        "NORTHSTAR_SIMNOW_AUTH_CODE": "",
+        "NORTHSTAR_SIMNOW_PASSWORD": "",
+        "NORTHSTAR_SOURCE_DIR": "${workspaceFolder}/.northstar/vscode/files/source",
+        "NORTHSTAR_SOURCE_STORAGE_ID": "00000000-0000-4000-8000-000000000001",
+        "NORTHSTAR_MARKET_DIR": "${workspaceFolder}/.northstar/vscode/files/market",
+        "NORTHSTAR_MARKET_STORAGE_ID": "00000000-0000-4000-8000-000000000002",
+        "NORTHSTAR_RESEARCH_DIR": "${workspaceFolder}/.northstar/vscode/files/research",
+        "NORTHSTAR_RESEARCH_STORAGE_ID": "00000000-0000-4000-8000-000000000003",
+        "NORTHSTAR_STORAGE_ID": "00000000-0000-4000-8000-000000000001",
+        "NORTHSTAR_LOG_DIR": "${workspaceFolder}/.northstar/vscode/logs",
+        "NORTHSTAR_DATA_SECRET_DIR": "${workspaceFolder}/.northstar/vscode/data-credentials"
       },
       "console": "integratedTerminal",
       "justMyCode": true,
-      "preLaunchTask": "Northstar: prepare debug runtimes"
+      "preLaunchTask": "Northstar: 初始化 Data Hub"
     },
     {
-      "name": "Northstar: Debug current pytest file",
+      "name": "Research API",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "northstar_quant.cli",
+      "python": "${workspaceFolder}/backend/.venv/bin/python",
+      "args": [
+        "serve",
+        "research-api"
+      ],
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.vscode/test.env",
+      "env": {
+        "NORTHSTAR_DATABASE_URL": "",
+        "NORTHSTAR_DATABASE_OWNER": "research",
+        "NORTHSTAR_DATA_DIR": "",
+        "NORTHSTAR_LIVE_ENVIRONMENT": "simnow_trading",
+        "NORTHSTAR_SIMNOW_USER_ID": "",
+        "NORTHSTAR_SIMNOW_APP_ID": "",
+        "NORTHSTAR_SIMNOW_AUTH_CODE": "",
+        "NORTHSTAR_SIMNOW_PASSWORD": "",
+        "NORTHSTAR_SOURCE_DIR": "${workspaceFolder}/.northstar/vscode/files/source",
+        "NORTHSTAR_SOURCE_STORAGE_ID": "00000000-0000-4000-8000-000000000001",
+        "NORTHSTAR_MARKET_DIR": "${workspaceFolder}/.northstar/vscode/files/market",
+        "NORTHSTAR_MARKET_STORAGE_ID": "00000000-0000-4000-8000-000000000002",
+        "NORTHSTAR_RESEARCH_DIR": "${workspaceFolder}/.northstar/vscode/files/research",
+        "NORTHSTAR_RESEARCH_STORAGE_ID": "00000000-0000-4000-8000-000000000003",
+        "NORTHSTAR_RESEARCH_DATABASE": "${workspaceFolder}/.northstar/vscode/research.sqlite3",
+        "NORTHSTAR_DATA_HUB_URL": "http://127.0.0.1:19082",
+        "NORTHSTAR_LOG_DIR": "${workspaceFolder}/.northstar/vscode/logs"
+      },
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "preLaunchTask": "Northstar: 初始化 Research"
+    },
+    {
+      "name": "Research Worker",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "northstar_quant.cli",
+      "python": "${workspaceFolder}/backend/.venv/bin/python",
+      "args": [
+        "serve",
+        "research-worker"
+      ],
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.vscode/test.env",
+      "env": {
+        "NORTHSTAR_DATABASE_URL": "",
+        "NORTHSTAR_DATABASE_OWNER": "research",
+        "NORTHSTAR_DATA_DIR": "",
+        "NORTHSTAR_LIVE_ENVIRONMENT": "simnow_trading",
+        "NORTHSTAR_SIMNOW_USER_ID": "",
+        "NORTHSTAR_SIMNOW_APP_ID": "",
+        "NORTHSTAR_SIMNOW_AUTH_CODE": "",
+        "NORTHSTAR_SIMNOW_PASSWORD": "",
+        "NORTHSTAR_SOURCE_DIR": "${workspaceFolder}/.northstar/vscode/files/source",
+        "NORTHSTAR_SOURCE_STORAGE_ID": "00000000-0000-4000-8000-000000000001",
+        "NORTHSTAR_MARKET_DIR": "${workspaceFolder}/.northstar/vscode/files/market",
+        "NORTHSTAR_MARKET_STORAGE_ID": "00000000-0000-4000-8000-000000000002",
+        "NORTHSTAR_RESEARCH_DIR": "${workspaceFolder}/.northstar/vscode/files/research",
+        "NORTHSTAR_RESEARCH_STORAGE_ID": "00000000-0000-4000-8000-000000000003",
+        "NORTHSTAR_RESEARCH_DATABASE": "${workspaceFolder}/.northstar/vscode/research.sqlite3",
+        "NORTHSTAR_DATA_HUB_URL": "http://127.0.0.1:19082",
+        "NORTHSTAR_LOG_DIR": "${workspaceFolder}/.northstar/vscode/logs"
+      },
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "preLaunchTask": "Northstar: 初始化 Research"
+    },
+    {
+      "name": "Live 内核",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "northstar_quant.cli",
+      "python": "${workspaceFolder}/backend/.venv/bin/python",
+      "args": [
+        "serve",
+        "live-kernel"
+      ],
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.vscode/test.env",
+      "env": {
+        "NORTHSTAR_DATABASE_URL": "postgresql+psycopg://northstar:northstar_local@127.0.0.1:15432/northstar_live_vscode",
+        "NORTHSTAR_DATABASE_OWNER": "live",
+        "NORTHSTAR_DATA_DIR": "${workspaceFolder}/.northstar/vscode/live-sources",
+        "NORTHSTAR_LIVE_ENVIRONMENT": "simnow_trading",
+        "NORTHSTAR_SIMNOW_USER_ID": "",
+        "NORTHSTAR_SIMNOW_APP_ID": "",
+        "NORTHSTAR_SIMNOW_AUTH_CODE": "",
+        "NORTHSTAR_SIMNOW_PASSWORD": "",
+        "NORTHSTAR_LIVE_AUTH": "${workspaceFolder}/.northstar/vscode/auth/live.toml",
+        "NORTHSTAR_LIVE_URL": "http://127.0.0.1:18081",
+        "NORTHSTAR_LOG_DIR": "${workspaceFolder}/.northstar/vscode/logs"
+      },
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "preLaunchTask": "Northstar: 初始化 Live 认证"
+    },
+    {
+      "name": "Live API",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "northstar_quant.cli",
+      "python": "${workspaceFolder}/backend/.venv/bin/python",
+      "args": [
+        "serve",
+        "live-api"
+      ],
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.vscode/test.env",
+      "env": {
+        "NORTHSTAR_DATABASE_URL": "",
+        "NORTHSTAR_DATABASE_OWNER": "",
+        "NORTHSTAR_DATA_DIR": "",
+        "NORTHSTAR_LIVE_ENVIRONMENT": "simnow_trading",
+        "NORTHSTAR_SIMNOW_USER_ID": "",
+        "NORTHSTAR_SIMNOW_APP_ID": "",
+        "NORTHSTAR_SIMNOW_AUTH_CODE": "",
+        "NORTHSTAR_SIMNOW_PASSWORD": "",
+        "NORTHSTAR_LIVE_URL": "http://127.0.0.1:18081",
+        "NORTHSTAR_LIVE_AUTH": "${workspaceFolder}/.northstar/vscode/auth/live-web.toml",
+        "NORTHSTAR_LOG_DIR": "${workspaceFolder}/.northstar/vscode/logs"
+      },
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "preLaunchTask": "Northstar: 初始化 Live 认证"
+    },
+    {
+      "name": "当前 pytest 文件",
       "type": "debugpy",
       "request": "launch",
       "module": "pytest",
+      "python": "${workspaceFolder}/backend/.venv/bin/python",
       "args": [
         "${file}",
         "-q"
@@ -59,25 +212,138 @@
       "cwd": "${workspaceFolder}",
       "envFile": "${workspaceFolder}/.vscode/test.env",
       "env": {
-        "NORTHSTAR_TEST_DATABASE_URL": "postgresql+psycopg://northstar:northstar_local@127.0.0.1:15432/northstar_quant_test",
         "NORTHSTAR_DATABASE_URL": "",
+        "NORTHSTAR_DATABASE_OWNER": "",
         "NORTHSTAR_DATA_DIR": "",
-        "NORTHSTAR_SIMNOW_CONFIG": ""
+        "NORTHSTAR_LIVE_ENVIRONMENT": "simnow_trading",
+        "NORTHSTAR_SIMNOW_USER_ID": "",
+        "NORTHSTAR_SIMNOW_APP_ID": "",
+        "NORTHSTAR_SIMNOW_AUTH_CODE": "",
+        "NORTHSTAR_SIMNOW_PASSWORD": "",
+        "NORTHSTAR_TEST_DATABASE_URL": "postgresql+psycopg://northstar:northstar_local@127.0.0.1:15432/northstar_quant_test"
       },
       "console": "integratedTerminal",
       "justMyCode": true,
-      "preLaunchTask": "Northstar: prepare isolated development databases"
+      "preLaunchTask": "Northstar: 准备调试数据库"
+    },
+    {
+      "name": "Data Hub 前端",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/frontend/node_modules/next/dist/bin/next",
+      "args": [
+        "dev",
+        "apps/data_hub",
+        "--hostname",
+        "127.0.0.1",
+        "--port",
+        "18082"
+      ],
+      "cwd": "${workspaceFolder}/frontend",
+      "env": {
+        "NORTHSTAR_API_URL": "http://127.0.0.1:19082"
+      },
+      "console": "integratedTerminal",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "preLaunchTask": "Northstar: 安装前端依赖"
+    },
+    {
+      "name": "Research 前端",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/frontend/node_modules/next/dist/bin/next",
+      "args": [
+        "dev",
+        "apps/research",
+        "--hostname",
+        "127.0.0.1",
+        "--port",
+        "18084"
+      ],
+      "cwd": "${workspaceFolder}/frontend",
+      "env": {
+        "NORTHSTAR_API_URL": "http://127.0.0.1:19084"
+      },
+      "console": "integratedTerminal",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "preLaunchTask": "Northstar: 安装前端依赖"
+    },
+    {
+      "name": "Live 前端",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/frontend/node_modules/next/dist/bin/next",
+      "args": [
+        "dev",
+        "apps/live",
+        "--hostname",
+        "127.0.0.1",
+        "--port",
+        "18080"
+      ],
+      "cwd": "${workspaceFolder}/frontend",
+      "env": {
+        "NORTHSTAR_API_URL": "http://127.0.0.1:19080"
+      },
+      "console": "integratedTerminal",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "preLaunchTask": "Northstar: 安装前端依赖"
+    },
+    {
+      "name": "Data Hub 浏览器",
+      "type": "pwa-chrome",
+      "request": "launch",
+      "url": "http://127.0.0.1:18082",
+      "webRoot": "${workspaceFolder}/frontend"
+    },
+    {
+      "name": "Research 浏览器",
+      "type": "pwa-chrome",
+      "request": "launch",
+      "url": "http://127.0.0.1:18084",
+      "webRoot": "${workspaceFolder}/frontend"
+    },
+    {
+      "name": "Live 浏览器",
+      "type": "pwa-chrome",
+      "request": "launch",
+      "url": "http://127.0.0.1:18080",
+      "webRoot": "${workspaceFolder}/frontend"
     }
   ],
   "compounds": [
     {
-      "name": "Northstar: Debug independent Live and Live Web",
+      "name": "Data Hub 全栈",
       "configurations": [
-        "Northstar: Debug Live Web (port 18180)",
-        "Northstar: Debug Live (port 18181)"
+        "Data Hub API",
+        "Data Hub Worker",
+        "Data Hub 前端"
       ],
-      "stopAll": false,
-      "preLaunchTask": "Northstar: prepare debug runtimes"
+      "stopAll": false
+    },
+    {
+      "name": "Research 全栈",
+      "configurations": [
+        "Research API",
+        "Research Worker",
+        "Research 前端"
+      ],
+      "stopAll": false
+    },
+    {
+      "name": "Live 全栈",
+      "configurations": [
+        "Live 内核",
+        "Live API",
+        "Live 前端"
+      ],
+      "stopAll": false
     }
   ]
 }

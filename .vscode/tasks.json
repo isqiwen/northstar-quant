@@ -2,11 +2,13 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Northstar: sync dependencies",
+      "label": "Northstar: 安装后端依赖",
       "type": "process",
       "command": "uv",
       "args": [
         "sync",
+        "--project",
+        "backend",
         "--locked"
       ],
       "options": {
@@ -15,15 +17,13 @@
       "problemMatcher": []
     },
     {
-      "label": "Northstar: start local PostgreSQL",
+      "label": "Northstar: 安装前端依赖",
       "type": "process",
-      "command": "docker",
+      "command": "npm",
       "args": [
-        "compose",
-        "up",
-        "-d",
-        "--wait",
-        "postgres"
+        "--prefix",
+        "frontend",
+        "ci"
       ],
       "options": {
         "cwd": "${workspaceFolder}"
@@ -31,27 +31,101 @@
       "problemMatcher": []
     },
     {
-      "label": "Northstar: prepare isolated development databases",
+      "label": "Northstar: 启动调试 PostgreSQL",
       "type": "process",
       "command": "docker",
       "args": [
         "compose",
+        "--env-file",
+        "/dev/null",
+        "-f",
+        "${workspaceFolder}/.vscode/compose.yaml",
+        "up",
+        "-d",
+        "--wait"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Northstar: 准备调试数据库",
+      "type": "process",
+      "command": "docker",
+      "args": [
+        "compose",
+        "--env-file",
+        "/dev/null",
+        "-f",
+        "${workspaceFolder}/.vscode/compose.yaml",
         "exec",
         "-T",
         "postgres",
         "sh",
         "-ec",
-        "for database in northstar_quant_vscode northstar_quant_test; do\n  existing=\"$(psql -U northstar -d postgres -tAc \"SELECT 1 FROM pg_database WHERE datname = '$database'\")\"\n  if [ \"$existing\" != \"1\" ]; then\n    createdb -U northstar \"$database\"\n  fi\ndone"
+        "for database in northstar_data_hub_vscode northstar_live_vscode northstar_quant_test; do existing=\"$(psql -U northstar -d postgres -tAc \"SELECT 1 FROM pg_database WHERE datname = '$database'\")\"; if [ \"$existing\" != \"1\" ]; then createdb -U northstar \"$database\"; fi; done"
       ],
       "options": {
         "cwd": "${workspaceFolder}"
       },
-      "dependsOn": "Northstar: start local PostgreSQL",
-      "dependsOrder": "sequence",
+      "problemMatcher": [],
+      "dependsOn": [
+        "Northstar: 安装后端依赖",
+        "Northstar: 启动调试 PostgreSQL"
+      ],
+      "dependsOrder": "sequence"
+    },
+    {
+      "label": "Northstar: 停止调试 PostgreSQL",
+      "type": "process",
+      "command": "docker",
+      "args": [
+        "compose",
+        "--env-file",
+        "/dev/null",
+        "-f",
+        "${workspaceFolder}/.vscode/compose.yaml",
+        "stop"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
       "problemMatcher": []
     },
     {
-      "label": "Northstar: initialize VS Code debug database",
+      "label": "Northstar: 准备调试目录",
+      "type": "process",
+      "command": "uv",
+      "args": [
+        "run",
+        "--project",
+        "backend",
+        "--locked",
+        "python",
+        "-c",
+        "from pathlib import Path; from northstar_quant.data_management.storage_identity import initialize; import os; root=Path(os.environ['VSCODE_DATA_ROOT']); root.mkdir(parents=True,exist_ok=True); [(Path(os.environ['NORTHSTAR_'+n+'_DIR']).mkdir(parents=True,exist_ok=True), initialize(Path(os.environ['NORTHSTAR_'+n+'_DIR']),os.environ['NORTHSTAR_'+n+'_STORAGE_ID'])) for n in ('SOURCE','MARKET','RESEARCH')]"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "NORTHSTAR_SOURCE_DIR": "${workspaceFolder}/.northstar/vscode/files/source",
+          "NORTHSTAR_SOURCE_STORAGE_ID": "00000000-0000-4000-8000-000000000001",
+          "NORTHSTAR_MARKET_DIR": "${workspaceFolder}/.northstar/vscode/files/market",
+          "NORTHSTAR_MARKET_STORAGE_ID": "00000000-0000-4000-8000-000000000002",
+          "NORTHSTAR_RESEARCH_DIR": "${workspaceFolder}/.northstar/vscode/files/research",
+          "NORTHSTAR_RESEARCH_STORAGE_ID": "00000000-0000-4000-8000-000000000003",
+          "VSCODE_DATA_ROOT": "${workspaceFolder}/.northstar/vscode"
+        }
+      },
+      "problemMatcher": [],
+      "dependsOn": [
+        "Northstar: 安装后端依赖"
+      ],
+      "dependsOrder": "sequence"
+    },
+    {
+      "label": "Northstar: 初始化 Data Hub",
       "type": "process",
       "command": "uv",
       "args": [
@@ -66,17 +140,111 @@
       "options": {
         "cwd": "${workspaceFolder}",
         "env": {
-          "NORTHSTAR_DATABASE_URL": "postgresql+psycopg://northstar:northstar_local@127.0.0.1:15432/northstar_quant_vscode",
-          "NORTHSTAR_DATA_DIR": "${workspaceFolder}/.northstar/vscode-sources",
-          "NORTHSTAR_SIMNOW_CONFIG": ""
+          "NORTHSTAR_DATABASE_URL": "postgresql+psycopg://northstar:northstar_local@127.0.0.1:15432/northstar_data_hub_vscode",
+          "NORTHSTAR_DATABASE_OWNER": "data_hub",
+          "NORTHSTAR_DATA_DIR": "${workspaceFolder}/.northstar/vscode/files/source",
+          "NORTHSTAR_LIVE_ENVIRONMENT": "simnow_trading",
+          "NORTHSTAR_SIMNOW_USER_ID": "",
+          "NORTHSTAR_SIMNOW_APP_ID": "",
+          "NORTHSTAR_SIMNOW_AUTH_CODE": "",
+          "NORTHSTAR_SIMNOW_PASSWORD": "",
+          "NORTHSTAR_SOURCE_DIR": "${workspaceFolder}/.northstar/vscode/files/source",
+          "NORTHSTAR_SOURCE_STORAGE_ID": "00000000-0000-4000-8000-000000000001",
+          "NORTHSTAR_MARKET_DIR": "${workspaceFolder}/.northstar/vscode/files/market",
+          "NORTHSTAR_MARKET_STORAGE_ID": "00000000-0000-4000-8000-000000000002",
+          "NORTHSTAR_RESEARCH_DIR": "${workspaceFolder}/.northstar/vscode/files/research",
+          "NORTHSTAR_RESEARCH_STORAGE_ID": "00000000-0000-4000-8000-000000000003",
+          "NORTHSTAR_STORAGE_ID": "00000000-0000-4000-8000-000000000001",
+          "NORTHSTAR_LOG_DIR": "${workspaceFolder}/.northstar/vscode/logs",
+          "NORTHSTAR_DATA_SECRET_DIR": "${workspaceFolder}/.northstar/vscode/data-credentials"
         }
       },
-      "dependsOn": "Northstar: prepare isolated development databases",
-      "dependsOrder": "sequence",
-      "problemMatcher": []
+      "problemMatcher": [],
+      "dependsOn": [
+        "Northstar: 准备调试目录",
+        "Northstar: 准备调试数据库"
+      ],
+      "dependsOrder": "sequence"
     },
     {
-      "label": "Northstar: prepare debug runtimes",
+      "label": "Northstar: 初始化 Research",
+      "type": "process",
+      "command": "uv",
+      "args": [
+        "run",
+        "--project",
+        "backend",
+        "--locked",
+        "northstar",
+        "maintenance",
+        "init-db"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "NORTHSTAR_DATABASE_URL": "",
+          "NORTHSTAR_DATABASE_OWNER": "research",
+          "NORTHSTAR_DATA_DIR": "",
+          "NORTHSTAR_LIVE_ENVIRONMENT": "simnow_trading",
+          "NORTHSTAR_SIMNOW_USER_ID": "",
+          "NORTHSTAR_SIMNOW_APP_ID": "",
+          "NORTHSTAR_SIMNOW_AUTH_CODE": "",
+          "NORTHSTAR_SIMNOW_PASSWORD": "",
+          "NORTHSTAR_SOURCE_DIR": "${workspaceFolder}/.northstar/vscode/files/source",
+          "NORTHSTAR_SOURCE_STORAGE_ID": "00000000-0000-4000-8000-000000000001",
+          "NORTHSTAR_MARKET_DIR": "${workspaceFolder}/.northstar/vscode/files/market",
+          "NORTHSTAR_MARKET_STORAGE_ID": "00000000-0000-4000-8000-000000000002",
+          "NORTHSTAR_RESEARCH_DIR": "${workspaceFolder}/.northstar/vscode/files/research",
+          "NORTHSTAR_RESEARCH_STORAGE_ID": "00000000-0000-4000-8000-000000000003",
+          "NORTHSTAR_RESEARCH_DATABASE": "${workspaceFolder}/.northstar/vscode/research.sqlite3",
+          "NORTHSTAR_DATA_HUB_URL": "http://127.0.0.1:19082",
+          "NORTHSTAR_LOG_DIR": "${workspaceFolder}/.northstar/vscode/logs"
+        }
+      },
+      "problemMatcher": [],
+      "dependsOn": [
+        "Northstar: 准备调试目录"
+      ],
+      "dependsOrder": "sequence"
+    },
+    {
+      "label": "Northstar: 初始化 Live",
+      "type": "process",
+      "command": "uv",
+      "args": [
+        "run",
+        "--project",
+        "backend",
+        "--locked",
+        "northstar",
+        "maintenance",
+        "init-db"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "NORTHSTAR_DATABASE_URL": "postgresql+psycopg://northstar:northstar_local@127.0.0.1:15432/northstar_live_vscode",
+          "NORTHSTAR_DATABASE_OWNER": "live",
+          "NORTHSTAR_DATA_DIR": "${workspaceFolder}/.northstar/vscode/live-sources",
+          "NORTHSTAR_LIVE_ENVIRONMENT": "simnow_trading",
+          "NORTHSTAR_SIMNOW_USER_ID": "",
+          "NORTHSTAR_SIMNOW_APP_ID": "",
+          "NORTHSTAR_SIMNOW_AUTH_CODE": "",
+          "NORTHSTAR_SIMNOW_PASSWORD": "",
+          "NORTHSTAR_LIVE_AUTH": "${workspaceFolder}/.northstar/vscode/auth/live.toml",
+          "NORTHSTAR_LIVE_URL": "http://127.0.0.1:18081",
+          "NORTHSTAR_LOG_DIR": "${workspaceFolder}/.northstar/vscode/logs"
+        }
+      },
+      "problemMatcher": [],
+      "dependsOn": [
+        "Northstar: 准备调试目录",
+        "Northstar: 准备调试数据库"
+      ],
+      "dependsOrder": "sequence"
+    },
+    {
+      "label": "Northstar: 初始化 Live 认证",
       "type": "process",
       "command": "uv",
       "args": [
@@ -87,17 +255,83 @@
         "northstar",
         "maintenance",
         "init-auth",
-        "${workspaceFolder}/.northstar/vscode-runtime-auth"
+        "${workspaceFolder}/.northstar/vscode/auth"
       ],
       "options": {
-        "cwd": "${workspaceFolder}"
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "NORTHSTAR_DATABASE_URL": "",
+          "NORTHSTAR_DATABASE_OWNER": "",
+          "NORTHSTAR_DATA_DIR": "",
+          "NORTHSTAR_LIVE_ENVIRONMENT": "simnow_trading",
+          "NORTHSTAR_SIMNOW_USER_ID": "",
+          "NORTHSTAR_SIMNOW_APP_ID": "",
+          "NORTHSTAR_SIMNOW_AUTH_CODE": "",
+          "NORTHSTAR_SIMNOW_PASSWORD": ""
+        }
       },
-      "dependsOn": "Northstar: initialize VS Code debug database",
-      "dependsOrder": "sequence",
+      "problemMatcher": [],
+      "dependsOn": [
+        "Northstar: 初始化 Live"
+      ],
+      "dependsOrder": "sequence"
+    },
+    {
+      "label": "Northstar: Data Hub 前端",
+      "type": "process",
+      "command": "npm",
+      "args": [
+        "--prefix",
+        "frontend",
+        "run",
+        "dev:data"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "NORTHSTAR_API_URL": "http://127.0.0.1:19082"
+        }
+      },
       "problemMatcher": []
     },
     {
-      "label": "Northstar: lint",
+      "label": "Northstar: Research 前端",
+      "type": "process",
+      "command": "npm",
+      "args": [
+        "--prefix",
+        "frontend",
+        "run",
+        "dev:research"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "NORTHSTAR_API_URL": "http://127.0.0.1:19084"
+        }
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Northstar: Live 前端",
+      "type": "process",
+      "command": "npm",
+      "args": [
+        "--prefix",
+        "frontend",
+        "run",
+        "dev:live"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "NORTHSTAR_API_URL": "http://127.0.0.1:19080"
+        }
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Northstar: 代码检查",
       "type": "process",
       "command": "uv",
       "args": [
@@ -106,9 +340,9 @@
         "backend",
         "--locked",
         "ruff",
+        "check",
         "--config",
         "backend/pyproject.toml",
-        "check",
         "backend/src",
         "backend/tests",
         "backend/scripts",
@@ -120,7 +354,7 @@
       "problemMatcher": []
     },
     {
-      "label": "Northstar: check formatting",
+      "label": "Northstar: 格式检查",
       "type": "process",
       "command": "uv",
       "args": [
@@ -129,10 +363,10 @@
         "backend",
         "--locked",
         "ruff",
-        "--config",
-        "backend/pyproject.toml",
         "format",
         "--check",
+        "--config",
+        "backend/pyproject.toml",
         "backend/src",
         "backend/tests",
         "backend/scripts",
@@ -144,7 +378,7 @@
       "problemMatcher": []
     },
     {
-      "label": "Northstar: type check",
+      "label": "Northstar: 类型检查",
       "type": "process",
       "command": "uv",
       "args": [
@@ -163,7 +397,70 @@
       "problemMatcher": []
     },
     {
-      "label": "Northstar: test",
+      "label": "Northstar: 协议检查",
+      "type": "process",
+      "command": "uv",
+      "args": [
+        "run",
+        "--project",
+        "backend",
+        "--locked",
+        "python",
+        "scripts/protocol/generate_api.py",
+        "--check"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Northstar: 前端类型检查",
+      "type": "process",
+      "command": "npm",
+      "args": [
+        "--prefix",
+        "frontend",
+        "run",
+        "check"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Northstar: 前端测试",
+      "type": "process",
+      "command": "npm",
+      "args": [
+        "--prefix",
+        "frontend",
+        "run",
+        "test"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Northstar: 前端构建",
+      "type": "process",
+      "command": "npm",
+      "args": [
+        "--prefix",
+        "frontend",
+        "run",
+        "build"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Northstar: 后端测试",
       "type": "process",
       "command": "make",
       "args": [
@@ -172,19 +469,26 @@
       "options": {
         "cwd": "${workspaceFolder}",
         "env": {
-          "NORTHSTAR_TEST_DATABASE_URL": "postgresql+psycopg://northstar:northstar_local@127.0.0.1:15432/northstar_quant_test",
           "NORTHSTAR_DATABASE_URL": "",
+          "NORTHSTAR_DATABASE_OWNER": "",
           "NORTHSTAR_DATA_DIR": "",
-          "NORTHSTAR_SIMNOW_CONFIG": ""
+          "NORTHSTAR_LIVE_ENVIRONMENT": "simnow_trading",
+          "NORTHSTAR_SIMNOW_USER_ID": "",
+          "NORTHSTAR_SIMNOW_APP_ID": "",
+          "NORTHSTAR_SIMNOW_AUTH_CODE": "",
+          "NORTHSTAR_SIMNOW_PASSWORD": "",
+          "NORTHSTAR_TEST_DATABASE_URL": "postgresql+psycopg://northstar:northstar_local@127.0.0.1:15432/northstar_quant_test"
         }
       },
-      "dependsOn": "Northstar: prepare isolated development databases",
+      "problemMatcher": [],
+      "dependsOn": [
+        "Northstar: 准备调试数据库"
+      ],
       "dependsOrder": "sequence",
-      "group": "test",
-      "problemMatcher": []
+      "group": "test"
     },
     {
-      "label": "Northstar: verify",
+      "label": "Northstar: 完整验证",
       "type": "process",
       "command": "make",
       "args": [
@@ -193,44 +497,66 @@
       "options": {
         "cwd": "${workspaceFolder}",
         "env": {
-          "NORTHSTAR_TEST_DATABASE_URL": "postgresql+psycopg://northstar:northstar_local@127.0.0.1:15432/northstar_quant_test",
           "NORTHSTAR_DATABASE_URL": "",
+          "NORTHSTAR_DATABASE_OWNER": "",
           "NORTHSTAR_DATA_DIR": "",
-          "NORTHSTAR_SIMNOW_CONFIG": ""
+          "NORTHSTAR_LIVE_ENVIRONMENT": "simnow_trading",
+          "NORTHSTAR_SIMNOW_USER_ID": "",
+          "NORTHSTAR_SIMNOW_APP_ID": "",
+          "NORTHSTAR_SIMNOW_AUTH_CODE": "",
+          "NORTHSTAR_SIMNOW_PASSWORD": "",
+          "NORTHSTAR_TEST_DATABASE_URL": "postgresql+psycopg://northstar:northstar_local@127.0.0.1:15432/northstar_quant_test"
         }
       },
-      "dependsOn": "Northstar: prepare isolated development databases",
+      "problemMatcher": [],
+      "dependsOn": [
+        "Northstar: 准备调试数据库"
+      ],
       "dependsOrder": "sequence",
-      "group": "test",
-      "problemMatcher": []
+      "group": "test"
     },
     {
-      "label": "Northstar: start containerized application",
+      "label": "Northstar: 远程应用管理",
       "type": "process",
-      "command": "docker",
+      "command": "python3",
       "args": [
-        "compose",
-        "up",
-        "--build",
-        "-d"
+        "scripts/northstarctl.py",
+        "${input:action}",
+        "${input:app}"
       ],
       "options": {
         "cwd": "${workspaceFolder}"
       },
       "problemMatcher": []
+    }
+  ],
+  "inputs": [
+    {
+      "id": "action",
+      "type": "pickString",
+      "description": "远程操作（restart/stop 会影响整个应用）",
+      "options": [
+        "status",
+        "logs",
+        "deploy",
+        "start",
+        "restart",
+        "stop",
+        "init-host"
+      ],
+      "default": "status"
     },
     {
-      "label": "Northstar: stop containerized application",
-      "type": "process",
-      "command": "docker",
-      "args": [
-        "compose",
-        "down"
+      "id": "app",
+      "type": "pickString",
+      "description": "应用",
+      "options": [
+        "database",
+        "data-hub",
+        "research",
+        "live"
       ],
-      "options": {
-        "cwd": "${workspaceFolder}"
-      },
-      "problemMatcher": []
+      "default": "data-hub"
     }
   ]
 }

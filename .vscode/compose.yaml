@@ -1,0 +1,20 @@
+# 仅供本地开发；与 deploy/ 下的应用数据库隔离。
+name: northstar-vscode
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: northstar
+      POSTGRES_PASSWORD: northstar_local
+      POSTGRES_DB: postgres
+    ports:
+      - "127.0.0.1:15432:5432"
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U northstar -d postgres"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+volumes:
+  postgres:
