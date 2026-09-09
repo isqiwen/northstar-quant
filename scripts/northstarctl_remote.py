@@ -38,45 +38,18 @@ def image_environment(app: str, revision: str) -> None:
         os.environ[f"NORTHSTAR_{key}_FRONTEND_IMAGE"] = f"northstar-{app}-frontend:{revision}"
 
 
-def live_guard(project: str) -> None:
-    # No deployment-owned check can atomically drain/authorize a trading session yet.
-    # Refuse running, restarting and paused kernels; an absent/stopped kernel is never killed.
-    ids = run(
-        "docker",
-        "ps",
-        "-aq",
-        "--filter",
-        f"label=com.docker.compose.project={project}",
-        "--filter",
-        "label=com.docker.compose.service=live",
-        capture=True,
-    ).splitlines()
-    for identity in ids:
-        state = json.loads(
-            run("docker", "inspect", "--format", "{{json .State}}", identity, capture=True)
-        )
-        if state.get("Running") or state.get("Restarting") or state.get("Paused"):
-            raise ValueError(
-                "Live 内核运行中：拒绝整套部署/启停。须先在主机完成会话核对和维护停机；无强制选项。"
-            )
-
-
 def lifecycle(
     compose: list[str],
     app: str,
     action: str,
-    management_only: bool,
     *,
     runner: Callable[..., str] = run,
 ) -> None:
-    """Operate existing images; management operations never traverse Live dependencies."""
-    services = (
-        ["live-api", "live-web"] if management_only else (["postgres"] if app == "database" else [])
-    )
+    """Manage the complete selected deployment using its existing images."""
+    services = ["postgres"] if app == "database" else []
     if action == "stop":
-        runner(*compose, "stop", *services) if management_only else runner(*compose, "down")
+        runner(*compose, "down")
         return
-    options = ["--no-deps"] if management_only else []
     runner(
         *compose,
         "up",
@@ -88,7 +61,6 @@ def lifecycle(
         "--wait-timeout",
         "180",
         "--force-recreate" if action == "restart" else "--no-recreate",
-        *options,
         *services,
     )
 
@@ -96,7 +68,6 @@ def lifecycle(
 def execute(request: dict) -> None:
     app, action = request["app"], request["action"]
     folder, target, project = TARGETS[app]
-    management_only = request.get("management_only", False)
     root = Path(request["directory"])
     env_file = Path(request["env_file"])
     if action == "deploy":
@@ -123,12 +94,6 @@ def execute(request: dict) -> None:
         os.environ["COMPOSE_PROJECT_NAME"] = project
         run("docker", "info", capture=True)
         run("docker", "compose", "version", capture=True)
-        if (
-            app == "live"
-            and action in ("deploy", "start", "restart", "stop")
-            and not management_only
-        ):
-            live_guard(project)
         active = root / "current"
         if action == "deploy":
             for tool in ("git", "make", "uv"):
@@ -163,8 +128,6 @@ def execute(request: dict) -> None:
             ]
             image_environment(app, revision)
             run(*compose, "config", "--quiet")
-            if app == "live":
-                live_guard(project)
             # Point management commands at the attempted release, even if up partially fails.
             # Never claim an atomic rollback of databases/containers.
             link = root / ".current-next"
@@ -236,7 +199,7 @@ def execute(request: dict) -> None:
                         run(
                             *compose, "run", "--rm", "--no-deps", "--pull", "never", "storage-check"
                         )
-                lifecycle(compose, app, action, management_only)
+                lifecycle(compose, app, action)
 
 
 if __name__ == "__main__":

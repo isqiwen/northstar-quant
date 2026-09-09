@@ -66,14 +66,7 @@ def main() -> int:
     )
     parser.add_argument("--dry-run", action="store_true", help="仅显示目标，不连接 SSH")
     parser.add_argument("--follow", action="store_true", help="持续查看容器标准输出（仅 logs）")
-    parser.add_argument(
-        "--management-only", action="store_true", help="仅启停 Live 前端/API，不操作内核和数据库"
-    )
     args = parser.parse_args()
-    if args.management_only and (
-        args.app != "live" or args.action not in ("start", "restart", "stop")
-    ):
-        parser.error("--management-only 仅用于 Live 的 start/restart/stop")
     if args.follow and args.action != "logs":
         parser.error("--follow 仅用于 logs")
     try:
@@ -88,7 +81,6 @@ def main() -> int:
             "action": args.action,
             "revision": revision,
             "follow": args.follow,
-            "management_only": args.management_only,
         }
         print(
             f"{args.action} {args.app} → {config['user']}@{config['host']}:{config['port']} "

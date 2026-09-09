@@ -32,7 +32,7 @@ QNAP 上的这些工具须先安装核验。脚本不会安装系统软件或修
 ./scripts/northstarctl.py deploy live --config ~/.config/northstar/hosts.toml
 ./scripts/northstarctl.py start research --config ~/.config/northstar/hosts.toml
 ./scripts/northstarctl.py restart data-hub --config ~/.config/northstar/hosts.toml
-./scripts/northstarctl.py restart live --management-only --config ~/.config/northstar/hosts.toml
+./scripts/northstarctl.py restart live --config ~/.config/northstar/hosts.toml
 ./scripts/northstarctl.py status research --config ~/.config/northstar/hosts.toml
 ./scripts/northstarctl.py logs data-hub --follow --config ~/.config/northstar/hosts.toml
 ./scripts/northstarctl.py stop research --config ~/.config/northstar/hosts.toml
@@ -53,11 +53,11 @@ Data Hub/Research 仍先检查 NFS 和存储身份。数据库启停只操作 Po
 
 `stop` 保留卷；部署应用不会连带启动或重启数据库及其他应用。停止 `database` 会使
 Data Hub/Research 的数据库操作不可用，但不操作 Live 本地数据库。
-Live 内核运行、暂停或重启中时，整套 `deploy`/`start`/`restart`/`stop` 均被拒绝，没有强制开关；
-先通过独立维护流程核对会话、未决订单并在主机停机，才能更新。脚本只验证容器停止，
-不能替代交易准入判断；重启不授予执行权。
-Live 的 `start`/`restart`/`stop` 可加 `--management-only`，仅操作前端/API，
-使用 `--no-deps` 避免连带启动、重建内核及数据库；首次使用须先完整部署以准备认证卷。它也不会自动接管其他部署项目。
+Live 与其他应用统一操作整个部署对象：`stop live` 停止前端、API、内核和本地数据库，
+`restart live` 用已部署镜像重建它们。进程运行不再成为拒绝启停的条件。
+Docker 按 Compose 退出宽限期发送终止信号，超时仍可能强制结束进程；
+这不是撤单、平仓或完成交易核对的证明，脚本尚未实现交易维护准入。
+启动仍不自动连接柜台或恢复交易授权。脚本不会自动接管其他部署项目。
 `logs` 查看容器标准输出；Python 持久运行日志的文件位置见根目录 README。
 
 ## 数据库与账号

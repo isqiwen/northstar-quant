@@ -114,7 +114,7 @@ class Deployment:
                 "except OSError: print('Web cannot reach storage')\n"
                 "else: raise RuntimeError('Web unexpectedly reached storage')",
             )
-            lifecycle([], "live", "restart", True, runner=self.run)
+            self.run("restart", "live-api", "live-web")
             self.wait_http(client, "/health/ready")
             # Recreated management containers preserve the independent kernel identity.
             self.wait_http(client, "/api/browser-session")
@@ -123,9 +123,9 @@ class Deployment:
             assert self.run("ps", "-q", "live").strip() == kernel
             print("Live management restart: same independent kernel", flush=True)
 
-            lifecycle([], "live", "stop", True, runner=self.run)
+            self.run("stop", "live-api", "live-web")
             assert self.run("ps", "-q", "live").strip() == kernel
-            lifecycle([], "live", "start", True, runner=self.run)
+            self.run("start", "live-api", "live-web")
             self.wait_http(client, "/api/browser-session")
             assert self.wait_http(client, "/api/live/status").json()["runtime_id"] == identity
             print("Live management stop/start: same independent kernel", flush=True)
@@ -165,6 +165,27 @@ class Deployment:
             print(
                 "Kernel stop/restart: no Web-owned replacement and no broker connection", flush=True
             )
+            for action in ("restart", "stop-start"):
+                previous = self.wait_http(client, "/api/live/status").json()["runtime_id"]
+                if action == "stop-start":
+                    lifecycle([], "live", "stop", runner=self.run)
+                    assert not self.run("ps", "-q").strip()
+                    lifecycle([], "live", "start", runner=self.run)
+                else:
+                    lifecycle([], "live", "restart", runner=self.run)
+                self.wait_http(client, "/api/browser-session")
+                assert self.wait_http(client, "/api/live/status").json()["runtime_id"] != previous
+                assert (
+                    json.loads(
+                        self.run("exec", "-T", "live", "northstar", "advanced", "stream", "list")
+                    )
+                    == []
+                )
+            print(
+                "Whole Live restart and stop/start: kernel restarts without broker connection",
+                flush=True,
+            )
+
             self.run(
                 "exec",
                 "-T",

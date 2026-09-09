@@ -60,10 +60,6 @@ with open(os.environ['RECORD'], 'a') as file:
     file.write(json.dumps([name, *sys.argv[1:]]) + '\\n')
 if name == 'ssh':
     sys.exit(subprocess.run(sys.argv[-1], shell=True).returncode)
-if name == 'docker' and 'inspect' in sys.argv:
-    print(json.dumps(dict(Running=True)))
-elif name == 'docker' and 'ps' in sys.argv and '-aq' in sys.argv:
-    if os.environ.get('KERNEL_RUNNING'): print('kernel-id')
 if name == 'uv': sys.exit(int(os.environ.get('MOUNT_RESULT', '0')))
 if name == 'make': sys.exit(int(os.environ.get('MAKE_RESULT', '0')))
 """
@@ -133,18 +129,6 @@ def test_failed_up_remains_inspectable_without_false_success(deployment):
     assert "最后成功版本：无" in result.stdout
 
 
-@pytest.mark.parametrize("action", ["deploy", "start", "restart", "stop"])
-def test_running_live_refuses_mutation(deployment, action):
-    _, config, env = deployment
-    (config.parent / "live").mkdir()
-    env["KERNEL_RUNNING"] = "1"
-    result = invoke(deployment, action, "live")
-    assert result.returncode != 0
-    assert "Live 内核运行中" in result.stderr
-    calls = [json.loads(line) for line in Path(env["RECORD"]).read_text().splitlines()]
-    assert not any(c[0] == "make" or "down" in c for c in calls)
-
-
 def test_dirty_source_never_connects_or_deploys(deployment):
     repo, _, env = deployment
     (repo / "uncommitted").write_text("new source")
@@ -184,21 +168,22 @@ def test_make_interpolation_in_configuration_is_rejected_before_ssh(deployment):
 
 
 @pytest.mark.parametrize("action", ["start", "restart", "stop"])
-def test_live_management_never_operates_kernel_dependencies(deployment, action):
+def test_live_uses_complete_deployment_lifecycle(deployment, action):
     _, _, env = deployment
     assert invoke(deployment, "deploy", "live").returncode == 0
     Path(env["RECORD"]).write_text("")
-    env["KERNEL_RUNNING"] = "1"
-    result = invoke(deployment, action, "live", "--management-only")
+    result = invoke(deployment, action, "live")
     assert result.returncode == 0, result.stderr
     calls = [json.loads(line) for line in Path(env["RECORD"]).read_text().splitlines()]
-    mutations = [c for c in calls if c[:2] == ["docker", "compose"] and ("up" in c or "stop" in c)]
+    mutations = [c for c in calls if c[:2] == ["docker", "compose"] and ("up" in c or "down" in c)]
     assert len(mutations) == 1
-    assert mutations[0][-2:] == ["live-api", "live-web"]
-    if action != "stop":
-        assert "--no-deps" in mutations[0]
+    if action == "stop":
+        assert mutations[0][-1] == "down"
+        assert "--volumes" not in mutations[0]
+    else:
         assert "--no-build" in mutations[0]
-        assert mutations[0][mutations[0].index("--pull") + 1] == "never"
+        assert "--no-deps" not in mutations[0]
+        assert mutations[0][-1] == ("--force-recreate" if action == "restart" else "--no-recreate")
 
 
 @pytest.mark.parametrize("action", ["start", "restart"])
