@@ -21,10 +21,10 @@ from pathlib import Path
 from urllib.parse import urlsplit
 from uuid import uuid4
 
-from installed.broker import check_broker_access
-from installed.catalog import check_catalog
-from installed.processes import InstalledApplication
-from installed.restore import check_restore
+from support.broker import check_broker_access
+from support.catalog import check_catalog
+from support.processes import InstalledApplication
+from support.restore import check_restore
 
 
 def main() -> None:

@@ -4,7 +4,7 @@ import json
 import subprocess
 from pathlib import Path
 
-from installed.processes import InstalledApplication
+from support.processes import InstalledApplication
 
 
 def seed_market(app: InstalledApplication) -> dict:

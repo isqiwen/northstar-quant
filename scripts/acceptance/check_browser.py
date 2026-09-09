@@ -15,9 +15,9 @@ from pathlib import Path
 from urllib.parse import urlsplit
 from uuid import uuid4
 
-from installed.market import seed_market
-from installed.processes import InstalledApplication
 from playwright.sync_api import expect, sync_playwright
+from support.market import seed_market
+from support.processes import InstalledApplication
 
 from northstar_quant.web.protobuf import decode, methods, pack
 

@@ -10,7 +10,7 @@ from urllib.error import HTTPError
 from urllib.request import ProxyHandler, Request, build_opener
 from uuid import uuid4
 
-from installed.processes import InstalledApplication
+from support.processes import InstalledApplication
 
 
 def check_broker_access(
