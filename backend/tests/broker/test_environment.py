@@ -13,7 +13,7 @@ def test_unsupported_environment_refuses_before_database_or_credentials(
 ):
     kernel = importlib.import_module("northstar_quant.apps.live.kernel.application")
     monkeypatch.setenv("NORTHSTAR_LIVE_ENVIRONMENT", environment)
-    monkeypatch.setenv("NORTHSTAR_LIVE_BROKER_CONFIG", str(tmp_path / "missing"))
+    monkeypatch.delenv("NORTHSTAR_SIMNOW_PASSWORD", raising=False)
     monkeypatch.setenv("NORTHSTAR_LOG_DIR", str(tmp_path / "logs"))
 
     def forbidden():
@@ -31,9 +31,9 @@ def test_simulation_configuration_does_not_grant_credentials_or_change_broker(
     monkeypatch, tmp_path
 ):
     monkeypatch.setenv("NORTHSTAR_LIVE_ENVIRONMENT", "simulation")
-    monkeypatch.setenv("NORTHSTAR_LIVE_BROKER_CONFIG", str(tmp_path / "missing"))
+    monkeypatch.delenv("NORTHSTAR_SIMNOW_PASSWORD", raising=False)
     assert all(profile["environment"] == "SIMNOW" for profile in profiles())
-    with pytest.raises(ValueError, match="missing or unreadable"):
+    with pytest.raises(ValueError, match="all four"):
         load_credentials()
     with pytest.raises(ValueError, match="approved SimNow"):
         get_profile("production")

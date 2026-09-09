@@ -1,17 +1,10 @@
-"""The two operator-approved SimNow environments and private local credentials.
-
-Neither HTTP requests nor a credentials file can select a production endpoint.
-Secrets are literal values in an owner-only file: it is never sourced as shell
-code, interpolated, included in a public profile, or printed in diagnostics.
-"""
+"""Approved SimNow profiles and kernel-only credentials from the Live environment."""
 
 from __future__ import annotations
 
 import os
 import re
-import stat
 from dataclasses import dataclass, field
-from pathlib import Path
 
 
 def require_supported_environment() -> None:
@@ -95,64 +88,15 @@ class Credentials:
                 raise ValueError(f"SimNow {name} must fit the current CTP ASCII field")
 
 
-_KEYS = {
-    "NORTHSTAR_SIMNOW_USER_ID",
-    "NORTHSTAR_SIMNOW_PASSWORD",
-    "NORTHSTAR_SIMNOW_APP_ID",
-    "NORTHSTAR_SIMNOW_AUTH_CODE",
-}
-
-
-def credential_path() -> Path:
-    value = os.environ.get("NORTHSTAR_LIVE_BROKER_CONFIG")
-    if not value or not Path(value).is_absolute():
-        raise ValueError(
-            "set NORTHSTAR_LIVE_BROKER_CONFIG to the absolute private credentials file"
-        )
-    return Path(value)
-
-
-def load_credentials(path: Path | None = None) -> Credentials:
+def load_credentials() -> Credentials:
     require_supported_environment()
-    source = credential_path() if path is None else path
-    if not source.is_absolute():
-        raise ValueError("SimNow credentials require an absolute private file")
-    try:
-        descriptor = os.open(source, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
-        with os.fdopen(descriptor, "rb") as stream:
-            details = os.fstat(stream.fileno())
-            if (
-                not stat.S_ISREG(details.st_mode)
-                or os.geteuid() not in {0, details.st_uid}
-                or stat.S_IMODE(details.st_mode) & 0o077
-                or details.st_size > 16_384
-            ):
-                raise ValueError("SimNow credentials must be an owner-only bounded regular file")
-            content = stream.read(16_385)
-    except OSError as error:
-        raise ValueError("SimNow private credentials file is missing or unreadable") from error
-    if len(content) != details.st_size or len(content) > 16_384:
-        raise ValueError("SimNow credentials changed or exceeded their size limit")
-    try:
-        document = content.decode("utf-8")
-    except UnicodeError as error:
-        raise ValueError("SimNow credentials must use UTF-8 text") from error
-    values: dict[str, str] = {}
-    for line in document.splitlines():
-        if not line.strip() or line.startswith("#"):
-            continue
-        key, separator, value = line.partition("=")
-        if not separator or key not in _KEYS or key in values:
-            raise ValueError("SimNow credentials have unknown, duplicate or malformed entries")
-        values[key] = value
-    if set(values) != _KEYS:
-        raise ValueError("SimNow credentials require investor code, password, AppID and AuthCode")
-    return Credentials(
-        user_id=values["NORTHSTAR_SIMNOW_USER_ID"],
-        password=values["NORTHSTAR_SIMNOW_PASSWORD"],
-        app_id=values["NORTHSTAR_SIMNOW_APP_ID"],
-        auth_code=values["NORTHSTAR_SIMNOW_AUTH_CODE"],
-    )
+    values = {
+        field: os.environ.get("NORTHSTAR_SIMNOW_" + field.upper(), "")
+        for field in ("user_id", "password", "app_id", "auth_code")
+    }
+    if not all(values.values()):
+        raise ValueError("Configure all four NORTHSTAR_SIMNOW credentials in the Live .env")
+    return Credentials(**values)
 
 
 def credential_status() -> dict[str, object]:
@@ -164,7 +108,7 @@ def credential_status() -> dict[str, object]:
         return {"configured": False, "reason": str(error)}
     return {
         "configured": True,
-        "reason": "Private configuration is readable; broker login has not been verified.",
+        "reason": "Live credentials configured; broker login has not been verified.",
     }
 
 

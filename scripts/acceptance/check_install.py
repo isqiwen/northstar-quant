@@ -47,7 +47,9 @@ def main() -> None:
     environment.pop("PYTHONPATH", None)
     environment.pop("PYTHONHOME", None)
     # Acceptance never inherits private operator credentials or connects to a broker.
-    environment.pop("NORTHSTAR_LIVE_BROKER_CONFIG", None)
+    for key in tuple(environment):
+        if key.startswith("NORTHSTAR_SIMNOW_"):
+            environment.pop(key)
     environment["NORTHSTAR_LIVE_ENVIRONMENT"] = "simulation"
     environment.pop("NORTHSTAR_LIVE_AUTH", None)
     environment.pop("NORTHSTAR_LIVE_URL", None)

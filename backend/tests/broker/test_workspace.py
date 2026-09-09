@@ -54,14 +54,10 @@ def test_saved_stream_catchup_rejects_missing_session_before_database_or_broker_
 
 def _credentials(path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     # Generated test-only values, never the operator's private configuration.
-    path.write_text(
-        "NORTHSTAR_SIMNOW_USER_ID=123456\n"
-        "NORTHSTAR_SIMNOW_PASSWORD=$(touch unwanted)#='literal'\n"
-        "NORTHSTAR_SIMNOW_APP_ID=test_only\n"
-        "NORTHSTAR_SIMNOW_AUTH_CODE=test_only\n"
-    )
-    path.chmod(0o600)
-    monkeypatch.setenv("NORTHSTAR_LIVE_BROKER_CONFIG", str(path))
+    monkeypatch.setenv("NORTHSTAR_SIMNOW_USER_ID", "123456")
+    monkeypatch.setenv("NORTHSTAR_SIMNOW_PASSWORD", "$(touch unwanted)#='literal'")
+    monkeypatch.setenv("NORTHSTAR_SIMNOW_APP_ID", "test_only")
+    monkeypatch.setenv("NORTHSTAR_SIMNOW_AUTH_CODE", "test_only")
 
 
 def _failed_capture() -> QueryCapture:
@@ -90,19 +86,12 @@ def test_credentials_are_literal_private_and_absent_from_diagnostics(
     for value in (credentials.user_id, credentials.password, credentials.auth_code):
         assert value not in repr(credentials)
         assert value not in str(credential_status())
-    path.chmod(0o644)
-    with pytest.raises(ValueError, match="owner-only"):
+    monkeypatch.setenv("NORTHSTAR_SIMNOW_PASSWORD", "invalid\nsecret")
+    with pytest.raises(ValueError) as rejected:
         load_credentials()
-    path.chmod(0o600)
-    alias = tmp_path / "alias"
-    alias.symlink_to(path)
-    with pytest.raises(ValueError, match="unreadable"):
-        load_credentials(alias)
-    with path.open("a") as stream:
-        stream.write("NORTHSTAR_SIMNOW_PASSWORD=another_secret\n")
-    with pytest.raises(ValueError, match="duplicate") as rejected:
-        load_credentials()
-    assert "another_secret" not in str(rejected.value)
+    assert "invalid" not in str(rejected.value)
+    monkeypatch.delenv("NORTHSTAR_SIMNOW_PASSWORD")
+    assert credential_status()["configured"] is False
 
 
 def test_query_failure_is_fixed_on_retry_and_blocks_concurrent_account_capture(
@@ -140,7 +129,7 @@ def test_query_failure_is_fixed_on_retry_and_blocks_concurrent_account_capture(
     with pytest.raises(ValueError, match="different input"):
         workspace.query("simnow_trading", "rb2610", request_id=request_id)
     assert calls == 1
-    monkeypatch.delenv("NORTHSTAR_LIVE_BROKER_CONFIG")
+    monkeypatch.delenv("NORTHSTAR_SIMNOW_PASSWORD")
     assert BrokerQueries(postgres_engine).get(request_id) == saved
     assert workspace.query("simnow_dev", "rb2610", request_id=request_id) == saved
     assert calls == 1
@@ -154,7 +143,7 @@ def test_broker_browser_requires_explicit_command_and_keeps_failure_evidence(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     del clean_database
-    monkeypatch.delenv("NORTHSTAR_LIVE_BROKER_CONFIG", raising=False)
+    monkeypatch.delenv("NORTHSTAR_SIMNOW_PASSWORD", raising=False)
     calls = 0
 
     def capture(*args: object, **kwargs: object) -> QueryCapture:
@@ -214,7 +203,7 @@ def test_browser_baseline_commands_are_private_local_and_preserve_original_queri
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     del clean_database
-    monkeypatch.delenv("NORTHSTAR_LIVE_BROKER_CONFIG", raising=False)
+    monkeypatch.delenv("NORTHSTAR_SIMNOW_PASSWORD", raising=False)
 
     def forbidden(*args: object, **kwargs: object) -> None:
         raise AssertionError("local baseline commands must not load credentials or connect")
@@ -321,7 +310,7 @@ def test_cli_baseline_and_comparison_use_saved_evidence_without_credentials(
         "northstar_quant.live.LiveClient.from_environment",
         lambda: live_client(postgres_engine, library),
     )
-    monkeypatch.delenv("NORTHSTAR_LIVE_BROKER_CONFIG", raising=False)
+    monkeypatch.delenv("NORTHSTAR_SIMNOW_PASSWORD", raising=False)
     monkeypatch.setenv(
         "NORTHSTAR_DATABASE_URL", postgres_engine.url.render_as_string(hide_password=False)
     )
@@ -385,7 +374,7 @@ def test_browser_position_ledger_requires_local_commands_and_independent_evidenc
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     del clean_database
-    monkeypatch.delenv("NORTHSTAR_LIVE_BROKER_CONFIG", raising=False)
+    monkeypatch.delenv("NORTHSTAR_SIMNOW_PASSWORD", raising=False)
 
     def forbidden(*args: object, **kwargs: object) -> None:
         raise AssertionError("position ledger commands must not load credentials or connect")
@@ -504,7 +493,7 @@ def test_cli_position_ledger_does_not_turn_unknown_observations_into_success(
         "northstar_quant.live.LiveClient.from_environment",
         lambda: live_client(postgres_engine, library),
     )
-    monkeypatch.delenv("NORTHSTAR_LIVE_BROKER_CONFIG", raising=False)
+    monkeypatch.delenv("NORTHSTAR_SIMNOW_PASSWORD", raising=False)
     monkeypatch.setenv(
         "NORTHSTAR_DATABASE_URL", postgres_engine.url.render_as_string(hide_password=False)
     )
@@ -622,7 +611,7 @@ def test_browser_order_check_uses_fixed_inputs_without_credentials_or_manual_fac
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     del clean_database
-    monkeypatch.delenv("NORTHSTAR_LIVE_BROKER_CONFIG", raising=False)
+    monkeypatch.delenv("NORTHSTAR_SIMNOW_PASSWORD", raising=False)
 
     def forbidden(*args: object, **kwargs: object) -> None:
         raise AssertionError("saved order checks must not load credentials or connect")

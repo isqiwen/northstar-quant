@@ -103,13 +103,12 @@ Live Sim and future production use this same application and Compose on the Live
 Production trading is not implemented/admitted: `production` or an unknown value fails kernel
 startup before opening its database or reading broker credentials. Configuration never grants sending authority.
 
-Save SimNow credentials with `scripts/operations/setup_simnow.py` to the Live host's
-`/opt/northstar/credentials/live/broker.env` (owner-only, mode 600). The existing private
-credential directory is mounted read-only into the kernel, where
-`NORTHSTAR_LIVE_BROKER_CONFIG=/var/lib/northstar/auth/broker.env` selects the file.
-No extra Compose, separate simulation application or repository-local secret mount is used.
-The frontend and management API do not receive broker credentials. A missing file leaves
-management available and broker setup unconfigured; startup never connects automatically.
+Set NORTHSTAR_SIMNOW_USER_ID, NORTHSTAR_SIMNOW_APP_ID, NORTHSTAR_SIMNOW_AUTH_CODE
+and NORTHSTAR_SIMNOW_PASSWORD in deploy/live/.env. Keep actual values local and single-quoted
+so Compose preserves literal dollar signs. Only the kernel receives these variables;
+the frontend, API and database do not. There is no separate broker.env or setup script.
+Use northstarctl.py deploy live --env-file deploy/live/.env to update an existing remote
+configuration. Empty credentials leave broker setup unconfigured; startup never connects.
 
 Future production admission must bind environment/account, segregate ledger/order/recovery
 state and reconcile before explicitly enabling sending. Switching a configuration value must

@@ -247,16 +247,11 @@ make verify
 `scripts/acceptance/check_install.py`、`scripts/acceptance/check_browser.py` 执行；独立容器验收使用
 `scripts/acceptance/check_application_deployment.py` 和 `scripts/acceptance/check_live_deployment.py`。CI 配置见 [.github/workflows/ci.yml](.github/workflows/ci.yml)。
 
-SimNow 私密配置向导使用 Python，在自己的终端运行：
-
-```sh
-uv run --project backend python scripts/operations/setup_simnow.py
-```
-
-在 Live 主机保存到 `/opt/northstar/credentials/live/broker.env`（默认路径），也可用 `--file` 准备私密文件。
-统一 Live Compose 已将所属凭据目录只读挂载给内核，无需额外 Compose。
-`deploy/live/.env` 中 `NORTHSTAR_LIVE_ENVIRONMENT=simulation` 选择柜台仿真；当前 `production` 明确拒绝启动。
-密码隐藏输入，已有值可按回车保留；只保存配置，不连接柜台。各公开脚本入口支持 `--help`。
+SimNow 凭据填写在 `deploy/live/.env` 的四个 `NORTHSTAR_SIMNOW_*` 配置项中，
+仅传给 Live 内核，不传给前端/API；不再使用独立凭据文件或配置向导。
+值用单引号包裹，避免 `$` 被 Compose 当作变量；真实凭据不要提交 Git。
+已有部署更新配置时使用 `northstarctl.py deploy live --env-file deploy/live/.env`。
+`NORTHSTAR_LIVE_ENVIRONMENT=simulation` 选择柜台仿真；当前 `production` 明确拒绝启动。
 
 ## 数据与运行维护
 

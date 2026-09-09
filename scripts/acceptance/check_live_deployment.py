@@ -123,7 +123,7 @@ class Deployment:
                 "-c",
                 "import os,socket\n"
                 "assert not any(k in os.environ for k in "
-                "('NORTHSTAR_DATABASE_URL','NORTHSTAR_DATA_DIR','NORTHSTAR_LIVE_BROKER_CONFIG'))\n"
+                "('NORTHSTAR_DATABASE_URL','NORTHSTAR_DATA_DIR','NORTHSTAR_SIMNOW_PASSWORD'))\n"
                 "try: socket.create_connection(('postgres',5432),timeout=2)\n"
                 "except OSError: print('Web cannot reach storage')\n"
                 "else: raise RuntimeError('Web unexpectedly reached storage')",

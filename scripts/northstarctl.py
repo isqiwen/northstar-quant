@@ -180,14 +180,17 @@ def main() -> int:
         config = configuration(args.config, args.app)
         revision = None
         custom_environment = None
-        if args.env_file is not None:
-            with args.env_file.expanduser().open("rb") as source:
+        environment_path = args.env_file or ROOT / "deploy" / args.app.replace("-", "_") / ".env"
+        source_paths = ["--", ".", f":(exclude)deploy/{args.app.replace('-', '_')}/.env"]
+        if args.action == "deploy":
+            with environment_path.expanduser().open("rb") as source:
                 custom_environment = source.read(1024 * 1024 + 1)
             if len(custom_environment) > 1024 * 1024:
                 raise ValueError("应用配置超过大小限制")
-        if args.action == "deploy":
-            if git("status", "--porcelain", "--untracked-files=all"):
-                raise ValueError("部署要求干净的 Git 工作区，请先提交修改")
+            if git("status", "--porcelain", "--untracked-files=all", *source_paths):
+                raise ValueError(
+                    "部署要求干净的 Git 源码工作区（所属 .env 独立传输），请先提交代码修改"
+                )
             revision = git("rev-parse", "HEAD")
         request = config | {
             "app": args.app,
@@ -253,20 +256,13 @@ def main() -> int:
                 ["git", "-C", str(ROOT), "bundle", "create", str(bundle), "HEAD"], check=True
             )
             # Refuse a racing commit/edit rather than transferring a different revision.
-            if git("rev-parse", "HEAD") != revision or git("status", "--porcelain"):
+            if git("rev-parse", "HEAD") != revision or git("status", "--porcelain", *source_paths):
                 raise ValueError("打包期间 Git 工作区发生变化，请重新部署")
             template = Path(temporary) / "application.env"
-            folder = args.app.replace("-", "_")
             with template.open("xb") as output:
                 template.chmod(0o600)
-                if custom_environment is not None:
-                    output.write(custom_environment)
-                else:
-                    subprocess.run(
-                        ["git", "-C", str(ROOT), "show", f"{revision}:deploy/{folder}/.env"],
-                        stdout=output,
-                        check=True,
-                    )
+                assert custom_environment is not None
+                output.write(custom_environment)
             upload = command[:-1] + [
                 shlex.join(
                     [
@@ -274,7 +270,7 @@ def main() -> int:
                         "-c",
                         (ROOT / "scripts/operations/upload_configuration.py").read_text(),
                         config["env_file"],
-                        *(["--replace"] if custom_environment is not None else []),
+                        *(["--replace"] if args.env_file is not None else []),
                     ]
                 )
             ]

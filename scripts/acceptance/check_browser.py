@@ -40,12 +40,14 @@ def main() -> None:
     for key in (
         "PYTHONPATH",
         "PYTHONHOME",
-        "NORTHSTAR_LIVE_BROKER_CONFIG",
         "NORTHSTAR_LIVE_AUTH",
         "NORTHSTAR_LIVE_URL",
         "NORTHSTAR_TUSHARE_TOKEN",
     ):
         environment.pop(key, None)
+    for key in tuple(environment):
+        if key.startswith("NORTHSTAR_SIMNOW_"):
+            environment.pop(key)
     environment["NORTHSTAR_LIVE_ENVIRONMENT"] = "simulation"
     study = tomllib.loads(args.study.read_text())
     spec = dict(study["source"])

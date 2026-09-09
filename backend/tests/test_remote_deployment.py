@@ -464,3 +464,18 @@ def test_missing_custom_environment_fails_before_connecting(deployment):
     result = invoke(deployment, "deploy", "research", "--env-file", "/missing/northstar.env")
     assert result.returncode != 0
     assert not Path(env["RECORD"]).exists()
+
+
+def test_local_env_is_uploaded_without_entering_source_bundle(deployment):
+    repo, config, env = deployment
+    selected = repo / "deploy/research/.env"
+    secret = "PASSWORD='private-$literal'\n"
+    selected.write_text(secret)
+    result = invoke(deployment, "deploy", "research", "--env-file", str(selected))
+    assert result.returncode == 0, result.stderr
+    assert (config.parent / "config/research.env").read_text() == secret
+    current = config.parent / "apps/research/current"
+    assert "private-$literal" not in (current / "deploy/research/.env").read_text()
+    assert "private-$literal" not in result.stdout + result.stderr + Path(env["RECORD"]).read_text()
+    (repo / "deploy/live/.env").write_text("UNCOMMITTED=other-app\n")
+    assert invoke(deployment, "deploy", "research").returncode != 0
