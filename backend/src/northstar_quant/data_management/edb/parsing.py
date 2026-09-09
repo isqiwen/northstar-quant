@@ -13,6 +13,7 @@ from .acquisition import request_parameters
 
 class EdbCsv(_ResearchCsv):
     mapping_version = "edb-minute-csv/1"
+    input_kind = "PROVIDER_RESPONSE"
 
     def parse(self, payload: SourcePayload, *, source_timezone_name: str) -> ParsedOhlcvRows:
         try:
