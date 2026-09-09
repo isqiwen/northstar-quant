@@ -164,7 +164,9 @@ class Deployment:
                 "-c",
                 "import json,pathlib,time; time.sleep(0.2); "
                 "root=pathlib.Path('/var/log/northstar/live'); "
-                "rows={name:[json.loads(x) for x in (root/(name+'.log')).read_text().splitlines()] "
+                "rows={name:[json.loads(x) "
+                "for p in root.glob('northstar-live-'+name+'-????-??-??.log*') "
+                "for x in p.read_text().splitlines()] "
                 "for name in ('api','kernel')}; "
                 "assert all(len({r['session'] for r in records if 'session' in r})>=2 "
                 "for records in rows.values()); "

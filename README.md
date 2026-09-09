@@ -44,7 +44,7 @@ Compose 同时启动独立的 `data-worker`，不开放 HTTP 端口。网页提�
 
 ```sh
 docker compose ps                      # 查看服务状态
-docker compose exec research-api tail -n 100 /var/log/northstar/research/api.log # 查看研究日志
+docker compose exec research-api tail -n 100 /var/log/northstar/research/northstar-research-api-YYYY-MM-DD.log # 查看研究日志
 docker compose restart live-web        # 仅重启 Live 管理网页
 make down                              # 停止服务，保留持久数据
 ```
@@ -81,17 +81,18 @@ make down                              # 停止服务，保留持久数据
 
 | 应用 | 文件 |
 |---|---|
-| Data Hub | `data_hub/api.log`、`data_hub/worker.log` |
-| Research | `research/api.log` |
-| Live | `live/api.log`、`live/kernel.log` |
+| Data Hub | `data_hub/northstar-data-hub-api-YYYY-MM-DD.log`、`data_hub/northstar-data-hub-worker-YYYY-MM-DD.log` |
+| Research | `research/northstar-research-api-YYYY-MM-DD.log` |
+| Live | `live/northstar-live-api-YYYY-MM-DD.log`、`live/northstar-live-kernel-YYYY-MM-DD.log` |
 
 Compose 把日志保存在持久日志卷，容器内路径为 `/var/log/northstar/`，重建容器仍保留。
-例如 `docker compose exec live tail -n 50 /var/log/northstar/live/kernel.log`。
-每个文件默认 10 MiB，最多保留 5 份轮转文件（`.1`～`.5`）。Python 运行日志写文件；
+例如 `docker compose exec live tail -n 50 /var/log/northstar/live/northstar-live-kernel-YYYY-MM-DD.log`。
+将 `YYYY-MM-DD` 替换为日志日期。日期采用进程所在时区，跨日后的首次后台写入自动切换文件。
+每个文件默认 10 MiB，超限后增加 `.1`～`.5` 后缀；每个程序除当前文件外，跨日期和大小轮转合计最多保留 5 份历史文件（按修改时间保留最新）。Python 运行日志写文件；
 容器启动错误仍可通过 `docker compose logs --tail=100 research-api` 查看。
 
 可在启动前设置 `NORTHSTAR_LOG_DIR`（日志根目录）、`NORTHSTAR_LOG_MAX_BYTES`（单文件上限）、
-`NORTHSTAR_LOG_BACKUPS`（轮转份数）和 `NORTHSTAR_LOG_QUEUE`（队列容量，默认 1024 条）。
+`NORTHSTAR_LOG_BACKUPS`（历史文件总份数）和 `NORTHSTAR_LOG_QUEUE`（队列容量，默认 1024 条）。
 同一应用角色的日志文件只有一个写者；运行多个实例时分别设置日志根目录。
 日志目录不可写或已有写者时拒绝启动，运行期间的磁盘故障不会转为业务线程同步写盘。
 
@@ -103,6 +104,7 @@ Live 调用线程只提交有界记录，格式化、写盘与轮转在后台完
 各管理 API 的 `/health/logging` 提供队列、丢弃、写入错误和写线程状态；
 Live 内核通过 `northstar check` 和现有运行诊断提供日志健康，不把日志状态当作交易授权或停止指令。
 日志保留应用、组件、进程、启动身份、时间、级别和消息；不写请求体、查询字符串、认证头或异常参数。
+日志实现位于 `backend/src/northstar_quant/logging_/`，与运行时日志目录分开。
 业务代码使用标准 `logging.getLogger(__name__)`，传入固定模板和少量标量；不要先构造大字符串或传行情/账户对象。
 
 ## 本机开发

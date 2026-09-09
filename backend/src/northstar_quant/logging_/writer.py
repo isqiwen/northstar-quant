@@ -7,6 +7,7 @@ import fcntl
 import json
 import os
 import re
+from datetime import date
 from pathlib import Path
 from queue import Empty, Queue
 from threading import Event, Lock, Thread
@@ -20,18 +21,47 @@ _USERINFO = re.compile(r"(://)[^\s/@]+:[^\s/@]+@")
 class FileSink:
     """Startup validates ownership. Only the writer thread rotates or writes afterward."""
 
-    def __init__(self, path: Path, max_bytes: int, backups: int) -> None:
-        self.path, self.max_bytes, self.backups = path, max_bytes, backups
+    def __init__(
+        self, directory: Path, application: str, component: str, max_bytes: int, backups: int
+    ) -> None:
+        self.application, self.component = application, component
+        self.directory = directory / application
+        self.program = f"northstar-{application.replace('_', '-')}-{component}"
+        self.max_bytes, self.backups = max_bytes, backups
+        self.day = date.today()
+        self.path = self._dated_path(self.day)
         self.fd: int | None = None
         self.size = 0
-        path.parent.mkdir(parents=True, mode=0o700, exist_ok=True)
-        self.lock_fd = os.open(str(path) + ".lock", os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+        self.directory.mkdir(parents=True, mode=0o700, exist_ok=True)
+        # The ownership lock is stable across midnight and clock corrections.
+        self.lock_fd = os.open(
+            self.directory / f"{self.program}.lock",
+            os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW,
+            0o600,
+        )
         try:
             fcntl.flock(self.lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
             self._open()
+            self._prune()
         except BaseException:
+            self._close_file()
             os.close(self.lock_fd)
             raise
+
+    def _dated_path(self, day: date) -> Path:
+        return self.directory / f"{self.program}-{day.isoformat()}.log"
+
+    def _prune(self) -> None:
+        # One retention budget across dates and size rotations; never prune another owner.
+        pattern = re.compile(re.escape(self.program) + r"-\d{4}-\d{2}-\d{2}\.log(?:\.\d+)?")
+        archives = [
+            path
+            for path in self.directory.iterdir()
+            if path != self.path and pattern.fullmatch(path.name) and path.is_file()
+        ]
+        archives.sort(key=lambda path: (path.stat().st_mtime_ns, path.name), reverse=True)
+        for path in archives[self.backups :]:
+            path.unlink()
 
     def _open(self) -> None:
         descriptor = os.open(
@@ -45,8 +75,18 @@ class FileSink:
         self.fd, self.size = descriptor, size
 
     def write(self, content: bytes) -> None:
+        # This runs only on the background writer, never on a trading caller.
+        today = date.today()
+        if today != self.day:
+            if self.fd is not None:
+                os.close(self.fd)
+                self.fd = None
+            self.day, self.path = today, self._dated_path(today)
+            self._open()
+            self._prune()
         if self.fd is None:
             self._open()
+            self._prune()
         if self.size and self.size + len(content) > self.max_bytes:
             assert self.fd is not None
             os.close(self.fd)
@@ -56,6 +96,7 @@ class FileSink:
                 if old.exists():
                     os.replace(old, Path(str(self.path) + f".{index}"))
             self._open()
+            self._prune()
         assert self.fd is not None
         remaining = memoryview(content)
         while remaining:
@@ -65,10 +106,13 @@ class FileSink:
             self.size += written
             remaining = remaining[written:]
 
-    def close(self) -> None:
+    def _close_file(self) -> None:
         if self.fd is not None:
             os.close(self.fd)
             self.fd = None
+
+    def close(self) -> None:
+        self._close_file()
         os.close(self.lock_fd)
 
 
@@ -164,11 +208,11 @@ class Writer:
                                 encode(
                                     {
                                         "timestamp": time(),
-                                        "application": self.sink.path.parent.name,
-                                        "component": self.sink.path.stem,
+                                        "application": self.sink.application,
+                                        "component": self.sink.component,
                                         "pid": os.getpid(),
                                         "level": "WARNING" if any(counts) else "INFO",
-                                        "logger": "northstar_quant.logs",
+                                        "logger": "northstar_quant.logging_",
                                         "template": "logging_health",
                                         "arguments": (),
                                         "dropped_records": counts[0],

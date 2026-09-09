@@ -8,7 +8,7 @@ from functools import wraps
 from fastapi import FastAPI
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from northstar_quant.logs import LogRuntime, configure
+from northstar_quant.logging_ import LogRuntime, configure
 
 _LOG = logging.getLogger(__name__)
 

@@ -25,7 +25,7 @@ from northstar_quant.live import diagnostics
 from northstar_quant.live.auth import LiveAuth
 from northstar_quant.live.client import PROTOCOL_VERSION
 from northstar_quant.live.owner import LiveOwner
-from northstar_quant.logs import status as log_status
+from northstar_quant.logging_ import status as log_status
 
 from . import broker_routes, budget_routes, material_routes, stream_routes
 

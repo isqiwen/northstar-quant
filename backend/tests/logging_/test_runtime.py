@@ -4,14 +4,15 @@ import errno
 import json
 import logging
 import sys
+from datetime import date
 from pathlib import Path
 from threading import Event, Thread
 from time import monotonic, perf_counter_ns, sleep
 
 import pytest
 
-from northstar_quant.logs import LogRuntime
-from northstar_quant.logs.writer import FileSink
+from northstar_quant.logging_ import LogRuntime, writer
+from northstar_quant.logging_.writer import FileSink
 
 
 def record(message="event %s", arguments=("bounded",), exc_info=None):
@@ -25,6 +26,50 @@ def wait_for(predicate):
     while not predicate():
         assert monotonic() < deadline
         sleep(0.01)
+
+
+def test_midnight_rotation_restart_and_retention_keep_owners_isolated(tmp_path, monkeypatch):
+    class Clock(date):
+        current = date(2026, 9, 9)
+
+        @classmethod
+        def today(cls):
+            return cls.current
+
+    monkeypatch.setattr(writer, "date", Clock)
+    other = FileSink(tmp_path, "live", "api", 32, 2)
+    other.write(b"API evidence\n")
+    other.close()
+    sink = FileSink(tmp_path, "live", "kernel", 32, 2)
+    try:
+        sink.write(b"before midnight\n")
+        first = sink.path
+        assert first.name == "northstar-live-kernel-2026-09-09.log"
+        Clock.current = date(2026, 9, 10)
+        sink.write(b"after midnight\n")
+        assert first.read_bytes() == b"before midnight\n"
+        assert sink.path.name == "northstar-live-kernel-2026-09-10.log"
+        # A new date must not permit a second process to own this program's logs.
+        with pytest.raises(BlockingIOError):
+            FileSink(tmp_path, "live", "kernel", 32, 2)
+        # Clock correction appends to that date rather than truncating its history.
+        Clock.current = date(2026, 9, 9)
+        sink.write(b"clock corrected\n")
+        assert first.read_bytes() == b"before midnight\nclock corrected\n"
+        for day in range(11, 16):
+            Clock.current = date(2026, 9, day)
+            for _ in range(5):
+                sink.write(b"bounded archive\n")
+            assert len(list(sink.directory.glob("northstar-live-kernel-*.log*"))) <= 3
+    finally:
+        sink.close()
+    current = sink.path.read_bytes()
+    restarted = FileSink(tmp_path, "live", "kernel", 32, 2)
+    try:
+        assert restarted.path.read_bytes() == current
+        assert other.path.read_bytes() == b"API evidence\n"
+    finally:
+        restarted.close()
 
 
 def test_separate_owners_rotate_and_keep_safe_bounded_records(tmp_path: Path) -> None:
@@ -205,7 +250,9 @@ def test_factory_failure_is_logged_without_exception_parameters(tmp_path: Path) 
         check=True,
     )
     assert not completed.stderr
-    content = (tmp_path / "live/kernel.log").read_text()
+    content = "".join(
+        p.read_text() for p in (tmp_path / "live").glob("northstar-live-kernel-*.log")
+    )
     assert "application initialization failed" in content
     assert '"type": "ValueError"' in content
     assert "private configuration value" not in content

@@ -53,11 +53,14 @@ Automatic container restart is not an external host-loss alert.
 ## Operational logs
 
 The persistent `logs` volume is mounted at `/var/log/northstar` in the API and kernel.
-They write `live/api.log` and `live/kernel.log` independently, each rotating at 10 MiB
-with five backups. Read the kernel file with:
+They write `live/northstar-live-api-YYYY-MM-DD.log` and
+`live/northstar-live-kernel-YYYY-MM-DD.log` independently. The date follows the process
+timezone and switches on the first background write after midnight. Files rotate at
+10 MiB; each program retains at most five historical files across dates and size
+rotations, ordered by modification time. Replace `YYYY-MM-DD` below with the log date:
 
 ```sh
-docker compose --env-file /absolute/private/live.env -f deploy/live/compose.yaml exec live tail -n 50 /var/log/northstar/live/kernel.log
+docker compose --env-file /absolute/private/live.env -f deploy/live/compose.yaml exec live tail -n 50 /var/log/northstar/live/northstar-live-kernel-YYYY-MM-DD.log
 ```
 
 The bounded asynchronous writer drops operational records when saturated, counts

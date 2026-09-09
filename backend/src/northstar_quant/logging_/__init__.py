@@ -95,15 +95,18 @@ class LogRuntime:
         backups: int,
     ) -> None:
         self.application, self.component = application, component
-        self.path = directory / application / f"{component}.log"
         # Operational logs are deliberately low throughput in the kernel: at most
         # eight records per 50 ms batch while running, reducing GIL/disk bursts.
         self.writer = Writer(
-            FileSink(self.path, max_bytes, backups),
+            FileSink(directory, application, component, max_bytes, backups),
             capacity,
             batch_size=8 if (application, component) == ("live", "kernel") else 64,
         )
         self.handler = AsyncHandler(self.writer, application, component)
+
+    @property
+    def path(self) -> Path:
+        return self.writer.sink.path
 
     def close(self) -> None:
         self.handler.close()

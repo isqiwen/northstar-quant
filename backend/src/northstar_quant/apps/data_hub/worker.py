@@ -8,7 +8,7 @@ from northstar_quant.apps.storage import open_database, require_current_database
 from northstar_quant.data_management.files import SourceFiles
 from northstar_quant.data_management.library import DataLibrary
 from northstar_quant.data_management.processing import process_attempt
-from northstar_quant.logs import configure
+from northstar_quant.logging_ import configure
 
 
 def run() -> None:

@@ -352,8 +352,10 @@ class InstalledApplication:
             ("live", "api"),
             ("live", "kernel"),
         ):
-            path = root / application / f"{component}.log"
-            records = [json.loads(line) for line in path.read_text().splitlines()]
+            paths = (root / application).glob(
+                f"northstar-{application.replace('_', '-')}-{component}-????-??-??.log*"
+            )
+            records = [json.loads(line) for path in paths for line in path.read_text().splitlines()]
             assert records
             assert all(
                 r["application"] == application and r["component"] == component for r in records
