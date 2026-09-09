@@ -25,6 +25,9 @@ def deployment(tmp_path: Path) -> tuple[Path, Path, dict]:
         repo / "scripts/operations",
         ignore=shutil.ignore_patterns("__pycache__"),
     )
+    # Rewrite the copied program's fixed root only inside this disposable test repository.
+    for source in (repo / "scripts").rglob("*.py"):
+        source.write_text(source.read_text().replace("/opt/northstar", str(tmp_path)))
     subprocess.run(["git", "init", "-q", str(repo)], check=True)
     (repo / "Makefile").write_text("up-database up-data up-research up-live:\n\t@true\n")
     subprocess.run(["git", "-C", str(repo), "add", "."], check=True)
@@ -46,11 +49,13 @@ def deployment(tmp_path: Path) -> tuple[Path, Path, dict]:
     private = tmp_path / "private.env"
     private.write_text("PASSWORD=not-for-output\n")
     private.chmod(0o600)
+    (tmp_path / "config").mkdir()
+    for app in ("database", "data-hub", "research", "live"):
+        os.link(private, tmp_path / "config" / f"{app}.env")
     config = tmp_path / "hosts.toml"
     config.write_text(
         "\n".join(
             f'[{app.replace("-", "_")}]\nhost="example.invalid"\nuser="test"\n'
-            f'directory="{tmp_path / app}"\nenv_file="{private}"\n'
             for app in ("database", "data-hub", "research", "live")
         )
     )
@@ -127,14 +132,14 @@ def test_transfer_committed_release_and_isolated_lifecycle(deployment, app, targ
     for call in calls:
         if call[:2] == ["docker", "compose"] and "-p" in call:
             assert call[call.index("-p") + 1] == "northstar-" + app
-    assert (config.parent / app / "successful-revision").read_text().strip() == revision
+    assert (config.parent / "apps" / app / "successful-revision").read_text().strip() == revision
 
 
 def test_failed_up_remains_inspectable_without_false_success(deployment):
     _, config, env = deployment
     env["DEPLOY_UP_RESULT"] = "7"
     assert invoke(deployment, "deploy", "research").returncode != 0
-    assert not (config.parent / "research/successful-revision").exists()
+    assert not (config.parent / "apps/research/successful-revision").exists()
     result = invoke(deployment, "status", "research")
     assert result.returncode == 0
     assert "最后成功版本：无" in result.stdout
@@ -160,7 +165,7 @@ def test_private_configuration_is_required_before_mutation(deployment):
 def test_modified_remote_release_is_not_overwritten(deployment):
     _, config, env = deployment
     assert invoke(deployment, "deploy", "research").returncode == 0
-    release = (config.parent / "research/current").resolve()
+    release = (config.parent / "apps/research/current").resolve()
     (release / "Makefile").write_text("locally changed")
     Path(env["RECORD"]).write_text("")
     result = invoke(deployment, "deploy", "research")
@@ -171,9 +176,11 @@ def test_modified_remote_release_is_not_overwritten(deployment):
     assert not any(c[0] == "make" for c in calls)
 
 
-def test_make_interpolation_in_configuration_is_rejected_before_ssh(deployment):
+def test_path_override_is_rejected_before_ssh(deployment):
     _, config, env = deployment
-    config.write_text(config.read_text().replace("private.env", "$(touch injected).env"))
+    config.write_text(
+        config.read_text().replace("[database]", '[database]\ndirectory="/tmp/override"')
+    )
     assert invoke(deployment, "deploy", "database").returncode != 0
     assert not Path(env["RECORD"]).exists()
 
@@ -214,7 +221,7 @@ def test_dependency_failure_prevents_source_transfer_and_application_mutation(de
     env["DOCKER_INFO_RESULT"] = "1"
     result = invoke(deployment, "deploy", "live")
     assert result.returncode != 0
-    assert not (config.parent / "live/current").exists()
+    assert not (config.parent / "apps/live/current").exists()
     calls = [json.loads(line) for line in Path(env["RECORD"]).read_text().splitlines()]
     assert len([call for call in calls if call[0] == "ssh"]) == 1
     assert not any("up" in call or "down" in call for call in calls)

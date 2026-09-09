@@ -31,7 +31,12 @@ services:
       POSTGRES_USER: northstar
       POSTGRES_PASSWORD: ${NORTHSTAR_LIVE_DATABASE_PASSWORD:-northstar_local}
     volumes:
-      - database:/var/lib/postgresql/data
+      - type: bind
+        source: /opt/northstar/state/live/postgresql
+        target: /var/lib/postgresql/data
+        read_only: false
+        bind:
+          create_host_path: false
     networks: [storage]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U northstar -d northstar_quant"]
@@ -45,8 +50,18 @@ services:
     pids_limit: 64
     environment: *database
     volumes:
-      - sources:/var/lib/northstar/sources
-      - authentication:/var/lib/northstar/auth
+      - type: bind
+        source: /opt/northstar/state/live/sources
+        target: /var/lib/northstar/sources
+        read_only: false
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /opt/northstar/credentials/live
+        target: /var/lib/northstar/auth
+        read_only: false
+        bind:
+          create_host_path: false
     networks: [storage]
     depends_on:
       postgres:
@@ -66,9 +81,24 @@ services:
       NORTHSTAR_LIVE_AUTH: /var/lib/northstar/auth/live.toml
       NORTHSTAR_LIVE_URL: http://127.0.0.1:18081
     volumes:
-      - logs:/var/log/northstar
-      - sources:/var/lib/northstar/sources
-      - authentication:/var/lib/northstar/auth:ro
+      - type: bind
+        source: /opt/northstar/logs/live
+        target: /var/log/northstar/live
+        read_only: false
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /opt/northstar/state/live/sources
+        target: /var/lib/northstar/sources
+        read_only: false
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /opt/northstar/credentials/live
+        target: /var/lib/northstar/auth
+        read_only: true
+        bind:
+          create_host_path: false
     networks: [storage, management, egress]
     depends_on:
       initialize:
@@ -93,8 +123,18 @@ services:
       NORTHSTAR_LIVE_URL: http://live:18081
       NORTHSTAR_LIVE_AUTH: /var/lib/northstar/auth/live-web.toml
     volumes:
-      - logs:/var/log/northstar
-      - authentication:/var/lib/northstar/auth:ro
+      - type: bind
+        source: /opt/northstar/logs/live
+        target: /var/log/northstar/live
+        read_only: false
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /opt/northstar/credentials/live
+        target: /var/lib/northstar/auth
+        read_only: true
+        bind:
+          create_host_path: false
     networks: [management, frontend]
     ports:
       - "127.0.0.1:${NORTHSTAR_LIVE_API_PORT:-19080}:19080"
@@ -139,9 +179,3 @@ networks:
     internal: true
   egress:
   ingress:
-
-volumes:
-  logs:
-  database:
-  sources:
-  authentication:

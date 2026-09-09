@@ -112,8 +112,6 @@ def execute(request: dict) -> None:
                 "scripts/operations/compose.py",
                 "deploy",
                 app,
-                "--env-file",
-                str(env_file),
                 cwd=release,
             )
             (root / "successful-revision").write_text(revision + "\n")
@@ -138,8 +136,6 @@ def execute(request: dict) -> None:
                     "scripts/operations/compose.py",
                     "status",
                     app,
-                    "--env-file",
-                    str(env_file),
                     cwd=release,
                 )
             elif action == "logs":
@@ -149,8 +145,6 @@ def execute(request: dict) -> None:
                     "scripts/operations/compose.py",
                     "logs",
                     app,
-                    "--env-file",
-                    str(env_file),
                     *(["--follow"] if request["follow"] else []),
                     cwd=release,
                 )
@@ -175,8 +169,6 @@ def execute(request: dict) -> None:
                     "scripts/operations/compose.py",
                     action,
                     app,
-                    "--env-file",
-                    str(env_file),
                     cwd=release,
                 )
 

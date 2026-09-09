@@ -1,7 +1,7 @@
 .DEFAULT_GOAL := help
 .PHONY: help install up-data up-research up-live up-database down-data down-research down-live down-database ps-data ps-research ps-live ps-database backup-database verify test
 
-# Python 执行器默认读取所属应用的 .env；ENV_FILE 可覆盖。
+# Python 执行器读取 /opt/northstar/config/<应用>.env。
 OPERATE = python3 scripts/operations/compose.py
 
 help:
@@ -15,43 +15,43 @@ install:
 	uv sync --project backend --locked
 
 up-database:
-	$(OPERATE) deploy database $(if $(ENV_FILE),--env-file "$(ENV_FILE)")
+	$(OPERATE) deploy database
 
 down-database:
-	$(OPERATE) stop database $(if $(ENV_FILE),--env-file "$(ENV_FILE)")
+	$(OPERATE) stop database
 
 ps-database:
-	$(OPERATE) status database $(if $(ENV_FILE),--env-file "$(ENV_FILE)")
+	$(OPERATE) status database
 
 up-data:
-	$(OPERATE) deploy data-hub $(if $(ENV_FILE),--env-file "$(ENV_FILE)")
+	$(OPERATE) deploy data-hub
 
 down-data:
-	$(OPERATE) stop data-hub $(if $(ENV_FILE),--env-file "$(ENV_FILE)")
+	$(OPERATE) stop data-hub
 
 ps-data:
-	$(OPERATE) status data-hub $(if $(ENV_FILE),--env-file "$(ENV_FILE)")
+	$(OPERATE) status data-hub
 
 up-research:
-	$(OPERATE) deploy research $(if $(ENV_FILE),--env-file "$(ENV_FILE)")
+	$(OPERATE) deploy research
 
 down-research:
-	$(OPERATE) stop research $(if $(ENV_FILE),--env-file "$(ENV_FILE)")
+	$(OPERATE) stop research
 
 ps-research:
-	$(OPERATE) status research $(if $(ENV_FILE),--env-file "$(ENV_FILE)")
+	$(OPERATE) status research
 
 up-live:
-	$(OPERATE) deploy live $(if $(ENV_FILE),--env-file "$(ENV_FILE)")
+	$(OPERATE) deploy live
 
 down-live:
-	$(OPERATE) stop live $(if $(ENV_FILE),--env-file "$(ENV_FILE)")
+	$(OPERATE) stop live
 
 ps-live:
-	$(OPERATE) status live $(if $(ENV_FILE),--env-file "$(ENV_FILE)")
+	$(OPERATE) status live
 
 backup-database:
-	$(OPERATE) backup database $(if $(ENV_FILE),--env-file "$(ENV_FILE)")
+	$(OPERATE) backup database
 
 test:
 	@test -n "$$NORTHSTAR_TEST_DATABASE_URL" || (echo 'NORTHSTAR_TEST_DATABASE_URL must name disposable northstar_quant_test' >&2; exit 2)

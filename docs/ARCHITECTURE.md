@@ -31,15 +31,20 @@ Data Hub 与独立 PostgreSQL 部署在 `core.local`；数据库活跃数据放 
 Research 在 `research.local`，本机 SQLite 保存任务/结果元数据，不连接 core 数据库。
 Research 通过 Data Hub Protobuf API 取得固定清单，按存储 UUID 与相对路径读取市场目录中的 Parquet，
 由本机 DuckDB 计算。发布内容不可原地覆盖，不共享可写 DuckDB 文件。
-应用只依赖配置的目录、存储 UUID 和读写权限，不感知存储设备、网络协议或主机挂载方式。
+应用只依赖固定目录、存储 UUID 和读写权限，不感知存储设备、网络协议或主机挂载方式。
 来源、市场发布、研究产物和备份使用独立目录；Research 不访问来源，市场只读，备份仅供维护容器。
 底层持久存储、挂载、开机就绪顺序和文件系统能力由主机管理员保证。
 首次空库空目录初始化身份；已有库再次部署及应用启动必须验证原身份，不能重新初始化替代目录。
 跨主机消费者须看到同一存储 UUID 和固定文件；更换设备时保留内容与身份，不改变应用的数据模型。
 Research 临时目录、数据库和应用日志在本机；持久 SSD 行情缓存尚未实现。
-[Live 独立部署](../deploy/live/README.md) 只运行 Live 所需服务，使用自己的持久卷。
+[Live 独立部署](../deploy/live/README.md) 只运行 Live 所需服务，使用自己的本机持久目录。
 目标部署位置为 Data Hub 在 core、Research 在工作站、Live 在独立运行域；生产云部署后置。
 第一轮 Live Sim 可在符合 SDK 要求的本机或独立主机运行，沿用同一部署结构；本机验收不代表云端已交付。
+主机路径统一固定在 `/opt/northstar/`：`apps/` 保存程序版本，`config/` 保存私有配置，
+`files/` 保存数据与产物，`state/`、`credentials/`、`logs/`、`work/` 按应用隔离。
+部署不提供目录覆盖参数；Docker 使用显式主机目录映射。容器内部路径为装配细节。
+Live 数据库与持久材料在 `state/live/`，不共享 Data Hub 或 Research 的运行状态。
+验收只在私有临时目录中重映射 Compose，不能把测试路径作为生产配置能力。
 Python 依赖由 `backend/uv.lock` 固定，前端依赖由 `frontend/package-lock.json` 固定。
 
 ## 2. 当前能力与限制
@@ -112,7 +117,7 @@ Live 的盘中行情与接收证据仍由 Live 自己拥有，不依赖此同步
 `data_management/tushare/` 拥有设置、目录、分片、覆盖、下载尝试和固定响应版本；
 `apps/data_hub/` 只装配 Protobuf API 和独立 `data-worker`。网页 `/sync` 保存 token、启停及查看进度；
 不把历史下载放进 HTTP 请求生命周期。token 只写入 core 的私有 `NORTHSTAR_DATA_SECRET_DIR`，
-API 不回显、不入任务或日志，Next.js 不挂载凭据卷。更换 token 后可点击重试异常任务。
+API 不回显、不入任务或日志，Next.js 不挂载凭据目录。更换 token 后可点击重试异常任务。
 
 首次下载与增量使用同一队列。合约目录包括到期合约，按上市/到期范围生成固定历史窗口；
 当前月按日安排，每轮固定截止日期。每六小时检查新增范围、最近回看区间及覆盖表缺口，

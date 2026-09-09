@@ -67,14 +67,9 @@ jobs:
           NORTHSTAR_DATABASE_ADMIN_PASSWORD: isolated-config-admin-password
           NORTHSTAR_DATA_HUB_DATABASE_PASSWORD: isolated-config-data-password
           NORTHSTAR_LIVE_DATABASE_PASSWORD: isolated-config-live-password
-          NORTHSTAR_DATABASE_PGDATA: /tmp/northstar-ci-placeholder/pgdata
-          NORTHSTAR_SOURCE_MOUNT: /tmp/northstar-ci-placeholder/source
           NORTHSTAR_SOURCE_STORAGE_ID: 75b37e93-e22e-4087-b53e-963f53c00d21
-          NORTHSTAR_MARKET_MOUNT: /tmp/northstar-ci-placeholder/market
           NORTHSTAR_MARKET_STORAGE_ID: 75b37e93-e22e-4087-b53e-963f53c00d22
-          NORTHSTAR_RESEARCH_MOUNT: /tmp/northstar-ci-placeholder/research
           NORTHSTAR_RESEARCH_STORAGE_ID: 75b37e93-e22e-4087-b53e-963f53c00d23
-          NORTHSTAR_BACKUP_MOUNT: /tmp/northstar-ci-placeholder/backup
           NORTHSTAR_BACKUP_STORAGE_ID: 75b37e93-e22e-4087-b53e-963f53c00d24
         run: |
           export NORTHSTAR_GIT_REVISION="$(git rev-parse HEAD)"

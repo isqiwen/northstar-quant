@@ -107,3 +107,16 @@ def test_private_postgres_directory_does_not_block_existing_storage(admission, m
     (root / "source/.northstar-storage-id").unlink()
     with pytest.raises(ValueError, match="not initialized"):
         module.check_directories(config, "database")
+
+
+def test_missing_runtime_bind_blocks_start_without_creating_replacement(admission):
+    module, config, root = admission
+    missing = root / "credentials"
+    config["services"]["api"] = {
+        "volumes": [{"type": "bind", "source": str(missing), "target": "/credentials"}]
+    }
+    with pytest.raises(ValueError, match="existing"):
+        module.check_directories(config, "data_hub")
+    with pytest.raises(ValueError, match="existing"):
+        module.check_directories(config, "live")
+    assert not missing.exists()

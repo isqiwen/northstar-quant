@@ -1,30 +1,22 @@
 # SSH 主机配置；各 deploy/<应用>/.env 是仓库维护的配置源。
-# 将所属配置复制到目标主机 env_file 后填写真实口令（仅保存在目标主机）。
-# 填写 user；目录均为目标主机绝对路径，可按实际环境修改。
+# 将所属配置复制到目标主机 /opt/northstar/config/<应用>.env，填写真实口令。
+# 仅填写 host/user/port；目录由程序固定，不接受路径配置。
 [database]
 host = "core.local"
 user = ""
 port = 22
-directory = "/opt/northstar/database"
-env_file = "/etc/northstar/database.env"
 
 [data_hub]
 host = "core.local"
 user = ""
 port = 22
-directory = "/opt/northstar/data-hub"
-env_file = "/etc/northstar/data-hub.env"
 
 [research]
 host = "research.local"
 user = ""
 port = 22
-directory = "/opt/northstar/research"
-env_file = "/etc/northstar/research.env"
 
 [live]
 host = ""
 user = ""
 port = 22
-directory = "/opt/northstar/live"
-env_file = "/etc/northstar/live.env"

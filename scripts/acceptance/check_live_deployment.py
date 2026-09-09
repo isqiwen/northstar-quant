@@ -9,11 +9,13 @@ import runpy
 import secrets
 import socket
 import subprocess
+import tempfile
 from pathlib import Path
 from time import monotonic, sleep
 from uuid import uuid4
 
 import httpx2 as httpx
+from support.deployment import cleanup_files, isolated_compose
 
 from northstar_quant.web.protobuf import decode, methods
 
@@ -41,7 +43,15 @@ class Deployment:
             NORTHSTAR_LIVE_WEB_PORT=str(self.port),
             NORTHSTAR_LIVE_API_PORT="0",
         )
-        self.compose = Path(__file__).resolve().parents[2] / "deploy/live/compose.yaml"
+        self.files = tempfile.TemporaryDirectory(prefix="northstar-live-files-")
+        self.root = Path(self.files.name)
+        self.image = image
+        self.compose = isolated_compose(
+            Path(__file__).resolve().parents[2] / "deploy/live/compose.yaml",
+            self.root / "live.json",
+            self.root,
+            self.environment,
+        )
 
     def run(self, *arguments: str) -> str:
         completed = subprocess.run(
@@ -227,6 +237,8 @@ def main() -> None:
     finally:
         # The generated project name is never user input or the personal project's name.
         deployment.run("down", "--volumes", "--timeout", "10")
+        cleanup_files(deployment.root, deployment.image)
+        deployment.files.cleanup()
 
 
 if __name__ == "__main__":

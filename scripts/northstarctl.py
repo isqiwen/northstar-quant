@@ -11,7 +11,7 @@ import subprocess
 import sys
 import tempfile
 import tomllib
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 APPLICATIONS = ("database", "data-hub", "research", "live")
@@ -27,21 +27,13 @@ def configuration(path: Path, app: str) -> dict:
     port = item.get("port", 22)
     if type(port) is not int or not 1 <= port <= 65535:
         raise ValueError("SSH port 必须在 1–65535 范围内")
-    for key in ("directory", "env_file"):
-        value = item.get(key)
-        if (
-            not isinstance(value, str)
-            or not value.startswith("/")
-            or value == "/"
-            or ".." in PurePosixPath(value).parts
-            or re.fullmatch(r"/[a-zA-Z0-9_./-]+", value) is None
-        ):
-            raise ValueError(
-                f"{app}.{key} 必须是目标主机绝对路径（仅字母、数字、下划线、点、斜杠和短横线）"
-            )
-    if PurePosixPath(item["env_file"]).is_relative_to(item["directory"]):
-        raise ValueError("env_file 必须放在部署目录之外")
-    return {key: item[key] for key in ("host", "user", "directory", "env_file")} | {"port": port}
+    if set(item) - {"host", "user", "port"}:
+        raise ValueError("主机配置只接受 host/user/port；部署目录由程序固定")
+    return {key: item[key] for key in ("host", "user")} | {
+        "port": port,
+        "directory": f"/opt/northstar/apps/{app}",
+        "env_file": f"/opt/northstar/config/{app}.env",
+    }
 
 
 def git(*args: str) -> str:

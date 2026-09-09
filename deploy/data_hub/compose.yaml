@@ -29,19 +29,19 @@ services:
     - host.docker.internal:host-gateway
     volumes:
     - type: bind
-      source: ${NORTHSTAR_SOURCE_MOUNT:-/var/lib/northstar/files/source}
+      source: /opt/northstar/files/source
       target: /var/lib/northstar/source
       read_only: false
       bind:
         create_host_path: false
     - type: bind
-      source: ${NORTHSTAR_MARKET_MOUNT:-/var/lib/northstar/files/market}
+      source: /opt/northstar/files/market
       target: /var/lib/northstar/market
       read_only: false
       bind:
         create_host_path: false
     - type: bind
-      source: ${NORTHSTAR_RESEARCH_MOUNT:-/var/lib/northstar/files/research}
+      source: /opt/northstar/files/research
       target: /var/lib/northstar/research
       read_only: true
       bind:
@@ -92,22 +92,32 @@ services:
       NORTHSTAR_PUBLICATION_TOKEN: ${NORTHSTAR_PUBLICATION_TOKEN:?Set shared read-only
         publication token}
     volumes:
-    - credentials:/var/lib/northstar/credentials
-    - logs:/var/log/northstar
     - type: bind
-      source: ${NORTHSTAR_SOURCE_MOUNT:-/var/lib/northstar/files/source}
+      source: /opt/northstar/credentials/data-hub
+      target: /var/lib/northstar/credentials
+      read_only: false
+      bind:
+        create_host_path: false
+    - type: bind
+      source: /opt/northstar/logs/data-hub
+      target: /var/log/northstar/data_hub
+      read_only: false
+      bind:
+        create_host_path: false
+    - type: bind
+      source: /opt/northstar/files/source
       target: /var/lib/northstar/source
       read_only: false
       bind:
         create_host_path: false
     - type: bind
-      source: ${NORTHSTAR_MARKET_MOUNT:-/var/lib/northstar/files/market}
+      source: /opt/northstar/files/market
       target: /var/lib/northstar/market
       read_only: false
       bind:
         create_host_path: false
     - type: bind
-      source: ${NORTHSTAR_RESEARCH_MOUNT:-/var/lib/northstar/files/research}
+      source: /opt/northstar/files/research
       target: /var/lib/northstar/research
       read_only: true
       bind:
@@ -169,22 +179,32 @@ services:
       NORTHSTAR_DATA_DIR: /var/lib/northstar/source
       NORTHSTAR_STORAGE_ID: ${NORTHSTAR_SOURCE_STORAGE_ID:?Set source storage UUID}
     volumes:
-    - credentials:/var/lib/northstar/credentials:ro
-    - logs:/var/log/northstar
     - type: bind
-      source: ${NORTHSTAR_SOURCE_MOUNT:-/var/lib/northstar/files/source}
+      source: /opt/northstar/credentials/data-hub
+      target: /var/lib/northstar/credentials
+      read_only: true
+      bind:
+        create_host_path: false
+    - type: bind
+      source: /opt/northstar/logs/data-hub
+      target: /var/log/northstar/data_hub
+      read_only: false
+      bind:
+        create_host_path: false
+    - type: bind
+      source: /opt/northstar/files/source
       target: /var/lib/northstar/source
       read_only: false
       bind:
         create_host_path: false
     - type: bind
-      source: ${NORTHSTAR_MARKET_MOUNT:-/var/lib/northstar/files/market}
+      source: /opt/northstar/files/market
       target: /var/lib/northstar/market
       read_only: false
       bind:
         create_host_path: false
     - type: bind
-      source: ${NORTHSTAR_RESEARCH_MOUNT:-/var/lib/northstar/files/research}
+      source: /opt/northstar/files/research
       target: /var/lib/northstar/research
       read_only: true
       bind:
@@ -266,27 +286,32 @@ services:
       NORTHSTAR_DATA_DIR: /var/lib/northstar/source
       NORTHSTAR_STORAGE_ID: ${NORTHSTAR_SOURCE_STORAGE_ID:?Set source storage UUID}
     volumes:
-    - logs:/var/log/northstar
     - type: bind
-      source: ${NORTHSTAR_SOURCE_MOUNT:-/var/lib/northstar/files/source}
+      source: /opt/northstar/logs/data-hub
+      target: /var/log/northstar/data_hub
+      read_only: false
+      bind:
+        create_host_path: false
+    - type: bind
+      source: /opt/northstar/files/source
       target: /var/lib/northstar/source
       read_only: false
       bind:
         create_host_path: false
     - type: bind
-      source: ${NORTHSTAR_MARKET_MOUNT:-/var/lib/northstar/files/market}
+      source: /opt/northstar/files/market
       target: /var/lib/northstar/market
       read_only: false
       bind:
         create_host_path: false
     - type: bind
-      source: ${NORTHSTAR_RESEARCH_MOUNT:-/var/lib/northstar/files/research}
+      source: /opt/northstar/files/research
       target: /var/lib/northstar/research
       read_only: true
       bind:
         create_host_path: false
     - type: bind
-      source: ${NORTHSTAR_BACKUP_MOUNT:-/var/lib/northstar/files/backup}
+      source: /opt/northstar/files/backup
       target: /var/lib/northstar/backup
       read_only: false
       bind:
@@ -320,9 +345,6 @@ services:
     depends_on:
       data-api:
         condition: service_started
-volumes:
-  credentials: null
-  logs: null
 networks:
   frontend:
     internal: true

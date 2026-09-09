@@ -3,7 +3,7 @@
 This is the current Live-only topology, not a second implementation. It runs the
 same installed Python package as Data Hub and Research, with its own
 database, source files and deployment authentication. Next.js, the Python management API and the kernel run independently. It does not start or mount
-Data Hub or Research. Do not reuse the personal application's volumes or attach
+Data Hub or Research. Do not reuse the personal application's directories or attach
 its database network. Never run two instances against one broker account.
 
 This is a **no-broker-credentials engineering baseline**, not cloud or trading
@@ -11,6 +11,15 @@ acceptance. Fixed strategy/contract/warm-up material delivery, a selected cloud
 host and external alert channel remain #40 work. Startup does not connect a
 broker, reconcile an account or authorize orders. Do not attach broker secrets
 until the deployment and connection scope are separately approved.
+
+## Fixed host directories
+
+Live uses `/opt/northstar/apps/live` for releases and `/opt/northstar/config/live.env` for configuration.
+Persistent database and sources reside in `/opt/northstar/state/live/{postgresql,sources}`;
+authentication resides in `/opt/northstar/credentials/live`, and logs in `/opt/northstar/logs/live`.
+Prepare these directories before deployment with permissions for the deployment user and container identity.
+Paths are fixed, without environment overrides. All Live state remains on its own host.
+No existing named volumes or personal data are migrated automatically.
 
 ## Start from an installed image
 
@@ -33,13 +42,13 @@ The supported settings are:
 Run on the intended host after deployment authorization:
 
 ```sh
-docker compose --env-file /absolute/private/live.env -f deploy/live/compose.yaml up -d --no-build
-docker compose --env-file /absolute/private/live.env -f deploy/live/compose.yaml ps
+docker compose --env-file /opt/northstar/config/live.env -f deploy/live/compose.yaml up -d --no-build
+docker compose --env-file /opt/northstar/config/live.env -f deploy/live/compose.yaml ps
 ```
 
 Do not print rendered Compose configuration: it contains the database password.
 Changing that variable does not rotate the password of an existing database.
-Keep the same project identity for its volumes; never use `down -v` on retained data.
+Persistent host paths are fixed; changing the Compose project name does not create a separate Live instance.
 
 Live Web and its API (default 19080) are published on loopback for local development. PostgreSQL and the kernel have no host
 ports; the frontend and management API have no storage network, database settings, sources or broker secrets.
@@ -56,7 +65,7 @@ Automatic container restart is not an external host-loss alert.
 
 ## Operational logs
 
-The persistent `logs` volume is mounted at `/var/log/northstar` in the API and kernel.
+The fixed host directory `/opt/northstar/logs/live` is mounted at `/var/log/northstar/live` in the API and kernel.
 They write `live/northstar-live-api-YYYY-MM-DD.log` and
 `live/northstar-live-kernel-YYYY-MM-DD.log` independently. The date follows the process
 timezone and switches on the first background write after midnight. Files rotate at
@@ -64,7 +73,7 @@ timezone and switches on the first background write after midnight. Files rotate
 rotations, ordered by modification time. Replace `YYYY-MM-DD` below with the log date:
 
 ```sh
-docker compose --env-file /absolute/private/live.env -f deploy/live/compose.yaml exec live tail -n 50 /var/log/northstar/live/northstar-live-kernel-YYYY-MM-DD.log
+docker compose --env-file /opt/northstar/config/live.env -f deploy/live/compose.yaml exec live tail -n 50 /var/log/northstar/live/northstar-live-kernel-YYYY-MM-DD.log
 ```
 
 The bounded asynchronous writer drops operational records when saturated, counts
@@ -82,7 +91,7 @@ uv run --project backend python scripts/acceptance/check_live_deployment.py --im
 The check creates a uniquely named, isolated Compose project with generated test
 authentication and an ephemeral loopback port. It verifies installed pages,
 runtime identity across Web restart, database failure and kernel disappearance,
-then deletes **only its own disposable containers, networks and volumes**.
+then deletes **only its own disposable containers, networks and temporary directories**.
 It never loads SimNow credentials, invokes broker operations or stops the personal
 application. This is actual Docker/HTTP acceptance, not a YAML/layout test and not
 evidence that a cloud host or real browser session was tested.

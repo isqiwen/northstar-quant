@@ -6,18 +6,20 @@
 | `research.local` | Research 前端、API、worker；本机 SQLite 和 DuckDB |
 | Live 独立主机 | 自己的前端、API、内核和本地存储 |
 
-应用只读写配置的目录，不感知存储设备、服务器、协议或挂载方式。
+应用只读写固定的目录，不感知存储设备、服务器、协议或挂载方式。
 主机管理员提前准备持久目录；目录可以由本机磁盘或已挂载的共享提供，应用配置相同。
 
 ## 主机与凭据
 
 仓库维护 `deploy/hosts.toml` 和各目录的 `.env`。`database` 默认部署到 `core.local`。
-填写 SSH 用户，将各 `.env` 的运行副本放到目标主机 `env_file`，权限 600；真实口令不提交到 Git。
+主机配置仅接受 `host/user/port`，不接受路径字段。
+将各 `.env` 的运行副本放到 `/opt/northstar/config/{database,data-hub,research,live}.env`，
+权限 600，所属用户为 SSH 部署用户；真实口令不提交到 Git。
 `northstarctl` 更新代码不会覆盖运行副本。
 
-- `database/.env`：core 本机 PGDATA、管理员口令、Data Hub 应用口令、文件目录与存储 UUID。
-- `data_hub/.env`：相同应用口令和数据库网络名称、文件目录与相同 UUID、发布接口地址与 token。
-- `research/.env`：Data Hub URL/token、市场目录和研究产物目录。
+- `database/.env`：管理员口令、Data Hub 应用口令与存储 UUID。
+- `data_hub/.env`：相同应用口令和数据库网络名称、相同存储 UUID、发布接口地址与 token。
+- `research/.env`：Data Hub URL/token、市场与研究产物存储 UUID。
 - `live/.env`：独立运行配置，见 [Live 部署](live/README.md)。
 
 数据库管理员与应用口令至少 16 字符且不同。core PostgreSQL 不发布宿主机端口，
@@ -26,25 +28,49 @@
 
 ## 存储目录
 
-默认目录可以直接用于 core 单机部署：
+所有主机统一使用 `/opt/northstar`，路径写在程序和 Compose 中，不提供目录环境变量或命令行覆盖：
 
-| 配置 | 默认主机目录 | Data Hub | Research |
-|---|---|---|---|
-| `NORTHSTAR_SOURCE_MOUNT` | `/var/lib/northstar/files/source` | 读写 | 不访问 |
-| `NORTHSTAR_MARKET_MOUNT` | `/var/lib/northstar/files/market` | 读写 | 只读 |
-| `NORTHSTAR_RESEARCH_MOUNT` | `/var/lib/northstar/files/research` | 只读引用 | 读写 |
-| `NORTHSTAR_BACKUP_MOUNT` | `/var/lib/northstar/files/backup` | 维护时使用 | 维护时使用 |
-
-`*_MOUNT` 表示挂入容器的主机目录，不要求它本身是操作系统挂载点。
-创建专用空目录并给部署用户及容器运行身份相应权限，不使用 777：
-
-```sh
-sudo mkdir -p /var/lib/northstar/files/{source,market,research,backup}
-sudo mkdir -p /var/lib/northstar/postgresql
+```text
+/opt/northstar/
+├── apps/{database,data-hub,research,live}/  # releases、current 与部署记录
+├── config/{database,data-hub,research,live}.env
+├── files/{source,market,research,backup}/
+├── state/data-hub/postgresql/
+├── state/research/                        # SQLite
+├── state/live/{postgresql,sources}/       # Live 本地数据库与持久材料
+├── credentials/{data-hub,live}/
+├── logs/{data-hub,research,live}/
+└── work/research/
 ```
 
-目录须已存在、非符号链接、互不包含。PostgreSQL 活跃目录使用 core 本地持久磁盘，
-Research SQLite 使用 research 本地持久卷；临时计算目录也在所属主机本地。
+各主机只准备自己需要的部分。程序部署不覆盖状态、凭据和文件。
+所有应用持久文件使用明确的主机目录映射，不使用 Docker 命名卷；Docker 自己的镜像、容器元数据和容器标准输出仍由 Docker 管理。
+容器内部路径由 Compose 固定，无需用户配置。
+
+| 文件目录 | Data Hub | Research |
+|---|---|---|
+| `files/source` | 读写 | 不访问 |
+| `files/market` | 读写 | 只读 |
+| `files/research` | 只读引用 | 读写 |
+| `files/backup` | 维护时使用 | 维护时使用 |
+
+首次在对应主机准备目录，例如：
+
+```sh
+# core
+sudo mkdir -p /opt/northstar/files/{source,market,research,backup}
+sudo mkdir -p /opt/northstar/{config,state/data-hub/postgresql,credentials/data-hub,logs/data-hub}
+# research
+sudo mkdir -p /opt/northstar/files/{market,research,backup}
+sudo mkdir -p /opt/northstar/{config,state/research,logs/research,work/research}
+# Live 主机
+sudo mkdir -p /opt/northstar/{config,state/live/postgresql,state/live/sources,credentials/live,logs/live}
+```
+
+部署用户需要遍历目录、读取身份标记，容器运行身份需要对应读写权限；当前 Python 容器以 root 运行。
+不要使用 777。凭据目录应限制无关用户访问，配置文件为 600。
+目录须已存在、非符号链接、互不包含；缺失时不自动创建替代目录。
+PostgreSQL、SQLite、Live 状态和凭据在各自主机本地持久存储，Live 不挂载 Data Hub/Research 的文件目录。
 
 四个存储目录各有一个 UUID。生成后，把同一组值填入 database 和 Data Hub 的运行配置：
 
@@ -56,9 +82,9 @@ python3 -c 'from uuid import uuid4; [print(f"NORTHSTAR_{name}_STORAGE_ID={uuid4(
 目录缺失、身份不符或恢复未完成会报错，不自动创建替代目录、不重新初始化已使用的存储。
 容器另外验证实际文件读写、同步和身份；底层文件系统须支持应用使用的 POSIX 文件操作。
 
-跨主机 Research 必须看到相同发布文件和对应存储 UUID，各主机路径可以不同。
+跨主机 Research 必须看到相同发布文件和对应存储 UUID，路径固定相同，实际目录内容须一致。
 怎样把这些文件提供给两台主机、设置挂载与开机顺序，由主机管理负责。
-更换存储时先停止相关写入、备份数据库与文件，迁移完整内容和身份标记，再恢复运行；
+更换文件存储时先停止相关写入、备份数据库与文件，迁移完整内容和身份标记，再恢复运行；
 保持原路径和 UUID 时不需要修改应用配置。脚本不搬迁或覆盖现有数据。
 
 ## 部署与访问
@@ -83,16 +109,16 @@ ssh -N -L 18082:127.0.0.1:18082 用户名@core.local
 前端/API 与同步 worker 独立，关闭管理界面不停止已提交任务。
 
 支持 `deploy/start/restart/stop/status/logs`、`--config`、`--dry-run`、`--help`。
-`deploy` 传送干净 Git HEAD；`start/restart` 使用已部署镜像；停止保留数据卷。
+`deploy` 传送干净 Git HEAD；`start/restart` 使用已部署镜像；停止保留主机数据目录。
 `--dry-run` 不连接主机或安装软件。其他管理命令也不安装软件。
 Live 整套启停包含内核，但不代表撤单、平仓或完成核对，也不自动授予交易权。
 
 也可在目标主机仓库根目录执行（依赖已准备）：
 
 ```sh
-make up-database ENV_FILE=/etc/northstar/database.env
-make up-data ENV_FILE=/etc/northstar/data-hub.env
-make up-research ENV_FILE=/etc/northstar/research.env
+make up-database
+make up-data
+make up-research
 ```
 
 ## Research 数据访问
@@ -108,7 +134,7 @@ Research 使用本机 DuckDB 计算，不扫描目录追踪最新文件、不共
 
 ## 备份
 
-在 core 执行 `make backup-database ENV_FILE=/etc/northstar/database.env`，
+在 core 执行 `make backup-database`，
 把 Data Hub 数据库、角色和固定文件保存到备份目录的新时间/UUID 子目录，`complete.json` 表示完成。
 Research 用自己的维护容器执行 `northstar maintenance backup <新的备份绝对目录>`。
 正常 API/worker 不挂载备份目录；定时备份由各主机调度器调用。

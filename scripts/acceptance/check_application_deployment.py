@@ -21,6 +21,7 @@ from time import monotonic, sleep
 from uuid import uuid4
 
 import httpx2 as httpx
+from support.deployment import cleanup_files, isolated_compose
 
 from northstar_quant.web.protobuf import decode, methods, pack
 
@@ -52,7 +53,6 @@ class Deployment:
             NORTHSTAR_PUBLICATION_TOKEN=secrets.token_urlsafe(32),
             NORTHSTAR_DATABASE_ADMIN_PASSWORD=self.password,
             NORTHSTAR_DATA_HUB_DATABASE_PASSWORD=secrets.token_urlsafe(32),
-            NORTHSTAR_DATABASE_PGDATA=str(self.root / "pgdata"),
             NORTHSTAR_DATA_API_PORT="0",
             NORTHSTAR_DATA_WEB_PORT="0",
             NORTHSTAR_RESEARCH_API_PORT="0",
@@ -60,10 +60,22 @@ class Deployment:
         )
 
         for share in ("SOURCE", "MARKET", "RESEARCH", "BACKUP"):
-            self.environment[f"NORTHSTAR_{share}_MOUNT"] = str(self.root / share.lower())
             self.environment[f"NORTHSTAR_{share}_STORAGE_ID"] = str(uuid4())
 
+        self.bindings = {
+            f"/opt/northstar/files/{share}": self.root / share
+            for share in ("source", "market", "research", "backup")
+        }
+        self.bindings["/opt/northstar/state/data-hub/postgresql"] = self.root / "pgdata"
+
     def run(self, app: str, *arguments: str) -> str:
+        compose = isolated_compose(
+            ROOT / "deploy" / app / "compose.yaml",
+            self.root / f"{app}.json",
+            self.root,
+            self.environment,
+            self.bindings,
+        )
         result = subprocess.run(
             [
                 "docker",
@@ -73,7 +85,7 @@ class Deployment:
                 "-p",
                 self.projects[app],
                 "-f",
-                str(ROOT / "deploy" / app / "compose.yaml"),
+                str(compose),
                 *arguments,
             ],
             env=self.environment,
@@ -298,7 +310,7 @@ print(json.dumps(DataLibrary(open_database(),SourceFiles.from_environment()).sub
             self.run("data_hub", "down", "--timeout", "10")
             wrong = self.root / "unmounted"
             wrong.mkdir(parents=True)
-            self.environment["NORTHSTAR_SOURCE_MOUNT"] = str(wrong)
+            self.bindings["/opt/northstar/files/source"] = wrong
             try:
                 for app, service in (("data_hub", "storage-check"), ("database", "initialize")):
                     try:
@@ -309,7 +321,7 @@ print(json.dumps(DataLibrary(open_database(),SourceFiles.from_environment()).sub
                         raise AssertionError("unidentified directory was accepted as storage")
                     assert list(wrong.iterdir()) == []
             finally:
-                self.environment["NORTHSTAR_SOURCE_MOUNT"] = str(self.root / "source")
+                self.bindings["/opt/northstar/files/source"] = self.root / "source"
             print(
                 "Each application stops independently; shared data and research results survive",
                 flush=True,
@@ -323,28 +335,7 @@ print(json.dumps(DataLibrary(open_database(),SourceFiles.from_environment()).sub
             except RuntimeError as error:
                 errors.append(str(error))
         if not errors:
-            # Container-created private directories are root-owned on Linux. Remove only
-            # this acceptance's generated temporary tree through the same container UID.
-            subprocess.run(
-                [
-                    "docker",
-                    "run",
-                    "--rm",
-                    "--network",
-                    "none",
-                    "--mount",
-                    f"type=bind,source={self.root},target=/cleanup",
-                    self.image,
-                    "python",
-                    "-c",
-                    "import pathlib,shutil; "
-                    "[shutil.rmtree(p) if p.is_dir() and not p.is_symlink() else p.unlink() "
-                    "for p in pathlib.Path('/cleanup').iterdir()]",
-                ],
-                check=True,
-                capture_output=True,
-                timeout=60,
-            )
+            cleanup_files(self.root, self.image)
             self.files.cleanup()
         if errors:
             raise RuntimeError("Disposable cleanup failed: " + "\n".join(errors))

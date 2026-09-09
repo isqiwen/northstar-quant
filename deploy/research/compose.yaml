@@ -23,18 +23,23 @@ services:
     - host.docker.internal:host-gateway
     volumes:
     - type: bind
-      source: ${NORTHSTAR_MARKET_MOUNT:-/var/lib/northstar/files/market}
+      source: /opt/northstar/files/market
       target: /var/lib/northstar/market
       read_only: true
       bind:
         create_host_path: false
     - type: bind
-      source: ${NORTHSTAR_RESEARCH_MOUNT:-/var/lib/northstar/files/research}
+      source: /opt/northstar/files/research
       target: /var/lib/northstar/research
       read_only: false
       bind:
         create_host_path: false
-    - state:/var/lib/northstar/state
+    - type: bind
+      source: /opt/northstar/state/research
+      target: /var/lib/northstar/state
+      read_only: false
+      bind:
+        create_host_path: false
     networks:
     - egress
     command:
@@ -77,21 +82,36 @@ services:
       NORTHSTAR_DATA_HUB_URL: ${NORTHSTAR_DATA_HUB_URL:-http://core.local:19083}
       NORTHSTAR_RESEARCH_DATABASE: /var/lib/northstar/state/research.sqlite3
     volumes:
-    - logs:/var/log/northstar
-    - work:/var/lib/northstar/work
     - type: bind
-      source: ${NORTHSTAR_MARKET_MOUNT:-/var/lib/northstar/files/market}
+      source: /opt/northstar/logs/research
+      target: /var/log/northstar/research
+      read_only: false
+      bind:
+        create_host_path: false
+    - type: bind
+      source: /opt/northstar/work/research
+      target: /var/lib/northstar/work
+      read_only: false
+      bind:
+        create_host_path: false
+    - type: bind
+      source: /opt/northstar/files/market
       target: /var/lib/northstar/market
       read_only: true
       bind:
         create_host_path: false
     - type: bind
-      source: ${NORTHSTAR_RESEARCH_MOUNT:-/var/lib/northstar/files/research}
+      source: /opt/northstar/files/research
       target: /var/lib/northstar/research
       read_only: false
       bind:
         create_host_path: false
-    - state:/var/lib/northstar/state
+    - type: bind
+      source: /opt/northstar/state/research
+      target: /var/lib/northstar/state
+      read_only: false
+      bind:
+        create_host_path: false
     ports:
     - 127.0.0.1:${NORTHSTAR_RESEARCH_API_PORT:-19084}:19084
     command:
@@ -182,27 +202,42 @@ services:
         token}
       NORTHSTAR_DATA_HUB_URL: ${NORTHSTAR_DATA_HUB_URL:-http://core.local:19083}
     volumes:
-    - logs:/var/log/northstar
-    - work:/var/lib/northstar/work
     - type: bind
-      source: ${NORTHSTAR_MARKET_MOUNT:-/var/lib/northstar/files/market}
+      source: /opt/northstar/logs/research
+      target: /var/log/northstar/research
+      read_only: false
+      bind:
+        create_host_path: false
+    - type: bind
+      source: /opt/northstar/work/research
+      target: /var/lib/northstar/work
+      read_only: false
+      bind:
+        create_host_path: false
+    - type: bind
+      source: /opt/northstar/files/market
       target: /var/lib/northstar/market
       read_only: true
       bind:
         create_host_path: false
     - type: bind
-      source: ${NORTHSTAR_RESEARCH_MOUNT:-/var/lib/northstar/files/research}
+      source: /opt/northstar/files/research
       target: /var/lib/northstar/research
       read_only: false
       bind:
         create_host_path: false
     - type: bind
-      source: ${NORTHSTAR_BACKUP_MOUNT:-/var/lib/northstar/files/backup}
+      source: /opt/northstar/files/backup
       target: /var/lib/northstar/backup
       read_only: false
       bind:
         create_host_path: false
-    - state:/var/lib/northstar/state
+    - type: bind
+      source: /opt/northstar/state/research
+      target: /var/lib/northstar/state
+      read_only: false
+      bind:
+        create_host_path: false
     command:
     - northstar
     - maintenance
@@ -240,7 +275,12 @@ services:
     - maintenance
     - init-db
     volumes:
-    - state:/var/lib/northstar/state
+    - type: bind
+      source: /opt/northstar/state/research
+      target: /var/lib/northstar/state
+      read_only: false
+      bind:
+        create_host_path: false
   research-worker:
     networks:
     - egress
@@ -273,21 +313,36 @@ services:
       NORTHSTAR_DATA_HUB_URL: ${NORTHSTAR_DATA_HUB_URL:-http://core.local:19083}
       NORTHSTAR_RESEARCH_DATABASE: /var/lib/northstar/state/research.sqlite3
     volumes:
-    - logs:/var/log/northstar
-    - work:/var/lib/northstar/work
     - type: bind
-      source: ${NORTHSTAR_MARKET_MOUNT:-/var/lib/northstar/files/market}
+      source: /opt/northstar/logs/research
+      target: /var/log/northstar/research
+      read_only: false
+      bind:
+        create_host_path: false
+    - type: bind
+      source: /opt/northstar/work/research
+      target: /var/lib/northstar/work
+      read_only: false
+      bind:
+        create_host_path: false
+    - type: bind
+      source: /opt/northstar/files/market
       target: /var/lib/northstar/market
       read_only: true
       bind:
         create_host_path: false
     - type: bind
-      source: ${NORTHSTAR_RESEARCH_MOUNT:-/var/lib/northstar/files/research}
+      source: /opt/northstar/files/research
       target: /var/lib/northstar/research
       read_only: false
       bind:
         create_host_path: false
-    - state:/var/lib/northstar/state
+    - type: bind
+      source: /opt/northstar/state/research
+      target: /var/lib/northstar/state
+      read_only: false
+      bind:
+        create_host_path: false
     command:
     - northstar
     - serve
@@ -297,10 +352,6 @@ services:
     depends_on:
       storage-check:
         condition: service_completed_successfully
-volumes:
-  logs: null
-  work: null
-  state: null
 networks:
   frontend:
     internal: true

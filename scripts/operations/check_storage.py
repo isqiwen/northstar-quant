@@ -14,6 +14,19 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def check_directories(config: dict, app: str, *, maintenance: bool = False) -> None:
+    # Check every runtime bind, including credentials/logs/state, before creating containers.
+    seen = set()
+    for item in config["services"].values():
+        for volume in item.get("volumes", []):
+            if volume.get("type") != "bind":
+                continue
+            root = Path(volume["source"])
+            if root in seen or (root.is_file() and volume.get("read_only")):
+                continue
+            require_directory(root)
+            seen.add(root)
+    if app == "live":
+        return
     service = config["services"][
         "initialize" if app == "database" else "maintenance" if maintenance else "storage-check"
     ]
@@ -39,7 +52,9 @@ def check_directories(config: dict, app: str, *, maintenance: bool = False) -> N
             raise ValueError("Storage directories must be distinct and non-overlapping")
         roots.append(root)
         share = Path(volume["target"]).name.upper()
-        identity = service["environment"][f"NORTHSTAR_{share}_STORAGE_ID"]
+        identity = service["environment"].get(f"NORTHSTAR_{share}_STORAGE_ID")
+        if identity is None:
+            continue
         if str(UUID(identity)) != identity or identity in identities:
             raise ValueError("Each storage directory requires a distinct canonical UUID")
         identities.add(identity)
@@ -66,13 +81,13 @@ def require_directory(root: Path) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--app", required=True, choices=["database", "data_hub", "research"])
-    parser.add_argument("--env-file")
+    parser.add_argument(
+        "--app", required=True, choices=["database", "data_hub", "research", "live"]
+    )
     parser.add_argument("--maintenance", action="store_true")
     args = parser.parse_args()
-    command = ["docker", "compose"]
-    if args.env_file:
-        command.extend(["--env-file", args.env_file])
+    env_file = f"/opt/northstar/config/{args.app.replace('_', '-')}.env"
+    command = ["docker", "compose", "--profile", "*", "--env-file", env_file]
     command.extend(
         ["-f", str(ROOT / "deploy" / args.app / "compose.yaml"), "config", "--format", "json"]
     )

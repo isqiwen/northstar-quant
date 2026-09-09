@@ -47,8 +47,9 @@ def lifecycle(
     )
 
 
-def manage(app: str, action: str, env_file: Path, *, follow: bool = False) -> None:
+def manage(app: str, action: str, *, follow: bool = False) -> None:
     folder = FOLDERS[app]
+    env_file = Path(f"/opt/northstar/config/{app}.env")
     compose = [
         "docker",
         "compose",
@@ -59,7 +60,7 @@ def manage(app: str, action: str, env_file: Path, *, follow: bool = False) -> No
     ]
     if project := os.environ.get("COMPOSE_PROJECT_NAME"):
         compose[2:2] = ["-p", project]
-    if action in ("deploy", "start", "restart", "backup") and app != "live":
+    if action in ("deploy", "start", "restart", "backup"):
         run(
             "uv",
             "run",
@@ -69,8 +70,6 @@ def manage(app: str, action: str, env_file: Path, *, follow: bool = False) -> No
             "scripts/operations/check_storage.py",
             "--app",
             folder,
-            "--env-file",
-            str(env_file),
             cwd=ROOT,
         )
     if action == "deploy":
@@ -109,16 +108,14 @@ def main() -> int:
         "action", choices=("deploy", "start", "restart", "stop", "status", "logs", "backup")
     )
     parser.add_argument("app", choices=FOLDERS)
-    parser.add_argument("--env-file", type=Path)
     parser.add_argument("--follow", action="store_true")
     args = parser.parse_args()
     if args.follow and args.action != "logs":
         parser.error("--follow 仅用于 logs")
     if args.action == "backup" and args.app != "database":
         parser.error("backup 仅用于 database")
-    env_file = (args.env_file or ROOT / "deploy" / FOLDERS[args.app] / ".env").resolve()
     try:
-        manage(args.app, args.action, env_file, follow=args.follow)
+        manage(args.app, args.action, follow=args.follow)
     except (OSError, ValueError, subprocess.CalledProcessError):
         print("本机操作失败，请检查上述错误与目标配置。", file=sys.stderr)
         return 1

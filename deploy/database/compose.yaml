@@ -20,7 +20,7 @@ services:
         password}
     volumes:
     - type: bind
-      source: ${NORTHSTAR_DATABASE_PGDATA:?Set core local SSD database directory}
+      source: /opt/northstar/state/data-hub/postgresql
       target: /var/lib/postgresql/data
       bind:
         create_host_path: false
@@ -72,22 +72,22 @@ services:
       NORTHSTAR_DATABASE_OWNER: data_hub
     volumes:
     - type: bind
-      source: ${NORTHSTAR_SOURCE_MOUNT:?Set verified core mounted SOURCE directory}
+      source: /opt/northstar/files/source
       target: /var/lib/northstar/source
       bind:
         create_host_path: false
     - type: bind
-      source: ${NORTHSTAR_MARKET_MOUNT:?Set verified core mounted MARKET directory}
+      source: /opt/northstar/files/market
       target: /var/lib/northstar/market
       bind:
         create_host_path: false
     - type: bind
-      source: ${NORTHSTAR_RESEARCH_MOUNT:?Set verified core mounted RESEARCH directory}
+      source: /opt/northstar/files/research
       target: /var/lib/northstar/research
       bind:
         create_host_path: false
     - type: bind
-      source: ${NORTHSTAR_BACKUP_MOUNT:?Set verified core mounted BACKUP directory}
+      source: /opt/northstar/files/backup
       target: /var/lib/northstar/backup
       bind:
         create_host_path: false
@@ -138,25 +138,25 @@ services:
       NORTHSTAR_DATABASE_OWNER: data_hub
     volumes:
     - type: bind
-      source: ${NORTHSTAR_SOURCE_MOUNT:?Set verified core mounted SOURCE directory}
+      source: /opt/northstar/files/source
       target: /var/lib/northstar/source
       bind:
         create_host_path: false
       read_only: true
     - type: bind
-      source: ${NORTHSTAR_MARKET_MOUNT:?Set verified core mounted MARKET directory}
+      source: /opt/northstar/files/market
       target: /var/lib/northstar/market
       bind:
         create_host_path: false
       read_only: true
     - type: bind
-      source: ${NORTHSTAR_RESEARCH_MOUNT:?Set verified core mounted RESEARCH directory}
+      source: /opt/northstar/files/research
       target: /var/lib/northstar/research
       bind:
         create_host_path: false
       read_only: true
     - type: bind
-      source: ${NORTHSTAR_BACKUP_MOUNT:?Set verified core mounted BACKUP directory}
+      source: /opt/northstar/files/backup
       target: /var/lib/northstar/backup
       bind:
         create_host_path: false

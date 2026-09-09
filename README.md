@@ -20,7 +20,7 @@ Tushare 定时增量/分片补数、15 分钟到日线完整研究输入、持�
 
 部署位置：Data Hub 和独立 PostgreSQL 在 `core.local`，Research 在 `research.local`。
 三个应用的前端、API、worker/内核分别运行在独立容器中。
-应用只访问配置的持久目录；本机磁盘或主机预先挂载的共享使用同一套配置。
+应用持久目录固定在 `/opt/northstar/`；本机磁盘或主机预先挂载的共享使用同一套配置。
 配置文件在 `deploy/{database,data_hub,research,live}/.env`，凭据留空，实际口令放私有运行副本。
 首次准备目录和存储 UUID，详见[部署说明](deploy/README.md)。
 
@@ -33,7 +33,7 @@ Tushare 定时增量/分片补数、15 分钟到日线完整研究输入、持�
 ./scripts/northstarctl.py deploy live --config ~/.config/northstar/hosts.toml
 ```
 
-远程 `deploy` 自动安装目标 Ubuntu/Debian 主机缺失的 Git、uv、Docker/Compose/Buildx ；
+远程 `deploy` 自动安装目标 Ubuntu/Debian 主机缺失的 Git、uv、Docker/Compose/Buildx；
 目标仍需 SSH、Python 3.11+、root 或免交互 sudo，持久目录与私有配置提前准备。
 脚本部署当前已提交版本，支持 `start`、`restart`、`stop`、`status`、`logs` 和 `--help`。
 `start`/`restart` 使用已部署版本，不重新构建。所有应用统一操作整个部署对象；`restart live` 会重启前端、API、内核和本地数据库。
@@ -41,22 +41,22 @@ Tushare 定时增量/分片补数、15 分钟到日线完整研究输入、持�
 
 ```sh
 # core.local：先初始化独立 PostgreSQL 和已准备的存储目录
-make up-database ENV_FILE=/absolute/private/database.env
+make up-database
 # core.local：存储目录已准备后
-make up-data ENV_FILE=/absolute/private/core.env
+make up-data
 # research.local：市场只读、研究目录可写后
-make up-research ENV_FILE=/absolute/private/research.env
+make up-research
 # Live 所在主机，仍使用当前独立部署
 make up-live
 ```
 
-本机 Make 命令默认读取各自目录的 `.env`；示例中的 `ENV_FILE` 用于指定私有运行副本。
+本机 Make 命令读取 `/opt/northstar/config/<应用>.env`，不提供路径覆盖。
 正式构建要求工作区干净；未提交修改时在对应命令前加 `NORTHSTAR_DEVELOPMENT_BUILD=1`。
 Data Hub 连接 core 独立数据库；Research 使用本机 SQLite。启动检查目录和存储身份，不操作底层存储或另一个应用。
 Data API 持久排队，独立 worker 下载与加工；关闭 Data Web/API 不停止已提交任务。
 Data Hub 只通过 Tushare 自动同步全部期货历史数据，不提供文件导入、Tick、品种或周期选择。
 打开 Data Hub → **历史同步**，保存 token 后点击 **开始同步全部数据**；可查看分片进度、等待原因与固定数据。
-凭据保存在 core 本地私有 Docker 卷，API 不回显 token；前端/API 停止不影响独立 worker。
+凭据保存在 core 本地 `/opt/northstar/credentials/data-hub/`，API 不回显 token；前端/API 停止不影响独立 worker。
 本地开发需为 API 和 worker 设置同一个绝对路径 `NORTHSTAR_DATA_SECRET_DIR`（私有目录权限 0700）。
 同步范围、备份与当前研究语义限制见 [架构](docs/ARCHITECTURE.md#4-数据与时间)。
 
@@ -73,8 +73,8 @@ ssh -N -L 18084:127.0.0.1:18084 research.local
 | Research | <http://127.0.0.1:18084> |
 | Live | <http://127.0.0.1:18080>（远程访问见独立 Live 部署说明） |
 
-`make ps-data` / `ps-research` / `ps-live` 查看状态；`make down-data` / `down-research` / `down-live` 只停止对应应用并保留卷。
-Data/Research 命令均需传相同的 `ENV_FILE`。core 上的数据库单独使用 `make ps-database` / `down-database`；停止会影响 Data Hub，不会停止 Research 或 Live 的本地存储。
+`make ps-data` / `ps-research` / `ps-live` 查看状态；`make down-data` / `down-research` / `down-live` 只停止对应应用并保留主机数据目录。
+core 上的数据库单独使用 `make ps-database` / `down-database`；停止会影响 Data Hub，不会停止 Research 或 Live 的本地存储。
 
 修改代码后重新构建；`restart` 不会构建新代码。端口、目录、存储权限与备份见 [部署说明](deploy/README.md)。
 当前个人容器与数据不会被新命令自动迁移或接管。
@@ -120,11 +120,11 @@ Research 回测由独立 `research-worker` 执行；前端和 API 重启不结�
 | Research | `research/northstar-research-api-YYYY-MM-DD.log`、`research/northstar-research-worker-YYYY-MM-DD.log` |
 | Live | `live/northstar-live-api-YYYY-MM-DD.log`、`live/northstar-live-kernel-YYYY-MM-DD.log` |
 
-Compose 把日志保存在持久日志卷，容器内路径为 `/var/log/northstar/`，重建容器仍保留。
-例如 `docker compose -f deploy/live/compose.yaml exec live tail -n 50 /var/log/northstar/live/northstar-live-kernel-YYYY-MM-DD.log`。
+Compose 把日志保存在 `/opt/northstar/logs/<应用>/`，容器内路径为 `/var/log/northstar/`，重建容器仍保留。
+例如 `docker compose --env-file /opt/northstar/config/live.env -f deploy/live/compose.yaml exec live tail -n 50 /var/log/northstar/live/northstar-live-kernel-YYYY-MM-DD.log`。
 将 `YYYY-MM-DD` 替换为日志日期。日期采用进程所在时区，跨日后的首次后台写入自动切换文件。
 每个文件默认 10 MiB，超限后增加 `.1`～`.5` 后缀；每个程序除当前文件外，跨日期和大小轮转合计最多保留 5 份历史文件（按修改时间保留最新）。Python 运行日志写文件；
-容器启动错误仍可通过 `docker compose --env-file /absolute/private/research.env -f deploy/research/compose.yaml logs --tail=100 research-api` 查看。
+容器启动错误仍可通过 `docker compose --env-file /opt/northstar/config/research.env -f deploy/research/compose.yaml logs --tail=100 research-api` 查看。
 
 可在启动前设置 `NORTHSTAR_LOG_DIR`（日志根目录）、`NORTHSTAR_LOG_MAX_BYTES`（单文件上限）、
 `NORTHSTAR_LOG_BACKUPS`（历史文件总份数）和 `NORTHSTAR_LOG_QUEUE`（队列容量，默认 1024 条）。
@@ -154,8 +154,8 @@ npm --prefix frontend ci
 在所属主机先用对应的启动命令和环境文件启动应用，再停止要调试的前端容器，释放端口。例如开发 Research：
 
 ```sh
-make up-research ENV_FILE=/absolute/private/research.env
-docker compose --env-file /absolute/private/research.env -f deploy/research/compose.yaml stop research
+make up-research
+docker compose --env-file /opt/northstar/config/research.env -f deploy/research/compose.yaml stop research
 NORTHSTAR_API_URL=http://127.0.0.1:19084 npm --prefix frontend run dev:research
 ```
 
@@ -253,12 +253,12 @@ uv run --project backend python scripts/operations/setup_simnow.py
 
 ## 数据与运行维护
 
-各应用日志和 Live 认证保存在所属 Docker 卷；Data Hub/Research 的来源、市场发布、研究产物和备份位于配置的持久目录，Live 内核拥有独立本地数据卷。重建容器不会清空这些数据；不要用 `docker compose down -v` 停止日常应用。
+三个应用的文件、日志、凭据与状态固定保存在 `/opt/northstar/` 下的所属目录，Live 内核拥有独立本地状态目录。重建容器不会清空这些数据；不要用 `docker compose down -v` 停止日常应用。
 PostgreSQL 活跃目录保留在 core 本机，Research SQLite 保留在 research 本机，使用各自主机的本地持久磁盘。数据库与其引用的来源文件必须一起备份，市场数据、备份和私密凭据不提交到 Git。
 
 ```sh
-# 目标目录必须尚不存在；每次备份换一个名称
-docker compose --env-file /absolute/private/core.env -f deploy/data_hub/compose.yaml exec data-api northstar maintenance backup /var/lib/northstar/backups/manual-001
+# 自动创建新的备份子目录
+make backup-database
 ```
 
 恢复时准备空数据库和新的独立来源目录，设置 `NORTHSTAR_DATABASE_URL`、`NORTHSTAR_DATA_DIR`，
