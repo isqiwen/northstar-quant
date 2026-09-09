@@ -1,10 +1,11 @@
 import { afterEach, expect, test } from "vitest";
 import { createServer } from "node:http";
 import { NextRequest } from "next/server";
-import { forward } from "../../shared/proxy";
+import { forward, lanHosts } from "../../shared/proxy";
 
 afterEach(() => {
   delete process.env.NORTHSTAR_API_URL;
+  delete process.env.NORTHSTAR_WEB_HOSTS;
 });
 
 test("LAN requests retain Host, cookie, CSRF and protobuf bytes upstream", async () => {
@@ -18,7 +19,12 @@ test("LAN requests retain Host, cookie, CSRF and protobuf bytes upstream", async
   try {
     const address = server.address() as { port: number };
     process.env.NORTHSTAR_API_URL = `http://127.0.0.1:${address.port}`;
-    for (const host of ["core.local:18082", "research.local:18084"]) {
+    process.env.NORTHSTAR_WEB_HOSTS = "192.168.50.10";
+    for (const host of [
+      "core.local:18082",
+      "research.local:18084",
+      "192.168.50.10:18082",
+    ]) {
       const request = new NextRequest(`http://${host}/api/change`, {
         method: "POST",
         headers: {
@@ -30,7 +36,10 @@ test("LAN requests retain Host, cookie, CSRF and protobuf bytes upstream", async
         },
         body: new Uint8Array([8, 1]),
       });
-      const response = await forward(request, [host.split(":")[0]]);
+      const response = await forward(
+        request,
+        lanHosts(host.startsWith("research") ? "research.local" : "core.local"),
+      );
       expect(response.status).toBe(200);
       expect(new Uint8Array(await response.arrayBuffer())).toEqual(
         new Uint8Array([8, 1]),
@@ -51,6 +60,7 @@ test("LAN requests retain Host, cookie, CSRF and protobuf bytes upstream", async
 test("LAN allowance never permits foreign origins or arbitrary hostnames", async () => {
   const cases: Record<string, string>[] = [
     { host: "evil.example:18082" },
+    { host: "192.168.50.99:18082" },
     { host: "core.local:18082", origin: "http://evil.example" },
     { host: "core.local:18082", "sec-fetch-site": "cross-site" },
     { host: "core.local:18082", forwarded: "host=core.local" },

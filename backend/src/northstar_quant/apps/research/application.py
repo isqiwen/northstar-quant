@@ -11,6 +11,7 @@ from northstar_quant.research.paper import PaperStore
 from northstar_quant.research.runs import RunStore
 from northstar_quant.research.strategy_management import StrategyVersions
 from northstar_quant.web import datasets
+from northstar_quant.web.access import lan_hosts
 from northstar_quant.web.host import create_host
 from northstar_quant.web.protobuf import bind
 
@@ -21,7 +22,7 @@ def create_app(engine: Engine, library: DatasetReader) -> FastAPI:
     app = create_host(
         "Northstar Research · 量化研究工作台",
         (("研究", "/"), ("因子与策略", "/catalog"), ("文件 Paper", "/paper")),
-        allowed_hosts=("research.local",),
+        allowed_hosts=lan_hosts("research.local"),
     )
     catalog_api.register(
         app, app.state.workspace_access, FactorCatalog(engine, library), StrategyVersions(engine)

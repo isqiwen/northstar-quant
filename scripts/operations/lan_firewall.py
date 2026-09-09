@@ -47,6 +47,31 @@ def networks(addresses: list[dict], defaults: list[dict]) -> list[tuple[str, str
     return sorted(result)
 
 
+def local_addresses() -> list[str]:
+    """Register only this host's addresses on the same LAN interfaces used by the firewall."""
+    addresses = json.loads(
+        run("ip", "-j", "-4", "addr", "show", "scope", "global", capture_output=True).stdout
+    )
+    defaults = json.loads(
+        run("ip", "-j", "-4", "route", "show", "default", capture_output=True).stdout
+    )
+    allowed = networks(addresses, defaults)
+    return sorted(
+        {
+            address["local"]
+            for item in addresses
+            for address in item.get("addr_info", [])
+            if address.get("family") == "inet"
+            and address.get("scope") == "global"
+            and any(
+                item["ifname"] == interface
+                and ipaddress.ip_address(address["local"]) in ipaddress.ip_network(network)
+                for interface, network in allowed
+            )
+        }
+    )
+
+
 def apply(app: str, port: int) -> None:
     if not 1 <= port <= 65535:
         raise ValueError("无效 Web 端口")

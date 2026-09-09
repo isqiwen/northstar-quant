@@ -73,6 +73,7 @@ def verify() -> None:
                     if not line.startswith("#")
                 ]
 
+            assert firewall["local_addresses"]() == ["192.168.50.10"]
             before = rules()
             firewall["apply"]("data-hub", 18082)
             assert rules() == before, "repeat application changed rules"

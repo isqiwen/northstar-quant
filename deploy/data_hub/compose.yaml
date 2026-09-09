@@ -70,6 +70,7 @@ services:
         max-size: 10m
         max-file: '3'
     environment:
+      NORTHSTAR_WEB_HOSTS: ${NORTHSTAR_WEB_HOSTS:-}
       NORTHSTAR_DATA_SECRET_DIR: /var/lib/northstar/credentials/private
       NORTHSTAR_LOG_DIR: /var/log/northstar
       NORTHSTAR_DATABASE_URL: postgresql+psycopg://northstar_data_hub_app:${NORTHSTAR_DATA_HUB_DATABASE_PASSWORD:?Set
@@ -225,6 +226,7 @@ services:
         max-size: 10m
         max-file: '3'
     environment:
+      NORTHSTAR_WEB_HOSTS: ${NORTHSTAR_WEB_HOSTS:-}
       NORTHSTAR_API_URL: http://data-api:19082
     ports:
     - 0.0.0.0:${NORTHSTAR_DATA_WEB_PORT:-18082}:3000

@@ -41,7 +41,7 @@ def deployment(tmp_path: Path) -> tuple[Path, Path, dict]:
     (repo / "scripts/operations/check_storage.py").write_text(
         "import os, sys\nprint('{}')\nsys.exit(int(os.environ.get('MOUNT_RESULT', '0')))\n"
     )
-    (repo / "scripts/operations/lan_firewall.py").write_text("# firewall verified separately\n")
+    (repo / "scripts/operations/lan_firewall.py").write_text("def local_addresses(): return ['192.168.50.10']\n")
     for app in ("database", "data_hub", "research", "live"):
         folder = repo / "deploy" / app
         folder.mkdir(parents=True)

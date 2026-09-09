@@ -147,7 +147,9 @@ python3 scripts/northstarctl.py deploy live --env-file ~/.config/northstar/live.
 更换配置文件不等于轮换已初始化 PostgreSQL 的管理员密码，数据库实际密码须保持一致。
 
 打开 <http://core.local:18082>，在历史同步页设置 Tushare token 并启动同步。
-Research 网页为 <http://research.local:18084>。客户端需能解析这两个主机名；不支持任意 Host 别名。
+Research 网页为 <http://research.local:18084>。也可使用所属主机的局域网 IPv4 地址（例如 `http://192.168.50.10:18082`）。
+部署自动登记主机实际局域网 IP，并传给前端和 API，无需填写 `.env`；IP 变化后重新部署或重启应用。
+未登记的 IP 和任意 Host 别名仍会被拒绝。
 前端发布到 `0.0.0.0`，API 仍仅绑定本机。`deploy/start/restart` 自动识别物理网卡或默认路由网卡上的
 IPv4 私有网段（排除 Docker/VPN 接口）；未识别到局域网时明确报错，不开放端口。
 部署使用 iptables 的 `INPUT` 和 `DOCKER-USER` 两个入口，允许匹配网卡和网段的前端连接、拒绝其他来源，

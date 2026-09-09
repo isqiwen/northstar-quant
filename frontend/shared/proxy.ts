@@ -1,8 +1,17 @@
 /** Forward only this application's API; never act as an arbitrary URL proxy. */
+import { isIP } from "node:net";
 import { NextRequest } from "next/server";
 import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
 const MAX_BODY = 8 * 1024 * 1024;
+export function lanHosts(hostname: string): string[] {
+  const addresses = (process.env.NORTHSTAR_WEB_HOSTS || "")
+    .split(",")
+    .filter(Boolean);
+  if (addresses.some((address) => isIP(address) !== 4))
+    throw new Error("无效的主机 IPv4 地址配置");
+  return [hostname, ...addresses];
+}
 export async function forward(
   request: NextRequest,
   allowedHosts: readonly string[] = [],

@@ -10,7 +10,12 @@ export function sessionToken(): Promise<string> {
     signal: AbortSignal.timeout(15_000),
   })
     .then(async (r) => {
-      if (!r.ok) throw new Error("无法建立浏览器会话");
+      if (!r.ok)
+        throw new Error(
+          r.status === 403
+            ? "当前访问地址或来源未获允许，无法建立浏览器会话。请使用部署登记的主机名或 IP。"
+            : `无法建立浏览器会话（HTTP ${r.status}），请检查后端服务。`,
+        );
       return (
         (await decodeResponse("GET", "/api/browser-session", r)) as {
           csrf: string;

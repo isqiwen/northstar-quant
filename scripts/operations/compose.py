@@ -64,6 +64,9 @@ def manage(app: str, action: str, *, follow: bool = False) -> None:
     if project := os.environ.get("COMPOSE_PROJECT_NAME"):
         compose[2:2] = ["-p", project]
     if app in {"data-hub", "research"} and action in {"deploy", "start", "restart"}:
+        from lan_firewall import local_addresses
+
+        os.environ["NORTHSTAR_WEB_HOSTS"] = ",".join(local_addresses())
         config = json.loads(run(*compose, "config", "--format", "json", capture=True))
         port = str(config["services"][app]["ports"][0]["published"])
         run(

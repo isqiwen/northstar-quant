@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import os
 import re
 import secrets
 import time
+from ipaddress import IPv4Address
 
 from fastapi import HTTPException, Request
 from starlette.requests import HTTPConnection
@@ -14,6 +16,16 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 COOKIE = "northstar_workspace_session"
 _SESSION_SECONDS = 1800
 _DENIED = "工作台会话缺失或已过期。请重新打开工作台页面后操作。"
+
+
+def lan_hosts(hostname: str) -> tuple[str, ...]:
+    """Deployment supplies actual host IPs; never trust arbitrary browser Host values."""
+    addresses = tuple(
+        str(IPv4Address(value))
+        for value in os.environ.get("NORTHSTAR_WEB_HOSTS", "").split(",")
+        if value
+    )
+    return (hostname, *addresses)
 
 
 class WorkspaceAccess:

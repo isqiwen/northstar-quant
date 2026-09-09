@@ -31,7 +31,7 @@ Data Hub 与独立 PostgreSQL 部署在 `core.local`；数据库活跃数据放 
 Research 在 `research.local`，本机 SQLite 保存任务/结果元数据，不连接 core 数据库。
 发布清单 GET 接口固定开放于 `0.0.0.0:19090`，无需 token；Python 管理 API 保持本机绑定。
 Data Hub/Research 前端通过 `core.local:18082`、`research.local:18084` 提供家庭局域网访问；
-部署识别网段并限制主机入口与 Docker 转发入口，浏览器仍校验明确的 Host、同源请求和 CSRF 会话。
+部署识别网段并限制主机入口与 Docker 转发入口，部署自动向前端和 API 登记主机实际局域网 IPv4 地址；浏览器仍校验明确的 Host、同源请求和 CSRF 会话。
 Live 前端继续仅绑定本机。
 Research 通过 Data Hub Protobuf API 取得固定清单，按存储 UUID 与相对路径读取市场目录中的 Parquet，
 由本机 DuckDB 计算。发布内容不可原地覆盖，不共享可写 DuckDB 文件。

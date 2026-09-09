@@ -38,9 +38,14 @@ def test_browser_commands_require_same_app_csrf_origin_and_unexpired_session() -
         assert accepted == [True]
 
 
-def test_lan_host_keeps_csrf_origin_and_live_isolation() -> None:
-    for host in ("core.local", "research.local"):
-        app = create_host("LAN workspace", (), allowed_hosts=(host,))
+def test_lan_host_keeps_csrf_origin_and_live_isolation(monkeypatch) -> None:
+    from northstar_quant.web.access import lan_hosts
+
+    monkeypatch.setenv("NORTHSTAR_WEB_HOSTS", "192.168.50.10,192.168.50.20")
+    for host in ("core.local", "research.local", "192.168.50.10", "192.168.50.20"):
+        app = create_host(
+            "LAN workspace", (), allowed_hosts=lan_hosts("research.local") + ("core.local",)
+        )
         access = app.state.workspace_access
 
         @app.post("/api/change")
@@ -56,6 +61,7 @@ def test_lan_host_keeps_csrf_origin_and_live_isolation() -> None:
             for override in (
                 {"Origin": "http://evil.example"},
                 {"Host": "evil.example"},
+                {"Host": "192.168.50.99:18082"},
                 {"Host": f"{host}:99999"},
                 {"Sec-Fetch-Site": "cross-site"},
                 {"X-Forwarded-Host": host},
