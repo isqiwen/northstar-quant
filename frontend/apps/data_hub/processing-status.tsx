@@ -22,9 +22,23 @@ export function ProcessingStatus() {
               已发布尝试: status.published,
               失败尝试: status.failed,
               最长排队秒数: status.oldest_pending_seconds ?? "无排队任务",
-              统计时间: status.observed_at,
             }}
           />
+          <p>
+            统计时间（北京时间）：
+            <time dateTime={status.observed_at}>
+              {new Intl.DateTimeFormat("zh-CN", {
+                timeZone: "Asia/Shanghai",
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit",
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+                hour12: false,
+              }).format(new Date(status.observed_at))}
+            </time>
+          </p>
           {status.oldest_pending_id && (
             <p>
               最早排队任务：
