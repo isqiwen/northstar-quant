@@ -199,3 +199,15 @@ Research 备份也保存绑定，恢复时自动还原，不需要手工生成�
 每次部署验证成功后，自动删除所属应用的旧源码版本和未被容器使用的旧镜像标签，只保留当前版本。部署失败不清理旧版本；仍被容器引用的旧版本会保留并明确报错。配置、业务数据、依赖与构建缓存不清理。
 
 所属应用 `.env` 可保留未提交的本地凭据修改；部署捕获该文件并通过独立 SSH 流传输，不进入 Git 源码包。其他源码仍必须干净。默认仅首次安装配置，更新已有配置须显式传 `--env-file`。
+
+### Caddy / FRP 访问 Data Hub
+
+Data Hub 同时允许 `core.local`、合法 IP 和 `datahub.wangqiwen.me`。外部代理应指向
+Next.js 前端端口 18082，保留浏览器的 Host 和 Origin；不要直接转发到 Python API 或发布清单端口。
+Caddy 到 FRP 的 HTTP 上游须保留 `Host: datahub.wangqiwen.me`；若配置曾重写 Host，移除该重写，
+或在 reverse_proxy 中使用 `header_up Host {http.request.hostport}`。FRP 也不要改写 Host。
+
+前端先核验公网 Host/Origin，再按内部连接协议向 Python API 转发同源信息。
+X-Forwarded-Host/For 不参与访问授权，也不传给 API；X-Forwarded-Proto=https 仅用于为浏览器 Cookie 增加 Secure。
+HTTPS 页面经内部 HTTP 转发可以建立会话并提交带 CSRF 的操作，其他来源仍拒绝。
+代理行为参考 [Caddy reverse_proxy](https://caddyserver.com/docs/caddyfile/directives/reverse_proxy)。

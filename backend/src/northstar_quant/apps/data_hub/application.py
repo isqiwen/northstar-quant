@@ -17,7 +17,7 @@ def create_app(engine: Engine, library: DataLibrary) -> FastAPI:
     app = create_host(
         "Northstar Data Hub · 数据管理中心",
         (("数据管理", "/"), ("来源与处理", "/sources")),
-        allowed_hosts=("core.local",),
+        allowed_hosts=("core.local", "datahub.wangqiwen.me"),
         allow_ip_hosts=True,
     )
     exploration_api.register(app, engine)

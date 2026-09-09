@@ -55,7 +55,9 @@ export async function forward(
   }
   // The backend receives the already-checked public authority; no forwarded trust.
   headers.set("host", authority);
-  if (origin) headers.set("origin", origin);
+  // Validate the public origin above, then describe this hop using its actual transport.
+  // Proxy-supplied host/proto headers never select authority or the API destination.
+  if (origin) headers.set("origin", `${destination.protocol}//${authority}`);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 30_000);
   try {
@@ -134,7 +136,21 @@ export async function forward(
       "x-content-type-options",
     ]) {
       const value = response.headers.get(key);
-      if (value) outgoing.set(key, value);
+      if (value) {
+        // Forwarded proto can only tighten a cookie, never grant access or change routing.
+        const externalHttps =
+          request.nextUrl.protocol === "https:" ||
+          origin === `https://${authority}` ||
+          request.headers.get("x-forwarded-proto") === "https";
+        outgoing.set(
+          key,
+          key === "set-cookie" &&
+            externalHttps &&
+            !/;\s*secure(?:;|$)/i.test(value)
+            ? `${value}; Secure`
+            : value,
+        );
+      }
     }
     outgoing.set("cache-control", "no-store");
     // Drain under the same deadline so stalled upstream bodies remain bounded in time.
