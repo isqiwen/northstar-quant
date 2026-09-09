@@ -59,9 +59,21 @@ def status(engine: Engine) -> dict[str, Any]:
             ).mappings()
         ]
         unplanned = connection.scalar(
-            text("SELECT count(*) FROM data_sync_contracts WHERE planned_revision<>:r"),
+            text(
+                "SELECT count(*) FROM data_sync_contracts WHERE planned_revision<>:r "
+                "OR planning_error IS NOT NULL"
+            ),
             {"r": config["revision"]},
         )
+        config["catalog_errors"] = [
+            serial(row)
+            for row in connection.execute(
+                text("""
+            SELECT ts_code,planning_error FROM data_sync_contracts
+            WHERE planning_error IS NOT NULL ORDER BY ts_code LIMIT 50
+        """)
+            ).mappings()
+        ]
         from .planning import target_day
 
         config["targets"] = [

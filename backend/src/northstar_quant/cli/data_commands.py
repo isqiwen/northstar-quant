@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from pathlib import Path
 from uuid import UUID
 
 from sqlalchemy import Engine
@@ -23,6 +24,10 @@ def register(commands: argparse._SubParsersAction[argparse.ArgumentParser]) -> N
     parser = commands.add_parser("attempt", help="查看加工结果或失败原因")
     parser.set_defaults(scope="data", operation="attempt")
     parser.add_argument("attempt_id", type=UUID)
+    parser = commands.add_parser("download", help="按许可导出已归档来源原文")
+    parser.set_defaults(scope="data", operation="download")
+    parser.add_argument("source_id", type=UUID)
+    parser.add_argument("destination", type=Path)
     parser = commands.add_parser("datasets", help="列出已发布的数据快照")
     parser.set_defaults(scope="data", operation="datasets")
     parser = commands.add_parser("dataset", help="查看快照、质量与时间信息")
@@ -56,5 +61,11 @@ def execute(arguments: argparse.Namespace, engine: Engine) -> int:
         return 0
     if arguments.operation == "attempt":
         print(json.dumps(library.attempt(arguments.attempt_id), ensure_ascii=False))
+        return 0
+    if arguments.operation == "download":
+        filename, content = library.download(arguments.source_id)
+        with arguments.destination.open("xb") as stream:
+            stream.write(content)
+        print(json.dumps({"filename": filename, "byte_count": len(content)}))
         return 0
     raise ValueError("未知命令操作")

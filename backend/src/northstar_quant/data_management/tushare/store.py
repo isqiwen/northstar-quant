@@ -28,6 +28,7 @@ def initialize(connection: Connection) -> None:
             product text NOT NULL,
             kind text NOT NULL,
             details jsonb NOT NULL,
+            planning_error text,
             planned_revision bigint NOT NULL DEFAULT 0
         );
         CREATE TABLE IF NOT EXISTS data_sync_calendar (

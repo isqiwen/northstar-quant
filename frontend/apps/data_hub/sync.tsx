@@ -36,6 +36,8 @@ export function TushareSync() {
   const data = current.error ? undefined : current.data;
   const config = data?.settings;
   const groups = data?.progress ?? [];
+  const targets = (config?.targets ?? []) as Row[];
+  const catalogErrors = (config?.catalog_errors ?? []) as Row[];
   const total = groups
     .filter((r) => r.status !== "SPLIT")
     .reduce((n, r) => n + Number(r.windows), 0);
@@ -76,6 +78,15 @@ export function TushareSync() {
         <Card>
           <Tag color="red">同步暂停</Tag>
           {String(config.error)}
+        </Card>
+      )}
+      {!!catalogErrors.length && (
+        <Card title="目录范围待核查">
+          {catalogErrors.map((r) => (
+            <p key={String(r.ts_code)}>
+              {String(r.ts_code)}：{String(r.planning_error)}
+            </p>
+          ))}
         </Card>
       )}
       <div className="grid-two">
@@ -119,6 +130,14 @@ export function TushareSync() {
           </Form>
         </Card>
         <Card title="自动同步">
+          <p>
+            目标交易日：
+            {targets.length
+              ? targets
+                  .map((r) => `${r.exchange} ${r.target_trading_day}`)
+                  .join(" · ")
+              : "等待交易日历"}
+          </p>
           <Space wrap>
             <Tag color={config?.enabled ? "blue" : "default"}>
               {config?.enabled ? "已启用" : "已暂停"}

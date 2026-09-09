@@ -113,10 +113,24 @@ def plan(engine: Engine) -> None:
                     AND length(details->>'list_date')=8"""),
                     {"e": contract["exchange"], "p": contract["product"]},
                 )
-            if not start_text:
+            try:
+                if not start_text:
+                    raise ValueError("missing listing")
+                start = datetime.strptime(start_text, "%Y%m%d").date()
+                end = (
+                    min(target, datetime.strptime(end_text, "%Y%m%d").date())
+                    if end_text
+                    else target
+                )
+                if start > end:
+                    raise ValueError("invalid lifetime")
+            except (ValueError, TypeError):
+                connection.execute(
+                    text("""UPDATE data_sync_contracts SET planned_revision=:r,
+                    planning_error='上市或到期范围缺失/无效，等待目录复核' WHERE ts_code=:code"""),
+                    {"r": config["revision"], "code": contract["ts_code"]},
+                )
                 continue
-            start = datetime.strptime(start_text, "%Y%m%d").date()
-            end = min(target, datetime.strptime(end_text, "%Y%m%d").date()) if end_text else target
             for year in range(start.year, target.year + 1):
                 a, b = date(year, 1, 1), min(date(year, 12, 31), target)
                 enqueue(
@@ -176,7 +190,10 @@ def plan(engine: Engine) -> None:
                             a += timedelta(days=1)
                     cursor = next_month
             connection.execute(
-                text("UPDATE data_sync_contracts SET planned_revision=:r WHERE ts_code=:c"),
+                text(
+                    "UPDATE data_sync_contracts SET planned_revision=:r,planning_error=NULL "
+                    "WHERE ts_code=:c"
+                ),
                 {"r": config["revision"], "c": contract["ts_code"]},
             )
         if not contracts:
