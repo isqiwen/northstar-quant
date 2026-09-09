@@ -12,10 +12,13 @@
 ## 主机与凭据
 
 仓库维护 `deploy/hosts.toml` 和各目录的 `.env`。`database` 默认部署到 `core.local`。
-主机配置仅接受 `host/port`，不填写用户名或路径。`init-host` 固定使用 root，其他命令固定使用 northstar。
+主机配置接受 `host/user/port`，不填写路径。`user` 仅用于 `init-host` 登录和提权；其他命令固定使用 northstar。
+`user = "root"` 时直接初始化；普通用户须有 sudo 权限。同一地址和端口的各应用填写相同初始化用户。
 `northstarctl deploy` 自动将本次 Git 提交中对应应用的 `.env` 上传到
 `/opt/northstar/config/{database,data-hub,research,live}.env`，归 northstar 用户所有，权限 600。
-首次部署无需手工复制配置；已有运行配置保留原内容，不随程序更新覆盖。
+首次部署无需手工复制配置；未指定 `--env-file` 时已有运行配置保留原内容。
+`deploy --env-file <本地文件>` 使用该文件完整更新所选应用的远程配置，权限仍为 600，不合并默认值。
+自定义文件可以位于仓库外，无需提交；内容通过 SSH 上传，不进入源码包或命令参数。
 配置通过独立的无终端 SSH 输入流传输，不写入命令参数或日志；真实凭据仍仅保存在目标主机运行副本。
 
 - `database/.env`：管理员口令、Data Hub 应用口令。
@@ -96,10 +99,10 @@ Data Hub 使用同一份绑定；Research 首次部署读取共享目录标记�
 
 ## 部署与访问
 
-远程入口本机需要 Python 3.11+/Git/OpenSSH；目标主机先具备 SSH、Python 3.11+，并允许 root 登录。
+远程入口本机需要 Python 3.11+/Git/OpenSSH；目标主机先具备 SSH、Python 3.11+，并允许配置的 user 登录；该用户为 root 或具有 sudo 权限。
 `deploy` 自动安装 Ubuntu/Debian amd64 上缺失的 Git、uv、Docker Engine、Compose、Buildx；主机需要软件源和镜像网络访问。
 
-在 `deploy/hosts.toml` 填好主机地址和端口，然后首次初始化：
+在 `deploy/hosts.toml` 填好主机地址、初始化 user 和端口，然后首次初始化：
 
 ```sh
 # 初始化全部已配置主机，相同地址和端口只执行一次
@@ -108,20 +111,17 @@ python3 scripts/northstarctl.py init-host
 python3 scripts/northstarctl.py init-host database
 ```
 
-交互执行时由 OpenSSH 提示确认主机指纹、按需输入 root 密码；无终端时需要可用的 root SSH 密钥。
+交互执行时由 OpenSSH 提示确认主机指纹、按需输入配置用户的 SSH 登录密码；普通用户由 sudo 提示提权密码。
+无终端时需要配置用户可用的 SSH 密钥，普通用户还需要免密码 sudo。
 脚本创建 northstar 普通用户，安装公钥并配置免密码 sudo，重复执行保留已有公钥。
-默认使用本机唯一存在的 `~/.ssh/id_ed25519.pub` 或 `~/.ssh/id_rsa.pub`；存在多个或使用其他密钥时明确指定：
+自动优先使用本机 `~/.ssh/id_ed25519.pub`，不存在时使用 `~/.ssh/id_rsa.pub`，无需公钥参数。
 
-```sh
-python3 scripts/northstarctl.py init-host --public-key ~/.ssh/northstar.pub
-```
-
-公钥对应的私钥须可通过本机 SSH 默认身份、配置或 agent 使用；脚本不会上传私钥或保存 root 密码。
+公钥对应的私钥须可通过本机 SSH 默认身份、配置或 agent 使用；脚本不会上传私钥或保存登录及提权密码。
 没有 SSH 密钥时可先执行 `ssh-keygen -t ed25519` 创建。初始化最后验证 northstar 密钥登录和 `sudo -n`。
 northstar 获得免密码管理员权限以安装依赖和准备目录；Docker 已安装时加入现有 docker 组，否则首次安装时加入。
 已有依赖直接复用，不主动升级或重启 Docker。挂载存储由主机管理员管理。
 
-初始化完成并提交代码后部署（无需用户名参数，无需手工复制 `.env`）：
+初始化完成并提交代码后部署（固定使用 northstar，无需手工复制 `.env`）：
 
 ```sh
 python3 scripts/northstarctl.py deploy database
@@ -129,6 +129,19 @@ python3 scripts/northstarctl.py deploy data-hub
 python3 scripts/northstarctl.py status data-hub
 ssh -N -L 18082:127.0.0.1:18082 northstar@core.local
 ```
+
+四个应用均可在部署时指定自己的配置文件，例如：
+
+```sh
+python3 scripts/northstarctl.py deploy database --env-file ~/.config/northstar/database.env
+python3 scripts/northstarctl.py deploy data-hub --env-file ~/.config/northstar/data-hub.env
+python3 scripts/northstarctl.py deploy research --env-file ~/.config/northstar/research.env
+python3 scripts/northstarctl.py deploy live --env-file ~/.config/northstar/live.env
+```
+
+`--config` 指定主机清单，`--env-file` 指定本地应用配置，两者用途不同。
+`--env-file` 仅用于 `deploy`；启停、状态和日志命令使用远程已部署配置。
+更换配置文件不等于轮换已初始化 PostgreSQL 的管理员密码，数据库实际密码须保持一致。
 
 打开 <http://127.0.0.1:18082>，在历史同步页设置 Tushare token 并启动同步。
 仅测试 Data Hub 时无需部署 Research/Live。

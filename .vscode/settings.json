@@ -172,7 +172,9 @@
     "tzdata",
     "uvloop",
     "watchfiles",
-    "antd"
+    "antd",
+    "qiwen",
+    "wangqiwen"
   ],
   "mypy-type-checker.importStrategy": "fromEnvironment",
   "mypy-type-checker.cwd": "${workspaceFolder}",

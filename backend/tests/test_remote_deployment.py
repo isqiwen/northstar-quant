@@ -27,7 +27,11 @@ def deployment(tmp_path: Path) -> tuple[Path, Path, dict]:
     )
     # Rewrite the copied program's fixed root only inside this disposable test repository.
     for source in (repo / "scripts").rglob("*.py"):
-        source.write_text(source.read_text().replace("/opt/northstar", str(tmp_path)))
+        source.write_text(
+            source.read_text()
+            .replace("/opt/northstar", str(tmp_path))
+            .replace('Path.home() / ".ssh/', f'Path({str(tmp_path)!r}) / ".ssh/')
+        )
     for app in ("database", "data_hub", "research", "live"):
         folder = repo / "deploy" / app
         folder.mkdir(parents=True)
@@ -59,7 +63,7 @@ def deployment(tmp_path: Path) -> tuple[Path, Path, dict]:
     config = tmp_path / "hosts.toml"
     config.write_text(
         "\n".join(
-            f'[{app.replace("-", "_")}]\nhost="example.invalid"\n'
+            f'[{app.replace("-", "_")}]\nhost="example.invalid"\nuser="root"\n'
             for app in ("database", "data-hub", "research", "live")
         )
     )
@@ -82,7 +86,7 @@ if name == 'sudo':
     while args and args[0] in ('-n', '--'): args.pop(0)
     sys.exit(subprocess.run(args).returncode)
 if name == 'ssh':
-    if '-l' in sys.argv and sys.argv[sys.argv.index('-l') + 1] == 'root':
+    if '-l' in sys.argv and sys.argv[sys.argv.index('-l') + 1] in ('root', 'bootstrap-admin'):
         sys.exit(int(os.environ.get('INIT_HOST_RESULT', '0')))
     sys.exit(subprocess.run(sys.argv[-1], shell=True).returncode)
 if name == 'docker' and sys.argv[1:] == ['info']:
@@ -336,14 +340,19 @@ def test_first_deployment_uploads_private_config_and_redeploy_preserves_edits(de
     assert "host-private-value" not in evidence
 
 
-def test_init_host_deduplicates_targets_and_verifies_fixed_deployment_account(deployment, tmp_path):
+@pytest.mark.parametrize("bootstrap_user", ["root", "bootstrap-admin"])
+def test_init_host_deduplicates_targets_and_verifies_fixed_deployment_account(
+    deployment, tmp_path, bootstrap_user
+):
     repo, config, env = deployment
     config.write_text(
         config.read_text().replace(
             '[research]\nhost="example.invalid"', '[research]\nhost="research.invalid"'
         )
     )
-    key = tmp_path / "deployment-key"
+    config.write_text(config.read_text().replace('user="root"', f'user="{bootstrap_user}"'))
+    (tmp_path / ".ssh").mkdir()
+    key = tmp_path / ".ssh/id_ed25519"
     subprocess.run(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", str(key)], check=True)
     command = [
         sys.executable,
@@ -351,14 +360,19 @@ def test_init_host_deduplicates_targets_and_verifies_fixed_deployment_account(de
         "init-host",
         "--config",
         str(config),
-        "--public-key",
-        str(key) + ".pub",
     ]
     result = subprocess.run(command, env=env, text=True, capture_output=True)
     assert result.returncode == 0, result.stderr
     calls = [json.loads(line) for line in Path(env["RECORD"]).read_text().splitlines()]
     users = [call[call.index("-l") + 1] for call in calls if call[0] == "ssh"]
-    assert users == ["root", "northstar", "root", "northstar"]
+    assert users == [bootstrap_user, "northstar", bootstrap_user, "northstar"]
+    import shlex
+
+    init_calls = [
+        call for call in calls if call[0] == "ssh" and call[call.index("-l") + 1] == bootstrap_user
+    ]
+    expected = ["sudo", "-n", "--", "python3"] if bootstrap_user != "root" else ["python3"]
+    assert all(shlex.split(call[-1])[: len(expected)] == expected for call in init_calls)
     assert key.read_text() not in result.stdout + result.stderr + Path(env["RECORD"]).read_text()
     Path(env["RECORD"]).unlink()
     env["INIT_HOST_RESULT"] = "9"
@@ -378,8 +392,6 @@ def test_init_host_dry_run_does_not_access_keys_or_connect(deployment):
             "--config",
             str(config),
             "--dry-run",
-            "--public-key",
-            "/missing/key",
         ],
         env=env,
         text=True,
@@ -387,4 +399,43 @@ def test_init_host_dry_run_does_not_access_keys_or_connect(deployment):
     )
     assert result.returncode == 0, result.stderr
     assert result.stdout.count("root@example.invalid") == 1
+    assert not Path(env["RECORD"]).exists()
+
+
+@pytest.mark.parametrize("app", ["database", "data-hub", "research", "live"])
+def test_explicit_environment_updates_only_selected_app_without_disclosing_values(
+    deployment, tmp_path, app
+):
+    _, config, env = deployment
+    custom = tmp_path / "private.env.input"
+    content = b"PASSWORD=custom-secret-$literal\nNOTE='spaces stay intact'\n"
+    custom.write_bytes(content)
+    result = invoke(deployment, "deploy", app, "--env-file", str(custom))
+    assert result.returncode == 0, result.stderr
+    target = config.parent / "config" / f"{app}.env"
+    assert target.read_bytes() == content
+    assert target.stat().st_mode & 0o777 == 0o600
+    for other in ("database", "data-hub", "research", "live"):
+        if other != app:
+            assert (
+                config.parent / "config" / f"{other}.env"
+            ).read_text() == "PASSWORD=not-for-output\n"
+    result2 = invoke(deployment, "deploy", app)
+    assert result2.returncode == 0, result2.stderr
+    assert target.read_bytes() == content
+    evidence = (
+        result.stdout
+        + result.stderr
+        + result2.stdout
+        + result2.stderr
+        + Path(env["RECORD"]).read_text()
+    )
+    assert "custom-secret" not in evidence
+    assert custom.read_bytes() == content
+
+
+def test_missing_custom_environment_fails_before_connecting(deployment):
+    _, _, env = deployment
+    result = invoke(deployment, "deploy", "research", "--env-file", "/missing/northstar.env")
+    assert result.returncode != 0
     assert not Path(env["RECORD"]).exists()

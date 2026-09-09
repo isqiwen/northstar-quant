@@ -35,9 +35,10 @@ Tushare 定时增量/分片补数、15 分钟到日线完整研究输入、持�
 ```
 
 远程 `deploy` 自动安装目标 Ubuntu/Debian 主机缺失的 Git、uv、Docker/Compose/Buildx；
-`hosts.toml` 只填写 host/port；首次 `init-host` 以 root 登录，创建 northstar 用户、配置 SSH 公钥及免密码 sudo。
-之后部署固定使用 northstar，首次运行配置自动上传，已有配置不覆盖；目标先具备 SSH、Python 3.11+。
-脚本部署当前已提交版本，支持 `start`、`restart`、`stop`、`status`、`logs` 和 `--help`。
+`hosts.toml` 填写 host/user/port；user 仅供 `init-host` 登录和提权，创建 northstar 用户、配置 SSH 公钥及免密码 sudo。
+之后部署固定使用 northstar，首次运行配置自动上传，默认保留已有配置；目标先具备 SSH、Python 3.11+。
+脚本部署当前已提交版本；可用 `deploy data-hub --env-file /本地路径/data-hub.env` 指定应用配置并更新远程运行副本。
+不指定时默认首次上传仓库中的 `.env`，后续保留远程配置；支持 `start`、`restart`、`stop`、`status`、`logs` 和 `--help`。
 `start`/`restart` 使用已部署版本，不重新构建。所有应用统一操作整个部署对象；`restart live` 会重启前端、API、内核和本地数据库。
 也可以在对应主机的仓库根目录执行（需要 Git、uv、Make、Docker）：
 
