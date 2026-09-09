@@ -192,7 +192,25 @@ class Deployment:
                 )
             )
             assert backup
-            assert (self.root / "backups/acceptance/database.dump").is_file()
+            subprocess.run(
+                [
+                    "docker",
+                    "run",
+                    "--rm",
+                    "--network",
+                    "none",
+                    "--mount",
+                    f"type=bind,source={self.root},target=/evidence,readonly",
+                    self.image,
+                    "python",
+                    "-c",
+                    "from pathlib import Path; "
+                    "assert Path('/evidence/backups/acceptance/database.dump').stat().st_size > 0",
+                ],
+                check=True,
+                capture_output=True,
+                timeout=60,
+            )
             self.run("research", "down", "--timeout", "10")
             with self.client("data_hub", "data-hub") as data:
                 assert (
