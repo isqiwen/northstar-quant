@@ -146,6 +146,12 @@ def require_current_database(engine: Engine) -> None:
         "data_sources",
         "data_processing_attempts",
         "data_sync_jobs",
+        "data_sync_settings",
+        "data_sync_receipts",
+        "data_sync_coverage",
+        "data_sync_contracts",
+        "data_sync_calendar",
+        "data_sync_attempts",
         "data_admission_rejections",
         "data_backups",
         "broker_query_batches",
@@ -179,6 +185,10 @@ def require_current_database(engine: Engine) -> None:
 def _require_git_identity_columns(connection: Connection) -> None:
     inspector = inspect(connection)
     present = set(inspector.get_table_names())
+    if "data_sync_jobs" in present and "identity" not in {
+        c["name"] for c in inspector.get_columns("data_sync_jobs")
+    }:
+        raise ValueError("旧单次同步数据库不能用于自动同步；请保全备份后使用当前结构的新库")
     for table in (
         "research_runs",
         "paper_sessions",

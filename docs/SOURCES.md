@@ -6,17 +6,21 @@
 
 ## Tushare 历史研究数据
 
-用户已确认期货历史分钟权限及个人研究/本地留存范围。Data Hub 主线为文件导入、Tushare 首次历史同步与盘后增量，
-不建设实时录制系统。token 仅由 Data worker 的私有配置读取；不存入任务、网页或公开仓库。
+用户已确认期货历史分钟权限及个人研究/本地留存范围。Data Hub 只支持 Tushare 全部期货历史自动同步；
+不提供手工文件导入、Tick 或实时录制。token 在网页输入后只保存到 core 的私有凭据目录，不回显、不入任务和公开仓库。
 
-[期货历史分钟 ft_mins](https://tushare.pro/document/2?doc_id=313) 提供 1/5/15/30/60 分钟区间查询，单次最多 8,000 行，需要独立权限。
-[HTTP 协议](https://tushare.pro/document/1?doc_id=130) 使用 api_name/token/params/fields 请求以及 code/data.fields/data.items 响应。
-实现仅连接 HTTPS，不回退明文 HTTP；当前无真实 token 配置，外部接口、覆盖、时间标签及日夜盘口径尚未验收。
-官方样例含 09:01 到 15:00 的逆序记录；当前映射明确采用分钟结束标签，须经有权限样本核对，不冒充已确认的首次可得时间。
+适配依据（2026-09-09 核对）：
+- [合约目录](https://tushare.pro/document/2?doc_id=135)与[期货交易日历](https://tushare.pro/document/2?doc_id=467)。
+- [历史分钟](https://tushare.pro/document/2?doc_id=313)：1/5/15/30/60 分钟，单次上限 8,000 行，独立权限。
+- [日线](https://tushare.pro/document/2?doc_id=138)：单次上限 2,000 行，成交额单位万元；分钟成交额单位元。
+- [周/月线](https://tushare.pro/document/2?doc_id=337)、[结算参数](https://tushare.pro/document/2?doc_id=141)、[涨跌停](https://tushare.pro/document/2?doc_id=368)。
+- [仓单](https://tushare.pro/document/2?doc_id=140)、[持仓排名](https://tushare.pro/document/2?doc_id=139)、[主力映射](https://tushare.pro/document/2?doc_id=189)、[复权日线](https://tushare.pro/document/2?doc_id=492)。
+- [南华指数](https://tushare.pro/document/2?doc_id=468)金额为千元，[品种周报](https://tushare.pro/document/2?doc_id=216)金额为亿元。
+- [Tick](https://tushare.pro/document/2?doc_id=314)没有 API，只以网盘交付，因此本站不支持。
 
-项目目前接通有界的一分钟同步任务、原始 JSON、质量与固定发布；15 分钟/日线、分片水位和自动每日增量是后续目标。
-持仓量和成交额本轮仅留存原文；完整结算与有效条款不能从 OHLCV 猜测。研究每次读取本地固定快照，不实时向供应商请求。
-价格、许可与覆盖以实际开通和供应商确认范围为准，不把订阅理解成不限用途授权；无需先购买实时分钟服务来实现盘后历史同步。
+通过固定 HTTPS 地址请求，原始响应、质量和不可变 Parquet 清单保留；网络/权限异常不回显供应商原始消息。
+本轮无真实 token 或付费接口样本，合成响应的故障验收不能证明全部接口权限、覆盖、日夜盘标签或源端就绪时间。
+下载层保留供应商时间标签与 FINAL_REVISED 来源，规范研究输入仍需核对交易日、合约与有效条款。
 
 ## 已有外部样本证据
 

@@ -78,6 +78,12 @@ def clean_database(postgres_engine: Engine) -> None:
             "data_sources",
             "data_processing_attempts",
             "data_sync_jobs",
+            "data_sync_settings",
+            "data_sync_contracts",
+            "data_sync_calendar",
+            "data_sync_receipts",
+            "data_sync_coverage",
+            "data_sync_attempts",
             "data_admission_rejections",
             "data_backups",
             "broker_query_batches",
@@ -99,6 +105,7 @@ def clean_database(postgres_engine: Engine) -> None:
     with postgres_engine.begin() as connection:
         connection.execute(text("SET LOCAL session_replication_role = replica"))
         connection.exec_driver_sql(f"TRUNCATE TABLE {', '.join(quoted)} RESTART IDENTITY CASCADE")
+        connection.exec_driver_sql("INSERT INTO data_sync_settings(singleton) VALUES(true)")
 
 
 @pytest.fixture

@@ -73,6 +73,7 @@ services:
         max-size: 10m
         max-file: '3'
     environment:
+      NORTHSTAR_DATA_SECRET_DIR: /var/lib/northstar/credentials/private
       NORTHSTAR_LOG_DIR: /var/log/northstar
       NORTHSTAR_DATABASE_URL: postgresql+psycopg://northstar_data_hub_app:${NORTHSTAR_DATA_HUB_DATABASE_PASSWORD:?Set
         application password}@${NORTHSTAR_NAS_ADDRESS:-nas.local}:${NORTHSTAR_NAS_DATABASE_PORT:-15432}/northstar_data_hub?connect_timeout=5
@@ -91,6 +92,7 @@ services:
       NORTHSTAR_NAS_ADDRESS: ${NORTHSTAR_NAS_ADDRESS:-nas.local}
       NORTHSTAR_NFS_VERSION: ${NORTHSTAR_NFS_VERSION:-4}
     volumes:
+    - credentials:/var/lib/northstar/credentials
     - logs:/var/log/northstar
     - type: bind
       source: ${NORTHSTAR_SOURCE_MOUNT:-/mnt/northstar/source}
@@ -148,7 +150,7 @@ services:
         max-size: 10m
         max-file: '3'
     environment:
-      NORTHSTAR_TUSHARE_TOKEN: ${NORTHSTAR_TUSHARE_TOKEN:-}
+      NORTHSTAR_DATA_SECRET_DIR: /var/lib/northstar/credentials/private
       NORTHSTAR_LOG_DIR: /var/log/northstar
       NORTHSTAR_DATABASE_URL: postgresql+psycopg://northstar_data_hub_app:${NORTHSTAR_DATA_HUB_DATABASE_PASSWORD:?Set
         application password}@${NORTHSTAR_NAS_ADDRESS:-nas.local}:${NORTHSTAR_NAS_DATABASE_PORT:-15432}/northstar_data_hub?connect_timeout=5
@@ -167,6 +169,7 @@ services:
       NORTHSTAR_NAS_ADDRESS: ${NORTHSTAR_NAS_ADDRESS:-nas.local}
       NORTHSTAR_NFS_VERSION: ${NORTHSTAR_NFS_VERSION:-4}
     volumes:
+    - credentials:/var/lib/northstar/credentials:ro
     - logs:/var/log/northstar
     - type: bind
       source: ${NORTHSTAR_SOURCE_MOUNT:-/mnt/northstar/source}
@@ -299,6 +302,7 @@ services:
     profiles:
     - maintenance
 volumes:
+  credentials: null
   logs: null
 networks:
   frontend:

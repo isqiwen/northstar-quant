@@ -153,7 +153,6 @@ def _process(
                     library._engine,
                     content,
                     spec,
-                    tushare=source["input_kind"] == "TUSHARE_JSON",
                     archive=archive,
                     processing_hash=str(attempt["processing_hash"]),
                     stage=stage,

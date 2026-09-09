@@ -41,9 +41,9 @@ npm --prefix frontend run check
 Next.js 不解释或修改业务消息，不访问数据库，也不持有柜台凭据。
 Python 解码 Protobuf 后进入所属业务校验与操作；风险、账本、授权等判断仍由业务所有者执行。
 
-Data Hub 的 `/api/import` 与 `/api/sources/{id}/reprocess` 返回持久加工尝试，
-新任务为 `PENDING`；客户端通过 `/api/attempts/{id}` 查询进度，只有 `PUBLISHED` 才能作为研究输入。
-请求成功表示已经接收，不能当作加工成功；执行由独立 `data-worker` 完成。重复请求身份返回同一尝试的当前状态。
+Data Hub 的 `/api/sync/token` 是 token 的只写入口，`/api/sync/settings` 只接受设置版本和启停状态；
+`/api/sync` 返回自动同步进度，任务和固定响应分别通过 `/api/sync/jobs/{id}`、`/api/sync/receipts/{id}` 查询。
+没有手工导入、品种/周期选择或 Tick 协议。同步执行归独立 worker，API 不持有下载任务生命周期。
 
 浏览器会话与 CSRF 仍由所属 API 校验，Live 命令还需要 `X-Live-Runtime-Id`。
 请求保留固定身份；超时、断连或无法解码的回执显示结果未知，禁止自动重发。

@@ -1,277 +1,401 @@
-"""Durable historical sync, receipt recovery, source clocks and credential isolation."""
+"""Automatic sync durability, secret isolation and immutable provider revisions."""
 
-import hashlib
 import json
-from concurrent.futures import ThreadPoolExecutor
-from dataclasses import replace
-from datetime import UTC, datetime, timedelta
-from decimal import Decimal
-from pathlib import Path
-from threading import Event
-from uuid import UUID, uuid4
 
-import httpx2 as httpx
+import httpx2
 import pytest
-from sqlalchemy import Engine
+from sqlalchemy import text
 
 from northstar_quant.data_management.files import SourceFiles
 from northstar_quant.data_management.library import DataLibrary
-from northstar_quant.data_management.processing import process_attempt
-from northstar_quant.data_management.research import ImportSpec
-from northstar_quant.data_management.tushare import jobs
-from northstar_quant.data_management.tushare.acquisition import fetch
-from northstar_quant.data_management.tushare.request import FIELDS
-from tests.data_management.test_library import _study
-
-TOKEN = "test-only-tushare-token-never-persist"
-
-
-def spec() -> ImportSpec:
-    data = _study()[1]
-    day = datetime.now(UTC).date() - timedelta(days=1)
-    data.update(
-        exchange="SHFE",
-        symbol="RB2610",
-        source_name="TUSHARE",
-        trading_day=str(day),
-        session_open=f"{day}T01:00:00Z",
-        session_close=f"{day}T01:02:00Z",
-        availability_basis="FINAL_REVISED",
-    )
-    return ImportSpec.from_mapping(data)
-
-
-def document(source: ImportSpec) -> dict:
-    # Provider example is reverse ordered; no silent assumption of ascending input.
-    day = source.trading_day
-    return {
-        "code": 0,
-        "msg": None,
-        "data": {
-            "fields": FIELDS.split(","),
-            "items": [
-                [
-                    f"{source.symbol}.SHF",
-                    f"{day} 09:02:00",
-                    3100.1,
-                    3100.1,
-                    3101.1,
-                    3099.1,
-                    12.0,
-                    100.0,
-                    102.0,
-                ],
-                [
-                    f"{source.symbol}.SHF",
-                    f"{day} 09:01:00",
-                    3100.1,
-                    3100.1,
-                    3101.1,
-                    3099.1,
-                    10.0,
-                    100.0,
-                    101.0,
-                ],
-            ],
-        },
-    }
-
-
-def bind(monkeypatch, content: bytes):
-    requests = []
-
-    def network(request):
-        requests.append(json.loads(request.content))
-        assert str(request.url) == "https://api.tushare.pro"
-        return httpx.Response(200, content=content)
-
-    monkeypatch.setenv("NORTHSTAR_TUSHARE_TOKEN", TOKEN)
-    monkeypatch.setattr(
-        jobs,
-        "fetch",
-        lambda spec, token: fetch(spec, token, transport=httpx.MockTransport(network)),
-    )
-    return requests
-
-
-def test_durable_sync_publishes_original_bytes_and_bar_end_clock(
-    postgres_engine: Engine, clean_database: None, tmp_path: Path, monkeypatch
-):
-    source = replace(spec(), price_tick=Decimal("0.1"))
-    content = json.dumps(document(source)).encode()
-    requests = bind(monkeypatch, content)
-    request_id = uuid4()
-    first = jobs.submit(postgres_engine, source, request_id)
-    assert first["status"] == "PENDING" and requests == []
-    assert jobs.submit(postgres_engine, source, request_id) == first
-    with pytest.raises(ValueError, match="different"):
-        jobs.submit(postgres_engine, replace(source, multiplier=source.multiplier * 2), request_id)
-    # New owner object models an unrelated submission process having exited.
-    library = DataLibrary(postgres_engine, SourceFiles(tmp_path))
-    received = jobs.process_next(library)
-    assert received["status"] == "RECEIVED"
-    assert requests[0]["token"] == TOKEN and requests[0]["api_name"] == "ft_mins"
-    assert requests[0]["params"]["start_date"].endswith("09:01:00")
-    assert jobs.process_next(library) is None
-    assert len(requests) == 1 and TOKEN not in json.dumps(jobs.get(postgres_engine, request_id))
-    result = process_attempt(library)
-    assert result["status"] == "PUBLISHED", result
-    dataset = library.publications.load_dataset(UUID(result["snapshot_id"]))
-    assert len(dataset.bars) == 2
-    assert dataset.bars[0].close == Decimal("3100.1")
-    assert dataset.bars[0].event_time == source.session_open
-    assert dataset.bars[0].available_at == source.session_open + timedelta(minutes=1)
-    assert dataset.details.sources[0].content_hash == hashlib.sha256(content).hexdigest()
-    assert dataset.details.sources[0].input_kind == "TUSHARE_JSON"
-    assert TOKEN not in json.dumps(result)
-
-
-@pytest.mark.parametrize(
-    "fault", ["gap", "duplicate", "contract", "fractional_volume", "null", "row_limit"]
+from northstar_quant.data_management.storage_identity import initialize
+from northstar_quant.data_management.tushare import (
+    acquisition,
+    credentials,
+    jobs,
+    planning,
+    publication,
+    settings,
 )
-def test_bad_source_retained_without_publication(
-    postgres_engine, clean_database, tmp_path, monkeypatch, fault
-):
-    source = spec()
-    value = document(source)
-    rows = value["data"]["items"]
-    if fault == "gap":
-        rows.pop()
-    elif fault == "duplicate":
-        rows[-1] = rows[0]
-    elif fault == "contract":
-        rows[0][0] = "CU2610.SHF"
-    elif fault == "fractional_volume":
-        rows[0][6] = 0.5
-    elif fault == "null":
-        rows[0][2] = None
-    else:
-        value["data"]["items"] = rows * 61
-    content = json.dumps(value).encode()
-    bind(monkeypatch, content)
-    jobs.submit(postgres_engine, source, uuid4())
-    library = DataLibrary(postgres_engine, SourceFiles(tmp_path))
-    assert jobs.process_next(library)["status"] == "RECEIVED"
-    assert process_attempt(library)["status"] == "FAILED"
-    assert library.list_datasets() == ()
-    assert library.list_sources()[0]["content_hash"] == hashlib.sha256(content).hexdigest()
+
+TOKEN = "private-test-token-never-returned"
 
 
-@pytest.mark.parametrize(
-    "fault", ["permission", "http", "large", "reflected", "missing_token", "network"]
-)
-def test_failed_download_does_not_leak_token_or_retry(
-    postgres_engine, clean_database, tmp_path, monkeypatch, fault
-):
-    calls = []
+@pytest.fixture
+def automatic(postgres_engine, clean_database, tmp_path, monkeypatch):
+    from northstar_quant.data_management.tushare.store import initialize as initialize_sync
 
-    def network(request):
-        calls.append(request)
-        if fault == "network":
-            raise httpx.ReadTimeout("upstream " + TOKEN)
-        return httpx.Response(
-            302 if fault == "http" else 200,
-            content=(
-                b"x" * 5242881
-                if fault == "large"
-                else json.dumps(
-                    {"code": 2002, "msg": TOKEN if fault == "reflected" else "denied"}
-                ).encode()
-            ),
+    with postgres_engine.begin() as connection:
+        initialize_sync(connection)
+        connection.execute(
+            text("""UPDATE data_sync_settings SET enabled=true,
+            refresh_at=now()+interval '1 day',next_request_at=now(),revision=1""")
+        )
+    secret = tmp_path / "secrets"
+    monkeypatch.setenv("NORTHSTAR_DATA_SECRET_DIR", str(secret))
+    credentials.save(TOKEN)
+    market = tmp_path / "market"
+    market.mkdir()
+    identity = "8600b795-36d0-44b9-80e3-d3b22e805e92"
+    initialize(market, identity)
+    monkeypatch.setenv("NORTHSTAR_MARKET_DIR", str(market))
+    monkeypatch.setenv("NORTHSTAR_MARKET_STORAGE_ID", identity)
+    with postgres_engine.begin() as connection:
+        connection.execute(
+            text("""INSERT INTO data_sync_contracts
+            (ts_code,exchange,product,kind,details,planned_revision)
+            VALUES('RB2610.SHF','SHFE','RB','1','{}',1)""")
+        )
+        connection.execute(
+            text(
+                "INSERT INTO data_sync_calendar VALUES('SHFE','2026-09-01',true),"
+                "('SHFE','2026-09-02',true)"
+            )
+        )
+    library = DataLibrary(postgres_engine, SourceFiles(tmp_path / "sources"))
+    return library
+
+
+def pending(library, *, start="2026-09-01", end="2026-09-01"):
+    with library._engine.begin() as connection:
+        planning.enqueue(
+            connection,
+            "daily",
+            "RB2610.SHF",
+            {
+                "ts_code": "RB2610.SHF",
+                "start_date": start.replace("-", ""),
+                "end_date": end.replace("-", ""),
+            },
+            start,
+            end,
+        )
+        return str(
+            connection.scalar(
+                text("SELECT request_id FROM data_sync_jobs ORDER BY created_at LIMIT 1")
+            )
         )
 
-    monkeypatch.setenv("NORTHSTAR_TUSHARE_TOKEN", "" if fault == "missing_token" else TOKEN)
-    monkeypatch.setattr(
-        jobs, "fetch", lambda s, t: fetch(s, t, transport=httpx.MockTransport(network))
-    )
-    request_id = uuid4()
-    jobs.submit(postgres_engine, spec(), request_id)
-    library = DataLibrary(postgres_engine, SourceFiles(tmp_path))
+
+def response(price=3100.1):
+    return json.dumps(
+        {
+            "code": 0,
+            "data": {
+                "fields": [
+                    "ts_code",
+                    "trade_date",
+                    "open",
+                    "high",
+                    "low",
+                    "close",
+                    "vol",
+                    "amount",
+                    "oi",
+                ],
+                "items": [["RB2610.SHF", "20260901", price, price, price, price, 2, 1.25, 8]],
+            },
+        }
+    ).encode()
+
+
+def ready(library):
+    with library._engine.begin() as connection:
+        connection.execute(text("UPDATE data_sync_settings SET next_request_at=now()"))
+        connection.execute(
+            text("UPDATE data_sync_jobs SET next_at=now() WHERE status IN ('WAITING','PENDING')")
+        )
+
+
+def mock_download(monkeypatch, content):
+    def fetch(api, parameters, token):
+        def handle(request):
+            assert json.loads(request.content)["token"] == TOKEN
+            return httpx2.Response(200, content=content)
+
+        return acquisition.fetch(api, parameters, token, transport=httpx2.MockTransport(handle))
+
+    monkeypatch.setattr(jobs.acquisition, "fetch", fetch)
+
+
+def test_commit_retry_revision_and_backup_pins(automatic, monkeypatch):
+    library = automatic
+    pending(library)
+    monkeypatch.setattr(acquisition, "fetch", lambda *a: response())
     result = jobs.process_next(library)
-    assert result["status"] == "FAILED" and TOKEN not in json.dumps(result)
-    assert jobs.process_next(library) is None
-    assert jobs.submit(postgres_engine, spec(), request_id) == result
-    assert len(calls) == (0 if fault == "missing_token" else 1)
-    assert library.list_sources() == []
+    assert result["status"] == "VALIDATED"
+    with library._engine.connect() as connection:
+        row = connection.execute(text("SELECT * FROM data_sync_receipts")).mappings().one()
+    snapshot = publication.read_snapshot(row["manifest_hash"], row["manifest_bytes"])
+    assert snapshot["rows"][0]["amount_cny"] == "12500.00"
+    assert snapshot["rows"][0]["close"] == "3100.1"
+    original = row["manifest_hash"]
+    # Missing coverage is discovered independently of maximum observed date.
+    with library._engine.begin() as connection:
+        connection.execute(text("DELETE FROM data_sync_coverage"))
+        connection.execute(text("UPDATE data_sync_settings SET refresh_at=now()"))
+    planning.refresh(library._engine)
+    with library._engine.begin() as connection:
+        # Keep bootstrap catalog jobs outside this focused delivery test.
+        connection.execute(
+            text(
+                "UPDATE data_sync_jobs SET next_at=now()+interval '1 day' WHERE dataset='contracts'"
+            )
+        )
+    ready(library)
+    with library._engine.begin() as connection:
+        connection.execute(
+            text(
+                "UPDATE data_sync_jobs SET next_at=now()+interval '1 day' WHERE dataset='contracts'"
+            )
+        )
+    assert jobs.process_next(library)["status"] == "VALIDATED"
+    with library._engine.connect() as connection:
+        assert connection.scalar(text("SELECT count(*) FROM data_sync_receipts")) == 1
+    with library._engine.begin() as connection:
+        connection.execute(text("UPDATE data_sync_jobs SET status='PENDING' WHERE dataset='daily'"))
+    monkeypatch.setattr(acquisition, "fetch", lambda *a: response(3101.2))
+    ready(library)
+    with library._engine.begin() as connection:
+        connection.execute(
+            text(
+                "UPDATE data_sync_jobs SET next_at=now()+interval '1 day' WHERE dataset='contracts'"
+            )
+        )
+    jobs.process_next(library)
+    assert publication.read_snapshot(original, row["manifest_bytes"]) == snapshot
+    from northstar_quant.data_management.library import manifest
+
+    with library._engine.connect() as connection:
+        assert connection.scalar(text("SELECT count(*) FROM data_sync_receipts")) == 2
+        references = manifest(connection)
+        assert len(references) >= 6
+    for item in references:
+        library._files.read(item["content_hash"], item["byte_count"])
 
 
-@pytest.mark.parametrize("after_receipt", [False, True])
-def test_interrupted_download_recovery_never_blindly_redownloads(
-    postgres_engine, clean_database, tmp_path, monkeypatch, after_receipt
-):
-    bind(monkeypatch, json.dumps(document(spec())).encode())
-    request_id = uuid4()
-    jobs.submit(postgres_engine, spec(), request_id)
-    library = DataLibrary(postgres_engine, SourceFiles(tmp_path))
-    with monkeypatch.context() as context:
-        if after_receipt:
-            original = library.submit
+@pytest.mark.parametrize("stage", ["download", "commit"])
+def test_process_death_requeues_only_uncommitted_work(automatic, monkeypatch, stage):
+    library = automatic
+    pending(library)
+    original = jobs._commit
+    monkeypatch.setattr(acquisition, "fetch", lambda *a: response())
+    if stage == "download":
 
-            def crash(*args, **kwargs):
-                original(*args, **kwargs)
-                raise KeyboardInterrupt()
+        def interrupted(*args):
+            raise KeyboardInterrupt()
 
-            context.setattr(library, "submit", crash)
-        else:
+        monkeypatch.setattr(acquisition, "fetch", interrupted)
+    else:
 
-            def crash(*args, **kwargs):
-                raise KeyboardInterrupt()
+        def interrupted_commit(*args):
+            original(*args)
+            raise KeyboardInterrupt()
 
-            context.setattr(jobs, "fetch", crash)
-        with pytest.raises(KeyboardInterrupt):
-            jobs.process_next(library)
-    assert jobs.get(postgres_engine, request_id)["status"] == "RUNNING"
-
-    def no_download(*args):
-        raise AssertionError("must not repeat network access")
-
-    monkeypatch.setattr(jobs, "fetch", no_download)
-    assert jobs.process_next(DataLibrary(postgres_engine, SourceFiles(tmp_path))) is None
-    result = jobs.get(postgres_engine, request_id)
-    assert result["status"] == ("RECEIVED" if after_receipt else "FAILED")
+        monkeypatch.setattr(jobs, "_commit", interrupted_commit)
+    with pytest.raises(KeyboardInterrupt):
+        jobs.process_next(library)
+    monkeypatch.setattr(acquisition, "fetch", lambda *a: response())
+    monkeypatch.setattr(jobs, "_commit", original)
+    ready(library)
+    result = jobs.process_next(library)
+    assert result is None if stage == "commit" else result["status"] == "VALIDATED"
+    with library._engine.connect() as connection:
+        assert connection.scalar(text("SELECT count(*) FROM data_sync_receipts")) == 1
+        assert connection.scalar(text("SELECT count(*) FROM data_sync_coverage")) == 1
 
 
-def test_active_download_excludes_second_worker_and_keeps_submission_available(
-    postgres_engine, clean_database, tmp_path, monkeypatch
-):
-    started, release = Event(), Event()
-    content = json.dumps(document(spec())).encode()
+def test_row_limit_splits_and_empty_does_not_complete(automatic, monkeypatch):
+    library = automatic
+    pending(library, end="2026-09-02")
+    payload = json.loads(response())
+    payload["data"]["items"] *= 2000
+    monkeypatch.setattr(acquisition, "fetch", lambda *a: json.dumps(payload).encode())
+    assert jobs.process_next(library)["status"] == "SPLIT"
+    payload["data"]["items"] = []
+    monkeypatch.setattr(acquisition, "fetch", lambda *a: json.dumps(payload).encode())
+    ready(library)
+    assert jobs.process_next(library)["status"] == "WAITING"
+    with library._engine.connect() as connection:
+        assert connection.scalar(text("SELECT count(*) FROM data_sync_coverage")) == 0
 
-    def hold(*args):
-        started.set()
+
+def test_failed_storage_does_not_advance_coverage(automatic, monkeypatch):
+    pending(automatic)
+    monkeypatch.setattr(acquisition, "fetch", lambda *a: response())
+    monkeypatch.setattr(
+        publication, "publish", lambda *a: (_ for _ in ()).throw(OSError("disk full"))
+    )
+    assert jobs.process_next(automatic)["status"] == "BLOCKED"
+    with automatic._engine.connect() as connection:
+        assert connection.scalar(text("SELECT count(*) FROM data_sync_coverage")) == 0
+
+
+def test_ui_token_is_write_only_and_manual_interfaces_are_absent(automatic):
+    from northstar_quant.apps.data_hub import create_app
+    from tests.apps.browser import ProtocolClient as TestClient
+
+    app = create_app(automatic._engine, automatic)
+    with TestClient(app, base_url="http://127.0.0.1") as client:
+        assert client.post("/api/sync/token", json={"token": TOKEN}).status_code == 403
+        csrf = client.get("/api/browser-session").json()["csrf"]
+        client.headers.update({"x-northstar-csrf": csrf, "origin": "http://127.0.0.1"})
+        saved = client.post("/api/sync/token", json={"token": TOKEN})
+        assert saved.status_code == 200, saved.text
+        assert TOKEN not in saved.text
+        assert saved.json()["token_configured"]
+        for path in (
+            "/api/import",
+            "/api/sync/tushare",
+            "/api/sources/8600b795-36d0-44b9-80e3-d3b22e805e92/reprocess",
+        ):
+            assert client.post(path, json={}).status_code in (404, 405)
+        config = saved.json()["settings"]
+        assert client.post(
+            "/api/sync/settings",
+            json={"revision": config["revision"], "enabled": False, "products": ["RB"]},
+        ).status_code in (400, 422)
+        assert (
+            client.post(
+                "/api/sync/settings", json={"revision": config["revision"], "enabled": False}
+            ).status_code
+            == 200
+        )
+    assert (credentials.root() / "tushare.token").stat().st_mode & 0o077 == 0
+
+
+@pytest.mark.parametrize("mode", ["reflect", "permission", "timeout"])
+def test_no_secret_in_network_errors(mode):
+    def handle(request):
+        if mode == "timeout":
+            raise httpx2.ReadTimeout(TOKEN)
+        if mode == "reflect":
+            return httpx2.Response(200, content=TOKEN.encode())
+        return httpx2.Response(200, json={"code": 2002, "msg": TOKEN})
+
+    with pytest.raises(acquisition.DownloadError) as caught:
+        acquisition.fetch("fut_daily", {}, TOKEN, transport=httpx2.MockTransport(handle))
+    assert TOKEN not in str(caught.value)
+
+
+def test_planning_all_capabilities_is_idempotent_and_stops_at_expiry(automatic, monkeypatch):
+    from datetime import date
+
+    from northstar_quant.data_management.tushare.catalog import BY_KEY
+
+    monkeypatch.setattr(planning, "target_day", lambda: date(2026, 9, 9))
+    with automatic._engine.begin() as connection:
+        connection.execute(text("DELETE FROM data_sync_contracts"))
+        for kind, code in [("1", "RB2609.SHF"), ("2", "RB.SHF")]:
+            connection.execute(
+                text("""INSERT INTO data_sync_contracts(ts_code,exchange,product,kind,details)
+                VALUES(:code,'SHFE','RB',:kind,CAST(:details AS jsonb))"""),
+                {
+                    "code": code,
+                    "kind": kind,
+                    "details": json.dumps({"list_date": "20260901", "delist_date": "20260903"}),
+                },
+            )
+    planning.plan(automatic._engine)
+    with automatic._engine.connect() as connection:
+        rows = connection.execute(text("SELECT * FROM data_sync_jobs")).mappings().all()
+        count = len(rows)
+        assert {row["dataset"] for row in rows} == set(BY_KEY) - {"contracts"}
+        assert all(
+            row["end_at"] <= "2026-09-03"
+            for row in rows
+            if row["dataset"] not in ("calendar", "holdings", "warehouse", "index", "weekly_detail")
+        )
+    planning.plan(automatic._engine)
+    with automatic._engine.connect() as connection:
+        assert connection.scalar(text("SELECT count(*) FROM data_sync_jobs")) == count
+
+
+def test_parallel_worker_cannot_take_active_request_and_pause_is_responsive(automatic, monkeypatch):
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Event
+
+    pending(automatic)
+    entered, release = Event(), Event()
+
+    def fetch(*args):
+        entered.set()
         assert release.wait(10)
-        return content
+        return response()
 
-    monkeypatch.setattr(jobs, "fetch", hold)
-    jobs.submit(postgres_engine, spec(), uuid4())
-    library = DataLibrary(postgres_engine, SourceFiles(tmp_path))
-    with ThreadPoolExecutor(max_workers=1) as pool:
-        worker = pool.submit(jobs.process_next, library)
+    monkeypatch.setattr(acquisition, "fetch", fetch)
+    with ThreadPoolExecutor() as pool:
+        first = pool.submit(jobs.process_next, automatic)
+        assert entered.wait(10)
         try:
-            assert started.wait(5)
-            assert jobs.process_next(library) is None
-            assert jobs.submit(postgres_engine, spec(), uuid4())["status"] == "PENDING"
+            assert jobs.process_next(automatic) is None
+            config = settings.status(automatic._engine)["settings"]
+            settings.configure(automatic._engine, revision=config["revision"], enabled=False)
         finally:
             release.set()
-        assert worker.result()["status"] == "RECEIVED"
+        assert first.result()["status"] == "VALIDATED"
+    assert jobs.process_next(automatic) is None
 
 
-def test_sync_api_requires_csrf_and_returns_durable_job(postgres_engine, clean_database, tmp_path):
-    from northstar_quant.apps.data_hub import create_app
-    from tests.apps.browser import ProtocolClient, _browser_session
+def test_files_saved_before_commit_can_be_reused_after_crash(automatic, monkeypatch):
+    pending(automatic)
+    monkeypatch.setattr(acquisition, "fetch", lambda *args: response())
+    original = jobs._commit
+    monkeypatch.setattr(jobs, "_commit", lambda *args: (_ for _ in ()).throw(KeyboardInterrupt()))
+    with pytest.raises(KeyboardInterrupt):
+        jobs.process_next(automatic)
+    inventory = automatic._files.inventory()
+    assert len(inventory) == 3
+    ready(automatic)
+    monkeypatch.setattr(jobs, "_commit", original)
+    assert jobs.process_next(automatic)["status"] == "VALIDATED"
+    assert automatic._files.inventory() == inventory
 
-    library = DataLibrary(postgres_engine, SourceFiles(tmp_path))
-    request_id = str(uuid4())
-    payload = {"request_id": request_id, "spec": spec().to_mapping()}
-    with ProtocolClient(
-        create_app(postgres_engine, library), base_url="http://127.0.0.1"
-    ) as client:
-        assert client.post("/api/sync/tushare", json=payload).status_code == 403
-        assert jobs.recent(postgres_engine) == []
-        _browser_session(client)
-        response = client.post("/api/sync/tushare", json=payload)
-        assert response.status_code == 200, response.text
-        assert response.json()["status"] == "PENDING"
-        assert client.get(f"/api/sync/{request_id}").json() == response.json()
-        assert client.get("/api/sync").json() == [response.json()]
-        assert client.post("/api/sync/tushare", json=payload).json() == response.json()
+
+def test_stale_generation_cannot_publish_after_recovery(automatic, monkeypatch):
+    from uuid import uuid4
+
+    pending(automatic)
+    monkeypatch.setattr(acquisition, "fetch", lambda *args: response())
+    original = jobs._commit
+
+    def lost_owner(engine, selected, *args):
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    "UPDATE data_sync_jobs SET generation=:g,status='WAITING' WHERE request_id=:id"
+                ),
+                {"g": uuid4(), "id": selected["request_id"]},
+            )
+        original(engine, selected, *args)
+
+    monkeypatch.setattr(jobs, "_commit", lost_owner)
+    assert jobs.process_next(automatic)["status"] == "WAITING"
+    with automatic._engine.connect() as connection:
+        assert connection.scalar(text("SELECT count(*) FROM data_sync_receipts")) == 0
+
+
+def test_daily_missing_middle_day_cannot_advance_coverage(automatic, monkeypatch):
+    pending(automatic, end="2026-09-02")
+    monkeypatch.setattr(acquisition, "fetch", lambda *args: response())
+    assert jobs.process_next(automatic)["status"] == "WAITING"
+    with automatic._engine.connect() as connection:
+        assert connection.scalar(text("SELECT count(*) FROM data_sync_coverage")) == 0
+
+
+def test_joint_restore_preserves_downloads_and_fixed_publication(automatic, monkeypatch, tmp_path):
+    from northstar_quant.apps.maintenance import backup, restore
+    from tests.apps.test_maintenance import _empty_restore_database
+
+    pending(automatic)
+    monkeypatch.setattr(acquisition, "fetch", lambda *args: response())
+    assert jobs.process_next(automatic)["status"] == "VALIDATED"
+    destination = tmp_path / "backup"
+    backup(automatic._engine, automatic._files, destination)
+    with _empty_restore_database(automatic._engine) as restored:
+        restore(restored, tmp_path / "restored-sources", destination)
+        with restored.connect() as connection:
+            row = connection.execute(text("SELECT * FROM data_sync_receipts")).mappings().one()
+        assert (
+            publication.read_snapshot(row["manifest_hash"], row["manifest_bytes"])["row_count"] == 1
+        )

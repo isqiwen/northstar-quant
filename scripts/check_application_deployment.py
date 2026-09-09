@@ -131,23 +131,31 @@ class Deployment:
             source = settings["source"]
             filename = source.pop("file")
             with self.client("data_hub", "data-hub") as data:
-                pending = request(
-                    data,
-                    "data_hub",
-                    "/api/import",
-                    {
-                        "content_base64": base64.b64encode(
-                            (ROOT / "examples" / filename).read_bytes()
-                        ).decode(),
-                        "filename": filename,
-                        "source_name": source["source_name"],
-                        **settings["archive"],
-                        "spec": source,
-                        "request_id": str(uuid4()),
-                        "upstream_source_id": None,
-                        "transformation_note": None,
-                    },
+                # Seed synthetic research evidence inside the installed test container.
+                # Data Hub has no public/manual file upload endpoint.
+                payload = {
+                    "content_base64": base64.b64encode(
+                        (ROOT / "examples" / filename).read_bytes()
+                    ).decode(),
+                    "filename": filename,
+                    "source_name": source["source_name"],
+                    **settings["archive"],
+                    "spec": source,
+                    "request_id": str(uuid4()),
+                }
+                code = f"""
+import base64,json
+from northstar_quant.apps.storage import open_database
+from northstar_quant.data_management.files import SourceFiles
+from northstar_quant.data_management.library import DataLibrary
+payload=json.loads({json.dumps(payload)!r})
+content=base64.b64decode(payload.pop('content_base64'))
+print(json.dumps(DataLibrary(open_database(),SourceFiles.from_environment()).submit(content,**payload)))
+"""
+                pending = json.loads(
+                    self.run("data_hub", "exec", "-T", "data-api", "python", "-c", code)
                 )
+                assert request(data, "data_hub", "/api/sync")["token_configured"] is False
                 assert pending["status"] == "PENDING"
             # Work admitted by the API must complete after both Web containers stop.
             self.run("data_hub", "stop", "data-hub", "data-api")

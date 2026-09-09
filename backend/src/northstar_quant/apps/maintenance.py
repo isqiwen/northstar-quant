@@ -249,6 +249,9 @@ def restore(
     # Failed processing still owns admitted sources. Verify their links to the
     # retained broker prefix too, not only archives reached by publications.
     library.verify_sources()
+    from northstar_quant.data_management.tushare.retention import restore_publications
+
+    restore_publications(engine, target)
     with engine.connect() as connection:
         restored = manifest(connection)
         baseline = connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()

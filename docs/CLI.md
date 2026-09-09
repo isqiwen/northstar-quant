@@ -22,7 +22,7 @@ API 和内核的 `serve` 命令支持 `--port`，仅监听本机；`data-worker`
 ## 数据与研究自动化
 
 ```sh
-northstar data import examples/intraday.toml
+northstar data sync
 northstar data datasets
 northstar data dataset <snapshot-id>
 northstar research run <snapshot-id> --study examples/intraday.toml
@@ -31,9 +31,9 @@ northstar research show <run-id>
 northstar research replay <run-id>
 ```
 
-`data import <study.toml>` 在 Data Hub 发布固定快照；`research run <snapshot_id>` 在 Research 消费发布产物，两者使用各自数据库账号。
-CLI 导入和重新加工调用数据业务的持久接收、认领和加工，等待结果退出；网页仅排队，由 `data-worker` 执行。
-两者复用来源及失败证据，不另建采集或回测实现。
+在 Data Hub 网页配置 token 并启用全部历史同步；`data sync` 只查询持久进度。
+`research run <snapshot_id>` 消费已具备研究语义的固定快照，使用 Research 自己的数据库。
+没有 CLI 文件导入、手工重处理或指定区间下载命令。
 `research configure` / `research configurations` 管理固定配置；
 `research paper` 下的 `create`、`list`、`show`、`next` 操作文件回放模拟账户。
 
@@ -68,31 +68,18 @@ CLI 把 Live 操作交给所属运行时，最终权限、状态和业务约束�
 每一级都支持 `--help`，例如 `northstar research paper create --help`。
 金额参数使用精确十进制文本，身份参数使用 UUID。要求 `--request-id` 的命令必须提供固定身份；
 超时或断连后先用 `advanced receipt` 查询，不自动生成新身份或重发未知命令。
-数据导入可省略请求身份；需要重试去重时应显式提供并复用它。
 
 操作结果输出 JSON，错误写入标准错误。退出码 0 表示完成并满足对应检查条件；
 退出码 2 表示参数错误、运行失败或未满足检查条件。服务启动命令持续运行。
 只维护当前分组命令，不接受旧的平铺命令别名。
 
-## Tushare 历史同步
+## Tushare 自动同步
 
-先使用 Data Hub 数据库维护账号运行 `northstar maintenance init-db` 安装当前同步表与来源约束。
-在 Data Hub 私有部署配置中填写 `NORTHSTAR_TUSHARE_TOKEN`，仅 data-worker 使用，不提交 token 到仓库。
-已有 EDB 实测记录的开发库不能自动转换成 Tushare 来源；本轮不修改个人数据库或旧原文。
-
-```bash
-northstar data sync-tushare examples/tushare.toml --request-id <本次请求UUID>
+```sh
+northstar data sync
 northstar serve data-worker
-northstar data sync <请求UUID>
-northstar data attempt <任务返回的attempt_id>
 ```
 
-已有 worker 时不重复启动。网页入口为 Data Hub 首页 → Tushare 历史同步，提交同一类任务并查看最近状态。
-CLI 提交返回 PENDING，先持久任务、后下载；RECEIVED 表示原文已进入加工，是否发布要查看加工结果。
-下载失败或中断保留失败任务，需要明确新建请求；同 UUID 同参数返回原记录，不因重试重复下载。
-
-配置只含 `[source]`，无需本地 CSV 或研究参数。示例是北京时间 13:30–15:00，两个时刻使用 UTC。
-当前只支持过去日期、最长两小时的连续 SHFE 日盘一分钟范围，不能跨午休或夜盘；缺失/重复分钟不补造。
-Tushare trade_time 按分钟结束解释，FINAL_REVISED 表示假定完成时可得，实际样本口径仍须核对。
-当前没有定时增量/自动分片/水位和 15 分钟到日线完整输入支持，不能将有界同步当成全部功能已完成。
-Data Hub 不提供实时录制命令，Live 的行情与交易命令仍由独立 Live 拥有。
+worker 由部署系统独立监管，已有 worker 时不重复启动。网页设置 token、开始/暂停或重试异常任务；
+不支持选择品种、级别、Tick 或上传文件。同步全部可用期货历史接口，缺少权限明确显示。
+`data sync` 输出进度、区间及失败原因，不输出 token。暂停在当前分片提交后停止认领，重启后保留设置与任务。

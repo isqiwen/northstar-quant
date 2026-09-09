@@ -79,3 +79,10 @@ class ProtocolClient(TestClient):
             response._content = json.dumps(value).encode()
             response.headers["content-type"] = "application/json"
         return response
+
+
+def _seed_source(library, payload):
+    """Synthetic test setup through the data owner, never a public file-upload route."""
+    payload = dict(payload)
+    content = base64.b64decode(payload.pop("content_base64"))
+    return library.submit(content, **payload)

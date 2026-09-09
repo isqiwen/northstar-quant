@@ -4,6 +4,8 @@ import logging
 import signal
 from threading import Event
 
+from sqlalchemy import text
+
 from northstar_quant.apps.storage import open_database, require_current_database
 from northstar_quant.data_management.files import SourceFiles
 from northstar_quant.data_management.library import DataLibrary
@@ -22,6 +24,9 @@ def run() -> None:
         engine = open_database()
         require_current_database(engine)
         library = DataLibrary(engine, SourceFiles.from_environment())
+        # Reconcile coverage on startup; retain per-request backoff across restarts.
+        with engine.begin() as connection:
+            connection.execute(text("UPDATE data_sync_settings SET refresh_at=now()"))
         # One bounded operation holds the existing publication lock. Pending
         # receipts remain independent; no in-memory queue or expiry-based takeover.
         while not stop.is_set():

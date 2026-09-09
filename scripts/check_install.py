@@ -105,12 +105,12 @@ def main() -> None:
                         flush=True,
                     )
                 runs_before_import = command("research", "list")
-                attempt = command("data", "import", str(study))
+                attempt = application.seed_study(study)
                 assert attempt["status"] == "PUBLISHED", attempt
                 snapshot_id = attempt["snapshot_id"]
                 data = command("data", "dataset", snapshot_id)
                 assert command("research", "list") == runs_before_import
-                repeated = command("data", "import", str(study))
+                repeated = application.seed_study(study)
                 committed = not attempt["code_revision"].endswith("-dirty")
                 assert (repeated["snapshot_id"] == snapshot_id) is committed
                 assert repeated["attempt_id"] != attempt["attempt_id"]
@@ -149,7 +149,7 @@ def main() -> None:
                 assert (
                     command("research", "run", snapshot_id, "--study", str(research_study)) == saved
                 )
-                reimported = command("data", "import", str(study))
+                reimported = application.seed_study(study)
                 reimported_run = command(
                     "research", "run", reimported["snapshot_id"], "--study", str(study)
                 )
@@ -202,23 +202,18 @@ def main() -> None:
 
                 # Admit while no worker exists, close the entire API, then process.
                 with application.api("data-api") as intake:
-                    pending = json.loads(
-                        request(
-                            intake + "/api/import",
-                            {
-                                "content_base64": base64.b64encode(csv).decode("ascii"),
-                                "filename": source_file,
-                                "source_name": source["source_name"],
-                                "use_basis": settings["archive"]["use_basis"],
-                                "allow_retention": True,
-                                "allow_download": True,
-                                "input_kind": "RECEIVED_CSV",
-                                "upstream_source_id": None,
-                                "transformation_note": None,
-                                "spec": source,
-                                "request_id": str(uuid4()),
-                            },
-                        )
+                    pending = application.seed_source(
+                        {
+                            "content_base64": base64.b64encode(csv).decode(),
+                            "filename": source_file,
+                            "source_name": source["source_name"],
+                            "use_basis": settings["archive"]["use_basis"],
+                            "allow_retention": True,
+                            "allow_download": True,
+                            "input_kind": "RECEIVED_CSV",
+                            "spec": source,
+                            "request_id": str(uuid4()),
+                        }
                     )
                     assert pending["status"] == "PENDING"
                 assert application.api_processes[intake].poll() is not None
@@ -234,7 +229,7 @@ def main() -> None:
                             == completed
                         )
                 print(
-                    "Installed Data: persisted admission completed with API stopped",
+                    "Installed Data: synthetic processing completed with API stopped",
                     flush=True,
                 )
 
@@ -259,7 +254,7 @@ def main() -> None:
                         "spec": source,
                         "request_id": str(uuid4()),
                     }
-                    imported = json.loads(request(f"{base_url}/api/import", upload))
+                    imported = application.seed_source(upload)
                     assert imported["status"] in {"PENDING", "RUNNING", "PUBLISHED"}, imported
                     imported = application.await_attempt(imported)
                     assert imported["status"] == "PUBLISHED", imported
@@ -267,20 +262,15 @@ def main() -> None:
                     assert (
                         request(f"{base_url}/api/sources/{imported['source_id']}/download") == csv
                     )
-                    assert json.loads(request(f"{base_url}/api/import", upload)) == imported
+                    assert application.seed_source(upload) == imported
                     invalid = dict(
                         upload, request_id=str(uuid4()), spec=dict(source, price_tick="invalid")
                     )
-                    failed = json.loads(request(f"{base_url}/api/import", invalid))
+                    failed = application.seed_source(invalid)
                     failed = application.await_attempt(failed)
                     assert failed["status"] == "FAILED", failed
                     assert request(f"{base_url}/api/attempts/{failed['attempt_id']}")
-                    repaired = json.loads(
-                        request(
-                            f"{base_url}/api/sources/{failed['source_id']}/reprocess",
-                            {"spec": source, "request_id": str(uuid4())},
-                        )
-                    )
+                    repaired = application.seed_source({**upload, "request_id": str(uuid4())})
                     repaired = application.await_attempt(repaired)
                     assert repaired["status"] == "PUBLISHED"
                     assert (repaired["snapshot_id"] == snapshot_id) is saved["committed_code"]

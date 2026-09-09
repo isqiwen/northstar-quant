@@ -1,67 +1,103 @@
-"""Bounded authenticated historical HTTP download; never persist or echo credentials."""
+"""Bounded HTTPS requests; provider messages and credentials never enter errors."""
 
 import json
-from time import monotonic
+import time
+from decimal import Decimal
+from typing import Any, cast
 
-import httpx2 as httpx
+import httpx2
 
-from ..research import ImportSpec
-from .request import ENDPOINT, FIELDS, parameters
+from .credentials import validate
+
+ENDPOINT = "https://api.tushare.pro"
 
 
-def fetch(spec: ImportSpec, token: str, *, transport: httpx.BaseTransport | None = None) -> bytes:
-    if (
-        not isinstance(token, str)
-        or not token.strip()
-        or not 16 <= len(token) <= 512
-        or not token.isascii()
-    ):
-        raise ValueError("NORTHSTAR_TUSHARE_TOKEN must be configured on the Data worker")
+class DownloadError(ValueError):
+    def __init__(self, reason: str, *, retry: bool = False) -> None:
+        super().__init__(reason)
+        self.retry = retry
+
+
+class ResponseLimit(DownloadError):
+    pass
+
+
+def fetch(
+    api: str,
+    parameters: dict[str, object],
+    token: str,
+    *,
+    transport: httpx2.BaseTransport | None = None,
+) -> bytes:
+    validate(token)
+    started = time.monotonic()
     try:
-        with httpx.Client(
+        with httpx2.Client(
+            transport=transport,
             timeout=10,
             follow_redirects=False,
             trust_env=False,
-            transport=transport,
             headers={"Accept-Encoding": "identity"},
         ) as client:
-            deadline = monotonic() + 30
             with client.stream(
                 "POST",
                 ENDPOINT,
-                json={
-                    "api_name": "ft_mins",
-                    "token": token,
-                    "params": parameters(spec),
-                    "fields": FIELDS,
-                },
+                json={"api_name": api, "params": parameters, "token": token, "fields": ""},
             ) as response:
                 if response.status_code != 200:
-                    raise ValueError(f"Tushare HTTP {response.status_code}; no automatic retry")
+                    raise DownloadError(
+                        f"Tushare HTTP {response.status_code}",
+                        retry=response.status_code == 429 or response.status_code >= 500,
+                    )
                 if response.headers.get("content-encoding", "identity") != "identity":
-                    raise ValueError("Tushare returned unsupported compressed content")
-                chunks: list[bytes] = []
-                size = 0
+                    raise DownloadError("Tushare 返回了不支持的压缩响应")
+                content = bytearray()
                 for chunk in response.iter_bytes():
-                    size += len(chunk)
-                    if size > 5242880 or monotonic() > deadline:
-                        raise ValueError("Tushare response exceeded byte or elapsed-time limit")
-                    chunks.append(chunk)
-                content = b"".join(chunks)
-    except httpx.HTTPError:
-        raise ValueError(
-            "Tushare download failed; inspect connectivity, not request bodies"
-        ) from None
-    # Reject reflected credentials rather than saving them as source/error evidence.
+                    content.extend(chunk)
+                    if len(content) > 5 * 1024**2:
+                        raise ResponseLimit("响应超过 5 MiB；需要更小区间")
+                    if time.monotonic() - started > 30:
+                        raise DownloadError("Tushare 请求超时", retry=True)
+    except httpx2.HTTPError:
+        raise DownloadError("Tushare 网络请求失败", retry=True) from None
     if token.encode() in content or json.dumps(token)[1:-1].encode() in content:
-        raise ValueError("Tushare response cannot be retained because it reflects credentials")
+        raise DownloadError("Tushare 响应包含凭据，已拒绝保存")
+    decode(bytes(content))
+    return bytes(content)
+
+
+def decode(content: bytes) -> dict[str, Any]:
     try:
-        document = json.loads(content)
-    except (ValueError, UnicodeError, RecursionError):
-        raise ValueError("Tushare returned invalid JSON") from None
-    if not isinstance(document, dict) or type(document.get("code")) is not int:
-        raise ValueError("Tushare response is missing a valid result code")
-    if document["code"] != 0:
-        # Upstream msg may contain credentials; persist only a validated numerical code.
-        raise ValueError(f"Tushare API code {document['code']}; check permission or quota")
-    return content
+        document = json.loads(
+            content,
+            parse_float=Decimal,
+            parse_constant=lambda _: (_ for _ in ()).throw(ValueError()),
+        )
+        if not isinstance(document, dict) or type(document.get("code")) is not int:
+            raise ValueError()
+        if document["code"]:
+            # Classify only locally; never propagate the provider's raw message.
+            msg = str(document.get("msg", ""))
+            rate = any(word in msg for word in ("频次", "每分钟", "每小时", "每秒"))
+            raise DownloadError(
+                "Tushare 限频，等待退避重试"
+                if rate
+                else f"Tushare 权限或请求异常（代码 {document['code']}）",
+                retry=rate,
+            )
+        data = document["data"]
+        fields, items = data["fields"], data["items"]
+        if (
+            not isinstance(fields, list)
+            or not fields
+            or len(fields) != len(set(fields))
+            or not all(isinstance(f, str) for f in fields)
+            or not isinstance(items, list)
+            or any(not isinstance(row, list) or len(row) != len(fields) for row in items)
+        ):
+            raise ValueError()
+        return cast(dict[str, Any], data)
+    except DownloadError:
+        raise
+    except (ValueError, KeyError, TypeError):
+        raise DownloadError("Tushare 响应结构异常，暂停此类数据") from None

@@ -68,20 +68,6 @@ message HttpError {
   repeated string null_fields = 2046;
 }
 
-message ImportRequest {
-  optional bool allow_download = 1 [json_name = "allow_download", (northstar.web.required_field) = true];
-  optional bool allow_retention = 2 [json_name = "allow_retention", (northstar.web.required_field) = true];
-  optional string content_base64 = 3 [json_name = "content_base64", (northstar.web.required_field) = true];
-  optional string filename = 4 [json_name = "filename", (northstar.web.required_field) = true];
-  optional string input_kind = 5 [json_name = "input_kind", (northstar.web.required_field) = true];
-  optional string request_id = 6 [json_name = "request_id", (northstar.web.required_field) = true];
-  optional string source_name = 7 [json_name = "source_name", (northstar.web.required_field) = true];
-  optional google.protobuf.Struct spec = 8 [json_name = "spec", (northstar.web.required_field) = true];
-  optional string transformation_note = 9 [json_name = "transformation_note", (northstar.web.required_field) = true, (northstar.web.nullable) = true];
-  optional string upstream_source_id = 10 [json_name = "upstream_source_id", (northstar.web.required_field) = true, (northstar.web.nullable) = true];
-  optional string use_basis = 11 [json_name = "use_basis", (northstar.web.required_field) = true];
-  repeated string null_fields = 2046;
-}
 
 message ImportSpecification {
   optional string availability_basis = 1 [json_name = "availability_basis", (northstar.web.required_field) = true];
@@ -119,10 +105,6 @@ message Readiness {
   optional string status = 1 [json_name = "status", (northstar.web.required_field) = true, (northstar.web.allowed_values) = "[\"ready\"]"];
 }
 
-message ReprocessRequest {
-  optional string request_id = 1 [json_name = "request_id", (northstar.web.required_field) = true];
-  optional google.protobuf.Struct spec = 2 [json_name = "spec", (northstar.web.required_field) = true];
-}
 
 message SourceRecord {
   option (northstar.web.evidence) = true;
@@ -171,40 +153,50 @@ message ProcessingQueueStatus {
   repeated string null_fields = 2046;
 }
 
-message SyncRequest {
-  optional string request_id = 1 [json_name = "request_id", (northstar.web.required_field) = true];
-  optional google.protobuf.Struct spec = 2 [json_name = "spec", (northstar.web.required_field) = true];
+
+message SyncSettingsRequest {
+  optional int64 revision = 1 [(northstar.web.required_field) = true];
+  optional bool enabled = 2 [(northstar.web.required_field) = true];
 }
-message SyncJob {
-  optional string request_id = 1 [json_name = "request_id", (northstar.web.required_field) = true];
-  optional string request_hash = 2 [json_name = "request_hash", (northstar.web.required_field) = true];
-  optional google.protobuf.Struct parameters = 3 [json_name = "parameters", (northstar.web.required_field) = true];
-  optional string code_revision = 4 [json_name = "code_revision", (northstar.web.required_field) = true];
-  optional string status = 5 [json_name = "status", (northstar.web.required_field) = true];
-  optional string attempt_id = 6 [json_name = "attempt_id", (northstar.web.required_field) = true, (northstar.web.nullable) = true];
-  optional string error = 7 [json_name = "error", (northstar.web.required_field) = true, (northstar.web.nullable) = true];
-  optional string created_at = 8 [json_name = "created_at", (northstar.web.required_field) = true];
-  optional string updated_at = 9 [json_name = "updated_at", (northstar.web.required_field) = true];
-  repeated string null_fields = 2046;
+message SyncTokenRequest {
+  optional string token = 1 [(northstar.web.required_field) = true];
 }
-message GetApiSyncResponse {
-  option (northstar.web.root_array) = true;
-  repeated SyncJob items = 1;
+message SyncStatus {
+  optional google.protobuf.Struct settings = 1 [(northstar.web.required_field) = true];
+  optional bool token_configured = 2 [json_name = "token_configured", (northstar.web.required_field) = true];
+  repeated google.protobuf.Struct datasets = 3;
+  repeated google.protobuf.Struct progress = 4;
+  repeated google.protobuf.Struct jobs = 5;
+  optional int64 unplanned_contracts = 6 [json_name = "unplanned_contracts", (northstar.web.required_field) = true];
+}
+message SyncEvidence {
+  option (northstar.web.evidence) = true;
+  optional string request_id = 1 [json_name = "request_id", (northstar.web.required_field) = true];
+  map<string, google.protobuf.Value> evidence_fields = 1000;
 }
 
 service BrowserApi {
-  rpc PostApiSyncTushare (SyncRequest) returns (SyncJob) {
-    option (northstar.web.http_method) = "POST";
-    option (northstar.web.http_path) = "/api/sync/tushare";
-  }
-  rpc GetApiSync (northstar.web.Empty) returns (GetApiSyncResponse) {
+  rpc GetApiSync (northstar.web.Empty) returns (SyncStatus) {
     option (northstar.web.http_method) = "GET";
     option (northstar.web.http_path) = "/api/sync";
   }
-  rpc GetApiSyncRequestId (northstar.web.Empty) returns (SyncJob) {
-    option (northstar.web.http_method) = "GET";
-    option (northstar.web.http_path) = "/api/sync/{request_id}";
+  rpc PostApiSyncSettings (SyncSettingsRequest) returns (SyncStatus) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/sync/settings";
   }
+  rpc PostApiSyncToken (SyncTokenRequest) returns (SyncStatus) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/sync/token";
+  }
+  rpc GetApiSyncJobsRequestId (northstar.web.Empty) returns (SyncEvidence) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/sync/jobs/{request_id}";
+  }
+  rpc GetApiSyncReceiptsRequestId (northstar.web.Empty) returns (SyncEvidence) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/sync/receipts/{request_id}";
+  }
+
   rpc GetApiProcessingStatus (northstar.web.Empty) returns (ProcessingQueueStatus) {
     option (northstar.web.http_method) = "GET";
     option (northstar.web.http_path) = "/api/processing/status";
@@ -233,10 +225,6 @@ service BrowserApi {
     option (northstar.web.http_method) = "GET";
     option (northstar.web.http_path) = "/api/datasets/{snapshot_id}/lineage";
   }
-  rpc PostApiImport (ImportRequest) returns (ProcessingAttempt) {
-    option (northstar.web.http_method) = "POST";
-    option (northstar.web.http_path) = "/api/import";
-  }
   rpc GetApiRejections (northstar.web.Empty) returns (GetApiRejectionsResponse) {
     option (northstar.web.http_method) = "GET";
     option (northstar.web.http_path) = "/api/rejections";
@@ -248,9 +236,5 @@ service BrowserApi {
   rpc GetApiSourcesSourceId (northstar.web.Empty) returns (SourceRecord) {
     option (northstar.web.http_method) = "GET";
     option (northstar.web.http_path) = "/api/sources/{source_id}";
-  }
-  rpc PostApiSourcesSourceIdReprocess (ReprocessRequest) returns (ProcessingAttempt) {
-    option (northstar.web.http_method) = "POST";
-    option (northstar.web.http_path) = "/api/sources/{source_id}/reprocess";
   }
 }

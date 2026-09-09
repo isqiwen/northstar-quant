@@ -4531,772 +4531,6 @@ export const northstar = $root.northstar = (() => {
             return HttpError;
         })();
 
-        data_hub.ImportRequest = (function() {
-
-            /**
-             * Properties of an ImportRequest.
-             * @typedef {Object} northstar.data_hub.ImportRequest.$Properties
-             * @property {boolean|null} [allow_download] ImportRequest allow_download
-             * @property {boolean|null} [allow_retention] ImportRequest allow_retention
-             * @property {string|null} [content_base64] ImportRequest content_base64
-             * @property {string|null} [filename] ImportRequest filename
-             * @property {string|null} [input_kind] ImportRequest input_kind
-             * @property {string|null} [request_id] ImportRequest request_id
-             * @property {string|null} [source_name] ImportRequest source_name
-             * @property {google.protobuf.Struct.$Properties|null} [spec] ImportRequest spec
-             * @property {string|null} [transformation_note] ImportRequest transformation_note
-             * @property {string|null} [upstream_source_id] ImportRequest upstream_source_id
-             * @property {string|null} [use_basis] ImportRequest use_basis
-             * @property {Array.<string>|null} [null_fields] ImportRequest null_fields
-             * @property {"allow_download"} [_allow_download] ImportRequest _allow_download
-             * @property {"allow_retention"} [_allow_retention] ImportRequest _allow_retention
-             * @property {"content_base64"} [_content_base64] ImportRequest _content_base64
-             * @property {"filename"} [_filename] ImportRequest _filename
-             * @property {"input_kind"} [_input_kind] ImportRequest _input_kind
-             * @property {"request_id"} [_request_id] ImportRequest _request_id
-             * @property {"source_name"} [_source_name] ImportRequest _source_name
-             * @property {"spec"} [_spec] ImportRequest _spec
-             * @property {"transformation_note"} [_transformation_note] ImportRequest _transformation_note
-             * @property {"upstream_source_id"} [_upstream_source_id] ImportRequest _upstream_source_id
-             * @property {"use_basis"} [_use_basis] ImportRequest _use_basis
-             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
-             */
-
-            /**
-             * Properties of an ImportRequest.
-             * @memberof northstar.data_hub
-             * @interface IImportRequest
-             * @augments northstar.data_hub.ImportRequest.$Properties
-             * @deprecated Use northstar.data_hub.ImportRequest.$Properties instead.
-             */
-
-            /**
-             * Narrowed shape of an ImportRequest.
-             * @typedef {{
-             *   allow_download?: boolean|null;
-             *   allow_retention?: boolean|null;
-             *   content_base64?: string|null;
-             *   filename?: string|null;
-             *   input_kind?: string|null;
-             *   request_id?: string|null;
-             *   source_name?: string|null;
-             *   spec?: google.protobuf.Struct.$Shape|null;
-             *   transformation_note?: string|null;
-             *   upstream_source_id?: string|null;
-             *   use_basis?: string|null;
-             *   null_fields?: Array.<string>|null;
-             *   $unknowns?: Array.<Uint8Array>;
-             * } & (
-             *   ({ _allow_download?: undefined; allow_download?: null }|{ _allow_download?: "allow_download"; allow_download: boolean })
-             * ) & (
-             *   ({ _allow_retention?: undefined; allow_retention?: null }|{ _allow_retention?: "allow_retention"; allow_retention: boolean })
-             * ) & (
-             *   ({ _content_base64?: undefined; content_base64?: null }|{ _content_base64?: "content_base64"; content_base64: string })
-             * ) & (
-             *   ({ _filename?: undefined; filename?: null }|{ _filename?: "filename"; filename: string })
-             * ) & (
-             *   ({ _input_kind?: undefined; input_kind?: null }|{ _input_kind?: "input_kind"; input_kind: string })
-             * ) & (
-             *   ({ _request_id?: undefined; request_id?: null }|{ _request_id?: "request_id"; request_id: string })
-             * ) & (
-             *   ({ _source_name?: undefined; source_name?: null }|{ _source_name?: "source_name"; source_name: string })
-             * ) & (
-             *   ({ _spec?: undefined; spec?: null }|{ _spec?: "spec"; spec: google.protobuf.Struct.$Shape })
-             * ) & (
-             *   ({ _transformation_note?: undefined; transformation_note?: null }|{ _transformation_note?: "transformation_note"; transformation_note: string })
-             * ) & (
-             *   ({ _upstream_source_id?: undefined; upstream_source_id?: null }|{ _upstream_source_id?: "upstream_source_id"; upstream_source_id: string })
-             * ) & (
-             *   ({ _use_basis?: undefined; use_basis?: null }|{ _use_basis?: "use_basis"; use_basis: string })
-             * )} northstar.data_hub.ImportRequest.$Shape
-             */
-
-            /**
-             * Constructs a new ImportRequest.
-             * @memberof northstar.data_hub
-             * @classdesc Represents an ImportRequest.
-             * @constructor
-             * @param {northstar.data_hub.ImportRequest.$Properties=} [properties] Properties to set
-             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
-             */
-            const ImportRequest = function (properties) {
-                this.null_fields = [];
-                if (properties)
-                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
-                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
-                            this[keys[i]] = properties[keys[i]];
-            };
-
-            /**
-             * ImportRequest allow_download.
-             * @member {boolean|null|undefined} allow_download
-             * @memberof northstar.data_hub.ImportRequest
-             * @instance
-             */
-            ImportRequest.prototype.allow_download = null;
-
-            /**
-             * ImportRequest allow_retention.
-             * @member {boolean|null|undefined} allow_retention
-             * @memberof northstar.data_hub.ImportRequest
-             * @instance
-             */
-            ImportRequest.prototype.allow_retention = null;
-
-            /**
-             * ImportRequest content_base64.
-             * @member {string|null|undefined} content_base64
-             * @memberof northstar.data_hub.ImportRequest
-             * @instance
-             */
-            ImportRequest.prototype.content_base64 = null;
-
-            /**
-             * ImportRequest filename.
-             * @member {string|null|undefined} filename
-             * @memberof northstar.data_hub.ImportRequest
-             * @instance
-             */
-            ImportRequest.prototype.filename = null;
-
-            /**
-             * ImportRequest input_kind.
-             * @member {string|null|undefined} input_kind
-             * @memberof northstar.data_hub.ImportRequest
-             * @instance
-             */
-            ImportRequest.prototype.input_kind = null;
-
-            /**
-             * ImportRequest request_id.
-             * @member {string|null|undefined} request_id
-             * @memberof northstar.data_hub.ImportRequest
-             * @instance
-             */
-            ImportRequest.prototype.request_id = null;
-
-            /**
-             * ImportRequest source_name.
-             * @member {string|null|undefined} source_name
-             * @memberof northstar.data_hub.ImportRequest
-             * @instance
-             */
-            ImportRequest.prototype.source_name = null;
-
-            /**
-             * ImportRequest spec.
-             * @member {google.protobuf.Struct.$Properties|null|undefined} spec
-             * @memberof northstar.data_hub.ImportRequest
-             * @instance
-             */
-            ImportRequest.prototype.spec = null;
-
-            /**
-             * ImportRequest transformation_note.
-             * @member {string|null|undefined} transformation_note
-             * @memberof northstar.data_hub.ImportRequest
-             * @instance
-             */
-            ImportRequest.prototype.transformation_note = null;
-
-            /**
-             * ImportRequest upstream_source_id.
-             * @member {string|null|undefined} upstream_source_id
-             * @memberof northstar.data_hub.ImportRequest
-             * @instance
-             */
-            ImportRequest.prototype.upstream_source_id = null;
-
-            /**
-             * ImportRequest use_basis.
-             * @member {string|null|undefined} use_basis
-             * @memberof northstar.data_hub.ImportRequest
-             * @instance
-             */
-            ImportRequest.prototype.use_basis = null;
-
-            /**
-             * ImportRequest null_fields.
-             * @member {Array.<string>} null_fields
-             * @memberof northstar.data_hub.ImportRequest
-             * @instance
-             */
-            ImportRequest.prototype.null_fields = $util.emptyArray;
-
-            // OneOf field names bound to virtual getters and setters
-            let $oneOfFields;
-
-            /**
-             * ImportRequest _allow_download.
-             * @member {"allow_download"|undefined} _allow_download
-             * @memberof northstar.data_hub.ImportRequest
-             * @instance
-             */
-            $Object.defineProperty(ImportRequest.prototype, "_allow_download", {
-                get: $util.oneOfGetter($oneOfFields = ["allow_download"]),
-                set: $util.oneOfSetter($oneOfFields)
-            });
-
-            /**
-             * ImportRequest _allow_retention.
-             * @member {"allow_retention"|undefined} _allow_retention
-             * @memberof northstar.data_hub.ImportRequest
-             * @instance
-             */
-            $Object.defineProperty(ImportRequest.prototype, "_allow_retention", {
-                get: $util.oneOfGetter($oneOfFields = ["allow_retention"]),
-                set: $util.oneOfSetter($oneOfFields)
-            });
-
-            /**
-             * ImportRequest _content_base64.
-             * @member {"content_base64"|undefined} _content_base64
-             * @memberof northstar.data_hub.ImportRequest
-             * @instance
-             */
-            $Object.defineProperty(ImportRequest.prototype, "_content_base64", {
-                get: $util.oneOfGetter($oneOfFields = ["content_base64"]),
-                set: $util.oneOfSetter($oneOfFields)
-            });
-
-            /**
-             * ImportRequest _filename.
-             * @member {"filename"|undefined} _filename
-             * @memberof northstar.data_hub.ImportRequest
-             * @instance
-             */
-            $Object.defineProperty(ImportRequest.prototype, "_filename", {
-                get: $util.oneOfGetter($oneOfFields = ["filename"]),
-                set: $util.oneOfSetter($oneOfFields)
-            });
-
-            /**
-             * ImportRequest _input_kind.
-             * @member {"input_kind"|undefined} _input_kind
-             * @memberof northstar.data_hub.ImportRequest
-             * @instance
-             */
-            $Object.defineProperty(ImportRequest.prototype, "_input_kind", {
-                get: $util.oneOfGetter($oneOfFields = ["input_kind"]),
-                set: $util.oneOfSetter($oneOfFields)
-            });
-
-            /**
-             * ImportRequest _request_id.
-             * @member {"request_id"|undefined} _request_id
-             * @memberof northstar.data_hub.ImportRequest
-             * @instance
-             */
-            $Object.defineProperty(ImportRequest.prototype, "_request_id", {
-                get: $util.oneOfGetter($oneOfFields = ["request_id"]),
-                set: $util.oneOfSetter($oneOfFields)
-            });
-
-            /**
-             * ImportRequest _source_name.
-             * @member {"source_name"|undefined} _source_name
-             * @memberof northstar.data_hub.ImportRequest
-             * @instance
-             */
-            $Object.defineProperty(ImportRequest.prototype, "_source_name", {
-                get: $util.oneOfGetter($oneOfFields = ["source_name"]),
-                set: $util.oneOfSetter($oneOfFields)
-            });
-
-            /**
-             * ImportRequest _spec.
-             * @member {"spec"|undefined} _spec
-             * @memberof northstar.data_hub.ImportRequest
-             * @instance
-             */
-            $Object.defineProperty(ImportRequest.prototype, "_spec", {
-                get: $util.oneOfGetter($oneOfFields = ["spec"]),
-                set: $util.oneOfSetter($oneOfFields)
-            });
-
-            /**
-             * ImportRequest _transformation_note.
-             * @member {"transformation_note"|undefined} _transformation_note
-             * @memberof northstar.data_hub.ImportRequest
-             * @instance
-             */
-            $Object.defineProperty(ImportRequest.prototype, "_transformation_note", {
-                get: $util.oneOfGetter($oneOfFields = ["transformation_note"]),
-                set: $util.oneOfSetter($oneOfFields)
-            });
-
-            /**
-             * ImportRequest _upstream_source_id.
-             * @member {"upstream_source_id"|undefined} _upstream_source_id
-             * @memberof northstar.data_hub.ImportRequest
-             * @instance
-             */
-            $Object.defineProperty(ImportRequest.prototype, "_upstream_source_id", {
-                get: $util.oneOfGetter($oneOfFields = ["upstream_source_id"]),
-                set: $util.oneOfSetter($oneOfFields)
-            });
-
-            /**
-             * ImportRequest _use_basis.
-             * @member {"use_basis"|undefined} _use_basis
-             * @memberof northstar.data_hub.ImportRequest
-             * @instance
-             */
-            $Object.defineProperty(ImportRequest.prototype, "_use_basis", {
-                get: $util.oneOfGetter($oneOfFields = ["use_basis"]),
-                set: $util.oneOfSetter($oneOfFields)
-            });
-
-            /**
-             * Creates a new ImportRequest instance using the specified properties.
-             * @function create
-             * @memberof northstar.data_hub.ImportRequest
-             * @static
-             * @param {northstar.data_hub.ImportRequest.$Properties=} [properties] Properties to set
-             * @returns {northstar.data_hub.ImportRequest} ImportRequest instance
-             * @type {{
-             *   (properties: northstar.data_hub.ImportRequest.$Shape): northstar.data_hub.ImportRequest & northstar.data_hub.ImportRequest.$Shape;
-             *   (properties?: northstar.data_hub.ImportRequest.$Properties): northstar.data_hub.ImportRequest;
-             * }}
-             */
-            ImportRequest.create = function(properties) {
-                return new ImportRequest(properties);
-            };
-
-            /**
-             * Encodes the specified ImportRequest message. Does not implicitly {@link northstar.data_hub.ImportRequest.verify|verify} messages.
-             * @function encode
-             * @memberof northstar.data_hub.ImportRequest
-             * @static
-             * @param {northstar.data_hub.ImportRequest.$Properties} message ImportRequest message or plain object to encode
-             * @param {$protobuf.Writer} [writer] Writer to encode to
-             * @returns {$protobuf.Writer} Writer
-             */
-            ImportRequest.encode = function (message, writer, _depth) {
-                if (!writer)
-                    writer = $Writer.create();
-                if (_depth === $undefined)
-                    _depth = 0;
-                if (_depth > $util.recursionLimit)
-                    throw $Error("max depth exceeded");
-                if (message.allow_download != null && $Object.hasOwnProperty.call(message, "allow_download"))
-                    writer.uint32(/* id 1, wireType 0 =*/8).bool(message.allow_download);
-                if (message.allow_retention != null && $Object.hasOwnProperty.call(message, "allow_retention"))
-                    writer.uint32(/* id 2, wireType 0 =*/16).bool(message.allow_retention);
-                if (message.content_base64 != null && $Object.hasOwnProperty.call(message, "content_base64"))
-                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.content_base64);
-                if (message.filename != null && $Object.hasOwnProperty.call(message, "filename"))
-                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.filename);
-                if (message.input_kind != null && $Object.hasOwnProperty.call(message, "input_kind"))
-                    writer.uint32(/* id 5, wireType 2 =*/42).string(message.input_kind);
-                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id"))
-                    writer.uint32(/* id 6, wireType 2 =*/50).string(message.request_id);
-                if (message.source_name != null && $Object.hasOwnProperty.call(message, "source_name"))
-                    writer.uint32(/* id 7, wireType 2 =*/58).string(message.source_name);
-                if (message.spec != null && $Object.hasOwnProperty.call(message, "spec"))
-                    $root.google.protobuf.Struct.encode(message.spec, writer.uint32(/* id 8, wireType 2 =*/66).fork(), _depth + 1).ldelim();
-                if (message.transformation_note != null && $Object.hasOwnProperty.call(message, "transformation_note"))
-                    writer.uint32(/* id 9, wireType 2 =*/74).string(message.transformation_note);
-                if (message.upstream_source_id != null && $Object.hasOwnProperty.call(message, "upstream_source_id"))
-                    writer.uint32(/* id 10, wireType 2 =*/82).string(message.upstream_source_id);
-                if (message.use_basis != null && $Object.hasOwnProperty.call(message, "use_basis"))
-                    writer.uint32(/* id 11, wireType 2 =*/90).string(message.use_basis);
-                if (message.null_fields != null && message.null_fields.length)
-                    for (let i = 0; i < message.null_fields.length; ++i)
-                        writer.uint32(/* id 2046, wireType 2 =*/16370).string(message.null_fields[i]);
-                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
-                    for (let i = 0; i < message.$unknowns.length; ++i)
-                        writer.raw(message.$unknowns[i]);
-                return writer;
-            };
-
-            /**
-             * Decodes an ImportRequest message from the specified reader or buffer.
-             * @function decode
-             * @memberof northstar.data_hub.ImportRequest
-             * @static
-             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @param {number} [length] Message length if known beforehand
-             * @returns {northstar.data_hub.ImportRequest & northstar.data_hub.ImportRequest.$Shape} ImportRequest
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            ImportRequest.decode = function (reader, length, _end, _depth, _target) {
-                if (!(reader instanceof $Reader))
-                    reader = $Reader.create(reader);
-                if (_depth === $undefined)
-                    _depth = 0;
-                if (_depth > $Reader.recursionLimit)
-                    throw $Error("max depth exceeded");
-                let end, message;
-                if (length === $undefined)
-                    end = reader.len;
-                else {
-                    end = reader.pos + length;
-                    if (end > reader.len)
-                        throw $RangeError("index out of range");
-                    length = reader.len;
-                    reader.len = end;
-                }
-                message = _target || new $root.northstar.data_hub.ImportRequest();
-                while (reader.pos < end) {
-                    let start = reader.pos;
-                    let tag = reader.tag();
-                    if (tag === _end) {
-                        _end = $undefined;
-                        break;
-                    }
-                    let wireType = tag & 7;
-                    switch (tag >>>= 3) {
-                    case 1: {
-                            if (wireType !== 0)
-                                break;
-                            message.allow_download = reader.bool();
-                            message._allow_download = "allow_download";
-                            continue;
-                        }
-                    case 2: {
-                            if (wireType !== 0)
-                                break;
-                            message.allow_retention = reader.bool();
-                            message._allow_retention = "allow_retention";
-                            continue;
-                        }
-                    case 3: {
-                            if (wireType !== 2)
-                                break;
-                            message.content_base64 = reader.stringVerify();
-                            message._content_base64 = "content_base64";
-                            continue;
-                        }
-                    case 4: {
-                            if (wireType !== 2)
-                                break;
-                            message.filename = reader.stringVerify();
-                            message._filename = "filename";
-                            continue;
-                        }
-                    case 5: {
-                            if (wireType !== 2)
-                                break;
-                            message.input_kind = reader.stringVerify();
-                            message._input_kind = "input_kind";
-                            continue;
-                        }
-                    case 6: {
-                            if (wireType !== 2)
-                                break;
-                            message.request_id = reader.stringVerify();
-                            message._request_id = "request_id";
-                            continue;
-                        }
-                    case 7: {
-                            if (wireType !== 2)
-                                break;
-                            message.source_name = reader.stringVerify();
-                            message._source_name = "source_name";
-                            continue;
-                        }
-                    case 8: {
-                            if (wireType !== 2)
-                                break;
-                            message.spec = $root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1, message.spec);
-                            message._spec = "spec";
-                            continue;
-                        }
-                    case 9: {
-                            if (wireType !== 2)
-                                break;
-                            message.transformation_note = reader.stringVerify();
-                            message._transformation_note = "transformation_note";
-                            continue;
-                        }
-                    case 10: {
-                            if (wireType !== 2)
-                                break;
-                            message.upstream_source_id = reader.stringVerify();
-                            message._upstream_source_id = "upstream_source_id";
-                            continue;
-                        }
-                    case 11: {
-                            if (wireType !== 2)
-                                break;
-                            message.use_basis = reader.stringVerify();
-                            message._use_basis = "use_basis";
-                            continue;
-                        }
-                    case 2046: {
-                            if (wireType !== 2)
-                                break;
-                            if (!(message.null_fields && message.null_fields.length))
-                                message.null_fields = [];
-                            message.null_fields.push(reader.stringVerify());
-                            continue;
-                        }
-                    }
-                    reader.skipType(wireType, _depth, tag);
-                    if (!reader.discardUnknown) {
-                        $util.makeProp(message, "$unknowns", false);
-                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
-                    }
-                }
-                if (length !== $undefined) {
-                    if (reader.pos !== end)
-                        throw $RangeError("index out of range");
-                    reader.len = length;
-                }
-                if (_end !== $undefined)
-                    throw $Error("missing end group");
-                return message;
-            };
-
-            /**
-             * Verifies an ImportRequest message.
-             * @function verify
-             * @memberof northstar.data_hub.ImportRequest
-             * @static
-             * @param {Object.<string,*>} message Plain object to verify
-             * @returns {string|null} `null` if valid, otherwise the reason why it is not
-             */
-            ImportRequest.verify = function (message, _depth) {
-                if (typeof message !== "object" || message === null)
-                    return "object expected";
-                if (_depth === $undefined)
-                    _depth = 0;
-                if (_depth > $util.recursionLimit)
-                    return "max depth exceeded";
-                let properties = {};
-                if (message.allow_download != null && $Object.hasOwnProperty.call(message, "allow_download")) {
-                    properties._allow_download = 1;
-                    if (typeof message.allow_download !== "boolean")
-                        return "allow_download: boolean expected";
-                }
-                if (message.allow_retention != null && $Object.hasOwnProperty.call(message, "allow_retention")) {
-                    properties._allow_retention = 1;
-                    if (typeof message.allow_retention !== "boolean")
-                        return "allow_retention: boolean expected";
-                }
-                if (message.content_base64 != null && $Object.hasOwnProperty.call(message, "content_base64")) {
-                    properties._content_base64 = 1;
-                    if (!$util.isString(message.content_base64))
-                        return "content_base64: string expected";
-                }
-                if (message.filename != null && $Object.hasOwnProperty.call(message, "filename")) {
-                    properties._filename = 1;
-                    if (!$util.isString(message.filename))
-                        return "filename: string expected";
-                }
-                if (message.input_kind != null && $Object.hasOwnProperty.call(message, "input_kind")) {
-                    properties._input_kind = 1;
-                    if (!$util.isString(message.input_kind))
-                        return "input_kind: string expected";
-                }
-                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id")) {
-                    properties._request_id = 1;
-                    if (!$util.isString(message.request_id))
-                        return "request_id: string expected";
-                }
-                if (message.source_name != null && $Object.hasOwnProperty.call(message, "source_name")) {
-                    properties._source_name = 1;
-                    if (!$util.isString(message.source_name))
-                        return "source_name: string expected";
-                }
-                if (message.spec != null && $Object.hasOwnProperty.call(message, "spec")) {
-                    properties._spec = 1;
-                    {
-                        let error = $root.google.protobuf.Struct.verify(message.spec, _depth + 1);
-                        if (error)
-                            return "spec." + error;
-                    }
-                }
-                if (message.transformation_note != null && $Object.hasOwnProperty.call(message, "transformation_note")) {
-                    properties._transformation_note = 1;
-                    if (!$util.isString(message.transformation_note))
-                        return "transformation_note: string expected";
-                }
-                if (message.upstream_source_id != null && $Object.hasOwnProperty.call(message, "upstream_source_id")) {
-                    properties._upstream_source_id = 1;
-                    if (!$util.isString(message.upstream_source_id))
-                        return "upstream_source_id: string expected";
-                }
-                if (message.use_basis != null && $Object.hasOwnProperty.call(message, "use_basis")) {
-                    properties._use_basis = 1;
-                    if (!$util.isString(message.use_basis))
-                        return "use_basis: string expected";
-                }
-                if (message.null_fields != null && $Object.hasOwnProperty.call(message, "null_fields")) {
-                    if (!$Array.isArray(message.null_fields))
-                        return "null_fields: array expected";
-                    for (let i = 0; i < message.null_fields.length; ++i)
-                        if (!$util.isString(message.null_fields[i]))
-                            return "null_fields: string[] expected";
-                }
-                return null;
-            };
-
-            /**
-             * Creates an ImportRequest message from a plain object. Also converts values to their respective internal types.
-             * @function fromObject
-             * @memberof northstar.data_hub.ImportRequest
-             * @static
-             * @param {Object.<string,*>} object Plain object
-             * @returns {northstar.data_hub.ImportRequest} ImportRequest
-             */
-            ImportRequest.fromObject = function (object, _depth) {
-                if (object instanceof $root.northstar.data_hub.ImportRequest)
-                    return object;
-                if (!$util.isObject(object))
-                    throw $TypeError(".northstar.data_hub.ImportRequest: object expected");
-                if (_depth === $undefined)
-                    _depth = 0;
-                if (_depth > $util.recursionLimit)
-                    throw $Error("max depth exceeded");
-                let message = new $root.northstar.data_hub.ImportRequest();
-                if (object.allow_download != null)
-                    message.allow_download = $Boolean(object.allow_download);
-                if (object.allow_retention != null)
-                    message.allow_retention = $Boolean(object.allow_retention);
-                if (object.content_base64 != null)
-                    message.content_base64 = $String(object.content_base64);
-                if (object.filename != null)
-                    message.filename = $String(object.filename);
-                if (object.input_kind != null)
-                    message.input_kind = $String(object.input_kind);
-                if (object.request_id != null)
-                    message.request_id = $String(object.request_id);
-                if (object.source_name != null)
-                    message.source_name = $String(object.source_name);
-                if (object.spec != null) {
-                    if (!$util.isObject(object.spec))
-                        throw $TypeError(".northstar.data_hub.ImportRequest.spec: object expected");
-                    message.spec = $root.google.protobuf.Struct.fromObject(object.spec, _depth + 1);
-                }
-                if (object.transformation_note != null)
-                    message.transformation_note = $String(object.transformation_note);
-                if (object.upstream_source_id != null)
-                    message.upstream_source_id = $String(object.upstream_source_id);
-                if (object.use_basis != null)
-                    message.use_basis = $String(object.use_basis);
-                if (object.null_fields) {
-                    if (!$Array.isArray(object.null_fields))
-                        throw $TypeError(".northstar.data_hub.ImportRequest.null_fields: array expected");
-                    message.null_fields = $Array(object.null_fields.length);
-                    for (let i = 0; i < object.null_fields.length; ++i)
-                        message.null_fields[i] = $String(object.null_fields[i]);
-                }
-                return message;
-            };
-
-            /**
-             * Creates a plain object from an ImportRequest message. Also converts values to other types if specified.
-             * @function toObject
-             * @memberof northstar.data_hub.ImportRequest
-             * @static
-             * @param {northstar.data_hub.ImportRequest} message ImportRequest
-             * @param {$protobuf.IConversionOptions} [options] Conversion options
-             * @returns {Object.<string,*>} Plain object
-             */
-            ImportRequest.toObject = function (message, options, _depth) {
-                if (!options)
-                    options = {};
-                if (_depth === $undefined)
-                    _depth = 0;
-                if (_depth > $util.recursionLimit)
-                    throw $Error("max depth exceeded");
-                let object = {};
-                if (options.arrays || options.defaults)
-                    object.null_fields = [];
-                if (message.allow_download != null && $Object.hasOwnProperty.call(message, "allow_download")) {
-                    object.allow_download = message.allow_download;
-                    if (options.oneofs)
-                        object._allow_download = "allow_download";
-                }
-                if (message.allow_retention != null && $Object.hasOwnProperty.call(message, "allow_retention")) {
-                    object.allow_retention = message.allow_retention;
-                    if (options.oneofs)
-                        object._allow_retention = "allow_retention";
-                }
-                if (message.content_base64 != null && $Object.hasOwnProperty.call(message, "content_base64")) {
-                    object.content_base64 = message.content_base64;
-                    if (options.oneofs)
-                        object._content_base64 = "content_base64";
-                }
-                if (message.filename != null && $Object.hasOwnProperty.call(message, "filename")) {
-                    object.filename = message.filename;
-                    if (options.oneofs)
-                        object._filename = "filename";
-                }
-                if (message.input_kind != null && $Object.hasOwnProperty.call(message, "input_kind")) {
-                    object.input_kind = message.input_kind;
-                    if (options.oneofs)
-                        object._input_kind = "input_kind";
-                }
-                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id")) {
-                    object.request_id = message.request_id;
-                    if (options.oneofs)
-                        object._request_id = "request_id";
-                }
-                if (message.source_name != null && $Object.hasOwnProperty.call(message, "source_name")) {
-                    object.source_name = message.source_name;
-                    if (options.oneofs)
-                        object._source_name = "source_name";
-                }
-                if (message.spec != null && $Object.hasOwnProperty.call(message, "spec")) {
-                    object.spec = $root.google.protobuf.Struct.toObject(message.spec, options, _depth + 1);
-                    if (options.oneofs)
-                        object._spec = "spec";
-                }
-                if (message.transformation_note != null && $Object.hasOwnProperty.call(message, "transformation_note")) {
-                    object.transformation_note = message.transformation_note;
-                    if (options.oneofs)
-                        object._transformation_note = "transformation_note";
-                }
-                if (message.upstream_source_id != null && $Object.hasOwnProperty.call(message, "upstream_source_id")) {
-                    object.upstream_source_id = message.upstream_source_id;
-                    if (options.oneofs)
-                        object._upstream_source_id = "upstream_source_id";
-                }
-                if (message.use_basis != null && $Object.hasOwnProperty.call(message, "use_basis")) {
-                    object.use_basis = message.use_basis;
-                    if (options.oneofs)
-                        object._use_basis = "use_basis";
-                }
-                if (message.null_fields && message.null_fields.length) {
-                    object.null_fields = $Array(message.null_fields.length);
-                    for (let j = 0; j < message.null_fields.length; ++j)
-                        object.null_fields[j] = message.null_fields[j];
-                }
-                return object;
-            };
-
-            /**
-             * Converts this ImportRequest to JSON.
-             * @function toJSON
-             * @memberof northstar.data_hub.ImportRequest
-             * @instance
-             * @returns {Object.<string,*>} JSON object
-             */
-            ImportRequest.prototype.toJSON = function() {
-                return ImportRequest.toObject(this, $protobuf.util.toJSONOptions);
-            };
-
-            /**
-             * Gets the type url for ImportRequest
-             * @function getTypeUrl
-             * @memberof northstar.data_hub.ImportRequest
-             * @static
-             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
-             * @returns {string} The type url
-             */
-            ImportRequest.getTypeUrl = function(prefix) {
-                if (prefix === $undefined)
-                    prefix = "type.googleapis.com";
-                return prefix + "/northstar.data_hub.ImportRequest";
-            };
-
-            return ImportRequest;
-        })();
-
         data_hub.ImportSpecification = (function() {
 
             /**
@@ -7175,324 +6409,6 @@ export const northstar = $root.northstar = (() => {
             };
 
             return Readiness;
-        })();
-
-        data_hub.ReprocessRequest = (function() {
-
-            /**
-             * Properties of a ReprocessRequest.
-             * @typedef {Object} northstar.data_hub.ReprocessRequest.$Properties
-             * @property {string|null} [request_id] ReprocessRequest request_id
-             * @property {google.protobuf.Struct.$Properties|null} [spec] ReprocessRequest spec
-             * @property {"request_id"} [_request_id] ReprocessRequest _request_id
-             * @property {"spec"} [_spec] ReprocessRequest _spec
-             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
-             */
-
-            /**
-             * Properties of a ReprocessRequest.
-             * @memberof northstar.data_hub
-             * @interface IReprocessRequest
-             * @augments northstar.data_hub.ReprocessRequest.$Properties
-             * @deprecated Use northstar.data_hub.ReprocessRequest.$Properties instead.
-             */
-
-            /**
-             * Narrowed shape of a ReprocessRequest.
-             * @typedef {{
-             *   request_id?: string|null;
-             *   spec?: google.protobuf.Struct.$Shape|null;
-             *   $unknowns?: Array.<Uint8Array>;
-             * } & (
-             *   ({ _request_id?: undefined; request_id?: null }|{ _request_id?: "request_id"; request_id: string })
-             * ) & (
-             *   ({ _spec?: undefined; spec?: null }|{ _spec?: "spec"; spec: google.protobuf.Struct.$Shape })
-             * )} northstar.data_hub.ReprocessRequest.$Shape
-             */
-
-            /**
-             * Constructs a new ReprocessRequest.
-             * @memberof northstar.data_hub
-             * @classdesc Represents a ReprocessRequest.
-             * @constructor
-             * @param {northstar.data_hub.ReprocessRequest.$Properties=} [properties] Properties to set
-             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
-             */
-            const ReprocessRequest = function (properties) {
-                if (properties)
-                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
-                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
-                            this[keys[i]] = properties[keys[i]];
-            };
-
-            /**
-             * ReprocessRequest request_id.
-             * @member {string|null|undefined} request_id
-             * @memberof northstar.data_hub.ReprocessRequest
-             * @instance
-             */
-            ReprocessRequest.prototype.request_id = null;
-
-            /**
-             * ReprocessRequest spec.
-             * @member {google.protobuf.Struct.$Properties|null|undefined} spec
-             * @memberof northstar.data_hub.ReprocessRequest
-             * @instance
-             */
-            ReprocessRequest.prototype.spec = null;
-
-            // OneOf field names bound to virtual getters and setters
-            let $oneOfFields;
-
-            /**
-             * ReprocessRequest _request_id.
-             * @member {"request_id"|undefined} _request_id
-             * @memberof northstar.data_hub.ReprocessRequest
-             * @instance
-             */
-            $Object.defineProperty(ReprocessRequest.prototype, "_request_id", {
-                get: $util.oneOfGetter($oneOfFields = ["request_id"]),
-                set: $util.oneOfSetter($oneOfFields)
-            });
-
-            /**
-             * ReprocessRequest _spec.
-             * @member {"spec"|undefined} _spec
-             * @memberof northstar.data_hub.ReprocessRequest
-             * @instance
-             */
-            $Object.defineProperty(ReprocessRequest.prototype, "_spec", {
-                get: $util.oneOfGetter($oneOfFields = ["spec"]),
-                set: $util.oneOfSetter($oneOfFields)
-            });
-
-            /**
-             * Creates a new ReprocessRequest instance using the specified properties.
-             * @function create
-             * @memberof northstar.data_hub.ReprocessRequest
-             * @static
-             * @param {northstar.data_hub.ReprocessRequest.$Properties=} [properties] Properties to set
-             * @returns {northstar.data_hub.ReprocessRequest} ReprocessRequest instance
-             * @type {{
-             *   (properties: northstar.data_hub.ReprocessRequest.$Shape): northstar.data_hub.ReprocessRequest & northstar.data_hub.ReprocessRequest.$Shape;
-             *   (properties?: northstar.data_hub.ReprocessRequest.$Properties): northstar.data_hub.ReprocessRequest;
-             * }}
-             */
-            ReprocessRequest.create = function(properties) {
-                return new ReprocessRequest(properties);
-            };
-
-            /**
-             * Encodes the specified ReprocessRequest message. Does not implicitly {@link northstar.data_hub.ReprocessRequest.verify|verify} messages.
-             * @function encode
-             * @memberof northstar.data_hub.ReprocessRequest
-             * @static
-             * @param {northstar.data_hub.ReprocessRequest.$Properties} message ReprocessRequest message or plain object to encode
-             * @param {$protobuf.Writer} [writer] Writer to encode to
-             * @returns {$protobuf.Writer} Writer
-             */
-            ReprocessRequest.encode = function (message, writer, _depth) {
-                if (!writer)
-                    writer = $Writer.create();
-                if (_depth === $undefined)
-                    _depth = 0;
-                if (_depth > $util.recursionLimit)
-                    throw $Error("max depth exceeded");
-                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id"))
-                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.request_id);
-                if (message.spec != null && $Object.hasOwnProperty.call(message, "spec"))
-                    $root.google.protobuf.Struct.encode(message.spec, writer.uint32(/* id 2, wireType 2 =*/18).fork(), _depth + 1).ldelim();
-                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
-                    for (let i = 0; i < message.$unknowns.length; ++i)
-                        writer.raw(message.$unknowns[i]);
-                return writer;
-            };
-
-            /**
-             * Decodes a ReprocessRequest message from the specified reader or buffer.
-             * @function decode
-             * @memberof northstar.data_hub.ReprocessRequest
-             * @static
-             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @param {number} [length] Message length if known beforehand
-             * @returns {northstar.data_hub.ReprocessRequest & northstar.data_hub.ReprocessRequest.$Shape} ReprocessRequest
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            ReprocessRequest.decode = function (reader, length, _end, _depth, _target) {
-                if (!(reader instanceof $Reader))
-                    reader = $Reader.create(reader);
-                if (_depth === $undefined)
-                    _depth = 0;
-                if (_depth > $Reader.recursionLimit)
-                    throw $Error("max depth exceeded");
-                let end, message;
-                if (length === $undefined)
-                    end = reader.len;
-                else {
-                    end = reader.pos + length;
-                    if (end > reader.len)
-                        throw $RangeError("index out of range");
-                    length = reader.len;
-                    reader.len = end;
-                }
-                message = _target || new $root.northstar.data_hub.ReprocessRequest();
-                while (reader.pos < end) {
-                    let start = reader.pos;
-                    let tag = reader.tag();
-                    if (tag === _end) {
-                        _end = $undefined;
-                        break;
-                    }
-                    let wireType = tag & 7;
-                    switch (tag >>>= 3) {
-                    case 1: {
-                            if (wireType !== 2)
-                                break;
-                            message.request_id = reader.stringVerify();
-                            message._request_id = "request_id";
-                            continue;
-                        }
-                    case 2: {
-                            if (wireType !== 2)
-                                break;
-                            message.spec = $root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1, message.spec);
-                            message._spec = "spec";
-                            continue;
-                        }
-                    }
-                    reader.skipType(wireType, _depth, tag);
-                    if (!reader.discardUnknown) {
-                        $util.makeProp(message, "$unknowns", false);
-                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
-                    }
-                }
-                if (length !== $undefined) {
-                    if (reader.pos !== end)
-                        throw $RangeError("index out of range");
-                    reader.len = length;
-                }
-                if (_end !== $undefined)
-                    throw $Error("missing end group");
-                return message;
-            };
-
-            /**
-             * Verifies a ReprocessRequest message.
-             * @function verify
-             * @memberof northstar.data_hub.ReprocessRequest
-             * @static
-             * @param {Object.<string,*>} message Plain object to verify
-             * @returns {string|null} `null` if valid, otherwise the reason why it is not
-             */
-            ReprocessRequest.verify = function (message, _depth) {
-                if (typeof message !== "object" || message === null)
-                    return "object expected";
-                if (_depth === $undefined)
-                    _depth = 0;
-                if (_depth > $util.recursionLimit)
-                    return "max depth exceeded";
-                let properties = {};
-                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id")) {
-                    properties._request_id = 1;
-                    if (!$util.isString(message.request_id))
-                        return "request_id: string expected";
-                }
-                if (message.spec != null && $Object.hasOwnProperty.call(message, "spec")) {
-                    properties._spec = 1;
-                    {
-                        let error = $root.google.protobuf.Struct.verify(message.spec, _depth + 1);
-                        if (error)
-                            return "spec." + error;
-                    }
-                }
-                return null;
-            };
-
-            /**
-             * Creates a ReprocessRequest message from a plain object. Also converts values to their respective internal types.
-             * @function fromObject
-             * @memberof northstar.data_hub.ReprocessRequest
-             * @static
-             * @param {Object.<string,*>} object Plain object
-             * @returns {northstar.data_hub.ReprocessRequest} ReprocessRequest
-             */
-            ReprocessRequest.fromObject = function (object, _depth) {
-                if (object instanceof $root.northstar.data_hub.ReprocessRequest)
-                    return object;
-                if (!$util.isObject(object))
-                    throw $TypeError(".northstar.data_hub.ReprocessRequest: object expected");
-                if (_depth === $undefined)
-                    _depth = 0;
-                if (_depth > $util.recursionLimit)
-                    throw $Error("max depth exceeded");
-                let message = new $root.northstar.data_hub.ReprocessRequest();
-                if (object.request_id != null)
-                    message.request_id = $String(object.request_id);
-                if (object.spec != null) {
-                    if (!$util.isObject(object.spec))
-                        throw $TypeError(".northstar.data_hub.ReprocessRequest.spec: object expected");
-                    message.spec = $root.google.protobuf.Struct.fromObject(object.spec, _depth + 1);
-                }
-                return message;
-            };
-
-            /**
-             * Creates a plain object from a ReprocessRequest message. Also converts values to other types if specified.
-             * @function toObject
-             * @memberof northstar.data_hub.ReprocessRequest
-             * @static
-             * @param {northstar.data_hub.ReprocessRequest} message ReprocessRequest
-             * @param {$protobuf.IConversionOptions} [options] Conversion options
-             * @returns {Object.<string,*>} Plain object
-             */
-            ReprocessRequest.toObject = function (message, options, _depth) {
-                if (!options)
-                    options = {};
-                if (_depth === $undefined)
-                    _depth = 0;
-                if (_depth > $util.recursionLimit)
-                    throw $Error("max depth exceeded");
-                let object = {};
-                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id")) {
-                    object.request_id = message.request_id;
-                    if (options.oneofs)
-                        object._request_id = "request_id";
-                }
-                if (message.spec != null && $Object.hasOwnProperty.call(message, "spec")) {
-                    object.spec = $root.google.protobuf.Struct.toObject(message.spec, options, _depth + 1);
-                    if (options.oneofs)
-                        object._spec = "spec";
-                }
-                return object;
-            };
-
-            /**
-             * Converts this ReprocessRequest to JSON.
-             * @function toJSON
-             * @memberof northstar.data_hub.ReprocessRequest
-             * @instance
-             * @returns {Object.<string,*>} JSON object
-             */
-            ReprocessRequest.prototype.toJSON = function() {
-                return ReprocessRequest.toObject(this, $protobuf.util.toJSONOptions);
-            };
-
-            /**
-             * Gets the type url for ReprocessRequest
-             * @function getTypeUrl
-             * @memberof northstar.data_hub.ReprocessRequest
-             * @static
-             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
-             * @returns {string} The type url
-             */
-            ReprocessRequest.getTypeUrl = function(prefix) {
-                if (prefix === $undefined)
-                    prefix = "type.googleapis.com";
-                return prefix + "/northstar.data_hub.ReprocessRequest";
-            };
-
-            return ReprocessRequest;
         })();
 
         data_hub.SourceRecord = (function() {
@@ -10025,48 +8941,48 @@ export const northstar = $root.northstar = (() => {
             return ProcessingQueueStatus;
         })();
 
-        data_hub.SyncRequest = (function() {
+        data_hub.SyncSettingsRequest = (function() {
 
             /**
-             * Properties of a SyncRequest.
-             * @typedef {Object} northstar.data_hub.SyncRequest.$Properties
-             * @property {string|null} [request_id] SyncRequest request_id
-             * @property {google.protobuf.Struct.$Properties|null} [spec] SyncRequest spec
-             * @property {"request_id"} [_request_id] SyncRequest _request_id
-             * @property {"spec"} [_spec] SyncRequest _spec
+             * Properties of a SyncSettingsRequest.
+             * @typedef {Object} northstar.data_hub.SyncSettingsRequest.$Properties
+             * @property {number|Long|null} [revision] SyncSettingsRequest revision
+             * @property {boolean|null} [enabled] SyncSettingsRequest enabled
+             * @property {"revision"} [_revision] SyncSettingsRequest _revision
+             * @property {"enabled"} [_enabled] SyncSettingsRequest _enabled
              * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
              */
 
             /**
-             * Properties of a SyncRequest.
+             * Properties of a SyncSettingsRequest.
              * @memberof northstar.data_hub
-             * @interface ISyncRequest
-             * @augments northstar.data_hub.SyncRequest.$Properties
-             * @deprecated Use northstar.data_hub.SyncRequest.$Properties instead.
+             * @interface ISyncSettingsRequest
+             * @augments northstar.data_hub.SyncSettingsRequest.$Properties
+             * @deprecated Use northstar.data_hub.SyncSettingsRequest.$Properties instead.
              */
 
             /**
-             * Narrowed shape of a SyncRequest.
+             * Narrowed shape of a SyncSettingsRequest.
              * @typedef {{
-             *   request_id?: string|null;
-             *   spec?: google.protobuf.Struct.$Shape|null;
+             *   revision?: number|Long|null;
+             *   enabled?: boolean|null;
              *   $unknowns?: Array.<Uint8Array>;
              * } & (
-             *   ({ _request_id?: undefined; request_id?: null }|{ _request_id?: "request_id"; request_id: string })
+             *   ({ _revision?: undefined; revision?: null }|{ _revision?: "revision"; revision: number|Long })
              * ) & (
-             *   ({ _spec?: undefined; spec?: null }|{ _spec?: "spec"; spec: google.protobuf.Struct.$Shape })
-             * )} northstar.data_hub.SyncRequest.$Shape
+             *   ({ _enabled?: undefined; enabled?: null }|{ _enabled?: "enabled"; enabled: boolean })
+             * )} northstar.data_hub.SyncSettingsRequest.$Shape
              */
 
             /**
-             * Constructs a new SyncRequest.
+             * Constructs a new SyncSettingsRequest.
              * @memberof northstar.data_hub
-             * @classdesc Represents a SyncRequest.
+             * @classdesc Represents a SyncSettingsRequest.
              * @constructor
-             * @param {northstar.data_hub.SyncRequest.$Properties=} [properties] Properties to set
+             * @param {northstar.data_hub.SyncSettingsRequest.$Properties=} [properties] Properties to set
              * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
              */
-            const SyncRequest = function (properties) {
+            const SyncSettingsRequest = function (properties) {
                 if (properties)
                     for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
                         if (properties[keys[i]] != null && keys[i] !== "__proto__")
@@ -10074,82 +8990,82 @@ export const northstar = $root.northstar = (() => {
             };
 
             /**
-             * SyncRequest request_id.
-             * @member {string|null|undefined} request_id
-             * @memberof northstar.data_hub.SyncRequest
+             * SyncSettingsRequest revision.
+             * @member {number|Long|null|undefined} revision
+             * @memberof northstar.data_hub.SyncSettingsRequest
              * @instance
              */
-            SyncRequest.prototype.request_id = null;
+            SyncSettingsRequest.prototype.revision = null;
 
             /**
-             * SyncRequest spec.
-             * @member {google.protobuf.Struct.$Properties|null|undefined} spec
-             * @memberof northstar.data_hub.SyncRequest
+             * SyncSettingsRequest enabled.
+             * @member {boolean|null|undefined} enabled
+             * @memberof northstar.data_hub.SyncSettingsRequest
              * @instance
              */
-            SyncRequest.prototype.spec = null;
+            SyncSettingsRequest.prototype.enabled = null;
 
             // OneOf field names bound to virtual getters and setters
             let $oneOfFields;
 
             /**
-             * SyncRequest _request_id.
-             * @member {"request_id"|undefined} _request_id
-             * @memberof northstar.data_hub.SyncRequest
+             * SyncSettingsRequest _revision.
+             * @member {"revision"|undefined} _revision
+             * @memberof northstar.data_hub.SyncSettingsRequest
              * @instance
              */
-            $Object.defineProperty(SyncRequest.prototype, "_request_id", {
-                get: $util.oneOfGetter($oneOfFields = ["request_id"]),
+            $Object.defineProperty(SyncSettingsRequest.prototype, "_revision", {
+                get: $util.oneOfGetter($oneOfFields = ["revision"]),
                 set: $util.oneOfSetter($oneOfFields)
             });
 
             /**
-             * SyncRequest _spec.
-             * @member {"spec"|undefined} _spec
-             * @memberof northstar.data_hub.SyncRequest
+             * SyncSettingsRequest _enabled.
+             * @member {"enabled"|undefined} _enabled
+             * @memberof northstar.data_hub.SyncSettingsRequest
              * @instance
              */
-            $Object.defineProperty(SyncRequest.prototype, "_spec", {
-                get: $util.oneOfGetter($oneOfFields = ["spec"]),
+            $Object.defineProperty(SyncSettingsRequest.prototype, "_enabled", {
+                get: $util.oneOfGetter($oneOfFields = ["enabled"]),
                 set: $util.oneOfSetter($oneOfFields)
             });
 
             /**
-             * Creates a new SyncRequest instance using the specified properties.
+             * Creates a new SyncSettingsRequest instance using the specified properties.
              * @function create
-             * @memberof northstar.data_hub.SyncRequest
+             * @memberof northstar.data_hub.SyncSettingsRequest
              * @static
-             * @param {northstar.data_hub.SyncRequest.$Properties=} [properties] Properties to set
-             * @returns {northstar.data_hub.SyncRequest} SyncRequest instance
+             * @param {northstar.data_hub.SyncSettingsRequest.$Properties=} [properties] Properties to set
+             * @returns {northstar.data_hub.SyncSettingsRequest} SyncSettingsRequest instance
              * @type {{
-             *   (properties: northstar.data_hub.SyncRequest.$Shape): northstar.data_hub.SyncRequest & northstar.data_hub.SyncRequest.$Shape;
-             *   (properties?: northstar.data_hub.SyncRequest.$Properties): northstar.data_hub.SyncRequest;
+             *   (properties: northstar.data_hub.SyncSettingsRequest.$Shape): northstar.data_hub.SyncSettingsRequest & northstar.data_hub.SyncSettingsRequest.$Shape;
+             *   (properties?: northstar.data_hub.SyncSettingsRequest.$Properties): northstar.data_hub.SyncSettingsRequest;
              * }}
              */
-            SyncRequest.create = function(properties) {
-                return new SyncRequest(properties);
+            SyncSettingsRequest.create = function(properties) {
+                return new SyncSettingsRequest(properties);
             };
 
             /**
-             * Encodes the specified SyncRequest message. Does not implicitly {@link northstar.data_hub.SyncRequest.verify|verify} messages.
+             * Encodes the specified SyncSettingsRequest message. Does not implicitly {@link northstar.data_hub.SyncSettingsRequest.verify|verify} messages.
              * @function encode
-             * @memberof northstar.data_hub.SyncRequest
+             * @memberof northstar.data_hub.SyncSettingsRequest
              * @static
-             * @param {northstar.data_hub.SyncRequest.$Properties} message SyncRequest message or plain object to encode
+             * @param {northstar.data_hub.SyncSettingsRequest.$Properties} message SyncSettingsRequest message or plain object to encode
              * @param {$protobuf.Writer} [writer] Writer to encode to
              * @returns {$protobuf.Writer} Writer
              */
-            SyncRequest.encode = function (message, writer, _depth) {
+            SyncSettingsRequest.encode = function (message, writer, _depth) {
                 if (!writer)
                     writer = $Writer.create();
                 if (_depth === $undefined)
                     _depth = 0;
                 if (_depth > $util.recursionLimit)
                     throw $Error("max depth exceeded");
-                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id"))
-                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.request_id);
-                if (message.spec != null && $Object.hasOwnProperty.call(message, "spec"))
-                    $root.google.protobuf.Struct.encode(message.spec, writer.uint32(/* id 2, wireType 2 =*/18).fork(), _depth + 1).ldelim();
+                if (message.revision != null && $Object.hasOwnProperty.call(message, "revision"))
+                    writer.uint32(/* id 1, wireType 0 =*/8).int64(message.revision);
+                if (message.enabled != null && $Object.hasOwnProperty.call(message, "enabled"))
+                    writer.uint32(/* id 2, wireType 0 =*/16).bool(message.enabled);
                 if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
                     for (let i = 0; i < message.$unknowns.length; ++i)
                         writer.raw(message.$unknowns[i]);
@@ -10157,17 +9073,17 @@ export const northstar = $root.northstar = (() => {
             };
 
             /**
-             * Decodes a SyncRequest message from the specified reader or buffer.
+             * Decodes a SyncSettingsRequest message from the specified reader or buffer.
              * @function decode
-             * @memberof northstar.data_hub.SyncRequest
+             * @memberof northstar.data_hub.SyncSettingsRequest
              * @static
              * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
              * @param {number} [length] Message length if known beforehand
-             * @returns {northstar.data_hub.SyncRequest & northstar.data_hub.SyncRequest.$Shape} SyncRequest
+             * @returns {northstar.data_hub.SyncSettingsRequest & northstar.data_hub.SyncSettingsRequest.$Shape} SyncSettingsRequest
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            SyncRequest.decode = function (reader, length, _end, _depth, _target) {
+            SyncSettingsRequest.decode = function (reader, length, _end, _depth, _target) {
                 if (!(reader instanceof $Reader))
                     reader = $Reader.create(reader);
                 if (_depth === $undefined)
@@ -10184,7 +9100,7 @@ export const northstar = $root.northstar = (() => {
                     length = reader.len;
                     reader.len = end;
                 }
-                message = _target || new $root.northstar.data_hub.SyncRequest();
+                message = _target || new $root.northstar.data_hub.SyncSettingsRequest();
                 while (reader.pos < end) {
                     let start = reader.pos;
                     let tag = reader.tag();
@@ -10195,17 +9111,17 @@ export const northstar = $root.northstar = (() => {
                     let wireType = tag & 7;
                     switch (tag >>>= 3) {
                     case 1: {
-                            if (wireType !== 2)
+                            if (wireType !== 0)
                                 break;
-                            message.request_id = reader.stringVerify();
-                            message._request_id = "request_id";
+                            message.revision = reader.int64();
+                            message._revision = "revision";
                             continue;
                         }
                     case 2: {
-                            if (wireType !== 2)
+                            if (wireType !== 0)
                                 break;
-                            message.spec = $root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1, message.spec);
-                            message._spec = "spec";
+                            message.enabled = reader.bool();
+                            message._enabled = "enabled";
                             continue;
                         }
                     }
@@ -10226,14 +9142,14 @@ export const northstar = $root.northstar = (() => {
             };
 
             /**
-             * Verifies a SyncRequest message.
+             * Verifies a SyncSettingsRequest message.
              * @function verify
-             * @memberof northstar.data_hub.SyncRequest
+             * @memberof northstar.data_hub.SyncSettingsRequest
              * @static
              * @param {Object.<string,*>} message Plain object to verify
              * @returns {string|null} `null` if valid, otherwise the reason why it is not
              */
-            SyncRequest.verify = function (message, _depth) {
+            SyncSettingsRequest.verify = function (message, _depth) {
                 if (typeof message !== "object" || message === null)
                     return "object expected";
                 if (_depth === $undefined)
@@ -10241,60 +9157,61 @@ export const northstar = $root.northstar = (() => {
                 if (_depth > $util.recursionLimit)
                     return "max depth exceeded";
                 let properties = {};
-                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id")) {
-                    properties._request_id = 1;
-                    if (!$util.isString(message.request_id))
-                        return "request_id: string expected";
+                if (message.revision != null && $Object.hasOwnProperty.call(message, "revision")) {
+                    properties._revision = 1;
+                    if (!$util.isInteger(message.revision) && !(message.revision && $util.isInteger(message.revision.low) && $util.isInteger(message.revision.high)))
+                        return "revision: integer|Long expected";
                 }
-                if (message.spec != null && $Object.hasOwnProperty.call(message, "spec")) {
-                    properties._spec = 1;
-                    {
-                        let error = $root.google.protobuf.Struct.verify(message.spec, _depth + 1);
-                        if (error)
-                            return "spec." + error;
-                    }
+                if (message.enabled != null && $Object.hasOwnProperty.call(message, "enabled")) {
+                    properties._enabled = 1;
+                    if (typeof message.enabled !== "boolean")
+                        return "enabled: boolean expected";
                 }
                 return null;
             };
 
             /**
-             * Creates a SyncRequest message from a plain object. Also converts values to their respective internal types.
+             * Creates a SyncSettingsRequest message from a plain object. Also converts values to their respective internal types.
              * @function fromObject
-             * @memberof northstar.data_hub.SyncRequest
+             * @memberof northstar.data_hub.SyncSettingsRequest
              * @static
              * @param {Object.<string,*>} object Plain object
-             * @returns {northstar.data_hub.SyncRequest} SyncRequest
+             * @returns {northstar.data_hub.SyncSettingsRequest} SyncSettingsRequest
              */
-            SyncRequest.fromObject = function (object, _depth) {
-                if (object instanceof $root.northstar.data_hub.SyncRequest)
+            SyncSettingsRequest.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.data_hub.SyncSettingsRequest)
                     return object;
                 if (!$util.isObject(object))
-                    throw $TypeError(".northstar.data_hub.SyncRequest: object expected");
+                    throw $TypeError(".northstar.data_hub.SyncSettingsRequest: object expected");
                 if (_depth === $undefined)
                     _depth = 0;
                 if (_depth > $util.recursionLimit)
                     throw $Error("max depth exceeded");
-                let message = new $root.northstar.data_hub.SyncRequest();
-                if (object.request_id != null)
-                    message.request_id = $String(object.request_id);
-                if (object.spec != null) {
-                    if (!$util.isObject(object.spec))
-                        throw $TypeError(".northstar.data_hub.SyncRequest.spec: object expected");
-                    message.spec = $root.google.protobuf.Struct.fromObject(object.spec, _depth + 1);
-                }
+                let message = new $root.northstar.data_hub.SyncSettingsRequest();
+                if (object.revision != null)
+                    if ($util.Long)
+                        message.revision = $util.Long.fromValue(object.revision, false);
+                    else if (typeof object.revision === "string")
+                        message.revision = $parseInt(object.revision, 10);
+                    else if (typeof object.revision === "number")
+                        message.revision = object.revision;
+                    else if (typeof object.revision === "object")
+                        message.revision = new $util.LongBits(object.revision.low >>> 0, object.revision.high >>> 0).toNumber();
+                if (object.enabled != null)
+                    message.enabled = $Boolean(object.enabled);
                 return message;
             };
 
             /**
-             * Creates a plain object from a SyncRequest message. Also converts values to other types if specified.
+             * Creates a plain object from a SyncSettingsRequest message. Also converts values to other types if specified.
              * @function toObject
-             * @memberof northstar.data_hub.SyncRequest
+             * @memberof northstar.data_hub.SyncSettingsRequest
              * @static
-             * @param {northstar.data_hub.SyncRequest} message SyncRequest
+             * @param {northstar.data_hub.SyncSettingsRequest} message SyncSettingsRequest
              * @param {$protobuf.IConversionOptions} [options] Conversion options
              * @returns {Object.<string,*>} Plain object
              */
-            SyncRequest.toObject = function (message, options, _depth) {
+            SyncSettingsRequest.toObject = function (message, options, _depth) {
                 if (!options)
                     options = {};
                 if (_depth === $undefined)
@@ -10302,127 +9219,89 @@ export const northstar = $root.northstar = (() => {
                 if (_depth > $util.recursionLimit)
                     throw $Error("max depth exceeded");
                 let object = {};
-                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id")) {
-                    object.request_id = message.request_id;
+                if (message.revision != null && $Object.hasOwnProperty.call(message, "revision")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.revision = typeof message.revision === "number" ? $BigInt(message.revision) : $util.Long.fromBits(message.revision.low >>> 0, message.revision.high >>> 0, false).toBigInt();
+                    else if (typeof message.revision === "number")
+                        object.revision = options.longs === $String ? $String(message.revision) : message.revision;
+                    else
+                        object.revision = options.longs === $String ? $util.Long.prototype.toString.call(message.revision) : options.longs === $Number ? new $util.LongBits(message.revision.low >>> 0, message.revision.high >>> 0).toNumber() : message.revision;
                     if (options.oneofs)
-                        object._request_id = "request_id";
+                        object._revision = "revision";
                 }
-                if (message.spec != null && $Object.hasOwnProperty.call(message, "spec")) {
-                    object.spec = $root.google.protobuf.Struct.toObject(message.spec, options, _depth + 1);
+                if (message.enabled != null && $Object.hasOwnProperty.call(message, "enabled")) {
+                    object.enabled = message.enabled;
                     if (options.oneofs)
-                        object._spec = "spec";
+                        object._enabled = "enabled";
                 }
                 return object;
             };
 
             /**
-             * Converts this SyncRequest to JSON.
+             * Converts this SyncSettingsRequest to JSON.
              * @function toJSON
-             * @memberof northstar.data_hub.SyncRequest
+             * @memberof northstar.data_hub.SyncSettingsRequest
              * @instance
              * @returns {Object.<string,*>} JSON object
              */
-            SyncRequest.prototype.toJSON = function() {
-                return SyncRequest.toObject(this, $protobuf.util.toJSONOptions);
+            SyncSettingsRequest.prototype.toJSON = function() {
+                return SyncSettingsRequest.toObject(this, $protobuf.util.toJSONOptions);
             };
 
             /**
-             * Gets the type url for SyncRequest
+             * Gets the type url for SyncSettingsRequest
              * @function getTypeUrl
-             * @memberof northstar.data_hub.SyncRequest
+             * @memberof northstar.data_hub.SyncSettingsRequest
              * @static
              * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
              * @returns {string} The type url
              */
-            SyncRequest.getTypeUrl = function(prefix) {
+            SyncSettingsRequest.getTypeUrl = function(prefix) {
                 if (prefix === $undefined)
                     prefix = "type.googleapis.com";
-                return prefix + "/northstar.data_hub.SyncRequest";
+                return prefix + "/northstar.data_hub.SyncSettingsRequest";
             };
 
-            return SyncRequest;
+            return SyncSettingsRequest;
         })();
 
-        data_hub.SyncJob = (function() {
+        data_hub.SyncTokenRequest = (function() {
 
             /**
-             * Properties of a SyncJob.
-             * @typedef {Object} northstar.data_hub.SyncJob.$Properties
-             * @property {string|null} [request_id] SyncJob request_id
-             * @property {string|null} [request_hash] SyncJob request_hash
-             * @property {google.protobuf.Struct.$Properties|null} [parameters] SyncJob parameters
-             * @property {string|null} [code_revision] SyncJob code_revision
-             * @property {string|null} [status] SyncJob status
-             * @property {string|null} [attempt_id] SyncJob attempt_id
-             * @property {string|null} [error] SyncJob error
-             * @property {string|null} [created_at] SyncJob created_at
-             * @property {string|null} [updated_at] SyncJob updated_at
-             * @property {Array.<string>|null} [null_fields] SyncJob null_fields
-             * @property {"request_id"} [_request_id] SyncJob _request_id
-             * @property {"request_hash"} [_request_hash] SyncJob _request_hash
-             * @property {"parameters"} [_parameters] SyncJob _parameters
-             * @property {"code_revision"} [_code_revision] SyncJob _code_revision
-             * @property {"status"} [_status] SyncJob _status
-             * @property {"attempt_id"} [_attempt_id] SyncJob _attempt_id
-             * @property {"error"} [_error] SyncJob _error
-             * @property {"created_at"} [_created_at] SyncJob _created_at
-             * @property {"updated_at"} [_updated_at] SyncJob _updated_at
+             * Properties of a SyncTokenRequest.
+             * @typedef {Object} northstar.data_hub.SyncTokenRequest.$Properties
+             * @property {string|null} [token] SyncTokenRequest token
+             * @property {"token"} [_token] SyncTokenRequest _token
              * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
              */
 
             /**
-             * Properties of a SyncJob.
+             * Properties of a SyncTokenRequest.
              * @memberof northstar.data_hub
-             * @interface ISyncJob
-             * @augments northstar.data_hub.SyncJob.$Properties
-             * @deprecated Use northstar.data_hub.SyncJob.$Properties instead.
+             * @interface ISyncTokenRequest
+             * @augments northstar.data_hub.SyncTokenRequest.$Properties
+             * @deprecated Use northstar.data_hub.SyncTokenRequest.$Properties instead.
              */
 
             /**
-             * Narrowed shape of a SyncJob.
+             * Narrowed shape of a SyncTokenRequest.
              * @typedef {{
-             *   request_id?: string|null;
-             *   request_hash?: string|null;
-             *   parameters?: google.protobuf.Struct.$Shape|null;
-             *   code_revision?: string|null;
-             *   status?: string|null;
-             *   attempt_id?: string|null;
-             *   error?: string|null;
-             *   created_at?: string|null;
-             *   updated_at?: string|null;
-             *   null_fields?: Array.<string>|null;
+             *   token?: string|null;
              *   $unknowns?: Array.<Uint8Array>;
              * } & (
-             *   ({ _request_id?: undefined; request_id?: null }|{ _request_id?: "request_id"; request_id: string })
-             * ) & (
-             *   ({ _request_hash?: undefined; request_hash?: null }|{ _request_hash?: "request_hash"; request_hash: string })
-             * ) & (
-             *   ({ _parameters?: undefined; parameters?: null }|{ _parameters?: "parameters"; parameters: google.protobuf.Struct.$Shape })
-             * ) & (
-             *   ({ _code_revision?: undefined; code_revision?: null }|{ _code_revision?: "code_revision"; code_revision: string })
-             * ) & (
-             *   ({ _status?: undefined; status?: null }|{ _status?: "status"; status: string })
-             * ) & (
-             *   ({ _attempt_id?: undefined; attempt_id?: null }|{ _attempt_id?: "attempt_id"; attempt_id: string })
-             * ) & (
-             *   ({ _error?: undefined; error?: null }|{ _error?: "error"; error: string })
-             * ) & (
-             *   ({ _created_at?: undefined; created_at?: null }|{ _created_at?: "created_at"; created_at: string })
-             * ) & (
-             *   ({ _updated_at?: undefined; updated_at?: null }|{ _updated_at?: "updated_at"; updated_at: string })
-             * )} northstar.data_hub.SyncJob.$Shape
+             *   ({ _token?: undefined; token?: null }|{ _token?: "token"; token: string })
+             * )} northstar.data_hub.SyncTokenRequest.$Shape
              */
 
             /**
-             * Constructs a new SyncJob.
+             * Constructs a new SyncTokenRequest.
              * @memberof northstar.data_hub
-             * @classdesc Represents a SyncJob.
+             * @classdesc Represents a SyncTokenRequest.
              * @constructor
-             * @param {northstar.data_hub.SyncJob.$Properties=} [properties] Properties to set
+             * @param {northstar.data_hub.SyncTokenRequest.$Properties=} [properties] Properties to set
              * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
              */
-            const SyncJob = function (properties) {
-                this.null_fields = [];
+            const SyncTokenRequest = function (properties) {
                 if (properties)
                     for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
                         if (properties[keys[i]] != null && keys[i] !== "__proto__")
@@ -10430,240 +9309,61 @@ export const northstar = $root.northstar = (() => {
             };
 
             /**
-             * SyncJob request_id.
-             * @member {string|null|undefined} request_id
-             * @memberof northstar.data_hub.SyncJob
+             * SyncTokenRequest token.
+             * @member {string|null|undefined} token
+             * @memberof northstar.data_hub.SyncTokenRequest
              * @instance
              */
-            SyncJob.prototype.request_id = null;
-
-            /**
-             * SyncJob request_hash.
-             * @member {string|null|undefined} request_hash
-             * @memberof northstar.data_hub.SyncJob
-             * @instance
-             */
-            SyncJob.prototype.request_hash = null;
-
-            /**
-             * SyncJob parameters.
-             * @member {google.protobuf.Struct.$Properties|null|undefined} parameters
-             * @memberof northstar.data_hub.SyncJob
-             * @instance
-             */
-            SyncJob.prototype.parameters = null;
-
-            /**
-             * SyncJob code_revision.
-             * @member {string|null|undefined} code_revision
-             * @memberof northstar.data_hub.SyncJob
-             * @instance
-             */
-            SyncJob.prototype.code_revision = null;
-
-            /**
-             * SyncJob status.
-             * @member {string|null|undefined} status
-             * @memberof northstar.data_hub.SyncJob
-             * @instance
-             */
-            SyncJob.prototype.status = null;
-
-            /**
-             * SyncJob attempt_id.
-             * @member {string|null|undefined} attempt_id
-             * @memberof northstar.data_hub.SyncJob
-             * @instance
-             */
-            SyncJob.prototype.attempt_id = null;
-
-            /**
-             * SyncJob error.
-             * @member {string|null|undefined} error
-             * @memberof northstar.data_hub.SyncJob
-             * @instance
-             */
-            SyncJob.prototype.error = null;
-
-            /**
-             * SyncJob created_at.
-             * @member {string|null|undefined} created_at
-             * @memberof northstar.data_hub.SyncJob
-             * @instance
-             */
-            SyncJob.prototype.created_at = null;
-
-            /**
-             * SyncJob updated_at.
-             * @member {string|null|undefined} updated_at
-             * @memberof northstar.data_hub.SyncJob
-             * @instance
-             */
-            SyncJob.prototype.updated_at = null;
-
-            /**
-             * SyncJob null_fields.
-             * @member {Array.<string>} null_fields
-             * @memberof northstar.data_hub.SyncJob
-             * @instance
-             */
-            SyncJob.prototype.null_fields = $util.emptyArray;
+            SyncTokenRequest.prototype.token = null;
 
             // OneOf field names bound to virtual getters and setters
             let $oneOfFields;
 
             /**
-             * SyncJob _request_id.
-             * @member {"request_id"|undefined} _request_id
-             * @memberof northstar.data_hub.SyncJob
+             * SyncTokenRequest _token.
+             * @member {"token"|undefined} _token
+             * @memberof northstar.data_hub.SyncTokenRequest
              * @instance
              */
-            $Object.defineProperty(SyncJob.prototype, "_request_id", {
-                get: $util.oneOfGetter($oneOfFields = ["request_id"]),
+            $Object.defineProperty(SyncTokenRequest.prototype, "_token", {
+                get: $util.oneOfGetter($oneOfFields = ["token"]),
                 set: $util.oneOfSetter($oneOfFields)
             });
 
             /**
-             * SyncJob _request_hash.
-             * @member {"request_hash"|undefined} _request_hash
-             * @memberof northstar.data_hub.SyncJob
-             * @instance
-             */
-            $Object.defineProperty(SyncJob.prototype, "_request_hash", {
-                get: $util.oneOfGetter($oneOfFields = ["request_hash"]),
-                set: $util.oneOfSetter($oneOfFields)
-            });
-
-            /**
-             * SyncJob _parameters.
-             * @member {"parameters"|undefined} _parameters
-             * @memberof northstar.data_hub.SyncJob
-             * @instance
-             */
-            $Object.defineProperty(SyncJob.prototype, "_parameters", {
-                get: $util.oneOfGetter($oneOfFields = ["parameters"]),
-                set: $util.oneOfSetter($oneOfFields)
-            });
-
-            /**
-             * SyncJob _code_revision.
-             * @member {"code_revision"|undefined} _code_revision
-             * @memberof northstar.data_hub.SyncJob
-             * @instance
-             */
-            $Object.defineProperty(SyncJob.prototype, "_code_revision", {
-                get: $util.oneOfGetter($oneOfFields = ["code_revision"]),
-                set: $util.oneOfSetter($oneOfFields)
-            });
-
-            /**
-             * SyncJob _status.
-             * @member {"status"|undefined} _status
-             * @memberof northstar.data_hub.SyncJob
-             * @instance
-             */
-            $Object.defineProperty(SyncJob.prototype, "_status", {
-                get: $util.oneOfGetter($oneOfFields = ["status"]),
-                set: $util.oneOfSetter($oneOfFields)
-            });
-
-            /**
-             * SyncJob _attempt_id.
-             * @member {"attempt_id"|undefined} _attempt_id
-             * @memberof northstar.data_hub.SyncJob
-             * @instance
-             */
-            $Object.defineProperty(SyncJob.prototype, "_attempt_id", {
-                get: $util.oneOfGetter($oneOfFields = ["attempt_id"]),
-                set: $util.oneOfSetter($oneOfFields)
-            });
-
-            /**
-             * SyncJob _error.
-             * @member {"error"|undefined} _error
-             * @memberof northstar.data_hub.SyncJob
-             * @instance
-             */
-            $Object.defineProperty(SyncJob.prototype, "_error", {
-                get: $util.oneOfGetter($oneOfFields = ["error"]),
-                set: $util.oneOfSetter($oneOfFields)
-            });
-
-            /**
-             * SyncJob _created_at.
-             * @member {"created_at"|undefined} _created_at
-             * @memberof northstar.data_hub.SyncJob
-             * @instance
-             */
-            $Object.defineProperty(SyncJob.prototype, "_created_at", {
-                get: $util.oneOfGetter($oneOfFields = ["created_at"]),
-                set: $util.oneOfSetter($oneOfFields)
-            });
-
-            /**
-             * SyncJob _updated_at.
-             * @member {"updated_at"|undefined} _updated_at
-             * @memberof northstar.data_hub.SyncJob
-             * @instance
-             */
-            $Object.defineProperty(SyncJob.prototype, "_updated_at", {
-                get: $util.oneOfGetter($oneOfFields = ["updated_at"]),
-                set: $util.oneOfSetter($oneOfFields)
-            });
-
-            /**
-             * Creates a new SyncJob instance using the specified properties.
+             * Creates a new SyncTokenRequest instance using the specified properties.
              * @function create
-             * @memberof northstar.data_hub.SyncJob
+             * @memberof northstar.data_hub.SyncTokenRequest
              * @static
-             * @param {northstar.data_hub.SyncJob.$Properties=} [properties] Properties to set
-             * @returns {northstar.data_hub.SyncJob} SyncJob instance
+             * @param {northstar.data_hub.SyncTokenRequest.$Properties=} [properties] Properties to set
+             * @returns {northstar.data_hub.SyncTokenRequest} SyncTokenRequest instance
              * @type {{
-             *   (properties: northstar.data_hub.SyncJob.$Shape): northstar.data_hub.SyncJob & northstar.data_hub.SyncJob.$Shape;
-             *   (properties?: northstar.data_hub.SyncJob.$Properties): northstar.data_hub.SyncJob;
+             *   (properties: northstar.data_hub.SyncTokenRequest.$Shape): northstar.data_hub.SyncTokenRequest & northstar.data_hub.SyncTokenRequest.$Shape;
+             *   (properties?: northstar.data_hub.SyncTokenRequest.$Properties): northstar.data_hub.SyncTokenRequest;
              * }}
              */
-            SyncJob.create = function(properties) {
-                return new SyncJob(properties);
+            SyncTokenRequest.create = function(properties) {
+                return new SyncTokenRequest(properties);
             };
 
             /**
-             * Encodes the specified SyncJob message. Does not implicitly {@link northstar.data_hub.SyncJob.verify|verify} messages.
+             * Encodes the specified SyncTokenRequest message. Does not implicitly {@link northstar.data_hub.SyncTokenRequest.verify|verify} messages.
              * @function encode
-             * @memberof northstar.data_hub.SyncJob
+             * @memberof northstar.data_hub.SyncTokenRequest
              * @static
-             * @param {northstar.data_hub.SyncJob.$Properties} message SyncJob message or plain object to encode
+             * @param {northstar.data_hub.SyncTokenRequest.$Properties} message SyncTokenRequest message or plain object to encode
              * @param {$protobuf.Writer} [writer] Writer to encode to
              * @returns {$protobuf.Writer} Writer
              */
-            SyncJob.encode = function (message, writer, _depth) {
+            SyncTokenRequest.encode = function (message, writer, _depth) {
                 if (!writer)
                     writer = $Writer.create();
                 if (_depth === $undefined)
                     _depth = 0;
                 if (_depth > $util.recursionLimit)
                     throw $Error("max depth exceeded");
-                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id"))
-                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.request_id);
-                if (message.request_hash != null && $Object.hasOwnProperty.call(message, "request_hash"))
-                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.request_hash);
-                if (message.parameters != null && $Object.hasOwnProperty.call(message, "parameters"))
-                    $root.google.protobuf.Struct.encode(message.parameters, writer.uint32(/* id 3, wireType 2 =*/26).fork(), _depth + 1).ldelim();
-                if (message.code_revision != null && $Object.hasOwnProperty.call(message, "code_revision"))
-                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.code_revision);
-                if (message.status != null && $Object.hasOwnProperty.call(message, "status"))
-                    writer.uint32(/* id 5, wireType 2 =*/42).string(message.status);
-                if (message.attempt_id != null && $Object.hasOwnProperty.call(message, "attempt_id"))
-                    writer.uint32(/* id 6, wireType 2 =*/50).string(message.attempt_id);
-                if (message.error != null && $Object.hasOwnProperty.call(message, "error"))
-                    writer.uint32(/* id 7, wireType 2 =*/58).string(message.error);
-                if (message.created_at != null && $Object.hasOwnProperty.call(message, "created_at"))
-                    writer.uint32(/* id 8, wireType 2 =*/66).string(message.created_at);
-                if (message.updated_at != null && $Object.hasOwnProperty.call(message, "updated_at"))
-                    writer.uint32(/* id 9, wireType 2 =*/74).string(message.updated_at);
-                if (message.null_fields != null && message.null_fields.length)
-                    for (let i = 0; i < message.null_fields.length; ++i)
-                        writer.uint32(/* id 2046, wireType 2 =*/16370).string(message.null_fields[i]);
+                if (message.token != null && $Object.hasOwnProperty.call(message, "token"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.token);
                 if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
                     for (let i = 0; i < message.$unknowns.length; ++i)
                         writer.raw(message.$unknowns[i]);
@@ -10671,17 +9371,17 @@ export const northstar = $root.northstar = (() => {
             };
 
             /**
-             * Decodes a SyncJob message from the specified reader or buffer.
+             * Decodes a SyncTokenRequest message from the specified reader or buffer.
              * @function decode
-             * @memberof northstar.data_hub.SyncJob
+             * @memberof northstar.data_hub.SyncTokenRequest
              * @static
              * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
              * @param {number} [length] Message length if known beforehand
-             * @returns {northstar.data_hub.SyncJob & northstar.data_hub.SyncJob.$Shape} SyncJob
+             * @returns {northstar.data_hub.SyncTokenRequest & northstar.data_hub.SyncTokenRequest.$Shape} SyncTokenRequest
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            SyncJob.decode = function (reader, length, _end, _depth, _target) {
+            SyncTokenRequest.decode = function (reader, length, _end, _depth, _target) {
                 if (!(reader instanceof $Reader))
                     reader = $Reader.create(reader);
                 if (_depth === $undefined)
@@ -10698,7 +9398,7 @@ export const northstar = $root.northstar = (() => {
                     length = reader.len;
                     reader.len = end;
                 }
-                message = _target || new $root.northstar.data_hub.SyncJob();
+                message = _target || new $root.northstar.data_hub.SyncTokenRequest();
                 while (reader.pos < end) {
                     let start = reader.pos;
                     let tag = reader.tag();
@@ -10711,72 +9411,407 @@ export const northstar = $root.northstar = (() => {
                     case 1: {
                             if (wireType !== 2)
                                 break;
-                            message.request_id = reader.stringVerify();
-                            message._request_id = "request_id";
+                            message.token = reader.stringVerify();
+                            message._token = "token";
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a SyncTokenRequest message.
+             * @function verify
+             * @memberof northstar.data_hub.SyncTokenRequest
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            SyncTokenRequest.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.token != null && $Object.hasOwnProperty.call(message, "token")) {
+                    properties._token = 1;
+                    if (!$util.isString(message.token))
+                        return "token: string expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a SyncTokenRequest message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.data_hub.SyncTokenRequest
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.data_hub.SyncTokenRequest} SyncTokenRequest
+             */
+            SyncTokenRequest.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.data_hub.SyncTokenRequest)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.data_hub.SyncTokenRequest: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.data_hub.SyncTokenRequest();
+                if (object.token != null)
+                    message.token = $String(object.token);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a SyncTokenRequest message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.data_hub.SyncTokenRequest
+             * @static
+             * @param {northstar.data_hub.SyncTokenRequest} message SyncTokenRequest
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            SyncTokenRequest.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (message.token != null && $Object.hasOwnProperty.call(message, "token")) {
+                    object.token = message.token;
+                    if (options.oneofs)
+                        object._token = "token";
+                }
+                return object;
+            };
+
+            /**
+             * Converts this SyncTokenRequest to JSON.
+             * @function toJSON
+             * @memberof northstar.data_hub.SyncTokenRequest
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            SyncTokenRequest.prototype.toJSON = function() {
+                return SyncTokenRequest.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for SyncTokenRequest
+             * @function getTypeUrl
+             * @memberof northstar.data_hub.SyncTokenRequest
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            SyncTokenRequest.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.data_hub.SyncTokenRequest";
+            };
+
+            return SyncTokenRequest;
+        })();
+
+        data_hub.SyncStatus = (function() {
+
+            /**
+             * Properties of a SyncStatus.
+             * @typedef {Object} northstar.data_hub.SyncStatus.$Properties
+             * @property {google.protobuf.Struct.$Properties|null} [settings] SyncStatus settings
+             * @property {boolean|null} [token_configured] SyncStatus token_configured
+             * @property {Array.<google.protobuf.Struct.$Properties>|null} [datasets] SyncStatus datasets
+             * @property {Array.<google.protobuf.Struct.$Properties>|null} [progress] SyncStatus progress
+             * @property {Array.<google.protobuf.Struct.$Properties>|null} [jobs] SyncStatus jobs
+             * @property {number|Long|null} [unplanned_contracts] SyncStatus unplanned_contracts
+             * @property {"settings"} [_settings] SyncStatus _settings
+             * @property {"token_configured"} [_token_configured] SyncStatus _token_configured
+             * @property {"unplanned_contracts"} [_unplanned_contracts] SyncStatus _unplanned_contracts
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a SyncStatus.
+             * @memberof northstar.data_hub
+             * @interface ISyncStatus
+             * @augments northstar.data_hub.SyncStatus.$Properties
+             * @deprecated Use northstar.data_hub.SyncStatus.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a SyncStatus.
+             * @typedef {{
+             *   settings?: google.protobuf.Struct.$Shape|null;
+             *   token_configured?: boolean|null;
+             *   datasets?: Array.<google.protobuf.Struct.$Shape>|null;
+             *   progress?: Array.<google.protobuf.Struct.$Shape>|null;
+             *   jobs?: Array.<google.protobuf.Struct.$Shape>|null;
+             *   unplanned_contracts?: number|Long|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _settings?: undefined; settings?: null }|{ _settings?: "settings"; settings: google.protobuf.Struct.$Shape })
+             * ) & (
+             *   ({ _token_configured?: undefined; token_configured?: null }|{ _token_configured?: "token_configured"; token_configured: boolean })
+             * ) & (
+             *   ({ _unplanned_contracts?: undefined; unplanned_contracts?: null }|{ _unplanned_contracts?: "unplanned_contracts"; unplanned_contracts: number|Long })
+             * )} northstar.data_hub.SyncStatus.$Shape
+             */
+
+            /**
+             * Constructs a new SyncStatus.
+             * @memberof northstar.data_hub
+             * @classdesc Represents a SyncStatus.
+             * @constructor
+             * @param {northstar.data_hub.SyncStatus.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const SyncStatus = function (properties) {
+                this.datasets = [];
+                this.progress = [];
+                this.jobs = [];
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * SyncStatus settings.
+             * @member {google.protobuf.Struct.$Properties|null|undefined} settings
+             * @memberof northstar.data_hub.SyncStatus
+             * @instance
+             */
+            SyncStatus.prototype.settings = null;
+
+            /**
+             * SyncStatus token_configured.
+             * @member {boolean|null|undefined} token_configured
+             * @memberof northstar.data_hub.SyncStatus
+             * @instance
+             */
+            SyncStatus.prototype.token_configured = null;
+
+            /**
+             * SyncStatus datasets.
+             * @member {Array.<google.protobuf.Struct.$Properties>} datasets
+             * @memberof northstar.data_hub.SyncStatus
+             * @instance
+             */
+            SyncStatus.prototype.datasets = $util.emptyArray;
+
+            /**
+             * SyncStatus progress.
+             * @member {Array.<google.protobuf.Struct.$Properties>} progress
+             * @memberof northstar.data_hub.SyncStatus
+             * @instance
+             */
+            SyncStatus.prototype.progress = $util.emptyArray;
+
+            /**
+             * SyncStatus jobs.
+             * @member {Array.<google.protobuf.Struct.$Properties>} jobs
+             * @memberof northstar.data_hub.SyncStatus
+             * @instance
+             */
+            SyncStatus.prototype.jobs = $util.emptyArray;
+
+            /**
+             * SyncStatus unplanned_contracts.
+             * @member {number|Long|null|undefined} unplanned_contracts
+             * @memberof northstar.data_hub.SyncStatus
+             * @instance
+             */
+            SyncStatus.prototype.unplanned_contracts = null;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * SyncStatus _settings.
+             * @member {"settings"|undefined} _settings
+             * @memberof northstar.data_hub.SyncStatus
+             * @instance
+             */
+            $Object.defineProperty(SyncStatus.prototype, "_settings", {
+                get: $util.oneOfGetter($oneOfFields = ["settings"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SyncStatus _token_configured.
+             * @member {"token_configured"|undefined} _token_configured
+             * @memberof northstar.data_hub.SyncStatus
+             * @instance
+             */
+            $Object.defineProperty(SyncStatus.prototype, "_token_configured", {
+                get: $util.oneOfGetter($oneOfFields = ["token_configured"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SyncStatus _unplanned_contracts.
+             * @member {"unplanned_contracts"|undefined} _unplanned_contracts
+             * @memberof northstar.data_hub.SyncStatus
+             * @instance
+             */
+            $Object.defineProperty(SyncStatus.prototype, "_unplanned_contracts", {
+                get: $util.oneOfGetter($oneOfFields = ["unplanned_contracts"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new SyncStatus instance using the specified properties.
+             * @function create
+             * @memberof northstar.data_hub.SyncStatus
+             * @static
+             * @param {northstar.data_hub.SyncStatus.$Properties=} [properties] Properties to set
+             * @returns {northstar.data_hub.SyncStatus} SyncStatus instance
+             * @type {{
+             *   (properties: northstar.data_hub.SyncStatus.$Shape): northstar.data_hub.SyncStatus & northstar.data_hub.SyncStatus.$Shape;
+             *   (properties?: northstar.data_hub.SyncStatus.$Properties): northstar.data_hub.SyncStatus;
+             * }}
+             */
+            SyncStatus.create = function(properties) {
+                return new SyncStatus(properties);
+            };
+
+            /**
+             * Encodes the specified SyncStatus message. Does not implicitly {@link northstar.data_hub.SyncStatus.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.data_hub.SyncStatus
+             * @static
+             * @param {northstar.data_hub.SyncStatus.$Properties} message SyncStatus message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            SyncStatus.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.settings != null && $Object.hasOwnProperty.call(message, "settings"))
+                    $root.google.protobuf.Struct.encode(message.settings, writer.uint32(/* id 1, wireType 2 =*/10).fork(), _depth + 1).ldelim();
+                if (message.token_configured != null && $Object.hasOwnProperty.call(message, "token_configured"))
+                    writer.uint32(/* id 2, wireType 0 =*/16).bool(message.token_configured);
+                if (message.datasets != null && message.datasets.length)
+                    for (let i = 0; i < message.datasets.length; ++i)
+                        $root.google.protobuf.Struct.encode(message.datasets[i], writer.uint32(/* id 3, wireType 2 =*/26).fork(), _depth + 1).ldelim();
+                if (message.progress != null && message.progress.length)
+                    for (let i = 0; i < message.progress.length; ++i)
+                        $root.google.protobuf.Struct.encode(message.progress[i], writer.uint32(/* id 4, wireType 2 =*/34).fork(), _depth + 1).ldelim();
+                if (message.jobs != null && message.jobs.length)
+                    for (let i = 0; i < message.jobs.length; ++i)
+                        $root.google.protobuf.Struct.encode(message.jobs[i], writer.uint32(/* id 5, wireType 2 =*/42).fork(), _depth + 1).ldelim();
+                if (message.unplanned_contracts != null && $Object.hasOwnProperty.call(message, "unplanned_contracts"))
+                    writer.uint32(/* id 6, wireType 0 =*/48).int64(message.unplanned_contracts);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a SyncStatus message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.data_hub.SyncStatus
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.data_hub.SyncStatus & northstar.data_hub.SyncStatus.$Shape} SyncStatus
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            SyncStatus.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.data_hub.SyncStatus();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.settings = $root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1, message.settings);
+                            message._settings = "settings";
                             continue;
                         }
                     case 2: {
-                            if (wireType !== 2)
+                            if (wireType !== 0)
                                 break;
-                            message.request_hash = reader.stringVerify();
-                            message._request_hash = "request_hash";
+                            message.token_configured = reader.bool();
+                            message._token_configured = "token_configured";
                             continue;
                         }
                     case 3: {
                             if (wireType !== 2)
                                 break;
-                            message.parameters = $root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1, message.parameters);
-                            message._parameters = "parameters";
+                            if (!(message.datasets && message.datasets.length))
+                                message.datasets = [];
+                            message.datasets.push($root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1));
                             continue;
                         }
                     case 4: {
                             if (wireType !== 2)
                                 break;
-                            message.code_revision = reader.stringVerify();
-                            message._code_revision = "code_revision";
+                            if (!(message.progress && message.progress.length))
+                                message.progress = [];
+                            message.progress.push($root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1));
                             continue;
                         }
                     case 5: {
                             if (wireType !== 2)
                                 break;
-                            message.status = reader.stringVerify();
-                            message._status = "status";
+                            if (!(message.jobs && message.jobs.length))
+                                message.jobs = [];
+                            message.jobs.push($root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1));
                             continue;
                         }
                     case 6: {
-                            if (wireType !== 2)
+                            if (wireType !== 0)
                                 break;
-                            message.attempt_id = reader.stringVerify();
-                            message._attempt_id = "attempt_id";
-                            continue;
-                        }
-                    case 7: {
-                            if (wireType !== 2)
-                                break;
-                            message.error = reader.stringVerify();
-                            message._error = "error";
-                            continue;
-                        }
-                    case 8: {
-                            if (wireType !== 2)
-                                break;
-                            message.created_at = reader.stringVerify();
-                            message._created_at = "created_at";
-                            continue;
-                        }
-                    case 9: {
-                            if (wireType !== 2)
-                                break;
-                            message.updated_at = reader.stringVerify();
-                            message._updated_at = "updated_at";
-                            continue;
-                        }
-                    case 2046: {
-                            if (wireType !== 2)
-                                break;
-                            if (!(message.null_fields && message.null_fields.length))
-                                message.null_fields = [];
-                            message.null_fields.push(reader.stringVerify());
+                            message.unplanned_contracts = reader.int64();
+                            message._unplanned_contracts = "unplanned_contracts";
                             continue;
                         }
                     }
@@ -10797,14 +9832,14 @@ export const northstar = $root.northstar = (() => {
             };
 
             /**
-             * Verifies a SyncJob message.
+             * Verifies a SyncStatus message.
              * @function verify
-             * @memberof northstar.data_hub.SyncJob
+             * @memberof northstar.data_hub.SyncStatus
              * @static
              * @param {Object.<string,*>} message Plain object to verify
              * @returns {string|null} `null` if valid, otherwise the reason why it is not
              */
-            SyncJob.verify = function (message, _depth) {
+            SyncStatus.verify = function (message, _depth) {
                 if (typeof message !== "object" || message === null)
                     return "object expected";
                 if (_depth === $undefined)
@@ -10812,123 +9847,131 @@ export const northstar = $root.northstar = (() => {
                 if (_depth > $util.recursionLimit)
                     return "max depth exceeded";
                 let properties = {};
-                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id")) {
-                    properties._request_id = 1;
-                    if (!$util.isString(message.request_id))
-                        return "request_id: string expected";
-                }
-                if (message.request_hash != null && $Object.hasOwnProperty.call(message, "request_hash")) {
-                    properties._request_hash = 1;
-                    if (!$util.isString(message.request_hash))
-                        return "request_hash: string expected";
-                }
-                if (message.parameters != null && $Object.hasOwnProperty.call(message, "parameters")) {
-                    properties._parameters = 1;
+                if (message.settings != null && $Object.hasOwnProperty.call(message, "settings")) {
+                    properties._settings = 1;
                     {
-                        let error = $root.google.protobuf.Struct.verify(message.parameters, _depth + 1);
+                        let error = $root.google.protobuf.Struct.verify(message.settings, _depth + 1);
                         if (error)
-                            return "parameters." + error;
+                            return "settings." + error;
                     }
                 }
-                if (message.code_revision != null && $Object.hasOwnProperty.call(message, "code_revision")) {
-                    properties._code_revision = 1;
-                    if (!$util.isString(message.code_revision))
-                        return "code_revision: string expected";
+                if (message.token_configured != null && $Object.hasOwnProperty.call(message, "token_configured")) {
+                    properties._token_configured = 1;
+                    if (typeof message.token_configured !== "boolean")
+                        return "token_configured: boolean expected";
                 }
-                if (message.status != null && $Object.hasOwnProperty.call(message, "status")) {
-                    properties._status = 1;
-                    if (!$util.isString(message.status))
-                        return "status: string expected";
+                if (message.datasets != null && $Object.hasOwnProperty.call(message, "datasets")) {
+                    if (!$Array.isArray(message.datasets))
+                        return "datasets: array expected";
+                    for (let i = 0; i < message.datasets.length; ++i) {
+                        let error = $root.google.protobuf.Struct.verify(message.datasets[i], _depth + 1);
+                        if (error)
+                            return "datasets." + error;
+                    }
                 }
-                if (message.attempt_id != null && $Object.hasOwnProperty.call(message, "attempt_id")) {
-                    properties._attempt_id = 1;
-                    if (!$util.isString(message.attempt_id))
-                        return "attempt_id: string expected";
+                if (message.progress != null && $Object.hasOwnProperty.call(message, "progress")) {
+                    if (!$Array.isArray(message.progress))
+                        return "progress: array expected";
+                    for (let i = 0; i < message.progress.length; ++i) {
+                        let error = $root.google.protobuf.Struct.verify(message.progress[i], _depth + 1);
+                        if (error)
+                            return "progress." + error;
+                    }
                 }
-                if (message.error != null && $Object.hasOwnProperty.call(message, "error")) {
-                    properties._error = 1;
-                    if (!$util.isString(message.error))
-                        return "error: string expected";
+                if (message.jobs != null && $Object.hasOwnProperty.call(message, "jobs")) {
+                    if (!$Array.isArray(message.jobs))
+                        return "jobs: array expected";
+                    for (let i = 0; i < message.jobs.length; ++i) {
+                        let error = $root.google.protobuf.Struct.verify(message.jobs[i], _depth + 1);
+                        if (error)
+                            return "jobs." + error;
+                    }
                 }
-                if (message.created_at != null && $Object.hasOwnProperty.call(message, "created_at")) {
-                    properties._created_at = 1;
-                    if (!$util.isString(message.created_at))
-                        return "created_at: string expected";
-                }
-                if (message.updated_at != null && $Object.hasOwnProperty.call(message, "updated_at")) {
-                    properties._updated_at = 1;
-                    if (!$util.isString(message.updated_at))
-                        return "updated_at: string expected";
-                }
-                if (message.null_fields != null && $Object.hasOwnProperty.call(message, "null_fields")) {
-                    if (!$Array.isArray(message.null_fields))
-                        return "null_fields: array expected";
-                    for (let i = 0; i < message.null_fields.length; ++i)
-                        if (!$util.isString(message.null_fields[i]))
-                            return "null_fields: string[] expected";
+                if (message.unplanned_contracts != null && $Object.hasOwnProperty.call(message, "unplanned_contracts")) {
+                    properties._unplanned_contracts = 1;
+                    if (!$util.isInteger(message.unplanned_contracts) && !(message.unplanned_contracts && $util.isInteger(message.unplanned_contracts.low) && $util.isInteger(message.unplanned_contracts.high)))
+                        return "unplanned_contracts: integer|Long expected";
                 }
                 return null;
             };
 
             /**
-             * Creates a SyncJob message from a plain object. Also converts values to their respective internal types.
+             * Creates a SyncStatus message from a plain object. Also converts values to their respective internal types.
              * @function fromObject
-             * @memberof northstar.data_hub.SyncJob
+             * @memberof northstar.data_hub.SyncStatus
              * @static
              * @param {Object.<string,*>} object Plain object
-             * @returns {northstar.data_hub.SyncJob} SyncJob
+             * @returns {northstar.data_hub.SyncStatus} SyncStatus
              */
-            SyncJob.fromObject = function (object, _depth) {
-                if (object instanceof $root.northstar.data_hub.SyncJob)
+            SyncStatus.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.data_hub.SyncStatus)
                     return object;
                 if (!$util.isObject(object))
-                    throw $TypeError(".northstar.data_hub.SyncJob: object expected");
+                    throw $TypeError(".northstar.data_hub.SyncStatus: object expected");
                 if (_depth === $undefined)
                     _depth = 0;
                 if (_depth > $util.recursionLimit)
                     throw $Error("max depth exceeded");
-                let message = new $root.northstar.data_hub.SyncJob();
-                if (object.request_id != null)
-                    message.request_id = $String(object.request_id);
-                if (object.request_hash != null)
-                    message.request_hash = $String(object.request_hash);
-                if (object.parameters != null) {
-                    if (!$util.isObject(object.parameters))
-                        throw $TypeError(".northstar.data_hub.SyncJob.parameters: object expected");
-                    message.parameters = $root.google.protobuf.Struct.fromObject(object.parameters, _depth + 1);
+                let message = new $root.northstar.data_hub.SyncStatus();
+                if (object.settings != null) {
+                    if (!$util.isObject(object.settings))
+                        throw $TypeError(".northstar.data_hub.SyncStatus.settings: object expected");
+                    message.settings = $root.google.protobuf.Struct.fromObject(object.settings, _depth + 1);
                 }
-                if (object.code_revision != null)
-                    message.code_revision = $String(object.code_revision);
-                if (object.status != null)
-                    message.status = $String(object.status);
-                if (object.attempt_id != null)
-                    message.attempt_id = $String(object.attempt_id);
-                if (object.error != null)
-                    message.error = $String(object.error);
-                if (object.created_at != null)
-                    message.created_at = $String(object.created_at);
-                if (object.updated_at != null)
-                    message.updated_at = $String(object.updated_at);
-                if (object.null_fields) {
-                    if (!$Array.isArray(object.null_fields))
-                        throw $TypeError(".northstar.data_hub.SyncJob.null_fields: array expected");
-                    message.null_fields = $Array(object.null_fields.length);
-                    for (let i = 0; i < object.null_fields.length; ++i)
-                        message.null_fields[i] = $String(object.null_fields[i]);
+                if (object.token_configured != null)
+                    message.token_configured = $Boolean(object.token_configured);
+                if (object.datasets) {
+                    if (!$Array.isArray(object.datasets))
+                        throw $TypeError(".northstar.data_hub.SyncStatus.datasets: array expected");
+                    message.datasets = $Array(object.datasets.length);
+                    for (let i = 0; i < object.datasets.length; ++i) {
+                        if (!$util.isObject(object.datasets[i]))
+                            throw $TypeError(".northstar.data_hub.SyncStatus.datasets: object expected");
+                        message.datasets[i] = $root.google.protobuf.Struct.fromObject(object.datasets[i], _depth + 1);
+                    }
                 }
+                if (object.progress) {
+                    if (!$Array.isArray(object.progress))
+                        throw $TypeError(".northstar.data_hub.SyncStatus.progress: array expected");
+                    message.progress = $Array(object.progress.length);
+                    for (let i = 0; i < object.progress.length; ++i) {
+                        if (!$util.isObject(object.progress[i]))
+                            throw $TypeError(".northstar.data_hub.SyncStatus.progress: object expected");
+                        message.progress[i] = $root.google.protobuf.Struct.fromObject(object.progress[i], _depth + 1);
+                    }
+                }
+                if (object.jobs) {
+                    if (!$Array.isArray(object.jobs))
+                        throw $TypeError(".northstar.data_hub.SyncStatus.jobs: array expected");
+                    message.jobs = $Array(object.jobs.length);
+                    for (let i = 0; i < object.jobs.length; ++i) {
+                        if (!$util.isObject(object.jobs[i]))
+                            throw $TypeError(".northstar.data_hub.SyncStatus.jobs: object expected");
+                        message.jobs[i] = $root.google.protobuf.Struct.fromObject(object.jobs[i], _depth + 1);
+                    }
+                }
+                if (object.unplanned_contracts != null)
+                    if ($util.Long)
+                        message.unplanned_contracts = $util.Long.fromValue(object.unplanned_contracts, false);
+                    else if (typeof object.unplanned_contracts === "string")
+                        message.unplanned_contracts = $parseInt(object.unplanned_contracts, 10);
+                    else if (typeof object.unplanned_contracts === "number")
+                        message.unplanned_contracts = object.unplanned_contracts;
+                    else if (typeof object.unplanned_contracts === "object")
+                        message.unplanned_contracts = new $util.LongBits(object.unplanned_contracts.low >>> 0, object.unplanned_contracts.high >>> 0).toNumber();
                 return message;
             };
 
             /**
-             * Creates a plain object from a SyncJob message. Also converts values to other types if specified.
+             * Creates a plain object from a SyncStatus message. Also converts values to other types if specified.
              * @function toObject
-             * @memberof northstar.data_hub.SyncJob
+             * @memberof northstar.data_hub.SyncStatus
              * @static
-             * @param {northstar.data_hub.SyncJob} message SyncJob
+             * @param {northstar.data_hub.SyncStatus} message SyncStatus
              * @param {$protobuf.IConversionOptions} [options] Conversion options
              * @returns {Object.<string,*>} Plain object
              */
-            SyncJob.toObject = function (message, options, _depth) {
+            SyncStatus.toObject = function (message, options, _depth) {
                 if (!options)
                     options = {};
                 if (_depth === $undefined)
@@ -10936,124 +9979,117 @@ export const northstar = $root.northstar = (() => {
                 if (_depth > $util.recursionLimit)
                     throw $Error("max depth exceeded");
                 let object = {};
-                if (options.arrays || options.defaults)
-                    object.null_fields = [];
-                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id")) {
-                    object.request_id = message.request_id;
-                    if (options.oneofs)
-                        object._request_id = "request_id";
+                if (options.arrays || options.defaults) {
+                    object.datasets = [];
+                    object.progress = [];
+                    object.jobs = [];
                 }
-                if (message.request_hash != null && $Object.hasOwnProperty.call(message, "request_hash")) {
-                    object.request_hash = message.request_hash;
+                if (message.settings != null && $Object.hasOwnProperty.call(message, "settings")) {
+                    object.settings = $root.google.protobuf.Struct.toObject(message.settings, options, _depth + 1);
                     if (options.oneofs)
-                        object._request_hash = "request_hash";
+                        object._settings = "settings";
                 }
-                if (message.parameters != null && $Object.hasOwnProperty.call(message, "parameters")) {
-                    object.parameters = $root.google.protobuf.Struct.toObject(message.parameters, options, _depth + 1);
+                if (message.token_configured != null && $Object.hasOwnProperty.call(message, "token_configured")) {
+                    object.token_configured = message.token_configured;
                     if (options.oneofs)
-                        object._parameters = "parameters";
+                        object._token_configured = "token_configured";
                 }
-                if (message.code_revision != null && $Object.hasOwnProperty.call(message, "code_revision")) {
-                    object.code_revision = message.code_revision;
+                if (message.datasets && message.datasets.length) {
+                    object.datasets = $Array(message.datasets.length);
+                    for (let j = 0; j < message.datasets.length; ++j)
+                        object.datasets[j] = $root.google.protobuf.Struct.toObject(message.datasets[j], options, _depth + 1);
+                }
+                if (message.progress && message.progress.length) {
+                    object.progress = $Array(message.progress.length);
+                    for (let j = 0; j < message.progress.length; ++j)
+                        object.progress[j] = $root.google.protobuf.Struct.toObject(message.progress[j], options, _depth + 1);
+                }
+                if (message.jobs && message.jobs.length) {
+                    object.jobs = $Array(message.jobs.length);
+                    for (let j = 0; j < message.jobs.length; ++j)
+                        object.jobs[j] = $root.google.protobuf.Struct.toObject(message.jobs[j], options, _depth + 1);
+                }
+                if (message.unplanned_contracts != null && $Object.hasOwnProperty.call(message, "unplanned_contracts")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.unplanned_contracts = typeof message.unplanned_contracts === "number" ? $BigInt(message.unplanned_contracts) : $util.Long.fromBits(message.unplanned_contracts.low >>> 0, message.unplanned_contracts.high >>> 0, false).toBigInt();
+                    else if (typeof message.unplanned_contracts === "number")
+                        object.unplanned_contracts = options.longs === $String ? $String(message.unplanned_contracts) : message.unplanned_contracts;
+                    else
+                        object.unplanned_contracts = options.longs === $String ? $util.Long.prototype.toString.call(message.unplanned_contracts) : options.longs === $Number ? new $util.LongBits(message.unplanned_contracts.low >>> 0, message.unplanned_contracts.high >>> 0).toNumber() : message.unplanned_contracts;
                     if (options.oneofs)
-                        object._code_revision = "code_revision";
-                }
-                if (message.status != null && $Object.hasOwnProperty.call(message, "status")) {
-                    object.status = message.status;
-                    if (options.oneofs)
-                        object._status = "status";
-                }
-                if (message.attempt_id != null && $Object.hasOwnProperty.call(message, "attempt_id")) {
-                    object.attempt_id = message.attempt_id;
-                    if (options.oneofs)
-                        object._attempt_id = "attempt_id";
-                }
-                if (message.error != null && $Object.hasOwnProperty.call(message, "error")) {
-                    object.error = message.error;
-                    if (options.oneofs)
-                        object._error = "error";
-                }
-                if (message.created_at != null && $Object.hasOwnProperty.call(message, "created_at")) {
-                    object.created_at = message.created_at;
-                    if (options.oneofs)
-                        object._created_at = "created_at";
-                }
-                if (message.updated_at != null && $Object.hasOwnProperty.call(message, "updated_at")) {
-                    object.updated_at = message.updated_at;
-                    if (options.oneofs)
-                        object._updated_at = "updated_at";
-                }
-                if (message.null_fields && message.null_fields.length) {
-                    object.null_fields = $Array(message.null_fields.length);
-                    for (let j = 0; j < message.null_fields.length; ++j)
-                        object.null_fields[j] = message.null_fields[j];
+                        object._unplanned_contracts = "unplanned_contracts";
                 }
                 return object;
             };
 
             /**
-             * Converts this SyncJob to JSON.
+             * Converts this SyncStatus to JSON.
              * @function toJSON
-             * @memberof northstar.data_hub.SyncJob
+             * @memberof northstar.data_hub.SyncStatus
              * @instance
              * @returns {Object.<string,*>} JSON object
              */
-            SyncJob.prototype.toJSON = function() {
-                return SyncJob.toObject(this, $protobuf.util.toJSONOptions);
+            SyncStatus.prototype.toJSON = function() {
+                return SyncStatus.toObject(this, $protobuf.util.toJSONOptions);
             };
 
             /**
-             * Gets the type url for SyncJob
+             * Gets the type url for SyncStatus
              * @function getTypeUrl
-             * @memberof northstar.data_hub.SyncJob
+             * @memberof northstar.data_hub.SyncStatus
              * @static
              * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
              * @returns {string} The type url
              */
-            SyncJob.getTypeUrl = function(prefix) {
+            SyncStatus.getTypeUrl = function(prefix) {
                 if (prefix === $undefined)
                     prefix = "type.googleapis.com";
-                return prefix + "/northstar.data_hub.SyncJob";
+                return prefix + "/northstar.data_hub.SyncStatus";
             };
 
-            return SyncJob;
+            return SyncStatus;
         })();
 
-        data_hub.GetApiSyncResponse = (function() {
+        data_hub.SyncEvidence = (function() {
 
             /**
-             * Properties of a GetApiSyncResponse.
-             * @typedef {Object} northstar.data_hub.GetApiSyncResponse.$Properties
-             * @property {Array.<northstar.data_hub.SyncJob.$Properties>|null} [items] GetApiSyncResponse items
+             * Properties of a SyncEvidence.
+             * @typedef {Object} northstar.data_hub.SyncEvidence.$Properties
+             * @property {string|null} [request_id] SyncEvidence request_id
+             * @property {Object.<string,google.protobuf.Value.$Properties>|null} [evidence_fields] SyncEvidence evidence_fields
+             * @property {"request_id"} [_request_id] SyncEvidence _request_id
              * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
              */
 
             /**
-             * Properties of a GetApiSyncResponse.
+             * Properties of a SyncEvidence.
              * @memberof northstar.data_hub
-             * @interface IGetApiSyncResponse
-             * @augments northstar.data_hub.GetApiSyncResponse.$Properties
-             * @deprecated Use northstar.data_hub.GetApiSyncResponse.$Properties instead.
+             * @interface ISyncEvidence
+             * @augments northstar.data_hub.SyncEvidence.$Properties
+             * @deprecated Use northstar.data_hub.SyncEvidence.$Properties instead.
              */
 
             /**
-             * Shape of a GetApiSyncResponse.
+             * Narrowed shape of a SyncEvidence.
              * @typedef {{
-             *   items?: Array.<northstar.data_hub.SyncJob.$Shape>|null;
+             *   request_id?: string|null;
+             *   evidence_fields?: Object.<string,google.protobuf.Value.$Shape>|null;
              *   $unknowns?: Array.<Uint8Array>;
-             * }} northstar.data_hub.GetApiSyncResponse.$Shape
+             * } & (
+             *   ({ _request_id?: undefined; request_id?: null }|{ _request_id?: "request_id"; request_id: string })
+             * )} northstar.data_hub.SyncEvidence.$Shape
              */
 
             /**
-             * Constructs a new GetApiSyncResponse.
+             * Constructs a new SyncEvidence.
              * @memberof northstar.data_hub
-             * @classdesc Represents a GetApiSyncResponse.
+             * @classdesc Represents a SyncEvidence.
              * @constructor
-             * @param {northstar.data_hub.GetApiSyncResponse.$Properties=} [properties] Properties to set
+             * @param {northstar.data_hub.SyncEvidence.$Properties=} [properties] Properties to set
              * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
              */
-            const GetApiSyncResponse = function (properties) {
-                this.items = [];
+            const SyncEvidence = function (properties) {
+                this.evidence_fields = {};
                 if (properties)
                     for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
                         if (properties[keys[i]] != null && keys[i] !== "__proto__")
@@ -11061,48 +10097,74 @@ export const northstar = $root.northstar = (() => {
             };
 
             /**
-             * GetApiSyncResponse items.
-             * @member {Array.<northstar.data_hub.SyncJob.$Properties>} items
-             * @memberof northstar.data_hub.GetApiSyncResponse
+             * SyncEvidence request_id.
+             * @member {string|null|undefined} request_id
+             * @memberof northstar.data_hub.SyncEvidence
              * @instance
              */
-            GetApiSyncResponse.prototype.items = $util.emptyArray;
+            SyncEvidence.prototype.request_id = null;
 
             /**
-             * Creates a new GetApiSyncResponse instance using the specified properties.
+             * SyncEvidence evidence_fields.
+             * @member {Object.<string,google.protobuf.Value.$Properties>} evidence_fields
+             * @memberof northstar.data_hub.SyncEvidence
+             * @instance
+             */
+            SyncEvidence.prototype.evidence_fields = $util.emptyObject;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * SyncEvidence _request_id.
+             * @member {"request_id"|undefined} _request_id
+             * @memberof northstar.data_hub.SyncEvidence
+             * @instance
+             */
+            $Object.defineProperty(SyncEvidence.prototype, "_request_id", {
+                get: $util.oneOfGetter($oneOfFields = ["request_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new SyncEvidence instance using the specified properties.
              * @function create
-             * @memberof northstar.data_hub.GetApiSyncResponse
+             * @memberof northstar.data_hub.SyncEvidence
              * @static
-             * @param {northstar.data_hub.GetApiSyncResponse.$Properties=} [properties] Properties to set
-             * @returns {northstar.data_hub.GetApiSyncResponse} GetApiSyncResponse instance
+             * @param {northstar.data_hub.SyncEvidence.$Properties=} [properties] Properties to set
+             * @returns {northstar.data_hub.SyncEvidence} SyncEvidence instance
              * @type {{
-             *   (properties: northstar.data_hub.GetApiSyncResponse.$Shape): northstar.data_hub.GetApiSyncResponse & northstar.data_hub.GetApiSyncResponse.$Shape;
-             *   (properties?: northstar.data_hub.GetApiSyncResponse.$Properties): northstar.data_hub.GetApiSyncResponse;
+             *   (properties: northstar.data_hub.SyncEvidence.$Shape): northstar.data_hub.SyncEvidence & northstar.data_hub.SyncEvidence.$Shape;
+             *   (properties?: northstar.data_hub.SyncEvidence.$Properties): northstar.data_hub.SyncEvidence;
              * }}
              */
-            GetApiSyncResponse.create = function(properties) {
-                return new GetApiSyncResponse(properties);
+            SyncEvidence.create = function(properties) {
+                return new SyncEvidence(properties);
             };
 
             /**
-             * Encodes the specified GetApiSyncResponse message. Does not implicitly {@link northstar.data_hub.GetApiSyncResponse.verify|verify} messages.
+             * Encodes the specified SyncEvidence message. Does not implicitly {@link northstar.data_hub.SyncEvidence.verify|verify} messages.
              * @function encode
-             * @memberof northstar.data_hub.GetApiSyncResponse
+             * @memberof northstar.data_hub.SyncEvidence
              * @static
-             * @param {northstar.data_hub.GetApiSyncResponse.$Properties} message GetApiSyncResponse message or plain object to encode
+             * @param {northstar.data_hub.SyncEvidence.$Properties} message SyncEvidence message or plain object to encode
              * @param {$protobuf.Writer} [writer] Writer to encode to
              * @returns {$protobuf.Writer} Writer
              */
-            GetApiSyncResponse.encode = function (message, writer, _depth) {
+            SyncEvidence.encode = function (message, writer, _depth) {
                 if (!writer)
                     writer = $Writer.create();
                 if (_depth === $undefined)
                     _depth = 0;
                 if (_depth > $util.recursionLimit)
                     throw $Error("max depth exceeded");
-                if (message.items != null && message.items.length)
-                    for (let i = 0; i < message.items.length; ++i)
-                        $root.northstar.data_hub.SyncJob.encode(message.items[i], writer.uint32(/* id 1, wireType 2 =*/10).fork(), _depth + 1).ldelim();
+                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.request_id);
+                if (message.evidence_fields != null && $Object.hasOwnProperty.call(message, "evidence_fields"))
+                    for (let keys = $Object.keys(message.evidence_fields), i = 0; i < keys.length; ++i) {
+                        writer.uint32(/* id 1000, wireType 2 =*/8002).fork().uint32(/* id 1, wireType 2 =*/10).string(keys[i]);
+                        $root.google.protobuf.Value.encode(message.evidence_fields[keys[i]], writer.uint32(/* id 2, wireType 2 =*/18).fork(), _depth + 1).ldelim().ldelim();
+                    }
                 if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
                     for (let i = 0; i < message.$unknowns.length; ++i)
                         writer.raw(message.$unknowns[i]);
@@ -11110,24 +10172,24 @@ export const northstar = $root.northstar = (() => {
             };
 
             /**
-             * Decodes a GetApiSyncResponse message from the specified reader or buffer.
+             * Decodes a SyncEvidence message from the specified reader or buffer.
              * @function decode
-             * @memberof northstar.data_hub.GetApiSyncResponse
+             * @memberof northstar.data_hub.SyncEvidence
              * @static
              * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
              * @param {number} [length] Message length if known beforehand
-             * @returns {northstar.data_hub.GetApiSyncResponse & northstar.data_hub.GetApiSyncResponse.$Shape} GetApiSyncResponse
+             * @returns {northstar.data_hub.SyncEvidence & northstar.data_hub.SyncEvidence.$Shape} SyncEvidence
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            GetApiSyncResponse.decode = function (reader, length, _end, _depth, _target) {
+            SyncEvidence.decode = function (reader, length, _end, _depth, _target) {
                 if (!(reader instanceof $Reader))
                     reader = $Reader.create(reader);
                 if (_depth === $undefined)
                     _depth = 0;
                 if (_depth > $Reader.recursionLimit)
                     throw $Error("max depth exceeded");
-                let end, message;
+                let end, message, key, value;
                 if (length === $undefined)
                     end = reader.len;
                 else {
@@ -11137,7 +10199,7 @@ export const northstar = $root.northstar = (() => {
                     length = reader.len;
                     reader.len = end;
                 }
-                message = _target || new $root.northstar.data_hub.GetApiSyncResponse();
+                message = _target || new $root.northstar.data_hub.SyncEvidence();
                 while (reader.pos < end) {
                     let start = reader.pos;
                     let tag = reader.tag();
@@ -11150,9 +10212,44 @@ export const northstar = $root.northstar = (() => {
                     case 1: {
                             if (wireType !== 2)
                                 break;
-                            if (!(message.items && message.items.length))
-                                message.items = [];
-                            message.items.push($root.northstar.data_hub.SyncJob.decode(reader, reader.uint32(), $undefined, _depth + 1));
+                            message.request_id = reader.stringVerify();
+                            message._request_id = "request_id";
+                            continue;
+                        }
+                    case 1000: {
+                            if (wireType !== 2)
+                                break;
+                            if (message.evidence_fields === $util.emptyObject)
+                                message.evidence_fields = {};
+                            let end2 = reader.uint32() + reader.pos;
+                            if (end2 > reader.len)
+                                throw $RangeError("index out of range");
+                            reader.len = end2;
+                            key = "";
+                            value = null;
+                            while (reader.pos < end2) {
+                                let tag2 = reader.tag();
+                                wireType = tag2 & 7;
+                                switch (tag2 >>>= 3) {
+                                case 1:
+                                    if (wireType !== 2)
+                                        break;
+                                    key = reader.stringVerify();
+                                    continue;
+                                case 2:
+                                    if (wireType !== 2)
+                                        break;
+                                    value = $root.google.protobuf.Value.decode(reader, reader.uint32(), $undefined, _depth + 1, value);
+                                    continue;
+                                }
+                                reader.skipType(wireType, _depth, tag2);
+                            }
+                            if (reader.pos !== end2)
+                                throw $RangeError("index out of range");
+                            reader.len = end;
+                            if (key === "__proto__")
+                                $util.makeProp(message.evidence_fields, key);
+                            message.evidence_fields[key] = value || new $root.google.protobuf.Value();
                             continue;
                         }
                     }
@@ -11173,73 +10270,84 @@ export const northstar = $root.northstar = (() => {
             };
 
             /**
-             * Verifies a GetApiSyncResponse message.
+             * Verifies a SyncEvidence message.
              * @function verify
-             * @memberof northstar.data_hub.GetApiSyncResponse
+             * @memberof northstar.data_hub.SyncEvidence
              * @static
              * @param {Object.<string,*>} message Plain object to verify
              * @returns {string|null} `null` if valid, otherwise the reason why it is not
              */
-            GetApiSyncResponse.verify = function (message, _depth) {
+            SyncEvidence.verify = function (message, _depth) {
                 if (typeof message !== "object" || message === null)
                     return "object expected";
                 if (_depth === $undefined)
                     _depth = 0;
                 if (_depth > $util.recursionLimit)
                     return "max depth exceeded";
-                if (message.items != null && $Object.hasOwnProperty.call(message, "items")) {
-                    if (!$Array.isArray(message.items))
-                        return "items: array expected";
-                    for (let i = 0; i < message.items.length; ++i) {
-                        let error = $root.northstar.data_hub.SyncJob.verify(message.items[i], _depth + 1);
+                let properties = {};
+                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id")) {
+                    properties._request_id = 1;
+                    if (!$util.isString(message.request_id))
+                        return "request_id: string expected";
+                }
+                if (message.evidence_fields != null && $Object.hasOwnProperty.call(message, "evidence_fields")) {
+                    if (!$util.isObject(message.evidence_fields))
+                        return "evidence_fields: object expected";
+                    let key = $Object.keys(message.evidence_fields);
+                    for (let i = 0; i < key.length; ++i) {
+                        let error = $root.google.protobuf.Value.verify(message.evidence_fields[key[i]], _depth + 1);
                         if (error)
-                            return "items." + error;
+                            return "evidence_fields." + error;
                     }
                 }
                 return null;
             };
 
             /**
-             * Creates a GetApiSyncResponse message from a plain object. Also converts values to their respective internal types.
+             * Creates a SyncEvidence message from a plain object. Also converts values to their respective internal types.
              * @function fromObject
-             * @memberof northstar.data_hub.GetApiSyncResponse
+             * @memberof northstar.data_hub.SyncEvidence
              * @static
              * @param {Object.<string,*>} object Plain object
-             * @returns {northstar.data_hub.GetApiSyncResponse} GetApiSyncResponse
+             * @returns {northstar.data_hub.SyncEvidence} SyncEvidence
              */
-            GetApiSyncResponse.fromObject = function (object, _depth) {
-                if (object instanceof $root.northstar.data_hub.GetApiSyncResponse)
+            SyncEvidence.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.data_hub.SyncEvidence)
                     return object;
                 if (!$util.isObject(object))
-                    throw $TypeError(".northstar.data_hub.GetApiSyncResponse: object expected");
+                    throw $TypeError(".northstar.data_hub.SyncEvidence: object expected");
                 if (_depth === $undefined)
                     _depth = 0;
                 if (_depth > $util.recursionLimit)
                     throw $Error("max depth exceeded");
-                let message = new $root.northstar.data_hub.GetApiSyncResponse();
-                if (object.items) {
-                    if (!$Array.isArray(object.items))
-                        throw $TypeError(".northstar.data_hub.GetApiSyncResponse.items: array expected");
-                    message.items = $Array(object.items.length);
-                    for (let i = 0; i < object.items.length; ++i) {
-                        if (!$util.isObject(object.items[i]))
-                            throw $TypeError(".northstar.data_hub.GetApiSyncResponse.items: object expected");
-                        message.items[i] = $root.northstar.data_hub.SyncJob.fromObject(object.items[i], _depth + 1);
+                let message = new $root.northstar.data_hub.SyncEvidence();
+                if (object.request_id != null)
+                    message.request_id = $String(object.request_id);
+                if (object.evidence_fields) {
+                    if (!$util.isObject(object.evidence_fields))
+                        throw $TypeError(".northstar.data_hub.SyncEvidence.evidence_fields: object expected");
+                    message.evidence_fields = {};
+                    for (let keys = $Object.keys(object.evidence_fields), i = 0; i < keys.length; ++i) {
+                        if (keys[i] === "__proto__")
+                            $util.makeProp(message.evidence_fields, keys[i]);
+                        if (!$util.isObject(object.evidence_fields[keys[i]]))
+                            throw $TypeError(".northstar.data_hub.SyncEvidence.evidence_fields: object expected");
+                        message.evidence_fields[keys[i]] = $root.google.protobuf.Value.fromObject(object.evidence_fields[keys[i]], _depth + 1);
                     }
                 }
                 return message;
             };
 
             /**
-             * Creates a plain object from a GetApiSyncResponse message. Also converts values to other types if specified.
+             * Creates a plain object from a SyncEvidence message. Also converts values to other types if specified.
              * @function toObject
-             * @memberof northstar.data_hub.GetApiSyncResponse
+             * @memberof northstar.data_hub.SyncEvidence
              * @static
-             * @param {northstar.data_hub.GetApiSyncResponse} message GetApiSyncResponse
+             * @param {northstar.data_hub.SyncEvidence} message SyncEvidence
              * @param {$protobuf.IConversionOptions} [options] Conversion options
              * @returns {Object.<string,*>} Plain object
              */
-            GetApiSyncResponse.toObject = function (message, options, _depth) {
+            SyncEvidence.toObject = function (message, options, _depth) {
                 if (!options)
                     options = {};
                 if (_depth === $undefined)
@@ -11247,42 +10355,51 @@ export const northstar = $root.northstar = (() => {
                 if (_depth > $util.recursionLimit)
                     throw $Error("max depth exceeded");
                 let object = {};
-                if (options.arrays || options.defaults)
-                    object.items = [];
-                if (message.items && message.items.length) {
-                    object.items = $Array(message.items.length);
-                    for (let j = 0; j < message.items.length; ++j)
-                        object.items[j] = $root.northstar.data_hub.SyncJob.toObject(message.items[j], options, _depth + 1);
+                if (options.objects || options.defaults)
+                    object.evidence_fields = {};
+                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id")) {
+                    object.request_id = message.request_id;
+                    if (options.oneofs)
+                        object._request_id = "request_id";
+                }
+                let keys2;
+                if (message.evidence_fields && (keys2 = $Object.keys(message.evidence_fields)).length) {
+                    object.evidence_fields = {};
+                    for (let j = 0; j < keys2.length; ++j) {
+                        if (keys2[j] === "__proto__")
+                            $util.makeProp(object.evidence_fields, keys2[j]);
+                        object.evidence_fields[keys2[j]] = $root.google.protobuf.Value.toObject(message.evidence_fields[keys2[j]], options, _depth + 1);
+                    }
                 }
                 return object;
             };
 
             /**
-             * Converts this GetApiSyncResponse to JSON.
+             * Converts this SyncEvidence to JSON.
              * @function toJSON
-             * @memberof northstar.data_hub.GetApiSyncResponse
+             * @memberof northstar.data_hub.SyncEvidence
              * @instance
              * @returns {Object.<string,*>} JSON object
              */
-            GetApiSyncResponse.prototype.toJSON = function() {
-                return GetApiSyncResponse.toObject(this, $protobuf.util.toJSONOptions);
+            SyncEvidence.prototype.toJSON = function() {
+                return SyncEvidence.toObject(this, $protobuf.util.toJSONOptions);
             };
 
             /**
-             * Gets the type url for GetApiSyncResponse
+             * Gets the type url for SyncEvidence
              * @function getTypeUrl
-             * @memberof northstar.data_hub.GetApiSyncResponse
+             * @memberof northstar.data_hub.SyncEvidence
              * @static
              * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
              * @returns {string} The type url
              */
-            GetApiSyncResponse.getTypeUrl = function(prefix) {
+            SyncEvidence.getTypeUrl = function(prefix) {
                 if (prefix === $undefined)
                     prefix = "type.googleapis.com";
-                return prefix + "/northstar.data_hub.GetApiSyncResponse";
+                return prefix + "/northstar.data_hub.SyncEvidence";
             };
 
-            return GetApiSyncResponse;
+            return SyncEvidence;
         })();
 
         return data_hub;

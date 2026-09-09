@@ -1,20 +1,8 @@
 "use client";
-import { query, mutate } from "./api/client";
-import { useState } from "react";
-import {
-  App,
-  Button,
-  Card,
-  Checkbox,
-  Form,
-  Input,
-  Spin,
-  Tabs,
-  Upload,
-} from "antd";
-import { CloudUploadOutlined } from "@ant-design/icons";
+import { query } from "./api/client";
+import { Button, Card, Tabs } from "antd";
 import Link from "next/link";
-import { useRouter, useParams } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useData } from "../../shared/data";
 import { datasetColumns } from "../../shared/datasets";
 import {
@@ -27,8 +15,8 @@ import {
   Status,
 } from "../../shared/ui";
 import { ProcessingStatus } from "./processing-status";
-import { SourceFields } from "../../shared/source-form";
 export function DataHome() {
+  const syncing = useData(query("/api/sync"), 5000);
   const ds = useData(query("/api/datasets"));
   const sources = useData(query("/api/sources"));
   const attempts = useData(query("/api/attempts"), 5000);
@@ -42,15 +30,28 @@ export function DataHome() {
             <Link href="/sync">
               <Button>Tushare 历史同步</Button>
             </Link>
-            <Link href="/import">
-              <Button type="primary" icon={<CloudUploadOutlined />}>
-                导入数据
-              </Button>
-            </Link>
           </>
         }
       />
-      <Failure error={ds.error || sources.error || attempts.error} />
+      <Failure
+        error={ds.error || sources.error || attempts.error || syncing.error}
+      />
+      <Card title="Tushare 自动同步">
+        <p>
+          {syncing.data?.settings.enabled
+            ? "已启用全部期货历史同步"
+            : "尚未启用或已暂停"}
+        </p>
+        <p>
+          {String(
+            syncing.data?.settings.error ||
+              "分片进度、等待发布和权限异常请查看历史同步页面。",
+          )}
+        </p>
+        <Link href="/sync">
+          <Button type="primary">查看同步进度</Button>
+        </Link>
+      </Card>
       <Card>
         <Fields
           value={{
@@ -167,98 +168,6 @@ export function Sources() {
     </>
   );
 }
-export function Import() {
-  const [file, setFile] = useState<File>();
-  const [busy, setBusy] = useState(false);
-  const { message } = App.useApp();
-  const navigate = useRouter().push;
-  return (
-    <>
-      <Heading
-        title="导入行情原文"
-        description="上传 CSV，固定来源与时间语义。权限检查和发布由数据业务执行。"
-      />
-      <Card title="选择文件">
-        <Upload.Dragger
-          accept=".csv"
-          maxCount={1}
-          beforeUpload={(f) => {
-            if (f.size > 5 * 1024 * 1024) {
-              message.error("原文件最多 5 MiB");
-              return Upload.LIST_IGNORE;
-            }
-            setFile(f);
-            return false;
-          }}
-          onRemove={() => setFile(undefined)}
-        >
-          <p className="ant-upload-drag-icon">
-            <CloudUploadOutlined />
-          </p>
-          <p>点击或拖入 CSV 文件</p>
-          <p className="muted">最多 5 MiB · 原文字节与处理结果分别归档</p>
-        </Upload.Dragger>
-      </Card>
-      <Form
-        layout="vertical"
-        initialValues={{
-          spec: { timezone: "Asia/Shanghai", currency: "CNY" },
-          allow_retention: false,
-          allow_download: false,
-        }}
-        onFinish={async (v) => {
-          if (!file) {
-            message.error("请选择 CSV 文件");
-            return;
-          }
-          setBusy(true);
-          try {
-            const bytes = new Uint8Array(await file.arrayBuffer());
-            let binary = "";
-            for (const byte of bytes) binary += String.fromCharCode(byte);
-            const result = await mutate("/api/import", {
-              ...v,
-              filename: file.name,
-              content_base64: btoa(binary),
-              source_name: v.spec.source_name,
-              input_kind: "RECEIVED_CSV",
-              upstream_source_id: null,
-              transformation_note: null,
-              request_id: crypto.randomUUID(),
-            });
-            navigate(`/attempts/${result.attempt_id}`);
-          } catch (e) {
-            message.error((e as Error).message);
-          } finally {
-            setBusy(false);
-          }
-        }}
-      >
-        <Card title="合约、来源与时间口径">
-          <SourceFields />
-        </Card>
-        <Card title="使用与保留许可">
-          <Form.Item
-            name="use_basis"
-            label="用途与留存依据"
-            rules={[{ required: true }]}
-          >
-            <Input.TextArea rows={3} />
-          </Form.Item>
-          <Form.Item name="allow_retention" valuePropName="checked">
-            <Checkbox>确认有权留存并用于研究和备份</Checkbox>
-          </Form.Item>
-          <Form.Item name="allow_download" valuePropName="checked">
-            <Checkbox>允许本机下载</Checkbox>
-          </Form.Item>
-        </Card>
-        <Button type="primary" htmlType="submit" loading={busy}>
-          接收并排队检查
-        </Button>
-      </Form>
-    </>
-  );
-}
 export function SourceDetail() {
   const { id } = useParams<{ id: string }>();
   const q = useData(query(`/api/sources/${id}`));
@@ -298,9 +207,6 @@ export function SourceDetail() {
 export function Attempt() {
   const { id } = useParams<{ id: string }>();
   const q = useData(query(`/api/attempts/${id}`), 1500);
-  const { message } = App.useApp();
-  const navigate = useRouter().push;
-  const [busy, setBusy] = useState(false);
   return (
     <>
       <Heading
@@ -333,38 +239,6 @@ export function Attempt() {
             </p>
           </Card>
           <Evidence value={q.data} />
-          <Card title="用相同原文重新处理">
-            <Form
-              key={id}
-              layout="vertical"
-              initialValues={{
-                spec:
-                  q.data.spec ||
-                  q.data.parameters?.spec ||
-                  q.data.parameters ||
-                  {},
-              }}
-              onFinish={async (v) => {
-                setBusy(true);
-                try {
-                  const r = await mutate(
-                    `/api/sources/${q.data!.source_id}/reprocess`,
-                    { spec: v.spec, request_id: crypto.randomUUID() },
-                  );
-                  navigate(`/attempts/${r.attempt_id}`);
-                } catch (e) {
-                  message.error((e as Error).message);
-                } finally {
-                  setBusy(false);
-                }
-              }}
-            >
-              <SourceFields />
-              <Button htmlType="submit" loading={busy}>
-                创建新处理尝试
-              </Button>
-            </Form>
-          </Card>
         </>
       )}
     </>

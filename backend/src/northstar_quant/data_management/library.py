@@ -74,7 +74,8 @@ _sources = Table(
     Column("evidence_hash", String(64), nullable=False),
     CheckConstraint("allow_retention AND byte_count > 0 AND byte_count <= 5242880"),
     CheckConstraint(
-        "input_kind IN ('RECEIVED_CSV', 'CONVERTED_CSV', 'CTP_CALLBACK_SEGMENT', 'TUSHARE_JSON')",
+        "input_kind IN ('RECEIVED_CSV', 'CONVERTED_CSV', "
+        "'CTP_CALLBACK_SEGMENT', 'TUSHARE_RESPONSE')",
         name="data_sources_input_kind_check",
     ),
 )
@@ -132,7 +133,7 @@ def initialize_library(connection: Connection) -> None:
         ALTER TABLE data_sources DROP CONSTRAINT IF EXISTS data_sources_input_kind_check;
         ALTER TABLE data_sources ADD CONSTRAINT data_sources_input_kind_check
         CHECK (input_kind IN ('RECEIVED_CSV', 'CONVERTED_CSV',
-                             'CTP_CALLBACK_SEGMENT', 'TUSHARE_JSON'))
+                             'CTP_CALLBACK_SEGMENT', 'TUSHARE_RESPONSE'))
     """)
     connection.exec_driver_sql("""
         CREATE OR REPLACE FUNCTION data_reject_source_change() RETURNS trigger AS $$
@@ -175,7 +176,7 @@ def initialize_library(connection: Connection) -> None:
 def manifest(connection: Connection) -> list[dict[str, object]]:
     """Read archive references inside the caller's consistent backup snapshot."""
 
-    return [
+    references = [
         _json_row(row)
         for row in connection.execute(
             select(_sources.c.source_id, _sources.c.content_hash, _sources.c.byte_count).order_by(
@@ -183,6 +184,9 @@ def manifest(connection: Connection) -> list[dict[str, object]]:
             )
         ).mappings()
     ]
+    from .tushare.retention import references as sync_references
+
+    return sorted(references + sync_references(connection), key=lambda r: str(r["source_id"]))
 
 
 class DataLibrary:
@@ -285,10 +289,8 @@ class DataLibrary:
             try:
                 request_id = _request_id(request_id)
                 parameters = _parameters(spec)
-                if input_kind not in {"RECEIVED_CSV", "CONVERTED_CSV", "TUSHARE_JSON"}:
-                    raise ValueError(
-                        "File reception requires RECEIVED_CSV, CONVERTED_CSV or TUSHARE_JSON"
-                    )
+                if input_kind not in {"RECEIVED_CSV", "CONVERTED_CSV"}:
+                    raise ValueError("File reception requires RECEIVED_CSV, CONVERTED_CSV")
                 declaration = self._declaration(
                     filename,
                     source_name,
@@ -475,7 +477,6 @@ class DataLibrary:
             "RECEIVED_CSV",
             "CONVERTED_CSV",
             "CTP_CALLBACK_SEGMENT",
-            "TUSHARE_JSON",
         }:
             raise ValueError("source input_kind is not supported")
         if input_kind != "CONVERTED_CSV" and (
@@ -500,6 +501,28 @@ class DataLibrary:
             "transformation_note": transformation_note,
             "upstream_evidence_hash": upstream_hash,
         }
+
+    def retain_tushare_response(
+        self, connection: Connection, source_id: UUID, content_hash: str, byte_count: int
+    ) -> None:
+        """Register durable downloaded bytes inside the sync owner's receipt transaction."""
+        source = {
+            "source_id": source_id,
+            "filename": f"tushare-{source_id}.json",
+            "source_name": "TUSHARE",
+            "use_basis": "Confirmed personal research subscription and local retention.",
+            "allow_retention": True,
+            "allow_download": False,
+            "input_kind": "TUSHARE_RESPONSE",
+            "upstream_source_id": None,
+            "transformation_note": None,
+            "upstream_evidence_hash": None,
+            "content_hash": content_hash,
+            "byte_count": byte_count,
+            "received_at": datetime.now(UTC),
+        }
+        source["evidence_hash"] = _digest(_source_evidence(source))
+        connection.execute(_sources.insert().values(**source))
 
     def _new_attempt(
         self,

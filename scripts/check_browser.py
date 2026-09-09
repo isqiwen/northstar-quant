@@ -5,6 +5,7 @@ and no broker credentials. Live command-loss UI checks use intercepted synthetic
 """
 
 import argparse
+import base64
 import json
 import os
 import re
@@ -51,6 +52,7 @@ def main() -> None:
     with tempfile.TemporaryDirectory(prefix="northstar-react-browser-") as temporary:
         runtime = Path(temporary)
         environment["NORTHSTAR_DATA_DIR"] = str(runtime / "sources")
+        environment["NORTHSTAR_DATA_SECRET_DIR"] = str(runtime / "secrets")
         from northstar_quant.data_management.storage_identity import initialize
 
         for share in ("MARKET", "RESEARCH"):
@@ -103,82 +105,45 @@ def main() -> None:
                 )
 
             try:
-                with app.web("data-api") as data_url:
-                    page.goto(data_url + "/import")
-                    expect(page.get_by_role("heading", name="导入行情原文")).to_be_visible()
-                    page.locator('input[type="file"]').set_input_files(args.study.parent / filename)
-                    fields = {
-                        "exchange": "交易所",
-                        "symbol": "合约代码",
-                        "product": "品种",
-                        "timezone": "时区",
-                        "currency": "币种",
-                        "quantity_unit": "数量单位",
-                        "price_tick": "最小价格变动",
-                        "multiplier": "合约乘数",
-                        "trading_day": "交易日",
-                        "session_open": "时段开始（UTC）",
-                        "session_close": "时段结束（UTC）",
-                        "source_name": "来源名称",
-                        "source_reference": "来源说明",
-                        "availability_note": "可得时间依据说明",
+                imported = app.seed_source(
+                    {
+                        "content_base64": base64.b64encode(
+                            (args.study.parent / filename).read_bytes()
+                        ).decode(),
+                        "filename": filename,
+                        "source_name": spec["source_name"],
+                        "spec": spec,
+                        **study["archive"],
+                        "request_id": str(uuid4()),
                     }
-                    for key, label in fields.items():
-                        page.get_by_label(label, exact=True).fill(spec[key])
-                    choose("可得时间依据", spec["availability_basis"])
-                    page.get_by_label("用途与留存依据", exact=True).fill(
-                        study["archive"]["use_basis"]
-                    )
-                    page.get_by_label("确认有权留存并用于研究和备份", exact=True).check()
-                    page.get_by_label("允许本机下载", exact=True).check()
-                    with page.expect_response(
-                        lambda r: r.url.endswith("/api/import") and r.request.method == "POST"
-                    ) as response:
-                        page.get_by_role("button", name="接收并排队检查", exact=True).click()
-                    imported = decode(
-                        methods("data_hub")[("POST", "/api/import")].output_type,
-                        response.value.body(),
-                    )
-                    assert imported["status"] == "PENDING", imported
-                    page.wait_for_url(re.compile("/attempts/"))
-                    expect(page.get_by_text("PENDING", exact=True)).to_be_visible()
-                    page.goto(data_url + "/")
-                    expect(page.get_by_text("加工队列", exact=True)).to_be_visible()
-                    expect(page.get_by_text("最早排队任务：", exact=False)).to_be_visible()
-                    page.locator(f'a[href="/attempts/{imported["attempt_id"]}"]').first.click()
-                    page.wait_for_url(re.compile("/attempts/"))
+                )
+                with app.web("data-api") as data_url:
                     page.goto(data_url + "/sync")
-                    expect(page.get_by_role("heading", name="Tushare 历史同步")).to_be_visible()
-                    for key in (
-                        "symbol",
-                        "product",
-                        "quantity_unit",
-                        "price_tick",
-                        "multiplier",
-                        "trading_day",
-                        "session_open",
-                        "session_close",
-                    ):
-                        page.get_by_label(fields[key], exact=True).fill(spec[key])
-                    with page.expect_response(
-                        lambda r: r.url.endswith("/api/sync/tushare") and r.request.method == "POST"
-                    ) as sync_response:
-                        page.get_by_role("button", name="提交历史同步", exact=True).click()
-                    sync_job = decode(
-                        methods("data_hub")[("POST", "/api/sync/tushare")].output_type,
-                        sync_response.value.body(),
+                    expect(page.get_by_role("heading", name="Tushare 自动同步")).to_be_visible()
+                    page.get_by_label("Tushare token", exact=True).fill(
+                        "synthetic-browser-test-token"
                     )
-                    assert sync_job["status"] == "PENDING", sync_job
-                    expect(page.get_by_text("PENDING", exact=True)).to_be_visible()
+                    page.get_by_role("button", name="保存 token", exact=True).click()
+                    expect(page.get_by_text("已配置（不回显）", exact=True)).to_be_visible()
+                    page.reload()
+                    expect(page.get_by_label("Tushare token", exact=True)).to_have_value("")
+                    page.get_by_role("button", name="开始同步全部数据", exact=True).click()
+                    expect(page.get_by_text("已启用", exact=True)).to_be_visible()
                     page.goto("about:blank")
                 # Both frontend and API have exited. Only the independent processor
                 # now owns completion; reopening the Web reads its durable outcome.
-                with app.data_worker() as processor:
+                with app.data_worker(synthetic_tushare=True) as processor:
                     imported = app.await_attempt(imported)
                     assert imported["status"] == "PUBLISHED", imported
-                    sync_job = app.command("data", "sync", sync_job["request_id"])
-                    assert sync_job["status"] == "FAILED", sync_job
-                    assert "NORTHSTAR_TUSHARE_TOKEN" in sync_job["error"]
+                    import time
+
+                    deadline = time.monotonic() + 20
+                    while True:
+                        sync = app.command("data", "sync")
+                        if any(item["status"] == "BLOCKED" for item in sync["jobs"]):
+                            break
+                        assert time.monotonic() < deadline, sync
+                        time.sleep(0.2)
                     assert processor.poll() is None
                     with app.api("data-api") as restarted:
                         assert (
@@ -190,8 +155,11 @@ def main() -> None:
                         assert processor.poll() is None
                 with app.web("data-api") as data_url:
                     page.goto(data_url + "/sync")
-                    expect(page.get_by_text("FAILED", exact=True)).to_be_visible()
-                    expect(page.get_by_text(sync_job["error"], exact=True)).to_be_visible()
+                    expect(
+                        page.get_by_text(
+                            "Synthetic acceptance: provider permission denied", exact=True
+                        ).first
+                    ).to_be_visible()
                     screenshot("sync")
                     page.goto(data_url + f"/attempts/{imported['attempt_id']}")
                     expect(page.get_by_text("PUBLISHED", exact=True)).to_be_visible(timeout=30000)

@@ -9,13 +9,12 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import Engine
 
-from northstar_quant.apps.data_hub import create_app as data_app
 from northstar_quant.apps.research import create_app as research_app
 from northstar_quant.data_management.files import SourceFiles
 from northstar_quant.data_management.library import DataLibrary
 from northstar_quant.data_management.processing import process_attempt
 from tests.apps.browser import ProtocolClient as TestClient
-from tests.apps.browser import _browser_session, _upload_request
+from tests.apps.browser import _browser_session, _seed_source, _upload_request
 
 
 def test_paper_commands_require_browser_session_and_preserve_fixed_state(
@@ -49,15 +48,11 @@ def test_paper_commands_require_browser_session_and_preserve_fixed_state(
     application = research_app(postgres_engine, library)
     with TestClient(application, base_url="http://127.0.0.1") as client:
         _browser_session(client)
-        with TestClient(data_app(postgres_engine, library), base_url="http://127.0.0.1") as data:
-            _browser_session(data)
-            imported = data.post(
-                "/api/import",
-                json=_upload_request(("\n".join(lines) + "\n").encode(), specification),
-            )
-        assert imported.status_code == 200, imported.text
-        assert imported.json()["status"] == "PENDING"
-        attempt = process_attempt(library, UUID(imported.json()["attempt_id"]))
+        imported = _seed_source(
+            library, _upload_request(("\n".join(lines) + "\n").encode(), specification)
+        )
+        assert imported["status"] == "PENDING"
+        attempt = process_attempt(library, UUID(imported["attempt_id"]))
         assert attempt["status"] == "PUBLISHED"
         del client.headers["X-Northstar-CSRF"]
         configuration_request = {"name": "fixed momentum", "config": {}}

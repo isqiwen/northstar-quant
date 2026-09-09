@@ -448,16 +448,13 @@ def _import_csv(
     archive: dict[str, object],
     processing_hash: str,
     stage: Callable[[str, dict[str, object]], None],
-    tushare: bool = False,
 ) -> ResearchDataset:
     """Private canonical pipeline; DataLibrary owns admission, archive and attempts."""
 
     payload = SourcePayload(content, hashlib.sha256(content).hexdigest(), len(content))
     if spec.availability_basis == "LOCAL_CAPTURE_RECONSTRUCTED":
         raise ValueError("local capture timing requires the original retained CTP JSON prefix")
-    from .tushare.parsing import TushareMinutes
-
-    adapter = (TushareMinutes if tushare else _ResearchCsv)(spec, payload=payload, archive=archive)
+    adapter = _ResearchCsv(spec, payload=payload, archive=archive)
     return _import_market(engine, spec, adapter, processing_hash=processing_hash, stage=stage)
 
 
@@ -739,8 +736,6 @@ def _read_dataset(session: Session, snapshot_id: UUID) -> tuple[ResearchDataset,
     ).all()
     if {pin.import_run_id for pin in pins} != member_import_ids:
         raise ValueError("snapshot source pins do not match the original observation imports")
-    from .tushare.parsing import TushareMinutes
-
     for pin in pins:
         imported = pin.import_run
         receipt = imported.source_receipt
@@ -753,7 +748,6 @@ def _read_dataset(session: Session, snapshot_id: UUID) -> tuple[ResearchDataset,
             not in {
                 _ResearchCsv.mapping_version,
                 _CtpSegment.mapping_version,
-                TushareMinutes.mapping_version,
             }
         ):
             raise ValueError("snapshot source mapping is missing, unsupported or has drifted")
@@ -813,10 +807,6 @@ def _read_dataset(session: Session, snapshot_id: UUID) -> tuple[ResearchDataset,
             != (imported.mapping_version == _CtpSegment.mapping_version)
         ):
             raise ValueError("snapshot original source archive evidence has drifted")
-        if (source["input_kind"] == "TUSHARE_JSON") != (
-            imported.mapping_version == TushareMinutes.mapping_version
-        ):
-            raise ValueError("Tushare snapshot input and parser identity differ")
         specs.append(spec)
         sources.append(
             DatasetSource(

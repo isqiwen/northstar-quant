@@ -1,138 +1,272 @@
 "use client";
 
-import { App, Button, Card, Form, Input } from "antd";
-import { useRef, useState } from "react";
+import {
+  App,
+  Button,
+  Card,
+  Form,
+  Input,
+  Modal,
+  Progress,
+  Space,
+  Table,
+  Tag,
+} from "antd";
+import { useState } from "react";
 import { query, mutate } from "./api/client";
-import { useData } from "../../shared/data";
-import { Failure, Heading, Identity, Records, Status } from "../../shared/ui";
+import { useData, fetchQuery } from "../../shared/data";
+import { Evidence, Failure, Heading } from "../../shared/ui";
 
-const fields = [
-  ["symbol", "合约代码", "RB2610"],
-  ["product", "品种", "RB"],
-  ["quantity_unit", "数量单位", "TON"],
-  ["price_tick", "最小价格变动", "1"],
-  ["multiplier", "合约乘数", "10"],
-  ["trading_day", "交易日", "YYYY-MM-DD"],
-  ["session_open", "时段开始（UTC）", "2026-09-08T05:30:00Z"],
-  ["session_close", "时段结束（UTC）", "2026-09-08T07:00:00Z"],
-];
+type Row = Record<string, unknown>;
+const labels: Record<string, string> = {
+  PENDING: "待同步",
+  RUNNING: "下载中",
+  WAITING: "等待重试或源端发布",
+  BLOCKED: "需处理",
+  VALIDATED: "已校验并发布",
+  SPLIT: "已拆成更小区间",
+};
 
 export function TushareSync() {
   const { message } = App.useApp();
-  const recent = useData(query("/api/sync"), 5000);
+  const current = useData(query("/api/sync"), 3000);
+  const [form] = Form.useForm();
   const [busy, setBusy] = useState(false);
-  const request = useRef<string | null>(null);
+  const [detail, setDetail] = useState<Row>();
+  const data = current.error ? undefined : current.data;
+  const config = data?.settings;
+  const groups = data?.progress ?? [];
+  const total = groups
+    .filter((r) => r.status !== "SPLIT")
+    .reduce((n, r) => n + Number(r.windows), 0);
+  const done = groups
+    .filter((r) => r.status === "VALIDATED")
+    .reduce((n, r) => n + Number(r.windows), 0);
+  const planned = !!config?.planned_at && data?.unplanned_contracts === 0;
+  const names = Object.fromEntries(
+    (data?.datasets ?? []).map((r) => [String(r.key), String(r.label)]),
+  );
+  async function enabled(value: boolean) {
+    setBusy(true);
+    try {
+      await mutate("/api/sync/settings", {
+        revision: Number(config?.revision),
+        enabled: value,
+      });
+      current.refresh();
+      message.success(
+        value
+          ? "自动同步已启用，后台继续下载全部历史并持续补齐"
+          : "已暂停；当前分片完成后停止领取新任务",
+      );
+    } catch (e) {
+      message.error((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
   return (
     <>
       <Heading
-        title="Tushare 历史同步"
-        description="保存研究数据，校验后发布固定版本。Data Hub 不订阅或录制实时行情。"
+        title="Tushare 自动同步"
+        description="同步全部期货历史数据，自动补缺与复核。页面关闭不影响后台同步。"
       />
-      <Card title="提交历史区间">
-        <p>
-          当前接通 SHFE
-          真实合约的一分钟数据，限定已过去日期、最长两小时的连续日盘时段。15
-          分钟、日线及跨休市范围尚未接入当前加工流程。
-        </p>
-        <p>
-          请核对合约单位和条款；按行情时间表示分钟结束解释数据，首次使用须以供应商样本核对。下载时间不代表历史首次可得时间。
-        </p>
-        <Form
-          layout="vertical"
-          onFinish={async (spec) => {
-            setBusy(true);
-            request.current ??= crypto.randomUUID();
-            try {
-              await mutate("/api/sync/tushare", {
-                request_id: request.current,
-                spec: {
-                  ...spec,
-                  exchange: "SHFE",
-                  timezone: "Asia/Shanghai",
-                  currency: "CNY",
-                  source_name: "TUSHARE",
-                  source_reference: "Tushare historical subscription",
-                  availability_basis: "FINAL_REVISED",
-                  availability_note:
-                    "Bar-end interpretation; verify an entitled sample.",
-                },
-              });
-              request.current = null;
-              recent.refresh();
-              message.success("同步任务已保存，由独立 worker 执行");
-            } catch (e) {
-              message.error((e as Error).message);
-            } finally {
-              setBusy(false);
-            }
-          }}
-        >
-          <div className="grid-three">
-            {fields.map(([name, label, placeholder]) => (
-              <Form.Item
-                key={name}
-                name={name}
-                label={label}
-                rules={[{ required: true }]}
-              >
-                <Input placeholder={placeholder} />
-              </Form.Item>
-            ))}
-          </div>
+      <Failure error={current.error} />
+      {config?.error && (
+        <Card>
+          <Tag color="red">同步暂停</Tag>
+          {String(config.error)}
+        </Card>
+      )}
+      <div className="grid-two">
+        <Card title="数据服务凭据">
           <p>
-            需已开通历史分钟权限并确认本地研究留存；凭据由服务端配置，此页面不接收
-            token。首次下载、指定区间补数使用相同入口，目前不自动安排每日任务。
+            Token：
+            <Tag color={data?.token_configured ? "green" : "default"}>
+              {data?.token_configured ? "已配置（不回显）" : "尚未配置"}
+            </Tag>
           </p>
-          <Button type="primary" htmlType="submit" loading={busy}>
-            提交历史同步
-          </Button>
-        </Form>
+          <Form
+            form={form}
+            layout="vertical"
+            onFinish={async (values: { token: string }) => {
+              setBusy(true);
+              try {
+                await mutate("/api/sync/token", { token: values.token });
+                form.resetFields();
+                current.refresh();
+                message.success("Token 已保存到后端私有凭据目录");
+              } catch (e) {
+                message.error((e as Error).message);
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            <Form.Item
+              name="token"
+              label="Tushare token"
+              rules={[{ required: true, min: 16, max: 512 }]}
+            >
+              <Input.Password
+                autoComplete="new-password"
+                placeholder="输入或更换 token"
+              />
+            </Form.Item>
+            <Button htmlType="submit" loading={busy}>
+              保存 token
+            </Button>
+          </Form>
+        </Card>
+        <Card title="自动同步">
+          <Space wrap>
+            <Tag color={config?.enabled ? "blue" : "default"}>
+              {config?.enabled ? "已启用" : "已暂停"}
+            </Tag>
+            <Button
+              type="primary"
+              disabled={!data?.token_configured || !config}
+              loading={busy}
+              onClick={() => enabled(true)}
+            >
+              {config?.enabled ? "重试异常任务" : "开始同步全部数据"}
+            </Button>
+            <Button
+              disabled={!config?.enabled}
+              loading={busy}
+              onClick={() => enabled(false)}
+            >
+              暂停
+            </Button>
+            <Button onClick={current.refresh}>刷新</Button>
+          </Space>
+          <p>
+            {planned ? "本轮已规划" : "等待合约目录或正在规划历史区间"} · 已校验{" "}
+            {done.toLocaleString()} / 已规划 {total.toLocaleString()} 个分片
+          </p>
+          <Progress
+            percent={total ? Math.round((done / total) * 1000) / 10 : 0}
+            status={
+              done === total && planned && total > 0 ? "success" : "active"
+            }
+          />
+          <p className="muted">
+            进度按分片统计。下载记录通过校验后发布固定版本；空结果、限频和权限异常保留待办，不算完成。已校验响应不代表上游所有历史记录均无遗漏。
+          </p>
+        </Card>
+      </div>
+      <Card title="数据范围与进度">
+        <p>
+          全部交易所、全部品种和到期合约；1、5、15、30、60
+          分钟、日/周/月线及期货相关历史资料。按交易所目录发现新增合约，周期性检查新增区间和历史缺口。
+        </p>
+        <Table
+          pagination={false}
+          rowKey="key"
+          dataSource={data?.datasets ?? []}
+          columns={[
+            { title: "数据", dataIndex: "label" },
+            {
+              title: "分片进度",
+              render: (_, row) => (
+                <Space wrap>
+                  {groups
+                    .filter((g) => g.dataset === row.key)
+                    .map((g) => (
+                      <Tag
+                        key={String(g.status)}
+                        color={
+                          g.status === "BLOCKED"
+                            ? "red"
+                            : g.status === "VALIDATED"
+                              ? "green"
+                              : "default"
+                        }
+                      >
+                        {labels[String(g.status)]}: {String(g.windows)}
+                      </Tag>
+                    ))}
+                </Space>
+              ),
+            },
+          ]}
+        />
       </Card>
-      <Failure error={recent.error} />
-      <Records
-        title="最近同步任务"
-        rows={recent.error ? undefined : recent.data}
-        loading={recent.loading}
-        rowKey="request_id"
-        columns={[
-          {
-            title: "请求",
-            dataIndex: "request_id",
-            render: (v: string) => <Identity value={v} />,
-          },
-          {
-            title: "同步状态",
-            dataIndex: "status",
-            render: (v: string) => <Status value={v} />,
-          },
-          {
-            title: "合约与区间（UTC）",
-            dataIndex: "parameters",
-            render: (v: Record<string, unknown>) => (
-              <>
-                <div>
-                  {String(v.symbol)} · {String(v.trading_day)}
-                </div>
-                <div>
-                  {String(v.session_open).slice(11, 16)}–
-                  {String(v.session_close).slice(11, 16)}
-                </div>
-              </>
-            ),
-          },
-          {
-            title: "加工任务",
-            dataIndex: "attempt_id",
-            render: (v: string | null) =>
-              v ? <Identity value={v} to={`/attempts/${v}`} /> : "—",
-          },
-          { title: "失败原因", dataIndex: "error" },
-        ]}
-      />
-      <p>
-        RECEIVED
-        表示原文已接收，是否发布请查看加工任务。失败后检查原因，再明确提交新任务；不会自动重试或覆盖旧结果。
-      </p>
+      <Card title="最近任务与异常">
+        <Table
+          scroll={{ x: 1000 }}
+          rowKey="request_id"
+          dataSource={data?.jobs ?? []}
+          pagination={{ pageSize: 10 }}
+          columns={[
+            {
+              title: "数据",
+              render: (_, r) => names[String(r.dataset)] ?? String(r.dataset),
+            },
+            { title: "合约 / 范围", dataIndex: "scope" },
+            {
+              title: "区间",
+              render: (_, r) => `${r.start_at || "目录"} — ${r.end_at || ""}`,
+            },
+            {
+              title: "状态",
+              render: (_, r) => labels[String(r.status)] ?? String(r.status),
+            },
+            { title: "请求次数", dataIndex: "attempts" },
+            { title: "原因", dataIndex: "error" },
+            {
+              title: "查看",
+              render: (_, r) => (
+                <Space>
+                  <Button
+                    size="small"
+                    onClick={async () => {
+                      try {
+                        setDetail(
+                          await fetchQuery(
+                            query(`/api/sync/jobs/${r.request_id}`),
+                          ),
+                        );
+                      } catch (e) {
+                        message.error((e as Error).message);
+                      }
+                    }}
+                  >
+                    记录
+                  </Button>
+                  {!!r.receipt_id && (
+                    <Button
+                      size="small"
+                      onClick={async () => {
+                        try {
+                          setDetail(
+                            await fetchQuery(
+                              query(`/api/sync/receipts/${r.receipt_id}`),
+                            ),
+                          );
+                        } catch (e) {
+                          message.error((e as Error).message);
+                        }
+                      }}
+                    >
+                      固定数据
+                    </Button>
+                  )}
+                </Space>
+              ),
+            },
+          ]}
+        />
+      </Card>
+      <Modal
+        title="同步记录与固定数据"
+        open={!!detail}
+        onCancel={() => setDetail(undefined)}
+        footer={null}
+        width={1000}
+      >
+        {detail && <Evidence value={detail} />}
+      </Modal>
     </>
   );
 }

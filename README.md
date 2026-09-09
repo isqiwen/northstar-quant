@@ -54,8 +54,11 @@ make up-live
 正式构建要求工作区干净；未提交修改时在对应命令前加 `NORTHSTAR_DEVELOPMENT_BUILD=1`。
 Data/Research 启动只检查 NAS 网络数据库、NFS 挂载和存储身份，不启动 NAS 或另一个应用。
 Data API 持久排队，独立 worker 下载与加工；关闭 Data Web/API 不停止已提交任务。
-Data Hub 不提供实时行情录制。历史数据使用文件导入或首页的 Tushare 历史同步；
-在 Data Hub 的私有 `.env` 配置 `NORTHSTAR_TUSHARE_TOKEN`，仅 worker 读取。使用和当前范围见 [CLI](docs/CLI.md)。
+Data Hub 只通过 Tushare 自动同步全部期货历史数据，不提供文件导入、Tick、品种或周期选择。
+打开 Data Hub → **历史同步**，保存 token 后点击 **开始同步全部数据**；可查看分片进度、等待原因与固定数据。
+凭据保存在 core 本地私有 Docker 卷，API 不回显 token；前端/API 停止不影响独立 worker。
+本地开发需为 API 和 worker 设置同一个绝对路径 `NORTHSTAR_DATA_SECRET_DIR`（私有目录权限 0700）。
+同步范围、备份与当前研究语义限制见 [架构](docs/ARCHITECTURE.md#4-数据与时间)。
 
 当前工作台通过 SSH 隧道访问，保留本机 Host/Origin 保护：
 

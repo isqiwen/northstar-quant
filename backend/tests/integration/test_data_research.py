@@ -16,7 +16,7 @@ from northstar_quant.data_management.files import SourceFiles
 from northstar_quant.data_management.library import DataLibrary
 from northstar_quant.data_management.processing import process_attempt
 from tests.apps.browser import ProtocolClient as TestClient
-from tests.apps.browser import _browser_session, _upload_request
+from tests.apps.browser import _browser_session, _seed_source, _upload_request
 
 
 def test_import_research_and_reopen_preserve_complete_result(
@@ -65,16 +65,15 @@ def test_import_research_and_reopen_preserve_complete_result(
         assert client.get("/api/datasets").json() == []
         content = ("\n".join(lines) + "\n").encode("utf-8")
         upload_request = _upload_request(content, specification)
-        assert data.post("/api/import", json=upload_request).status_code == 403
+        assert data.post("/api/import", json=upload_request).status_code == 404
         _browser_session(client)
         _browser_session(data)
         assert client.post("/api/import", json=upload_request).status_code in {404, 405}
         assert data.post("/api/runs", json={}).status_code in {404, 405}
-        imported = data.post("/api/import", json=upload_request)
-        assert imported.status_code == 200, imported.text
-        assert imported.json()["status"] == "PENDING"
+        imported = _seed_source(DataLibrary(postgres_engine, archive), upload_request)
+        assert imported["status"] == "PENDING"
         attempt = process_attempt(
-            DataLibrary(postgres_engine, archive), UUID(imported.json()["attempt_id"])
+            DataLibrary(postgres_engine, archive), UUID(imported["attempt_id"])
         )
         assert attempt["status"] == "PUBLISHED"
         dataset = client.get(f"/api/datasets/{attempt['snapshot_id']}").json()
@@ -84,7 +83,7 @@ def test_import_research_and_reopen_preserve_complete_result(
         assert data.get(f"/sources/{source_id}").status_code == 404
         assert data.get(f"/attempts/{attempt['attempt_id']}").status_code == 404
         assert (
-            data.post("/api/import", json=upload_request).json()["attempt_id"]
+            _seed_source(DataLibrary(postgres_engine, archive), upload_request)["attempt_id"]
             == attempt["attempt_id"]
         )
         # Acceptance itself persists a selectable dataset; no research run is required.

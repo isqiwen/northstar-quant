@@ -1,214 +1,295 @@
-"""Durable bounded sync requests; one owner downloads and hands off to DataLibrary."""
+"""One fenced downloader; persisted retries and atomic coverage/receipt commits."""
 
 import json
-import os
-from datetime import UTC, datetime
-from typing import cast
-from uuid import UUID
+from datetime import UTC, datetime, timedelta
+from typing import Any
+from uuid import UUID, uuid4
 
-from sqlalchemy import Connection, Engine, text
-from sqlalchemy.engine import RowMapping
+from sqlalchemy import Engine, text
 
 from northstar_quant import code_revision
 
 from ..library import DataLibrary
 from ..maintenance import library_write
-from ..research import ImportSpec, _digest
-from .acquisition import fetch
-from .request import fixed_spec
+from . import acquisition, coverage, credentials, planning, publication
+from .catalog import BY_KEY
+from .quality import Empty, Truncated, normalize
+from .store import initialize, job, serial, settings
 
+__all__ = ["initialize", "process_next"]
 _LOCK = 0x4E53515453594E
 
 
-def initialize(connection: Connection) -> None:
-    connection.exec_driver_sql("""
-        CREATE TABLE IF NOT EXISTS data_sync_jobs (
-            request_id uuid PRIMARY KEY,
-            request_hash text NOT NULL,
-            parameters jsonb NOT NULL,
-            code_revision text NOT NULL,
-            status text NOT NULL CHECK (status IN ('PENDING', 'RUNNING', 'RECEIVED', 'FAILED')),
-            attempt_id uuid REFERENCES data_processing_attempts(attempt_id),
-            error text,
-            created_at timestamptz NOT NULL,
-            updated_at timestamptz NOT NULL,
-            CHECK ((status = 'RECEIVED') = (attempt_id IS NOT NULL))
-        );
-        CREATE OR REPLACE FUNCTION data_protect_sync_job() RETURNS trigger AS $$
-        BEGIN
-            IF TG_OP = 'DELETE' OR OLD.status IN ('RECEIVED', 'FAILED') THEN
-                RAISE EXCEPTION 'Terminal sync jobs are immutable';
-            END IF;
-            IF (NEW.request_id, NEW.request_hash, NEW.parameters, NEW.code_revision, NEW.created_at)
-                IS DISTINCT FROM
-                (OLD.request_id, OLD.request_hash, OLD.parameters,
-                 OLD.code_revision, OLD.created_at)
-            THEN RAISE EXCEPTION 'Sync inputs are immutable'; END IF;
-            RETURN NEW;
-        END;
-        $$ LANGUAGE plpgsql;
-        DROP TRIGGER IF EXISTS immutable ON data_sync_jobs;
-        CREATE TRIGGER immutable BEFORE UPDATE OR DELETE ON data_sync_jobs
-            FOR EACH ROW EXECUTE FUNCTION data_protect_sync_job();
-    """)
-
-
-def submit(engine: Engine, spec: ImportSpec, request_id: UUID) -> dict[str, object]:
-    """Persist a non-secret request before network access; replay retrieves its first result."""
-    parameters = fixed_spec(spec).to_mapping()
-    revision = code_revision()
-    digest = _digest({"parameters": parameters, "code_revision": revision})
-    now = datetime.now(UTC)
-    with library_write(engine), engine.begin() as connection:
-        connection.execute(
-            text("""
-            INSERT INTO data_sync_jobs
-                (request_id, request_hash, parameters, code_revision,
-                 status, created_at, updated_at)
-            VALUES (:id, :hash, CAST(:parameters AS jsonb), :revision, 'PENDING', :now, :now)
-            ON CONFLICT (request_id) DO NOTHING
-        """),
-            {
-                "id": request_id,
-                "hash": digest,
-                "parameters": json.dumps(parameters),
-                "revision": revision,
-                "now": now,
-            },
-        )
-        existing = connection.scalar(
-            text("SELECT request_hash FROM data_sync_jobs WHERE request_id=:id"), {"id": request_id}
-        )
-        if existing != digest:
-            raise ValueError(
-                "sync request UUID is already bound to different inputs or implementation"
-            )
-    return get(engine, request_id)
-
-
-def get(engine: Engine, request_id: UUID) -> dict[str, object]:
-    with engine.connect() as connection:
-        row = (
+def process_next(library: DataLibrary) -> dict[str, Any] | None:
+    engine = library._engine
+    with library_write(engine), engine.begin() as ownership:
+        if not ownership.scalar(text("SELECT pg_try_advisory_xact_lock(:key)"), {"key": _LOCK}):
+            return None
+        config = settings(engine)
+        if not config["enabled"]:
+            return None
+        with engine.begin() as connection:
             connection.execute(
-                text("SELECT * FROM data_sync_jobs WHERE request_id=:id"), {"id": request_id}
+                text("""UPDATE data_sync_attempts SET finished_at=now(),outcome='INTERRUPTED'
+                WHERE finished_at IS NULL""")
             )
-            .mappings()
-            .one_or_none()
-        )
-    if row is None:
-        raise LookupError("sync request not found")
-    return _serialize(row)
-
-
-def _serialize(row: RowMapping) -> dict[str, object]:
-    return {
-        key: str(value)
-        if isinstance(value, UUID)
-        else value.isoformat()
-        if isinstance(value, datetime)
-        else value
-        for key, value in row.items()
-    }
-
-
-def recent(engine: Engine) -> list[dict[str, object]]:
-    with engine.connect() as connection:
-        rows = (
             connection.execute(
-                text("SELECT * FROM data_sync_jobs ORDER BY created_at DESC, request_id LIMIT 50")
+                text("""UPDATE data_sync_jobs SET status='PENDING',generation=NULL,
+                error='进程中断，继续未提交分片' WHERE status='RUNNING'""")
             )
-            .mappings()
-            .all()
-        )
-    return [_serialize(row) for row in rows]
+        planning.refresh(engine)
+        planning.plan(engine)
+        if datetime.fromisoformat(config["next_request_at"]) > datetime.now(UTC):
+            return None
+        with engine.begin() as connection:
+            # Every fifth request gives old history a turn even while new data arrives.
+            count = connection.scalar(text("SELECT count(*) FROM data_sync_attempts")) or 0
+            order = "start_at ASC" if count % 5 == 4 else "start_at DESC"
+            row = (
+                connection.execute(
+                    text(f"""SELECT * FROM data_sync_jobs j
+                WHERE status IN ('PENDING','WAITING') AND next_at<=now()
+                AND NOT EXISTS (SELECT 1 FROM data_sync_jobs b WHERE b.dataset=j.dataset AND
+                b.status='BLOCKED' AND b.error LIKE 'Tushare 权限%')
+                ORDER BY CASE dataset WHEN 'contracts' THEN 0 WHEN 'calendar' THEN 1 ELSE 2 END,
+                {order},created_at LIMIT 1 FOR UPDATE SKIP LOCKED""")
+                )
+                .mappings()
+                .one_or_none()
+            )
+            if row is None:
+                return None
+            selected = serial(row)
+            generation = uuid4()
+            connection.execute(
+                text("""UPDATE data_sync_jobs SET status='RUNNING',generation=:g,
+                attempts=attempts+1,updated_at=now() WHERE request_id=:id"""),
+                {"g": generation, "id": selected["request_id"]},
+            )
+            connection.execute(
+                text("INSERT INTO data_sync_attempts(generation,request_id) VALUES(:g,:id)"),
+                {"g": generation, "id": selected["request_id"]},
+            )
+            connection.execute(
+                text("UPDATE data_sync_settings SET next_request_at=now()+:delay"),
+                {"delay": timedelta(seconds=60 / config["requests_per_minute"])},
+            )
+        selected["generation"] = generation
+        selected["attempts"] += 1
+        stage = "download"
+        try:
+            content = acquisition.fetch(
+                BY_KEY[selected["dataset"]].api, selected["parameters"], credentials.read()
+            )
+            stage = "storage"
+            archived = library._files.store(content)
+            with engine.begin() as connection:
+                library.retain_tushare_response(
+                    connection, generation, archived.content_hash, archived.byte_count
+                )
+                connection.execute(
+                    text("""UPDATE data_sync_attempts SET source_hash=:hash,source_bytes=:size
+                    WHERE generation=:g"""),
+                    {"hash": archived.content_hash, "size": archived.byte_count, "g": generation},
+                )
+            stage = "quality"
+            try:
+                rows, quality = normalize(content, selected)
+            except Empty:
+                if not coverage.confirmed_empty(engine, selected):
+                    raise
+                import hashlib
+
+                rows, quality = (
+                    [],
+                    {
+                        "rule": "tushare-response/1",
+                        "unique_rows": 0,
+                        "duplicate_rows": 0,
+                        "content_hash": hashlib.sha256(
+                            b"tushare-response/1:confirmed-closed"
+                        ).hexdigest(),
+                        "coverage_basis": "CALENDAR_NON_TRADING",
+                        "availability_basis": "FINAL_REVISED",
+                        "note": "已核对完整交易日历；该区间没有交易日，未填造行情。",
+                    },
+                )
+            coverage.verify(engine, selected, rows, quality)
+            stage = "storage"
+            artifact = publication.publish(rows, quality, selected, library._files)
+            stage = "commit"
+            _commit(
+                engine,
+                selected,
+                rows,
+                quality,
+                archived.content_hash,
+                archived.byte_count,
+                artifact,
+            )
+        except (Truncated, acquisition.ResponseLimit):
+            with engine.begin() as connection:
+                current = connection.scalar(
+                    text("SELECT generation FROM data_sync_jobs WHERE request_id=:id FOR UPDATE"),
+                    {"id": selected["request_id"]},
+                )
+                if current == generation:
+                    divided = bool(selected["start_at"]) and planning.split(connection, selected)
+                    _finish(
+                        connection,
+                        selected,
+                        "SPLIT" if divided else "BLOCKED",
+                        "达到接口上限，已拆分区间"
+                        if divided
+                        else "最小分片或合约目录达到接口上限，需核查供应商覆盖",
+                    )
+        except Empty as error:
+            recent = (
+                bool(selected["end_at"])
+                and selected["end_at"] >= (planning.target_day() - timedelta(days=10)).isoformat()
+            )
+            _fail(engine, selected, str(error), retry=True, waiting=recent)
+        except acquisition.DownloadError as error:
+            _fail(engine, selected, str(error), retry=error.retry)
+        except (ValueError, OSError, LookupError):
+            reason = {
+                "download": "凭据配置不可用，请在界面重新保存 token",
+                "storage": "持久存储不可用或容量不足；自动同步已暂停，请检查 NAS 与磁盘",
+                "quality": "字段、范围、重复或量价校验失败；原文已留存",
+                "commit": "目录登记失败；原文已留存，请检查来源字段",
+            }[stage]
+            _fail(engine, selected, reason, retry=False)
+            if stage in ("download", "storage"):
+                with engine.begin() as connection:
+                    connection.execute(
+                        text("UPDATE data_sync_settings SET enabled=false,error=:error"),
+                        {"error": reason},
+                    )
+        return job(engine, UUID(selected["request_id"]))
 
 
-def _update(
-    engine: Engine,
-    request_id: UUID,
+def _finish(
+    connection: Any,
+    selected: dict[str, Any],
     status: str,
-    *,
-    attempt_id: UUID | None = None,
     error: str | None = None,
+    delay: timedelta = timedelta(),
+) -> None:
+    connection.execute(
+        text("""UPDATE data_sync_jobs SET status=:status,error=:error,
+        next_at=now()+:delay,updated_at=now() WHERE request_id=:id AND generation=:g"""),
+        {
+            "status": status,
+            "error": error,
+            "delay": delay,
+            "id": selected["request_id"],
+            "g": selected["generation"],
+        },
+    )
+    connection.execute(
+        text("""UPDATE data_sync_attempts SET finished_at=now(),outcome=:status,error=:error
+        WHERE generation=:g"""),
+        {"status": status, "error": error, "g": selected["generation"]},
+    )
+
+
+def _fail(
+    engine: Engine, selected: dict[str, Any], reason: str, *, retry: bool, waiting: bool = False
+) -> None:
+    allowed = retry and (waiting or selected["attempts"] < 6)
+    delay = timedelta(
+        seconds=max(3600 if waiting else 30, min(21600, 30 * 2 ** min(selected["attempts"], 10)))
+    )
+    with engine.begin() as connection:
+        _finish(connection, selected, "WAITING" if allowed else "BLOCKED", reason, delay)
+
+
+def _commit(
+    engine: Engine,
+    selected: dict[str, Any],
+    rows: list[dict[str, Any]],
+    quality: dict[str, Any],
+    source_hash: str,
+    source_bytes: int,
+    artifact: dict[str, Any],
 ) -> None:
     with engine.begin() as connection:
-        connection.execute(
-            text("""
-            UPDATE data_sync_jobs SET status=:status, attempt_id=:attempt_id, error=:error,
-                updated_at=:now WHERE request_id=:id
-        """),
+        generation = connection.scalar(
+            text("SELECT generation FROM data_sync_jobs WHERE request_id=:id FOR UPDATE"),
+            {"id": selected["request_id"]},
+        )
+        if generation != selected["generation"]:
+            return
+        receipt = connection.scalar(
+            text("""INSERT INTO data_sync_receipts
+            (receipt_id,request_id,source_hash,source_bytes,content_hash,row_count,
+             manifest_hash,manifest_bytes,parquet_hash,parquet_bytes,quality,code_revision)
+
+            VALUES(:receipt,:id,:source,:bytes,:hash,:rows,:manifest,:manifest_bytes,
+                :parquet_hash,:parquet_bytes,CAST(:quality AS jsonb),:revision)
+            ON CONFLICT(request_id,content_hash) DO NOTHING RETURNING receipt_id"""),
             {
-                "id": request_id,
-                "status": status,
-                "attempt_id": attempt_id,
-                "error": error,
-                "now": datetime.now(UTC),
+                "receipt": uuid4(),
+                "id": selected["request_id"],
+                "source": source_hash,
+                "bytes": source_bytes,
+                "hash": quality["content_hash"],
+                "rows": len(rows),
+                "manifest": artifact["content_hash"],
+                "manifest_bytes": artifact["byte_count"],
+                "parquet_hash": artifact["parquet_hash"],
+                "parquet_bytes": artifact["parquet_bytes"],
+                "quality": json.dumps(quality),
+                "revision": code_revision(),
             },
         )
-
-
-def process_next(library: DataLibrary) -> dict[str, object] | None:
-    """An interrupted download fails explicitly; an already committed receipt is recovered."""
-    engine = library._engine
-    with library_write(engine), engine.begin() as claim:
-        if not claim.scalar(text("SELECT pg_try_advisory_xact_lock(:key)"), {"key": _LOCK}):
-            return None
-        with engine.connect() as connection:
-            interrupted = (
-                connection.execute(
-                    text("SELECT request_id FROM data_sync_jobs WHERE status='RUNNING'")
-                )
-                .scalars()
-                .all()
-            )
-        for request_id in interrupted:
-            with engine.connect() as connection:
-                attempt_id = connection.scalar(
-                    text("""SELECT p.attempt_id FROM data_processing_attempts p
-                        JOIN data_sources s ON s.source_id=p.source_id
-                        JOIN data_sync_jobs j ON j.request_id=CAST(p.request_id AS uuid)
-                        WHERE p.request_id=:id AND p.parameters=j.parameters
-                        AND p.code_revision=j.code_revision AND s.input_kind='TUSHARE_JSON'
-                        AND s.source_name='TUSHARE'"""),
-                    {"id": str(request_id)},
-                )
-            _update(
-                engine,
-                request_id,
-                "RECEIVED" if attempt_id else "FAILED",
-                attempt_id=attempt_id,
-                error=None
-                if attempt_id
-                else "Download interrupted; submit a new explicit request to retry",
-            )
-        with engine.connect() as connection:
-            request_id = connection.scalar(
+        if receipt is None:
+            receipt = connection.scalar(
                 text(
-                    "SELECT request_id FROM data_sync_jobs WHERE status='PENDING' "
-                    "ORDER BY created_at, request_id LIMIT 1"
+                    "SELECT receipt_id FROM data_sync_receipts WHERE request_id=:id AND "
+                    "content_hash=:hash"
+                ),
+                {"id": selected["request_id"], "hash": quality["content_hash"]},
+            )
+        connection.execute(
+            text("""INSERT INTO data_sync_coverage(request_id,receipt_id)
+            VALUES(:id,:receipt) ON CONFLICT(request_id) DO UPDATE
+            SET receipt_id=EXCLUDED.receipt_id,checked_at=now()"""),
+            {"id": selected["request_id"], "receipt": receipt},
+        )
+        connection.execute(
+            text(
+                "UPDATE data_sync_jobs SET receipt_id=:receipt,checked_at=now() WHERE "
+                "request_id=:id"
+            ),
+            {"id": selected["request_id"], "receipt": receipt},
+        )
+        if selected["dataset"] == "contracts":
+            for row in rows:
+                if not row.get("fut_code") or not row.get("exchange"):
+                    raise ValueError("合约目录缺少品种或交易所")
+                connection.execute(
+                    text("""INSERT INTO data_sync_contracts(ts_code,exchange,product,kind,details)
+                    VALUES(:code,:exchange,:product,:kind,CAST(:details AS jsonb))
+                    ON CONFLICT(ts_code) DO UPDATE SET details=EXCLUDED.details"""),
+                    {
+                        "code": row["ts_code"],
+                        "exchange": row["exchange"],
+                        "product": row["fut_code"],
+                        "kind": selected["parameters"]["fut_type"],
+                        "details": json.dumps(row),
+                    },
                 )
-            )
-        if request_id is None:
-            return None
-        job = get(engine, request_id)
-        _update(engine, request_id, "RUNNING")
-        try:
-            if job["code_revision"] != code_revision():
-                raise ValueError("sync implementation changed; submit a new explicit request")
-            spec = ImportSpec.from_mapping(cast(dict[str, object], job["parameters"]))
-            content = fetch(spec, os.environ.get("NORTHSTAR_TUSHARE_TOKEN", ""))
-            attempt = library.submit(
-                content,
-                filename=f"tushare-{spec.symbol}-{spec.trading_day}.json",
-                source_name="TUSHARE",
-                use_basis="Tushare subscription: confirmed personal research and local retention.",
-                allow_retention=True,
-                allow_download=False,
-                input_kind="TUSHARE_JSON",
-                spec=spec.to_mapping(),
-                request_id=str(request_id),
-            )
-            _update(engine, request_id, "RECEIVED", attempt_id=UUID(str(attempt["attempt_id"])))
-        except (ValueError, OSError, LookupError) as error:
-            _update(engine, request_id, "FAILED", error=str(error)[:1024])
-        return get(engine, request_id)
+        if selected["dataset"] == "calendar":
+            for row in rows:
+                connection.execute(
+                    text("""INSERT INTO data_sync_calendar(exchange,cal_date,is_open)
+                    VALUES(:exchange,CAST(:day AS date),:open)
+                    ON CONFLICT(exchange,cal_date) DO UPDATE SET is_open=EXCLUDED.is_open"""),
+                    {
+                        "exchange": row["exchange"],
+                        "day": row["cal_date"],
+                        "open": row["is_open"] == 1,
+                    },
+                )
+        _finish(connection, selected, "VALIDATED")

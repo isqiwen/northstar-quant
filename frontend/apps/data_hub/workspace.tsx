@@ -4,7 +4,6 @@ import {
   DashboardOutlined,
   DatabaseOutlined,
   FolderOpenOutlined,
-  CloudUploadOutlined,
   SyncOutlined,
 } from "@ant-design/icons";
 import { Shell, Providers } from "../../shared/shell";
@@ -24,7 +23,6 @@ export default function Workspace({ children }: { children: ReactNode }) {
             icon: <FolderOpenOutlined />,
           },
           { key: "/sync", label: "历史同步", icon: <SyncOutlined /> },
-          { key: "/import", label: "导入数据", icon: <CloudUploadOutlined /> },
         ]}
       >
         {children}

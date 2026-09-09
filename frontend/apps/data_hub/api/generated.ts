@@ -55,19 +55,6 @@ export type HttpError = {
   status?: string | null;
   url?: string | null;
 };
-export type ImportRequest = {
-  allow_download: boolean;
-  allow_retention: boolean;
-  content_base64: string;
-  filename: string;
-  input_kind: string;
-  request_id: string;
-  source_name: string;
-  spec: Record<string, JsonValue>;
-  transformation_note: string | null;
-  upstream_source_id: string | null;
-  use_basis: string;
-};
 export type ImportSpecification = {
   availability_basis: string;
   availability_note: string;
@@ -99,10 +86,6 @@ export type ProcessingAttempt = {
 export type Readiness = {
   status: "ready";
 };
-export type ReprocessRequest = {
-  request_id: string;
-  spec: Record<string, JsonValue>;
-};
 export type SourceRecord = {
   allow_download: boolean;
   allow_retention: boolean;
@@ -130,22 +113,25 @@ export type ProcessingQueueStatus = {
   oldest_pending_at?: string | null;
   oldest_pending_seconds?: number | null;
 };
-export type SyncRequest = {
-  request_id: string;
-  spec: Record<string, JsonValue>;
+export type SyncSettingsRequest = {
+  revision: number;
+  enabled: boolean;
 };
-export type SyncJob = {
-  request_id: string;
-  request_hash: string;
-  parameters: Record<string, JsonValue>;
-  code_revision: string;
-  status: string;
-  attempt_id: string | null;
-  error: string | null;
-  created_at: string;
-  updated_at: string;
+export type SyncTokenRequest = {
+  token: string;
 };
-export type GetApiSyncResponse = (SyncJob)[];
+export type SyncStatus = {
+  settings: Record<string, JsonValue>;
+  token_configured: boolean;
+  datasets?: (Record<string, JsonValue>)[];
+  progress?: (Record<string, JsonValue>)[];
+  jobs?: (Record<string, JsonValue>)[];
+  unplanned_contracts: number;
+};
+export type SyncEvidence = {
+  request_id: string;
+  [key: string]: unknown;
+};
 export type Empty = {
 };
 export type Error = {

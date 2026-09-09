@@ -130,34 +130,6 @@ class HttpError(_message.Message):
     null_fields: _containers.RepeatedScalarFieldContainer[str]
     def __init__(self, detail: _Optional[str] = ..., rejection_id: _Optional[str] = ..., request_id: _Optional[str] = ..., runtime_id: _Optional[str] = ..., status: _Optional[str] = ..., url: _Optional[str] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
 
-class ImportRequest(_message.Message):
-    __slots__ = ("allow_download", "allow_retention", "content_base64", "filename", "input_kind", "request_id", "source_name", "spec", "transformation_note", "upstream_source_id", "use_basis", "null_fields")
-    ALLOW_DOWNLOAD_FIELD_NUMBER: _ClassVar[int]
-    ALLOW_RETENTION_FIELD_NUMBER: _ClassVar[int]
-    CONTENT_BASE64_FIELD_NUMBER: _ClassVar[int]
-    FILENAME_FIELD_NUMBER: _ClassVar[int]
-    INPUT_KIND_FIELD_NUMBER: _ClassVar[int]
-    REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
-    SOURCE_NAME_FIELD_NUMBER: _ClassVar[int]
-    SPEC_FIELD_NUMBER: _ClassVar[int]
-    TRANSFORMATION_NOTE_FIELD_NUMBER: _ClassVar[int]
-    UPSTREAM_SOURCE_ID_FIELD_NUMBER: _ClassVar[int]
-    USE_BASIS_FIELD_NUMBER: _ClassVar[int]
-    NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
-    allow_download: bool
-    allow_retention: bool
-    content_base64: str
-    filename: str
-    input_kind: str
-    request_id: str
-    source_name: str
-    spec: _struct_pb2.Struct
-    transformation_note: str
-    upstream_source_id: str
-    use_basis: str
-    null_fields: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, allow_download: _Optional[bool] = ..., allow_retention: _Optional[bool] = ..., content_base64: _Optional[str] = ..., filename: _Optional[str] = ..., input_kind: _Optional[str] = ..., request_id: _Optional[str] = ..., source_name: _Optional[str] = ..., spec: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., transformation_note: _Optional[str] = ..., upstream_source_id: _Optional[str] = ..., use_basis: _Optional[str] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
-
 class ImportSpecification(_message.Message):
     __slots__ = ("availability_basis", "availability_note", "currency", "exchange", "multiplier", "price_tick", "product", "quantity_unit", "session_close", "session_open", "source_name", "source_reference", "symbol", "timezone", "trading_day")
     AVAILABILITY_BASIS_FIELD_NUMBER: _ClassVar[int]
@@ -228,14 +200,6 @@ class Readiness(_message.Message):
     STATUS_FIELD_NUMBER: _ClassVar[int]
     status: str
     def __init__(self, status: _Optional[str] = ...) -> None: ...
-
-class ReprocessRequest(_message.Message):
-    __slots__ = ("request_id", "spec")
-    REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
-    SPEC_FIELD_NUMBER: _ClassVar[int]
-    request_id: str
-    spec: _struct_pb2.Struct
-    def __init__(self, request_id: _Optional[str] = ..., spec: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...
 
 class SourceRecord(_message.Message):
     __slots__ = ("allow_download", "allow_retention", "byte_count", "content_hash", "filename", "input_kind", "received_at", "source_id", "source_name", "evidence_fields")
@@ -316,40 +280,47 @@ class ProcessingQueueStatus(_message.Message):
     null_fields: _containers.RepeatedScalarFieldContainer[str]
     def __init__(self, observed_at: _Optional[str] = ..., total: _Optional[int] = ..., pending: _Optional[int] = ..., running: _Optional[int] = ..., published: _Optional[int] = ..., failed: _Optional[int] = ..., oldest_pending_id: _Optional[str] = ..., oldest_pending_at: _Optional[str] = ..., oldest_pending_seconds: _Optional[int] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
 
-class SyncRequest(_message.Message):
-    __slots__ = ("request_id", "spec")
-    REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
-    SPEC_FIELD_NUMBER: _ClassVar[int]
-    request_id: str
-    spec: _struct_pb2.Struct
-    def __init__(self, request_id: _Optional[str] = ..., spec: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...
+class SyncSettingsRequest(_message.Message):
+    __slots__ = ("revision", "enabled")
+    REVISION_FIELD_NUMBER: _ClassVar[int]
+    ENABLED_FIELD_NUMBER: _ClassVar[int]
+    revision: int
+    enabled: bool
+    def __init__(self, revision: _Optional[int] = ..., enabled: _Optional[bool] = ...) -> None: ...
 
-class SyncJob(_message.Message):
-    __slots__ = ("request_id", "request_hash", "parameters", "code_revision", "status", "attempt_id", "error", "created_at", "updated_at", "null_fields")
-    REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
-    REQUEST_HASH_FIELD_NUMBER: _ClassVar[int]
-    PARAMETERS_FIELD_NUMBER: _ClassVar[int]
-    CODE_REVISION_FIELD_NUMBER: _ClassVar[int]
-    STATUS_FIELD_NUMBER: _ClassVar[int]
-    ATTEMPT_ID_FIELD_NUMBER: _ClassVar[int]
-    ERROR_FIELD_NUMBER: _ClassVar[int]
-    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
-    NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
-    request_id: str
-    request_hash: str
-    parameters: _struct_pb2.Struct
-    code_revision: str
-    status: str
-    attempt_id: str
-    error: str
-    created_at: str
-    updated_at: str
-    null_fields: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, request_id: _Optional[str] = ..., request_hash: _Optional[str] = ..., parameters: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., code_revision: _Optional[str] = ..., status: _Optional[str] = ..., attempt_id: _Optional[str] = ..., error: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+class SyncTokenRequest(_message.Message):
+    __slots__ = ("token",)
+    TOKEN_FIELD_NUMBER: _ClassVar[int]
+    token: str
+    def __init__(self, token: _Optional[str] = ...) -> None: ...
 
-class GetApiSyncResponse(_message.Message):
-    __slots__ = ("items",)
-    ITEMS_FIELD_NUMBER: _ClassVar[int]
-    items: _containers.RepeatedCompositeFieldContainer[SyncJob]
-    def __init__(self, items: _Optional[_Iterable[_Union[SyncJob, _Mapping]]] = ...) -> None: ...
+class SyncStatus(_message.Message):
+    __slots__ = ("settings", "token_configured", "datasets", "progress", "jobs", "unplanned_contracts")
+    SETTINGS_FIELD_NUMBER: _ClassVar[int]
+    TOKEN_CONFIGURED_FIELD_NUMBER: _ClassVar[int]
+    DATASETS_FIELD_NUMBER: _ClassVar[int]
+    PROGRESS_FIELD_NUMBER: _ClassVar[int]
+    JOBS_FIELD_NUMBER: _ClassVar[int]
+    UNPLANNED_CONTRACTS_FIELD_NUMBER: _ClassVar[int]
+    settings: _struct_pb2.Struct
+    token_configured: bool
+    datasets: _containers.RepeatedCompositeFieldContainer[_struct_pb2.Struct]
+    progress: _containers.RepeatedCompositeFieldContainer[_struct_pb2.Struct]
+    jobs: _containers.RepeatedCompositeFieldContainer[_struct_pb2.Struct]
+    unplanned_contracts: int
+    def __init__(self, settings: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., token_configured: _Optional[bool] = ..., datasets: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., progress: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., jobs: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., unplanned_contracts: _Optional[int] = ...) -> None: ...
+
+class SyncEvidence(_message.Message):
+    __slots__ = ("request_id", "evidence_fields")
+    class EvidenceFieldsEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: _struct_pb2.Value
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
+    REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    request_id: str
+    evidence_fields: _containers.MessageMap[str, _struct_pb2.Value]
+    def __init__(self, request_id: _Optional[str] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...

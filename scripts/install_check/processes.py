@@ -47,6 +47,52 @@ class InstalledApplication:
             raise RuntimeError(f"northstar {arguments[0]} failed: {completed.stderr}")
         return json.loads(completed.stdout)
 
+    def seed_source(self, payload: dict, *, wait: bool = False) -> dict:
+        """Synthetic acceptance setup in the installed interpreter; no upload API."""
+        code = """
+import base64,json,sys
+from northstar_quant.apps.storage import open_database
+from northstar_quant.data_management.files import SourceFiles
+from northstar_quant.data_management.library import DataLibrary
+payload=json.load(sys.stdin)
+content=base64.b64decode(payload.pop('content_base64'))
+wait=payload.pop('_wait')
+library=DataLibrary(open_database(),SourceFiles.from_environment())
+result=(library.receive if wait else library.submit)(content,**payload)
+print(json.dumps(result))
+"""
+        result = subprocess.run(
+            [str(Path(self.executable).parent / "python"), "-c", code],
+            input=json.dumps({**payload, "_wait": wait}),
+            text=True,
+            capture_output=True,
+            env=self.environment,
+            cwd=self.directory,
+            check=True,
+            timeout=60,
+        )
+        return json.loads(result.stdout)
+
+    def seed_study(self, study: Path) -> dict:
+        import base64
+        import tomllib
+        from uuid import uuid4
+
+        document = tomllib.loads(study.read_text())
+        source = dict(document["source"])
+        filename = source.pop("file")
+        return self.seed_source(
+            {
+                "content_base64": base64.b64encode((study.parent / filename).read_bytes()).decode(),
+                "filename": filename,
+                "source_name": source["source_name"],
+                "spec": source,
+                **document["archive"],
+                "request_id": str(uuid4()),
+            },
+            wait=True,
+        )
+
     def request(self, url: str, payload: object = None) -> bytes:
         parsed = urlsplit(url)
         origin = f"{parsed.scheme}://{parsed.netloc}"
@@ -71,13 +117,27 @@ class InstalledApplication:
             return content
 
     @contextmanager
-    def data_worker(self) -> Iterator[subprocess.Popen[str]]:
+    def data_worker(self, *, synthetic_tushare: bool = False) -> Iterator[subprocess.Popen[str]]:
         """Start the installed Data processor without an API or frontend parent."""
         log_path = self.directory / "data-worker.log"
         self.log_paths.append(log_path)
         with log_path.open("a") as log:
+            arguments = [self.executable, "serve", "data-worker"]
+            if synthetic_tushare:
+                arguments = [
+                    str(Path(self.executable).parent / "python"),
+                    "-c",
+                    """
+from northstar_quant.data_management.tushare import acquisition
+from northstar_quant.apps.data_hub.worker import run
+def denied(*args):
+    raise acquisition.DownloadError('Synthetic acceptance: provider permission denied')
+acquisition.fetch=denied
+run()
+""",
+                ]
             process = subprocess.Popen(
-                [self.executable, "serve", "data-worker"],
+                arguments,
                 cwd=self.directory,
                 env=self.environment,
                 stdout=log,

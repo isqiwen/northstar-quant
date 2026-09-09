@@ -1,5 +1,5 @@
-"""Tushare historical synchronization; no realtime subscription or recording."""
+"""Automatic Tushare synchronization owned by Data Hub."""
 
-from .jobs import get, process_next, submit
+from .jobs import process_next
 
-__all__ = ["get", "process_next", "submit"]
+__all__ = ["process_next"]
