@@ -59,7 +59,7 @@ def run() -> None:
             timeout=300,
         )
     except subprocess.CalledProcessError:
-        raise ValueError("role backup failed; no complete NAS backup is declared") from None
+        raise ValueError("role backup failed; no complete backup is declared") from None
     (target / "roles.sql").chmod(0o600)
     document = {
         str(path.relative_to(target)): _file_hash(path)

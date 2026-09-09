@@ -1,4 +1,4 @@
-"""NAS archive admission, separate from the Live kernel's local recovery authority."""
+"""Archive admission, separate from the Live kernel's local recovery authority."""
 
 import hashlib
 import json
@@ -24,7 +24,7 @@ def initialize_archive(connection: Connection) -> None:
 
 
 def accept(engine: Engine, writer_id: UUID, sequence: int, payload: dict[str, object]) -> str:
-    """A duplicate acknowledges identical content only, after a durable NAS commit.
+    """A duplicate acknowledges identical content only, after a durable archive commit.
 
     Called by the future isolated uploader, never by the kernel's trading path.
     This archive confirmation neither authorizes sending nor supplies failover authority.

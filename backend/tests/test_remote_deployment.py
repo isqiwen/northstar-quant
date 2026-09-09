@@ -69,7 +69,7 @@ if name == 'docker' and sys.argv[1:] == ['info']:
 if name == 'uv': sys.exit(int(os.environ.get('MOUNT_RESULT', '0')))
 if name == 'docker' and 'up' in sys.argv: sys.exit(int(os.environ.get('DEPLOY_UP_RESULT', '0')))
 """
-    for tool in ("ssh", "docker", "make", "uv", "findmnt", "mount.nfs", "curl"):
+    for tool in ("ssh", "docker", "make", "uv", "curl"):
         file = binaries / tool
         file.write_text(stub)
         file.chmod(0o755)

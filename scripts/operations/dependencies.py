@@ -6,7 +6,6 @@ import json
 import os
 import pwd
 import re
-import shlex
 import shutil
 import stat
 import subprocess
@@ -39,24 +38,11 @@ def prepare(request: dict) -> None:
     private = Path(request["env_file"])
     if not private.is_file() or stat.S_IMODE(private.stat().st_mode) & 0o077:
         raise ValueError("目标 env_file 必须已存在且仅所属用户可访问（chmod 600）")
-    mode = "nfs"
-    for line in private.read_text().splitlines():
-        if line.strip().startswith("NORTHSTAR_STORAGE_MODE="):
-            values = shlex.split(line.split("=", 1)[1], comments=True)
-            mode = values[0] if len(values) == 1 else ""
-    if mode not in {"nfs", "local"}:
-        raise ValueError("NORTHSTAR_STORAGE_MODE 必须是 nfs 或 local")
     os.environ["PATH"] += os.pathsep + str(Path.home() / ".local/bin") + ":/usr/sbin:/sbin"
     packages = []
     for binary, package in (("git", "git"), ("curl", "curl")):
         if shutil.which(binary) is None:
             packages.append(package)
-    if request["app"] != "live":
-        for binary, package in [("findmnt", "util-linux")] + (
-            [("mount.nfs", "nfs-common")] if mode == "nfs" else []
-        ):
-            if shutil.which(binary) is None:
-                packages.append(package)
     docker = available("docker", "--version")
     compose = available("docker", "compose", "version")
     buildx = available("docker", "buildx", "version")

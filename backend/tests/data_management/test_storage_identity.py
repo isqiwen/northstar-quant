@@ -1,4 +1,4 @@
-"""A missing or wrong NAS mount must never turn into an empty local data store."""
+"""A missing or wrong storage directory must never turn into an empty local data store."""
 
 from uuid import uuid4
 

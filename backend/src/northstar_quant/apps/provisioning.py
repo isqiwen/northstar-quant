@@ -11,7 +11,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.engine import URL
 
 from northstar_quant.apps.storage import initialize_database
-from northstar_quant.data_management.storage_identity import initialize
+from northstar_quant.data_management.storage_identity import initialize, require_identity
 
 OWNERS = ("data_hub",)
 
@@ -31,6 +31,11 @@ def provision() -> None:
         raise ValueError("Use independent database passwords with at least 16 characters")
     if len({password, *app_passwords.values()}) != 2:
         raise ValueError("Database identities require distinct passwords")
+    directories = [
+        (Path(os.environ[f"NORTHSTAR_{name}_DIR"]), os.environ[f"NORTHSTAR_{name}_STORAGE_ID"])
+        for name in ("SOURCE", "MARKET", "RESEARCH", "BACKUP")
+        if os.environ.get(f"NORTHSTAR_{name}_DIR")
+    ]
     with psycopg.connect(
         host=host,
         port=port,
@@ -39,6 +44,14 @@ def provision() -> None:
         password=password,
         autocommit=True,
     ) as connection:
+        existing = connection.execute(
+            "SELECT 1 FROM pg_database WHERE datname=%s", (f"northstar_{owner}",)
+        ).fetchone()
+        for root, identity in directories:
+            if existing:
+                require_identity(root, identity)
+            else:
+                initialize(root, identity)
         for owner in owners:
             database = f"northstar_{owner}"
             role = f"{database}_app"
@@ -139,12 +152,6 @@ def provision() -> None:
                     )
             finally:
                 engine.dispose()
-    for name in ("SOURCE", "MARKET", "RESEARCH", "BACKUP"):
-        if os.environ.get(f"NORTHSTAR_{name}_DIR"):
-            initialize(
-                Path(os.environ[f"NORTHSTAR_{name}_DIR"]),
-                os.environ[f"NORTHSTAR_{name}_STORAGE_ID"],
-            )
     print("Application database and configured share identities initialized")
 
 

@@ -36,12 +36,10 @@ def test_prepared_host_does_not_install_or_restart_services(bootstrap, monkeypat
     assert calls == []
 
 
-@pytest.mark.parametrize("app,nfs", [("data-hub", True), ("live", False), ("database", False)])
-def test_fresh_host_installs_tools_and_verifies_them(bootstrap, monkeypatch, app, nfs):
+@pytest.mark.parametrize("app", ["data-hub", "live", "database"])
+def test_fresh_host_installs_tools_and_verifies_them(bootstrap, monkeypatch, app):
     module, request = bootstrap
     request["app"] = app
-    if app == "database":
-        Path(request["env_file"]).write_text("NORTHSTAR_STORAGE_MODE=local\n")
     original = Path.read_text
     monkeypatch.setattr(
         Path,
@@ -74,7 +72,6 @@ def test_fresh_host_installs_tools_and_verifies_them(bootstrap, monkeypatch, app
     assert any("docker-ce" in call for call in calls)
     assert any("docker-compose-plugin" in call for call in calls)
     assert any("uv==0.11.6" in call for call in calls)
-    assert any("nfs-common" in call for call in calls) == nfs
     assert not any("remove" in call or "restart" in call for call in calls)
 
 

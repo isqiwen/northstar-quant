@@ -68,7 +68,7 @@ Live 管理 API 与内核的内部认证 HTTP 是另一条接口，本次前后�
 Data Hub 的 `/api/publications` 返回固定快照目录，`/api/publications/{snapshot_id}` 返回存储 UUID、相对路径、长度、SHA-256 和 Parquet 文件清单。
 协议仍由 `proto/data_hub.proto` 定义；Research 后端使用独立 Bearer 凭据获取清单，不获取 core 数据库凭据。
 Docker 仅通过 core 私网 `19083` 的只读网关开放这些 GET；`19082` 管理 API 保持本机绑定。
-Research 按清单校验 NAS 文件，在本机 DuckDB 查询；不扫描目录拼接新旧版本。凭据、网络或文件校验失败明确报错。
+Research 按清单校验 发布目录中的文件，在本机 DuckDB 查询；不扫描目录拼接新旧版本。凭据、网络或文件校验失败明确报错。
 
 ## Data Hub 浏览接口
 

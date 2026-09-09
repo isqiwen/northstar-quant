@@ -62,7 +62,6 @@ jobs:
           uv run --project backend --with playwright==1.62.0 python scripts/acceptance/check_browser.py --executable "$RUNNER_TEMP/northstar-installed/bin/northstar" --study examples/intraday.toml --screenshot "$RUNNER_TEMP/northstar-factor-browser.png"
       - name: Build and verify the runtime image
         env:
-          NORTHSTAR_NAS_ADDRESS: 127.0.0.1
           NORTHSTAR_PUBLICATION_BIND_ADDRESS: 127.0.0.1
           NORTHSTAR_PUBLICATION_TOKEN: isolated-publication-token-at-least-32-characters
           NORTHSTAR_DATABASE_ADMIN_PASSWORD: isolated-config-admin-password
@@ -71,16 +70,12 @@ jobs:
           NORTHSTAR_DATABASE_PGDATA: /tmp/northstar-ci-placeholder/pgdata
           NORTHSTAR_SOURCE_MOUNT: /tmp/northstar-ci-placeholder/source
           NORTHSTAR_SOURCE_STORAGE_ID: 75b37e93-e22e-4087-b53e-963f53c00d21
-          NORTHSTAR_SOURCE_NFS_EXPORT: /synthetic-not-nfs/source
           NORTHSTAR_MARKET_MOUNT: /tmp/northstar-ci-placeholder/market
           NORTHSTAR_MARKET_STORAGE_ID: 75b37e93-e22e-4087-b53e-963f53c00d22
-          NORTHSTAR_MARKET_NFS_EXPORT: /synthetic-not-nfs/market
           NORTHSTAR_RESEARCH_MOUNT: /tmp/northstar-ci-placeholder/research
           NORTHSTAR_RESEARCH_STORAGE_ID: 75b37e93-e22e-4087-b53e-963f53c00d23
-          NORTHSTAR_RESEARCH_NFS_EXPORT: /synthetic-not-nfs/research
           NORTHSTAR_BACKUP_MOUNT: /tmp/northstar-ci-placeholder/backup
           NORTHSTAR_BACKUP_STORAGE_ID: 75b37e93-e22e-4087-b53e-963f53c00d24
-          NORTHSTAR_BACKUP_NFS_EXPORT: /synthetic-not-nfs/backup
         run: |
           export NORTHSTAR_GIT_REVISION="$(git rev-parse HEAD)"
           test -z "$(git status --porcelain --untracked-files=all)"

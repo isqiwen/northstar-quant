@@ -1,6 +1,6 @@
 """Exercise core PostgreSQL, Research SQLite and fixed publications over shared files.
 
-Local bind directories model the share; this is not a real NFS/SMB or three-host acceptance.
+Uses isolated directories; this does not verify physical multi-host infrastructure.
 """
 
 from __future__ import annotations
@@ -33,7 +33,7 @@ class Deployment:
         self.projects = {
             app: f"{prefix}-{app.replace('_', '-')}" for app in ("database", "data_hub", "research")
         }
-        self.files = tempfile.TemporaryDirectory(prefix="northstar-nas-check-")
+        self.files = tempfile.TemporaryDirectory(prefix="northstar-storage-check-")
         self.root = Path(self.files.name)
         for share in ("source", "market", "research", "backup", "pgdata"):
             (self.root / share).mkdir()
@@ -46,8 +46,6 @@ class Deployment:
             NORTHSTAR_BACKEND_IMAGE=image,
             NORTHSTAR_DATA_FRONTEND_IMAGE=data_image,
             NORTHSTAR_RESEARCH_FRONTEND_IMAGE=research_image,
-            NORTHSTAR_NAS_ADDRESS="host.docker.internal",
-            NORTHSTAR_NFS_VERSION="4",
             NORTHSTAR_PUBLICATION_BIND_ADDRESS="0.0.0.0",
             NORTHSTAR_PUBLICATION_PORT="0",
             NORTHSTAR_DATA_DATABASE_NETWORK=prefix + "-storage",
@@ -62,12 +60,8 @@ class Deployment:
         )
 
         for share in ("SOURCE", "MARKET", "RESEARCH", "BACKUP"):
-            self.environment[f"NORTHSTAR_NAS_{share}_DIR"] = str(self.root / share.lower())
             self.environment[f"NORTHSTAR_{share}_MOUNT"] = str(self.root / share.lower())
             self.environment[f"NORTHSTAR_{share}_STORAGE_ID"] = str(uuid4())
-            self.environment[f"NORTHSTAR_{share}_NFS_EXPORT"] = (
-                "/synthetic-bind-not-nfs/" + share.lower()
-            )
 
     def run(self, app: str, *arguments: str) -> str:
         result = subprocess.run(
@@ -300,19 +294,20 @@ print(json.dumps(DataLibrary(open_database(),SourceFiles.from_environment()).sub
             backup = json.loads(self.run("database", "run", "--rm", "--no-deps", "backup"))
             assert backup["status"] == "complete"
             print("Core backup includes Data Hub database, roles and pinned files", flush=True)
-            # A bind directory existing locally is insufficient evidence of a NAS mount.
+            # An existing directory is insufficient without the configured storage identity.
             self.run("data_hub", "down", "--timeout", "10")
             wrong = self.root / "unmounted"
             wrong.mkdir(parents=True)
             self.environment["NORTHSTAR_SOURCE_MOUNT"] = str(wrong)
             try:
-                try:
-                    self.run("data_hub", "run", "--rm", "--no-deps", "storage-check")
-                except RuntimeError as error:
-                    assert "mount" in str(error), str(error)
-                else:
-                    raise AssertionError("unidentified local directory was accepted as NAS storage")
-                assert list(wrong.iterdir()) == []
+                for app, service in (("data_hub", "storage-check"), ("database", "initialize")):
+                    try:
+                        self.run(app, "run", "--rm", "--no-deps", service)
+                    except RuntimeError as error:
+                        assert "mount" in str(error), str(error)
+                    else:
+                        raise AssertionError("unidentified directory was accepted as storage")
+                    assert list(wrong.iterdir()) == []
             finally:
                 self.environment["NORTHSTAR_SOURCE_MOUNT"] = str(self.root / "source")
             print(

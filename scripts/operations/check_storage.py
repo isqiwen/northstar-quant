@@ -1,18 +1,67 @@
-"""Check explicitly selected local or NFS storage before starting application containers."""
+"""Check application directories and identities; the host owns storage and mount configuration."""
 
 from __future__ import annotations
 
 import argparse
 import json
-import shlex
-import socket
 import subprocess
 from pathlib import Path
 from uuid import UUID
 
-from northstar_quant.data_management.storage_identity import verify_local_directory, verify_mount
+from northstar_quant.data_management.storage_identity import require_identity
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+def check_directories(config: dict, app: str, *, maintenance: bool = False) -> None:
+    service = config["services"][
+        "initialize" if app == "database" else "maintenance" if maintenance else "storage-check"
+    ]
+    roots: list[Path] = []
+    first_install = False
+    if app == "database":
+        root = Path(config["services"]["postgres"]["volumes"][0]["source"])
+        require_directory(root)
+        roots.append(root.resolve())
+        try:
+            first_install = not any(root.iterdir())
+        except PermissionError:
+            # PostgreSQL owns PGDATA (usually mode 0700); do not inspect its contents.
+            # Existing storage identities are still required in this case.
+            first_install = False
+    identities: set[str] = set()
+    for volume in service["volumes"]:
+        if volume.get("type") != "bind":
+            continue
+        root = Path(volume["source"])
+        require_directory(root)
+        if any(root.is_relative_to(other) or other.is_relative_to(root) for other in roots):
+            raise ValueError("Storage directories must be distinct and non-overlapping")
+        roots.append(root)
+        share = Path(volume["target"]).name.upper()
+        identity = service["environment"][f"NORTHSTAR_{share}_STORAGE_ID"]
+        if str(UUID(identity)) != identity or identity in identities:
+            raise ValueError("Each storage directory requires a distinct canonical UUID")
+        identities.add(identity)
+        # A genuinely empty first installation is initialized by database provisioning.
+        # Never recreate identity on redeploy or on a nonempty unrecognized directory.
+        if not (first_install and not any(root.iterdir())):
+            require_identity(root, identity)
+        if (root / ".restore-incomplete").exists():
+            raise ValueError("Storage restore is incomplete")
+        print(f"Storage directory verified for {app}: {root}")
+
+
+def require_directory(root: Path) -> None:
+    if (
+        not root.is_absolute()
+        or not root.is_dir()
+        or root.resolve() != root
+        or root in {Path("/"), Path.home()}
+    ):
+        raise ValueError(
+            "Storage requires an existing dedicated absolute directory without symlinks"
+        )
 
 
 def main() -> None:
@@ -27,122 +76,13 @@ def main() -> None:
     command.extend(
         ["-f", str(ROOT / "deploy" / args.app / "compose.yaml"), "config", "--format", "json"]
     )
-    result = subprocess.run(command, capture_output=True, text=True, check=False)
-    if result.returncode:
+    try:
+        result = subprocess.run(command, capture_output=True, text=True, check=True)
+        check_directories(json.loads(result.stdout), args.app, maintenance=args.maintenance)
+    except (OSError, ValueError, subprocess.CalledProcessError) as error:
         parser.exit(
-            2, "Compose parameters incomplete; fill in the private host environment file.\n"
+            2, f"Storage not ready: {error}\nNothing started. Prepare directories explicitly.\n"
         )
-    service = json.loads(result.stdout)["services"][
-        "initialize"
-        if args.app == "database"
-        else "maintenance"
-        if args.maintenance
-        else "storage-check"
-    ]
-    if args.app == "database":
-        postgres = json.loads(result.stdout)["services"]["postgres"]
-        path = postgres["volumes"][0]["source"]
-        if not Path(path).is_dir() or Path(path).is_symlink():
-            parser.exit(2, "Create a dedicated core local PGDATA directory first.\n")
-        mount = subprocess.run(
-            ["findmnt", "--json", "--target", path, "--output", "FSTYPE"],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        kind = json.loads(mount.stdout)["filesystems"][0]["fstype"]
-        if kind not in {"ext4", "xfs", "btrfs", "zfs"}:
-            parser.exit(
-                2, "PGDATA requires a verified local persistent filesystem, not NFS/SMB/tmpfs.\n"
-            )
-    env = service["environment"]
-    mode = env.get("NORTHSTAR_STORAGE_MODE", "nfs")
-    if mode not in {"local", "nfs"}:
-        parser.exit(2, "NORTHSTAR_STORAGE_MODE must be local or nfs.\n")
-    roots = [Path(path).resolve()] if args.app == "database" else []
-    identities = set()
-    for volume in service["volumes"]:
-        if volume.get("type") == "bind":
-            root = Path(volume["source"])
-            if any(
-                root.resolve().is_relative_to(other) or other.is_relative_to(root.resolve())
-                for other in roots
-            ):
-                parser.exit(2, "Storage directories must be distinct and non-overlapping.\n")
-            roots.append(root.resolve())
-    for volume in service["volumes"]:
-        if volume.get("type") != "bind":
-            continue
-        mount = volume["source"]
-        share = Path(volume["target"]).name.upper()
-        identity = env[f"NORTHSTAR_{share}_STORAGE_ID"]
-        if identity in identities:
-            parser.exit(2, "Each storage directory requires a distinct UUID.\n")
-        identities.add(identity)
-        if str(UUID(identity)) != identity:
-            parser.exit(2, "Storage identity must be a canonical UUID.\n")
-        if mode == "local":
-            result = subprocess.run(
-                ["findmnt", "--json", "--target", mount, "--output", "FSTYPE,OPTIONS"],
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            rows = (
-                json.loads(result.stdout).get("filesystems", []) if result.returncode == 0 else []
-            )
-            verify_local_directory(
-                Path(mount),
-                rows[0] if len(rows) == 1 else {},
-                writable=not volume.get("read_only", False),
-            )
-            print(f"Local storage verified for {args.app}: {mount}")
-            continue
-        expected = {
-            "server": socket.gethostbyname(env["NORTHSTAR_NAS_ADDRESS"]),
-            "hostname": env["NORTHSTAR_NAS_ADDRESS"],
-            "export": env[f"NORTHSTAR_{share}_NFS_EXPORT"],
-            "version": env["NORTHSTAR_NFS_VERSION"],
-            "mount": mount,
-            "mode": "ro" if volume.get("read_only") else "rw",
-        }
-        try:
-            result = subprocess.run(
-                [
-                    "findmnt",
-                    "--json",
-                    "--mountpoint",
-                    mount,
-                    "--output",
-                    "TARGET,SOURCE,FSTYPE,OPTIONS",
-                ],
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            rows = (
-                json.loads(result.stdout).get("filesystems", []) if result.returncode == 0 else []
-            )
-            verify_mount(expected, rows[0] if len(rows) == 1 else {})
-        except (OSError, ValueError) as error:
-            suggestion = shlex.join(
-                [
-                    "sudo",
-                    "mount",
-                    "-t",
-                    "nfs",
-                    "-o",
-                    f"vers={expected['version']},hard,{expected['mode']}",
-                    f"{expected['server']}:{expected['export']}",
-                    mount,
-                ]
-            )
-            parser.exit(
-                2,
-                f"{error}\nNothing started. Verify QNAP export and prepare the mount explicitly:\n"
-                f"{suggestion}\n",
-            )
-        print(f"NFS mount verified for {args.app}: {mount} ({expected['mode']})")
 
 
 if __name__ == "__main__":

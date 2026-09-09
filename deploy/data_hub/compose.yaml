@@ -10,9 +10,6 @@ services:
         NORTHSTAR_DEVELOPMENT_BUILD: ${NORTHSTAR_DEVELOPMENT_BUILD:-0}
     image: ${NORTHSTAR_BACKEND_IMAGE:-northstar-quant:local}
     environment:
-      NORTHSTAR_STORAGE_MODE: ${NORTHSTAR_STORAGE_MODE:-nfs}
-      NORTHSTAR_NAS_ADDRESS: ${NORTHSTAR_NAS_ADDRESS:-nas.local}
-      NORTHSTAR_NFS_VERSION: ${NORTHSTAR_NFS_VERSION:-4}
       NORTHSTAR_LOG_DIR: /var/log/northstar
       NORTHSTAR_DATABASE_URL: postgresql+psycopg://northstar_data_hub_app:${NORTHSTAR_DATA_HUB_DATABASE_PASSWORD:?Set
         application password}@postgres:5432/northstar_data_hub?connect_timeout=5
@@ -20,34 +17,31 @@ services:
       NORTHSTAR_SOURCE_DIR: /var/lib/northstar/source
       NORTHSTAR_SOURCE_STORAGE_ID: ${NORTHSTAR_SOURCE_STORAGE_ID:?Set source storage
         UUID}
-      NORTHSTAR_SOURCE_NFS_EXPORT: ${NORTHSTAR_SOURCE_NFS_EXPORT:-}
       NORTHSTAR_MARKET_DIR: /var/lib/northstar/market
       NORTHSTAR_MARKET_STORAGE_ID: ${NORTHSTAR_MARKET_STORAGE_ID:?Set market storage
         UUID}
-      NORTHSTAR_MARKET_NFS_EXPORT: ${NORTHSTAR_MARKET_NFS_EXPORT:-}
       NORTHSTAR_RESEARCH_DIR: /var/lib/northstar/research
       NORTHSTAR_RESEARCH_STORAGE_ID: ${NORTHSTAR_RESEARCH_STORAGE_ID:?Set research
         storage UUID}
-      NORTHSTAR_RESEARCH_NFS_EXPORT: ${NORTHSTAR_RESEARCH_NFS_EXPORT:-}
       NORTHSTAR_DATA_DIR: /var/lib/northstar/source
       NORTHSTAR_STORAGE_ID: ${NORTHSTAR_SOURCE_STORAGE_ID:?Set source storage UUID}
     extra_hosts:
     - host.docker.internal:host-gateway
     volumes:
     - type: bind
-      source: ${NORTHSTAR_SOURCE_MOUNT:-/mnt/northstar/source}
+      source: ${NORTHSTAR_SOURCE_MOUNT:-/var/lib/northstar/files/source}
       target: /var/lib/northstar/source
       read_only: false
       bind:
         create_host_path: false
     - type: bind
-      source: ${NORTHSTAR_MARKET_MOUNT:-/mnt/northstar/market}
+      source: ${NORTHSTAR_MARKET_MOUNT:-/var/lib/northstar/files/market}
       target: /var/lib/northstar/market
       read_only: false
       bind:
         create_host_path: false
     - type: bind
-      source: ${NORTHSTAR_RESEARCH_MOUNT:-/mnt/northstar/research}
+      source: ${NORTHSTAR_RESEARCH_MOUNT:-/var/lib/northstar/files/research}
       target: /var/lib/northstar/research
       read_only: true
       bind:
@@ -87,39 +81,33 @@ services:
       NORTHSTAR_SOURCE_DIR: /var/lib/northstar/source
       NORTHSTAR_SOURCE_STORAGE_ID: ${NORTHSTAR_SOURCE_STORAGE_ID:?Set source storage
         UUID}
-      NORTHSTAR_SOURCE_NFS_EXPORT: ${NORTHSTAR_SOURCE_NFS_EXPORT:-}
       NORTHSTAR_MARKET_DIR: /var/lib/northstar/market
       NORTHSTAR_MARKET_STORAGE_ID: ${NORTHSTAR_MARKET_STORAGE_ID:?Set market storage
         UUID}
-      NORTHSTAR_MARKET_NFS_EXPORT: ${NORTHSTAR_MARKET_NFS_EXPORT:-}
       NORTHSTAR_RESEARCH_DIR: /var/lib/northstar/research
       NORTHSTAR_RESEARCH_STORAGE_ID: ${NORTHSTAR_RESEARCH_STORAGE_ID:?Set research
         storage UUID}
-      NORTHSTAR_RESEARCH_NFS_EXPORT: ${NORTHSTAR_RESEARCH_NFS_EXPORT:-}
       NORTHSTAR_DATA_DIR: /var/lib/northstar/source
       NORTHSTAR_STORAGE_ID: ${NORTHSTAR_SOURCE_STORAGE_ID:?Set source storage UUID}
-      NORTHSTAR_STORAGE_MODE: ${NORTHSTAR_STORAGE_MODE:-nfs}
-      NORTHSTAR_NAS_ADDRESS: ${NORTHSTAR_NAS_ADDRESS:-nas.local}
-      NORTHSTAR_NFS_VERSION: ${NORTHSTAR_NFS_VERSION:-4}
       NORTHSTAR_PUBLICATION_TOKEN: ${NORTHSTAR_PUBLICATION_TOKEN:?Set shared read-only
         publication token}
     volumes:
     - credentials:/var/lib/northstar/credentials
     - logs:/var/log/northstar
     - type: bind
-      source: ${NORTHSTAR_SOURCE_MOUNT:-/mnt/northstar/source}
+      source: ${NORTHSTAR_SOURCE_MOUNT:-/var/lib/northstar/files/source}
       target: /var/lib/northstar/source
       read_only: false
       bind:
         create_host_path: false
     - type: bind
-      source: ${NORTHSTAR_MARKET_MOUNT:-/mnt/northstar/market}
+      source: ${NORTHSTAR_MARKET_MOUNT:-/var/lib/northstar/files/market}
       target: /var/lib/northstar/market
       read_only: false
       bind:
         create_host_path: false
     - type: bind
-      source: ${NORTHSTAR_RESEARCH_MOUNT:-/mnt/northstar/research}
+      source: ${NORTHSTAR_RESEARCH_MOUNT:-/var/lib/northstar/files/research}
       target: /var/lib/northstar/research
       read_only: true
       bind:
@@ -172,37 +160,31 @@ services:
       NORTHSTAR_SOURCE_DIR: /var/lib/northstar/source
       NORTHSTAR_SOURCE_STORAGE_ID: ${NORTHSTAR_SOURCE_STORAGE_ID:?Set source storage
         UUID}
-      NORTHSTAR_SOURCE_NFS_EXPORT: ${NORTHSTAR_SOURCE_NFS_EXPORT:-}
       NORTHSTAR_MARKET_DIR: /var/lib/northstar/market
       NORTHSTAR_MARKET_STORAGE_ID: ${NORTHSTAR_MARKET_STORAGE_ID:?Set market storage
         UUID}
-      NORTHSTAR_MARKET_NFS_EXPORT: ${NORTHSTAR_MARKET_NFS_EXPORT:-}
       NORTHSTAR_RESEARCH_DIR: /var/lib/northstar/research
       NORTHSTAR_RESEARCH_STORAGE_ID: ${NORTHSTAR_RESEARCH_STORAGE_ID:?Set research
         storage UUID}
-      NORTHSTAR_RESEARCH_NFS_EXPORT: ${NORTHSTAR_RESEARCH_NFS_EXPORT:-}
       NORTHSTAR_DATA_DIR: /var/lib/northstar/source
       NORTHSTAR_STORAGE_ID: ${NORTHSTAR_SOURCE_STORAGE_ID:?Set source storage UUID}
-      NORTHSTAR_STORAGE_MODE: ${NORTHSTAR_STORAGE_MODE:-nfs}
-      NORTHSTAR_NAS_ADDRESS: ${NORTHSTAR_NAS_ADDRESS:-nas.local}
-      NORTHSTAR_NFS_VERSION: ${NORTHSTAR_NFS_VERSION:-4}
     volumes:
     - credentials:/var/lib/northstar/credentials:ro
     - logs:/var/log/northstar
     - type: bind
-      source: ${NORTHSTAR_SOURCE_MOUNT:-/mnt/northstar/source}
+      source: ${NORTHSTAR_SOURCE_MOUNT:-/var/lib/northstar/files/source}
       target: /var/lib/northstar/source
       read_only: false
       bind:
         create_host_path: false
     - type: bind
-      source: ${NORTHSTAR_MARKET_MOUNT:-/mnt/northstar/market}
+      source: ${NORTHSTAR_MARKET_MOUNT:-/var/lib/northstar/files/market}
       target: /var/lib/northstar/market
       read_only: false
       bind:
         create_host_path: false
     - type: bind
-      source: ${NORTHSTAR_RESEARCH_MOUNT:-/mnt/northstar/research}
+      source: ${NORTHSTAR_RESEARCH_MOUNT:-/var/lib/northstar/files/research}
       target: /var/lib/northstar/research
       read_only: true
       bind:
@@ -272,46 +254,39 @@ services:
       NORTHSTAR_SOURCE_DIR: /var/lib/northstar/source
       NORTHSTAR_SOURCE_STORAGE_ID: ${NORTHSTAR_SOURCE_STORAGE_ID:?Set source storage
         UUID}
-      NORTHSTAR_SOURCE_NFS_EXPORT: ${NORTHSTAR_SOURCE_NFS_EXPORT:-}
       NORTHSTAR_MARKET_DIR: /var/lib/northstar/market
       NORTHSTAR_MARKET_STORAGE_ID: ${NORTHSTAR_MARKET_STORAGE_ID:?Set market storage
         UUID}
-      NORTHSTAR_MARKET_NFS_EXPORT: ${NORTHSTAR_MARKET_NFS_EXPORT:-}
       NORTHSTAR_RESEARCH_DIR: /var/lib/northstar/research
       NORTHSTAR_RESEARCH_STORAGE_ID: ${NORTHSTAR_RESEARCH_STORAGE_ID:?Set research
         storage UUID}
-      NORTHSTAR_RESEARCH_NFS_EXPORT: ${NORTHSTAR_RESEARCH_NFS_EXPORT:-}
       NORTHSTAR_BACKUP_DIR: /var/lib/northstar/backup
       NORTHSTAR_BACKUP_STORAGE_ID: ${NORTHSTAR_BACKUP_STORAGE_ID:?Set backup storage
         UUID}
-      NORTHSTAR_BACKUP_NFS_EXPORT: ${NORTHSTAR_BACKUP_NFS_EXPORT:-}
       NORTHSTAR_DATA_DIR: /var/lib/northstar/source
       NORTHSTAR_STORAGE_ID: ${NORTHSTAR_SOURCE_STORAGE_ID:?Set source storage UUID}
-      NORTHSTAR_STORAGE_MODE: ${NORTHSTAR_STORAGE_MODE:-nfs}
-      NORTHSTAR_NAS_ADDRESS: ${NORTHSTAR_NAS_ADDRESS:-nas.local}
-      NORTHSTAR_NFS_VERSION: ${NORTHSTAR_NFS_VERSION:-4}
     volumes:
     - logs:/var/log/northstar
     - type: bind
-      source: ${NORTHSTAR_SOURCE_MOUNT:-/mnt/northstar/source}
+      source: ${NORTHSTAR_SOURCE_MOUNT:-/var/lib/northstar/files/source}
       target: /var/lib/northstar/source
       read_only: false
       bind:
         create_host_path: false
     - type: bind
-      source: ${NORTHSTAR_MARKET_MOUNT:-/mnt/northstar/market}
+      source: ${NORTHSTAR_MARKET_MOUNT:-/var/lib/northstar/files/market}
       target: /var/lib/northstar/market
       read_only: false
       bind:
         create_host_path: false
     - type: bind
-      source: ${NORTHSTAR_RESEARCH_MOUNT:-/mnt/northstar/research}
+      source: ${NORTHSTAR_RESEARCH_MOUNT:-/var/lib/northstar/files/research}
       target: /var/lib/northstar/research
       read_only: true
       bind:
         create_host_path: false
     - type: bind
-      source: ${NORTHSTAR_BACKUP_MOUNT:-/mnt/northstar/backup}
+      source: ${NORTHSTAR_BACKUP_MOUNT:-/var/lib/northstar/files/backup}
       target: /var/lib/northstar/backup
       read_only: false
       bind:

@@ -107,7 +107,7 @@ def test_network_manifest_binds_readonly_files_and_survives_catalog_outage(
         assert reader.load_dataset(identifier) == fixed
         with pytest.raises(ValueError, match="unavailable"):
             reader.list_datasets()
-        # A retained manifest never excuses missing/corrupt NAS bytes.
+        # A retained manifest never excuses missing/corrupt published bytes.
         path = next(library.publications.root.glob("*.parquet"))
         path.write_bytes(b"corrupt")
         with pytest.raises(ValueError, match="checksum"):

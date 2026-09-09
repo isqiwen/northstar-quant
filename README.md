@@ -18,15 +18,11 @@ Tushare 定时增量/分片补数、15 分钟到日线完整研究输入、持�
 
 ## 快速启动
 
-部署位置：Data Hub 在 `core.local`，Research 在 `research.local`，PostgreSQL 在 core，文件/备份在 QNAP `nas.local`。
+部署位置：Data Hub 和独立 PostgreSQL 在 `core.local`，Research 在 `research.local`。
 三个应用的前端、API、worker/内核分别运行在独立容器中。
-暂未购置 NAS 时，可用 `NORTHSTAR_STORAGE_MODE=local` 将 Data Hub 文件与备份保存在 core 本地，
-具体目录、UUID 与命令见[单机测试部署](deploy/README.md#暂无-nascore-单机测试)。
-
-配置文件在 `deploy/{database,data_hub,research,live}/.env`，随仓库维护非敏感配置，凭据留空。
-按[跨主机部署说明](deploy/README.md) 准备各主机运行副本并填写口令，确认 QNAP 实际 NFS 导出路径。
-默认优先 NFSv4，各共享挂载在 `/mnt/northstar/` 下；Research 只读市场发布目录、读写自己的产物目录。
-路径尚未确认时不猜测、不自动创建本地替代存储。
+应用只访问配置的持久目录；本机磁盘或主机预先挂载的共享使用同一套配置。
+配置文件在 `deploy/{database,data_hub,research,live}/.env`，凭据留空，实际口令放私有运行副本。
+首次准备目录和存储 UUID，详见[部署说明](deploy/README.md)。
 
 可使用统一远程入口（先填写仓库外的主机配置，详见[部署说明](deploy/README.md)）：
 
@@ -37,16 +33,16 @@ Tushare 定时增量/分片补数、15 分钟到日线完整研究输入、持�
 ./scripts/northstarctl.py deploy live --config ~/.config/northstar/hosts.toml
 ```
 
-远程 `deploy` 自动安装目标 Ubuntu/Debian 主机缺失的 Git、uv、Docker/Compose/Buildx 和所需 NFS 工具；
-目标仍需 SSH、Python 3.11+、root 或免交互 sudo，NAS 挂载与私有配置提前准备。
+远程 `deploy` 自动安装目标 Ubuntu/Debian 主机缺失的 Git、uv、Docker/Compose/Buildx ；
+目标仍需 SSH、Python 3.11+、root 或免交互 sudo，持久目录与私有配置提前准备。
 脚本部署当前已提交版本，支持 `start`、`restart`、`stop`、`status`、`logs` 和 `--help`。
 `start`/`restart` 使用已部署版本，不重新构建。所有应用统一操作整个部署对象；`restart live` 会重启前端、API、内核和本地数据库。
-也可以在对应主机的仓库根目录执行（需要 Git、uv、Make、Docker；Linux 客户端还需 NFS 客户端与 `findmnt`）：
+也可以在对应主机的仓库根目录执行（需要 Git、uv、Make、Docker）：
 
 ```sh
-# core.local：先初始化独立 PostgreSQL 和已挂载的共享目录
+# core.local：先初始化独立 PostgreSQL 和已准备的存储目录
 make up-database ENV_FILE=/absolute/private/database.env
-# core.local：NFS 已正确挂载后
+# core.local：存储目录已准备后
 make up-data ENV_FILE=/absolute/private/core.env
 # research.local：市场只读、研究目录可写后
 make up-research ENV_FILE=/absolute/private/research.env
@@ -56,7 +52,7 @@ make up-live
 
 本机 Make 命令默认读取各自目录的 `.env`；示例中的 `ENV_FILE` 用于指定私有运行副本。
 正式构建要求工作区干净；未提交修改时在对应命令前加 `NORTHSTAR_DEVELOPMENT_BUILD=1`。
-Data Hub 连接 core 独立数据库；Research 使用本机 SQLite。启动检查 NFS 挂载和存储身份，不启动 NAS 或另一个应用。
+Data Hub 连接 core 独立数据库；Research 使用本机 SQLite。启动检查目录和存储身份，不操作底层存储或另一个应用。
 Data API 持久排队，独立 worker 下载与加工；关闭 Data Web/API 不停止已提交任务。
 Data Hub 只通过 Tushare 自动同步全部期货历史数据，不提供文件导入、Tick、品种或周期选择。
 打开 Data Hub → **历史同步**，保存 token 后点击 **开始同步全部数据**；可查看分片进度、等待原因与固定数据。
@@ -80,7 +76,7 @@ ssh -N -L 18084:127.0.0.1:18084 research.local
 `make ps-data` / `ps-research` / `ps-live` 查看状态；`make down-data` / `down-research` / `down-live` 只停止对应应用并保留卷。
 Data/Research 命令均需传相同的 `ENV_FILE`。core 上的数据库单独使用 `make ps-database` / `down-database`；停止会影响 Data Hub，不会停止 Research 或 Live 的本地存储。
 
-修改代码后重新构建；`restart` 不会构建新代码。端口、NFS 参数、存储权限与备份见 [部署说明](deploy/README.md)。
+修改代码后重新构建；`restart` 不会构建新代码。端口、目录、存储权限与备份见 [部署说明](deploy/README.md)。
 当前个人容器与数据不会被新命令自动迁移或接管。
 
 本地启动 Research 前，创建专用本机目录，设置 `NORTHSTAR_RESEARCH_DATABASE=/绝对路径/research.sqlite3`，
@@ -108,9 +104,9 @@ Data/Research 命令均需传相同的 `ENV_FILE`。core 上的数据库单独�
 
 日常访问前端端口即可。Live 内核为独立的 `18081` 服务。
 core PostgreSQL 仅保存 Data Hub 元数据；Research 的任务与结果保存在 research 本机 SQLite。
-Research 用 Data Hub API 获取固定清单，通过只读 NAS 挂载和本机 DuckDB 读取 Parquet。
+Research 用 Data Hub API 获取固定清单，通过只读市场目录和本机 DuckDB 读取 Parquet。
 配置 `NORTHSTAR_DATA_HUB_URL` 和两端相同的 `NORTHSTAR_PUBLICATION_TOKEN`（至少 32 字符），不向 Research 分发 core 数据库口令。
-Live 当前仍独立存储，不依赖家庭 NAS；最小恢复日志与异步归档是下一项改造。
+Live 当前仍独立存储，不依赖其他主机的存储；最小恢复日志与异步归档是下一项改造。
 Research 回测由独立 `research-worker` 执行；前端和 API 重启不结束已接收的任务。
 进程隔离不代表已经完成任务检查点恢复，也不能隔离整台主机故障。
 
@@ -257,8 +253,8 @@ uv run --project backend python scripts/operations/setup_simnow.py
 
 ## 数据与运行维护
 
-各应用日志和 Live 认证保存在所属 Docker 卷；Data Hub/Research 的来源、市场发布、研究产物和备份位于 NAS，Live 内核拥有独立本地数据卷。重建容器不会清空这些数据；不要用 `docker compose down -v` 停止日常应用。
-PostgreSQL 活跃目录保留在 core 本机，Research SQLite 保留在 research 本机，不放在 NAS/NFS 上。数据库与其引用的来源文件必须一起备份，市场数据、备份和私密凭据不提交到 Git。
+各应用日志和 Live 认证保存在所属 Docker 卷；Data Hub/Research 的来源、市场发布、研究产物和备份位于配置的持久目录，Live 内核拥有独立本地数据卷。重建容器不会清空这些数据；不要用 `docker compose down -v` 停止日常应用。
+PostgreSQL 活跃目录保留在 core 本机，Research SQLite 保留在 research 本机，使用各自主机的本地持久磁盘。数据库与其引用的来源文件必须一起备份，市场数据、备份和私密凭据不提交到 Git。
 
 ```sh
 # 目标目录必须尚不存在；每次备份换一个名称
