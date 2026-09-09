@@ -13,7 +13,6 @@ from pathlib import Path
 
 from northstar_quant.broker.settings import Credentials, load_credentials
 
-ROOT = Path(__file__).resolve().parents[2]
 FIELDS = {
     "user_id": ("投资者代码", "NORTHSTAR_SIMNOW_USER_ID"),
     "app_id": ("AppID", "NORTHSTAR_SIMNOW_APP_ID"),
@@ -63,8 +62,8 @@ def main() -> int:
     parser.add_argument(
         "--file",
         type=Path,
-        default=ROOT / ".northstar/simnow.env",
-        help="私密文件路径，默认仓库 .northstar/simnow.env",
+        default=Path("/opt/northstar/credentials/live/broker.env"),
+        help="私密文件路径，默认 /opt/northstar/credentials/live/broker.env",
     )
     args = parser.parse_args()
     if not sys.stdin.isatty():
@@ -92,8 +91,8 @@ def main() -> int:
             return 0
         save(path, credentials)
         print(f"已保存私密文件：{path}（权限 600）。")
-        print("将 NORTHSTAR_SIMNOW_CONFIG 指向该绝对路径；不要 source 或执行此文件。")
-        print("Docker 使用 compose.simnow.yaml 挂载；配置不代表已登录或获准交易。")
+        print("将 NORTHSTAR_LIVE_BROKER_CONFIG 指向该绝对路径；不要 source 或执行此文件。")
+        print("deploy/live/compose.yaml 已将所属凭据目录挂载给 Live 内核；不需要补充 Compose。")
     except (EOFError, KeyboardInterrupt):
         print("\n已取消。", file=sys.stderr)
         return 1

@@ -95,3 +95,22 @@ then deletes **only its own disposable containers, networks and temporary direct
 It never loads SimNow credentials, invokes broker operations or stops the personal
 application. This is actual Docker/HTTP acceptance, not a YAML/layout test and not
 evidence that a cloud host or real browser session was tested.
+
+## Broker environment
+
+Live Sim and future production use this same application and Compose on the Live host.
+`NORTHSTAR_LIVE_ENVIRONMENT=simulation` selects the currently supported SimNow environment.
+Production trading is not implemented/admitted: `production` or an unknown value fails kernel
+startup before opening its database or reading broker credentials. Configuration never grants sending authority.
+
+Save SimNow credentials with `scripts/operations/setup_simnow.py` to the Live host's
+`/opt/northstar/credentials/live/broker.env` (owner-only, mode 600). The existing private
+credential directory is mounted read-only into the kernel, where
+`NORTHSTAR_LIVE_BROKER_CONFIG=/var/lib/northstar/auth/broker.env` selects the file.
+No extra Compose, separate simulation application or repository-local secret mount is used.
+The frontend and management API do not receive broker credentials. A missing file leaves
+management available and broker setup unconfigured; startup never connects automatically.
+
+Future production admission must bind environment/account, segregate ledger/order/recovery
+state and reconcile before explicitly enabling sending. Switching a configuration value must
+not reuse simulation account facts as production facts; that transition is not yet supported.

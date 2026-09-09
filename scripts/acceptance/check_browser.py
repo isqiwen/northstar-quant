@@ -40,12 +40,13 @@ def main() -> None:
     for key in (
         "PYTHONPATH",
         "PYTHONHOME",
-        "NORTHSTAR_SIMNOW_CONFIG",
+        "NORTHSTAR_LIVE_BROKER_CONFIG",
         "NORTHSTAR_LIVE_AUTH",
         "NORTHSTAR_LIVE_URL",
         "NORTHSTAR_TUSHARE_TOKEN",
     ):
         environment.pop(key, None)
+    environment["NORTHSTAR_LIVE_ENVIRONMENT"] = "simulation"
     study = tomllib.loads(args.study.read_text())
     spec = dict(study["source"])
     filename = spec.pop("file")

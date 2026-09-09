@@ -14,6 +14,19 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 
+def require_supported_environment() -> None:
+    """Do not silently route an unsupported or mistyped environment to SimNow."""
+    environment = os.environ.get("NORTHSTAR_LIVE_ENVIRONMENT", "simulation")
+    if environment == "production":
+        raise ValueError(
+            "Production Live is not implemented or admitted; no broker connection allowed"
+        )
+    if environment != "simulation":
+        raise ValueError(
+            "NORTHSTAR_LIVE_ENVIRONMENT must select the supported simulation environment"
+        )
+
+
 @dataclass(frozen=True, slots=True)
 class SimnowProfile:
     name: str
@@ -41,6 +54,7 @@ _PROFILES = {
 
 
 def get_profile(name: str) -> SimnowProfile:
+    require_supported_environment()
     try:
         return _PROFILES[name]
     except (KeyError, TypeError) as error:
@@ -48,6 +62,7 @@ def get_profile(name: str) -> SimnowProfile:
 
 
 def profiles() -> list[dict[str, object]]:
+    require_supported_environment()
     return [profile.identity() for profile in _PROFILES.values()]
 
 
@@ -89,13 +104,16 @@ _KEYS = {
 
 
 def credential_path() -> Path:
-    value = os.environ.get("NORTHSTAR_SIMNOW_CONFIG")
+    value = os.environ.get("NORTHSTAR_LIVE_BROKER_CONFIG")
     if not value or not Path(value).is_absolute():
-        raise ValueError("set NORTHSTAR_SIMNOW_CONFIG to the absolute private credentials file")
+        raise ValueError(
+            "set NORTHSTAR_LIVE_BROKER_CONFIG to the absolute private credentials file"
+        )
     return Path(value)
 
 
 def load_credentials(path: Path | None = None) -> Credentials:
+    require_supported_environment()
     source = credential_path() if path is None else path
     if not source.is_absolute():
         raise ValueError("SimNow credentials require an absolute private file")

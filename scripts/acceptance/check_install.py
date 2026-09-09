@@ -47,7 +47,8 @@ def main() -> None:
     environment.pop("PYTHONPATH", None)
     environment.pop("PYTHONHOME", None)
     # Acceptance never inherits private operator credentials or connects to a broker.
-    environment.pop("NORTHSTAR_SIMNOW_CONFIG", None)
+    environment.pop("NORTHSTAR_LIVE_BROKER_CONFIG", None)
+    environment["NORTHSTAR_LIVE_ENVIRONMENT"] = "simulation"
     environment.pop("NORTHSTAR_LIVE_AUTH", None)
     environment.pop("NORTHSTAR_LIVE_URL", None)
     executable = str(Path(sys.executable).parent / "northstar")

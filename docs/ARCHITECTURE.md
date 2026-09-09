@@ -49,6 +49,9 @@ Research 临时目录、数据库和应用日志在本机；持久 SSD 行情缓
 [Live 独立部署](../deploy/live/README.md) 只运行 Live 所需服务，使用自己的本机持久目录。
 目标部署位置为 Data Hub 在 core、Research 在工作站、Live 在独立运行域；生产云部署后置。
 第一轮 Live Sim 可在符合 SDK 要求的本机或独立主机运行，沿用同一部署结构；本机验收不代表云端已交付。
+仿真与未来实盘统一使用 Live Compose，由 `NORTHSTAR_LIVE_ENVIRONMENT` 指定环境；当前仅接受 `simulation`，`production` 明确拒绝内核启动。
+柜台凭据统一位于 Live 主机 `credentials/live/broker.env`，仅挂载给内核；不使用独立 SimNow Compose。
+真实资金支持须完成环境/账户与账本、订单、恢复状态隔离及核对授权，配置切换本身不授予发送权。
 主机路径统一固定在 `/opt/northstar/`：`apps/` 保存程序版本，`config/` 保存私有配置，
 `files/` 保存数据与产物，`state/`、`credentials/`、`logs/`、`work/` 按应用隔离。
 部署不提供目录覆盖参数；Docker 使用显式主机目录映射。容器内部路径为装配细节。

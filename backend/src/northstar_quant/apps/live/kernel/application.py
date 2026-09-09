@@ -19,6 +19,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from northstar_quant.apps.logging import logged_application
 from northstar_quant.apps.storage import open_database, require_current_database
+from northstar_quant.broker.settings import require_supported_environment
 from northstar_quant.data_management.files import SourceFiles
 from northstar_quant.data_management.library import DataLibrary
 from northstar_quant.live import diagnostics
@@ -148,6 +149,7 @@ def create_app(engine: Engine, library: DataLibrary, auth: LiveAuth) -> FastAPI:
 
 @logged_application("live", "kernel")
 def application() -> FastAPI:
+    require_supported_environment()
     auth = LiveAuth.from_environment(require_control=True)
     engine = open_database()
     require_current_database(engine)

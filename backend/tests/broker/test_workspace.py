@@ -61,7 +61,7 @@ def _credentials(path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         "NORTHSTAR_SIMNOW_AUTH_CODE=test_only\n"
     )
     path.chmod(0o600)
-    monkeypatch.setenv("NORTHSTAR_SIMNOW_CONFIG", str(path))
+    monkeypatch.setenv("NORTHSTAR_LIVE_BROKER_CONFIG", str(path))
 
 
 def _failed_capture() -> QueryCapture:
@@ -140,7 +140,7 @@ def test_query_failure_is_fixed_on_retry_and_blocks_concurrent_account_capture(
     with pytest.raises(ValueError, match="different input"):
         workspace.query("simnow_trading", "rb2610", request_id=request_id)
     assert calls == 1
-    monkeypatch.delenv("NORTHSTAR_SIMNOW_CONFIG")
+    monkeypatch.delenv("NORTHSTAR_LIVE_BROKER_CONFIG")
     assert BrokerQueries(postgres_engine).get(request_id) == saved
     assert workspace.query("simnow_dev", "rb2610", request_id=request_id) == saved
     assert calls == 1
@@ -154,7 +154,7 @@ def test_broker_browser_requires_explicit_command_and_keeps_failure_evidence(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     del clean_database
-    monkeypatch.delenv("NORTHSTAR_SIMNOW_CONFIG", raising=False)
+    monkeypatch.delenv("NORTHSTAR_LIVE_BROKER_CONFIG", raising=False)
     calls = 0
 
     def capture(*args: object, **kwargs: object) -> QueryCapture:
@@ -214,7 +214,7 @@ def test_browser_baseline_commands_are_private_local_and_preserve_original_queri
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     del clean_database
-    monkeypatch.delenv("NORTHSTAR_SIMNOW_CONFIG", raising=False)
+    monkeypatch.delenv("NORTHSTAR_LIVE_BROKER_CONFIG", raising=False)
 
     def forbidden(*args: object, **kwargs: object) -> None:
         raise AssertionError("local baseline commands must not load credentials or connect")
@@ -321,7 +321,7 @@ def test_cli_baseline_and_comparison_use_saved_evidence_without_credentials(
         "northstar_quant.live.LiveClient.from_environment",
         lambda: live_client(postgres_engine, library),
     )
-    monkeypatch.delenv("NORTHSTAR_SIMNOW_CONFIG", raising=False)
+    monkeypatch.delenv("NORTHSTAR_LIVE_BROKER_CONFIG", raising=False)
     monkeypatch.setenv(
         "NORTHSTAR_DATABASE_URL", postgres_engine.url.render_as_string(hide_password=False)
     )
@@ -385,7 +385,7 @@ def test_browser_position_ledger_requires_local_commands_and_independent_evidenc
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     del clean_database
-    monkeypatch.delenv("NORTHSTAR_SIMNOW_CONFIG", raising=False)
+    monkeypatch.delenv("NORTHSTAR_LIVE_BROKER_CONFIG", raising=False)
 
     def forbidden(*args: object, **kwargs: object) -> None:
         raise AssertionError("position ledger commands must not load credentials or connect")
@@ -504,7 +504,7 @@ def test_cli_position_ledger_does_not_turn_unknown_observations_into_success(
         "northstar_quant.live.LiveClient.from_environment",
         lambda: live_client(postgres_engine, library),
     )
-    monkeypatch.delenv("NORTHSTAR_SIMNOW_CONFIG", raising=False)
+    monkeypatch.delenv("NORTHSTAR_LIVE_BROKER_CONFIG", raising=False)
     monkeypatch.setenv(
         "NORTHSTAR_DATABASE_URL", postgres_engine.url.render_as_string(hide_password=False)
     )
@@ -622,7 +622,7 @@ def test_browser_order_check_uses_fixed_inputs_without_credentials_or_manual_fac
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     del clean_database
-    monkeypatch.delenv("NORTHSTAR_SIMNOW_CONFIG", raising=False)
+    monkeypatch.delenv("NORTHSTAR_LIVE_BROKER_CONFIG", raising=False)
 
     def forbidden(*args: object, **kwargs: object) -> None:
         raise AssertionError("saved order checks must not load credentials or connect")

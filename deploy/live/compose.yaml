@@ -78,6 +78,8 @@ services:
     environment:
       <<: *database
       NORTHSTAR_LOG_DIR: /var/log/northstar
+      NORTHSTAR_LIVE_ENVIRONMENT: ${NORTHSTAR_LIVE_ENVIRONMENT:-simulation}
+      NORTHSTAR_LIVE_BROKER_CONFIG: /var/lib/northstar/auth/broker.env
       NORTHSTAR_LIVE_AUTH: /var/lib/northstar/auth/live.toml
       NORTHSTAR_LIVE_URL: http://127.0.0.1:18081
     volumes:

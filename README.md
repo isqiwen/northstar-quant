@@ -253,7 +253,9 @@ SimNow 私密配置向导使用 Python，在自己的终端运行：
 uv run --project backend python scripts/operations/setup_simnow.py
 ```
 
-默认保存到 Git 忽略的 `.northstar/simnow.env`，也可用 `--file` 指定私密路径。
+在 Live 主机保存到 `/opt/northstar/credentials/live/broker.env`（默认路径），也可用 `--file` 准备私密文件。
+统一 Live Compose 已将所属凭据目录只读挂载给内核，无需额外 Compose。
+`deploy/live/.env` 中 `NORTHSTAR_LIVE_ENVIRONMENT=simulation` 选择柜台仿真；当前 `production` 明确拒绝启动。
 密码隐藏输入，已有值可按回车保留；只保存配置，不连接柜台。各公开脚本入口支持 `--help`。
 
 ## 数据与运行维护
