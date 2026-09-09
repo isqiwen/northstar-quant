@@ -18,7 +18,9 @@ Use a previously verified Linux amd64 image by registry digest. Local acceptance
 may instead use `make up-live` to build from the current source. Compose has build definitions;
 use `up --no-build` for deployment of already-verified images. The default password
 `northstar_local` and 1 GiB memory budgets are local development defaults, not production sizing.
-Set these variables in a private owner-only environment file outside Git:
+The repository maintains defaults in [live/.env](.env). Copy it to the target host’s
+private owner-only environment file, fill credentials there, and keep real passwords out of Git.
+The supported settings are:
 
 - `NORTHSTAR_LIVE_FRONTEND_IMAGE`: the exact tested Next.js frontend image.
 - `NORTHSTAR_LIVE_IMAGE`: the exact approved image reference.

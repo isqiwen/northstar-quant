@@ -21,7 +21,8 @@
 部署位置：Data Hub 在 `core.local`，Research 在 `research.local`，PostgreSQL 与文件/备份在 QNAP `nas.local`。
 三个应用的前端、API、worker/内核分别运行在独立容器中。
 
-先根据 [跨主机部署说明](deploy/README.md) 填写各主机私有环境文件，确认 QNAP 实际 NFS 导出路径。
+配置文件在 `deploy/{database,data_hub,research,live}/.env`，随仓库维护非敏感配置，凭据留空。
+按[跨主机部署说明](deploy/README.md) 准备各主机运行副本并填写口令，确认 QNAP 实际 NFS 导出路径。
 默认优先 NFSv4，各共享挂载在 `/mnt/northstar/` 下；Research 只读市场发布目录、读写自己的产物目录。
 路径尚未确认时不猜测、不自动创建本地替代存储。
 
@@ -49,6 +50,7 @@ make up-research ENV_FILE=/absolute/private/research.env
 make up-live
 ```
 
+本机 Make 命令默认读取各自目录的 `.env`；示例中的 `ENV_FILE` 用于指定私有运行副本。
 正式构建要求工作区干净；未提交修改时在对应命令前加 `NORTHSTAR_DEVELOPMENT_BUILD=1`。
 Data/Research 启动只检查 NAS 网络数据库、NFS 挂载和存储身份，不启动 NAS 或另一个应用。
 Data API 持久排队，独立 worker 加工；关闭 Data Web/API 不停止已接收任务。

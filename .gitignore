@@ -5,6 +5,10 @@ __pycache__/
 *.swp
 *.tmp
 .env
+!deploy/database/.env
+!deploy/data_hub/.env
+!deploy/research/.env
+!deploy/live/.env
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/

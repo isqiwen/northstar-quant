@@ -1,7 +1,11 @@
 .DEFAULT_GOAL := help
 .PHONY: help install up-data up-research up-live up-database down-data down-research down-live down-database ps-data ps-research ps-live ps-database backup-database verify test
 
-# Optional private configuration: make up-live ENV_FILE=/absolute/private/live.env
+# 默认读取应用目录中的 .env；远程或私有配置用 ENV_FILE 显式覆盖。
+up-database down-database ps-database backup-database: ENV_FILE ?= deploy/database/.env
+up-data down-data ps-data: ENV_FILE ?= deploy/data_hub/.env
+up-research down-research ps-research: ENV_FILE ?= deploy/research/.env
+up-live down-live ps-live: ENV_FILE ?= deploy/live/.env
 COMPOSE = docker compose $(if $(ENV_FILE),--env-file "$(ENV_FILE)")
 BUILD_ENV = NORTHSTAR_GIT_REVISION="$$(uv run --project backend python -c 'from northstar_quant import code_revision; print(code_revision())')"
 

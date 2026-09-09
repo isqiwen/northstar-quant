@@ -17,6 +17,7 @@ NAS、core、research 故障不得成为 Live 交易和本地恢复的依赖。N
 
 复制 `deploy/hosts.toml` 到仓库外，例如 `~/.config/northstar/hosts.toml`，填写各节的
 `host`（IP 或 hostname）、`user`、SSH `port`、远端 `directory` 和 `env_file`。
+各对象的配置源位于 `deploy/<应用>/.env`；`env_file` 是其在目标主机上的运行副本。
 部署目录由该 SSH 用户管理；环境文件须提前放在部署目录外，权限 `600`。路径使用字母、数字、
 下划线、点、斜杠和短横线。Live 地址未设默认值。SSH 密钥通过本机 agent 或 `~/.ssh/config` 配置，
 先人工核验并保存目标主机公钥；脚本不接受未知主机公钥、不传送口令文件。
@@ -80,9 +81,19 @@ Data Hub 发布校验过的固定市场文件；Research 从只读市场共享�
 
 ## 创建共享并填写参数
 
-当前已确认 `nas.local` 可访问，共享尚未创建。先复制三个模板到各自主机的私有环境文件：
-[nas.env.example](examples/nas.env.example)、[core.env.example](examples/core.env.example)、
-[research.env.example](examples/research.env.example)。限制配置文件权限，不提交真实口令。
+当前已确认 `nas.local` 可访问，共享尚未创建。部署配置随各自应用维护：
+
+| 部署对象 | 配置文件 |
+|---|---|
+| database | [database/.env](database/.env) |
+| Data Hub | [data_hub/.env](data_hub/.env) |
+| Research | [research/.env](research/.env) |
+| Live | [live/.env](live/.env) |
+
+地址、端口、挂载路径等非敏感配置在这些文件中维护；未知路径和凭据字段保留为空。
+本机 `make up-*` / `ps-*` / `down-*` 默认读取所属 `.env`，也可用 `ENV_FILE` 覆盖。
+远程部署时，将所属 `.env` 复制到 `hosts.toml` 指定的目标主机 `env_file`，填写真实口令并设权限 `600`；
+脚本继续使用该运行副本，不覆盖口令文件。真实口令不提交到 Git。
 
 | QNAP 规划共享 | Linux 挂载点 | core | research |
 |---|---|---|---|
