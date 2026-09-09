@@ -78,6 +78,20 @@ def main(argv: Sequence[str] | None = None) -> int:
             initialize_database(engine)
             print(json.dumps({"status": "ready"}))
             return 0
+        if (
+            arguments.scope == "maintenance"
+            and os.environ.get("NORTHSTAR_DATABASE_OWNER") == "research"
+            and arguments.operation in {"backup", "restore"}
+        ):
+            from northstar_quant.apps.research import maintenance
+
+            result = (
+                maintenance.backup(engine, arguments.destination.resolve())
+                if arguments.operation == "backup"
+                else maintenance.restore(engine, arguments.backup.resolve())
+            )
+            print(json.dumps(result, ensure_ascii=False))
+            return 0
         if arguments.operation == "restore":
             from northstar_quant.apps.maintenance import restore
 

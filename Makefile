@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := help
-.PHONY: help install up-data up-research up-live up-nas down-data down-research down-live down-nas ps-data ps-research ps-live ps-nas verify test
+.PHONY: help install up-data up-research up-live up-nas down-data down-research down-live down-nas ps-data ps-research ps-live ps-nas backup-nas verify test
 
 # Optional private configuration: make up-live ENV_FILE=/absolute/private/live.env
 COMPOSE = docker compose $(if $(ENV_FILE),--env-file "$(ENV_FILE)")
@@ -19,6 +19,9 @@ up-nas:
 	$(BUILD_ENV) $(COMPOSE) -f deploy/nas/compose.yaml build initialize
 	$(COMPOSE) -f deploy/nas/compose.yaml up -d --wait --wait-timeout 180 postgres
 	$(COMPOSE) -f deploy/nas/compose.yaml run --rm initialize
+
+backup-nas:
+	$(COMPOSE) -f deploy/nas/compose.yaml run --rm --no-deps backup
 
 up-data:
 	uv run --project backend python scripts/check_nfs_mount.py --app data_hub $(if $(ENV_FILE),--env-file "$(ENV_FILE)")

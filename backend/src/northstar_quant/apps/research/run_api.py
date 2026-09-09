@@ -6,7 +6,7 @@ from fastapi import FastAPI, Request
 from pydantic import JsonValue
 from starlette.concurrency import run_in_threadpool
 
-from northstar_quant.data_management.library import DataLibrary
+from northstar_quant.data_management.publications import DatasetReader
 from northstar_quant.research.configuration import ResearchConfig
 from northstar_quant.research.operations import ResearchOperations
 from northstar_quant.research.runs import RunStore
@@ -101,7 +101,9 @@ class Comparison(ResearchSummary):
     strategy: str
 
 
-def register(app: FastAPI, access: WorkspaceAccess, library: DataLibrary, store: RunStore) -> None:
+def register(
+    app: FastAPI, access: WorkspaceAccess, library: DatasetReader, store: RunStore
+) -> None:
     operations = ResearchOperations(library, store)
 
     @app.get("/api/runs", response_model=list[RunSummary], response_model_exclude_unset=True)

@@ -57,6 +57,16 @@ def main() -> None:
     with tempfile.TemporaryDirectory(prefix="northstar-install-") as directory:
         runtime = Path(directory)
         environment["NORTHSTAR_DATA_DIR"] = str(runtime / "sources")
+        from northstar_quant.data_management.storage_identity import initialize
+
+        for share in ("MARKET", "RESEARCH"):
+            root = runtime / share.lower()
+            root.mkdir()
+            identity = str(uuid4())
+            initialize(root, identity)
+            environment[f"NORTHSTAR_{share}_DIR"] = str(root)
+            environment[f"NORTHSTAR_{share}_STORAGE_ID"] = identity
+
         research_study = runtime / "research-only.toml"
         research_study.write_text(study.read_text("utf-8"), encoding="utf-8")
         assert not (runtime / source_file).exists(), "reuse check must not have the source CSV"
@@ -139,7 +149,10 @@ def main() -> None:
                 assert (
                     command("research", "run", snapshot_id, "--study", str(research_study)) == saved
                 )
-                reimported_run = command("research", "from-file", str(study))
+                reimported = command("data", "import", str(study))
+                reimported_run = command(
+                    "research", "run", reimported["snapshot_id"], "--study", str(study)
+                )
                 assert (reimported_run["run_id"] == run_id) is saved["committed_code"]
                 assert reimported_run["result"]["summary"] == summary
                 assert command("research", "replay", run_id) == saved

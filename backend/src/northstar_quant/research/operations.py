@@ -4,7 +4,7 @@ from typing import cast
 from uuid import UUID
 
 from northstar_quant import code_revision
-from northstar_quant.data_management.library import DataLibrary
+from northstar_quant.data_management.publications import DatasetReader
 from northstar_quant.research.backtesting import run_research
 from northstar_quant.research.configuration import ResearchConfig
 from northstar_quant.research.runs import RunStore
@@ -13,7 +13,7 @@ from northstar_quant.research.runs import RunStore
 class ResearchOperations:
     """Coordinate one bounded run; durable independent scheduling is a separate capability."""
 
-    def __init__(self, library: DataLibrary, runs: RunStore) -> None:
+    def __init__(self, library: DatasetReader, runs: RunStore) -> None:
         self._library = library
         self._runs = runs
 

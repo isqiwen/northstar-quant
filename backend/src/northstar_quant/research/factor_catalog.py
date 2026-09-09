@@ -23,7 +23,7 @@ from sqlalchemy.dialects.postgresql import JSONB, insert
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 
 from northstar_quant import code_revision
-from northstar_quant.data_management.library import DataLibrary
+from northstar_quant.data_management.publications import DatasetReader
 from northstar_quant.factors.definition import Bar, Inputs, content_id
 from northstar_quant.factors.evaluation import Binding, evaluate
 
@@ -103,7 +103,7 @@ def register_binding(connection: Connection, binding: Binding) -> str:
 
 
 class FactorCatalog:
-    def __init__(self, engine: Engine, library: DataLibrary) -> None:
+    def __init__(self, engine: Engine, library: DatasetReader) -> None:
         self._engine, self._library = engine, library
 
     def register(self, binding: Binding) -> str:
@@ -272,7 +272,14 @@ class FactorCatalog:
                         status="FAILED", error=str(error)[:1000], completed_at=datetime.now(UTC)
                     )
                 )
-        return self.get(attempt)
+        import os
+
+        from .artifacts import ResearchArtifacts
+
+        saved = self.get(attempt)
+        if saved["status"] == "SUCCEEDED" and os.environ.get("NORTHSTAR_RESEARCH_DIR"):
+            ResearchArtifacts.from_environment().save("FACTOR", str(attempt), saved)
+        return saved
 
     def get(self, attempt_id: UUID) -> dict[str, Any]:
         with self._engine.connect() as connection:

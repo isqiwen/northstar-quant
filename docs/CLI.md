@@ -31,7 +31,7 @@ northstar research show <run-id>
 northstar research replay <run-id>
 ```
 
-`research run` 使用已发布的固定快照；`research from-file <study.toml>` 明确执行导入后研究。
+`data import <study.toml>` 在 Data Hub 发布固定快照；`research run <snapshot_id>` 在 Research 消费发布产物，两者使用各自数据库账号。
 CLI 导入和重新加工调用数据业务的持久接收、认领和加工，等待结果退出；网页仅排队，由 `data-worker` 执行。
 两者复用来源及失败证据，不另建采集或回测实现。
 `research configure` / `research configurations` 管理固定配置；

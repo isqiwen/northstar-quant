@@ -87,7 +87,7 @@ def verify_mount(expected: dict[str, str], observed: dict[str, str]) -> None:
     source = observed.get("source", "")
     if source not in {
         f"{expected['server']}:{expected['export']}",
-        f"nas.local:{expected['export']}",
+        f"{expected.get('hostname', 'nas.local')}:{expected['export']}",
     }:
         raise ValueError("Mounted NFS server/export does not match the deployment configuration")
     options = observed.get("options", "").split(",")

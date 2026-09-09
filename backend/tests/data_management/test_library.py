@@ -16,6 +16,7 @@ import northstar_quant.data_management.processing as processing_module
 from northstar_quant.data_management.files import SourceFiles
 from northstar_quant.data_management.library import AdmissionRejected, DataLibrary, manifest
 from northstar_quant.data_management.research import ImportSpec, ResearchDataset
+from northstar_quant.research.artifacts import ResearchUsages
 from northstar_quant.research.backtesting import run_research
 from northstar_quant.research.configuration import ResearchConfig
 from northstar_quant.research.configurations import ConfigurationStore
@@ -63,7 +64,7 @@ def test_admission_refusal_does_not_store_content_but_bad_spec_has_a_durable_att
 ) -> None:
     del clean_database
     files = SourceFiles(tmp_path / "sources")
-    library = DataLibrary(postgres_engine, files)
+    library = DataLibrary(postgres_engine, files, usages=ResearchUsages(postgres_engine).list)
     content, spec, _ = _study()
     with pytest.raises(AdmissionRejected, match="retention") as rejection:
         library.receive(
@@ -127,7 +128,7 @@ def test_request_identity_and_retries_keep_fixed_evidence_and_distinct_attempts(
     del clean_database
     monkeypatch.setattr("northstar_quant.data_management.library.code_revision", lambda: "a" * 40)
     files = SourceFiles(tmp_path / "sources")
-    library = DataLibrary(postgres_engine, files)
+    library = DataLibrary(postgres_engine, files, usages=ResearchUsages(postgres_engine).list)
     content, spec, config = _study()
     request_id = str(uuid4())
     first = _receive(library, content, spec, request_id=request_id)
@@ -176,7 +177,7 @@ def test_unavailable_archive_blocks_download_research_and_new_paper(
 ) -> None:
     del clean_database
     files = SourceFiles(tmp_path / "sources")
-    library = DataLibrary(postgres_engine, files)
+    library = DataLibrary(postgres_engine, files, usages=ResearchUsages(postgres_engine).list)
     content, spec, config = _study()
     accepted = _receive(library, content, spec)
     source_id = UUID(str(accepted["source_id"]))
@@ -210,7 +211,11 @@ def test_converted_input_tracks_actual_upstream_and_both_run_consumers(
     tmp_path: Path,
 ) -> None:
     del clean_database
-    library = DataLibrary(postgres_engine, SourceFiles(tmp_path / "sources"))
+    library = DataLibrary(
+        postgres_engine,
+        SourceFiles(tmp_path / "sources"),
+        usages=ResearchUsages(postgres_engine).list,
+    )
     content, spec, config = _study()
     original = _receive(library, b"actual received provider-format bytes", spec)
     assert original["status"] == "FAILED"
@@ -264,7 +269,7 @@ def test_interrupted_publication_is_not_offered_and_retry_recovers_without_dupli
         library_module, "code_revision", lambda: "a" * 40 + ("-dirty" if dirty else "")
     )
     files = SourceFiles(tmp_path / "sources")
-    library = DataLibrary(postgres_engine, files)
+    library = DataLibrary(postgres_engine, files, usages=ResearchUsages(postgres_engine).list)
     content, spec, _ = _study()
     original = processing_module._import_csv
 

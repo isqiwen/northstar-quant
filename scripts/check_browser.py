@@ -50,6 +50,16 @@ def main() -> None:
     with tempfile.TemporaryDirectory(prefix="northstar-react-browser-") as temporary:
         runtime = Path(temporary)
         environment["NORTHSTAR_DATA_DIR"] = str(runtime / "sources")
+        from northstar_quant.data_management.storage_identity import initialize
+
+        for share in ("MARKET", "RESEARCH"):
+            root = runtime / share.lower()
+            root.mkdir()
+            identity = str(uuid4())
+            initialize(root, identity)
+            environment[f"NORTHSTAR_{share}_DIR"] = str(root)
+            environment[f"NORTHSTAR_{share}_STORAGE_ID"] = identity
+
         app = InstalledApplication(str(args.executable.resolve()), runtime, environment)
         app.command("maintenance", "init-db")
         authentication = app.command("maintenance", "init-auth", str(runtime / "auth"))

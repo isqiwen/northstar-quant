@@ -29,4 +29,7 @@ def application() -> FastAPI:
 
     engine = open_database()
     require_current_database(engine)
-    return create_app(engine, DataLibrary(engine, SourceFiles.from_environment()))
+    from northstar_quant.research.artifacts import ResearchArtifacts
+
+    usages = ResearchArtifacts.from_environment().usages
+    return create_app(engine, DataLibrary(engine, SourceFiles.from_environment(), usages=usages))

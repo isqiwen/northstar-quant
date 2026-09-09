@@ -6,7 +6,7 @@ from fastapi import FastAPI, Request
 from pydantic import JsonValue
 from starlette.concurrency import run_in_threadpool
 
-from northstar_quant.data_management.library import DataLibrary
+from northstar_quant.data_management.publications import DatasetReader
 from northstar_quant.research.paper import PaperStore
 from northstar_quant.web.access import (
     WorkspaceAccess,
@@ -45,7 +45,7 @@ class PaperAdvanced(EvidenceRecord):
 def register(
     app: FastAPI,
     access: WorkspaceAccess,
-    library: DataLibrary,
+    library: DatasetReader,
     paper: PaperStore,
 ) -> None:
 

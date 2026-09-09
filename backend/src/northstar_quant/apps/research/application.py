@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from sqlalchemy import Engine
 
 from northstar_quant.apps.logging import logged_application
-from northstar_quant.data_management.library import DataLibrary
+from northstar_quant.data_management.publications import DatasetReader
 from northstar_quant.research.configurations import ConfigurationStore
 from northstar_quant.research.factor_catalog import FactorCatalog
 from northstar_quant.research.paper import PaperStore
@@ -17,7 +17,7 @@ from northstar_quant.web.protobuf import bind
 from . import catalog_api, configuration_api, paper_api, run_api
 
 
-def create_app(engine: Engine, library: DataLibrary) -> FastAPI:
+def create_app(engine: Engine, library: DatasetReader) -> FastAPI:
     app = create_host(
         "Northstar Research · 量化研究工作台",
         (("研究", "/"), ("因子与策略", "/catalog"), ("文件 Paper", "/paper")),
@@ -37,8 +37,12 @@ def create_app(engine: Engine, library: DataLibrary) -> FastAPI:
 @logged_application("research", "api")
 def application() -> FastAPI:
     from northstar_quant.apps.storage import open_database, require_current_database
-    from northstar_quant.data_management.files import SourceFiles
+    from northstar_quant.data_management.publications import PublishedDatasets
 
     engine = open_database()
     require_current_database(engine)
-    return create_app(engine, DataLibrary(engine, SourceFiles.from_environment()))
+    from northstar_quant.research.artifacts import ResearchUsages
+
+    return create_app(
+        engine, PublishedDatasets.from_environment(usages=ResearchUsages(engine).list)
+    )

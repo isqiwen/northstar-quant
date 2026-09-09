@@ -5,7 +5,7 @@ from uuid import UUID
 from fastapi import FastAPI
 from pydantic import JsonValue
 
-from northstar_quant.data_management.library import DataLibrary
+from northstar_quant.data_management.publications import DatasetReader
 from northstar_quant.web.access import WorkspaceAccess
 from northstar_quant.web.requests import ApiModel
 
@@ -60,7 +60,7 @@ class DatasetLineage(ApiModel):
     usages: list[dict[str, JsonValue]]
 
 
-def register(app: FastAPI, access: WorkspaceAccess, library: DataLibrary) -> None:
+def register(app: FastAPI, access: WorkspaceAccess, library: DatasetReader) -> None:
     @app.get(
         "/api/datasets", response_model=list[DatasetSummary], response_model_exclude_unset=True
     )

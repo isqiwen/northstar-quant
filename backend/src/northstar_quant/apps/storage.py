@@ -26,7 +26,7 @@ def open_database() -> Engine:
     return create_engine(parsed, pool_pre_ping=True, pool_timeout=2)
 
 
-def initialize_database(engine: Engine) -> None:
+def initialize_database(engine: Engine, *, owner: str | None = None) -> None:
     """Install current tables explicitly, preserving all existing application facts."""
 
     from northstar_quant.accounting.baselines import initialize_broker_baselines
@@ -47,45 +47,66 @@ def initialize_database(engine: Engine) -> None:
     from northstar_quant.research.runs import initialize_run_store
     from northstar_quant.research.strategy_management import initialize_strategy_management
 
+    owner = owner or os.environ.get("NORTHSTAR_DATABASE_OWNER", "all")
+    if owner not in {"all", "data_hub", "research", "live"}:
+        raise ValueError("unknown database owner")
     configuration = Config()
     configuration.set_main_option(
         "script_location", str(files("northstar_quant.data_management").joinpath("migrations"))
     )
     with engine.begin() as connection:
-        configuration.attributes["connection"] = connection
         existing = set(inspect(connection).get_table_names())
-        if existing and "alembic_version" not in existing:
-            raise ValueError("database is not empty and has no Northstar migration baseline")
-        _require_git_identity_columns(connection)
-        command.upgrade(configuration, "head")
-        # Record ordinals belong to the actual format: CSV has a header; copied
-        # JSON starts at record 1. Replace the format-specific assumption while
-        # preserving every previously accepted source record.
-        connection.exec_driver_sql("""
-            ALTER TABLE import_record
-                DROP CONSTRAINT IF EXISTS ck_import_record_record_row_number_header_offset;
-            ALTER TABLE import_record
-                DROP CONSTRAINT IF EXISTS ck_import_record_record_row_number_positive;
-            ALTER TABLE import_record ADD CONSTRAINT ck_import_record_record_row_number_positive
-                CHECK (source_row_number >= 1)
-        """)
-        initialize_materials(connection)
-        initialize_factor_catalog(connection)
-        initialize_strategy_management(connection)
-        initialize_run_store(connection)
-        initialize_configuration_store(connection)
-        initialize_paper_store(connection)
-        initialize_library(connection)
-        initialize_maintenance(connection)
-        initialize_broker_records(connection)
-        initialize_broker_baselines(connection)
-        initialize_broker_ledger(connection)
-        initialize_order_reviews(connection)
-        initialize_streams(connection)
-        initialize_stream_accounts(connection)
-        initialize_opening_budgets(connection)
-        initialize_broker_funds(connection)
-        initialize_live_commands(connection)
+        if existing and "northstar_store" not in existing:
+            raise ValueError("use a new database for the current owned storage model")
+        if "northstar_store" in existing:
+            recorded = connection.exec_driver_sql("SELECT owner FROM northstar_store").scalar_one()
+            if recorded != owner:
+                raise ValueError("database owner mismatch")
+        connection.exec_driver_sql(
+            "CREATE TABLE IF NOT EXISTS northstar_store (owner text PRIMARY KEY)"
+        )
+        connection.exec_driver_sql(
+            "INSERT INTO northstar_store VALUES (%s) ON CONFLICT DO NOTHING", (owner,)
+        )
+        if owner in {"all", "data_hub"}:
+            configuration.attributes["connection"] = connection
+            _require_git_identity_columns(connection)
+            command.upgrade(configuration, "head")
+            # Record ordinals belong to the actual format: CSV has a header; copied
+            # JSON starts at record 1. Replace the format-specific assumption while
+            # preserving every previously accepted source record.
+            connection.exec_driver_sql("""
+                ALTER TABLE import_record
+                    DROP CONSTRAINT IF EXISTS ck_import_record_record_row_number_header_offset;
+                ALTER TABLE import_record
+                    DROP CONSTRAINT IF EXISTS ck_import_record_record_row_number_positive;
+                ALTER TABLE import_record ADD CONSTRAINT ck_import_record_record_row_number_positive
+                    CHECK (source_row_number >= 1)
+            """)
+        if owner in {"all", "data_hub"}:
+            initialize_library(connection)
+            initialize_maintenance(connection)
+        if owner in {"all", "research"}:
+            initialize_factor_catalog(connection)
+            initialize_strategy_management(connection)
+            initialize_run_store(connection)
+            initialize_configuration_store(connection)
+            initialize_paper_store(connection)
+        if owner == "live":
+            from northstar_quant.live.archive import initialize_archive
+
+            initialize_archive(connection)
+        if owner == "all":
+            initialize_materials(connection)
+            initialize_broker_records(connection)
+            initialize_broker_baselines(connection)
+            initialize_broker_ledger(connection)
+            initialize_order_reviews(connection)
+            initialize_streams(connection)
+            initialize_stream_accounts(connection)
+            initialize_opening_budgets(connection)
+            initialize_broker_funds(connection)
+            initialize_live_commands(connection)
 
 
 def require_current_database(engine: Engine) -> None:
@@ -98,6 +119,12 @@ def require_current_database(engine: Engine) -> None:
     expected = set(ScriptDirectory.from_config(configuration).get_heads())
     with engine.connect() as connection:
         actual = set(MigrationContext.configure(connection).get_current_heads())
+        if "northstar_store" not in set(inspect(connection).get_table_names()):
+            raise ValueError("database does not have the current owned baseline")
+        owner = connection.exec_driver_sql("SELECT owner FROM northstar_store").scalar_one()
+        configured = os.environ.get("NORTHSTAR_DATABASE_OWNER")
+        if configured and configured != owner:
+            raise ValueError("database owner mismatch")
         present = set(inspect(connection).get_table_names())
         _require_git_identity_columns(connection)
     required = {
@@ -132,7 +159,16 @@ def require_current_database(engine: Engine) -> None:
         "broker_funds_entries",
         "live_commands",
     }
-    if actual != expected or not required <= present:
+    if owner == "live":
+        required = {"live_archive_records"}
+    elif owner != "all":
+        prefixes = {
+            "data_hub": ("data_",),
+            "research": ("research_", "paper_", "factor_", "strategy_"),
+            "live": ("live_", "broker_"),
+        }
+        required = {name for name in required if name.startswith(prefixes[owner])}
+    if (owner in {"all", "data_hub"} and actual != expected) or not required <= present:
         raise ValueError("database does not have the current Northstar baseline")
 
 

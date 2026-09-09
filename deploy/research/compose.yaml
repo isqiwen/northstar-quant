@@ -10,28 +10,39 @@ services:
         NORTHSTAR_DEVELOPMENT_BUILD: ${NORTHSTAR_DEVELOPMENT_BUILD:-0}
     image: ${NORTHSTAR_BACKEND_IMAGE:-northstar-quant:local}
     environment:
-      NORTHSTAR_NAS_ADDRESS: ${NORTHSTAR_NAS_ADDRESS:?Set NAS IP}
-      NORTHSTAR_NFS_EXPORT: ${NORTHSTAR_NFS_EXPORT:?Set the verified QNAP NFS export path}
+      NORTHSTAR_NAS_ADDRESS: ${NORTHSTAR_NAS_ADDRESS:-nas.local}
       NORTHSTAR_NFS_VERSION: ${NORTHSTAR_NFS_VERSION:-4}
       NORTHSTAR_LOG_DIR: /var/log/northstar
-      NORTHSTAR_DATABASE_URL: postgresql+psycopg://northstar:${NORTHSTAR_NAS_DATABASE_PASSWORD:?Set NAS database password}@nas.local:${NORTHSTAR_NAS_DATABASE_PORT:-15432}/northstar_quant?connect_timeout=5
-      NORTHSTAR_DATA_DIR: /var/lib/northstar/sources
-      NORTHSTAR_STORAGE_ID: ${NORTHSTAR_STORAGE_ID:?Set the source storage UUID initialized on nas.local}
+      NORTHSTAR_DATABASE_URL: postgresql+psycopg://northstar_research_app:${NORTHSTAR_RESEARCH_DATABASE_PASSWORD:?Set
+        application password}@${NORTHSTAR_NAS_ADDRESS:-nas.local}:${NORTHSTAR_NAS_DATABASE_PORT:-15432}/northstar_research?connect_timeout=5
+      NORTHSTAR_DATABASE_OWNER: research
+      NORTHSTAR_MARKET_DIR: /var/lib/northstar/market
+      NORTHSTAR_MARKET_STORAGE_ID: ${NORTHSTAR_MARKET_STORAGE_ID:?Set market storage UUID}
+      NORTHSTAR_MARKET_NFS_EXPORT: ${NORTHSTAR_MARKET_NFS_EXPORT:?Set verified market NFS export}
+      NORTHSTAR_RESEARCH_DIR: /var/lib/northstar/research
+      NORTHSTAR_RESEARCH_STORAGE_ID: ${NORTHSTAR_RESEARCH_STORAGE_ID:?Set research storage UUID}
+      NORTHSTAR_RESEARCH_NFS_EXPORT: ${NORTHSTAR_RESEARCH_NFS_EXPORT:?Set verified research NFS export}
     extra_hosts:
-    - nas.local:${NORTHSTAR_NAS_ADDRESS:?Set the NAS IP reachable from this Docker host}
+    - host.docker.internal:host-gateway
     volumes:
     - type: bind
-      source: ${NORTHSTAR_NAS_MOUNT:-/mnt/northstar}/sources
-      target: /var/lib/northstar/sources
+      source: ${NORTHSTAR_MARKET_MOUNT:-/mnt/northstar/market}
+      target: /var/lib/northstar/market
       read_only: true
+      bind:
+        create_host_path: false
+    - type: bind
+      source: ${NORTHSTAR_RESEARCH_MOUNT:-/mnt/northstar/research}
+      target: /var/lib/northstar/research
+      read_only: false
       bind:
         create_host_path: false
     networks:
     - egress
     command:
     - python
-    - -c
-    - from northstar_quant.apps.storage import open_database, require_current_database; from northstar_quant.data_management.files import SourceFiles; engine=open_database(); require_current_database(engine); engine.dispose(); files=SourceFiles.from_environment(); print("NAS database and source mount verified")
+    - -m
+    - northstar_quant.apps.mounts
   research-api:
     networks:
     - egress
@@ -52,19 +63,33 @@ services:
         max-file: '3'
     environment:
       NORTHSTAR_LOG_DIR: /var/log/northstar
-      NORTHSTAR_DATABASE_URL: postgresql+psycopg://northstar:${NORTHSTAR_NAS_DATABASE_PASSWORD:?Set NAS database password}@nas.local:${NORTHSTAR_NAS_DATABASE_PORT:-15432}/northstar_quant?connect_timeout=5
-      NORTHSTAR_DATA_DIR: /var/lib/northstar/sources
-      NORTHSTAR_STORAGE_ID: ${NORTHSTAR_STORAGE_ID:?Set the source storage UUID initialized on nas.local}
+      NORTHSTAR_DATABASE_URL: postgresql+psycopg://northstar_research_app:${NORTHSTAR_RESEARCH_DATABASE_PASSWORD:?Set
+        application password}@${NORTHSTAR_NAS_ADDRESS:-nas.local}:${NORTHSTAR_NAS_DATABASE_PORT:-15432}/northstar_research?connect_timeout=5
       TMPDIR: /var/lib/northstar/work
+      NORTHSTAR_DATABASE_OWNER: research
+      NORTHSTAR_MARKET_DIR: /var/lib/northstar/market
+      NORTHSTAR_MARKET_STORAGE_ID: ${NORTHSTAR_MARKET_STORAGE_ID:?Set market storage UUID}
+      NORTHSTAR_MARKET_NFS_EXPORT: ${NORTHSTAR_MARKET_NFS_EXPORT:?Set verified market NFS export}
+      NORTHSTAR_RESEARCH_DIR: /var/lib/northstar/research
+      NORTHSTAR_RESEARCH_STORAGE_ID: ${NORTHSTAR_RESEARCH_STORAGE_ID:?Set research storage UUID}
+      NORTHSTAR_RESEARCH_NFS_EXPORT: ${NORTHSTAR_RESEARCH_NFS_EXPORT:?Set verified research NFS export}
+      NORTHSTAR_NAS_ADDRESS: ${NORTHSTAR_NAS_ADDRESS:-nas.local}
+      NORTHSTAR_NFS_VERSION: ${NORTHSTAR_NFS_VERSION:-4}
     volumes:
     - logs:/var/log/northstar
+    - work:/var/lib/northstar/work
     - type: bind
-      source: ${NORTHSTAR_NAS_MOUNT:-/mnt/northstar}/sources
-      target: /var/lib/northstar/sources
+      source: ${NORTHSTAR_MARKET_MOUNT:-/mnt/northstar/market}
+      target: /var/lib/northstar/market
       read_only: true
       bind:
         create_host_path: false
-    - work:/var/lib/northstar/work
+    - type: bind
+      source: ${NORTHSTAR_RESEARCH_MOUNT:-/mnt/northstar/research}
+      target: /var/lib/northstar/research
+      read_only: false
+      bind:
+        create_host_path: false
     ports:
     - 127.0.0.1:${NORTHSTAR_RESEARCH_API_PORT:-19084}:19084
     command:
@@ -86,7 +111,7 @@ services:
       retries: 3
       start_period: 20s
     extra_hosts:
-    - nas.local:${NORTHSTAR_NAS_ADDRESS:?Set the NAS IP reachable from this Docker host}
+    - host.docker.internal:host-gateway
     depends_on:
       storage-check:
         condition: service_completed_successfully
@@ -120,6 +145,69 @@ services:
       timeout: 5s
       retries: 3
       start_period: 20s
+  maintenance:
+    networks:
+    - egress
+    platform: linux/amd64
+    build:
+      context: ../..
+      dockerfile: backend/Dockerfile
+      args:
+        NORTHSTAR_GIT_REVISION: ${NORTHSTAR_GIT_REVISION:-}
+        NORTHSTAR_DEVELOPMENT_BUILD: ${NORTHSTAR_DEVELOPMENT_BUILD:-0}
+    image: ${NORTHSTAR_BACKEND_IMAGE:-northstar-quant:local}
+    logging:
+      driver: local
+      options:
+        max-size: 10m
+        max-file: '3'
+    environment:
+      NORTHSTAR_LOG_DIR: /var/log/northstar
+      NORTHSTAR_DATABASE_URL: postgresql+psycopg://northstar_research_app:${NORTHSTAR_RESEARCH_DATABASE_PASSWORD:?Set
+        application password}@${NORTHSTAR_NAS_ADDRESS:-nas.local}:${NORTHSTAR_NAS_DATABASE_PORT:-15432}/northstar_research?connect_timeout=5
+      TMPDIR: /var/lib/northstar/work
+      NORTHSTAR_DATABASE_OWNER: research
+      NORTHSTAR_MARKET_DIR: /var/lib/northstar/market
+      NORTHSTAR_MARKET_STORAGE_ID: ${NORTHSTAR_MARKET_STORAGE_ID:?Set market storage UUID}
+      NORTHSTAR_MARKET_NFS_EXPORT: ${NORTHSTAR_MARKET_NFS_EXPORT:?Set verified market NFS export}
+      NORTHSTAR_RESEARCH_DIR: /var/lib/northstar/research
+      NORTHSTAR_RESEARCH_STORAGE_ID: ${NORTHSTAR_RESEARCH_STORAGE_ID:?Set research storage UUID}
+      NORTHSTAR_RESEARCH_NFS_EXPORT: ${NORTHSTAR_RESEARCH_NFS_EXPORT:?Set verified research NFS export}
+      NORTHSTAR_BACKUP_DIR: /var/lib/northstar/backup
+      NORTHSTAR_BACKUP_STORAGE_ID: ${NORTHSTAR_BACKUP_STORAGE_ID:?Set backup storage UUID}
+      NORTHSTAR_BACKUP_NFS_EXPORT: ${NORTHSTAR_BACKUP_NFS_EXPORT:?Set verified backup NFS export}
+      NORTHSTAR_NAS_ADDRESS: ${NORTHSTAR_NAS_ADDRESS:-nas.local}
+      NORTHSTAR_NFS_VERSION: ${NORTHSTAR_NFS_VERSION:-4}
+    volumes:
+    - logs:/var/log/northstar
+    - work:/var/lib/northstar/work
+    - type: bind
+      source: ${NORTHSTAR_MARKET_MOUNT:-/mnt/northstar/market}
+      target: /var/lib/northstar/market
+      read_only: true
+      bind:
+        create_host_path: false
+    - type: bind
+      source: ${NORTHSTAR_RESEARCH_MOUNT:-/mnt/northstar/research}
+      target: /var/lib/northstar/research
+      read_only: false
+      bind:
+        create_host_path: false
+    - type: bind
+      source: ${NORTHSTAR_BACKUP_MOUNT:-/mnt/northstar/backup}
+      target: /var/lib/northstar/backup
+      read_only: false
+      bind:
+        create_host_path: false
+    command:
+    - northstar
+    - maintenance
+    - backup
+    - /var/lib/northstar/backup/manual
+    extra_hosts:
+    - host.docker.internal:host-gateway
+    profiles:
+    - maintenance
 volumes:
   logs: null
   work: null

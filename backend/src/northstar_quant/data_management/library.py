@@ -10,8 +10,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from typing import NoReturn, cast
@@ -186,9 +187,23 @@ def manifest(connection: Connection) -> list[dict[str, object]]:
 class DataLibrary:
     """Receive, process, inspect and reopen controlled local research data."""
 
-    def __init__(self, engine: Engine, files: SourceFiles) -> None:
+    def __init__(
+        self,
+        engine: Engine,
+        files: SourceFiles,
+        *,
+        usages: Callable[[Sequence[UUID]], list[dict[str, object]]] | None = None,
+    ) -> None:
+        self._read_usages = usages
         if engine.dialect.name != "postgresql":
             raise ValueError("data library requires PostgreSQL")
+        from .publications import PublishedDatasets
+
+        self.publications = (
+            PublishedDatasets.from_environment()
+            if os.environ.get("NORTHSTAR_MARKET_DIR")
+            else PublishedDatasets(files.root / "publications")
+        )
         self._engine = engine
         self._files = files
 
@@ -887,25 +902,7 @@ class DataLibrary:
         }
 
     def _usages(self, snapshot_ids: Sequence[UUID]) -> list[dict[str, object]]:
-        if not snapshot_ids:
-            return []
-        with self._engine.connect() as connection:
-            rows = (
-                connection.execute(
-                    text(
-                        "SELECT 'RESEARCH' AS kind, run_id AS use_id, snapshot_id, created_at "
-                        "FROM research_runs WHERE snapshot_id = ANY(:ids) "
-                        "UNION ALL SELECT 'PAPER' AS kind, session_id::text AS use_id, "
-                        "snapshot_id, created_at "
-                        "FROM paper_sessions WHERE snapshot_id = ANY(:ids) "
-                        "ORDER BY created_at DESC LIMIT 200"
-                    ),
-                    {"ids": snapshot_ids},
-                )
-                .mappings()
-                .all()
-            )
-        return [_json_row(row) for row in rows]
+        return [] if self._read_usages is None else self._read_usages(snapshot_ids)
 
     def reconcile(self) -> dict[str, object]:
         """Acquire write admission, mark interrupted work and inspect retained files."""

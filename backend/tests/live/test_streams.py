@@ -22,6 +22,7 @@ from northstar_quant.data_management.files import SourceFiles
 from northstar_quant.data_management.library import DataLibrary
 from northstar_quant.live import streams as module
 from northstar_quant.live.streams import LiveStreams
+from northstar_quant.research.artifacts import ResearchUsages
 from northstar_quant.research.configuration import ResearchConfig
 from northstar_quant.research.configurations import ConfigurationStore
 from northstar_quant.strategies.configuration import StrategyConfig
@@ -45,7 +46,7 @@ def prepare(
     *,
     trading_day: str = "20260907",
 ) -> tuple[DataLibrary, UUID, str, dict[str, Any]]:
-    library = DataLibrary(engine, SourceFiles(root / "archive"))
+    library = DataLibrary(engine, SourceFiles(root / "archive"), usages=ResearchUsages(engine).list)
     position_baseline(engine, day=trading_day)
     source = ledger_query(engine, day=trading_day)
     configuration = ConfigurationStore(engine).save_configuration(

@@ -35,8 +35,8 @@ class Deployment:
         }
         self.files = tempfile.TemporaryDirectory(prefix="northstar-nas-check-")
         self.root = Path(self.files.name)
-        (self.root / "sources").mkdir()
-        (self.root / "backups").mkdir()
+        for share in ("source", "market", "research", "backup", "pgdata"):
+            (self.root / share).mkdir()
         self.image = image
         self.password = secrets.token_urlsafe(32)
         self.environment = {
@@ -46,20 +46,28 @@ class Deployment:
             NORTHSTAR_BACKEND_IMAGE=image,
             NORTHSTAR_DATA_FRONTEND_IMAGE=data_image,
             NORTHSTAR_RESEARCH_FRONTEND_IMAGE=research_image,
-            NORTHSTAR_NAS_ADDRESS="host-gateway",
-            NORTHSTAR_NFS_EXPORT="/synthetic-bind-acceptance-not-nfs",
+            NORTHSTAR_NAS_ADDRESS="host.docker.internal",
             NORTHSTAR_NFS_VERSION="4",
             NORTHSTAR_NAS_BIND_ADDRESS="0.0.0.0",
-            NORTHSTAR_NAS_DATABASE_PASSWORD=self.password,
+            NORTHSTAR_NAS_ADMIN_PASSWORD=self.password,
+            NORTHSTAR_DATA_HUB_DATABASE_PASSWORD=secrets.token_urlsafe(32),
+            NORTHSTAR_RESEARCH_DATABASE_PASSWORD=secrets.token_urlsafe(32),
+            NORTHSTAR_LIVE_DATABASE_PASSWORD=secrets.token_urlsafe(32),
+            NORTHSTAR_NAS_PGDATA=str(self.root / "pgdata"),
             NORTHSTAR_NAS_DATABASE_PORT="0",
-            NORTHSTAR_NAS_SHARE_DIR=str(self.root),
-            NORTHSTAR_NAS_MOUNT=str(self.root),
-            NORTHSTAR_STORAGE_ID=str(uuid4()),
             NORTHSTAR_DATA_API_PORT="0",
             NORTHSTAR_DATA_WEB_PORT="0",
             NORTHSTAR_RESEARCH_API_PORT="0",
             NORTHSTAR_RESEARCH_WEB_PORT="0",
         )
+
+        for share in ("SOURCE", "MARKET", "RESEARCH", "BACKUP"):
+            self.environment[f"NORTHSTAR_NAS_{share}_DIR"] = str(self.root / share.lower())
+            self.environment[f"NORTHSTAR_{share}_MOUNT"] = str(self.root / share.lower())
+            self.environment[f"NORTHSTAR_{share}_STORAGE_ID"] = str(uuid4())
+            self.environment[f"NORTHSTAR_{share}_NFS_EXPORT"] = (
+                "/synthetic-bind-not-nfs/" + share.lower()
+            )
 
     def run(self, app: str, *arguments: str) -> str:
         result = subprocess.run(
@@ -182,13 +190,14 @@ class Deployment:
             backup = json.loads(
                 self.run(
                     "data_hub",
-                    "exec",
-                    "-T",
-                    "data-api",
+                    "run",
+                    "--rm",
+                    "--no-deps",
+                    "maintenance",
                     "northstar",
                     "maintenance",
                     "backup",
-                    "/var/lib/northstar/backups/acceptance",
+                    "/var/lib/northstar/backup/acceptance",
                 )
             )
             assert backup
@@ -205,7 +214,7 @@ class Deployment:
                     "python",
                     "-c",
                     "from pathlib import Path; "
-                    "assert Path('/evidence/backups/acceptance/database.dump').stat().st_size > 0",
+                    "assert Path('/evidence/backup/acceptance/database.dump').stat().st_size > 0",
                 ],
                 check=True,
                 capture_output=True,
@@ -221,11 +230,27 @@ class Deployment:
             with self.client("research", "research") as restarted:
                 saved = request(restarted, "research", "/api/runs/" + run["run_id"])
                 assert saved["run_id"] == run["run_id"]
+            print(
+                self.run(
+                    "nas",
+                    "run",
+                    "--rm",
+                    "--no-deps",
+                    "initialize",
+                    "python",
+                    "-c",
+                    (ROOT / "scripts/check_owned_storage.py").read_text(),
+                ),
+                flush=True,
+            )
+            backup = json.loads(self.run("nas", "run", "--rm", "--no-deps", "backup"))
+            assert backup["status"] == "complete"
+            print("NAS backup includes all three databases, roles and pinned files", flush=True)
             # A bind directory existing locally is insufficient evidence of a NAS mount.
             self.run("data_hub", "down", "--timeout", "10")
             wrong = self.root / "unmounted"
-            (wrong / "sources").mkdir(parents=True)
-            self.environment["NORTHSTAR_NAS_MOUNT"] = str(wrong)
+            wrong.mkdir(parents=True)
+            self.environment["NORTHSTAR_SOURCE_MOUNT"] = str(wrong)
             try:
                 try:
                     self.run("data_hub", "run", "--rm", "--no-deps", "storage-check")
@@ -233,9 +258,9 @@ class Deployment:
                     assert "mount" in str(error), str(error)
                 else:
                     raise AssertionError("unidentified local directory was accepted as NAS storage")
-                assert list((wrong / "sources").iterdir()) == []
+                assert list(wrong.iterdir()) == []
             finally:
-                self.environment["NORTHSTAR_NAS_MOUNT"] = str(self.root)
+                self.environment["NORTHSTAR_SOURCE_MOUNT"] = str(self.root / "source")
             print(
                 "Each application stops independently; shared data and research results survive",
                 flush=True,

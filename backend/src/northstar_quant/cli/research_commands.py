@@ -9,10 +9,8 @@ from uuid import UUID
 
 from sqlalchemy import Engine
 
-from northstar_quant.cli.data_commands import receive
 from northstar_quant.cli.study import read
-from northstar_quant.data_management.files import SourceFiles
-from northstar_quant.data_management.library import DataLibrary
+from northstar_quant.data_management.publications import PublishedDatasets
 from northstar_quant.research.configuration import ResearchConfig
 from northstar_quant.research.configurations import ConfigurationStore
 from northstar_quant.research.operations import ResearchOperations
@@ -20,10 +18,6 @@ from northstar_quant.research.runs import RunStore
 
 
 def register(commands: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    parser = commands.add_parser("from-file", help="导入文件后运行研究（会发布数据快照）")
-    parser.set_defaults(scope="research", operation="run")
-    parser.add_argument("study", type=Path, help="TOML study with [source] and [research]")
-    parser.add_argument("--request-id", type=UUID, help="重试时复用同一请求 UUID")
     parser = commands.add_parser("run", help="使用已发布快照运行研究")
     parser.set_defaults(scope="research", operation="research")
     parser.add_argument("snapshot_id", type=UUID)
@@ -66,20 +60,9 @@ def execute(arguments: argparse.Namespace, engine: Engine) -> int:
         result = store.get(arguments.run_id) if arguments.operation == "show" else store.list()
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))
         return 0
-    files = SourceFiles.from_environment()
-    library = DataLibrary(engine, files)
+    library = PublishedDatasets.from_environment()
     store = RunStore(engine)
     research = ResearchOperations(library, store)
-    if arguments.operation == "run":
-        attempt, parameters = receive(arguments, library, files)
-        if attempt["status"] != "PUBLISHED":
-            print(json.dumps(attempt, ensure_ascii=False))
-            return 2
-        run_id = research.run(
-            UUID(str(attempt["snapshot_id"])), ResearchConfig.from_mapping(parameters)
-        )
-        print(json.dumps(store.get(run_id), ensure_ascii=False, sort_keys=True))
-        return 0
     if arguments.operation == "research":
         config = (
             ResearchConfig()

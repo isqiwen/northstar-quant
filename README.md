@@ -14,7 +14,7 @@
 研究、Paper、柜台模拟和实盘是不同的证据。Paper 使用历史文件模拟成交；Live 当前的影子信号不发单。
 接收候选、查询成功或核对一致都不授予交易权限。启动、重启和恢复不会自动连接柜台或恢复接收。
 
-持久研究任务调度、持续采集、离线快照复制及完整交易恢复仍待实现，具体进度见 [开发路线](docs/ROADMAP.md)。
+持久研究任务调度、持续采集及完整交易恢复仍待实现，具体进度见 [开发路线](docs/ROADMAP.md)。
 
 ## 快速启动
 
@@ -22,7 +22,7 @@
 三个应用的前端、API、worker/内核分别运行在独立容器中。
 
 先根据 [跨主机部署说明](deploy/README.md) 填写各主机私有环境文件，确认 QNAP 实际 NFS 导出路径。
-默认优先 NFSv4，Linux 挂载点 `/mnt/northstar`；Data Hub 挂载读写，Research 挂载只读。
+默认优先 NFSv4，各共享挂载在 `/mnt/northstar/` 下；Research 只读市场发布目录、读写自己的产物目录。
 路径尚未确认时不猜测、不自动创建本地替代存储。
 
 在对应主机的仓库根目录执行（需要 Git、uv、Make、Docker；Linux 客户端还需 NFS 客户端与 `findmnt`）：
@@ -32,7 +32,7 @@
 make up-nas ENV_FILE=/absolute/private/nas.env
 # core.local：NFS 已正确挂载后
 make up-data ENV_FILE=/absolute/private/core.env
-# research.local：NFS 已只读挂载后
+# research.local：市场只读、研究目录可写后
 make up-research ENV_FILE=/absolute/private/research.env
 # Live 所在主机，仍使用当前独立部署
 make up-live
@@ -82,7 +82,8 @@ Data/Research 命令均需传相同的 `ENV_FILE`。NAS 单独使用 `make ps-na
 | Live | `18080` | `19080` |
 
 日常访问前端端口即可。Live 内核为独立的 `18081` 服务。
-Data Hub、Research 使用 NAS 网络 PostgreSQL 与挂载文件，Research 临时计算目录在本机。
+NAS PostgreSQL 分为 `northstar_data_hub`、`northstar_research`、`northstar_live`，账号按库隔离。
+Research 消费只读固定发布文件，结果写入自己的库和产物共享，临时计算目录在本机。
 Live 当前仍独立存储，不依赖家庭 NAS；最小恢复日志与异步归档是下一项改造。
 独立持久研究 worker 与持续采集仍待实现。
 进程隔离不代表已经完成任务检查点恢复，也不能隔离整台主机故障。
@@ -143,7 +144,8 @@ Data Hub 对应 `dev:data`、后端 `19082`；Live 对应 `dev:live`、后端 `1
 `uv run --project backend northstar serve live-api`（Live 管理 API）和 `uv run --project backend northstar serve live-kernel`（内核）。
 `uv run --project backend northstar serve data-worker` 启动独立数据执行器，需要与 Data API 使用相同数据库、来源目录和代码版本。
 前三个默认监听表中的 `190xx` 端口；不要与同端口容器同时启动。
-Data Hub、Research 和内核需要当前数据库、`NORTHSTAR_DATABASE_URL` 与 `NORTHSTAR_DATA_DIR`；
+各后端需配置所属 `NORTHSTAR_DATABASE_URL`；Data Hub/Research 另需对应市场、研究目录及存储 UUID（见部署模板）。
+Data Hub 与当前 Live 内核使用 `NORTHSTAR_DATA_DIR`；Research 不访问来源目录。
 Live 管理 API 使用 `NORTHSTAR_LIVE_URL` 与 `NORTHSTAR_LIVE_AUTH` 访问内核。
 
 前端生产构建使用 `npm --prefix frontend run build`，随后运行对应 `start:data`、`start:research`、`start:live`，
@@ -193,7 +195,7 @@ make verify
 
 ## 数据与运行维护
 
-每个应用的日志、备份与 Live 运行认证保存在所属 Docker 卷中；Data Hub/Research 的数据库、来源文件和联合备份位于 NAS，Live 则拥有独立数据卷。重建容器不会清空这些数据；不要用 `docker compose down -v` 停止日常应用。
+各应用日志和 Live 认证保存在所属 Docker 卷；Data Hub/Research 的数据库、来源、市场发布、研究产物和备份位于 NAS，Live 内核拥有独立本地数据卷。重建容器不会清空这些数据；不要用 `docker compose down -v` 停止日常应用。
 PostgreSQL 运行目录保留在 NAS 自己的本地卷，不放在 NFS 客户端挂载中。数据库与其引用的来源文件必须一起备份，市场数据、备份和私密凭据不提交到 Git。
 
 ```sh

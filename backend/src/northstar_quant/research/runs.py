@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from datetime import UTC, datetime
 from typing import cast
 from uuid import UUID as Identifier
@@ -192,6 +193,11 @@ class RunStore:
                 )
                 .on_conflict_do_nothing(index_elements=[_runs.c.run_id])
             )
+        from .artifacts import ResearchArtifacts, publish_usage
+
+        if os.environ.get("NORTHSTAR_RESEARCH_DIR"):
+            ResearchArtifacts.from_environment().save("BACKTEST", run_id, payload)
+            publish_usage(self._engine, dataset.snapshot_id)
         return run_id
 
     def get(self, run_id: str) -> dict[str, object]:

@@ -40,8 +40,7 @@ from sqlalchemy.engine import RowMapping
 from northstar_quant import code_revision
 from northstar_quant.accounting.amounts import decimal_text
 from northstar_quant.accounting.fifo import Account, FillFact
-from northstar_quant.data_management.catalog.models import DatasetSnapshotManifest
-from northstar_quant.data_management.library import DataLibrary
+from northstar_quant.data_management.publications import DatasetReader
 from northstar_quant.data_management.research import ResearchBar, ResearchDataset
 from northstar_quant.research.backtesting import TradingSession
 from northstar_quant.research.configuration import ResearchConfig
@@ -53,7 +52,7 @@ _sessions = Table(
     _metadata,
     Column("session_id", PgUUID(as_uuid=True), primary_key=True),
     Column("configuration_id", ForeignKey("paper_configurations.configuration_id"), nullable=False),
-    Column("snapshot_id", ForeignKey(DatasetSnapshotManifest.id), nullable=False),
+    Column("snapshot_id", PgUUID(as_uuid=True), nullable=False),
     Column("snapshot_hash", String(64), nullable=False),
     Column("code_revision", String(64), nullable=False),
     Column("identity_hash", String(64), nullable=False),
@@ -152,7 +151,7 @@ def _uuid(value: UUID) -> None:
 class PaperStore:
     """Persist fixed input/configuration bindings and one isolated Paper account."""
 
-    def __init__(self, engine: Engine, library: DataLibrary) -> None:
+    def __init__(self, engine: Engine, library: DatasetReader) -> None:
         if engine.dialect.name != "postgresql":
             raise ValueError("persistent Paper requires PostgreSQL")
         self._engine = engine
@@ -247,6 +246,9 @@ class PaperStore:
                         for index, bar in enumerate(bars, 1)
                     ],
                 )
+        from .artifacts import publish_usage
+
+        publish_usage(self._engine, snapshot_id)
         return self.get(request_id)
 
     def list(self) -> list[dict[str, object]]:

@@ -57,6 +57,19 @@ def process_attempt(
 ) -> dict[str, object] | None:
     """Execute a fixed attempt, or the oldest pending admission; never blindly retry."""
     with processing_claim(library):
+        # Repair the committed publication outbox before accepting further work.
+        # Readers only see the final atomic file; an interrupted export is retried.
+        with library._engine.connect() as connection:
+            published = (
+                connection.execute(
+                    select(_attempts.c.snapshot_id).where(_attempts.c.status == "PUBLISHED")
+                )
+                .scalars()
+                .all()
+            )
+        for snapshot in set(published):
+            if not (library.publications.root / f"{snapshot}.json").exists():
+                library.publications.publish(library.load_dataset(snapshot))
         with library._engine.connect() as connection:
             statement = select(_attempts)
             if attempt_id is None:
@@ -169,4 +182,6 @@ def _process(
             error="Processing interrupted by an internal failure; inspect application logs.",
         )
         raise
+    if library.attempt(attempt_id)["status"] == "PUBLISHED":
+        library.publications.publish(library.load_dataset(dataset.snapshot_id))
     return library.attempt(attempt_id)
