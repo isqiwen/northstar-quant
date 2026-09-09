@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Deploy one committed application via SSH; no application credentials cross this CLI."""
+"""Manage one Northstar application via SSH; credentials remain on its host."""
 
 from __future__ import annotations
 
@@ -49,7 +49,9 @@ def git(*args: str) -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="通过 SSH 独立部署数据库或应用，传送当前 Git 提交")
+    parser = argparse.ArgumentParser(
+        description="通过 SSH 管理 Northstar 数据库和应用的部署、启停、状态及日志"
+    )
     parser.add_argument(
         "action",
         choices=("deploy", "start", "restart", "status", "logs", "stop"),
@@ -118,7 +120,7 @@ def main() -> int:
                 [
                     "python3",
                     "-c",
-                    (ROOT / "scripts/deploy_remote.py").read_text(),
+                    (ROOT / "scripts/northstarctl_remote.py").read_text(),
                     json.dumps(request),
                 ]
             ),

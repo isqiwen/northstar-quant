@@ -12,7 +12,7 @@ NAS、core、research 故障不得成为 Live 交易和本地恢复的依赖。N
 
 ## 统一远程部署入口
 
-在本机仓库使用 `scripts/deploy.py`，一次只操作一个对象。`database` 表示数据库服务，
+在本机仓库使用 `scripts/northstarctl.py`，一次只操作一个对象。`database` 表示数据库服务，
 `nas.local` 是目标主机；共享路径与 NFS 参数仍放在各主机环境文件中。
 
 复制 `deploy/hosts.toml` 到仓库外，例如 `~/.config/northstar/hosts.toml`，填写各节的
@@ -26,16 +26,16 @@ SSH 非交互会话中必须能找到这些命令并访问 Docker；构建时需
 QNAP 上的这些工具须先安装核验。脚本不会安装系统软件或修改 NAS 共享/NFS 挂载。
 
 ```sh
-./scripts/deploy.py deploy database --config ~/.config/northstar/hosts.toml
-./scripts/deploy.py deploy data-hub --config ~/.config/northstar/hosts.toml
-./scripts/deploy.py deploy research --config ~/.config/northstar/hosts.toml
-./scripts/deploy.py deploy live --config ~/.config/northstar/hosts.toml
-./scripts/deploy.py start research --config ~/.config/northstar/hosts.toml
-./scripts/deploy.py restart data-hub --config ~/.config/northstar/hosts.toml
-./scripts/deploy.py restart live --management-only --config ~/.config/northstar/hosts.toml
-./scripts/deploy.py status research --config ~/.config/northstar/hosts.toml
-./scripts/deploy.py logs data-hub --follow --config ~/.config/northstar/hosts.toml
-./scripts/deploy.py stop research --config ~/.config/northstar/hosts.toml
+./scripts/northstarctl.py deploy database --config ~/.config/northstar/hosts.toml
+./scripts/northstarctl.py deploy data-hub --config ~/.config/northstar/hosts.toml
+./scripts/northstarctl.py deploy research --config ~/.config/northstar/hosts.toml
+./scripts/northstarctl.py deploy live --config ~/.config/northstar/hosts.toml
+./scripts/northstarctl.py start research --config ~/.config/northstar/hosts.toml
+./scripts/northstarctl.py restart data-hub --config ~/.config/northstar/hosts.toml
+./scripts/northstarctl.py restart live --management-only --config ~/.config/northstar/hosts.toml
+./scripts/northstarctl.py status research --config ~/.config/northstar/hosts.toml
+./scripts/northstarctl.py logs data-hub --follow --config ~/.config/northstar/hosts.toml
+./scripts/northstarctl.py stop research --config ~/.config/northstar/hosts.toml
 ```
 
 `--help` 查看参数；`--dry-run` 检查本机配置并显示目标，不连接远端、不验证远端环境。

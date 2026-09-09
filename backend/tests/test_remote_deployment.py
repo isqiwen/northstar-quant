@@ -19,7 +19,7 @@ def deployment(tmp_path: Path) -> tuple[Path, Path, dict]:
     repo = tmp_path / "repo"
     repo.mkdir()
     (repo / "scripts").mkdir()
-    for name in ("deploy.py", "deploy_remote.py"):
+    for name in ("northstarctl.py", "northstarctl_remote.py"):
         shutil.copyfile(ROOT / "scripts" / name, repo / "scripts" / name)
     subprocess.run(["git", "init", "-q", str(repo)], check=True)
     (repo / "Makefile").write_text("up-database up-data up-research up-live:\n\t@true\n")
@@ -86,7 +86,7 @@ def invoke(
     return subprocess.run(
         [
             sys.executable,
-            str(repo / "scripts/deploy.py"),
+            str(repo / "scripts/northstarctl.py"),
             action,
             app,
             "--config",

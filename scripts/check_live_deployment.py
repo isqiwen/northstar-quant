@@ -13,7 +13,7 @@ from time import monotonic, sleep
 from uuid import uuid4
 
 import httpx2 as httpx
-from deploy_remote import lifecycle
+from northstarctl_remote import lifecycle
 
 from northstar_quant.web.protobuf import decode, methods
 

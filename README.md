@@ -28,10 +28,10 @@
 可使用统一远程入口（先填写仓库外的主机配置，详见[部署说明](deploy/README.md)）：
 
 ```sh
-./scripts/deploy.py deploy database --config ~/.config/northstar/hosts.toml
-./scripts/deploy.py deploy data-hub --config ~/.config/northstar/hosts.toml
-./scripts/deploy.py deploy research --config ~/.config/northstar/hosts.toml
-./scripts/deploy.py deploy live --config ~/.config/northstar/hosts.toml
+./scripts/northstarctl.py deploy database --config ~/.config/northstar/hosts.toml
+./scripts/northstarctl.py deploy data-hub --config ~/.config/northstar/hosts.toml
+./scripts/northstarctl.py deploy research --config ~/.config/northstar/hosts.toml
+./scripts/northstarctl.py deploy live --config ~/.config/northstar/hosts.toml
 ```
 
 脚本部署当前已提交版本，支持 `start`、`restart`、`stop`、`status`、`logs` 和 `--help`。

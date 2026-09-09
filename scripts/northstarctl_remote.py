@@ -1,4 +1,4 @@
-"""Remote half of deploy.py, sent over verified SSH; uses only Python's standard library."""
+"""Remote half of northstarctl.py, sent over verified SSH; uses only Python's standard library."""
 
 from __future__ import annotations
 
