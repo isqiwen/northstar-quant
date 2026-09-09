@@ -31,7 +31,7 @@ class Deployment:
     def __init__(self, image: str, data_image: str, research_image: str) -> None:
         prefix = "northstar-app-check-" + uuid4().hex[:12]
         self.projects = {
-            app: f"{prefix}-{app.replace('_', '-')}" for app in ("nas", "data_hub", "research")
+            app: f"{prefix}-{app.replace('_', '-')}" for app in ("database", "data_hub", "research")
         }
         self.files = tempfile.TemporaryDirectory(prefix="northstar-nas-check-")
         self.root = Path(self.files.name)
@@ -93,7 +93,7 @@ class Deployment:
         return result.stdout
 
     def up(self, app: str) -> None:
-        if app == "nas":
+        if app == "database":
             self.run(
                 app,
                 "up",
@@ -120,7 +120,7 @@ class Deployment:
             yield client
 
     def exercise(self) -> None:
-        self.up("nas")
+        self.up("database")
         # Research starts with storage alone: Data Hub has never been started.
         self.up("research")
         with self.client("research", "research") as research:
@@ -232,7 +232,7 @@ class Deployment:
                 assert saved["run_id"] == run["run_id"]
             print(
                 self.run(
-                    "nas",
+                    "database",
                     "run",
                     "--rm",
                     "--no-deps",
@@ -243,7 +243,7 @@ class Deployment:
                 ),
                 flush=True,
             )
-            backup = json.loads(self.run("nas", "run", "--rm", "--no-deps", "backup"))
+            backup = json.loads(self.run("database", "run", "--rm", "--no-deps", "backup"))
             assert backup["status"] == "complete"
             print("NAS backup includes all three databases, roles and pinned files", flush=True)
             # A bind directory existing locally is insufficient evidence of a NAS mount.
@@ -268,7 +268,7 @@ class Deployment:
 
     def close(self) -> None:
         errors = []
-        for app in ("data_hub", "research", "nas"):
+        for app in ("data_hub", "research", "database"):
             try:
                 self.run(app, "down", "--volumes", "--timeout", "10")
             except RuntimeError as error:

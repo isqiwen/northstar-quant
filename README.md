@@ -25,11 +25,21 @@
 默认优先 NFSv4，各共享挂载在 `/mnt/northstar/` 下；Research 只读市场发布目录、读写自己的产物目录。
 路径尚未确认时不猜测、不自动创建本地替代存储。
 
-在对应主机的仓库根目录执行（需要 Git、uv、Make、Docker；Linux 客户端还需 NFS 客户端与 `findmnt`）：
+可使用统一远程入口（先填写仓库外的主机配置，详见[部署说明](deploy/README.md)）：
+
+```sh
+./scripts/deploy.py deploy database --config ~/.config/northstar/hosts.toml
+./scripts/deploy.py deploy data-hub --config ~/.config/northstar/hosts.toml
+./scripts/deploy.py deploy research --config ~/.config/northstar/hosts.toml
+./scripts/deploy.py deploy live --config ~/.config/northstar/hosts.toml
+```
+
+脚本部署当前已提交版本，支持 `status`、`logs`、`stop` 和 `--help`。Live 内核运行时拒绝整套更新/停止。
+也可以在对应主机的仓库根目录执行（需要 Git、uv、Make、Docker；Linux 客户端还需 NFS 客户端与 `findmnt`）：
 
 ```sh
 # nas.local：先初始化 PostgreSQL 和共享来源目录
-make up-nas ENV_FILE=/absolute/private/nas.env
+make up-database ENV_FILE=/absolute/private/nas.env
 # core.local：NFS 已正确挂载后
 make up-data ENV_FILE=/absolute/private/core.env
 # research.local：市场只读、研究目录可写后
@@ -56,7 +66,7 @@ ssh -N -L 18084:127.0.0.1:18084 research.local
 | Live | <http://127.0.0.1:18080>（远程访问见独立 Live 部署说明） |
 
 `make ps-data` / `ps-research` / `ps-live` 查看状态；`make down-data` / `down-research` / `down-live` 只停止对应应用并保留卷。
-Data/Research 命令均需传相同的 `ENV_FILE`。NAS 单独使用 `make ps-nas` / `down-nas`，停止会影响依赖它的数据与研究操作。
+Data/Research 命令均需传相同的 `ENV_FILE`。NAS 单独使用 `make ps-database` / `down-database`，停止会影响依赖它的数据与研究操作。
 
 修改代码后重新构建；`restart` 不会构建新代码。端口、NFS 参数、存储权限与备份见 [部署说明](deploy/README.md)。
 当前个人容器与数据不会被新命令自动迁移或接管。

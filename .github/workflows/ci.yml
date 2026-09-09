@@ -84,11 +84,11 @@ jobs:
         run: |
           export NORTHSTAR_GIT_REVISION="$(git rev-parse HEAD)"
           test -z "$(git status --porcelain --untracked-files=all)"
-          docker compose -f deploy/nas/compose.yaml config --quiet
+          docker compose -f deploy/database/compose.yaml config --quiet
           docker compose -f deploy/data_hub/compose.yaml config --quiet
           docker compose -f deploy/research/compose.yaml config --quiet
           docker compose -f deploy/live/compose.yaml config --quiet
-          docker compose -f deploy/nas/compose.yaml build initialize
+          docker compose -f deploy/database/compose.yaml build initialize
           docker tag northstar-quant:local northstar-local
           NORTHSTAR_LIVE_FRONTEND_IMAGE=northstar-live-frontend:check docker compose -f deploy/live/compose.yaml build live-web
           NORTHSTAR_DATA_FRONTEND_IMAGE=northstar-data-frontend:check docker compose -f deploy/data_hub/compose.yaml build data-hub

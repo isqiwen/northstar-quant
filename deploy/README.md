@@ -2,13 +2,54 @@
 
 | 主机 | 运行内容 | 配置 |
 |---|---|---|
-| `nas.local` / Qu605 | 一个 PostgreSQL 服务、共享文件、集中备份 | `nas/compose.yaml` |
+| `nas.local` / Qu605 | 一个 PostgreSQL 服务、共享文件、集中备份 | `database/compose.yaml` |
 | `core.local` | Data Hub 前端、API、独立加工 worker | `data_hub/compose.yaml` |
 | `research.local` | Research 前端、API、本机临时计算 | `research/compose.yaml` |
 | Live 独立主机 | 前端、API、交易内核与当前本地存储 | `live/compose.yaml` |
 
 NAS、core、research 故障不得成为 Live 交易和本地恢复的依赖。NAS 的 Live 库仅用于异步归档；
 当前内核仍使用自己的本地 PostgreSQL，恢复日志和独立上传器见 #54，不能提前删除本地数据库。
+
+## 统一远程部署入口
+
+在本机仓库使用 `scripts/deploy.py`，一次只操作一个对象。`database` 表示数据库服务，
+`nas.local` 是目标主机；共享路径与 NFS 参数仍放在各主机环境文件中。
+
+复制 `deploy/hosts.toml` 到仓库外，例如 `~/.config/northstar/hosts.toml`，填写各节的
+`host`（IP 或 hostname）、`user`、SSH `port`、远端 `directory` 和 `env_file`。
+部署目录由该 SSH 用户管理；环境文件须提前放在部署目录外，权限 `600`。路径使用字母、数字、
+下划线、点、斜杠和短横线。Live 地址未设默认值。SSH 密钥通过本机 agent 或 `~/.ssh/config` 配置，
+先人工核验并保存目标主机公钥；脚本不接受未知主机公钥、不传送口令文件。
+
+本机需要 Python 3.11+、Git 和 SSH。目标主机需要 Python 3.11+、Git、uv、Make、Docker Compose，
+SSH 非交互会话中必须能找到这些命令并访问 Docker；构建时需联网拉取依赖。
+QNAP 上的这些工具须先安装核验。脚本不会安装系统软件或修改 NAS 共享/NFS 挂载。
+
+```sh
+./scripts/deploy.py deploy database --config ~/.config/northstar/hosts.toml
+./scripts/deploy.py deploy data-hub --config ~/.config/northstar/hosts.toml
+./scripts/deploy.py deploy research --config ~/.config/northstar/hosts.toml
+./scripts/deploy.py deploy live --config ~/.config/northstar/hosts.toml
+./scripts/deploy.py status research --config ~/.config/northstar/hosts.toml
+./scripts/deploy.py logs data-hub --follow --config ~/.config/northstar/hosts.toml
+./scripts/deploy.py stop research --config ~/.config/northstar/hosts.toml
+```
+
+`--help` 查看参数；`--dry-run` 检查本机配置并显示目标，不连接远端、不验证远端环境。
+默认读取仓库 `deploy/hosts.toml`；修改该文件后须提交，或使用仓库外的配置副本。
+
+部署要求干净的 Git 工作区，传送当前 HEAD 的 Git bundle，不要求目标主机有 GitHub 凭据。
+目标按提交保存 `releases/<完整SHA>`，复用下文 Make/Compose 完成构建、挂载预检与健康等待。
+同一部署目录的修改操作互斥；每个对象固定使用一份部署目录，不同时手工操作 Compose。
+`current` 指向最近尝试版本，`successful-revision` 只在启动成功后更新；失败返回非零，
+不会自动回滚数据库或已更新的容器。`status` 显示两种版本与容器状态。历史版本不自动清理。
+
+`stop` 保留卷；部署应用不会连带启动或重启数据库及其他应用。停止 `database` 会使
+Data Hub/Research 的数据库操作不可用，但不操作 Live 本地数据库。
+Live 内核运行、暂停或重启中时，整套 `deploy`/`stop` 均被拒绝，没有强制开关；
+先通过独立维护流程核对会话、未决订单并在主机停机，才能更新。脚本只验证容器停止，
+不能替代交易准入判断；重启不授予执行权。它也不会自动接管其他部署项目。
+`logs` 查看容器标准输出；Python 持久运行日志的文件位置见根目录 README。
 
 ## 数据库与账号
 
@@ -67,7 +108,7 @@ NAS 原生共享目录及 PGDATA 目录必须已由管理员创建；程序拒�
 
 ```sh
 # nas.local
-make up-nas ENV_FILE=/absolute/private/nas.env
+make up-database ENV_FILE=/absolute/private/nas.env
 ```
 
 在 Linux 主机安装 NFS 客户端后，按每个共享的权限挂载。下列为占位示例，须替换实际导出路径：
@@ -94,7 +135,7 @@ make up-live
 手动执行 Compose 前同样要用 `uv run --project backend python scripts/check_nfs_mount.py --app data_hub --env-file ...`，
 Research 将 `--app` 改为 `research`。维护共享检查另加 `--maintenance`。
 
-应用分别使用 `ps-data` / `down-data`、`ps-research` / `down-research`、`ps-live` / `down-live`；NAS 使用 `ps-nas` / `down-nas`。
+应用分别使用 `ps-data` / `down-data`、`ps-research` / `down-research`、`ps-live` / `down-live`；NAS 使用 `ps-database` / `down-database`。
 传入相同 `ENV_FILE`，所有日常停止操作都保留存储，不使用 `down -v`。个人已有容器不会自动迁移。
 
 浏览器通过 SSH 隧道访问，保留当前本机 Host/Origin 保护：
@@ -111,7 +152,7 @@ ssh -N -L 18084:127.0.0.1:18084 research.local
 NAS 集中备份会保存三个库、数据库角色，以及 Data Hub 来源和 Research 引用的固定输入与产物：
 
 ```sh
-make backup-nas ENV_FILE=/absolute/private/nas.env
+make backup-database ENV_FILE=/absolute/private/nas.env
 ```
 
 每次写入新的 UTC 时间/UUID 目录，只有存在 `complete.json` 才表示所有步骤完成。

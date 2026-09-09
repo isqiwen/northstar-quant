@@ -1,4 +1,4 @@
-name: northstar-nas
+name: northstar-database
 services:
   postgres:
     networks:

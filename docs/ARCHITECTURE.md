@@ -29,7 +29,7 @@
 Data Hub 在 `core.local`，Research 在 `research.local`；两者通过网络访问 `nas.local` 上的 PostgreSQL，
 NAS 的一个 PostgreSQL 服务提供三个逻辑库及独立非超级用户，应用账号不持有跨库或 DDL 权限。
 Data Hub 独占来源/加工库，Research 独占研究库；NAS Live 库只接收不可变归档，内核不连接它。
-`deploy/nas/` 在 NAS 本地目录初始化数据库与共享身份；应用停止不停止 NAS。
+`deploy/database/` 在 NAS 本地目录初始化数据库与共享身份；应用停止不停止 NAS。
 QNAP 导出路径须现场确认，默认优先 NFSv4。来源、市场发布、研究产物和备份分开挂载；
 Research 不挂载来源，市场只读、自己的产物可写；备份仅挂载到维护容器。挂载或身份不符时拒绝启动。
 PostgreSQL 运行目录在 NAS 本地卷，Research 临时目录和应用日志在各自本机。

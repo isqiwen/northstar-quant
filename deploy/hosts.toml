@@ -1,0 +1,29 @@
+# SSH 主机配置；私有口令留在目标主机的 env_file 中。
+# 填写 user；目录均为目标主机绝对路径，可按实际环境修改。
+[database]
+host = "nas.local"
+user = ""
+port = 22
+directory = "/opt/northstar/database"
+env_file = "/etc/northstar/database.env"
+
+[data_hub]
+host = "core.local"
+user = ""
+port = 22
+directory = "/opt/northstar/data-hub"
+env_file = "/etc/northstar/data-hub.env"
+
+[research]
+host = "research.local"
+user = ""
+port = 22
+directory = "/opt/northstar/research"
+env_file = "/etc/northstar/research.env"
+
+[live]
+host = ""
+user = ""
+port = 22
+directory = "/opt/northstar/live"
+env_file = "/etc/northstar/live.env"
