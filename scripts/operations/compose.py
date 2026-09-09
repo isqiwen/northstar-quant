@@ -12,6 +12,7 @@ from pathlib import Path
 from uuid import uuid4
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "backend/src"))
 FOLDERS = {"database": "database", "data-hub": "data_hub", "research": "research", "live": "live"}
 
 
@@ -64,11 +65,7 @@ def manage(app: str, action: str, *, follow: bool = False) -> None:
         compose[2:2] = ["-p", project]
     if action in ("deploy", "start", "restart", "backup"):
         bindings = run(
-            "uv",
-            "run",
-            "--project",
-            "backend",
-            "python",
+            sys.executable,
             "scripts/operations/check_storage.py",
             "--app",
             folder,
@@ -77,27 +74,15 @@ def manage(app: str, action: str, *, follow: bool = False) -> None:
         )
         os.environ.update(json.loads(bindings))
     if action == "deploy":
-        os.environ["NORTHSTAR_GIT_REVISION"] = run(
-            "uv",
-            "run",
-            "--project",
-            "backend",
-            "python",
-            "-c",
-            "from northstar_quant import code_revision; print(code_revision())",
-            cwd=ROOT,
-            capture=True,
-        )
+        from northstar_quant import code_revision
+
+        os.environ["NORTHSTAR_GIT_REVISION"] = code_revision()
         if app == "database":
             run(*compose, "build", "initialize")
             run(*compose, "up", "-d", "--wait", "--wait-timeout", "180", "postgres")
             run(*compose, "run", "--rm", "initialize")
             run(
-                "uv",
-                "run",
-                "--project",
-                "backend",
-                "python",
+                sys.executable,
                 "scripts/operations/check_storage.py",
                 "--app",
                 "database",

@@ -6,10 +6,12 @@ import fcntl
 import json
 import os
 import shutil
+import signal
 import stat
 import subprocess
 import sys
 import tempfile
+import threading
 from pathlib import Path
 
 TARGETS = {
@@ -21,10 +23,55 @@ TARGETS = {
 
 
 def run(*args: str, cwd: Path | None = None, capture: bool = False) -> str:
-    result = subprocess.run(
-        args, cwd=cwd, check=True, text=True, stdout=subprocess.PIPE if capture else None
-    )
-    return result.stdout.strip() if capture else ""
+    with subprocess.Popen(
+        args,
+        cwd=cwd,
+        text=True,
+        stdout=subprocess.PIPE if capture else None,
+        start_new_session=True,
+    ) as process:
+        try:
+            output, _ = process.communicate()
+            if process.returncode:
+                raise subprocess.CalledProcessError(process.returncode, args)
+            return output.strip() if capture else ""
+        except BaseException:
+            # The process group contains this operation's clients, never Docker's containers.
+            for signum in (signal.SIGTERM, signal.SIGKILL):
+                try:
+                    os.killpg(process.pid, signum)
+                except ProcessLookupError:
+                    break
+                if signum == signal.SIGTERM:
+                    try:
+                        process.wait(timeout=3)
+                    except subprocess.TimeoutExpired:
+                        pass
+            process.wait()
+            raise
+
+
+def supervise_connection() -> None:
+    """SSH without a PTY can leave the remote command orphaned after disconnect."""
+    parent = os.getppid()
+
+    def interrupted(signum, frame):
+        # Do not interrupt cleanup with a second signal.
+        for number in (signal.SIGTERM, signal.SIGHUP, signal.SIGINT):
+            signal.signal(number, signal.SIG_IGN)
+        raise SystemExit(128 + signum)
+
+    for number in (signal.SIGTERM, signal.SIGHUP, signal.SIGINT):
+        signal.signal(number, interrupted)
+
+    def watch():
+        interval = threading.Event()
+        while not interval.wait(0.25):
+            if parent == 1 or os.getppid() != parent:
+                os.kill(os.getpid(), signal.SIGTERM)
+                return
+
+    threading.Thread(target=watch, daemon=True).start()
 
 
 def image_environment(app: str, revision: str) -> None:
@@ -174,6 +221,7 @@ def execute(request: dict) -> None:
 
 
 if __name__ == "__main__":
+    supervise_connection()
     try:
         execute(json.loads(sys.argv[1]))
     except subprocess.CalledProcessError as error:

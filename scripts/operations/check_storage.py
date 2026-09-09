@@ -9,9 +9,10 @@ import sys
 from pathlib import Path
 from uuid import UUID
 
-from northstar_quant.data_management.storage_identity import require_identity
-
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "backend/src"))
+
+from northstar_quant.data_management.storage_identity import require_identity  # noqa: E402
 
 
 def check_directories(

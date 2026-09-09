@@ -19,6 +19,7 @@ def deployment(tmp_path: Path) -> tuple[Path, Path, dict]:
     repo = tmp_path / "repo"
     repo.mkdir()
     (repo / "scripts").mkdir()
+    (repo / ".gitignore").write_text("__pycache__/\n")
     shutil.copyfile(ROOT / "scripts/northstarctl.py", repo / "scripts/northstarctl.py")
     shutil.copytree(
         ROOT / "scripts/operations",
@@ -33,6 +34,13 @@ def deployment(tmp_path: Path) -> tuple[Path, Path, dict]:
             .replace("/etc/docker/daemon.json", str(tmp_path / "daemon.json"))
             .replace('Path.home() / ".ssh/', f'Path({str(tmp_path)!r}) / ".ssh/')
         )
+    package = repo / "backend/src/northstar_quant"
+    package.mkdir(parents=True)
+    shutil.copyfile(ROOT / "backend/src/northstar_quant/__init__.py", package / "__init__.py")
+    # Storage behavior is covered separately; this transport double must not install dependencies.
+    (repo / "scripts/operations/check_storage.py").write_text(
+        "import os, sys\nprint('{}')\nsys.exit(int(os.environ.get('MOUNT_RESULT', '0')))\n"
+    )
     for app in ("database", "data_hub", "research", "live"):
         folder = repo / "deploy" / app
         folder.mkdir(parents=True)

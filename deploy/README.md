@@ -121,7 +121,9 @@ python3 scripts/northstarctl.py init-host database
 公钥对应的私钥须可通过本机 SSH 默认身份、配置或 agent 使用；脚本不会上传私钥或保存登录及提权密码。
 没有 SSH 密钥时可先执行 `ssh-keygen -t ed25519` 创建。初始化最后验证 northstar 密钥登录和 `sudo -n`。
 northstar 获得免密码管理员权限以安装依赖和准备目录；Docker 已安装时加入现有 docker 组，否则首次安装时加入。
-已有依赖直接复用，不主动升级或重启 Docker。挂载存储由主机管理员管理。
+已有依赖直接复用，不主动升级或重启 Docker。存储检查与版本读取直接使用 Python，不在主机安装后端业务依赖。
+SSH 连接关闭或取消部署时清理本次部署子进程并释放锁，已启动容器和持久数据保留；可重新执行 `deploy`。
+挂载存储由主机管理员管理。
 
 初始化完成并提交代码后部署（固定使用 northstar，无需手工复制 `.env`）：
 
@@ -178,7 +180,7 @@ Research 使用本机 DuckDB 计算，不扫描目录追踪最新文件、不共
 
 在 core 执行 `make backup-database`，
 把 Data Hub 数据库、角色和固定文件保存到备份目录的新时间/UUID 子目录，`complete.json` 表示完成。
-Research 在目标主机运行 `uv run --project backend python scripts/operations/compose.py backup research`，
+Research 在目标主机运行 `python3 scripts/operations/compose.py backup research`，
 自动加载存储绑定并在维护容器内写入新的备份子目录。
 正常 API/worker 不挂载备份目录；定时备份由各主机调度器调用。
 
