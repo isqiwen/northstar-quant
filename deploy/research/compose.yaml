@@ -151,7 +151,7 @@ services:
     environment:
       NORTHSTAR_API_URL: http://research-api:19084
     ports:
-    - 127.0.0.1:${NORTHSTAR_RESEARCH_WEB_PORT:-18084}:3000
+    - 0.0.0.0:${NORTHSTAR_RESEARCH_WEB_PORT:-18084}:3000
     healthcheck:
       test:
       - CMD

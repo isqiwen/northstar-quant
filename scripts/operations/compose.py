@@ -63,6 +63,18 @@ def manage(app: str, action: str, *, follow: bool = False) -> None:
     ]
     if project := os.environ.get("COMPOSE_PROJECT_NAME"):
         compose[2:2] = ["-p", project]
+    if app in {"data-hub", "research"} and action in {"deploy", "start", "restart"}:
+        config = json.loads(run(*compose, "config", "--format", "json", capture=True))
+        port = str(config["services"][app]["ports"][0]["published"])
+        run(
+            *([] if os.geteuid() == 0 else ["sudo", "-n", "--"]),
+            sys.executable,
+            "scripts/operations/lan_firewall.py",
+            "install",
+            app,
+            port,
+            cwd=ROOT,
+        )
     if action in ("deploy", "start", "restart", "backup"):
         bindings = run(
             sys.executable,

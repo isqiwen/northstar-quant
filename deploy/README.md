@@ -131,7 +131,6 @@ SSH 连接关闭或取消部署时清理本次部署子进程并释放锁，已�
 python3 scripts/northstarctl.py deploy database
 python3 scripts/northstarctl.py deploy data-hub
 python3 scripts/northstarctl.py status data-hub
-ssh -N -L 18082:127.0.0.1:18082 northstar@core.local
 ```
 
 四个应用均可在部署时指定自己的配置文件，例如：
@@ -147,7 +146,15 @@ python3 scripts/northstarctl.py deploy live --env-file ~/.config/northstar/live.
 `--env-file` 仅用于 `deploy`；启停、状态和日志命令使用远程已部署配置。
 更换配置文件不等于轮换已初始化 PostgreSQL 的管理员密码，数据库实际密码须保持一致。
 
-打开 <http://127.0.0.1:18082>，在历史同步页设置 Tushare token 并启动同步。
+打开 <http://core.local:18082>，在历史同步页设置 Tushare token 并启动同步。
+Research 网页为 <http://research.local:18084>。客户端需能解析这两个主机名；不支持任意 Host 别名。
+前端发布到 `0.0.0.0`，API 仍仅绑定本机。`deploy/start/restart` 自动识别物理网卡或默认路由网卡上的
+IPv4 私有网段（排除 Docker/VPN 接口）；未识别到局域网时明确报错，不开放端口。
+部署使用 iptables 的 `INPUT` 和 `DOCKER-USER` 两个入口，允许匹配网卡和网段的前端连接、拒绝其他来源，
+只维护各应用自己的规则；重复执行不追加重复规则，也不修改 SSH 或其他服务规则。
+对应 `northstar-<应用>-firewall.service` 在开机/Docker 重启后重新应用；网段变化后重新运行部署或启动命令。
+要求 Docker 使用 iptables 防火墙后端（当前默认），不关闭或重置现有 UFW。
+可用 `sudo unshare --net python3 scripts/acceptance/check_lan_firewall.py` 在隔离网络中验证规则。
 仅测试 Data Hub 时无需部署 Research/Live。
 前端/API 与同步 worker 独立，关闭管理界面不停止已提交任务。
 

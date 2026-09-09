@@ -227,7 +227,7 @@ services:
     environment:
       NORTHSTAR_API_URL: http://data-api:19082
     ports:
-    - 127.0.0.1:${NORTHSTAR_DATA_WEB_PORT:-18082}:3000
+    - 0.0.0.0:${NORTHSTAR_DATA_WEB_PORT:-18082}:3000
     healthcheck:
       test:
       - CMD

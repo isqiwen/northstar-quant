@@ -15,7 +15,9 @@ from . import exploration_api, processing_api, publication_api, source_api, sync
 
 def create_app(engine: Engine, library: DataLibrary) -> FastAPI:
     app = create_host(
-        "Northstar Data Hub · 数据管理中心", (("数据管理", "/"), ("来源与处理", "/sources"))
+        "Northstar Data Hub · 数据管理中心",
+        (("数据管理", "/"), ("来源与处理", "/sources")),
+        allowed_hosts=("core.local",),
     )
     exploration_api.register(app, engine)
     publication_api.register(app, library)

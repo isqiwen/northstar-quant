@@ -1,4 +1,5 @@
 "use client";
+import { requestId as newRequestId } from "../../shared/api";
 import { query, mutate } from "./api/client";
 import { useState } from "react";
 import { App, Button, Card, Form, Progress } from "antd";
@@ -36,7 +37,7 @@ export function Paper() {
             try {
               const result = await mutate("/api/paper", {
                 ...v,
-                request_id: crypto.randomUUID(),
+                request_id: newRequestId(),
               });
               navigate(`/paper/${result.session_id}`);
             } catch (e) {
@@ -109,7 +110,7 @@ export function PaperDetail() {
                   setBusy(true);
                   try {
                     await mutate(`/api/paper/${id}/advance`, {
-                      request_id: crypto.randomUUID(),
+                      request_id: newRequestId(),
                     });
                     q.refresh();
                   } catch (e) {

@@ -67,18 +67,16 @@ Data Hub 只通过 Tushare 自动同步全部期货历史数据，不提供文�
 本地开发需为 API 和 worker 设置同一个绝对路径 `NORTHSTAR_DATA_SECRET_DIR`（私有目录权限 0700）。
 同步范围、备份与当前研究语义限制见 [架构](docs/ARCHITECTURE.md#4-数据与时间)。
 
-当前工作台通过 SSH 隧道访问，保留本机 Host/Origin 保护：
+Data Hub 和 Research 部署后可从家庭局域网直接访问；浏览器所在机器须能解析对应主机名。
+部署自动识别主机实际连接的 IPv4 私有网段，为前端配置局域网防火墙规则，保留同源和会话校验。
 
-```sh
-ssh -N -L 18082:127.0.0.1:18082 core.local
-ssh -N -L 18084:127.0.0.1:18084 research.local
-```
-
-| 应用 | 隧道建立后的浏览器地址 |
+| 应用 | 浏览器地址 |
 |---|---|
-| Data Hub | <http://127.0.0.1:18082> |
-| Research | <http://127.0.0.1:18084> |
-| Live | <http://127.0.0.1:18080>（远程访问见独立 Live 部署说明） |
+| Data Hub | <http://core.local:18082> |
+| Research | <http://research.local:18084> |
+| Live | <http://127.0.0.1:18080>（仍通过 SSH 隧道访问，见独立 Live 部署说明） |
+
+Data Hub/Research 仍支持本机 `127.0.0.1` 和 SSH 隧道；Python API 端口不向局域网开放。
 
 `make ps-data` / `ps-research` / `ps-live` 查看状态；`make down-data` / `down-research` / `down-live` 只停止对应应用并保留主机数据目录。
 core 上的数据库单独使用 `make ps-database` / `down-database`；停止会影响 Data Hub，不会停止 Research 或 Live 的本地存储。

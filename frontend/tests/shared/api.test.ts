@@ -187,3 +187,31 @@ it("preserves explicit false and zero without inventing omitted authority", asyn
     ),
   ).rejects.toThrow("精确表示");
 });
+
+it("submits commands on LAN HTTP without crypto.randomUUID", async () => {
+  const getRandomValues = globalThis.crypto.getRandomValues.bind(
+    globalThis.crypto,
+  );
+  vi.stubGlobal("crypto", { getRandomValues });
+  try {
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(response("session"))
+      .mockResolvedValueOnce(response("budget"));
+    vi.stubGlobal("fetch", fetch);
+    const api = await import("../../shared/api");
+    const id = api.requestId();
+    await expect(
+      api.mutate("/api/streams/s/opening-budgets", {
+        request_id: id,
+        limit_price: "123.45",
+        sequence: 7,
+        order_check_id: "check",
+      }),
+    ).resolves.toMatchObject({ status: "RECORDED" });
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(new TextDecoder().decode(fetch.mock.calls[1][1].body)).toContain(id);
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});

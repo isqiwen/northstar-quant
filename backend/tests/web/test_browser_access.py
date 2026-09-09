@@ -36,3 +36,30 @@ def test_browser_commands_require_same_app_csrf_origin_and_unexpired_session() -
         with TestClient(app, base_url="http://127.0.0.1") as other:
             assert other.post("/api/change", headers={"X-Northstar-CSRF": token}).status_code == 403
         assert accepted == [True]
+
+
+def test_lan_host_keeps_csrf_origin_and_live_isolation() -> None:
+    for host in ("core.local", "research.local"):
+        app = create_host("LAN workspace", (), allowed_hosts=(host,))
+        access = app.state.workspace_access
+
+        @app.post("/api/change")
+        def change(request: Request) -> dict:
+            access.protect(request)
+            return {"ok": True}
+
+        with TestClient(app, base_url=f"http://{host}:18082") as client:
+            token = client.get("/api/browser-session").json()["csrf"]
+            assert client.post("/api/change").status_code == 403
+            headers = {"X-Northstar-CSRF": token, "Origin": f"http://{host}:18082"}
+            assert client.post("/api/change", headers=headers).status_code == 200
+            for override in (
+                {"Origin": "http://evil.example"},
+                {"Host": "evil.example"},
+                {"Host": f"{host}:99999"},
+                {"Sec-Fetch-Site": "cross-site"},
+                {"X-Forwarded-Host": host},
+            ):
+                assert client.post("/api/change", headers=headers | override).status_code == 403
+        with TestClient(create_host("Northstar Live", ()), base_url=f"http://{host}:18080") as live:
+            assert live.get("/api/browser-session").status_code == 403

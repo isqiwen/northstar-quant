@@ -41,6 +41,7 @@ def deployment(tmp_path: Path) -> tuple[Path, Path, dict]:
     (repo / "scripts/operations/check_storage.py").write_text(
         "import os, sys\nprint('{}')\nsys.exit(int(os.environ.get('MOUNT_RESULT', '0')))\n"
     )
+    (repo / "scripts/operations/lan_firewall.py").write_text("# firewall verified separately\n")
     for app in ("database", "data_hub", "research", "live"):
         folder = repo / "deploy" / app
         folder.mkdir(parents=True)
@@ -87,10 +88,11 @@ name = Path(sys.argv[0]).name
 with open(os.environ['RECORD'], 'a') as file:
     file.write(json.dumps([name, *sys.argv[1:]]) + '\\n')
 if name == 'sudo':
-    if os.environ.get('ASK_SUDO'):
+    if os.environ.get('ASK_SUDO') and not Path(os.environ['RECORD'] + '.sudo-auth').exists():
         import getpass
         if '-n' in sys.argv: sys.exit(1)
         if getpass.getpass('sudo password: ') != os.environ['ASK_SUDO']: sys.exit(1)
+        Path(os.environ['RECORD'] + '.sudo-auth').touch()
     args = sys.argv[1:]
     while args and args[0] in ('-n', '--'): args.pop(0)
     sys.exit(subprocess.run(args).returncode)
@@ -100,6 +102,11 @@ if name == 'ssh':
     sys.exit(subprocess.run(sys.argv[-1], shell=True).returncode)
 if name == 'docker' and sys.argv[1:] == ['info']:
     sys.exit(int(os.environ.get('DOCKER_INFO_RESULT', '0')))
+if name == 'docker' and 'config' in sys.argv and '--format' in sys.argv:
+    ports = [('data-hub',18082),('research',18084)]
+    services = {{app: {{'ports': [{{'published': port}}]}} for app, port in ports}}
+    print(json.dumps({{'services': services}}))
+    sys.exit(0)
 if name == 'docker' and '--format' in sys.argv:
     config = json.loads(Path({str(tmp_path / "daemon.json")!r}).read_text())
     print(json.dumps(config['registry-mirrors']))

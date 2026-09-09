@@ -1,4 +1,4 @@
-"""One local browser session policy for HTTP commands and connected UI events."""
+"""Owned browser session policy for HTTP commands and connected UI events."""
 
 from __future__ import annotations
 
@@ -12,7 +12,6 @@ from starlette.responses import JSONResponse, Response
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 COOKIE = "northstar_workspace_session"
-_LOCAL_HOST = re.compile(r"(?:127\.0\.0\.1|localhost)(?::[1-9][0-9]{0,4})?\Z")
 _SESSION_SECONDS = 1800
 _DENIED = "工作台会话缺失或已过期。请重新打开工作台页面后操作。"
 
@@ -20,8 +19,9 @@ _DENIED = "工作台会话缺失或已过期。请重新打开工作台页面后
 class WorkspaceAccess:
     """Process-local browser identity, never broker credentials or execution authority."""
 
-    def __init__(self, cookie: str = COOKIE) -> None:
+    def __init__(self, cookie: str = COOKIE, *, allowed_hosts: tuple[str, ...] = ()) -> None:
         self.cookie = cookie
+        self.allowed_hosts = {"127.0.0.1", "localhost", *allowed_hosts}
         self._sessions: dict[str, tuple[str, float]] = {}
 
     def open(self, request: Request) -> str:
@@ -77,13 +77,14 @@ class WorkspaceAccess:
                 raise HTTPException(status_code=403, detail="Publication access is read-only")
             return
         authority = headers.get("host", "")
-        if _LOCAL_HOST.fullmatch(authority) is None:
-            raise HTTPException(status_code=403, detail="仅接受本机访问。")
+        match = re.fullmatch(r"([a-zA-Z0-9.-]+)(?::([1-9][0-9]{0,4}))?", authority)
+        if match is None or match[1].lower() not in self.allowed_hosts:
+            raise HTTPException(status_code=403, detail="未允许的工作台地址。")
         if ":" in authority and int(authority.rsplit(":", 1)[1]) > 65535:
-            raise HTTPException(status_code=403, detail="无效的本机地址。")
+            raise HTTPException(status_code=403, detail="无效的工作台地址。")
         # The frontend passes checked Host/Origin directly; forwarded headers grant no trust.
         if any(name == "forwarded" or name.startswith("x-forwarded-") for name in headers):
-            raise HTTPException(status_code=403, detail="本机工作台不接受代理转发头。")
+            raise HTTPException(status_code=403, detail="工作台不接受代理转发头。")
         if socket or scope.get("method") not in {"GET", "HEAD"}:
             scheme = "https" if scope.get("scheme") in {"https", "wss"} else "http"
             origin = headers.get("origin")
@@ -96,7 +97,7 @@ class WorkspaceAccess:
         self._sessions.clear()
 
 
-class LocalWorkspaceMiddleware:
+class WorkspaceMiddleware:
     """Reject untrusted HTTP and WebSocket origins before either transport is accepted."""
 
     def __init__(self, app: ASGIApp, access: WorkspaceAccess) -> None:

@@ -1,4 +1,5 @@
 "use client";
+import { requestId as newRequestId } from "../../../shared/api";
 import { useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -93,7 +94,7 @@ export function NewExperiment() {
               (c) => c.configuration_id === v.configuration_id,
             );
             if (!selected) return;
-            const requestId = identity || crypto.randomUUID();
+            const requestId = identity || newRequestId();
             setIdentity(requestId);
             setBusy(true);
             try {

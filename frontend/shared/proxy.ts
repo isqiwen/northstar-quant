@@ -3,10 +3,18 @@ import { NextRequest } from "next/server";
 import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
 const MAX_BODY = 8 * 1024 * 1024;
-export async function forward(request: NextRequest): Promise<Response> {
+export async function forward(
+  request: NextRequest,
+  allowedHosts: readonly string[] = [],
+): Promise<Response> {
   const authority = request.headers.get("host") || "";
-  if (!/^(127\.0\.0\.1|localhost):[0-9]+$/.test(authority))
-    return new Response("仅接受本机访问", { status: 403 });
+  const host = /^([a-zA-Z0-9.-]+):([1-9][0-9]{0,4})$/.exec(authority);
+  if (
+    !host ||
+    Number(host[2]) > 65535 ||
+    !["127.0.0.1", "localhost", ...allowedHosts].includes(host[1].toLowerCase())
+  )
+    return new Response("未允许的工作台地址", { status: 403 });
   const origin = request.headers.get("origin");
   if (
     origin &&

@@ -13,15 +13,15 @@ from northstar_quant.data_management.library import AdmissionRejected
 from northstar_quant.live import CommandUnknown, RuntimeUnavailable
 from northstar_quant.web import common_pb2
 from northstar_quant.web.access import (
-    LocalWorkspaceMiddleware,
     WorkspaceAccess,
+    WorkspaceMiddleware,
     content_security_policy,
 )
 from northstar_quant.web.protobuf import MEDIA_TYPE, pack
 
 
 def install(app: FastAPI, access: WorkspaceAccess) -> None:
-    app.add_middleware(LocalWorkspaceMiddleware, access=access)
+    app.add_middleware(WorkspaceMiddleware, access=access)
 
     @app.exception_handler(RuntimeUnavailable)
     async def live_unavailable(_request: Request, _error: RuntimeUnavailable) -> JSONResponse:

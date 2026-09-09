@@ -34,8 +34,12 @@ def create_host(
     navigation: tuple[tuple[str, str], ...],
     *,
     close: Callable[[], Awaitable[None]] | None = None,
+    allowed_hosts: tuple[str, ...] = (),
 ) -> FastAPI:
-    access = WorkspaceAccess(cookie=title.split(" · ")[0].lower().replace(" ", "_") + "_session")
+    access = WorkspaceAccess(
+        cookie=title.split(" · ")[0].lower().replace(" ", "_") + "_session",
+        allowed_hosts=allowed_hosts,
+    )
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
