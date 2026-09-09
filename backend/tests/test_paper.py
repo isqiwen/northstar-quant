@@ -23,7 +23,7 @@ from northstar_quant.research.paper import PaperStore
 
 
 def _study(engine: Engine, tmp_path: Path) -> tuple[DataLibrary, ResearchDataset, ResearchConfig]:
-    path = Path(__file__).resolve().parents[2] / "examples/intraday.toml"
+    path = Path(__file__).resolve().parent / "data/intraday.toml"
     study = tomllib.loads(path.read_text())
     source = dict(study["source"])
     csv = path.parent / source.pop("file")

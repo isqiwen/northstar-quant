@@ -55,11 +55,11 @@ jobs:
           uv pip install --python "$RUNNER_TEMP/northstar-installed/bin/python" --require-hashes --no-deps --requirements "$RUNNER_TEMP/northstar-runtime.txt"
           uv pip install --python "$RUNNER_TEMP/northstar-installed/bin/python" --no-deps "$RUNNER_TEMP"/northstar-dist/*.whl
           uv pip check --python "$RUNNER_TEMP/northstar-installed/bin/python"
-          "$RUNNER_TEMP/northstar-installed/bin/python" scripts/acceptance/check_install.py examples/intraday.toml
+          "$RUNNER_TEMP/northstar-installed/bin/python" scripts/acceptance/check_install.py backend/tests/data/intraday.toml
       - name: Verify all three applications in an isolated browser
         run: |
           uv run --project backend --with playwright==1.62.0 python -m playwright install --with-deps chromium
-          uv run --project backend --with playwright==1.62.0 python scripts/acceptance/check_browser.py --executable "$RUNNER_TEMP/northstar-installed/bin/northstar" --study examples/intraday.toml --screenshot "$RUNNER_TEMP/northstar-factor-browser.png"
+          uv run --project backend --with playwright==1.62.0 python scripts/acceptance/check_browser.py --executable "$RUNNER_TEMP/northstar-installed/bin/northstar" --study backend/tests/data/intraday.toml --screenshot "$RUNNER_TEMP/northstar-factor-browser.png"
       - name: Build and verify the runtime image
         env:
           NORTHSTAR_DATABASE_ADMIN_PASSWORD: isolated-config-admin-password
@@ -85,8 +85,8 @@ jobs:
             --log-driver local --log-opt max-size=10m --log-opt max-file=3 \
             --env NORTHSTAR_TEST_DATABASE_URL \
             --mount "type=bind,source=$GITHUB_WORKSPACE/scripts,target=/tmp/install-check,readonly" \
-            --mount "type=bind,source=$GITHUB_WORKSPACE/examples,target=/tmp/examples,readonly" \
-            northstar-local /app/.venv/bin/python /tmp/install-check/acceptance/check_install.py /tmp/examples/intraday.toml
+            --mount "type=bind,source=$GITHUB_WORKSPACE/backend/tests/data,target=/tmp/test-data,readonly" \
+            northstar-local /app/.venv/bin/python /tmp/install-check/acceptance/check_install.py /tmp/test-data/intraday.toml
       - name: Verify core database and independent application deployments
         run: uv run --project backend python scripts/acceptance/check_application_deployment.py --image northstar-local --data-image northstar-data-frontend:check --research-image northstar-research-frontend:check
       - name: Verify the isolated Live deployment and failure behavior

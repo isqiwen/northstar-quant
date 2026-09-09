@@ -26,7 +26,7 @@ API 和内核的 `serve` 命令支持 `--port`，仅监听本机；`data-worker`
 northstar data sync
 northstar data datasets
 northstar data dataset <snapshot-id>
-northstar research run <snapshot-id> --study examples/intraday.toml
+northstar research run <snapshot-id> --study backend/tests/data/intraday.toml
 northstar research list
 northstar research show <run-id>
 northstar research replay <run-id>

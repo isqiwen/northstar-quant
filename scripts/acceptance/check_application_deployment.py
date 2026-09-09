@@ -159,7 +159,7 @@ class Deployment:
         with self.client("research", "research") as research:
             assert request(research, "research", "/api/datasets") == []
             self.run("data_hub", "stop", "data-worker")
-            settings = tomllib.loads((ROOT / "examples/intraday.toml").read_text())
+            settings = tomllib.loads((ROOT / "backend/tests/data/intraday.toml").read_text())
             source = settings["source"]
             filename = source.pop("file")
             with self.client("data_hub", "data-hub") as data:
@@ -167,7 +167,7 @@ class Deployment:
                 # Data Hub has no public/manual file upload endpoint.
                 payload = {
                     "content_base64": base64.b64encode(
-                        (ROOT / "examples" / filename).read_bytes()
+                        (ROOT / "backend/tests/data" / filename).read_bytes()
                     ).decode(),
                     "filename": filename,
                     "source_name": source["source_name"],

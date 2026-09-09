@@ -31,7 +31,7 @@ Python 路径均相对于 `backend/src/northstar_quant/`。
 ## 固定配置与复用
 
 `ResearchConfig` 装配 `StrategyConfig`、`RiskConfig`、`SimulationConfig`，完整文件示例见
-[`examples/intraday.toml`](../examples/intraday.toml)。例如：
+[`backend/tests/data/intraday.toml`](../backend/tests/data/intraday.toml)。例如：
 
 ```python
 from northstar_quant.factors.evaluation import Binding

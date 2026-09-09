@@ -30,7 +30,7 @@ def processing_identity(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def _study() -> tuple[bytes, dict[str, object], ResearchConfig]:
-    path = Path(__file__).resolve().parents[3] / "examples/intraday.toml"
+    path = Path(__file__).resolve().parents[1] / "data/intraday.toml"
     study = tomllib.loads(path.read_text())
     source = dict(study["source"])
     content = (path.parent / source.pop("file")).read_bytes()

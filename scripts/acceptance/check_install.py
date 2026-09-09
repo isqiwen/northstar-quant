@@ -29,7 +29,7 @@ from support.restore import check_restore
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("study", type=Path, help="path to examples/intraday.toml")
+    parser.add_argument("study", type=Path, help="path to backend/tests/data/intraday.toml")
     study = parser.parse_args().study.resolve()
     if sys.flags.optimize:
         parser.error("run without -O or PYTHONOPTIMIZE so acceptance assertions are enforced")
