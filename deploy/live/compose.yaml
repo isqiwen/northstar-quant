@@ -162,7 +162,7 @@ services:
       NORTHSTAR_API_URL: http://live-api:19080
     networks: [frontend, ingress]
     ports:
-      - "127.0.0.1:${NORTHSTAR_LIVE_WEB_PORT:-18080}:3000"
+      - "0.0.0.0:${NORTHSTAR_LIVE_WEB_PORT:-18080}:3000"
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
       interval: 10s

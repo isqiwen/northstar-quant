@@ -1,4 +1,5 @@
 "use client";
+import { requestId } from "../../shared/api";
 import { query, mutate } from "./api/client";
 import { useState } from "react";
 import { App, Button, Card, Upload, Alert } from "antd";
@@ -120,7 +121,7 @@ export function Materials() {
               const candidate = JSON.parse(await file.text());
               await mutate(
                 "/api/strategy-materials",
-                { candidate, request_id: crypto.randomUUID() },
+                { candidate, request_id: requestId() },
                 runtime.id,
               );
               q.refresh();

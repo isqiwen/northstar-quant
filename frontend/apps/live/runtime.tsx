@@ -26,7 +26,7 @@ import {
   Checkbox,
 } from "antd";
 import { useData } from "../../shared/data";
-import { pendingCommand } from "../../shared/api";
+import { pendingCommand, requestId } from "../../shared/api";
 import { Evidence, Failure, Identity } from "../../shared/ui";
 const Runtime = createContext<{
   id?: string;
@@ -133,7 +133,7 @@ export function Action<P extends CommandPath>({
               {
                 ...v,
                 ...fixed,
-                request_id: crypto.randomUUID(),
+                request_id: requestId(),
               } as CommandBody<P>,
               runtime.id,
             );

@@ -1,4 +1,5 @@
 "use client";
+import { requestId } from "../../shared/api";
 import { query, mutate } from "./api/client";
 import { useState } from "react";
 import { App, Button, Card, Form } from "antd";
@@ -94,7 +95,7 @@ export function ArchiveAttempt() {
                 try {
                   const result = await mutate(
                     `/api/sources/${q.data!.source_id}/reprocess`,
-                    { spec: v.spec, request_id: crypto.randomUUID() },
+                    { spec: v.spec, request_id: requestId() },
                     runtime.id,
                   );
                   navigate(`/attempts/${result.attempt_id}`);

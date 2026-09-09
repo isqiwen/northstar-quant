@@ -148,10 +148,10 @@ python3 scripts/northstarctl.py deploy live --env-file ~/.config/northstar/live.
 
 打开 <http://core.local:18082>，在历史同步页设置 Tushare token 并启动同步。
 Research 网页为 <http://research.local:18084>。也可使用所属主机的局域网 IPv4 地址（例如 `http://192.168.50.10:18082`）。
-Data Hub/Research 不限制来源 IP，支持任意合法 IP 地址及默认主机名访问，无需配置 IP 白名单；保留同源和会话校验。
+Live 网页为 <http://quant.wangqiwen.me:18080>。三个应用不限制来源 IP，支持任意合法 IP 地址及默认主机名访问，无需配置 IP 白名单；保留同源和会话校验。
 前端发布到 `0.0.0.0`，API 仍仅绑定本机。`deploy/start/restart` 自动开放对应前端端口，
 通过 iptables 的 `INPUT` 和 `DOCKER-USER` 两个入口兼容 UFW 与 Docker 转发，只维护各应用自己的规则。
-重复执行不追加重复规则，不修改 SSH、数据库或 Live 规则。
+重复执行不追加重复规则，不修改 SSH、数据库或其他应用规则。
 对应 `northstar-<应用>-firewall.service` 在开机/Docker 重启后重新应用。
 要求 Docker 使用 iptables 防火墙后端（当前默认），不关闭或重置现有 UFW。
 可用 `sudo unshare --net python3 scripts/acceptance/check_web_firewall.py` 在隔离网络中验证规则。
@@ -195,3 +195,5 @@ Research 在目标主机运行 `python3 scripts/operations/compose.py backup res
 core 联合备份包含 `storage-bindings.json`；恢复 core 时连同目录标记一起还原到上述绑定状态位置。
 Research 备份也保存绑定，恢复时自动还原，不需要手工生成新 UUID。
 备份与原数据放在同一块磁盘不能抵御磁盘故障，应另存独立副本。
+
+每次部署验证成功后，自动删除所属应用的旧源码版本和未被容器使用的旧镜像标签，只保留当前版本。部署失败不清理旧版本；仍被容器引用的旧版本会保留并明确报错。配置、业务数据、依赖与构建缓存不清理。

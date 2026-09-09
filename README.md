@@ -67,16 +67,16 @@ Data Hub 只通过 Tushare 自动同步全部期货历史数据，不提供文�
 本地开发需为 API 和 worker 设置同一个绝对路径 `NORTHSTAR_DATA_SECRET_DIR`（私有目录权限 0700）。
 同步范围、备份与当前研究语义限制见 [架构](docs/ARCHITECTURE.md#4-数据与时间)。
 
-Data Hub 和 Research 部署后可从家庭局域网直接访问；也可使用所属主机的局域网 IP（例如 `http://192.168.50.10:18082`）。
-部署自动开放两个前端端口，不限制来源 IP，也不需要登记访问 IP；保留同源和会话校验。
+三个应用部署后可通过所属主机直接访问；也可使用所属主机的局域网 IP（例如 `http://192.168.50.10:18082`）。
+部署自动开放三个前端端口，不限制来源 IP，也不需要登记访问 IP；保留同源和会话校验。
 
 | 应用 | 浏览器地址 |
 |---|---|
 | Data Hub | <http://core.local:18082> |
 | Research | <http://research.local:18084> |
-| Live | <http://127.0.0.1:18080>（仍通过 SSH 隧道访问，见独立 Live 部署说明） |
+| Live | <http://quant.wangqiwen.me:18080> |
 
-Data Hub/Research 仍支持本机 `127.0.0.1` 和 SSH 隧道；Python API 端口不向局域网开放。
+三个应用仍支持本机 `127.0.0.1` 和 SSH 隧道；Python API 端口不向局域网开放。
 
 `make ps-data` / `ps-research` / `ps-live` 查看状态；`make down-data` / `down-research` / `down-live` 只停止对应应用并保留主机数据目录。
 core 上的数据库单独使用 `make ps-database` / `down-database`；停止会影响 Data Hub，不会停止 Research 或 Live 的本地存储。

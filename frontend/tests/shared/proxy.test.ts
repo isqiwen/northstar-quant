@@ -21,6 +21,7 @@ test("LAN requests retain Host, cookie, CSRF and protobuf bytes upstream", async
     for (const host of [
       "core.local:18082",
       "research.local:18084",
+      "quant.wangqiwen.me:18080",
       "192.168.50.10:18082",
       "198.51.100.10:18082",
       "[2001:db8::10]:18082",
@@ -38,7 +39,7 @@ test("LAN requests retain Host, cookie, CSRF and protobuf bytes upstream", async
       });
       const response = await forward(
         request,
-        [host.startsWith("research") ? "research.local" : "core.local"],
+        ["research.local", "core.local", "quant.wangqiwen.me"],
         true,
       );
       expect(response.status).toBe(200);
@@ -51,7 +52,7 @@ test("LAN requests retain Host, cookie, CSRF and protobuf bytes upstream", async
         cookie: "session=test",
         "x-northstar-csrf": "csrf",
       });
-      expect((await forward(request)).status).toBe(403); // Live remains loopback-only.
+      expect((await forward(request)).status).toBe(403); // Unconfigured shared policies remain loopback-only.
     }
   } finally {
     await new Promise<void>((resolve) => server.close(() => resolve()));

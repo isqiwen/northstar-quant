@@ -63,9 +63,10 @@ def manage(app: str, action: str, *, follow: bool = False) -> None:
     ]
     if project := os.environ.get("COMPOSE_PROJECT_NAME"):
         compose[2:2] = ["-p", project]
-    if app in {"data-hub", "research"} and action in {"deploy", "start", "restart"}:
+    if app in {"data-hub", "research", "live"} and action in {"deploy", "start", "restart"}:
         config = json.loads(run(*compose, "config", "--format", "json", capture=True))
-        port = str(config["services"][app]["ports"][0]["published"])
+        service = "live-web" if app == "live" else app
+        port = str(config["services"][service]["ports"][0]["published"])
         run(
             *([] if os.geteuid() == 0 else ["sudo", "-n", "--"]),
             sys.executable,

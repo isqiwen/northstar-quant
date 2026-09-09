@@ -162,6 +162,9 @@ def execute(request: dict) -> None:
                 cwd=release,
             )
             (root / "successful-revision").write_text(revision + "\n")
+            run(
+                sys.executable, "scripts/operations/cleanup_versions.py", app, revision, cwd=release
+            )
             print(f"部署完成：{app} {revision}", flush=True)
         else:
             if not active.is_symlink():

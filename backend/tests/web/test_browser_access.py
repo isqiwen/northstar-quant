@@ -38,16 +38,20 @@ def test_browser_commands_require_same_app_csrf_origin_and_unexpired_session() -
         assert accepted == [True]
 
 
-def test_ip_access_keeps_csrf_origin_and_live_isolation() -> None:
+def test_ip_access_keeps_csrf_origin_and_explicit_app_policy() -> None:
     for host in (
         "core.local",
         "research.local",
+        "quant.wangqiwen.me",
         "192.168.50.10",
         "198.51.100.10",
         "[2001:db8::10]",
     ):
         app = create_host(
-            "IP workspace", (), allowed_hosts=("research.local", "core.local"), allow_ip_hosts=True
+            "IP workspace",
+            (),
+            allowed_hosts=("research.local", "core.local", "quant.wangqiwen.me"),
+            allow_ip_hosts=True,
         )
         access = app.state.workspace_access
 

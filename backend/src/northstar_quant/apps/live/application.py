@@ -24,6 +24,8 @@ def create_app(*, live: LiveClient) -> FastAPI:
             ("运行诊断", "/live"),
         ),
         close=close,
+        allowed_hosts=("quant.wangqiwen.me",),
+        allow_ip_hosts=True,
     )
     app.state.live = live
     broker_api.register(app, app.state.workspace_access, live)

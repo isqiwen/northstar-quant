@@ -37,7 +37,7 @@ The supported settings are:
 - `NORTHSTAR_LIVE_DATABASE_PASSWORD`: the local database password, default `123456`.
 - `NORTHSTAR_LIVE_KERNEL_MEMORY`, `NORTHSTAR_LIVE_DATABASE_MEMORY`: explicit memory
   budgets established from the intended workload. The kernel has no fixed CPU quota.
-- `NORTHSTAR_LIVE_WEB_PORT`: optional loopback port, default 18080.
+- `NORTHSTAR_LIVE_WEB_PORT`: optional frontend port, default 18080.
 
 Run on the intended host after deployment authorization:
 
@@ -50,12 +50,12 @@ Do not print rendered Compose configuration: it contains the database password.
 Changing that variable does not rotate the password of an existing database.
 Persistent host paths are fixed; changing the Compose project name does not create a separate Live instance.
 
-Live Web and its API (default 19080) are published on loopback for local development. PostgreSQL and the kernel have no host
-ports; the frontend and management API have no storage network, database settings, sources or broker secrets.
-For initial private management, use an authenticated SSH tunnel to that loopback
-port, preserving localhost Host/Origin for HTTP and WebSocket. Do not expose the
-raw Web publicly or weaken same-origin checks. A reverse proxy/public endpoint
-needs its own authentication, TLS and WebSocket verification before use.
+Live Web is published on `0.0.0.0:18080` by default, accessible through the host IP
+or `quant.wangqiwen.me`, without source IP restrictions. Deployment opens its frontend
+port; same-origin, browser-session and trading authorization checks remain in place.
+The API (default 19080) is bound to loopback. PostgreSQL and the kernel have no host
+ports; the frontend and management API have no storage network, database settings,
+sources or broker secrets.
 
 Web readiness only means its HTTP process is serving. Query `/api/live/status`
 through the normal same-origin session or run `northstar status` inside the

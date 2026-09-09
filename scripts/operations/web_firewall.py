@@ -10,7 +10,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-APPS = {"data-hub": "NS-DATA-WEB", "research": "NS-RESEARCH-WEB"}
+APPS = {"data-hub": "NS-DATA-WEB", "research": "NS-RESEARCH-WEB", "live": "NS-LIVE-WEB"}
 
 
 def run(*args: str, **kwargs) -> subprocess.CompletedProcess:

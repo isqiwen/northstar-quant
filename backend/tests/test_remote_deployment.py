@@ -103,11 +103,11 @@ if name == 'ssh':
 if name == 'docker' and sys.argv[1:] == ['info']:
     sys.exit(int(os.environ.get('DOCKER_INFO_RESULT', '0')))
 if name == 'docker' and 'config' in sys.argv and '--format' in sys.argv:
-    ports = [('data-hub',18082),('research',18084)]
+    ports = [('data-hub',18082),('research',18084),('live-web',18080)]
     services = {{app: {{'ports': [{{'published': port}}]}} for app, port in ports}}
     print(json.dumps({{'services': services}}))
     sys.exit(0)
-if name == 'docker' and '--format' in sys.argv:
+if name == 'docker' and 'info' in sys.argv and '--format' in sys.argv:
     config = json.loads(Path({str(tmp_path / "daemon.json")!r}).read_text())
     print(json.dumps(config['registry-mirrors']))
 if name == 'uv':
