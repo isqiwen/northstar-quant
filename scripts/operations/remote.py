@@ -123,16 +123,6 @@ def execute(request: dict) -> None:
             release = active.resolve(strict=True)
             if release.parent != root.resolve() / "releases":
                 raise ValueError("部署版本路径不属于该对象")
-            compose = [
-                "docker",
-                "compose",
-                "--env-file",
-                str(env_file),
-                "-p",
-                project,
-                "-f",
-                str(release / "deploy" / folder / "compose.yaml"),
-            ]
             image_environment(app, release.name)
             print(f"当前配置版本：{release.name}", flush=True)
             if action == "status":
