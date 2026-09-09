@@ -141,6 +141,13 @@ def main() -> None:
                     assert imported["status"] == "PENDING", imported
                     page.wait_for_url(re.compile("/attempts/"))
                     expect(page.get_by_text("PENDING", exact=True)).to_be_visible()
+                    page.goto(data_url + "/")
+                    expect(page.get_by_text("加工队列", exact=True)).to_be_visible()
+                    expect(page.get_by_text("最早排队任务：", exact=False)).to_be_visible()
+                    page.get_by_role(
+                        "link", name=imported["attempt_id"][:8], exact=True
+                    ).first.click()
+                    page.wait_for_url(re.compile("/attempts/"))
                     page.goto("about:blank")
                 # Both frontend and API have exited. Only the independent processor
                 # now owns completion; reopening the Web reads its durable outcome.
@@ -169,6 +176,7 @@ def main() -> None:
                     expect(
                         page.get_by_role("heading", name="数据管理中心", exact=True)
                     ).to_be_visible()
+                    expect(page.get_by_text("无排队任务", exact=True)).to_be_visible()
                     screenshot("data")
                 with app.web("research-api") as url:
                     page.goto(url + "/factors/trend.return")

@@ -5,11 +5,12 @@ import type { Query } from "../../../shared/data";
 import protocol from "./protocol.json";
 import codec from "./codec";
 registerProtocol(protocol, codec);
-export type GetPath = `/api/datasets/${string}/lineage` | `/api/datasets/${string}` | `/api/attempts/${string}` | `/api/sources/${string}` | `/api/browser-session` | `/api/rejections` | `/api/attempts` | `/api/datasets` | `/api/sources`;
+export type GetPath = `/api/datasets/${string}/lineage` | `/api/datasets/${string}` | `/api/attempts/${string}` | `/api/sources/${string}` | `/api/processing/status` | `/api/browser-session` | `/api/rejections` | `/api/attempts` | `/api/datasets` | `/api/sources`;
 export type GetResponse<P> = P extends `/api/datasets/${string}/lineage` ? messages.DatasetLineage :
 P extends `/api/datasets/${string}` ? messages.DatasetDetails :
 P extends `/api/attempts/${string}` ? messages.ProcessingAttempt :
 P extends `/api/sources/${string}` ? messages.SourceRecord :
+P extends `/api/processing/status` ? messages.ProcessingQueueStatus :
 P extends `/api/browser-session` ? messages.BrowserSession :
 P extends `/api/rejections` ? messages.GetApiRejectionsResponse :
 P extends `/api/attempts` ? messages.GetApiAttemptsResponse :

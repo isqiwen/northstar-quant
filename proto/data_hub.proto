@@ -158,7 +158,24 @@ message GetApiSourcesResponse {
   repeated SourceRecord items = 1;
 }
 
+message ProcessingQueueStatus {
+  optional string observed_at = 1 [json_name = "observed_at", (northstar.web.required_field) = true];
+  optional int64 total = 2 [json_name = "total", (northstar.web.required_field) = true];
+  optional int64 pending = 3 [json_name = "pending", (northstar.web.required_field) = true];
+  optional int64 running = 4 [json_name = "running", (northstar.web.required_field) = true];
+  optional int64 published = 5 [json_name = "published", (northstar.web.required_field) = true];
+  optional int64 failed = 6 [json_name = "failed", (northstar.web.required_field) = true];
+  optional string oldest_pending_id = 7 [json_name = "oldest_pending_id", (northstar.web.nullable) = true];
+  optional string oldest_pending_at = 8 [json_name = "oldest_pending_at", (northstar.web.nullable) = true];
+  optional int64 oldest_pending_seconds = 9 [json_name = "oldest_pending_seconds", (northstar.web.nullable) = true];
+  repeated string null_fields = 2046;
+}
+
 service BrowserApi {
+  rpc GetApiProcessingStatus (northstar.web.Empty) returns (ProcessingQueueStatus) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/processing/status";
+  }
   rpc GetApiAttempts (northstar.web.Empty) returns (GetApiAttemptsResponse) {
     option (northstar.web.http_method) = "GET";
     option (northstar.web.http_path) = "/api/attempts";

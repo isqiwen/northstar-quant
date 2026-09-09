@@ -119,6 +119,17 @@ export type GetApiAttemptsResponse = (ProcessingAttempt)[];
 export type GetApiDatasetsResponse = (DatasetSummary)[];
 export type GetApiRejectionsResponse = (AdmissionRejection)[];
 export type GetApiSourcesResponse = (SourceRecord)[];
+export type ProcessingQueueStatus = {
+  observed_at: string;
+  total: number;
+  pending: number;
+  running: number;
+  published: number;
+  failed: number;
+  oldest_pending_id?: string | null;
+  oldest_pending_at?: string | null;
+  oldest_pending_seconds?: number | null;
+};
 export type Empty = {
 };
 export type Error = {

@@ -24,6 +24,8 @@ from northstar_quant.web.requests import (
     _uuid_field,
 )
 
+from .processing_api import ProcessingAttempt
+
 
 class ImportRequest(ApiModel):
     content_base64: str
@@ -44,17 +46,6 @@ class ReprocessRequest(ApiModel):
     # Saved before processing validation, so failures remain inspectable evidence.
     spec: dict[str, JsonValue]
     request_id: UUIDText
-
-
-class ProcessingAttempt(EvidenceRecord):
-    attempt_id: str
-    source_id: str
-    status: str
-    stage: str
-    snapshot_id: str | None
-    error: str | None
-    parameters: dict[str, JsonValue]
-    created_at: str
 
 
 class SourceRecord(EvidenceRecord):
@@ -114,20 +105,6 @@ def register(app: FastAPI, access: WorkspaceAccess, library: DataLibrary) -> Non
     )
     def source_details(source_id: UUID) -> dict[str, object]:
         return library.source(source_id)
-
-    @app.get(
-        "/api/attempts", response_model=list[ProcessingAttempt], response_model_exclude_unset=True
-    )
-    def list_attempts(limit: int = 50) -> list[dict[str, object]]:
-        return library.list_attempts(limit=limit)
-
-    @app.get(
-        "/api/attempts/{attempt_id}",
-        response_model=ProcessingAttempt,
-        response_model_exclude_unset=True,
-    )
-    def attempt_details(attempt_id: UUID) -> dict[str, object]:
-        return library.attempt(attempt_id)
 
     @app.get("/api/sources/{source_id}/download")
     async def download_source(request: Request, source_id: UUID) -> Response:

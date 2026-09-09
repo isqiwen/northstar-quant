@@ -9283,6 +9283,748 @@ export const northstar = $root.northstar = (() => {
             return GetApiSourcesResponse;
         })();
 
+        data_hub.ProcessingQueueStatus = (function() {
+
+            /**
+             * Properties of a ProcessingQueueStatus.
+             * @typedef {Object} northstar.data_hub.ProcessingQueueStatus.$Properties
+             * @property {string|null} [observed_at] ProcessingQueueStatus observed_at
+             * @property {number|Long|null} [total] ProcessingQueueStatus total
+             * @property {number|Long|null} [pending] ProcessingQueueStatus pending
+             * @property {number|Long|null} [running] ProcessingQueueStatus running
+             * @property {number|Long|null} [published] ProcessingQueueStatus published
+             * @property {number|Long|null} [failed] ProcessingQueueStatus failed
+             * @property {string|null} [oldest_pending_id] ProcessingQueueStatus oldest_pending_id
+             * @property {string|null} [oldest_pending_at] ProcessingQueueStatus oldest_pending_at
+             * @property {number|Long|null} [oldest_pending_seconds] ProcessingQueueStatus oldest_pending_seconds
+             * @property {Array.<string>|null} [null_fields] ProcessingQueueStatus null_fields
+             * @property {"observed_at"} [_observed_at] ProcessingQueueStatus _observed_at
+             * @property {"total"} [_total] ProcessingQueueStatus _total
+             * @property {"pending"} [_pending] ProcessingQueueStatus _pending
+             * @property {"running"} [_running] ProcessingQueueStatus _running
+             * @property {"published"} [_published] ProcessingQueueStatus _published
+             * @property {"failed"} [_failed] ProcessingQueueStatus _failed
+             * @property {"oldest_pending_id"} [_oldest_pending_id] ProcessingQueueStatus _oldest_pending_id
+             * @property {"oldest_pending_at"} [_oldest_pending_at] ProcessingQueueStatus _oldest_pending_at
+             * @property {"oldest_pending_seconds"} [_oldest_pending_seconds] ProcessingQueueStatus _oldest_pending_seconds
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a ProcessingQueueStatus.
+             * @memberof northstar.data_hub
+             * @interface IProcessingQueueStatus
+             * @augments northstar.data_hub.ProcessingQueueStatus.$Properties
+             * @deprecated Use northstar.data_hub.ProcessingQueueStatus.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a ProcessingQueueStatus.
+             * @typedef {{
+             *   observed_at?: string|null;
+             *   total?: number|Long|null;
+             *   pending?: number|Long|null;
+             *   running?: number|Long|null;
+             *   published?: number|Long|null;
+             *   failed?: number|Long|null;
+             *   oldest_pending_id?: string|null;
+             *   oldest_pending_at?: string|null;
+             *   oldest_pending_seconds?: number|Long|null;
+             *   null_fields?: Array.<string>|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _observed_at?: undefined; observed_at?: null }|{ _observed_at?: "observed_at"; observed_at: string })
+             * ) & (
+             *   ({ _total?: undefined; total?: null }|{ _total?: "total"; total: number|Long })
+             * ) & (
+             *   ({ _pending?: undefined; pending?: null }|{ _pending?: "pending"; pending: number|Long })
+             * ) & (
+             *   ({ _running?: undefined; running?: null }|{ _running?: "running"; running: number|Long })
+             * ) & (
+             *   ({ _published?: undefined; published?: null }|{ _published?: "published"; published: number|Long })
+             * ) & (
+             *   ({ _failed?: undefined; failed?: null }|{ _failed?: "failed"; failed: number|Long })
+             * ) & (
+             *   ({ _oldest_pending_id?: undefined; oldest_pending_id?: null }|{ _oldest_pending_id?: "oldest_pending_id"; oldest_pending_id: string })
+             * ) & (
+             *   ({ _oldest_pending_at?: undefined; oldest_pending_at?: null }|{ _oldest_pending_at?: "oldest_pending_at"; oldest_pending_at: string })
+             * ) & (
+             *   ({ _oldest_pending_seconds?: undefined; oldest_pending_seconds?: null }|{ _oldest_pending_seconds?: "oldest_pending_seconds"; oldest_pending_seconds: number|Long })
+             * )} northstar.data_hub.ProcessingQueueStatus.$Shape
+             */
+
+            /**
+             * Constructs a new ProcessingQueueStatus.
+             * @memberof northstar.data_hub
+             * @classdesc Represents a ProcessingQueueStatus.
+             * @constructor
+             * @param {northstar.data_hub.ProcessingQueueStatus.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const ProcessingQueueStatus = function (properties) {
+                this.null_fields = [];
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * ProcessingQueueStatus observed_at.
+             * @member {string|null|undefined} observed_at
+             * @memberof northstar.data_hub.ProcessingQueueStatus
+             * @instance
+             */
+            ProcessingQueueStatus.prototype.observed_at = null;
+
+            /**
+             * ProcessingQueueStatus total.
+             * @member {number|Long|null|undefined} total
+             * @memberof northstar.data_hub.ProcessingQueueStatus
+             * @instance
+             */
+            ProcessingQueueStatus.prototype.total = null;
+
+            /**
+             * ProcessingQueueStatus pending.
+             * @member {number|Long|null|undefined} pending
+             * @memberof northstar.data_hub.ProcessingQueueStatus
+             * @instance
+             */
+            ProcessingQueueStatus.prototype.pending = null;
+
+            /**
+             * ProcessingQueueStatus running.
+             * @member {number|Long|null|undefined} running
+             * @memberof northstar.data_hub.ProcessingQueueStatus
+             * @instance
+             */
+            ProcessingQueueStatus.prototype.running = null;
+
+            /**
+             * ProcessingQueueStatus published.
+             * @member {number|Long|null|undefined} published
+             * @memberof northstar.data_hub.ProcessingQueueStatus
+             * @instance
+             */
+            ProcessingQueueStatus.prototype.published = null;
+
+            /**
+             * ProcessingQueueStatus failed.
+             * @member {number|Long|null|undefined} failed
+             * @memberof northstar.data_hub.ProcessingQueueStatus
+             * @instance
+             */
+            ProcessingQueueStatus.prototype.failed = null;
+
+            /**
+             * ProcessingQueueStatus oldest_pending_id.
+             * @member {string|null|undefined} oldest_pending_id
+             * @memberof northstar.data_hub.ProcessingQueueStatus
+             * @instance
+             */
+            ProcessingQueueStatus.prototype.oldest_pending_id = null;
+
+            /**
+             * ProcessingQueueStatus oldest_pending_at.
+             * @member {string|null|undefined} oldest_pending_at
+             * @memberof northstar.data_hub.ProcessingQueueStatus
+             * @instance
+             */
+            ProcessingQueueStatus.prototype.oldest_pending_at = null;
+
+            /**
+             * ProcessingQueueStatus oldest_pending_seconds.
+             * @member {number|Long|null|undefined} oldest_pending_seconds
+             * @memberof northstar.data_hub.ProcessingQueueStatus
+             * @instance
+             */
+            ProcessingQueueStatus.prototype.oldest_pending_seconds = null;
+
+            /**
+             * ProcessingQueueStatus null_fields.
+             * @member {Array.<string>} null_fields
+             * @memberof northstar.data_hub.ProcessingQueueStatus
+             * @instance
+             */
+            ProcessingQueueStatus.prototype.null_fields = $util.emptyArray;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * ProcessingQueueStatus _observed_at.
+             * @member {"observed_at"|undefined} _observed_at
+             * @memberof northstar.data_hub.ProcessingQueueStatus
+             * @instance
+             */
+            $Object.defineProperty(ProcessingQueueStatus.prototype, "_observed_at", {
+                get: $util.oneOfGetter($oneOfFields = ["observed_at"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ProcessingQueueStatus _total.
+             * @member {"total"|undefined} _total
+             * @memberof northstar.data_hub.ProcessingQueueStatus
+             * @instance
+             */
+            $Object.defineProperty(ProcessingQueueStatus.prototype, "_total", {
+                get: $util.oneOfGetter($oneOfFields = ["total"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ProcessingQueueStatus _pending.
+             * @member {"pending"|undefined} _pending
+             * @memberof northstar.data_hub.ProcessingQueueStatus
+             * @instance
+             */
+            $Object.defineProperty(ProcessingQueueStatus.prototype, "_pending", {
+                get: $util.oneOfGetter($oneOfFields = ["pending"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ProcessingQueueStatus _running.
+             * @member {"running"|undefined} _running
+             * @memberof northstar.data_hub.ProcessingQueueStatus
+             * @instance
+             */
+            $Object.defineProperty(ProcessingQueueStatus.prototype, "_running", {
+                get: $util.oneOfGetter($oneOfFields = ["running"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ProcessingQueueStatus _published.
+             * @member {"published"|undefined} _published
+             * @memberof northstar.data_hub.ProcessingQueueStatus
+             * @instance
+             */
+            $Object.defineProperty(ProcessingQueueStatus.prototype, "_published", {
+                get: $util.oneOfGetter($oneOfFields = ["published"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ProcessingQueueStatus _failed.
+             * @member {"failed"|undefined} _failed
+             * @memberof northstar.data_hub.ProcessingQueueStatus
+             * @instance
+             */
+            $Object.defineProperty(ProcessingQueueStatus.prototype, "_failed", {
+                get: $util.oneOfGetter($oneOfFields = ["failed"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ProcessingQueueStatus _oldest_pending_id.
+             * @member {"oldest_pending_id"|undefined} _oldest_pending_id
+             * @memberof northstar.data_hub.ProcessingQueueStatus
+             * @instance
+             */
+            $Object.defineProperty(ProcessingQueueStatus.prototype, "_oldest_pending_id", {
+                get: $util.oneOfGetter($oneOfFields = ["oldest_pending_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ProcessingQueueStatus _oldest_pending_at.
+             * @member {"oldest_pending_at"|undefined} _oldest_pending_at
+             * @memberof northstar.data_hub.ProcessingQueueStatus
+             * @instance
+             */
+            $Object.defineProperty(ProcessingQueueStatus.prototype, "_oldest_pending_at", {
+                get: $util.oneOfGetter($oneOfFields = ["oldest_pending_at"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ProcessingQueueStatus _oldest_pending_seconds.
+             * @member {"oldest_pending_seconds"|undefined} _oldest_pending_seconds
+             * @memberof northstar.data_hub.ProcessingQueueStatus
+             * @instance
+             */
+            $Object.defineProperty(ProcessingQueueStatus.prototype, "_oldest_pending_seconds", {
+                get: $util.oneOfGetter($oneOfFields = ["oldest_pending_seconds"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new ProcessingQueueStatus instance using the specified properties.
+             * @function create
+             * @memberof northstar.data_hub.ProcessingQueueStatus
+             * @static
+             * @param {northstar.data_hub.ProcessingQueueStatus.$Properties=} [properties] Properties to set
+             * @returns {northstar.data_hub.ProcessingQueueStatus} ProcessingQueueStatus instance
+             * @type {{
+             *   (properties: northstar.data_hub.ProcessingQueueStatus.$Shape): northstar.data_hub.ProcessingQueueStatus & northstar.data_hub.ProcessingQueueStatus.$Shape;
+             *   (properties?: northstar.data_hub.ProcessingQueueStatus.$Properties): northstar.data_hub.ProcessingQueueStatus;
+             * }}
+             */
+            ProcessingQueueStatus.create = function(properties) {
+                return new ProcessingQueueStatus(properties);
+            };
+
+            /**
+             * Encodes the specified ProcessingQueueStatus message. Does not implicitly {@link northstar.data_hub.ProcessingQueueStatus.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.data_hub.ProcessingQueueStatus
+             * @static
+             * @param {northstar.data_hub.ProcessingQueueStatus.$Properties} message ProcessingQueueStatus message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            ProcessingQueueStatus.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.observed_at != null && $Object.hasOwnProperty.call(message, "observed_at"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.observed_at);
+                if (message.total != null && $Object.hasOwnProperty.call(message, "total"))
+                    writer.uint32(/* id 2, wireType 0 =*/16).int64(message.total);
+                if (message.pending != null && $Object.hasOwnProperty.call(message, "pending"))
+                    writer.uint32(/* id 3, wireType 0 =*/24).int64(message.pending);
+                if (message.running != null && $Object.hasOwnProperty.call(message, "running"))
+                    writer.uint32(/* id 4, wireType 0 =*/32).int64(message.running);
+                if (message.published != null && $Object.hasOwnProperty.call(message, "published"))
+                    writer.uint32(/* id 5, wireType 0 =*/40).int64(message.published);
+                if (message.failed != null && $Object.hasOwnProperty.call(message, "failed"))
+                    writer.uint32(/* id 6, wireType 0 =*/48).int64(message.failed);
+                if (message.oldest_pending_id != null && $Object.hasOwnProperty.call(message, "oldest_pending_id"))
+                    writer.uint32(/* id 7, wireType 2 =*/58).string(message.oldest_pending_id);
+                if (message.oldest_pending_at != null && $Object.hasOwnProperty.call(message, "oldest_pending_at"))
+                    writer.uint32(/* id 8, wireType 2 =*/66).string(message.oldest_pending_at);
+                if (message.oldest_pending_seconds != null && $Object.hasOwnProperty.call(message, "oldest_pending_seconds"))
+                    writer.uint32(/* id 9, wireType 0 =*/72).int64(message.oldest_pending_seconds);
+                if (message.null_fields != null && message.null_fields.length)
+                    for (let i = 0; i < message.null_fields.length; ++i)
+                        writer.uint32(/* id 2046, wireType 2 =*/16370).string(message.null_fields[i]);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a ProcessingQueueStatus message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.data_hub.ProcessingQueueStatus
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.data_hub.ProcessingQueueStatus & northstar.data_hub.ProcessingQueueStatus.$Shape} ProcessingQueueStatus
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            ProcessingQueueStatus.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.data_hub.ProcessingQueueStatus();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.observed_at = reader.stringVerify();
+                            message._observed_at = "observed_at";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 0)
+                                break;
+                            message.total = reader.int64();
+                            message._total = "total";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 0)
+                                break;
+                            message.pending = reader.int64();
+                            message._pending = "pending";
+                            continue;
+                        }
+                    case 4: {
+                            if (wireType !== 0)
+                                break;
+                            message.running = reader.int64();
+                            message._running = "running";
+                            continue;
+                        }
+                    case 5: {
+                            if (wireType !== 0)
+                                break;
+                            message.published = reader.int64();
+                            message._published = "published";
+                            continue;
+                        }
+                    case 6: {
+                            if (wireType !== 0)
+                                break;
+                            message.failed = reader.int64();
+                            message._failed = "failed";
+                            continue;
+                        }
+                    case 7: {
+                            if (wireType !== 2)
+                                break;
+                            message.oldest_pending_id = reader.stringVerify();
+                            message._oldest_pending_id = "oldest_pending_id";
+                            continue;
+                        }
+                    case 8: {
+                            if (wireType !== 2)
+                                break;
+                            message.oldest_pending_at = reader.stringVerify();
+                            message._oldest_pending_at = "oldest_pending_at";
+                            continue;
+                        }
+                    case 9: {
+                            if (wireType !== 0)
+                                break;
+                            message.oldest_pending_seconds = reader.int64();
+                            message._oldest_pending_seconds = "oldest_pending_seconds";
+                            continue;
+                        }
+                    case 2046: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.null_fields && message.null_fields.length))
+                                message.null_fields = [];
+                            message.null_fields.push(reader.stringVerify());
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a ProcessingQueueStatus message.
+             * @function verify
+             * @memberof northstar.data_hub.ProcessingQueueStatus
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            ProcessingQueueStatus.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.observed_at != null && $Object.hasOwnProperty.call(message, "observed_at")) {
+                    properties._observed_at = 1;
+                    if (!$util.isString(message.observed_at))
+                        return "observed_at: string expected";
+                }
+                if (message.total != null && $Object.hasOwnProperty.call(message, "total")) {
+                    properties._total = 1;
+                    if (!$util.isInteger(message.total) && !(message.total && $util.isInteger(message.total.low) && $util.isInteger(message.total.high)))
+                        return "total: integer|Long expected";
+                }
+                if (message.pending != null && $Object.hasOwnProperty.call(message, "pending")) {
+                    properties._pending = 1;
+                    if (!$util.isInteger(message.pending) && !(message.pending && $util.isInteger(message.pending.low) && $util.isInteger(message.pending.high)))
+                        return "pending: integer|Long expected";
+                }
+                if (message.running != null && $Object.hasOwnProperty.call(message, "running")) {
+                    properties._running = 1;
+                    if (!$util.isInteger(message.running) && !(message.running && $util.isInteger(message.running.low) && $util.isInteger(message.running.high)))
+                        return "running: integer|Long expected";
+                }
+                if (message.published != null && $Object.hasOwnProperty.call(message, "published")) {
+                    properties._published = 1;
+                    if (!$util.isInteger(message.published) && !(message.published && $util.isInteger(message.published.low) && $util.isInteger(message.published.high)))
+                        return "published: integer|Long expected";
+                }
+                if (message.failed != null && $Object.hasOwnProperty.call(message, "failed")) {
+                    properties._failed = 1;
+                    if (!$util.isInteger(message.failed) && !(message.failed && $util.isInteger(message.failed.low) && $util.isInteger(message.failed.high)))
+                        return "failed: integer|Long expected";
+                }
+                if (message.oldest_pending_id != null && $Object.hasOwnProperty.call(message, "oldest_pending_id")) {
+                    properties._oldest_pending_id = 1;
+                    if (!$util.isString(message.oldest_pending_id))
+                        return "oldest_pending_id: string expected";
+                }
+                if (message.oldest_pending_at != null && $Object.hasOwnProperty.call(message, "oldest_pending_at")) {
+                    properties._oldest_pending_at = 1;
+                    if (!$util.isString(message.oldest_pending_at))
+                        return "oldest_pending_at: string expected";
+                }
+                if (message.oldest_pending_seconds != null && $Object.hasOwnProperty.call(message, "oldest_pending_seconds")) {
+                    properties._oldest_pending_seconds = 1;
+                    if (!$util.isInteger(message.oldest_pending_seconds) && !(message.oldest_pending_seconds && $util.isInteger(message.oldest_pending_seconds.low) && $util.isInteger(message.oldest_pending_seconds.high)))
+                        return "oldest_pending_seconds: integer|Long expected";
+                }
+                if (message.null_fields != null && $Object.hasOwnProperty.call(message, "null_fields")) {
+                    if (!$Array.isArray(message.null_fields))
+                        return "null_fields: array expected";
+                    for (let i = 0; i < message.null_fields.length; ++i)
+                        if (!$util.isString(message.null_fields[i]))
+                            return "null_fields: string[] expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a ProcessingQueueStatus message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.data_hub.ProcessingQueueStatus
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.data_hub.ProcessingQueueStatus} ProcessingQueueStatus
+             */
+            ProcessingQueueStatus.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.data_hub.ProcessingQueueStatus)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.data_hub.ProcessingQueueStatus: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.data_hub.ProcessingQueueStatus();
+                if (object.observed_at != null)
+                    message.observed_at = $String(object.observed_at);
+                if (object.total != null)
+                    if ($util.Long)
+                        message.total = $util.Long.fromValue(object.total, false);
+                    else if (typeof object.total === "string")
+                        message.total = $parseInt(object.total, 10);
+                    else if (typeof object.total === "number")
+                        message.total = object.total;
+                    else if (typeof object.total === "object")
+                        message.total = new $util.LongBits(object.total.low >>> 0, object.total.high >>> 0).toNumber();
+                if (object.pending != null)
+                    if ($util.Long)
+                        message.pending = $util.Long.fromValue(object.pending, false);
+                    else if (typeof object.pending === "string")
+                        message.pending = $parseInt(object.pending, 10);
+                    else if (typeof object.pending === "number")
+                        message.pending = object.pending;
+                    else if (typeof object.pending === "object")
+                        message.pending = new $util.LongBits(object.pending.low >>> 0, object.pending.high >>> 0).toNumber();
+                if (object.running != null)
+                    if ($util.Long)
+                        message.running = $util.Long.fromValue(object.running, false);
+                    else if (typeof object.running === "string")
+                        message.running = $parseInt(object.running, 10);
+                    else if (typeof object.running === "number")
+                        message.running = object.running;
+                    else if (typeof object.running === "object")
+                        message.running = new $util.LongBits(object.running.low >>> 0, object.running.high >>> 0).toNumber();
+                if (object.published != null)
+                    if ($util.Long)
+                        message.published = $util.Long.fromValue(object.published, false);
+                    else if (typeof object.published === "string")
+                        message.published = $parseInt(object.published, 10);
+                    else if (typeof object.published === "number")
+                        message.published = object.published;
+                    else if (typeof object.published === "object")
+                        message.published = new $util.LongBits(object.published.low >>> 0, object.published.high >>> 0).toNumber();
+                if (object.failed != null)
+                    if ($util.Long)
+                        message.failed = $util.Long.fromValue(object.failed, false);
+                    else if (typeof object.failed === "string")
+                        message.failed = $parseInt(object.failed, 10);
+                    else if (typeof object.failed === "number")
+                        message.failed = object.failed;
+                    else if (typeof object.failed === "object")
+                        message.failed = new $util.LongBits(object.failed.low >>> 0, object.failed.high >>> 0).toNumber();
+                if (object.oldest_pending_id != null)
+                    message.oldest_pending_id = $String(object.oldest_pending_id);
+                if (object.oldest_pending_at != null)
+                    message.oldest_pending_at = $String(object.oldest_pending_at);
+                if (object.oldest_pending_seconds != null)
+                    if ($util.Long)
+                        message.oldest_pending_seconds = $util.Long.fromValue(object.oldest_pending_seconds, false);
+                    else if (typeof object.oldest_pending_seconds === "string")
+                        message.oldest_pending_seconds = $parseInt(object.oldest_pending_seconds, 10);
+                    else if (typeof object.oldest_pending_seconds === "number")
+                        message.oldest_pending_seconds = object.oldest_pending_seconds;
+                    else if (typeof object.oldest_pending_seconds === "object")
+                        message.oldest_pending_seconds = new $util.LongBits(object.oldest_pending_seconds.low >>> 0, object.oldest_pending_seconds.high >>> 0).toNumber();
+                if (object.null_fields) {
+                    if (!$Array.isArray(object.null_fields))
+                        throw $TypeError(".northstar.data_hub.ProcessingQueueStatus.null_fields: array expected");
+                    message.null_fields = $Array(object.null_fields.length);
+                    for (let i = 0; i < object.null_fields.length; ++i)
+                        message.null_fields[i] = $String(object.null_fields[i]);
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a ProcessingQueueStatus message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.data_hub.ProcessingQueueStatus
+             * @static
+             * @param {northstar.data_hub.ProcessingQueueStatus} message ProcessingQueueStatus
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            ProcessingQueueStatus.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.arrays || options.defaults)
+                    object.null_fields = [];
+                if (message.observed_at != null && $Object.hasOwnProperty.call(message, "observed_at")) {
+                    object.observed_at = message.observed_at;
+                    if (options.oneofs)
+                        object._observed_at = "observed_at";
+                }
+                if (message.total != null && $Object.hasOwnProperty.call(message, "total")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.total = typeof message.total === "number" ? $BigInt(message.total) : $util.Long.fromBits(message.total.low >>> 0, message.total.high >>> 0, false).toBigInt();
+                    else if (typeof message.total === "number")
+                        object.total = options.longs === $String ? $String(message.total) : message.total;
+                    else
+                        object.total = options.longs === $String ? $util.Long.prototype.toString.call(message.total) : options.longs === $Number ? new $util.LongBits(message.total.low >>> 0, message.total.high >>> 0).toNumber() : message.total;
+                    if (options.oneofs)
+                        object._total = "total";
+                }
+                if (message.pending != null && $Object.hasOwnProperty.call(message, "pending")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.pending = typeof message.pending === "number" ? $BigInt(message.pending) : $util.Long.fromBits(message.pending.low >>> 0, message.pending.high >>> 0, false).toBigInt();
+                    else if (typeof message.pending === "number")
+                        object.pending = options.longs === $String ? $String(message.pending) : message.pending;
+                    else
+                        object.pending = options.longs === $String ? $util.Long.prototype.toString.call(message.pending) : options.longs === $Number ? new $util.LongBits(message.pending.low >>> 0, message.pending.high >>> 0).toNumber() : message.pending;
+                    if (options.oneofs)
+                        object._pending = "pending";
+                }
+                if (message.running != null && $Object.hasOwnProperty.call(message, "running")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.running = typeof message.running === "number" ? $BigInt(message.running) : $util.Long.fromBits(message.running.low >>> 0, message.running.high >>> 0, false).toBigInt();
+                    else if (typeof message.running === "number")
+                        object.running = options.longs === $String ? $String(message.running) : message.running;
+                    else
+                        object.running = options.longs === $String ? $util.Long.prototype.toString.call(message.running) : options.longs === $Number ? new $util.LongBits(message.running.low >>> 0, message.running.high >>> 0).toNumber() : message.running;
+                    if (options.oneofs)
+                        object._running = "running";
+                }
+                if (message.published != null && $Object.hasOwnProperty.call(message, "published")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.published = typeof message.published === "number" ? $BigInt(message.published) : $util.Long.fromBits(message.published.low >>> 0, message.published.high >>> 0, false).toBigInt();
+                    else if (typeof message.published === "number")
+                        object.published = options.longs === $String ? $String(message.published) : message.published;
+                    else
+                        object.published = options.longs === $String ? $util.Long.prototype.toString.call(message.published) : options.longs === $Number ? new $util.LongBits(message.published.low >>> 0, message.published.high >>> 0).toNumber() : message.published;
+                    if (options.oneofs)
+                        object._published = "published";
+                }
+                if (message.failed != null && $Object.hasOwnProperty.call(message, "failed")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.failed = typeof message.failed === "number" ? $BigInt(message.failed) : $util.Long.fromBits(message.failed.low >>> 0, message.failed.high >>> 0, false).toBigInt();
+                    else if (typeof message.failed === "number")
+                        object.failed = options.longs === $String ? $String(message.failed) : message.failed;
+                    else
+                        object.failed = options.longs === $String ? $util.Long.prototype.toString.call(message.failed) : options.longs === $Number ? new $util.LongBits(message.failed.low >>> 0, message.failed.high >>> 0).toNumber() : message.failed;
+                    if (options.oneofs)
+                        object._failed = "failed";
+                }
+                if (message.oldest_pending_id != null && $Object.hasOwnProperty.call(message, "oldest_pending_id")) {
+                    object.oldest_pending_id = message.oldest_pending_id;
+                    if (options.oneofs)
+                        object._oldest_pending_id = "oldest_pending_id";
+                }
+                if (message.oldest_pending_at != null && $Object.hasOwnProperty.call(message, "oldest_pending_at")) {
+                    object.oldest_pending_at = message.oldest_pending_at;
+                    if (options.oneofs)
+                        object._oldest_pending_at = "oldest_pending_at";
+                }
+                if (message.oldest_pending_seconds != null && $Object.hasOwnProperty.call(message, "oldest_pending_seconds")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.oldest_pending_seconds = typeof message.oldest_pending_seconds === "number" ? $BigInt(message.oldest_pending_seconds) : $util.Long.fromBits(message.oldest_pending_seconds.low >>> 0, message.oldest_pending_seconds.high >>> 0, false).toBigInt();
+                    else if (typeof message.oldest_pending_seconds === "number")
+                        object.oldest_pending_seconds = options.longs === $String ? $String(message.oldest_pending_seconds) : message.oldest_pending_seconds;
+                    else
+                        object.oldest_pending_seconds = options.longs === $String ? $util.Long.prototype.toString.call(message.oldest_pending_seconds) : options.longs === $Number ? new $util.LongBits(message.oldest_pending_seconds.low >>> 0, message.oldest_pending_seconds.high >>> 0).toNumber() : message.oldest_pending_seconds;
+                    if (options.oneofs)
+                        object._oldest_pending_seconds = "oldest_pending_seconds";
+                }
+                if (message.null_fields && message.null_fields.length) {
+                    object.null_fields = $Array(message.null_fields.length);
+                    for (let j = 0; j < message.null_fields.length; ++j)
+                        object.null_fields[j] = message.null_fields[j];
+                }
+                return object;
+            };
+
+            /**
+             * Converts this ProcessingQueueStatus to JSON.
+             * @function toJSON
+             * @memberof northstar.data_hub.ProcessingQueueStatus
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            ProcessingQueueStatus.prototype.toJSON = function() {
+                return ProcessingQueueStatus.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for ProcessingQueueStatus
+             * @function getTypeUrl
+             * @memberof northstar.data_hub.ProcessingQueueStatus
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            ProcessingQueueStatus.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.data_hub.ProcessingQueueStatus";
+            };
+
+            return ProcessingQueueStatus;
+        })();
+
         return data_hub;
     })();
 

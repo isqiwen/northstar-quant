@@ -291,3 +291,27 @@ class GetApiSourcesResponse(_message.Message):
     ITEMS_FIELD_NUMBER: _ClassVar[int]
     items: _containers.RepeatedCompositeFieldContainer[SourceRecord]
     def __init__(self, items: _Optional[_Iterable[_Union[SourceRecord, _Mapping]]] = ...) -> None: ...
+
+class ProcessingQueueStatus(_message.Message):
+    __slots__ = ("observed_at", "total", "pending", "running", "published", "failed", "oldest_pending_id", "oldest_pending_at", "oldest_pending_seconds", "null_fields")
+    OBSERVED_AT_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_FIELD_NUMBER: _ClassVar[int]
+    PENDING_FIELD_NUMBER: _ClassVar[int]
+    RUNNING_FIELD_NUMBER: _ClassVar[int]
+    PUBLISHED_FIELD_NUMBER: _ClassVar[int]
+    FAILED_FIELD_NUMBER: _ClassVar[int]
+    OLDEST_PENDING_ID_FIELD_NUMBER: _ClassVar[int]
+    OLDEST_PENDING_AT_FIELD_NUMBER: _ClassVar[int]
+    OLDEST_PENDING_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    observed_at: str
+    total: int
+    pending: int
+    running: int
+    published: int
+    failed: int
+    oldest_pending_id: str
+    oldest_pending_at: str
+    oldest_pending_seconds: int
+    null_fields: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, observed_at: _Optional[str] = ..., total: _Optional[int] = ..., pending: _Optional[int] = ..., running: _Optional[int] = ..., published: _Optional[int] = ..., failed: _Optional[int] = ..., oldest_pending_id: _Optional[str] = ..., oldest_pending_at: _Optional[str] = ..., oldest_pending_seconds: _Optional[int] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...

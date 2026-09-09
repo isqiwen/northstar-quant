@@ -26,6 +26,7 @@ import {
   Records,
   Status,
 } from "../../shared/ui";
+import { ProcessingStatus } from "./processing-status";
 import { SourceFields } from "../../shared/source-form";
 export function DataHome() {
   const ds = useData(query("/api/datasets"));
@@ -48,12 +49,12 @@ export function DataHome() {
       <Card>
         <Fields
           value={{
-            已发布快照: ds.data?.length ?? "—",
-            归档来源: sources.data?.length ?? "—",
-            处理尝试: attempts.data?.length ?? "—",
+            最近已发布快照: ds.data?.length ?? "—",
+            最近归档来源: sources.data?.length ?? "—",
           }}
         />
       </Card>
+      <ProcessingStatus />
       <Records
         title="已发布数据"
         rows={ds.data}
