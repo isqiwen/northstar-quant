@@ -154,7 +154,9 @@ def process_next(library: DataLibrary) -> dict[str, Any] | None:
         except (ValueError, OSError, LookupError):
             reason = {
                 "download": "凭据配置不可用，请在界面重新保存 token",
-                "storage": "持久存储不可用或容量不足；自动同步已暂停，请检查存储目录、权限与可用空间",
+                "storage": (
+                    "持久存储不可用或容量不足；自动同步已暂停，请检查存储目录、权限与可用空间"
+                ),
                 "quality": "字段、范围、重复或量价校验失败；原文已留存",
                 "commit": "目录登记失败；原文已留存，请检查来源字段",
             }[stage]
