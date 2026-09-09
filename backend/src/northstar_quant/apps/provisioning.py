@@ -1,4 +1,4 @@
-"""Explicit NAS-only database and share initialization using the administrator identity."""
+"""Explicit application-owned database and share initialization using the administrator identity."""
 
 from __future__ import annotations
 
@@ -13,25 +13,23 @@ from sqlalchemy.engine import URL
 from northstar_quant.apps.storage import initialize_database
 from northstar_quant.data_management.storage_identity import initialize
 
-OWNERS = ("data_hub", "research", "live")
+OWNERS = ("data_hub",)
 
 
 def provision() -> None:
-    password = os.environ["NORTHSTAR_NAS_ADMIN_PASSWORD"]
-    host = os.environ.get("NORTHSTAR_NAS_DB_HOST", "postgres")
-    port = int(os.environ.get("NORTHSTAR_NAS_DB_PORT", "5432"))
+    password = os.environ["NORTHSTAR_DATABASE_ADMIN_PASSWORD"]
+    host = os.environ.get("NORTHSTAR_DATABASE_HOST", "postgres")
+    port = int(os.environ.get("NORTHSTAR_DATABASE_PORT", "5432"))
+    owner = os.environ["NORTHSTAR_DATABASE_OWNER"]
+    if owner not in OWNERS:
+        raise ValueError("invalid provisioned database owner")
+    owners = (owner,)
     app_passwords = {
-        owner: os.environ[f"NORTHSTAR_{owner.upper()}_DATABASE_PASSWORD"] for owner in OWNERS
+        owner: os.environ[f"NORTHSTAR_{owner.upper()}_DATABASE_PASSWORD"] for owner in owners
     }
-    identities = [
-        os.environ[f"NORTHSTAR_{name}_STORAGE_ID"]
-        for name in ("SOURCE", "MARKET", "RESEARCH", "BACKUP")
-    ]
-    if len(set(identities)) != 4:
-        raise ValueError("Each separately owned share requires its own storage UUID")
     if any(len(value) < 16 for value in [password, *app_passwords.values()]):
         raise ValueError("Use independent database passwords with at least 16 characters")
-    if len({password, *app_passwords.values()}) != 4:
+    if len({password, *app_passwords.values()}) != 2:
         raise ValueError("Database identities require distinct passwords")
     with psycopg.connect(
         host=host,
@@ -41,7 +39,7 @@ def provision() -> None:
         password=password,
         autocommit=True,
     ) as connection:
-        for owner in OWNERS:
+        for owner in owners:
             database = f"northstar_{owner}"
             role = f"{database}_app"
             administrator = f"{database}_owner"
@@ -126,10 +124,6 @@ def provision() -> None:
                     writer.exec_driver_sql(
                         f"REVOKE INSERT, UPDATE, DELETE ON northstar_store FROM {role}"
                     )
-                    if owner == "research":
-                        writer.exec_driver_sql(
-                            f"REVOKE UPDATE, DELETE ON research_runs FROM {role}"
-                        )
                     if owner == "data_hub":
                         writer.exec_driver_sql(
                             f"REVOKE INSERT, UPDATE, DELETE ON alembic_version FROM {role}"
@@ -146,10 +140,12 @@ def provision() -> None:
             finally:
                 engine.dispose()
     for name in ("SOURCE", "MARKET", "RESEARCH", "BACKUP"):
-        initialize(
-            Path(os.environ[f"NORTHSTAR_{name}_DIR"]), os.environ[f"NORTHSTAR_{name}_STORAGE_ID"]
-        )
-    print("NAS owned databases and share identities initialized")
+        if os.environ.get(f"NORTHSTAR_{name}_DIR"):
+            initialize(
+                Path(os.environ[f"NORTHSTAR_{name}_DIR"]),
+                os.environ[f"NORTHSTAR_{name}_STORAGE_ID"],
+            )
+    print("Application database and configured share identities initialized")
 
 
 if __name__ == "__main__":

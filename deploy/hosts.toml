@@ -2,7 +2,7 @@
 # 将所属配置复制到目标主机 env_file 后填写真实口令（仅保存在目标主机）。
 # 填写 user；目录均为目标主机绝对路径，可按实际环境修改。
 [database]
-host = "nas.local"
+host = "core.local"
 user = ""
 port = 22
 directory = "/opt/northstar/database"

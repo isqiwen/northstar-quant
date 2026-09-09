@@ -103,7 +103,24 @@ def check_restore(
             assert [
                 item["stream_id"] for item in command("advanced", "stream", "list")
             ] == saved_streams
-        check_restored_catalog(application, catalog_evidence)
+        application.environment["NORTHSTAR_RESEARCH_DATABASE"] = str(
+            runtime / "restored-research.sqlite3"
+        )
+        for name in ("MARKET", "RESEARCH"):
+            application.environment[f"NORTHSTAR_{name}_DIR"] = str(
+                runtime / ("recovered-" + name.lower())
+            )
+            application.environment[f"NORTHSTAR_{name}_STORAGE_ID"] = str(uuid4())
+        subprocess.run(
+            [executable, "maintenance", "restore", str(runtime / "research-backup")],
+            env=dict(application.environment, NORTHSTAR_DATABASE_OWNER="research"),
+            cwd=runtime,
+            check=True,
+            capture_output=True,
+            timeout=60,
+        )
+        with application.api("data-api"):
+            check_restored_catalog(application, catalog_evidence)
         assert command("data", "dataset", snapshot_id) == data
         assert command("research", "replay", run_id)["run_id"] == run_id
         assert all(item["file_status"] == "AVAILABLE" for item in command("data", "sources"))

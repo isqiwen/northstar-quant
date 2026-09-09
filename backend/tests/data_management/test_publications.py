@@ -58,3 +58,57 @@ def test_committed_publication_export_is_repaired_without_reprocessing(
     assert process_attempt(library) is None
     assert len(library.list_attempts()) == 1
     assert library.publications.load_dataset(UUID(str(attempts[0]["snapshot_id"])))
+
+
+def test_network_manifest_binds_readonly_files_and_survives_catalog_outage(
+    postgres_engine, clean_database, tmp_path, monkeypatch
+):
+    import httpx2
+    from fastapi.testclient import TestClient
+
+    from northstar_quant.apps.data_hub.application import create_app
+    from northstar_quant.data_management.publication_client import PublicationClient
+
+    token = "synthetic-readonly-publication-token-for-test"
+    monkeypatch.setenv("NORTHSTAR_PUBLICATION_TOKEN", token)
+    library = DataLibrary(postgres_engine, SourceFiles(tmp_path / "sources"))
+    content, spec, _ = _study()
+    attempt = _receive(library, content, spec)
+    identifier = UUID(str(attempt["snapshot_id"]))
+    with TestClient(create_app(postgres_engine, library), base_url="http://core.local") as api:
+        assert api.get("/api/publications").status_code == 403
+        assert (
+            api.get("/api/publications", headers={"Authorization": "Bearer " + token}).status_code
+            == 200
+        )
+        assert (
+            api.get("/api/sources", headers={"Authorization": "Bearer " + token}).status_code == 403
+        )
+
+        def remote(request):
+            response = api.get(request.url.raw_path.decode(), headers=dict(request.headers))
+            return httpx2.Response(response.status_code, content=response.content)
+
+        reader = PublicationClient(
+            "http://core.local",
+            token,
+            library.publications.root,
+            "market-published",
+            transport=httpx2.MockTransport(remote),
+        )
+        assert reader.list_datasets()[0].snapshot_id == identifier
+        fixed = reader.load_dataset(identifier)
+        assert fixed == library.load_dataset(identifier)
+
+        def offline(request):
+            raise httpx2.ConnectError("offline")
+
+        reader.transport = httpx2.MockTransport(offline)
+        assert reader.load_dataset(identifier) == fixed
+        with pytest.raises(ValueError, match="unavailable"):
+            reader.list_datasets()
+        # A retained manifest never excuses missing/corrupt NAS bytes.
+        path = next(library.publications.root.glob("*.parquet"))
+        path.write_bytes(b"corrupt")
+        with pytest.raises(ValueError, match="checksum"):
+            reader.load_dataset(identifier)

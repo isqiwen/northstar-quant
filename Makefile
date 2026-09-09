@@ -13,18 +13,20 @@ help:
 	@echo 'make up-data / up-research / up-live       独立构建并启动应用'
 	@echo 'make down-data / down-research / down-live 停止对应应用，保留数据'
 	@echo 'make ps-data / ps-research / ps-live       查看对应应用状态'
-	@echo 'make up-database / down-database           在目标主机管理集中数据库'
+	@echo 'make up-database / down-database           在 core 管理 Data Hub 独立数据库'
 	@echo 'make verify                              验证源码与行为（需要专用测试数据库）'
 
 install:
 	uv sync --project backend --locked
 
 up-database:
+	uv run --project backend python scripts/check_nfs_mount.py --app database $(if $(ENV_FILE),--env-file "$(ENV_FILE)")
 	$(BUILD_ENV) $(COMPOSE) -f deploy/database/compose.yaml build initialize
 	$(COMPOSE) -f deploy/database/compose.yaml up -d --wait --wait-timeout 180 postgres
 	$(COMPOSE) -f deploy/database/compose.yaml run --rm initialize
 
 backup-database:
+	uv run --project backend python scripts/check_nfs_mount.py --app database $(if $(ENV_FILE),--env-file "$(ENV_FILE)")
 	$(COMPOSE) -f deploy/database/compose.yaml run --rm --no-deps backup
 
 up-data:

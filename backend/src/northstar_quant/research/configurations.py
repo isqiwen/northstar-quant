@@ -9,9 +9,9 @@ from datetime import UTC
 from typing import cast
 
 from sqlalchemy import (
+    JSON,
     Column,
     Connection,
-    DateTime,
     Engine,
     MetaData,
     String,
@@ -23,6 +23,7 @@ from sqlalchemy.dialects.postgresql import JSONB, insert
 from sqlalchemy.engine import RowMapping
 
 from northstar_quant.research.configuration import ResearchConfig
+from northstar_quant.research.storage import UTCDateTime
 
 _metadata = MetaData()
 _configurations = Table(
@@ -30,16 +31,19 @@ _configurations = Table(
     _metadata,
     Column("configuration_id", String(64), primary_key=True),
     Column("name", String(80), nullable=False),
-    Column("config", JSONB, nullable=False),
-    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("config", JSON().with_variant(JSONB(), "postgresql"), nullable=False),
+    Column("created_at", UTCDateTime(), nullable=False, server_default=func.now()),
 )
 
 
 def initialize_configuration_store(connection: Connection) -> None:
     """Install revision storage explicitly, retaining existing revision identities."""
-    if connection.dialect.name != "postgresql":
-        raise ValueError("configuration revisions require PostgreSQL")
     _metadata.create_all(connection)
+    if connection.dialect.name == "sqlite":
+        from .storage import immutable
+
+        immutable(connection, "paper_configurations")
+        return
     connection.exec_driver_sql("""
         CREATE OR REPLACE FUNCTION configuration_reject_fact_change() RETURNS trigger AS $$
         BEGIN
@@ -88,8 +92,6 @@ class ConfigurationStore:
     """Save and read fixed revisions without constructing a simulated account."""
 
     def __init__(self, engine: Engine) -> None:
-        if engine.dialect.name != "postgresql":
-            raise ValueError("configuration revisions require PostgreSQL")
         self._engine = engine
 
     def save_configuration(self, name: str, config: ResearchConfig) -> dict[str, object]:

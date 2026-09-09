@@ -26,7 +26,14 @@ class InstalledApplication:
     def __init__(self, executable: str, directory: Path, environment: dict[str, str]) -> None:
         self.executable = executable
         self.directory = directory
-        self.environment = dict(environment, NORTHSTAR_LOG_DIR=str(directory / "logs"))
+        self.environment = dict(
+            environment,
+            NORTHSTAR_LOG_DIR=str(directory / "logs"),
+            NORTHSTAR_PUBLICATION_TOKEN="synthetic-publication-token-for-acceptance-only",
+        )
+        self.environment.setdefault(
+            "NORTHSTAR_RESEARCH_DATABASE", str(directory / "research.sqlite3")
+        )
         self.opener = build_opener(ProxyHandler({}), HTTPCookieProcessor(CookieJar()))
         self.web_pids: list[int] = []
         self.backend_starts: dict[str, int] = {}
@@ -35,6 +42,22 @@ class InstalledApplication:
         self.log_paths: list[Path] = []
 
     def command(self, *arguments: str) -> Any:
+        if arguments[0] == "research" and arguments[1] in {"run", "replay", "paper"}:
+            with self.api("data-api"):
+                return self._command(*arguments)
+        result = self._command(*arguments)
+        if arguments == ("maintenance", "init-db"):
+            subprocess.run(
+                [self.executable, *arguments],
+                cwd=self.directory,
+                env=dict(self.environment, NORTHSTAR_DATABASE_OWNER="research"),
+                check=True,
+                capture_output=True,
+                timeout=60,
+            )
+        return result
+
+    def _command(self, *arguments: str) -> Any:
         completed = subprocess.run(
             [self.executable, *arguments],
             cwd=self.directory,
@@ -177,6 +200,9 @@ run()
     @contextmanager
     def api(self, role: str = "live-api") -> Iterator[str]:
         environment = dict(self.environment)
+        if role == "research-api":
+            environment["NORTHSTAR_DATABASE_OWNER"] = "research"
+            environment.pop("NORTHSTAR_DATABASE_URL", None)
         if role == "live-api":
             environment.pop("NORTHSTAR_DATABASE_URL", None)
             environment.pop("NORTHSTAR_DATA_DIR", None)
@@ -362,6 +388,8 @@ run()
             listener.bind(("127.0.0.1", 0))
             port = listener.getsockname()[1]
         base_url = f"http://127.0.0.1:{port}"
+        if role == "data-api":
+            self.environment["NORTHSTAR_DATA_HUB_URL"] = base_url
         if role == "live-kernel":
             self.environment["NORTHSTAR_LIVE_URL"] = base_url
         log_path = self.directory / f"{role}-{port}.log"

@@ -26,13 +26,14 @@
 页面关闭或管理端重启不拥有交易内核的停止权。
 
 三个应用各有 `deploy/<应用>/compose.yaml`，独立构建、启停和查看状态。
-Data Hub 在 `core.local`，Research 在 `research.local`；两者通过网络访问 `nas.local` 上的 PostgreSQL，
-NAS 的一个 PostgreSQL 服务提供三个逻辑库及独立非超级用户，应用账号不持有跨库或 DDL 权限。
-Data Hub 独占来源/加工库，Research 独占研究库；NAS Live 库只接收不可变归档，内核不连接它。
-`deploy/database/` 在 NAS 本地目录初始化数据库与共享身份；应用停止不停止 NAS。
-QNAP 导出路径须现场确认，默认优先 NFSv4。来源、市场发布、研究产物和备份分开挂载；
-Research 不挂载来源，市场只读、自己的产物可写；备份仅挂载到维护容器。挂载或身份不符时拒绝启动。
-PostgreSQL 运行目录在 NAS 本地卷，Research 临时目录和应用日志在各自本机。
+Data Hub 与独立 PostgreSQL 部署在 `core.local`；数据库活跃数据放 core 本机 SSD，
+只通过内部 Docker 网络提供给 Data Hub，不发布数据库端口。NAS 只提供文件与备份。
+Research 在 `research.local`，其本机 SQLite 保存研究任务/结果元数据，不连接 core 数据库。
+Research 通过带独立只读凭据的 Data Hub Protobuf API 取得固定清单，再按存储 UUID 与相对路径
+读取 NAS Parquet，由本机内嵌 DuckDB 计算。发布内容不可原地覆盖，不共享可写 DuckDB 文件。
+QNAP 导出路径须现场确认，优先 NFSv4；来源、市场发布、研究产物和备份分开挂载。
+Research 不挂载来源，市场只读；备份仅挂载到维护容器。挂载或身份不符时拒绝启动。
+Research 临时目录、数据库和应用日志在本机；持久 SSD 行情缓存尚未实现。
 [Live 独立部署](../deploy/live/README.md) 只运行 Live 所需服务，使用自己的持久卷。
 目标部署位置为 Data Hub 在 core、Research 在工作站、Live 在独立运行域；生产云部署后置。
 第一轮 Live Sim 可在符合 SDK 要求的本机或独立主机运行，沿用同一部署结构；本机验收不代表云端已交付。
@@ -170,7 +171,7 @@ Live 的硬约束：NAS、core、research 停机或断网，不得成为正在�
 运行所需的固定产物、配置、有效条款和恢复依据必须已在 Live 本地可靠保存；行情和柜台回报由 Live 自己接入。
 不得在发送前等待 NAS 提交，也不得通过远端租约、认证或监控把家庭主机重新放入交易关键路径。
 
-下一项计划将长期归档 PostgreSQL 集中到 NAS，Live 保留最小本地恢复日志并由独立上传器异步归档。
+下一项计划由 Live 保留最小本地恢复日志并通过独立上传器异步归档固定文件到远端；NAS 不运行交易数据库。
 NAS 不可用只积压归档；上传器失败、重试和资源占用不能阻塞内核。以实测记录速率、容量和余量确定可保证的离线时长。
 达到本地安全容量边界或本地持久化故障时停止新增风险，不丢弃关键记录；这是本地安全边界，不是远端失联即停交易。
 验收须覆盖三个远端分别/同时不可用、延迟或丢包，继续处理交易事实及本地重启核对，并验证补传去重与延迟预算。

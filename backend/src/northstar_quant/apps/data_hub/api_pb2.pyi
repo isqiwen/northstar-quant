@@ -324,3 +324,25 @@ class SyncEvidence(_message.Message):
     request_id: str
     evidence_fields: _containers.MessageMap[str, _struct_pb2.Value]
     def __init__(self, request_id: _Optional[str] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...
+
+class PublicationManifest(_message.Message):
+    __slots__ = ("snapshot_id", "storage_id", "path", "sha256", "bytes", "files")
+    SNAPSHOT_ID_FIELD_NUMBER: _ClassVar[int]
+    STORAGE_ID_FIELD_NUMBER: _ClassVar[int]
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    SHA256_FIELD_NUMBER: _ClassVar[int]
+    BYTES_FIELD_NUMBER: _ClassVar[int]
+    FILES_FIELD_NUMBER: _ClassVar[int]
+    snapshot_id: str
+    storage_id: str
+    path: str
+    sha256: str
+    bytes: int
+    files: _containers.RepeatedCompositeFieldContainer[_struct_pb2.Struct]
+    def __init__(self, snapshot_id: _Optional[str] = ..., storage_id: _Optional[str] = ..., path: _Optional[str] = ..., sha256: _Optional[str] = ..., bytes: _Optional[int] = ..., files: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ...) -> None: ...
+
+class PublicationCatalog(_message.Message):
+    __slots__ = ("snapshots",)
+    SNAPSHOTS_FIELD_NUMBER: _ClassVar[int]
+    snapshots: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, snapshots: _Optional[_Iterable[str]] = ...) -> None: ...

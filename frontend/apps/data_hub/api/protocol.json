@@ -876,6 +876,69 @@
       "array": false,
       "evidence": true
     },
+    "northstar.data_hub.PublicationManifest": {
+      "fields": {
+        "snapshot_id": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "storage_id": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "path": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "sha256": {
+          "id": 4,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "bytes": {
+          "id": 5,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "files": {
+          "id": 6,
+          "presence": false,
+          "type": "google.protobuf.Struct",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.data_hub.PublicationCatalog": {
+      "fields": {
+        "snapshots": {
+          "id": 1,
+          "presence": false,
+          "type": "string",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
     "northstar.web.Empty": {
       "fields": {},
       "array": false,
@@ -931,6 +994,20 @@
     }
   },
   "methods": [
+    {
+      "method": "GET",
+      "path": "/api/publications",
+      "input": "northstar.web.Empty",
+      "output": "northstar.data_hub.PublicationCatalog",
+      "runtime": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/publications/{snapshot_id}",
+      "input": "northstar.web.Empty",
+      "output": "northstar.data_hub.PublicationManifest",
+      "runtime": false
+    },
     {
       "method": "GET",
       "path": "/api/sync",

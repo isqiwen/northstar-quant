@@ -63,22 +63,22 @@ jobs:
       - name: Build and verify the runtime image
         env:
           NORTHSTAR_NAS_ADDRESS: 127.0.0.1
-          NORTHSTAR_NAS_BIND_ADDRESS: 127.0.0.1
-          NORTHSTAR_NAS_ADMIN_PASSWORD: isolated-config-admin-password
+          NORTHSTAR_PUBLICATION_BIND_ADDRESS: 127.0.0.1
+          NORTHSTAR_PUBLICATION_TOKEN: isolated-publication-token-at-least-32-characters
+          NORTHSTAR_DATABASE_ADMIN_PASSWORD: isolated-config-admin-password
           NORTHSTAR_DATA_HUB_DATABASE_PASSWORD: isolated-config-data-password
-          NORTHSTAR_RESEARCH_DATABASE_PASSWORD: isolated-config-research-password
           NORTHSTAR_LIVE_DATABASE_PASSWORD: isolated-config-live-password
-          NORTHSTAR_NAS_PGDATA: /tmp/northstar-ci-placeholder/pgdata
-          NORTHSTAR_NAS_SOURCE_DIR: /tmp/northstar-ci-placeholder/source
+          NORTHSTAR_DATABASE_PGDATA: /tmp/northstar-ci-placeholder/pgdata
+          NORTHSTAR_SOURCE_MOUNT: /tmp/northstar-ci-placeholder/source
           NORTHSTAR_SOURCE_STORAGE_ID: 75b37e93-e22e-4087-b53e-963f53c00d21
           NORTHSTAR_SOURCE_NFS_EXPORT: /synthetic-not-nfs/source
-          NORTHSTAR_NAS_MARKET_DIR: /tmp/northstar-ci-placeholder/market
+          NORTHSTAR_MARKET_MOUNT: /tmp/northstar-ci-placeholder/market
           NORTHSTAR_MARKET_STORAGE_ID: 75b37e93-e22e-4087-b53e-963f53c00d22
           NORTHSTAR_MARKET_NFS_EXPORT: /synthetic-not-nfs/market
-          NORTHSTAR_NAS_RESEARCH_DIR: /tmp/northstar-ci-placeholder/research
+          NORTHSTAR_RESEARCH_MOUNT: /tmp/northstar-ci-placeholder/research
           NORTHSTAR_RESEARCH_STORAGE_ID: 75b37e93-e22e-4087-b53e-963f53c00d23
           NORTHSTAR_RESEARCH_NFS_EXPORT: /synthetic-not-nfs/research
-          NORTHSTAR_NAS_BACKUP_DIR: /tmp/northstar-ci-placeholder/backup
+          NORTHSTAR_BACKUP_MOUNT: /tmp/northstar-ci-placeholder/backup
           NORTHSTAR_BACKUP_STORAGE_ID: 75b37e93-e22e-4087-b53e-963f53c00d24
           NORTHSTAR_BACKUP_NFS_EXPORT: /synthetic-not-nfs/backup
         run: |
@@ -100,7 +100,7 @@ jobs:
             --mount "type=bind,source=$GITHUB_WORKSPACE/scripts,target=/tmp/install-check,readonly" \
             --mount "type=bind,source=$GITHUB_WORKSPACE/examples,target=/tmp/examples,readonly" \
             northstar-local /app/.venv/bin/python /tmp/install-check/check_install.py /tmp/examples/intraday.toml
-      - name: Verify NAS endpoint and independent application deployments
+      - name: Verify core database and independent application deployments
         run: uv run --project backend python scripts/check_application_deployment.py --image northstar-local --data-image northstar-data-frontend:check --research-image northstar-research-frontend:check
       - name: Verify the isolated Live deployment and failure behavior
         run: uv run --project backend python scripts/check_live_deployment.py --image northstar-local --frontend-image northstar-live-frontend:check

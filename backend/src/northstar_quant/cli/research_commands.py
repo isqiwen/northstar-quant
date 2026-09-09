@@ -10,7 +10,7 @@ from uuid import UUID
 from sqlalchemy import Engine
 
 from northstar_quant.cli.study import read
-from northstar_quant.data_management.publications import PublishedDatasets
+from northstar_quant.data_management.publication_client import PublicationClient
 from northstar_quant.research.configuration import ResearchConfig
 from northstar_quant.research.configurations import ConfigurationStore
 from northstar_quant.research.operations import ResearchOperations
@@ -60,7 +60,7 @@ def execute(arguments: argparse.Namespace, engine: Engine) -> int:
         result = store.get(arguments.run_id) if arguments.operation == "show" else store.list()
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))
         return 0
-    library = PublishedDatasets.from_environment()
+    library = PublicationClient.from_environment()
     store = RunStore(engine)
     research = ResearchOperations(library, store)
     if arguments.operation == "research":

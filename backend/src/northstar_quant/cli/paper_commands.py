@@ -8,7 +8,7 @@ from uuid import UUID
 
 from sqlalchemy import Engine
 
-from northstar_quant.data_management.publications import PublishedDatasets
+from northstar_quant.data_management.publication_client import PublicationClient
 from northstar_quant.research.paper import PaperStore
 
 
@@ -30,7 +30,7 @@ def register(commands: argparse._SubParsersAction[argparse.ArgumentParser]) -> N
 
 
 def execute(arguments: argparse.Namespace, engine: Engine) -> int:
-    library = PublishedDatasets.from_environment()
+    library = PublicationClient.from_environment()
     paper = PaperStore(engine, library)
     if arguments.operation == "paper-create":
         print(

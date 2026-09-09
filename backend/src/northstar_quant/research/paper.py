@@ -17,10 +17,10 @@ from typing import cast
 from uuid import UUID
 
 from sqlalchemy import (
+    JSON,
     CheckConstraint,
     Column,
     Connection,
-    DateTime,
     Engine,
     ForeignKey,
     Integer,
@@ -33,8 +33,8 @@ from sqlalchemy import (
     text,
     update,
 )
+from sqlalchemy import Uuid as PgUUID
 from sqlalchemy.dialects.postgresql import JSONB, insert
-from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.engine import RowMapping
 
 from northstar_quant import code_revision
@@ -45,6 +45,7 @@ from northstar_quant.data_management.research import ResearchBar, ResearchDatase
 from northstar_quant.research.backtesting import TradingSession
 from northstar_quant.research.configuration import ResearchConfig
 from northstar_quant.research.configurations import read_configuration, read_configurations
+from northstar_quant.research.storage import UTCDateTime
 
 _metadata = MetaData()
 _sessions = Table(
@@ -56,16 +57,16 @@ _sessions = Table(
     Column("snapshot_hash", String(64), nullable=False),
     Column("code_revision", String(64), nullable=False),
     Column("identity_hash", String(64), nullable=False),
-    Column("market", JSONB, nullable=False),
-    Column("data", JSONB, nullable=False),
+    Column("market", JSON().with_variant(JSONB(), "postgresql"), nullable=False),
+    Column("data", JSON().with_variant(JSONB(), "postgresql"), nullable=False),
     Column("total_inputs", Integer, nullable=False),
     Column("cursor", Integer, nullable=False),
-    Column("checkpoint", JSONB, nullable=False),
-    Column("summary", JSONB, nullable=False),
+    Column("checkpoint", JSON().with_variant(JSONB(), "postgresql"), nullable=False),
+    Column("summary", JSON().with_variant(JSONB(), "postgresql"), nullable=False),
     Column("state_hash", String(64), nullable=False),
     Column("journal_hash", String(64), nullable=False),
-    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
-    Column("updated_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("created_at", UTCDateTime(), nullable=False, server_default=func.now()),
+    Column("updated_at", UTCDateTime(), nullable=False, server_default=func.now()),
     CheckConstraint("total_inputs BETWEEN 1 AND 1440 AND cursor BETWEEN 0 AND total_inputs"),
 )
 _inputs = Table(
@@ -87,10 +88,10 @@ _steps = Table(
     Column("observation_id", PgUUID(as_uuid=True), nullable=False),
     Column("fill_id", String(256)),
     Column("input_hash", String(64), nullable=False),
-    Column("step", JSONB, nullable=False),
+    Column("step", JSON().with_variant(JSONB(), "postgresql"), nullable=False),
     Column("state_hash", String(64), nullable=False),
     Column("journal_hash", String(64), nullable=False),
-    Column("committed_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("committed_at", UTCDateTime(), nullable=False, server_default=func.now()),
     UniqueConstraint("session_id", "request_id"),
     UniqueConstraint("session_id", "observation_id"),
     UniqueConstraint("session_id", "fill_id"),
@@ -101,10 +102,14 @@ _steps = Table(
 def initialize_paper_store(connection: Connection) -> None:
     """Install current Paper tables only during explicit database initialization."""
 
-    if connection.dialect.name != "postgresql":
-        raise ValueError("persistent Paper requires PostgreSQL")
     _metadata.reflect(connection, only=["paper_configurations"])
     _metadata.create_all(connection, tables=[_sessions, _inputs, _steps])
+    if connection.dialect.name == "sqlite":
+        from .storage import immutable
+
+        for table in (_inputs, _steps):
+            immutable(connection, table.name)
+        return
     connection.exec_driver_sql("""
             CREATE OR REPLACE FUNCTION paper_reject_fact_change() RETURNS trigger AS $$
             BEGIN
@@ -152,8 +157,6 @@ class PaperStore:
     """Persist fixed input/configuration bindings and one isolated Paper account."""
 
     def __init__(self, engine: Engine, library: DatasetReader) -> None:
-        if engine.dialect.name != "postgresql":
-            raise ValueError("persistent Paper requires PostgreSQL")
         self._engine = engine
         self._library = library
 
@@ -254,9 +257,7 @@ class PaperStore:
     def list(self) -> list[dict[str, object]]:
         """List bounded summaries; full journal verification belongs to opening/advancing."""
 
-        with self._engine.connect().execution_options(
-            isolation_level="REPEATABLE READ"
-        ) as connection:
+        with self._engine.connect().execution_options(isolation_level="SERIALIZABLE") as connection:
             with connection.begin():
                 rows = (
                     connection.execute(
@@ -287,9 +288,7 @@ class PaperStore:
 
     def get(self, session_id: UUID) -> dict[str, object]:
         _uuid(session_id)
-        with self._engine.connect().execution_options(
-            isolation_level="REPEATABLE READ"
-        ) as connection:
+        with self._engine.connect().execution_options(isolation_level="SERIALIZABLE") as connection:
             with connection.begin():
                 row = self._row(connection, session_id)
                 config = read_configuration(connection, str(row["configuration_id"]))
@@ -351,9 +350,7 @@ class PaperStore:
 
         _uuid(session_id)
         _uuid(request_id)
-        with self._engine.connect().execution_options(
-            isolation_level="REPEATABLE READ"
-        ) as connection:
+        with self._engine.connect().execution_options(isolation_level="SERIALIZABLE") as connection:
             with connection.begin():
                 prior = self._row(connection, session_id)
                 recorded = connection.execute(
@@ -374,7 +371,8 @@ class PaperStore:
         dataset = self._library.load_dataset(snapshot_id)
         bars = _ordered_bars(dataset)
         with self._engine.begin() as connection:
-            connection.execute(text("SET LOCAL lock_timeout = '5s'"))
+            if connection.dialect.name == "postgresql":
+                connection.execute(text("SET LOCAL lock_timeout = '5s'"))
             row = self._row(connection, session_id, lock=True)
             steps = self._journal(connection, row)
             existing = next((step for step in steps if step["request_id"] == request_id), None)

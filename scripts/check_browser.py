@@ -175,7 +175,7 @@ def main() -> None:
                     ).to_be_visible()
                     expect(page.get_by_text("无排队任务", exact=True)).to_be_visible()
                     screenshot("data")
-                with app.web("research-api") as url:
+                with app.api("data-api"), app.web("research-api") as url:
                     page.goto(url + "/factors/trend.return")
                     choose("固定数据快照", imported["snapshot_id"][:8])
                     page.get_by_label("收益窗口 · bars", exact=True).fill("2")
@@ -250,7 +250,7 @@ def main() -> None:
                     expect(page.locator(".facts").get_by_text("1", exact=True)).to_be_visible()
                     page.goto(url + "/")
                     screenshot("research")
-                with app.web("research-api") as url:
+                with app.api("data-api"), app.web("research-api") as url:
                     page.goto(url + factor_path)
                     expect(page.get_by_text(annotation, exact=False)).to_be_visible()
                     page.goto(url + version_path)

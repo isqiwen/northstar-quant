@@ -10402,6 +10402,771 @@ export const northstar = $root.northstar = (() => {
             return SyncEvidence;
         })();
 
+        data_hub.PublicationManifest = (function() {
+
+            /**
+             * Properties of a PublicationManifest.
+             * @typedef {Object} northstar.data_hub.PublicationManifest.$Properties
+             * @property {string|null} [snapshot_id] PublicationManifest snapshot_id
+             * @property {string|null} [storage_id] PublicationManifest storage_id
+             * @property {string|null} [path] PublicationManifest path
+             * @property {string|null} [sha256] PublicationManifest sha256
+             * @property {number|Long|null} [bytes] PublicationManifest bytes
+             * @property {Array.<google.protobuf.Struct.$Properties>|null} [files] PublicationManifest files
+             * @property {"snapshot_id"} [_snapshot_id] PublicationManifest _snapshot_id
+             * @property {"storage_id"} [_storage_id] PublicationManifest _storage_id
+             * @property {"path"} [_path] PublicationManifest _path
+             * @property {"sha256"} [_sha256] PublicationManifest _sha256
+             * @property {"bytes"} [_bytes] PublicationManifest _bytes
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a PublicationManifest.
+             * @memberof northstar.data_hub
+             * @interface IPublicationManifest
+             * @augments northstar.data_hub.PublicationManifest.$Properties
+             * @deprecated Use northstar.data_hub.PublicationManifest.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a PublicationManifest.
+             * @typedef {{
+             *   snapshot_id?: string|null;
+             *   storage_id?: string|null;
+             *   path?: string|null;
+             *   sha256?: string|null;
+             *   bytes?: number|Long|null;
+             *   files?: Array.<google.protobuf.Struct.$Shape>|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _snapshot_id?: undefined; snapshot_id?: null }|{ _snapshot_id?: "snapshot_id"; snapshot_id: string })
+             * ) & (
+             *   ({ _storage_id?: undefined; storage_id?: null }|{ _storage_id?: "storage_id"; storage_id: string })
+             * ) & (
+             *   ({ _path?: undefined; path?: null }|{ _path?: "path"; path: string })
+             * ) & (
+             *   ({ _sha256?: undefined; sha256?: null }|{ _sha256?: "sha256"; sha256: string })
+             * ) & (
+             *   ({ _bytes?: undefined; bytes?: null }|{ _bytes?: "bytes"; bytes: number|Long })
+             * )} northstar.data_hub.PublicationManifest.$Shape
+             */
+
+            /**
+             * Constructs a new PublicationManifest.
+             * @memberof northstar.data_hub
+             * @classdesc Represents a PublicationManifest.
+             * @constructor
+             * @param {northstar.data_hub.PublicationManifest.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const PublicationManifest = function (properties) {
+                this.files = [];
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * PublicationManifest snapshot_id.
+             * @member {string|null|undefined} snapshot_id
+             * @memberof northstar.data_hub.PublicationManifest
+             * @instance
+             */
+            PublicationManifest.prototype.snapshot_id = null;
+
+            /**
+             * PublicationManifest storage_id.
+             * @member {string|null|undefined} storage_id
+             * @memberof northstar.data_hub.PublicationManifest
+             * @instance
+             */
+            PublicationManifest.prototype.storage_id = null;
+
+            /**
+             * PublicationManifest path.
+             * @member {string|null|undefined} path
+             * @memberof northstar.data_hub.PublicationManifest
+             * @instance
+             */
+            PublicationManifest.prototype.path = null;
+
+            /**
+             * PublicationManifest sha256.
+             * @member {string|null|undefined} sha256
+             * @memberof northstar.data_hub.PublicationManifest
+             * @instance
+             */
+            PublicationManifest.prototype.sha256 = null;
+
+            /**
+             * PublicationManifest bytes.
+             * @member {number|Long|null|undefined} bytes
+             * @memberof northstar.data_hub.PublicationManifest
+             * @instance
+             */
+            PublicationManifest.prototype.bytes = null;
+
+            /**
+             * PublicationManifest files.
+             * @member {Array.<google.protobuf.Struct.$Properties>} files
+             * @memberof northstar.data_hub.PublicationManifest
+             * @instance
+             */
+            PublicationManifest.prototype.files = $util.emptyArray;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * PublicationManifest _snapshot_id.
+             * @member {"snapshot_id"|undefined} _snapshot_id
+             * @memberof northstar.data_hub.PublicationManifest
+             * @instance
+             */
+            $Object.defineProperty(PublicationManifest.prototype, "_snapshot_id", {
+                get: $util.oneOfGetter($oneOfFields = ["snapshot_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * PublicationManifest _storage_id.
+             * @member {"storage_id"|undefined} _storage_id
+             * @memberof northstar.data_hub.PublicationManifest
+             * @instance
+             */
+            $Object.defineProperty(PublicationManifest.prototype, "_storage_id", {
+                get: $util.oneOfGetter($oneOfFields = ["storage_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * PublicationManifest _path.
+             * @member {"path"|undefined} _path
+             * @memberof northstar.data_hub.PublicationManifest
+             * @instance
+             */
+            $Object.defineProperty(PublicationManifest.prototype, "_path", {
+                get: $util.oneOfGetter($oneOfFields = ["path"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * PublicationManifest _sha256.
+             * @member {"sha256"|undefined} _sha256
+             * @memberof northstar.data_hub.PublicationManifest
+             * @instance
+             */
+            $Object.defineProperty(PublicationManifest.prototype, "_sha256", {
+                get: $util.oneOfGetter($oneOfFields = ["sha256"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * PublicationManifest _bytes.
+             * @member {"bytes"|undefined} _bytes
+             * @memberof northstar.data_hub.PublicationManifest
+             * @instance
+             */
+            $Object.defineProperty(PublicationManifest.prototype, "_bytes", {
+                get: $util.oneOfGetter($oneOfFields = ["bytes"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new PublicationManifest instance using the specified properties.
+             * @function create
+             * @memberof northstar.data_hub.PublicationManifest
+             * @static
+             * @param {northstar.data_hub.PublicationManifest.$Properties=} [properties] Properties to set
+             * @returns {northstar.data_hub.PublicationManifest} PublicationManifest instance
+             * @type {{
+             *   (properties: northstar.data_hub.PublicationManifest.$Shape): northstar.data_hub.PublicationManifest & northstar.data_hub.PublicationManifest.$Shape;
+             *   (properties?: northstar.data_hub.PublicationManifest.$Properties): northstar.data_hub.PublicationManifest;
+             * }}
+             */
+            PublicationManifest.create = function(properties) {
+                return new PublicationManifest(properties);
+            };
+
+            /**
+             * Encodes the specified PublicationManifest message. Does not implicitly {@link northstar.data_hub.PublicationManifest.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.data_hub.PublicationManifest
+             * @static
+             * @param {northstar.data_hub.PublicationManifest.$Properties} message PublicationManifest message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            PublicationManifest.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.snapshot_id != null && $Object.hasOwnProperty.call(message, "snapshot_id"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.snapshot_id);
+                if (message.storage_id != null && $Object.hasOwnProperty.call(message, "storage_id"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.storage_id);
+                if (message.path != null && $Object.hasOwnProperty.call(message, "path"))
+                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.path);
+                if (message.sha256 != null && $Object.hasOwnProperty.call(message, "sha256"))
+                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.sha256);
+                if (message.bytes != null && $Object.hasOwnProperty.call(message, "bytes"))
+                    writer.uint32(/* id 5, wireType 0 =*/40).int64(message.bytes);
+                if (message.files != null && message.files.length)
+                    for (let i = 0; i < message.files.length; ++i)
+                        $root.google.protobuf.Struct.encode(message.files[i], writer.uint32(/* id 6, wireType 2 =*/50).fork(), _depth + 1).ldelim();
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a PublicationManifest message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.data_hub.PublicationManifest
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.data_hub.PublicationManifest & northstar.data_hub.PublicationManifest.$Shape} PublicationManifest
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            PublicationManifest.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.data_hub.PublicationManifest();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.snapshot_id = reader.stringVerify();
+                            message._snapshot_id = "snapshot_id";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.storage_id = reader.stringVerify();
+                            message._storage_id = "storage_id";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 2)
+                                break;
+                            message.path = reader.stringVerify();
+                            message._path = "path";
+                            continue;
+                        }
+                    case 4: {
+                            if (wireType !== 2)
+                                break;
+                            message.sha256 = reader.stringVerify();
+                            message._sha256 = "sha256";
+                            continue;
+                        }
+                    case 5: {
+                            if (wireType !== 0)
+                                break;
+                            message.bytes = reader.int64();
+                            message._bytes = "bytes";
+                            continue;
+                        }
+                    case 6: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.files && message.files.length))
+                                message.files = [];
+                            message.files.push($root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1));
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a PublicationManifest message.
+             * @function verify
+             * @memberof northstar.data_hub.PublicationManifest
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            PublicationManifest.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.snapshot_id != null && $Object.hasOwnProperty.call(message, "snapshot_id")) {
+                    properties._snapshot_id = 1;
+                    if (!$util.isString(message.snapshot_id))
+                        return "snapshot_id: string expected";
+                }
+                if (message.storage_id != null && $Object.hasOwnProperty.call(message, "storage_id")) {
+                    properties._storage_id = 1;
+                    if (!$util.isString(message.storage_id))
+                        return "storage_id: string expected";
+                }
+                if (message.path != null && $Object.hasOwnProperty.call(message, "path")) {
+                    properties._path = 1;
+                    if (!$util.isString(message.path))
+                        return "path: string expected";
+                }
+                if (message.sha256 != null && $Object.hasOwnProperty.call(message, "sha256")) {
+                    properties._sha256 = 1;
+                    if (!$util.isString(message.sha256))
+                        return "sha256: string expected";
+                }
+                if (message.bytes != null && $Object.hasOwnProperty.call(message, "bytes")) {
+                    properties._bytes = 1;
+                    if (!$util.isInteger(message.bytes) && !(message.bytes && $util.isInteger(message.bytes.low) && $util.isInteger(message.bytes.high)))
+                        return "bytes: integer|Long expected";
+                }
+                if (message.files != null && $Object.hasOwnProperty.call(message, "files")) {
+                    if (!$Array.isArray(message.files))
+                        return "files: array expected";
+                    for (let i = 0; i < message.files.length; ++i) {
+                        let error = $root.google.protobuf.Struct.verify(message.files[i], _depth + 1);
+                        if (error)
+                            return "files." + error;
+                    }
+                }
+                return null;
+            };
+
+            /**
+             * Creates a PublicationManifest message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.data_hub.PublicationManifest
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.data_hub.PublicationManifest} PublicationManifest
+             */
+            PublicationManifest.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.data_hub.PublicationManifest)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.data_hub.PublicationManifest: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.data_hub.PublicationManifest();
+                if (object.snapshot_id != null)
+                    message.snapshot_id = $String(object.snapshot_id);
+                if (object.storage_id != null)
+                    message.storage_id = $String(object.storage_id);
+                if (object.path != null)
+                    message.path = $String(object.path);
+                if (object.sha256 != null)
+                    message.sha256 = $String(object.sha256);
+                if (object.bytes != null)
+                    if ($util.Long)
+                        message.bytes = $util.Long.fromValue(object.bytes, false);
+                    else if (typeof object.bytes === "string")
+                        message.bytes = $parseInt(object.bytes, 10);
+                    else if (typeof object.bytes === "number")
+                        message.bytes = object.bytes;
+                    else if (typeof object.bytes === "object")
+                        message.bytes = new $util.LongBits(object.bytes.low >>> 0, object.bytes.high >>> 0).toNumber();
+                if (object.files) {
+                    if (!$Array.isArray(object.files))
+                        throw $TypeError(".northstar.data_hub.PublicationManifest.files: array expected");
+                    message.files = $Array(object.files.length);
+                    for (let i = 0; i < object.files.length; ++i) {
+                        if (!$util.isObject(object.files[i]))
+                            throw $TypeError(".northstar.data_hub.PublicationManifest.files: object expected");
+                        message.files[i] = $root.google.protobuf.Struct.fromObject(object.files[i], _depth + 1);
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a PublicationManifest message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.data_hub.PublicationManifest
+             * @static
+             * @param {northstar.data_hub.PublicationManifest} message PublicationManifest
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            PublicationManifest.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.arrays || options.defaults)
+                    object.files = [];
+                if (message.snapshot_id != null && $Object.hasOwnProperty.call(message, "snapshot_id")) {
+                    object.snapshot_id = message.snapshot_id;
+                    if (options.oneofs)
+                        object._snapshot_id = "snapshot_id";
+                }
+                if (message.storage_id != null && $Object.hasOwnProperty.call(message, "storage_id")) {
+                    object.storage_id = message.storage_id;
+                    if (options.oneofs)
+                        object._storage_id = "storage_id";
+                }
+                if (message.path != null && $Object.hasOwnProperty.call(message, "path")) {
+                    object.path = message.path;
+                    if (options.oneofs)
+                        object._path = "path";
+                }
+                if (message.sha256 != null && $Object.hasOwnProperty.call(message, "sha256")) {
+                    object.sha256 = message.sha256;
+                    if (options.oneofs)
+                        object._sha256 = "sha256";
+                }
+                if (message.bytes != null && $Object.hasOwnProperty.call(message, "bytes")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.bytes = typeof message.bytes === "number" ? $BigInt(message.bytes) : $util.Long.fromBits(message.bytes.low >>> 0, message.bytes.high >>> 0, false).toBigInt();
+                    else if (typeof message.bytes === "number")
+                        object.bytes = options.longs === $String ? $String(message.bytes) : message.bytes;
+                    else
+                        object.bytes = options.longs === $String ? $util.Long.prototype.toString.call(message.bytes) : options.longs === $Number ? new $util.LongBits(message.bytes.low >>> 0, message.bytes.high >>> 0).toNumber() : message.bytes;
+                    if (options.oneofs)
+                        object._bytes = "bytes";
+                }
+                if (message.files && message.files.length) {
+                    object.files = $Array(message.files.length);
+                    for (let j = 0; j < message.files.length; ++j)
+                        object.files[j] = $root.google.protobuf.Struct.toObject(message.files[j], options, _depth + 1);
+                }
+                return object;
+            };
+
+            /**
+             * Converts this PublicationManifest to JSON.
+             * @function toJSON
+             * @memberof northstar.data_hub.PublicationManifest
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            PublicationManifest.prototype.toJSON = function() {
+                return PublicationManifest.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for PublicationManifest
+             * @function getTypeUrl
+             * @memberof northstar.data_hub.PublicationManifest
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            PublicationManifest.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.data_hub.PublicationManifest";
+            };
+
+            return PublicationManifest;
+        })();
+
+        data_hub.PublicationCatalog = (function() {
+
+            /**
+             * Properties of a PublicationCatalog.
+             * @typedef {Object} northstar.data_hub.PublicationCatalog.$Properties
+             * @property {Array.<string>|null} [snapshots] PublicationCatalog snapshots
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a PublicationCatalog.
+             * @memberof northstar.data_hub
+             * @interface IPublicationCatalog
+             * @augments northstar.data_hub.PublicationCatalog.$Properties
+             * @deprecated Use northstar.data_hub.PublicationCatalog.$Properties instead.
+             */
+
+            /**
+             * Shape of a PublicationCatalog.
+             * @typedef {northstar.data_hub.PublicationCatalog.$Properties} northstar.data_hub.PublicationCatalog.$Shape
+             */
+
+            /**
+             * Constructs a new PublicationCatalog.
+             * @memberof northstar.data_hub
+             * @classdesc Represents a PublicationCatalog.
+             * @constructor
+             * @param {northstar.data_hub.PublicationCatalog.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const PublicationCatalog = function (properties) {
+                this.snapshots = [];
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * PublicationCatalog snapshots.
+             * @member {Array.<string>} snapshots
+             * @memberof northstar.data_hub.PublicationCatalog
+             * @instance
+             */
+            PublicationCatalog.prototype.snapshots = $util.emptyArray;
+
+            /**
+             * Creates a new PublicationCatalog instance using the specified properties.
+             * @function create
+             * @memberof northstar.data_hub.PublicationCatalog
+             * @static
+             * @param {northstar.data_hub.PublicationCatalog.$Properties=} [properties] Properties to set
+             * @returns {northstar.data_hub.PublicationCatalog} PublicationCatalog instance
+             * @type {{
+             *   (properties: northstar.data_hub.PublicationCatalog.$Shape): northstar.data_hub.PublicationCatalog & northstar.data_hub.PublicationCatalog.$Shape;
+             *   (properties?: northstar.data_hub.PublicationCatalog.$Properties): northstar.data_hub.PublicationCatalog;
+             * }}
+             */
+            PublicationCatalog.create = function(properties) {
+                return new PublicationCatalog(properties);
+            };
+
+            /**
+             * Encodes the specified PublicationCatalog message. Does not implicitly {@link northstar.data_hub.PublicationCatalog.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.data_hub.PublicationCatalog
+             * @static
+             * @param {northstar.data_hub.PublicationCatalog.$Properties} message PublicationCatalog message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            PublicationCatalog.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.snapshots != null && message.snapshots.length)
+                    for (let i = 0; i < message.snapshots.length; ++i)
+                        writer.uint32(/* id 1, wireType 2 =*/10).string(message.snapshots[i]);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a PublicationCatalog message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.data_hub.PublicationCatalog
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.data_hub.PublicationCatalog & northstar.data_hub.PublicationCatalog.$Shape} PublicationCatalog
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            PublicationCatalog.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.data_hub.PublicationCatalog();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.snapshots && message.snapshots.length))
+                                message.snapshots = [];
+                            message.snapshots.push(reader.stringVerify());
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a PublicationCatalog message.
+             * @function verify
+             * @memberof northstar.data_hub.PublicationCatalog
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            PublicationCatalog.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                if (message.snapshots != null && $Object.hasOwnProperty.call(message, "snapshots")) {
+                    if (!$Array.isArray(message.snapshots))
+                        return "snapshots: array expected";
+                    for (let i = 0; i < message.snapshots.length; ++i)
+                        if (!$util.isString(message.snapshots[i]))
+                            return "snapshots: string[] expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a PublicationCatalog message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.data_hub.PublicationCatalog
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.data_hub.PublicationCatalog} PublicationCatalog
+             */
+            PublicationCatalog.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.data_hub.PublicationCatalog)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.data_hub.PublicationCatalog: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.data_hub.PublicationCatalog();
+                if (object.snapshots) {
+                    if (!$Array.isArray(object.snapshots))
+                        throw $TypeError(".northstar.data_hub.PublicationCatalog.snapshots: array expected");
+                    message.snapshots = $Array(object.snapshots.length);
+                    for (let i = 0; i < object.snapshots.length; ++i)
+                        message.snapshots[i] = $String(object.snapshots[i]);
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a PublicationCatalog message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.data_hub.PublicationCatalog
+             * @static
+             * @param {northstar.data_hub.PublicationCatalog} message PublicationCatalog
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            PublicationCatalog.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.arrays || options.defaults)
+                    object.snapshots = [];
+                if (message.snapshots && message.snapshots.length) {
+                    object.snapshots = $Array(message.snapshots.length);
+                    for (let j = 0; j < message.snapshots.length; ++j)
+                        object.snapshots[j] = message.snapshots[j];
+                }
+                return object;
+            };
+
+            /**
+             * Converts this PublicationCatalog to JSON.
+             * @function toJSON
+             * @memberof northstar.data_hub.PublicationCatalog
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            PublicationCatalog.prototype.toJSON = function() {
+                return PublicationCatalog.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for PublicationCatalog
+             * @function getTypeUrl
+             * @memberof northstar.data_hub.PublicationCatalog
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            PublicationCatalog.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.data_hub.PublicationCatalog";
+            };
+
+            return PublicationCatalog;
+        })();
+
         return data_hub;
     })();
 

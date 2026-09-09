@@ -18,6 +18,8 @@ _DENIED = "工作台会话缺失或已过期。请重新打开工作台页面后
 
 
 class WorkspaceAccess:
+    publication_token: str | None = None
+
     """Process-local browser identity, never broker credentials or execution authority."""
 
     def __init__(self, cookie: str = COOKIE) -> None:
@@ -72,6 +74,18 @@ class WorkspaceAccess:
 
     def check_scope(self, scope: Scope, *, socket: bool = False) -> None:
         headers = HTTPConnection(scope).headers
+        if re.fullmatch(r"/api/publications(?:/[0-9a-f-]{36})?", scope.get("path", "")):
+            expected = getattr(self, "publication_token", None)
+            supplied = headers.get("authorization", "")
+            if (
+                scope.get("method") != "GET"
+                or not expected
+                or len(expected) < 32
+                or not supplied.isascii()
+                or not secrets.compare_digest(supplied, "Bearer " + expected)
+            ):
+                raise HTTPException(status_code=403, detail="Publication access denied")
+            return
         authority = headers.get("host", "")
         if _LOCAL_HOST.fullmatch(authority) is None:
             raise HTTPException(status_code=403, detail="仅接受本机访问。")

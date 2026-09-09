@@ -5,13 +5,15 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import sqlite3
+from contextlib import closing
 from pathlib import Path
 from typing import cast
 from uuid import UUID
 
-from sqlalchemy import Engine, inspect, text
+from sqlalchemy import Engine, create_engine, inspect, text
 
-from northstar_quant.apps.maintenance import _file_hash, _pg_command, _write_record
+from northstar_quant.apps.maintenance import _file_hash, _write_record
 from northstar_quant.apps.storage import require_current_database
 from northstar_quant.data_management.publications import PublishedDatasets
 from northstar_quant.data_management.storage_identity import initialize
@@ -31,9 +33,19 @@ def backup(engine: Engine, destination: Path) -> dict[str, object]:
     target.mkdir(parents=True, mode=0o700)
     (target / "market").mkdir()
     (target / "research").mkdir()
-    with engine.connect().execution_options(isolation_level="REPEATABLE READ") as connection:
-        with connection.begin():
-            snapshot = connection.execute(text("SELECT pg_export_snapshot()")).scalar_one()
+    if engine.dialect.name != "sqlite" or not engine.url.database:
+        raise ValueError("Research backup requires local SQLite")
+    with (
+        closing(sqlite3.connect(engine.url.database)) as source_db,
+        closing(sqlite3.connect(target / "database.sqlite3")) as copy_db,
+    ):
+        source_db.backup(copy_db)
+        copy_db.execute("PRAGMA journal_mode=DELETE")
+        if copy_db.execute("PRAGMA integrity_check").fetchone() != ("ok",):
+            raise ValueError("Research backup database integrity failure")
+    frozen = create_engine("sqlite+pysqlite:///" + str(target / "database.sqlite3"))
+    try:
+        with frozen.connect() as connection:
             ids = (
                 connection.execute(
                     text(
@@ -46,9 +58,14 @@ def backup(engine: Engine, destination: Path) -> dict[str, object]:
                 .all()
             )
             for identifier in ids:
+                identifier = UUID(str(identifier))
                 market.load_dataset(identifier)
                 source = market.root / f"{identifier}.json"
                 shutil.copyfile(source, target / "market" / source.name)
+                manifest = market.manifest(identifier)
+                for entry in manifest["files"]:
+                    source = market.root / entry["path"]
+                    shutil.copyfile(source, target / "market" / source.name)
             for identity in connection.execute(text("SELECT run_id FROM research_runs")).scalars():
                 reports.verify_backtest(identity)
             # Include immutable reports and receipts. Extra concurrent immutable files
@@ -56,15 +73,8 @@ def backup(engine: Engine, destination: Path) -> dict[str, object]:
             for source in reports.root.glob("*.json"):
                 reports._read(source)
                 shutil.copyfile(source, target / "research" / source.name)
-            _pg_command(
-                engine,
-                "pg_dump",
-                "--format=custom",
-                f"--snapshot={snapshot}",
-                "--no-owner",
-                "--no-privileges",
-                f"--file={target / 'database.dump'}",
-            )
+    finally:
+        frozen.dispose()
     manifest = {str(p.relative_to(target)): _file_hash(p) for p in target.rglob("*") if p.is_file()}
     document: dict[str, object] = {"owner": "research", "files": manifest}
     for path in manifest:
@@ -88,15 +98,15 @@ def restore(engine: Engine, destination: Path) -> dict[str, object]:
         relative = Path(name)
         if relative.is_absolute() or ".." in relative.parts or len(relative.parts) not in {1, 2}:
             raise ValueError("invalid backup file path")
-        if relative.parts[0] not in {"database.dump", "market", "research"}:
+        if relative.parts[0] not in {"database.sqlite3", "market", "research"}:
             raise ValueError("invalid Research backup component")
         if _file_hash(destination / relative) != digest:
             raise ValueError("backup checksum mismatch")
-    if "database.dump" not in document["files"]:
+    if "database.sqlite3" not in document["files"]:
         raise ValueError("missing database dump")
     with engine.connect() as connection:
         if (
-            set(inspect(connection).get_schema_names()) - {"public", "information_schema"}
+            set(inspect(connection).get_schema_names()) - {"main", "temp"}
             or inspect(connection).get_table_names()
         ):
             raise ValueError("restore target database must be empty")
@@ -113,15 +123,16 @@ def restore(engine: Engine, destination: Path) -> dict[str, object]:
         parts = Path(name).parts
         if len(parts) == 2:
             _write_record(roots[parts[0]] / parts[1], (destination / name).read_bytes())
-    _pg_command(
-        engine,
-        "pg_restore",
-        "--exit-on-error",
-        "--single-transaction",
-        "--no-owner",
-        "--no-privileges",
-        str(destination / "database.dump"),
-    )
+    if engine.dialect.name != "sqlite" or not engine.url.database:
+        raise ValueError("Research restore requires local SQLite")
+    engine.dispose()
+    with (
+        closing(sqlite3.connect(destination / "database.sqlite3")) as source_db,
+        closing(sqlite3.connect(engine.url.database)) as target_db,
+    ):
+        if source_db.execute("PRAGMA integrity_check").fetchone() != ("ok",):
+            raise ValueError("Research backup database integrity failure")
+        source_db.backup(target_db)
     require_current_database(engine)
     market = PublishedDatasets(roots["market"])
     from northstar_quant.research.paper import PaperStore
@@ -145,12 +156,12 @@ def restore(engine: Engine, destination: Path) -> dict[str, object]:
         reports.verify_backtest(identity)
     paper = PaperStore(engine, market)
     for identity in paper_ids:
-        paper.get(identity)
+        paper.get(UUID(str(identity)))
     from northstar_quant.research.factor_catalog import FactorCatalog
 
     factors = FactorCatalog(engine, market)
     for identity in factor_ids:
-        factors.get(identity)
+        factors.get(UUID(str(identity)))
     for root in roots.values():
         (root / ".restore-incomplete").unlink()
         from northstar_quant.data_management.files import SourceFiles

@@ -3,7 +3,6 @@ services:
   postgres:
     networks:
     - storage
-    - ingress
     image: postgres:17-alpine
     cpus: 1.0
     mem_limit: 1g
@@ -17,12 +16,11 @@ services:
     environment:
       POSTGRES_DB: postgres
       POSTGRES_USER: northstar_admin
-      POSTGRES_PASSWORD: ${NORTHSTAR_NAS_ADMIN_PASSWORD:?Set private administrator password}
-    ports:
-    - ${NORTHSTAR_NAS_BIND_ADDRESS:?Set the NAS private interface address}:${NORTHSTAR_NAS_DATABASE_PORT:-15432}:5432
+      POSTGRES_PASSWORD: ${NORTHSTAR_DATABASE_ADMIN_PASSWORD:?Set private administrator
+        password}
     volumes:
     - type: bind
-      source: ${NORTHSTAR_NAS_PGDATA:?Set NAS local database directory}
+      source: ${NORTHSTAR_DATABASE_PGDATA:?Set core local SSD database directory}
       target: /var/lib/postgresql/data
       bind:
         create_host_path: false
@@ -55,36 +53,51 @@ services:
         max-size: 10m
         max-file: '3'
     environment:
-      NORTHSTAR_NAS_ADMIN_PASSWORD: ${NORTHSTAR_NAS_ADMIN_PASSWORD:?Set administrator password}
-      NORTHSTAR_DATA_HUB_DATABASE_PASSWORD: ${NORTHSTAR_DATA_HUB_DATABASE_PASSWORD:?Set distinct DATA_HUB password}
-      NORTHSTAR_RESEARCH_DATABASE_PASSWORD: ${NORTHSTAR_RESEARCH_DATABASE_PASSWORD:?Set distinct RESEARCH password}
-      NORTHSTAR_LIVE_DATABASE_PASSWORD: ${NORTHSTAR_LIVE_DATABASE_PASSWORD:?Set distinct LIVE password}
+      NORTHSTAR_DATA_HUB_DATABASE_PASSWORD: ${NORTHSTAR_DATA_HUB_DATABASE_PASSWORD:?Set
+        distinct DATA_HUB password}
       NORTHSTAR_SOURCE_DIR: /var/lib/northstar/source
-      NORTHSTAR_SOURCE_STORAGE_ID: ${NORTHSTAR_SOURCE_STORAGE_ID:?Set SOURCE storage UUID}
+      NORTHSTAR_SOURCE_STORAGE_ID: ${NORTHSTAR_SOURCE_STORAGE_ID:?Set SOURCE storage
+        UUID}
       NORTHSTAR_MARKET_DIR: /var/lib/northstar/market
-      NORTHSTAR_MARKET_STORAGE_ID: ${NORTHSTAR_MARKET_STORAGE_ID:?Set MARKET storage UUID}
+      NORTHSTAR_MARKET_STORAGE_ID: ${NORTHSTAR_MARKET_STORAGE_ID:?Set MARKET storage
+        UUID}
       NORTHSTAR_RESEARCH_DIR: /var/lib/northstar/research
-      NORTHSTAR_RESEARCH_STORAGE_ID: ${NORTHSTAR_RESEARCH_STORAGE_ID:?Set RESEARCH storage UUID}
+      NORTHSTAR_RESEARCH_STORAGE_ID: ${NORTHSTAR_RESEARCH_STORAGE_ID:?Set RESEARCH
+        storage UUID}
       NORTHSTAR_BACKUP_DIR: /var/lib/northstar/backup
-      NORTHSTAR_BACKUP_STORAGE_ID: ${NORTHSTAR_BACKUP_STORAGE_ID:?Set BACKUP storage UUID}
+      NORTHSTAR_BACKUP_STORAGE_ID: ${NORTHSTAR_BACKUP_STORAGE_ID:?Set BACKUP storage
+        UUID}
+      NORTHSTAR_DATABASE_ADMIN_PASSWORD: ${NORTHSTAR_DATABASE_ADMIN_PASSWORD:?Set
+        administrator password}
+      NORTHSTAR_DATABASE_OWNER: data_hub
+      NORTHSTAR_NAS_ADDRESS: ${NORTHSTAR_NAS_ADDRESS:-nas.local}
+      NORTHSTAR_NFS_VERSION: ${NORTHSTAR_NFS_VERSION:-4}
+      NORTHSTAR_SOURCE_NFS_EXPORT: ${NORTHSTAR_SOURCE_NFS_EXPORT:?Set verified NFS
+        export}
+      NORTHSTAR_MARKET_NFS_EXPORT: ${NORTHSTAR_MARKET_NFS_EXPORT:?Set verified NFS
+        export}
+      NORTHSTAR_RESEARCH_NFS_EXPORT: ${NORTHSTAR_RESEARCH_NFS_EXPORT:?Set verified
+        NFS export}
+      NORTHSTAR_BACKUP_NFS_EXPORT: ${NORTHSTAR_BACKUP_NFS_EXPORT:?Set verified NFS
+        export}
     volumes:
     - type: bind
-      source: ${NORTHSTAR_NAS_SOURCE_DIR:?Set verified NAS native SOURCE directory}
+      source: ${NORTHSTAR_SOURCE_MOUNT:?Set verified core mounted SOURCE directory}
       target: /var/lib/northstar/source
       bind:
         create_host_path: false
     - type: bind
-      source: ${NORTHSTAR_NAS_MARKET_DIR:?Set verified NAS native MARKET directory}
+      source: ${NORTHSTAR_MARKET_MOUNT:?Set verified core mounted MARKET directory}
       target: /var/lib/northstar/market
       bind:
         create_host_path: false
     - type: bind
-      source: ${NORTHSTAR_NAS_RESEARCH_DIR:?Set verified NAS native RESEARCH directory}
+      source: ${NORTHSTAR_RESEARCH_MOUNT:?Set verified core mounted RESEARCH directory}
       target: /var/lib/northstar/research
       bind:
         create_host_path: false
     - type: bind
-      source: ${NORTHSTAR_NAS_BACKUP_DIR:?Set verified NAS native BACKUP directory}
+      source: ${NORTHSTAR_BACKUP_MOUNT:?Set verified core mounted BACKUP directory}
       target: /var/lib/northstar/backup
       bind:
         create_host_path: false
@@ -116,39 +129,54 @@ services:
         max-size: 10m
         max-file: '3'
     environment:
-      NORTHSTAR_NAS_ADMIN_PASSWORD: ${NORTHSTAR_NAS_ADMIN_PASSWORD:?Set administrator password}
-      NORTHSTAR_DATA_HUB_DATABASE_PASSWORD: ${NORTHSTAR_DATA_HUB_DATABASE_PASSWORD:?Set distinct DATA_HUB password}
-      NORTHSTAR_RESEARCH_DATABASE_PASSWORD: ${NORTHSTAR_RESEARCH_DATABASE_PASSWORD:?Set distinct RESEARCH password}
-      NORTHSTAR_LIVE_DATABASE_PASSWORD: ${NORTHSTAR_LIVE_DATABASE_PASSWORD:?Set distinct LIVE password}
+      NORTHSTAR_DATA_HUB_DATABASE_PASSWORD: ${NORTHSTAR_DATA_HUB_DATABASE_PASSWORD:?Set
+        distinct DATA_HUB password}
       NORTHSTAR_SOURCE_DIR: /var/lib/northstar/source
-      NORTHSTAR_SOURCE_STORAGE_ID: ${NORTHSTAR_SOURCE_STORAGE_ID:?Set SOURCE storage UUID}
+      NORTHSTAR_SOURCE_STORAGE_ID: ${NORTHSTAR_SOURCE_STORAGE_ID:?Set SOURCE storage
+        UUID}
       NORTHSTAR_MARKET_DIR: /var/lib/northstar/market
-      NORTHSTAR_MARKET_STORAGE_ID: ${NORTHSTAR_MARKET_STORAGE_ID:?Set MARKET storage UUID}
+      NORTHSTAR_MARKET_STORAGE_ID: ${NORTHSTAR_MARKET_STORAGE_ID:?Set MARKET storage
+        UUID}
       NORTHSTAR_RESEARCH_DIR: /var/lib/northstar/research
-      NORTHSTAR_RESEARCH_STORAGE_ID: ${NORTHSTAR_RESEARCH_STORAGE_ID:?Set RESEARCH storage UUID}
+      NORTHSTAR_RESEARCH_STORAGE_ID: ${NORTHSTAR_RESEARCH_STORAGE_ID:?Set RESEARCH
+        storage UUID}
       NORTHSTAR_BACKUP_DIR: /var/lib/northstar/backup
-      NORTHSTAR_BACKUP_STORAGE_ID: ${NORTHSTAR_BACKUP_STORAGE_ID:?Set BACKUP storage UUID}
+      NORTHSTAR_BACKUP_STORAGE_ID: ${NORTHSTAR_BACKUP_STORAGE_ID:?Set BACKUP storage
+        UUID}
+      NORTHSTAR_DATABASE_ADMIN_PASSWORD: ${NORTHSTAR_DATABASE_ADMIN_PASSWORD:?Set
+        administrator password}
+      NORTHSTAR_DATABASE_OWNER: data_hub
+      NORTHSTAR_NAS_ADDRESS: ${NORTHSTAR_NAS_ADDRESS:-nas.local}
+      NORTHSTAR_NFS_VERSION: ${NORTHSTAR_NFS_VERSION:-4}
+      NORTHSTAR_SOURCE_NFS_EXPORT: ${NORTHSTAR_SOURCE_NFS_EXPORT:?Set verified NFS
+        export}
+      NORTHSTAR_MARKET_NFS_EXPORT: ${NORTHSTAR_MARKET_NFS_EXPORT:?Set verified NFS
+        export}
+      NORTHSTAR_RESEARCH_NFS_EXPORT: ${NORTHSTAR_RESEARCH_NFS_EXPORT:?Set verified
+        NFS export}
+      NORTHSTAR_BACKUP_NFS_EXPORT: ${NORTHSTAR_BACKUP_NFS_EXPORT:?Set verified NFS
+        export}
     volumes:
     - type: bind
-      source: ${NORTHSTAR_NAS_SOURCE_DIR:?Set verified NAS native SOURCE directory}
+      source: ${NORTHSTAR_SOURCE_MOUNT:?Set verified core mounted SOURCE directory}
       target: /var/lib/northstar/source
       bind:
         create_host_path: false
       read_only: true
     - type: bind
-      source: ${NORTHSTAR_NAS_MARKET_DIR:?Set verified NAS native MARKET directory}
+      source: ${NORTHSTAR_MARKET_MOUNT:?Set verified core mounted MARKET directory}
       target: /var/lib/northstar/market
       bind:
         create_host_path: false
       read_only: true
     - type: bind
-      source: ${NORTHSTAR_NAS_RESEARCH_DIR:?Set verified NAS native RESEARCH directory}
+      source: ${NORTHSTAR_RESEARCH_MOUNT:?Set verified core mounted RESEARCH directory}
       target: /var/lib/northstar/research
       bind:
         create_host_path: false
       read_only: true
     - type: bind
-      source: ${NORTHSTAR_NAS_BACKUP_DIR:?Set verified NAS native BACKUP directory}
+      source: ${NORTHSTAR_BACKUP_MOUNT:?Set verified core mounted BACKUP directory}
       target: /var/lib/northstar/backup
       bind:
         create_host_path: false
@@ -159,10 +187,10 @@ services:
     command:
     - python
     - -m
-    - northstar_quant.apps.nas_backup
+    - northstar_quant.apps.database_backup
     profiles:
     - maintenance
 networks:
-  ingress: null
   storage:
+    name: ${NORTHSTAR_DATA_DATABASE_NETWORK:-northstar-data-storage}
     internal: true

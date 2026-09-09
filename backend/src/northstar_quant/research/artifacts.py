@@ -11,7 +11,8 @@ from pathlib import Path
 from typing import cast
 from uuid import UUID
 
-from sqlalchemy import Engine, text
+from sqlalchemy import Engine, String, literal, select, union_all
+from sqlalchemy import cast as sql_cast
 
 from northstar_quant.data_management.files import SourceFiles
 from northstar_quant.data_management.storage_identity import require_identity
@@ -24,23 +25,30 @@ class ResearchUsages:
         self.engine = engine
 
     def list(self, snapshots: Sequence[UUID]) -> list[dict[str, object]]:
+        from .paper import _sessions
+        from .runs import _runs
+
+        query = union_all(
+            select(
+                literal("RESEARCH").label("kind"),
+                _runs.c.run_id.label("use_id"),
+                _runs.c.snapshot_id,
+                _runs.c.created_at,
+            ).where(_runs.c.snapshot_id.in_(snapshots)),
+            select(
+                literal("PAPER"),
+                sql_cast(_sessions.c.session_id, String),
+                _sessions.c.snapshot_id,
+                _sessions.c.created_at,
+            ).where(_sessions.c.snapshot_id.in_(snapshots)),
+        )
         with self.engine.connect() as connection:
-            rows = (
-                connection.execute(
-                    text(
-                        "SELECT 'RESEARCH' AS kind, run_id AS use_id, snapshot_id, created_at "
-                        "FROM research_runs WHERE snapshot_id = ANY(:ids) "
-                        "UNION ALL SELECT 'PAPER', session_id::text, snapshot_id, created_at "
-                        "FROM paper_sessions WHERE snapshot_id = ANY(:ids) "
-                        "ORDER BY created_at DESC LIMIT 200"
-                    ),
-                    {"ids": list(snapshots)},
-                )
-                .mappings()
-                .all()
-            )
+            rows = connection.execute(query.order_by("created_at").limit(200)).mappings().all()
         return [
-            {k: str(v) if k in {"snapshot_id", "created_at"} else v for k, v in row.items()}
+            {
+                k: str(v) if k in {"use_id", "snapshot_id", "created_at"} else v
+                for k, v in row.items()
+            }
             for row in rows
         ]
 

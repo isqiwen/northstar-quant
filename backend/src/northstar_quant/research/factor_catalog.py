@@ -8,9 +8,9 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
+    JSON,
     Column,
     Connection,
-    DateTime,
     Engine,
     MetaData,
     String,
@@ -19,21 +19,22 @@ from sqlalchemy import (
     select,
     update,
 )
+from sqlalchemy import Uuid as PGUUID
 from sqlalchemy.dialects.postgresql import JSONB, insert
-from sqlalchemy.dialects.postgresql import UUID as PGUUID
 
 from northstar_quant import code_revision
 from northstar_quant.data_management.publications import DatasetReader
 from northstar_quant.factors.definition import Bar, Inputs, content_id
 from northstar_quant.factors.evaluation import Binding, evaluate
+from northstar_quant.research.storage import UTCDateTime
 
 _metadata = MetaData()
 _revisions = Table(
     "factor_revisions",
     _metadata,
     Column("revision_id", String(64), primary_key=True),
-    Column("binding", JSONB, nullable=False),
-    Column("created_at", DateTime(timezone=True), server_default=func.now(), nullable=False),
+    Column("binding", JSON().with_variant(JSONB(), "postgresql"), nullable=False),
+    Column("created_at", UTCDateTime(), server_default=func.now(), nullable=False),
 )
 _notes = Table(
     "factor_annotations",
@@ -41,7 +42,7 @@ _notes = Table(
     Column("annotation_id", PGUUID(as_uuid=True), primary_key=True),
     Column("revision_id", String(64), nullable=False),
     Column("description", String(2000), nullable=False),
-    Column("created_at", DateTime(timezone=True), server_default=func.now(), nullable=False),
+    Column("created_at", UTCDateTime(), server_default=func.now(), nullable=False),
 )
 _runs = Table(
     "factor_runs",
@@ -52,16 +53,35 @@ _runs = Table(
     Column("input_hash", String(64), nullable=False),
     Column("code_revision", String(64), nullable=False),
     Column("status", String(20), nullable=False),
-    Column("result", JSONB),
+    Column("result", JSON().with_variant(JSONB(), "postgresql")),
     Column("result_hash", String(64)),
     Column("error", String(1000)),
-    Column("created_at", DateTime(timezone=True), server_default=func.now(), nullable=False),
-    Column("completed_at", DateTime(timezone=True)),
+    Column("created_at", UTCDateTime(), server_default=func.now(), nullable=False),
+    Column("completed_at", UTCDateTime()),
 )
 
 
 def initialize_factor_catalog(connection: Connection) -> None:
     _metadata.create_all(connection)
+    if connection.dialect.name == "sqlite":
+        from .storage import immutable, transitions
+
+        for table in ("factor_revisions", "factor_annotations"):
+            immutable(connection, table)
+        transitions(
+            connection,
+            "factor_runs",
+            (
+                "attempt_id",
+                "revision_id",
+                "snapshot_id",
+                "input_hash",
+                "code_revision",
+                "created_at",
+            ),
+            ("SUCCEEDED", "FAILED", "ABANDONED"),
+        )
+        return
     connection.exec_driver_sql("""
         CREATE OR REPLACE FUNCTION factor_immutable() RETURNS trigger AS $$
         BEGIN RAISE EXCEPTION 'factor records are immutable'; END; $$ LANGUAGE plpgsql;

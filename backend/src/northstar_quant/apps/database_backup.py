@@ -1,4 +1,4 @@
-"""NAS-owned scheduled backup entry; no application startup or trading authority."""
+"""Data Hub-owned scheduled backup entry; no application startup or trading authority."""
 
 import json
 import os
@@ -11,8 +11,7 @@ from uuid import uuid4
 from sqlalchemy import create_engine
 from sqlalchemy.engine import URL
 
-from northstar_quant.apps.maintenance import _file_hash, _pg_command, _write_record, backup
-from northstar_quant.apps.research.maintenance import backup as backup_research
+from northstar_quant.apps.maintenance import _file_hash, _write_record, backup
 from northstar_quant.data_management.files import SourceFiles
 from northstar_quant.data_management.storage_identity import require_identity
 
@@ -24,8 +23,8 @@ def run() -> None:
     target.mkdir(mode=0o700)
     source = Path(os.environ["NORTHSTAR_SOURCE_DIR"])
     require_identity(source, os.environ["NORTHSTAR_SOURCE_STORAGE_ID"])
-    host = os.environ.get("NORTHSTAR_NAS_DB_HOST", "postgres")
-    for owner in ("data_hub", "research", "live"):
+    host = os.environ.get("NORTHSTAR_DATABASE_HOST", "postgres")
+    for owner in ("data_hub",):
         engine = create_engine(
             URL.create(
                 "postgresql+psycopg",
@@ -38,24 +37,12 @@ def run() -> None:
         try:
             if owner == "data_hub":
                 backup(engine, SourceFiles(source), target / "data_hub")
-            elif owner == "research":
-                backup_research(engine, target / "research")
-            else:
-                (target / "live").mkdir(mode=0o700)
-                _pg_command(
-                    engine,
-                    "pg_dump",
-                    "--format=custom",
-                    "--no-owner",
-                    "--no-privileges",
-                    f"--file={target / 'live/database.dump'}",
-                )
         finally:
             engine.dispose()
     binary = shutil.which("pg_dumpall")
     if binary is None:
         raise ValueError("pg_dumpall is required to preserve database roles")
-    environment = dict(os.environ, PGPASSWORD=os.environ["NORTHSTAR_NAS_ADMIN_PASSWORD"])
+    environment = dict(os.environ, PGPASSWORD=os.environ["NORTHSTAR_DATABASE_ADMIN_PASSWORD"])
     try:
         subprocess.run(
             [

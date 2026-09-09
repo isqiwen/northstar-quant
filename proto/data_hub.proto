@@ -175,7 +175,26 @@ message SyncEvidence {
   map<string, google.protobuf.Value> evidence_fields = 1000;
 }
 
+message PublicationManifest {
+  optional string snapshot_id = 1 [(northstar.web.required_field) = true];
+  optional string storage_id = 2 [(northstar.web.required_field) = true];
+  optional string path = 3 [(northstar.web.required_field) = true];
+  optional string sha256 = 4 [(northstar.web.required_field) = true];
+  optional int64 bytes = 5 [(northstar.web.required_field) = true];
+  repeated google.protobuf.Struct files = 6 [(northstar.web.required_field) = true];
+}
+message PublicationCatalog {
+  repeated string snapshots = 1 [(northstar.web.required_field) = true];
+}
 service BrowserApi {
+  rpc GetApiPublications (northstar.web.Empty) returns (PublicationCatalog) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/publications";
+  }
+  rpc GetApiPublicationsSnapshotId (northstar.web.Empty) returns (PublicationManifest) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/publications/{snapshot_id}";
+  }
   rpc GetApiSync (northstar.web.Empty) returns (SyncStatus) {
     option (northstar.web.http_method) = "GET";
     option (northstar.web.http_path) = "/api/sync";

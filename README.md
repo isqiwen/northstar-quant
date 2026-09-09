@@ -18,7 +18,7 @@ Tushare 定时增量/分片补数、15 分钟到日线完整研究输入、持�
 
 ## 快速启动
 
-部署位置：Data Hub 在 `core.local`，Research 在 `research.local`，PostgreSQL 与文件/备份在 QNAP `nas.local`。
+部署位置：Data Hub 在 `core.local`，Research 在 `research.local`，PostgreSQL 在 core，文件/备份在 QNAP `nas.local`。
 三个应用的前端、API、worker/内核分别运行在独立容器中。
 
 配置文件在 `deploy/{database,data_hub,research,live}/.env`，随仓库维护非敏感配置，凭据留空。
@@ -40,8 +40,8 @@ Tushare 定时增量/分片补数、15 分钟到日线完整研究输入、持�
 也可以在对应主机的仓库根目录执行（需要 Git、uv、Make、Docker；Linux 客户端还需 NFS 客户端与 `findmnt`）：
 
 ```sh
-# nas.local：先初始化 PostgreSQL 和共享来源目录
-make up-database ENV_FILE=/absolute/private/nas.env
+# core.local：先初始化独立 PostgreSQL 和已挂载的共享目录
+make up-database ENV_FILE=/absolute/private/database.env
 # core.local：NFS 已正确挂载后
 make up-data ENV_FILE=/absolute/private/core.env
 # research.local：市场只读、研究目录可写后
@@ -52,7 +52,7 @@ make up-live
 
 本机 Make 命令默认读取各自目录的 `.env`；示例中的 `ENV_FILE` 用于指定私有运行副本。
 正式构建要求工作区干净；未提交修改时在对应命令前加 `NORTHSTAR_DEVELOPMENT_BUILD=1`。
-Data/Research 启动只检查 NAS 网络数据库、NFS 挂载和存储身份，不启动 NAS 或另一个应用。
+Data Hub 连接 core 独立数据库；Research 使用本机 SQLite。启动检查 NFS 挂载和存储身份，不启动 NAS 或另一个应用。
 Data API 持久排队，独立 worker 下载与加工；关闭 Data Web/API 不停止已提交任务。
 Data Hub 只通过 Tushare 自动同步全部期货历史数据，不提供文件导入、Tick、品种或周期选择。
 打开 Data Hub → **历史同步**，保存 token 后点击 **开始同步全部数据**；可查看分片进度、等待原因与固定数据。
@@ -74,10 +74,13 @@ ssh -N -L 18084:127.0.0.1:18084 research.local
 | Live | <http://127.0.0.1:18080>（远程访问见独立 Live 部署说明） |
 
 `make ps-data` / `ps-research` / `ps-live` 查看状态；`make down-data` / `down-research` / `down-live` 只停止对应应用并保留卷。
-Data/Research 命令均需传相同的 `ENV_FILE`。NAS 单独使用 `make ps-database` / `down-database`，停止会影响依赖它的数据与研究操作。
+Data/Research 命令均需传相同的 `ENV_FILE`。core 上的数据库单独使用 `make ps-database` / `down-database`；停止会影响 Data Hub，不会停止 Research 或 Live 的本地存储。
 
 修改代码后重新构建；`restart` 不会构建新代码。端口、NFS 参数、存储权限与备份见 [部署说明](deploy/README.md)。
 当前个人容器与数据不会被新命令自动迁移或接管。
+
+本地启动 Research 前，创建专用本机目录，设置 `NORTHSTAR_RESEARCH_DATABASE=/绝对路径/research.sqlite3`，
+并运行 `NORTHSTAR_DATABASE_OWNER=research northstar maintenance init-db`。Research API 使用同一 SQLite 文件环境变量；CLI `research` 命令自动选择此本地库。
 
 ## 前后端如何运行
 
@@ -100,8 +103,9 @@ Data/Research 命令均需传相同的 `ENV_FILE`。NAS 单独使用 `make ps-da
 | Live | `18080` | `19080` |
 
 日常访问前端端口即可。Live 内核为独立的 `18081` 服务。
-NAS PostgreSQL 分为 `northstar_data_hub`、`northstar_research`、`northstar_live`，账号按库隔离。
-Research 消费只读固定发布文件，结果写入自己的库和产物共享，临时计算目录在本机。
+core PostgreSQL 仅保存 Data Hub 元数据；Research 的任务与结果保存在 research 本机 SQLite。
+Research 用 Data Hub API 获取固定清单，通过只读 NAS 挂载和本机 DuckDB 读取 Parquet。
+配置 `NORTHSTAR_DATA_HUB_URL` 和两端相同的 `NORTHSTAR_PUBLICATION_TOKEN`（至少 32 字符），不向 Research 分发 core 数据库口令。
 Live 当前仍独立存储，不依赖家庭 NAS；最小恢复日志与异步归档是下一项改造。
 独立持久研究 worker 与持续采集仍待实现。
 进程隔离不代表已经完成任务检查点恢复，也不能隔离整台主机故障。
@@ -214,7 +218,7 @@ make verify
 ## 数据与运行维护
 
 各应用日志和 Live 认证保存在所属 Docker 卷；Data Hub/Research 的数据库、来源、市场发布、研究产物和备份位于 NAS，Live 内核拥有独立本地数据卷。重建容器不会清空这些数据；不要用 `docker compose down -v` 停止日常应用。
-PostgreSQL 运行目录保留在 NAS 自己的本地卷，不放在 NFS 客户端挂载中。数据库与其引用的来源文件必须一起备份，市场数据、备份和私密凭据不提交到 Git。
+PostgreSQL 活跃目录保留在 core 本机，Research SQLite 保留在 research 本机，不放在 NAS/NFS 上。数据库与其引用的来源文件必须一起备份，市场数据、备份和私密凭据不提交到 Git。
 
 ```sh
 # 目标目录必须尚不存在；每次备份换一个名称

@@ -48,13 +48,13 @@ class Deployment:
             NORTHSTAR_RESEARCH_FRONTEND_IMAGE=research_image,
             NORTHSTAR_NAS_ADDRESS="host.docker.internal",
             NORTHSTAR_NFS_VERSION="4",
-            NORTHSTAR_NAS_BIND_ADDRESS="0.0.0.0",
-            NORTHSTAR_NAS_ADMIN_PASSWORD=self.password,
+            NORTHSTAR_PUBLICATION_BIND_ADDRESS="0.0.0.0",
+            NORTHSTAR_PUBLICATION_PORT="0",
+            NORTHSTAR_DATA_DATABASE_NETWORK=prefix + "-storage",
+            NORTHSTAR_PUBLICATION_TOKEN=secrets.token_urlsafe(32),
+            NORTHSTAR_DATABASE_ADMIN_PASSWORD=self.password,
             NORTHSTAR_DATA_HUB_DATABASE_PASSWORD=secrets.token_urlsafe(32),
-            NORTHSTAR_RESEARCH_DATABASE_PASSWORD=secrets.token_urlsafe(32),
-            NORTHSTAR_LIVE_DATABASE_PASSWORD=secrets.token_urlsafe(32),
-            NORTHSTAR_NAS_PGDATA=str(self.root / "pgdata"),
-            NORTHSTAR_NAS_DATABASE_PORT="0",
+            NORTHSTAR_DATABASE_PGDATA=str(self.root / "pgdata"),
             NORTHSTAR_DATA_API_PORT="0",
             NORTHSTAR_DATA_WEB_PORT="0",
             NORTHSTAR_RESEARCH_API_PORT="0",
@@ -105,10 +105,30 @@ class Deployment:
                 "postgres",
             )
             self.run(app, "run", "--rm", "initialize")
-            address = self.run(app, "port", "postgres", "5432").strip()
-            self.environment["NORTHSTAR_NAS_DATABASE_PORT"] = address.rsplit(":", 1)[1]
             return
         self.run(app, "up", "-d", "--no-build", "--wait", "--wait-timeout", "120")
+        if app == "data_hub":
+            try:
+                port = self.run(app, "port", "publications", "8080").strip().rsplit(":", 1)[1]
+            except RuntimeError:
+                print(self.run(app, "logs", "publications"), flush=True)
+                raise
+            self.environment["NORTHSTAR_DATA_HUB_URL"] = "http://host.docker.internal:" + port
+            with httpx.Client(
+                base_url="http://127.0.0.1:" + port, trust_env=False, timeout=10
+            ) as remote:
+                assert remote.get("/api/sync", headers={"Host": "127.0.0.1"}).status_code == 404
+                assert remote.get("/api/publications").status_code == 403
+                assert (
+                    remote.post(
+                        "/api/publications",
+                        headers={
+                            "Authorization": "Bearer "
+                            + self.environment["NORTHSTAR_PUBLICATION_TOKEN"]
+                        },
+                    ).status_code
+                    == 403
+                )
 
     @contextmanager
     def client(self, app: str, service: str) -> Iterator[httpx.Client]:
@@ -122,10 +142,10 @@ class Deployment:
     def exercise(self) -> None:
         self.up("database")
         # Research starts with storage alone: Data Hub has never been started.
+        self.up("data_hub")
         self.up("research")
         with self.client("research", "research") as research:
             assert request(research, "research", "/api/datasets") == []
-            self.up("data_hub")
             self.run("data_hub", "stop", "data-worker")
             settings = tomllib.loads((ROOT / "examples/intraday.toml").read_text())
             source = settings["source"]
@@ -179,11 +199,24 @@ print(json.dumps(DataLibrary(open_database(),SourceFiles.from_environment()).sub
                 assert attempt["status"] in {"PENDING", "RUNNING"}, attempt
                 assert monotonic() < deadline, attempt
                 sleep(0.5)
-            self.run("data_hub", "down", "--timeout", "10")
+            self.run(
+                "data_hub",
+                "up",
+                "-d",
+                "--no-build",
+                "--no-deps",
+                "--wait",
+                "--wait-timeout",
+                "120",
+                "data-api",
+                "data-hub",
+            )
             assert (
                 request(research, "research", "/api/datasets")[0]["snapshot_id"]
                 == attempt["snapshot_id"]
             )
+            self.run("data_hub", "stop", "data-api", "data-hub", "data-worker", "publications")
+            self.run("database", "stop", "postgres")
             run = request(
                 research,
                 "research",
@@ -191,10 +224,11 @@ print(json.dumps(DataLibrary(open_database(),SourceFiles.from_environment()).sub
                 {"snapshot_id": attempt["snapshot_id"], "config": settings["research"]},
             )
             print(
-                "Research starts alone and computes from fixed data after Data Hub stops",
+                "Research SQLite computes while Data Hub and core PostgreSQL are stopped",
                 flush=True,
             )
-            self.up("data_hub")
+            self.run("database", "up", "-d", "--no-build", "--wait", "postgres")
+            self.run("data_hub", "start")
             backup = json.loads(
                 self.run(
                     "data_hub",
@@ -253,7 +287,7 @@ print(json.dumps(DataLibrary(open_database(),SourceFiles.from_environment()).sub
             )
             backup = json.loads(self.run("database", "run", "--rm", "--no-deps", "backup"))
             assert backup["status"] == "complete"
-            print("NAS backup includes all three databases, roles and pinned files", flush=True)
+            print("Core backup includes Data Hub database, roles and pinned files", flush=True)
             # A bind directory existing locally is insufficient evidence of a NAS mount.
             self.run("data_hub", "down", "--timeout", "10")
             wrong = self.root / "unmounted"
@@ -326,7 +360,10 @@ def request(client: httpx.Client, app: str, path: str, payload: dict | None = No
         }
         content = pack(binding.input_type, payload).SerializeToString()
     response = client.request(verb, path, content=content, headers=headers)
-    response.raise_for_status()
+    if response.status_code >= 400:
+        from northstar_quant.web.common_pb2 import Error
+
+        raise RuntimeError(str(decode(Error.DESCRIPTOR, response.content)))
     return decode(binding.output_type, response.content)
 
 

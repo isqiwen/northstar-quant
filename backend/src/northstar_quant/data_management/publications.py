@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 import os
 from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import Protocol
+from typing import Any, Protocol
 from uuid import UUID
 
 from pydantic import TypeAdapter
@@ -52,7 +53,31 @@ class PublishedDatasets:
     def publish(self, dataset: ResearchDataset) -> None:
         if dataset.details is None:
             raise ValueError("publication requires verified source and quality evidence")
-        payload = _dataset.dump_json(dataset)
+        import pyarrow as pa  # type: ignore[import-untyped]
+        import pyarrow.parquet as pq  # type: ignore[import-untyped]
+
+        value = json.loads(_dataset.dump_json(dataset))
+        bars = value.pop("bars")
+        buffer = io.BytesIO()
+        pq.write_table(pa.Table.from_pylist(bars), buffer, compression="zstd")
+        raw = buffer.getvalue()
+        digest = hashlib.sha256(raw).hexdigest()
+
+        self.root.mkdir(parents=True, exist_ok=True)
+        parquet = self.root / f"{digest}.parquet"
+        if parquet.exists():
+            if hashlib.sha256(parquet.read_bytes()).hexdigest() != digest:
+                raise ValueError("publication parquet checksum mismatch")
+        else:
+            _write_publication(parquet, raw)
+        payload = json.dumps(
+            {
+                "dataset": value,
+                "parquet": {"path": parquet.name, "sha256": digest, "bytes": len(raw)},
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode()
         envelope = json.dumps(
             {"sha256": hashlib.sha256(payload).hexdigest(), "payload": payload.decode()},
             ensure_ascii=False,
@@ -97,7 +122,15 @@ class PublishedDatasets:
             payload = record["payload"].encode()
             if hashlib.sha256(payload).hexdigest() != record["sha256"]:
                 raise ValueError("publication checksum mismatch")
-            dataset = _dataset.validate_json(payload)
+            record = json.loads(payload)
+            parquet = record["parquet"]
+            if parquet["path"] != parquet["sha256"] + ".parquet":
+                raise ValueError("invalid publication parquet path")
+            from .parquet_reader import read_rows
+
+            value = record["dataset"]
+            value["bars"] = read_rows(self.root, parquet)
+            dataset = _dataset.validate_python(value)
             if dataset.snapshot_id != snapshot_id or dataset.details is None:
                 raise ValueError("publication snapshot identity or evidence mismatch")
             if dataset.details.summary.content_hash != dataset.content_hash:
@@ -107,6 +140,24 @@ class PublishedDatasets:
             raise LookupError("fixed publication not found") from error
         except (KeyError, TypeError, json.JSONDecodeError) as error:
             raise ValueError("invalid publication envelope") from error
+
+    def manifest(self, snapshot_id: UUID) -> dict[str, Any]:
+        path = self.root / f"{snapshot_id}.json"
+        content = path.read_bytes()
+        envelope = json.loads(content)
+        if hashlib.sha256(envelope["payload"].encode()).hexdigest() != envelope["sha256"]:
+            raise ValueError("publication checksum mismatch")
+        value = json.loads(envelope["payload"])
+        if value["dataset"]["snapshot_id"] != str(snapshot_id):
+            raise ValueError("publication snapshot identity mismatch")
+        return {
+            "snapshot_id": str(snapshot_id),
+            "storage_id": os.environ.get("NORTHSTAR_MARKET_STORAGE_ID", "market-published"),
+            "path": path.name,
+            "sha256": hashlib.sha256(content).hexdigest(),
+            "bytes": len(content),
+            "files": [value["parquet"]],
+        }
 
     def describe_dataset(self, snapshot_id: UUID) -> DatasetDetails:
         details = self.load_dataset(snapshot_id).details
@@ -132,3 +183,22 @@ class PublishedDatasets:
             "attempts": [],
             "usages": [] if self._usages is None else self._usages([snapshot_id]),
         }
+
+
+def _write_publication(path: Path, content: bytes) -> None:
+    import tempfile
+
+    descriptor, temporary = tempfile.mkstemp(prefix=".publication-", dir=path.parent)
+    try:
+        with os.fdopen(descriptor, "wb") as stream:
+            stream.write(content)
+            stream.flush()
+            os.fsync(stream.fileno())
+        try:
+            os.link(temporary, path)
+        except FileExistsError:
+            if path.read_bytes() != content:
+                raise ValueError("conflicting immutable publication") from None
+        SourceFiles._sync(path.parent)
+    finally:
+        Path(temporary).unlink(missing_ok=True)

@@ -12,6 +12,7 @@ import base64
 import hashlib
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import tomllib
@@ -301,12 +302,12 @@ def main() -> None:
                     )
                 application.assert_live(live_process, live_status)
                 print(
-                    "Installed HTTP: import, data library, source evidence, research and "
+                    "Installed HTTP: data queries, publication API, source evidence, research and "
                     "report passed",
                     flush=True,
                 )
 
-                with application.api("research-api") as base_url:
+                with application.api("data-api"), application.api("research-api") as base_url:
                     application.assert_live(live_process, live_status)
                     assert json.loads(request(f"{base_url}/api/paper/{paper_id}")) == paused_paper
                     datasets = json.loads(request(f"{base_url}/api/datasets"))
@@ -371,6 +372,14 @@ def main() -> None:
                 assert (
                     hashlib.sha256((runtime / "backup/database.dump").read_bytes()).hexdigest()
                     == backup["database_sha256"]
+                )
+                subprocess.run(
+                    [executable, "maintenance", "backup", str(runtime / "research-backup")],
+                    env=dict(application.environment, NORTHSTAR_DATABASE_OWNER="research"),
+                    cwd=runtime,
+                    check=True,
+                    capture_output=True,
+                    timeout=60,
                 )
                 check_restore(
                     executable,

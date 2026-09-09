@@ -36,13 +36,13 @@ def create_app(engine: Engine, library: DatasetReader) -> FastAPI:
 
 @logged_application("research", "api")
 def application() -> FastAPI:
-    from northstar_quant.apps.storage import open_database, require_current_database
-    from northstar_quant.data_management.publications import PublishedDatasets
+    from northstar_quant.data_management.publication_client import PublicationClient
+    from northstar_quant.research.storage import open_store, require_current
 
-    engine = open_database()
-    require_current_database(engine)
+    engine = open_store()
+    require_current(engine)
     from northstar_quant.research.artifacts import ResearchUsages
 
     return create_app(
-        engine, PublishedDatasets.from_environment(usages=ResearchUsages(engine).list)
+        engine, PublicationClient.from_environment(usages=ResearchUsages(engine).list)
     )

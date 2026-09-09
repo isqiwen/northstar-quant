@@ -7,7 +7,7 @@ import json
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Column, Connection, DateTime, Engine, MetaData, String, Table, func, select
+from sqlalchemy import JSON, Column, Connection, Engine, MetaData, String, Table, func, select
 from sqlalchemy.dialects.postgresql import JSONB, insert
 
 from northstar_quant import code_revision
@@ -15,6 +15,7 @@ from northstar_quant.factors.definition import content_id
 from northstar_quant.research.configuration import ResearchConfig
 from northstar_quant.research.configurations import ConfigurationStore
 from northstar_quant.research.runs import RunStore
+from northstar_quant.research.storage import UTCDateTime
 from northstar_quant.strategies.artifacts import verify_candidate
 
 _metadata = MetaData()
@@ -23,21 +24,27 @@ _versions = Table(
     _metadata,
     Column("version_id", String(64), primary_key=True),
     Column("name", String(80), nullable=False),
-    Column("document", JSONB, nullable=False),
-    Column("created_at", DateTime(timezone=True), server_default=func.now(), nullable=False),
+    Column("document", JSON().with_variant(JSONB(), "postgresql"), nullable=False),
+    Column("created_at", UTCDateTime(), server_default=func.now(), nullable=False),
 )
 _candidates = Table(
     "strategy_candidates",
     _metadata,
     Column("candidate_id", String(64), primary_key=True),
     Column("version_id", String(64), nullable=False),
-    Column("document", JSONB, nullable=False),
-    Column("created_at", DateTime(timezone=True), server_default=func.now(), nullable=False),
+    Column("document", JSON().with_variant(JSONB(), "postgresql"), nullable=False),
+    Column("created_at", UTCDateTime(), server_default=func.now(), nullable=False),
 )
 
 
 def initialize_strategy_management(connection: Connection) -> None:
     _metadata.create_all(connection)
+    if connection.dialect.name == "sqlite":
+        from .storage import immutable
+
+        for table in ("strategy_versions", "strategy_candidates"):
+            immutable(connection, table)
+        return
     for table in ("strategy_versions", "strategy_candidates"):
         connection.exec_driver_sql(f"DROP TRIGGER IF EXISTS immutable ON {table}")
         connection.exec_driver_sql(

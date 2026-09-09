@@ -5,8 +5,9 @@ import type { Query } from "../../../shared/data";
 import protocol from "./protocol.json";
 import codec from "./codec";
 registerProtocol(protocol, codec);
-export type GetPath = `/api/datasets/${string}/lineage` | `/api/sync/receipts/${string}` | `/api/sync/jobs/${string}` | `/api/datasets/${string}` | `/api/attempts/${string}` | `/api/sources/${string}` | `/api/processing/status` | `/api/browser-session` | `/api/rejections` | `/api/attempts` | `/api/datasets` | `/api/sources` | `/api/sync`;
+export type GetPath = `/api/datasets/${string}/lineage` | `/api/publications/${string}` | `/api/sync/receipts/${string}` | `/api/sync/jobs/${string}` | `/api/datasets/${string}` | `/api/attempts/${string}` | `/api/sources/${string}` | `/api/processing/status` | `/api/browser-session` | `/api/publications` | `/api/rejections` | `/api/attempts` | `/api/datasets` | `/api/sources` | `/api/sync`;
 export type GetResponse<P> = P extends `/api/datasets/${string}/lineage` ? messages.DatasetLineage :
+P extends `/api/publications/${string}` ? messages.PublicationManifest :
 P extends `/api/sync/receipts/${string}` ? messages.SyncEvidence :
 P extends `/api/sync/jobs/${string}` ? messages.SyncEvidence :
 P extends `/api/datasets/${string}` ? messages.DatasetDetails :
@@ -14,6 +15,7 @@ P extends `/api/attempts/${string}` ? messages.ProcessingAttempt :
 P extends `/api/sources/${string}` ? messages.SourceRecord :
 P extends `/api/processing/status` ? messages.ProcessingQueueStatus :
 P extends `/api/browser-session` ? messages.BrowserSession :
+P extends `/api/publications` ? messages.PublicationCatalog :
 P extends `/api/rejections` ? messages.GetApiRejectionsResponse :
 P extends `/api/attempts` ? messages.GetApiAttemptsResponse :
 P extends `/api/datasets` ? messages.GetApiDatasetsResponse :

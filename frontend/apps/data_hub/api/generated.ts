@@ -132,6 +132,17 @@ export type SyncEvidence = {
   request_id: string;
   [key: string]: unknown;
 };
+export type PublicationManifest = {
+  snapshot_id: string;
+  storage_id: string;
+  path: string;
+  sha256: string;
+  bytes: number;
+  files: (Record<string, JsonValue>)[];
+};
+export type PublicationCatalog = {
+  snapshots: (string)[];
+};
 export type Empty = {
 };
 export type Error = {

@@ -11,9 +11,9 @@ from uuid import UUID as Identifier
 from uuid import uuid4
 
 from sqlalchemy import (
+    JSON,
     Column,
     Connection,
-    DateTime,
     Engine,
     MetaData,
     String,
@@ -22,24 +22,26 @@ from sqlalchemy import (
     select,
     update,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID, insert
+from sqlalchemy import Uuid as UUID
+from sqlalchemy.dialects.postgresql import JSONB, insert
 
 from northstar_quant import code_revision
 from northstar_quant.data_management.research import ResearchDataset
 from northstar_quant.research.backtesting import ResearchResult
 from northstar_quant.research.configuration import ResearchConfig
+from northstar_quant.research.storage import UTCDateTime
 
 _metadata = MetaData()
 _runs = Table(
     "research_runs",
     _metadata,
     Column("run_id", String(64), primary_key=True),
-    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("created_at", UTCDateTime(), nullable=False, server_default=func.now()),
     Column("code_revision", String(64), nullable=False),
     Column("snapshot_id", UUID(as_uuid=True), nullable=False),
     Column("snapshot_hash", String(64), nullable=False),
-    Column("config", JSONB, nullable=False),
-    Column("result", JSONB, nullable=False),
+    Column("config", JSON().with_variant(JSONB(), "postgresql"), nullable=False),
+    Column("result", JSON().with_variant(JSONB(), "postgresql"), nullable=False),
 )
 
 
@@ -48,23 +50,32 @@ _attempts = Table(
     _metadata,
     Column("attempt_id", UUID(as_uuid=True), primary_key=True),
     Column("snapshot_id", UUID(as_uuid=True), nullable=False),
-    Column("config", JSONB, nullable=False),
+    Column("config", JSON().with_variant(JSONB(), "postgresql"), nullable=False),
     Column("code_revision", String(64), nullable=False),
     Column("status", String(20), nullable=False),
     Column("run_id", String(64)),
     Column("error", String(1000)),
-    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Column("created_at", UTCDateTime(), nullable=False, server_default=func.now()),
 )
 
 
 def initialize_run_store(engine: Engine | Connection) -> None:
     """Create the current result table during explicit database initialization."""
 
-    if engine.dialect.name != "postgresql":
-        raise ValueError("research results require PostgreSQL")
     _metadata.create_all(engine)
 
     def guards(connection: Connection) -> None:
+        if connection.dialect.name == "sqlite":
+            from .storage import immutable, transitions
+
+            immutable(connection, "research_runs")
+            transitions(
+                connection,
+                "research_attempts",
+                ("attempt_id", "snapshot_id", "config", "code_revision", "created_at"),
+                ("SUCCEEDED", "FAILED"),
+            )
+            return
         connection.exec_driver_sql("""
             CREATE OR REPLACE FUNCTION research_attempt_transition() RETURNS trigger AS $$
             BEGIN
@@ -100,8 +111,6 @@ class RunStore:
     """Save a whole run atomically; content identity makes retries idempotent."""
 
     def __init__(self, engine: Engine) -> None:
-        if engine.dialect.name != "postgresql":
-            raise ValueError("research results require PostgreSQL")
         self._engine = engine
 
     def begin_attempt(self, snapshot_id: Identifier, config: ResearchConfig) -> Identifier:

@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--app", required=True, choices=["data_hub", "research"])
+    parser.add_argument("--app", required=True, choices=["database", "data_hub", "research"])
     parser.add_argument("--env-file")
     parser.add_argument("--maintenance", action="store_true")
     args = parser.parse_args()
@@ -32,8 +32,28 @@ def main() -> None:
             2, "Compose parameters incomplete; fill in the private host environment file.\n"
         )
     service = json.loads(result.stdout)["services"][
-        "maintenance" if args.maintenance else "storage-check"
+        "initialize"
+        if args.app == "database"
+        else "maintenance"
+        if args.maintenance
+        else "storage-check"
     ]
+    if args.app == "database":
+        postgres = json.loads(result.stdout)["services"]["postgres"]
+        path = postgres["volumes"][0]["source"]
+        if not Path(path).is_dir() or Path(path).is_symlink():
+            parser.exit(2, "Create a dedicated core local PGDATA directory first.\n")
+        mount = subprocess.run(
+            ["findmnt", "--json", "--target", path, "--output", "FSTYPE"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        kind = json.loads(mount.stdout)["filesystems"][0]["fstype"]
+        if kind not in {"ext4", "xfs", "btrfs", "zfs"}:
+            parser.exit(
+                2, "PGDATA requires a verified local persistent filesystem, not NFS/SMB/tmpfs.\n"
+            )
     env = service["environment"]
     for volume in service["volumes"]:
         if volume.get("type") != "bind":

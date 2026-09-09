@@ -73,7 +73,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             finally:
                 client.close()
 
-        engine = open_database()
+        if arguments.scope in {"research", "paper"}:
+            from northstar_quant.research.storage import open_store
+
+            engine = open_store()
+        else:
+            engine = open_database()
         if arguments.operation == "init-db":
             initialize_database(engine)
             print(json.dumps({"status": "ready"}))
@@ -123,7 +128,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return handlers[arguments.scope](arguments, engine)
     except SQLAlchemyError:
         print(
-            "northstar: PostgreSQL operation failed; check its availability and baseline",
+            "northstar: storage operation failed; check its availability and initialization",
             file=sys.stderr,
         )
         return 2
