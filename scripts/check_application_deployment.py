@@ -10,6 +10,8 @@ import re
 import secrets
 import subprocess
 import tomllib
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from time import monotonic, sleep
 from uuid import uuid4
@@ -74,13 +76,14 @@ class Deployment:
             return
         self.run(app, "up", "-d", "--no-build", "--wait", "--wait-timeout", "120")
 
-    def client(self, app: str, service: str) -> httpx.Client:
+    @contextmanager
+    def client(self, app: str, service: str) -> Iterator[httpx.Client]:
         address = self.run(app, "port", service, "3000").strip()
         base = "http://" + address
-        client = httpx.Client(base_url=base, headers={"Origin": base}, timeout=30)
-        assert "NORTHSTAR" in client.get("/").text
-        request(client, app, "/api/browser-session")
-        return client
+        with httpx.Client(base_url=base, headers={"Origin": base}, timeout=30) as client:
+            assert "NORTHSTAR" in client.get("/").text
+            request(client, app, "/api/browser-session")
+            yield client
 
     def exercise(self) -> None:
         self.up("storage")
