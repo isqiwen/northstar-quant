@@ -378,6 +378,8 @@ def test_init_host_deduplicates_targets_and_verifies_fixed_deployment_account(
     env["INIT_HOST_RESULT"] = "9"
     result = subprocess.run(command, env=env, text=True, capture_output=True)
     assert result.returncode != 0
+    assert "host_account" not in result.stderr and "initialize(public_key" not in result.stderr
+    assert len(result.stderr) < 1000
     calls = [json.loads(line) for line in Path(env["RECORD"]).read_text().splitlines()]
     assert len([call for call in calls if call[0] == "ssh"]) == 1
 

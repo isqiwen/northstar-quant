@@ -279,7 +279,13 @@ def main() -> int:
                 subprocess.run(upload, stdin=source, check=True)
             with bundle.open("rb") as source:
                 return subprocess.run(command, stdin=source, check=False).returncode
-    except (OSError, ValueError, subprocess.CalledProcessError) as error:
+    except subprocess.CalledProcessError as error:
+        print(
+            f"操作失败（退出码 {error.returncode}），请查看上方错误；修复后重新执行当前命令。",
+            file=sys.stderr,
+        )
+        return 1
+    except (OSError, ValueError) as error:
         print(f"部署失败：{error}", file=sys.stderr)
         return 1
 

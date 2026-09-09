@@ -46,7 +46,8 @@ def test_prepared_host_does_not_install_or_restart_services(bootstrap, monkeypat
 
 
 @pytest.mark.parametrize("app", ["data-hub", "live", "database"])
-def test_fresh_host_installs_tools_and_verifies_them(bootstrap, monkeypatch, app):
+@pytest.mark.parametrize("distro", ["ubuntu", "debian"])
+def test_fresh_host_installs_tools_and_verifies_them(bootstrap, monkeypatch, app, distro):
     module, request = bootstrap
     request["app"] = app
     original = Path.read_text
@@ -54,7 +55,7 @@ def test_fresh_host_installs_tools_and_verifies_them(bootstrap, monkeypatch, app
         Path,
         "read_text",
         lambda path, *a, **kw: (
-            "ID=debian\nVERSION_CODENAME=bookworm\n"
+            f"ID={distro}\nVERSION_CODENAME={'resolute' if distro == 'ubuntu' else 'bookworm'}\n"
             if str(path) == "/etc/os-release"
             else original(path, *a, **kw)
         ),
@@ -78,8 +79,13 @@ def test_fresh_host_installs_tools_and_verifies_them(bootstrap, monkeypatch, app
     monkeypatch.setattr(module, "admin", lambda *args: calls.append(args))
     monkeypatch.setattr(module, "run", lambda *args: calls.append(args))
     module.prepare(request)
-    assert any("docker-ce" in call for call in calls)
-    assert any("docker-compose-plugin" in call for call in calls)
+    if distro == "ubuntu":
+        assert any("docker.io" in call and "--no-remove" in call for call in calls)
+        assert any("docker-compose-v2" in call and "docker-buildx" in call for call in calls)
+        assert not any("download.docker.com" in str(call) for call in calls)
+    else:
+        assert any("docker-ce" in call for call in calls)
+        assert any("docker-compose-plugin" in call for call in calls)
     assert any("uv==0.11.6" in call for call in calls)
     assert not any("remove" in call or "restart" in call for call in calls)
 

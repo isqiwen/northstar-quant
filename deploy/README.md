@@ -101,6 +101,8 @@ Data Hub 使用同一份绑定；Research 首次部署读取共享目录标记�
 
 远程入口本机需要 Python 3.11+/Git/OpenSSH；目标主机先具备 SSH、Python 3.11+，并允许配置的 user 登录；该用户为 root 或具有 sudo 权限。
 `deploy` 自动安装 Ubuntu/Debian amd64 上缺失的 Git、uv、Docker Engine、Compose、Buildx；主机需要软件源和镜像网络访问。
+Ubuntu 首次安装 Docker 使用已配置的系统 APT 源（需提供 universe 中的 docker.io、docker-compose-v2、docker-buildx），不另行下载 Docker 官方源公钥。
+Debian 或已有 Docker CE 使用 Docker 官方软件源；公钥下载有超时和重试。已有可用运行时不自动替换。
 
 在 `deploy/hosts.toml` 填好主机地址、初始化 user 和端口，然后首次初始化：
 

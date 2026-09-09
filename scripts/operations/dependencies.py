@@ -35,6 +35,16 @@ def admin(*args: str) -> None:
     run(*elevation, *args)
 
 
+def installed(package: str) -> bool:
+    result = subprocess.run(
+        ["dpkg-query", "-W", "-f=${Status}", package],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return result.stdout.strip() == "install ok installed"
+
+
 def prepare(request: dict) -> None:
     admin(
         sys.executable,
@@ -67,16 +77,19 @@ def prepare(request: dict) -> None:
             raise ValueError("自动安装仅支持 Ubuntu/Debian；其他系统请先安装部署依赖")
         admin("true")
         print("准备部署依赖：检测缺项并安装", flush=True)
+        distribution_docker = (
+            distro == "ubuntu"
+            and not installed("docker-ce")
+            and (not docker or installed("docker.io"))
+        )
         if not (docker and compose and buildx):
-            # Never replace a running distro engine or container runtime implicitly.
-            for package in ("docker.io", "podman-docker", "containerd", "runc"):
-                result = subprocess.run(
-                    ["dpkg-query", "-W", "-f=${Status}", package],
-                    capture_output=True,
-                    text=True,
-                    check=False,
-                )
-                if result.stdout.strip() == "install ok installed":
+            conflicts = (
+                ("podman-docker",)
+                if distribution_docker
+                else ("docker.io", "podman-docker", "containerd", "runc")
+            )
+            for package in conflicts:
+                if installed(package):
                     raise ValueError(
                         f"已有 {package}；请补齐其 Compose/Buildx，脚本不替换现有运行时"
                     )
@@ -96,53 +109,80 @@ def prepare(request: dict) -> None:
             arch = subprocess.check_output(["dpkg", "--print-architecture"], text=True).strip()
             if arch != "amd64":
                 raise ValueError("当前应用镜像要求 Linux amd64 主机")
-            sources = [Path("/etc/apt/sources.list")]
-            sources += list(Path("/etc/apt/sources.list.d").glob("*.list"))
-            sources += list(Path("/etc/apt/sources.list.d").glob("*.sources"))
-            existing_source = any(
-                path.is_file() and f"download.docker.com/linux/{distro}" in path.read_text()
-                for path in sources
-            )
-            if not existing_source:
-                with tempfile.TemporaryDirectory(prefix="northstar-dependencies-") as temporary:
-                    key = Path(temporary) / "docker.asc"
-                    run(
-                        "curl",
-                        "-fsSL",
-                        f"https://download.docker.com/linux/{distro}/gpg",
-                        "-o",
-                        str(key),
-                    )
-                    source = Path(temporary) / "docker.sources"
-                    source.write_text(
-                        f"Types: deb\nURIs: https://download.docker.com/linux/{distro}\n"
-                        f"Suites: {codename}\nComponents: stable\nArchitectures: {arch}\n"
-                        "Signed-By: /etc/apt/keyrings/northstar-docker.asc\n"
-                    )
-                    admin("install", "-d", "-m", "0755", "/etc/apt/keyrings")
-                    admin(
-                        "install", "-m", "0644", str(key), "/etc/apt/keyrings/northstar-docker.asc"
-                    )
-                    admin(
-                        "install",
-                        "-m",
-                        "0644",
-                        str(source),
-                        "/etc/apt/sources.list.d/northstar-docker.sources",
-                    )
-            admin("apt-get", "update")
-            needed = [] if docker else ["docker-ce", "docker-ce-cli", "containerd.io"]
-            needed += [] if compose else ["docker-compose-plugin"]
-            needed += [] if buildx else ["docker-buildx-plugin"]
-            admin(
-                "env",
-                "DEBIAN_FRONTEND=noninteractive",
-                "apt-get",
-                "install",
-                "-y",
-                "--no-upgrade",
-                *needed,
-            )
+            if distribution_docker:
+                print("从现有 Ubuntu APT 软件源安装 Docker/Compose/Buildx", flush=True)
+                needed = [] if docker else ["docker.io"]
+                needed += [] if compose else ["docker-compose-v2"]
+                needed += [] if buildx else ["docker-buildx"]
+                admin(
+                    "env",
+                    "DEBIAN_FRONTEND=noninteractive",
+                    "apt-get",
+                    "install",
+                    "-y",
+                    "--no-upgrade",
+                    "--no-remove",
+                    *needed,
+                )
+            else:
+                sources = [Path("/etc/apt/sources.list")]
+                sources += list(Path("/etc/apt/sources.list.d").glob("*.list"))
+                sources += list(Path("/etc/apt/sources.list.d").glob("*.sources"))
+                existing_source = any(
+                    path.is_file() and f"download.docker.com/linux/{distro}" in path.read_text()
+                    for path in sources
+                )
+                if not existing_source:
+                    with tempfile.TemporaryDirectory(prefix="northstar-dependencies-") as temporary:
+                        key = Path(temporary) / "docker.asc"
+                        run(
+                            "curl",
+                            "-fsSL",
+                            "--retry",
+                            "2",
+                            "--retry-all-errors",
+                            "--connect-timeout",
+                            "10",
+                            "--max-time",
+                            "30",
+                            f"https://download.docker.com/linux/{distro}/gpg",
+                            "-o",
+                            str(key),
+                        )
+                        source = Path(temporary) / "docker.sources"
+                        source.write_text(
+                            f"Types: deb\nURIs: https://download.docker.com/linux/{distro}\n"
+                            f"Suites: {codename}\nComponents: stable\nArchitectures: {arch}\n"
+                            "Signed-By: /etc/apt/keyrings/northstar-docker.asc\n"
+                        )
+                        admin("install", "-d", "-m", "0755", "/etc/apt/keyrings")
+                        admin(
+                            "install",
+                            "-m",
+                            "0644",
+                            str(key),
+                            "/etc/apt/keyrings/northstar-docker.asc",
+                        )
+                        admin(
+                            "install",
+                            "-m",
+                            "0644",
+                            str(source),
+                            "/etc/apt/sources.list.d/northstar-docker.sources",
+                        )
+                admin("apt-get", "update")
+                needed = [] if docker else ["docker-ce", "docker-ce-cli", "containerd.io"]
+                needed += [] if compose else ["docker-compose-plugin"]
+                needed += [] if buildx else ["docker-buildx-plugin"]
+                admin(
+                    "env",
+                    "DEBIAN_FRONTEND=noninteractive",
+                    "apt-get",
+                    "install",
+                    "-y",
+                    "--no-upgrade",
+                    *needed,
+                )
             if not docker:
                 admin("systemctl", "enable", "--now", "docker")
         if not uv:
@@ -175,6 +215,9 @@ def prepare(request: dict) -> None:
 if __name__ == "__main__":
     try:
         prepare(json.loads(sys.argv[1]))
-    except (OSError, ValueError, subprocess.CalledProcessError) as error:
+    except subprocess.CalledProcessError as error:
+        print(f"依赖准备失败：命令返回 {error.returncode}，请查看上方安装错误。", file=sys.stderr)
+        sys.exit(1)
+    except (OSError, ValueError) as error:
         print(f"依赖准备失败：{error}", file=sys.stderr)
         sys.exit(1)

@@ -176,6 +176,9 @@ def execute(request: dict) -> None:
 if __name__ == "__main__":
     try:
         execute(json.loads(sys.argv[1]))
-    except (OSError, ValueError, subprocess.CalledProcessError) as error:
+    except subprocess.CalledProcessError as error:
+        print(f"远程操作失败：命令返回 {error.returncode}，请查看上方错误。", file=sys.stderr)
+        sys.exit(1)
+    except (OSError, ValueError) as error:
         print(f"远程操作失败：{error}", file=sys.stderr)
         sys.exit(1)
