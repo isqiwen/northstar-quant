@@ -627,14 +627,6 @@ class RiskInput(_message.Message):
     max_margin_fraction: str
     def __init__(self, initial_margin_fraction: _Optional[str] = ..., max_adverse_price_move_fraction: _Optional[str] = ..., max_gross_notional: _Optional[str] = ..., max_lots: _Optional[int] = ..., max_margin_fraction: _Optional[str] = ...) -> None: ...
 
-class RunCreated(_message.Message):
-    __slots__ = ("run_id", "url")
-    RUN_ID_FIELD_NUMBER: _ClassVar[int]
-    URL_FIELD_NUMBER: _ClassVar[int]
-    run_id: str
-    url: str
-    def __init__(self, run_id: _Optional[str] = ..., url: _Optional[str] = ...) -> None: ...
-
 class RunDetail(_message.Message):
     __slots__ = ("code_revision", "committed_code", "config", "created_at", "result", "run_id", "snapshot", "evidence_fields")
     class EvidenceFieldsEntry(_message.Message):
@@ -661,14 +653,6 @@ class RunDetail(_message.Message):
     snapshot: SnapshotReference
     evidence_fields: _containers.MessageMap[str, _struct_pb2.Value]
     def __init__(self, code_revision: _Optional[str] = ..., committed_code: _Optional[bool] = ..., config: _Optional[_Union[ResearchConfiguration, _Mapping]] = ..., created_at: _Optional[str] = ..., result: _Optional[_Union[ResearchResultDocument, _Mapping]] = ..., run_id: _Optional[str] = ..., snapshot: _Optional[_Union[SnapshotReference, _Mapping]] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...
-
-class RunRequest(_message.Message):
-    __slots__ = ("config", "snapshot_id")
-    CONFIG_FIELD_NUMBER: _ClassVar[int]
-    SNAPSHOT_ID_FIELD_NUMBER: _ClassVar[int]
-    config: ResearchConfigurationInput
-    snapshot_id: str
-    def __init__(self, config: _Optional[_Union[ResearchConfigurationInput, _Mapping]] = ..., snapshot_id: _Optional[str] = ...) -> None: ...
 
 class RunSummary(_message.Message):
     __slots__ = ("code_revision", "committed_code", "config", "created_at", "market", "run_id", "snapshot", "summary", "evidence_fields")
@@ -911,3 +895,64 @@ class GetApiStrategyVersionsResponse(_message.Message):
     ITEMS_FIELD_NUMBER: _ClassVar[int]
     items: _containers.RepeatedCompositeFieldContainer[StrategyVersion]
     def __init__(self, items: _Optional[_Iterable[_Union[StrategyVersion, _Mapping]]] = ...) -> None: ...
+
+class ResearchTask(_message.Message):
+    __slots__ = ("task_id", "snapshot_id", "snapshot_hash", "code_revision", "created_at", "status", "completed", "total", "run_id", "reason", "config", "attempts", "evidence_fields", "null_fields")
+    class EvidenceFieldsEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: _struct_pb2.Value
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
+    TASK_ID_FIELD_NUMBER: _ClassVar[int]
+    SNAPSHOT_ID_FIELD_NUMBER: _ClassVar[int]
+    SNAPSHOT_HASH_FIELD_NUMBER: _ClassVar[int]
+    CODE_REVISION_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    COMPLETED_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_FIELD_NUMBER: _ClassVar[int]
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    CONFIG_FIELD_NUMBER: _ClassVar[int]
+    ATTEMPTS_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    task_id: str
+    snapshot_id: str
+    snapshot_hash: str
+    code_revision: str
+    created_at: str
+    status: str
+    completed: int
+    total: int
+    run_id: str
+    reason: str
+    config: _struct_pb2.Struct
+    attempts: _containers.RepeatedCompositeFieldContainer[_struct_pb2.Struct]
+    evidence_fields: _containers.MessageMap[str, _struct_pb2.Value]
+    null_fields: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, task_id: _Optional[str] = ..., snapshot_id: _Optional[str] = ..., snapshot_hash: _Optional[str] = ..., code_revision: _Optional[str] = ..., created_at: _Optional[str] = ..., status: _Optional[str] = ..., completed: _Optional[int] = ..., total: _Optional[int] = ..., run_id: _Optional[str] = ..., reason: _Optional[str] = ..., config: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., attempts: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class TaskRequest(_message.Message):
+    __slots__ = ("request_id", "snapshot_id", "config")
+    REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
+    SNAPSHOT_ID_FIELD_NUMBER: _ClassVar[int]
+    CONFIG_FIELD_NUMBER: _ClassVar[int]
+    request_id: str
+    snapshot_id: str
+    config: ResearchConfigurationInput
+    def __init__(self, request_id: _Optional[str] = ..., snapshot_id: _Optional[str] = ..., config: _Optional[_Union[ResearchConfigurationInput, _Mapping]] = ...) -> None: ...
+
+class TaskControl(_message.Message):
+    __slots__ = ("action",)
+    ACTION_FIELD_NUMBER: _ClassVar[int]
+    action: str
+    def __init__(self, action: _Optional[str] = ...) -> None: ...
+
+class TaskList(_message.Message):
+    __slots__ = ("items",)
+    ITEMS_FIELD_NUMBER: _ClassVar[int]
+    items: _containers.RepeatedCompositeFieldContainer[ResearchTask]
+    def __init__(self, items: _Optional[_Iterable[_Union[ResearchTask, _Mapping]]] = ...) -> None: ...

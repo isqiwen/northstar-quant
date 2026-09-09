@@ -9,6 +9,7 @@ CLI 用于启动、检查、维护和自动化。日常数据管理、研究与 
 |---|---|
 | `northstar serve data-worker` | 独立执行已接收的数据加工任务，无监听端口 |
 | `northstar serve data-api` | 启动 Data Hub API，默认端口 19082 |
+| `northstar serve research-worker` | 独立执行已持久接收的研究任务 |
 | `northstar serve research-api` | 启动 Research API，默认端口 19084 |
 | `northstar serve live-api` | 启动 Live 管理 API，默认端口 19080 |
 | `northstar serve live-kernel` | 启动独立 Live 内核，默认端口 18081 |
@@ -83,3 +84,7 @@ northstar serve data-worker
 worker 由部署系统独立监管，已有 worker 时不重复启动。网页设置 token、开始/暂停或重试异常任务；
 不支持选择品种、级别、Tick 或上传文件。同步全部可用期货历史接口，缺少权限明确显示。
 `data sync` 输出进度、区间及失败原因，不输出 token。暂停在当前分片提交后停止认领，重启后保留设置与任务。
+
+Research 持久任务可用 `northstar research tasks` 列出，`northstar research task <任务UUID>` 查看；
+`northstar research cancel <任务UUID>` 请求取消，`northstar research retry <任务UUID>` 显式重试失败或中断任务。
+它们访问 Research 本机 SQLite，不需要启动管理网页。

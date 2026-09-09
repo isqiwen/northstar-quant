@@ -128,6 +128,8 @@ def require_current(engine: Engine) -> None:
         names = set(inspect(connection).get_table_names())
         required = {
             "northstar_store",
+            "research_jobs",
+            "research_job_attempts",
             "research_runs",
             "research_attempts",
             "factor_runs",

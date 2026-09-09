@@ -278,14 +278,8 @@ def main() -> None:
                     datasets = json.loads(request(f"{base_url}/api/datasets"))
                     assert sum(item["snapshot_id"] == snapshot_id for item in datasets) == 1
                     assert json.loads(request(f"{base_url}/api/datasets/{snapshot_id}")) == data
-                    submitted = json.loads(
-                        request(
-                            f"{research_url}/api/runs",
-                            {
-                                "snapshot_id": imported["snapshot_id"],
-                                "config": settings["research"],
-                            },
-                        )
+                    submitted = application.submit_research(
+                        research_url, imported["snapshot_id"], settings["research"]
                     )
                     assert (submitted["run_id"] == run_id) is saved["committed_code"]
                     submitted_run = json.loads(
@@ -316,14 +310,8 @@ def main() -> None:
                         json.loads(request(f"{base_url}/api/datasets/{selected['snapshot_id']}"))
                         == data
                     )
-                    resumed = json.loads(
-                        request(
-                            f"{base_url}/api/runs",
-                            {
-                                "snapshot_id": selected["snapshot_id"],
-                                "config": settings["research"],
-                            },
-                        )
+                    resumed = application.submit_research(
+                        base_url, selected["snapshot_id"], settings["research"]
                     )
                     assert resumed["run_id"] == run_id
                     assert json.loads(request(f"{base_url}/api/runs/{run_id}")) == saved

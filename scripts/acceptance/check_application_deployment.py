@@ -220,9 +220,21 @@ print(json.dumps(DataLibrary(open_database(),SourceFiles.from_environment()).sub
             run = request(
                 research,
                 "research",
-                "/api/runs",
-                {"snapshot_id": attempt["snapshot_id"], "config": settings["research"]},
+                "/api/tasks",
+                {
+                    "request_id": str(uuid4()),
+                    "snapshot_id": attempt["snapshot_id"],
+                    "config": settings["research"],
+                },
             )
+            deadline = monotonic() + 60
+            while (
+                run["status"] not in {"SUCCEEDED", "FAILED", "INTERRUPTED"}
+                and monotonic() < deadline
+            ):
+                sleep(0.2)
+                run = request(research, "research", "/api/tasks/" + run["task_id"])
+            assert run["status"] == "SUCCEEDED", run
             print(
                 "Research SQLite computes while Data Hub and core PostgreSQL are stopped",
                 flush=True,

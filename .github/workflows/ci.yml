@@ -93,6 +93,9 @@ jobs:
           NORTHSTAR_LIVE_FRONTEND_IMAGE=northstar-live-frontend:check docker compose -f deploy/live/compose.yaml build live-web
           NORTHSTAR_DATA_FRONTEND_IMAGE=northstar-data-frontend:check docker compose -f deploy/data_hub/compose.yaml build data-hub
           NORTHSTAR_RESEARCH_FRONTEND_IMAGE=northstar-research-frontend:check docker compose -f deploy/research/compose.yaml build research
+          # Browser evidence belongs to its temporary file root; the following container
+          # acceptance must start with an equally disposable, empty metadata store.
+          uv run --project backend python -c 'import os; from sqlalchemy import create_engine; e=create_engine(os.environ["NORTHSTAR_TEST_DATABASE_URL"]); assert e.url.database == "northstar_quant_test"; c=e.connect(); c.exec_driver_sql("DROP SCHEMA public CASCADE"); c.exec_driver_sql("CREATE SCHEMA public"); c.commit(); c.close(); e.dispose()'
           docker run --rm --network host \
             --cpus 2 --memory 1g --memory-swap 1g --pids-limit 128 \
             --log-driver local --log-opt max-size=10m --log-opt max-file=3 \

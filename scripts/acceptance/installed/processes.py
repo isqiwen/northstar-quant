@@ -140,6 +140,58 @@ print(json.dumps(result))
             return content
 
     @contextmanager
+    def research_worker(self) -> Iterator[subprocess.Popen[str]]:
+        self.backend_starts["research-worker"] = self.backend_starts.get("research-worker", 0) + 1
+        log_path = self.directory / "research-worker.log"
+        self.log_paths.append(log_path)
+        environment = {
+            k: v
+            for k, v in self.environment.items()
+            if not k.startswith(("NORTHSTAR_LIVE", "NORTHSTAR_SIMNOW"))
+            and k != "NORTHSTAR_DATABASE_URL"
+        }
+        with log_path.open("a") as log:
+            process = subprocess.Popen(
+                [self.executable, "serve", "research-worker"],
+                cwd=self.directory,
+                env=environment,
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                text=True,
+            )
+            try:
+                yield process
+                assert process.poll() is None, log_path.read_text()
+            finally:
+                if process.poll() is None:
+                    process.terminate()
+                    try:
+                        process.wait(timeout=15)
+                    except subprocess.TimeoutExpired:
+                        process.kill()
+                        process.wait()
+
+    def submit_research(self, url: str, snapshot: str, config: dict) -> dict:
+        from uuid import uuid4
+
+        task = json.loads(
+            self.request(
+                url + "/api/tasks",
+                {"request_id": str(uuid4()), "snapshot_id": snapshot, "config": config},
+            )
+        )
+        assert task["status"] == "QUEUED", task
+        with self.research_worker():
+            deadline = time.monotonic() + 60
+            while time.monotonic() < deadline:
+                task = json.loads(self.request(url + "/api/tasks/" + task["task_id"]))
+                if task["status"] == "SUCCEEDED":
+                    return task
+                assert task["status"] not in {"FAILED", "INTERRUPTED", "CANCELLED"}, task
+                time.sleep(0.2)
+        raise AssertionError(task)
+
+    @contextmanager
     def data_worker(self, *, synthetic_tushare: bool = False) -> Iterator[subprocess.Popen[str]]:
         """Start the installed Data processor without an API or frontend parent."""
         log_path = self.directory / "data-worker.log"
@@ -437,6 +489,7 @@ run()
             ("data_hub", "api"),
             ("data_hub", "worker"),
             ("research", "api"),
+            ("research", "worker"),
             ("live", "api"),
             ("live", "kernel"),
         ):
@@ -453,13 +506,14 @@ run()
                 ("data_hub", "api"): "data-api",
                 ("data_hub", "worker"): "data-worker",
                 ("research", "api"): "research-api",
+                ("research", "worker"): "research-worker",
                 ("live", "api"): "live-api",
                 ("live", "kernel"): "live-kernel",
             }[(application, component)]
             assert len(sessions) == self.backend_starts[role], (role, sessions)
             assert any(r.get("message") == "application logging started" for r in records)
         print(
-            "Installed file logs: five isolated writers retained records across restarts",
+            "Installed file logs: six isolated writers retained records across restarts",
             flush=True,
         )
 

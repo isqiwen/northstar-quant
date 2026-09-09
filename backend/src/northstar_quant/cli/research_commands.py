@@ -18,6 +18,16 @@ from northstar_quant.research.runs import RunStore
 
 
 def register(commands: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
+    parser = commands.add_parser("tasks", help="列出持久研究任务")
+    parser.set_defaults(scope="research", operation="tasks")
+    for name, description in (
+        ("task", "查看任务与尝试"),
+        ("cancel", "请求取消任务"),
+        ("retry", "重试中断或失败任务的固定输入"),
+    ):
+        parser = commands.add_parser(name, help=description)
+        parser.set_defaults(scope="research", operation=name)
+        parser.add_argument("task_id", type=UUID)
     parser = commands.add_parser("run", help="使用已发布快照运行研究")
     parser.set_defaults(scope="research", operation="research")
     parser.add_argument("snapshot_id", type=UUID)
@@ -43,6 +53,19 @@ def register(commands: argparse._SubParsersAction[argparse.ArgumentParser]) -> N
 
 
 def execute(arguments: argparse.Namespace, engine: Engine) -> int:
+    result: object
+    if arguments.operation in {"tasks", "task", "cancel", "retry"}:
+        from northstar_quant.research.tasks.store import TaskStore
+
+        tasks = TaskStore(engine)
+        if arguments.operation == "tasks":
+            result = tasks.list()
+        elif arguments.operation == "task":
+            result = tasks.get(str(arguments.task_id))
+        else:
+            result = tasks.control(str(arguments.task_id), arguments.operation)
+        print(json.dumps(result, ensure_ascii=False))
+        return 0
     if arguments.operation == "configure":
         config = ResearchConfig.from_mapping(read(arguments.study.resolve())[2])
         print(

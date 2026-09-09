@@ -66,6 +66,8 @@ def clean_database(postgres_engine: Engine) -> None:
             "strategy_versions",
             "strategy_candidates",
             "research_attempts",
+            "research_jobs",
+            "research_job_attempts",
         )
     )
     quoted.extend(

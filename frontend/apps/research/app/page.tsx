@@ -1,2 +1,2 @@
 "use client";
-export { ResearchHome as default } from "../runs";
+export { default } from "../experiments/home";

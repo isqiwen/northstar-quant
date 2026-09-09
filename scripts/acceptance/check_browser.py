@@ -227,7 +227,7 @@ def main() -> None:
                     ).to_be_visible()
                     expect(page.get_by_text("后台自动同步已启用", exact=False)).to_be_visible()
                     screenshot("data")
-                with app.api("data-api"), app.web("research-api") as url:
+                with app.api("data-api"), app.research_worker(), app.web("research-api") as url:
                     page.goto(url + "/factors/trend.return")
                     choose("固定数据快照", imported["snapshot_id"][:8])
                     page.get_by_label("收益窗口 · bars", exact=True).fill("2")
@@ -247,6 +247,7 @@ def main() -> None:
                         page.get_by_label("配置名称", exact=True).fill(name)
                         page.get_by_role("button", name="保存不可变配置", exact=True).click()
                         page.wait_for_url(url + "/")
+                        page.goto(url + "/experiments/new")
                         choose("固定数据快照", imported["snapshot_id"][:8])
                         # The home has two configuration forms; select the run form explicitly.
                         run_form = (
@@ -258,17 +259,25 @@ def main() -> None:
                         page.locator(".ant-select-dropdown:visible .ant-select-item-option").filter(
                             has_text=name
                         ).first.click()
-                        page.get_by_role("button", name="运行固定研究", exact=True).click()
+                        page.get_by_role("button", name="提交回测", exact=True).click()
+                        page.wait_for_url(re.compile("/tasks/"))
+                        page.get_by_role("button", name="查看研究报告", exact=True).click()
                         page.wait_for_url(re.compile("/runs/"))
                         runs.append(urlsplit(page.url).path.split("/")[-1])
                         expect(
                             page.get_by_role("tab", name="策略与风险决定", exact=True)
                         ).to_be_visible()
                     page.goto(url + "/")
+                    page.goto(url + "/experiments")
                     for identity in runs:
                         choose("选择两个研究结果", identity[:12])
                     page.get_by_role("button", name="比较固定结果", exact=True).click()
-                    expect(page.get_by_text("mean_reversion.range", exact=True)).to_be_visible()
+                    expect(
+                        page.get_by_text("mean_reversion.range", exact=True).first
+                    ).to_be_visible()
+                    expect(page.get_by_text("策略参数与因子绑定", exact=True)).to_be_visible()
+                    screenshot("comparison")
+                    page.goto(url + "/candidates")
                     version_form = (
                         page.locator(".ant-card")
                         .filter(has=page.get_by_text("登记固定策略版本", exact=True))
@@ -302,13 +311,48 @@ def main() -> None:
                     expect(page.locator(".facts").get_by_text("1", exact=True)).to_be_visible()
                     page.goto(url + "/")
                     screenshot("research")
-                with app.api("data-api"), app.web("research-api") as url:
+                with app.api("data-api"), app.research_worker(), app.web("research-api") as url:
                     page.goto(url + factor_path)
                     expect(page.get_by_text(annotation, exact=False)).to_be_visible()
                     page.goto(url + version_path)
                     expect(page.get_by_text("已发布：", exact=False)).to_be_visible()
                     page.goto(url + paper_path)
                     expect(page.locator(".facts").get_by_text("1", exact=True)).to_be_visible()
+                # Accept in the actual browser with no worker, then stop both Web services.
+                with app.api("data-api"), app.web("research-api") as url:
+                    page.goto(url + "/experiments/new")
+                    choose("固定数据快照", imported["snapshot_id"][:8])
+                    choose("固定策略配置", "浏览器动量")
+                    page.get_by_role("button", name="提交回测", exact=True).click()
+                    page.wait_for_url(re.compile("/tasks/"))
+                    task_id = urlsplit(page.url).path.split("/")[-1]
+                    expect(page.get_by_text("排队中", exact=True)).to_be_visible()
+                    screenshot("queued")
+                assert app.command("research", "task", task_id)["status"] == "QUEUED"
+                with app.research_worker():
+                    deadline = time.monotonic() + 60
+                    while time.monotonic() < deadline:
+                        completed_task = app.command("research", "task", task_id)
+                        if completed_task["status"] == "SUCCEEDED":
+                            break
+                        assert completed_task["status"] not in {"FAILED", "INTERRUPTED"}, (
+                            completed_task
+                        )
+                        time.sleep(0.2)
+                    assert completed_task["status"] == "SUCCEEDED", completed_task
+                with app.web("research-api") as url:
+                    page.goto(url + "/tasks/" + task_id)
+                    expect(
+                        page.get_by_role("button", name="查看研究报告", exact=True)
+                    ).to_be_visible()
+                    screenshot("task")
+                    page.get_by_role("button", name="查看研究报告", exact=True).click()
+                    expect(page.get_by_role("img", name="账户回撤")).to_be_visible()
+                    screenshot("report")
+                print(
+                    "Research browser: queued task completed with frontend/API/Data Hub stopped",
+                    flush=True,
+                )
                 with app.live() as owner:
                     original = app.command("status")
                     with app.web() as url:

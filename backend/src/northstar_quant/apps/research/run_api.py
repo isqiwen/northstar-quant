@@ -1,35 +1,22 @@
 from __future__ import annotations
 
-from uuid import UUID
-
 from fastapi import FastAPI, Request
 from pydantic import JsonValue
 from starlette.concurrency import run_in_threadpool
 
 from northstar_quant.data_management.publications import DatasetReader
-from northstar_quant.research.configuration import ResearchConfig
 from northstar_quant.research.operations import ResearchOperations
 from northstar_quant.research.runs import RunStore
 from northstar_quant.web.access import (
     WorkspaceAccess,
 )
-from northstar_quant.web.requests import ApiModel, EvidenceRecord, UUIDText, _object
+from northstar_quant.web.requests import ApiModel, EvidenceRecord
 
-from .configuration_api import ResearchConfiguration, ResearchConfigurationInput
-
-
-class RunRequest(ApiModel):
-    snapshot_id: UUIDText
-    config: ResearchConfigurationInput
+from .configuration_api import ResearchConfiguration
 
 
 class ComparisonRequest(ApiModel):
     run_ids: list[str]
-
-
-class RunCreated(ApiModel):
-    run_id: str
-    url: str
 
 
 class SnapshotReference(EvidenceRecord):
@@ -113,23 +100,6 @@ def register(
     @app.get("/api/runs/{run_id}", response_model=RunDetail, response_model_exclude_unset=True)
     def get_run(run_id: str) -> dict[str, object]:
         return store.get(run_id)
-
-    @app.post(
-        "/api/runs", status_code=201, response_model=RunCreated, response_model_exclude_unset=True
-    )
-    async def submit(request: Request, document: RunRequest) -> dict[str, str]:
-        access.protect(request)
-        payload = document.model_dump(mode="json", exclude_unset=True)
-        snapshot_text = payload["snapshot_id"]
-        if not isinstance(snapshot_text, str):
-            raise ValueError("snapshot_id 必须是规范的 UUID。")
-        snapshot_id = UUID(snapshot_text)
-        if str(snapshot_id) != snapshot_text:
-            raise ValueError("snapshot_id 必须是规范的 UUID。")
-        configuration = ResearchConfig.from_mapping(_object(payload["config"]))
-
-        run_id = await run_in_threadpool(operations.run, snapshot_id, configuration)
-        return {"run_id": run_id, "url": f"/runs/{run_id}"}
 
     @app.get(
         "/api/research-attempts",

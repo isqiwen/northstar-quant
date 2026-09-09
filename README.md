@@ -107,7 +107,7 @@ core PostgreSQL 仅保存 Data Hub 元数据；Research 的任务与结果保存
 Research 用 Data Hub API 获取固定清单，通过只读 NAS 挂载和本机 DuckDB 读取 Parquet。
 配置 `NORTHSTAR_DATA_HUB_URL` 和两端相同的 `NORTHSTAR_PUBLICATION_TOKEN`（至少 32 字符），不向 Research 分发 core 数据库口令。
 Live 当前仍独立存储，不依赖家庭 NAS；最小恢复日志与异步归档是下一项改造。
-独立持久研究 worker 与持续采集仍待实现。
+Research 回测由独立 `research-worker` 执行；前端和 API 重启不结束已接收的任务。
 进程隔离不代表已经完成任务检查点恢复，也不能隔离整台主机故障。
 
 ### 后端日志
@@ -117,7 +117,7 @@ Live 当前仍独立存储，不依赖家庭 NAS；最小恢复日志与异步�
 | 应用 | 文件 |
 |---|---|
 | Data Hub | `data_hub/northstar-data-hub-api-YYYY-MM-DD.log`、`data_hub/northstar-data-hub-worker-YYYY-MM-DD.log` |
-| Research | `research/northstar-research-api-YYYY-MM-DD.log` |
+| Research | `research/northstar-research-api-YYYY-MM-DD.log`、`research/northstar-research-worker-YYYY-MM-DD.log` |
 | Live | `live/northstar-live-api-YYYY-MM-DD.log`、`live/northstar-live-kernel-YYYY-MM-DD.log` |
 
 Compose 把日志保存在持久日志卷，容器内路径为 `/var/log/northstar/`，重建容器仍保留。
@@ -215,6 +215,18 @@ Web 与 CLI 调用同一套业务规则，CLI 不另行实现采集、回测或�
 查询首次固定分片版本，翻页不跟随后台修订；版本冲突与文件损坏明确拒绝。
 范围导出也检查来源权限，当前自动留存的 Tushare 原文未开放导出，按钮会说明原因。
 这些供应商历史版本尚不等于完成跨日语义的 Research 快照。
+
+## Research 研究流程
+
+首页查看近期运行；`/experiments/new` 选择固定快照和策略配置提交回测，`/tasks/<任务身份>` 查看进度、原因、尝试和结果。
+`/experiments` 筛选任务与比较同条件结果；报告显示权益、回撤、资金持仓、模拟成交和策略/Risk 决定。
+`/candidates` 登记固定策略版本并关联研究证据，发布候选不授予交易权限。
+
+Compose 自动启动独立 `research-worker`；本机可用 `uv run --project backend northstar serve research-worker` 启动，
+与 API 使用同一份 Research 本地 SQLite 和市场/研究存储配置。没有 worker 时任务排队，浏览器关闭不丢任务。
+取消先记录请求，计算确认后才显示已取消；保存结果阶段取消窗口关闭。中断保留尝试，可显式重试相同输入；代码变化须新建任务。
+已有 CLI `research run` 是明确的前台有界运行，仍调用同一研究计算。
+当前支持单交易日快照，跨日结算、样本外评价和参数优化仍待交付。
 
 ## 验证
 

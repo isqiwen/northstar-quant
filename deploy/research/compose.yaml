@@ -261,6 +261,68 @@ services:
     - init-db
     volumes:
     - state:/var/lib/northstar/state
+  research-worker:
+    networks:
+    - egress
+    platform: linux/amd64
+    build:
+      context: ../..
+      dockerfile: backend/Dockerfile
+      args:
+        NORTHSTAR_GIT_REVISION: ${NORTHSTAR_GIT_REVISION:-}
+        NORTHSTAR_DEVELOPMENT_BUILD: ${NORTHSTAR_DEVELOPMENT_BUILD:-0}
+    image: ${NORTHSTAR_BACKEND_IMAGE:-northstar-quant:local}
+    restart: unless-stopped
+    logging:
+      driver: local
+      options:
+        max-size: 10m
+        max-file: '3'
+    environment:
+      NORTHSTAR_LOG_DIR: /var/log/northstar
+      TMPDIR: /var/lib/northstar/work
+      NORTHSTAR_DATABASE_OWNER: research
+      NORTHSTAR_MARKET_DIR: /var/lib/northstar/market
+      NORTHSTAR_MARKET_STORAGE_ID: ${NORTHSTAR_MARKET_STORAGE_ID:?Set market storage
+        UUID}
+      NORTHSTAR_MARKET_NFS_EXPORT: ${NORTHSTAR_MARKET_NFS_EXPORT:?Set verified market
+        NFS export}
+      NORTHSTAR_RESEARCH_DIR: /var/lib/northstar/research
+      NORTHSTAR_RESEARCH_STORAGE_ID: ${NORTHSTAR_RESEARCH_STORAGE_ID:?Set research
+        storage UUID}
+      NORTHSTAR_RESEARCH_NFS_EXPORT: ${NORTHSTAR_RESEARCH_NFS_EXPORT:?Set verified
+        research NFS export}
+      NORTHSTAR_NAS_ADDRESS: ${NORTHSTAR_NAS_ADDRESS:-nas.local}
+      NORTHSTAR_NFS_VERSION: ${NORTHSTAR_NFS_VERSION:-4}
+      NORTHSTAR_PUBLICATION_TOKEN: ${NORTHSTAR_PUBLICATION_TOKEN:?Set shared read-only
+        publication token}
+      NORTHSTAR_DATA_HUB_URL: ${NORTHSTAR_DATA_HUB_URL:-http://core.local:19083}
+      NORTHSTAR_RESEARCH_DATABASE: /var/lib/northstar/state/research.sqlite3
+    volumes:
+    - logs:/var/log/northstar
+    - work:/var/lib/northstar/work
+    - type: bind
+      source: ${NORTHSTAR_MARKET_MOUNT:-/mnt/northstar/market}
+      target: /var/lib/northstar/market
+      read_only: true
+      bind:
+        create_host_path: false
+    - type: bind
+      source: ${NORTHSTAR_RESEARCH_MOUNT:-/mnt/northstar/research}
+      target: /var/lib/northstar/research
+      read_only: false
+      bind:
+        create_host_path: false
+    - state:/var/lib/northstar/state
+    command:
+    - northstar
+    - serve
+    - research-worker
+    extra_hosts:
+    - host.docker.internal:host-gateway
+    depends_on:
+      storage-check:
+        condition: service_completed_successfully
 volumes:
   logs: null
   work: null

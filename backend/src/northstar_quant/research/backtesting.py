@@ -6,7 +6,7 @@ import hashlib
 import json
 import re
 from collections import deque
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import asdict, dataclass
 from datetime import date, datetime, timedelta
 from decimal import ROUND_HALF_EVEN, Decimal, localcontext
@@ -641,7 +641,12 @@ def _bar_from_dict(value: dict[str, object]) -> ResearchBar:
         raise ValueError("invalid persisted warmup observation") from error
 
 
-def run_research(dataset: ResearchDataset, config: ResearchConfig) -> ResearchResult:
+def run_research(
+    dataset: ResearchDataset,
+    config: ResearchConfig,
+    *,
+    progress: Callable[[int, int], None] | None = None,
+) -> ResearchResult:
     if not isinstance(dataset, ResearchDataset) or len(dataset.bars) <= (
         config.strategy.history_bars - 1
     ):
@@ -656,11 +661,18 @@ def run_research(dataset: ResearchDataset, config: ResearchConfig) -> ResearchRe
         data_details=dataset.details,
     )
     steps: list[TradingStep] = []
-    for bar in sorted(
-        dataset.bars,
-        key=lambda item: (item.available_at, item.completed_at, str(item.observation_id)),
+    for index, bar in enumerate(
+        sorted(
+            dataset.bars,
+            key=lambda item: (item.available_at, item.completed_at, str(item.observation_id)),
+        ),
+        1,
     ):
+        if progress is not None:
+            progress(index - 1, len(dataset.bars))
         step = session.advance(bar)
         if step is not None:
             steps.append(step)
+    if progress is not None:
+        progress(len(dataset.bars), len(dataset.bars))
     return session.result(steps)

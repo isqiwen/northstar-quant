@@ -137,6 +137,7 @@ def configure(application: str, component: str) -> LogRuntime:
         ("data_hub", "api"),
         ("data_hub", "worker"),
         ("research", "api"),
+        ("research", "worker"),
         ("live", "api"),
         ("live", "kernel"),
     }:

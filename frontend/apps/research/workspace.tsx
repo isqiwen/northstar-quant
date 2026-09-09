@@ -11,7 +11,7 @@ import { Providers, Shell } from "../../shared/shell";
 import { DatasetDetail, DatasetList } from "../../shared/datasets";
 import { Heading } from "../../shared/ui";
 import { Catalog, Configuration, Factor, FactorRun, Version } from "./catalog";
-import { ResearchHome, Report } from "./runs";
+import { Report } from "./runs";
 import { Paper, PaperDetail } from "./paper";
 
 export default function Workspace({ children }: { children: ReactNode }) {
@@ -22,6 +22,16 @@ export default function Workspace({ children }: { children: ReactNode }) {
         subtitle="固定输入 · 可复核研究"
         items={[
           { key: "/", label: "研究概览", icon: <DashboardOutlined /> },
+          {
+            key: "/experiments",
+            label: "实验与回测",
+            icon: <ExperimentOutlined />,
+          },
+          {
+            key: "/candidates",
+            label: "发布候选",
+            icon: <ExperimentOutlined />,
+          },
           {
             key: "/catalog",
             label: "因子与策略",

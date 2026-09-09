@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import Engine, create_engine
 
@@ -98,14 +98,25 @@ def test_import_research_and_reopen_preserve_complete_result(
         assert details["semantics"]["price_tick"] == specification["price_tick"]
         data_page = client.get(f"/datasets/{dataset['snapshot_id']}")
         assert data_page.status_code == 404
-        request = {"snapshot_id": dataset["snapshot_id"], "config": {}}
+        request = {"request_id": str(uuid4()), "snapshot_id": dataset["snapshot_id"], "config": {}}
         forbidden = client.post(
-            "/api/runs", json=request, headers={"Origin": "https://another-origin.example"}
+            "/api/tasks", json=request, headers={"Origin": "https://another-origin.example"}
         )
         assert forbidden.status_code == 403
-        submitted = client.post("/api/runs", json=request)
-        assert submitted.status_code == 201, submitted.text
-        run_id = submitted.json()["run_id"]
+        submitted = client.post("/api/tasks", json=request)
+        assert submitted.status_code == 202, submitted.text
+        from northstar_quant.research.tasks.execution import execute
+        from northstar_quant.research.tasks.store import TaskStore
+
+        tasks = TaskStore(postgres_engine)
+        claimed = tasks.claim()
+        assert claimed["task_id"] == submitted.json()["task_id"]
+        execute(
+            tasks,
+            DataLibrary(postgres_engine, SourceFiles(tmp_path / "archive")),
+            claimed["task_id"],
+        )
+        run_id = tasks.get(claimed["task_id"])["run_id"]
         saved = client.get(f"/api/runs/{run_id}").json()
         summary = saved["result"]["summary"]
         assert summary["fill_count"] >= 2
@@ -122,9 +133,9 @@ def test_import_research_and_reopen_preserve_complete_result(
         assert saved["result"]["data"] == details
         assert saved["code_revision"] == code_revision()
         assert saved["committed_code"] is (not code_revision().endswith("-dirty"))
-        report = client.get(submitted.json()["url"])
+        report = client.get(f"/runs/{run_id}")
         assert report.status_code == 404
-        repeated = client.post("/api/runs", json=request)
+        repeated = client.post("/api/tasks", json=request)
         assert repeated.json()["run_id"] == run_id
         assert len(client.get("/api/runs").json()) == 1
 
@@ -147,15 +158,21 @@ def test_import_research_and_reopen_preserve_complete_result(
             assert client.get("/api/datasets").json()[0]["snapshot_id"] == dataset["snapshot_id"]
             assert client.get(f"/api/datasets/{dataset['snapshot_id']}").json() == details
             changed = client.post(
-                "/api/runs",
+                "/api/tasks",
                 json={
+                    "request_id": str(uuid4()),
                     "snapshot_id": dataset["snapshot_id"],
                     "config": {"simulation": {"fee_per_lot": "3"}},
                 },
             )
-            assert changed.status_code == 201, changed.text
-            assert changed.json()["run_id"] != run_id
-            changed_run = client.get(f"/api/runs/{changed.json()['run_id']}").json()
+            assert changed.status_code == 202, changed.text
+            task = tasks.claim()
+            execute(
+                tasks, DataLibrary(reopened, SourceFiles(tmp_path / "archive")), task["task_id"]
+            )
+            changed_id = tasks.get(task["task_id"])["run_id"]
+            assert changed_id != run_id
+            changed_run = client.get(f"/api/runs/{changed_id}").json()
             assert changed_run["result"]["data"] == details
             assert len(client.get("/api/runs").json()) == 2
     finally:

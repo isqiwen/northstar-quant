@@ -49,7 +49,8 @@ def backup(engine: Engine, destination: Path) -> dict[str, object]:
             ids = (
                 connection.execute(
                     text(
-                        "SELECT snapshot_id FROM research_runs "
+                        "SELECT snapshot_id FROM research_jobs "
+                        "UNION SELECT snapshot_id FROM research_runs "
                         "UNION SELECT snapshot_id FROM paper_sessions "
                         "UNION SELECT snapshot_id FROM factor_runs WHERE status='SUCCEEDED'"
                     )

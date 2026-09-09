@@ -62,6 +62,9 @@ _attempts = Table(
 def initialize_run_store(engine: Engine | Connection) -> None:
     """Create the current result table during explicit database initialization."""
 
+    from .tasks.store import initialize
+
+    initialize(engine)
     _metadata.create_all(engine)
 
     def guards(connection: Connection) -> None:

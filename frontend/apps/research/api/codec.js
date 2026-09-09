@@ -19501,318 +19501,6 @@ export const northstar = $root.northstar = (() => {
             return RiskInput;
         })();
 
-        research.RunCreated = (function() {
-
-            /**
-             * Properties of a RunCreated.
-             * @typedef {Object} northstar.research.RunCreated.$Properties
-             * @property {string|null} [run_id] RunCreated run_id
-             * @property {string|null} [url] RunCreated url
-             * @property {"run_id"} [_run_id] RunCreated _run_id
-             * @property {"url"} [_url] RunCreated _url
-             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
-             */
-
-            /**
-             * Properties of a RunCreated.
-             * @memberof northstar.research
-             * @interface IRunCreated
-             * @augments northstar.research.RunCreated.$Properties
-             * @deprecated Use northstar.research.RunCreated.$Properties instead.
-             */
-
-            /**
-             * Narrowed shape of a RunCreated.
-             * @typedef {{
-             *   run_id?: string|null;
-             *   url?: string|null;
-             *   $unknowns?: Array.<Uint8Array>;
-             * } & (
-             *   ({ _run_id?: undefined; run_id?: null }|{ _run_id?: "run_id"; run_id: string })
-             * ) & (
-             *   ({ _url?: undefined; url?: null }|{ _url?: "url"; url: string })
-             * )} northstar.research.RunCreated.$Shape
-             */
-
-            /**
-             * Constructs a new RunCreated.
-             * @memberof northstar.research
-             * @classdesc Represents a RunCreated.
-             * @constructor
-             * @param {northstar.research.RunCreated.$Properties=} [properties] Properties to set
-             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
-             */
-            const RunCreated = function (properties) {
-                if (properties)
-                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
-                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
-                            this[keys[i]] = properties[keys[i]];
-            };
-
-            /**
-             * RunCreated run_id.
-             * @member {string|null|undefined} run_id
-             * @memberof northstar.research.RunCreated
-             * @instance
-             */
-            RunCreated.prototype.run_id = null;
-
-            /**
-             * RunCreated url.
-             * @member {string|null|undefined} url
-             * @memberof northstar.research.RunCreated
-             * @instance
-             */
-            RunCreated.prototype.url = null;
-
-            // OneOf field names bound to virtual getters and setters
-            let $oneOfFields;
-
-            /**
-             * RunCreated _run_id.
-             * @member {"run_id"|undefined} _run_id
-             * @memberof northstar.research.RunCreated
-             * @instance
-             */
-            $Object.defineProperty(RunCreated.prototype, "_run_id", {
-                get: $util.oneOfGetter($oneOfFields = ["run_id"]),
-                set: $util.oneOfSetter($oneOfFields)
-            });
-
-            /**
-             * RunCreated _url.
-             * @member {"url"|undefined} _url
-             * @memberof northstar.research.RunCreated
-             * @instance
-             */
-            $Object.defineProperty(RunCreated.prototype, "_url", {
-                get: $util.oneOfGetter($oneOfFields = ["url"]),
-                set: $util.oneOfSetter($oneOfFields)
-            });
-
-            /**
-             * Creates a new RunCreated instance using the specified properties.
-             * @function create
-             * @memberof northstar.research.RunCreated
-             * @static
-             * @param {northstar.research.RunCreated.$Properties=} [properties] Properties to set
-             * @returns {northstar.research.RunCreated} RunCreated instance
-             * @type {{
-             *   (properties: northstar.research.RunCreated.$Shape): northstar.research.RunCreated & northstar.research.RunCreated.$Shape;
-             *   (properties?: northstar.research.RunCreated.$Properties): northstar.research.RunCreated;
-             * }}
-             */
-            RunCreated.create = function(properties) {
-                return new RunCreated(properties);
-            };
-
-            /**
-             * Encodes the specified RunCreated message. Does not implicitly {@link northstar.research.RunCreated.verify|verify} messages.
-             * @function encode
-             * @memberof northstar.research.RunCreated
-             * @static
-             * @param {northstar.research.RunCreated.$Properties} message RunCreated message or plain object to encode
-             * @param {$protobuf.Writer} [writer] Writer to encode to
-             * @returns {$protobuf.Writer} Writer
-             */
-            RunCreated.encode = function (message, writer, _depth) {
-                if (!writer)
-                    writer = $Writer.create();
-                if (_depth === $undefined)
-                    _depth = 0;
-                if (_depth > $util.recursionLimit)
-                    throw $Error("max depth exceeded");
-                if (message.run_id != null && $Object.hasOwnProperty.call(message, "run_id"))
-                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.run_id);
-                if (message.url != null && $Object.hasOwnProperty.call(message, "url"))
-                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.url);
-                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
-                    for (let i = 0; i < message.$unknowns.length; ++i)
-                        writer.raw(message.$unknowns[i]);
-                return writer;
-            };
-
-            /**
-             * Decodes a RunCreated message from the specified reader or buffer.
-             * @function decode
-             * @memberof northstar.research.RunCreated
-             * @static
-             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @param {number} [length] Message length if known beforehand
-             * @returns {northstar.research.RunCreated & northstar.research.RunCreated.$Shape} RunCreated
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            RunCreated.decode = function (reader, length, _end, _depth, _target) {
-                if (!(reader instanceof $Reader))
-                    reader = $Reader.create(reader);
-                if (_depth === $undefined)
-                    _depth = 0;
-                if (_depth > $Reader.recursionLimit)
-                    throw $Error("max depth exceeded");
-                let end, message;
-                if (length === $undefined)
-                    end = reader.len;
-                else {
-                    end = reader.pos + length;
-                    if (end > reader.len)
-                        throw $RangeError("index out of range");
-                    length = reader.len;
-                    reader.len = end;
-                }
-                message = _target || new $root.northstar.research.RunCreated();
-                while (reader.pos < end) {
-                    let start = reader.pos;
-                    let tag = reader.tag();
-                    if (tag === _end) {
-                        _end = $undefined;
-                        break;
-                    }
-                    let wireType = tag & 7;
-                    switch (tag >>>= 3) {
-                    case 1: {
-                            if (wireType !== 2)
-                                break;
-                            message.run_id = reader.stringVerify();
-                            message._run_id = "run_id";
-                            continue;
-                        }
-                    case 2: {
-                            if (wireType !== 2)
-                                break;
-                            message.url = reader.stringVerify();
-                            message._url = "url";
-                            continue;
-                        }
-                    }
-                    reader.skipType(wireType, _depth, tag);
-                    if (!reader.discardUnknown) {
-                        $util.makeProp(message, "$unknowns", false);
-                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
-                    }
-                }
-                if (length !== $undefined) {
-                    if (reader.pos !== end)
-                        throw $RangeError("index out of range");
-                    reader.len = length;
-                }
-                if (_end !== $undefined)
-                    throw $Error("missing end group");
-                return message;
-            };
-
-            /**
-             * Verifies a RunCreated message.
-             * @function verify
-             * @memberof northstar.research.RunCreated
-             * @static
-             * @param {Object.<string,*>} message Plain object to verify
-             * @returns {string|null} `null` if valid, otherwise the reason why it is not
-             */
-            RunCreated.verify = function (message, _depth) {
-                if (typeof message !== "object" || message === null)
-                    return "object expected";
-                if (_depth === $undefined)
-                    _depth = 0;
-                if (_depth > $util.recursionLimit)
-                    return "max depth exceeded";
-                let properties = {};
-                if (message.run_id != null && $Object.hasOwnProperty.call(message, "run_id")) {
-                    properties._run_id = 1;
-                    if (!$util.isString(message.run_id))
-                        return "run_id: string expected";
-                }
-                if (message.url != null && $Object.hasOwnProperty.call(message, "url")) {
-                    properties._url = 1;
-                    if (!$util.isString(message.url))
-                        return "url: string expected";
-                }
-                return null;
-            };
-
-            /**
-             * Creates a RunCreated message from a plain object. Also converts values to their respective internal types.
-             * @function fromObject
-             * @memberof northstar.research.RunCreated
-             * @static
-             * @param {Object.<string,*>} object Plain object
-             * @returns {northstar.research.RunCreated} RunCreated
-             */
-            RunCreated.fromObject = function (object, _depth) {
-                if (object instanceof $root.northstar.research.RunCreated)
-                    return object;
-                if (!$util.isObject(object))
-                    throw $TypeError(".northstar.research.RunCreated: object expected");
-                if (_depth === $undefined)
-                    _depth = 0;
-                if (_depth > $util.recursionLimit)
-                    throw $Error("max depth exceeded");
-                let message = new $root.northstar.research.RunCreated();
-                if (object.run_id != null)
-                    message.run_id = $String(object.run_id);
-                if (object.url != null)
-                    message.url = $String(object.url);
-                return message;
-            };
-
-            /**
-             * Creates a plain object from a RunCreated message. Also converts values to other types if specified.
-             * @function toObject
-             * @memberof northstar.research.RunCreated
-             * @static
-             * @param {northstar.research.RunCreated} message RunCreated
-             * @param {$protobuf.IConversionOptions} [options] Conversion options
-             * @returns {Object.<string,*>} Plain object
-             */
-            RunCreated.toObject = function (message, options, _depth) {
-                if (!options)
-                    options = {};
-                if (_depth === $undefined)
-                    _depth = 0;
-                if (_depth > $util.recursionLimit)
-                    throw $Error("max depth exceeded");
-                let object = {};
-                if (message.run_id != null && $Object.hasOwnProperty.call(message, "run_id")) {
-                    object.run_id = message.run_id;
-                    if (options.oneofs)
-                        object._run_id = "run_id";
-                }
-                if (message.url != null && $Object.hasOwnProperty.call(message, "url")) {
-                    object.url = message.url;
-                    if (options.oneofs)
-                        object._url = "url";
-                }
-                return object;
-            };
-
-            /**
-             * Converts this RunCreated to JSON.
-             * @function toJSON
-             * @memberof northstar.research.RunCreated
-             * @instance
-             * @returns {Object.<string,*>} JSON object
-             */
-            RunCreated.prototype.toJSON = function() {
-                return RunCreated.toObject(this, $protobuf.util.toJSONOptions);
-            };
-
-            /**
-             * Gets the type url for RunCreated
-             * @function getTypeUrl
-             * @memberof northstar.research.RunCreated
-             * @static
-             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
-             * @returns {string} The type url
-             */
-            RunCreated.getTypeUrl = function(prefix) {
-                if (prefix === $undefined)
-                    prefix = "type.googleapis.com";
-                return prefix + "/northstar.research.RunCreated";
-            };
-
-            return RunCreated;
-        })();
-
         research.RunDetail = (function() {
 
             /**
@@ -20451,324 +20139,6 @@ export const northstar = $root.northstar = (() => {
             };
 
             return RunDetail;
-        })();
-
-        research.RunRequest = (function() {
-
-            /**
-             * Properties of a RunRequest.
-             * @typedef {Object} northstar.research.RunRequest.$Properties
-             * @property {northstar.research.ResearchConfigurationInput.$Properties|null} [config] RunRequest config
-             * @property {string|null} [snapshot_id] RunRequest snapshot_id
-             * @property {"config"} [_config] RunRequest _config
-             * @property {"snapshot_id"} [_snapshot_id] RunRequest _snapshot_id
-             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
-             */
-
-            /**
-             * Properties of a RunRequest.
-             * @memberof northstar.research
-             * @interface IRunRequest
-             * @augments northstar.research.RunRequest.$Properties
-             * @deprecated Use northstar.research.RunRequest.$Properties instead.
-             */
-
-            /**
-             * Narrowed shape of a RunRequest.
-             * @typedef {{
-             *   config?: northstar.research.ResearchConfigurationInput.$Shape|null;
-             *   snapshot_id?: string|null;
-             *   $unknowns?: Array.<Uint8Array>;
-             * } & (
-             *   ({ _config?: undefined; config?: null }|{ _config?: "config"; config: northstar.research.ResearchConfigurationInput.$Shape })
-             * ) & (
-             *   ({ _snapshot_id?: undefined; snapshot_id?: null }|{ _snapshot_id?: "snapshot_id"; snapshot_id: string })
-             * )} northstar.research.RunRequest.$Shape
-             */
-
-            /**
-             * Constructs a new RunRequest.
-             * @memberof northstar.research
-             * @classdesc Represents a RunRequest.
-             * @constructor
-             * @param {northstar.research.RunRequest.$Properties=} [properties] Properties to set
-             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
-             */
-            const RunRequest = function (properties) {
-                if (properties)
-                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
-                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
-                            this[keys[i]] = properties[keys[i]];
-            };
-
-            /**
-             * RunRequest config.
-             * @member {northstar.research.ResearchConfigurationInput.$Properties|null|undefined} config
-             * @memberof northstar.research.RunRequest
-             * @instance
-             */
-            RunRequest.prototype.config = null;
-
-            /**
-             * RunRequest snapshot_id.
-             * @member {string|null|undefined} snapshot_id
-             * @memberof northstar.research.RunRequest
-             * @instance
-             */
-            RunRequest.prototype.snapshot_id = null;
-
-            // OneOf field names bound to virtual getters and setters
-            let $oneOfFields;
-
-            /**
-             * RunRequest _config.
-             * @member {"config"|undefined} _config
-             * @memberof northstar.research.RunRequest
-             * @instance
-             */
-            $Object.defineProperty(RunRequest.prototype, "_config", {
-                get: $util.oneOfGetter($oneOfFields = ["config"]),
-                set: $util.oneOfSetter($oneOfFields)
-            });
-
-            /**
-             * RunRequest _snapshot_id.
-             * @member {"snapshot_id"|undefined} _snapshot_id
-             * @memberof northstar.research.RunRequest
-             * @instance
-             */
-            $Object.defineProperty(RunRequest.prototype, "_snapshot_id", {
-                get: $util.oneOfGetter($oneOfFields = ["snapshot_id"]),
-                set: $util.oneOfSetter($oneOfFields)
-            });
-
-            /**
-             * Creates a new RunRequest instance using the specified properties.
-             * @function create
-             * @memberof northstar.research.RunRequest
-             * @static
-             * @param {northstar.research.RunRequest.$Properties=} [properties] Properties to set
-             * @returns {northstar.research.RunRequest} RunRequest instance
-             * @type {{
-             *   (properties: northstar.research.RunRequest.$Shape): northstar.research.RunRequest & northstar.research.RunRequest.$Shape;
-             *   (properties?: northstar.research.RunRequest.$Properties): northstar.research.RunRequest;
-             * }}
-             */
-            RunRequest.create = function(properties) {
-                return new RunRequest(properties);
-            };
-
-            /**
-             * Encodes the specified RunRequest message. Does not implicitly {@link northstar.research.RunRequest.verify|verify} messages.
-             * @function encode
-             * @memberof northstar.research.RunRequest
-             * @static
-             * @param {northstar.research.RunRequest.$Properties} message RunRequest message or plain object to encode
-             * @param {$protobuf.Writer} [writer] Writer to encode to
-             * @returns {$protobuf.Writer} Writer
-             */
-            RunRequest.encode = function (message, writer, _depth) {
-                if (!writer)
-                    writer = $Writer.create();
-                if (_depth === $undefined)
-                    _depth = 0;
-                if (_depth > $util.recursionLimit)
-                    throw $Error("max depth exceeded");
-                if (message.config != null && $Object.hasOwnProperty.call(message, "config"))
-                    $root.northstar.research.ResearchConfigurationInput.encode(message.config, writer.uint32(/* id 1, wireType 2 =*/10).fork(), _depth + 1).ldelim();
-                if (message.snapshot_id != null && $Object.hasOwnProperty.call(message, "snapshot_id"))
-                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.snapshot_id);
-                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
-                    for (let i = 0; i < message.$unknowns.length; ++i)
-                        writer.raw(message.$unknowns[i]);
-                return writer;
-            };
-
-            /**
-             * Decodes a RunRequest message from the specified reader or buffer.
-             * @function decode
-             * @memberof northstar.research.RunRequest
-             * @static
-             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @param {number} [length] Message length if known beforehand
-             * @returns {northstar.research.RunRequest & northstar.research.RunRequest.$Shape} RunRequest
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            RunRequest.decode = function (reader, length, _end, _depth, _target) {
-                if (!(reader instanceof $Reader))
-                    reader = $Reader.create(reader);
-                if (_depth === $undefined)
-                    _depth = 0;
-                if (_depth > $Reader.recursionLimit)
-                    throw $Error("max depth exceeded");
-                let end, message;
-                if (length === $undefined)
-                    end = reader.len;
-                else {
-                    end = reader.pos + length;
-                    if (end > reader.len)
-                        throw $RangeError("index out of range");
-                    length = reader.len;
-                    reader.len = end;
-                }
-                message = _target || new $root.northstar.research.RunRequest();
-                while (reader.pos < end) {
-                    let start = reader.pos;
-                    let tag = reader.tag();
-                    if (tag === _end) {
-                        _end = $undefined;
-                        break;
-                    }
-                    let wireType = tag & 7;
-                    switch (tag >>>= 3) {
-                    case 1: {
-                            if (wireType !== 2)
-                                break;
-                            message.config = $root.northstar.research.ResearchConfigurationInput.decode(reader, reader.uint32(), $undefined, _depth + 1, message.config);
-                            message._config = "config";
-                            continue;
-                        }
-                    case 2: {
-                            if (wireType !== 2)
-                                break;
-                            message.snapshot_id = reader.stringVerify();
-                            message._snapshot_id = "snapshot_id";
-                            continue;
-                        }
-                    }
-                    reader.skipType(wireType, _depth, tag);
-                    if (!reader.discardUnknown) {
-                        $util.makeProp(message, "$unknowns", false);
-                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
-                    }
-                }
-                if (length !== $undefined) {
-                    if (reader.pos !== end)
-                        throw $RangeError("index out of range");
-                    reader.len = length;
-                }
-                if (_end !== $undefined)
-                    throw $Error("missing end group");
-                return message;
-            };
-
-            /**
-             * Verifies a RunRequest message.
-             * @function verify
-             * @memberof northstar.research.RunRequest
-             * @static
-             * @param {Object.<string,*>} message Plain object to verify
-             * @returns {string|null} `null` if valid, otherwise the reason why it is not
-             */
-            RunRequest.verify = function (message, _depth) {
-                if (typeof message !== "object" || message === null)
-                    return "object expected";
-                if (_depth === $undefined)
-                    _depth = 0;
-                if (_depth > $util.recursionLimit)
-                    return "max depth exceeded";
-                let properties = {};
-                if (message.config != null && $Object.hasOwnProperty.call(message, "config")) {
-                    properties._config = 1;
-                    {
-                        let error = $root.northstar.research.ResearchConfigurationInput.verify(message.config, _depth + 1);
-                        if (error)
-                            return "config." + error;
-                    }
-                }
-                if (message.snapshot_id != null && $Object.hasOwnProperty.call(message, "snapshot_id")) {
-                    properties._snapshot_id = 1;
-                    if (!$util.isString(message.snapshot_id))
-                        return "snapshot_id: string expected";
-                }
-                return null;
-            };
-
-            /**
-             * Creates a RunRequest message from a plain object. Also converts values to their respective internal types.
-             * @function fromObject
-             * @memberof northstar.research.RunRequest
-             * @static
-             * @param {Object.<string,*>} object Plain object
-             * @returns {northstar.research.RunRequest} RunRequest
-             */
-            RunRequest.fromObject = function (object, _depth) {
-                if (object instanceof $root.northstar.research.RunRequest)
-                    return object;
-                if (!$util.isObject(object))
-                    throw $TypeError(".northstar.research.RunRequest: object expected");
-                if (_depth === $undefined)
-                    _depth = 0;
-                if (_depth > $util.recursionLimit)
-                    throw $Error("max depth exceeded");
-                let message = new $root.northstar.research.RunRequest();
-                if (object.config != null) {
-                    if (!$util.isObject(object.config))
-                        throw $TypeError(".northstar.research.RunRequest.config: object expected");
-                    message.config = $root.northstar.research.ResearchConfigurationInput.fromObject(object.config, _depth + 1);
-                }
-                if (object.snapshot_id != null)
-                    message.snapshot_id = $String(object.snapshot_id);
-                return message;
-            };
-
-            /**
-             * Creates a plain object from a RunRequest message. Also converts values to other types if specified.
-             * @function toObject
-             * @memberof northstar.research.RunRequest
-             * @static
-             * @param {northstar.research.RunRequest} message RunRequest
-             * @param {$protobuf.IConversionOptions} [options] Conversion options
-             * @returns {Object.<string,*>} Plain object
-             */
-            RunRequest.toObject = function (message, options, _depth) {
-                if (!options)
-                    options = {};
-                if (_depth === $undefined)
-                    _depth = 0;
-                if (_depth > $util.recursionLimit)
-                    throw $Error("max depth exceeded");
-                let object = {};
-                if (message.config != null && $Object.hasOwnProperty.call(message, "config")) {
-                    object.config = $root.northstar.research.ResearchConfigurationInput.toObject(message.config, options, _depth + 1);
-                    if (options.oneofs)
-                        object._config = "config";
-                }
-                if (message.snapshot_id != null && $Object.hasOwnProperty.call(message, "snapshot_id")) {
-                    object.snapshot_id = message.snapshot_id;
-                    if (options.oneofs)
-                        object._snapshot_id = "snapshot_id";
-                }
-                return object;
-            };
-
-            /**
-             * Converts this RunRequest to JSON.
-             * @function toJSON
-             * @memberof northstar.research.RunRequest
-             * @instance
-             * @returns {Object.<string,*>} JSON object
-             */
-            RunRequest.prototype.toJSON = function() {
-                return RunRequest.toObject(this, $protobuf.util.toJSONOptions);
-            };
-
-            /**
-             * Gets the type url for RunRequest
-             * @function getTypeUrl
-             * @memberof northstar.research.RunRequest
-             * @static
-             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
-             * @returns {string} The type url
-             */
-            RunRequest.getTypeUrl = function(prefix) {
-                if (prefix === $undefined)
-                    prefix = "type.googleapis.com";
-                return prefix + "/northstar.research.RunRequest";
-            };
-
-            return RunRequest;
         })();
 
         research.RunSummary = (function() {
@@ -28718,6 +28088,1825 @@ export const northstar = $root.northstar = (() => {
             };
 
             return GetApiStrategyVersionsResponse;
+        })();
+
+        research.ResearchTask = (function() {
+
+            /**
+             * Properties of a ResearchTask.
+             * @typedef {Object} northstar.research.ResearchTask.$Properties
+             * @property {string|null} [task_id] ResearchTask task_id
+             * @property {string|null} [snapshot_id] ResearchTask snapshot_id
+             * @property {string|null} [snapshot_hash] ResearchTask snapshot_hash
+             * @property {string|null} [code_revision] ResearchTask code_revision
+             * @property {string|null} [created_at] ResearchTask created_at
+             * @property {string|null} [status] ResearchTask status
+             * @property {number|Long|null} [completed] ResearchTask completed
+             * @property {number|Long|null} [total] ResearchTask total
+             * @property {string|null} [run_id] ResearchTask run_id
+             * @property {string|null} [reason] ResearchTask reason
+             * @property {google.protobuf.Struct.$Properties|null} [config] ResearchTask config
+             * @property {Array.<google.protobuf.Struct.$Properties>|null} [attempts] ResearchTask attempts
+             * @property {Object.<string,google.protobuf.Value.$Properties>|null} [evidence_fields] ResearchTask evidence_fields
+             * @property {Array.<string>|null} [null_fields] ResearchTask null_fields
+             * @property {"task_id"} [_task_id] ResearchTask _task_id
+             * @property {"snapshot_id"} [_snapshot_id] ResearchTask _snapshot_id
+             * @property {"snapshot_hash"} [_snapshot_hash] ResearchTask _snapshot_hash
+             * @property {"code_revision"} [_code_revision] ResearchTask _code_revision
+             * @property {"created_at"} [_created_at] ResearchTask _created_at
+             * @property {"status"} [_status] ResearchTask _status
+             * @property {"completed"} [_completed] ResearchTask _completed
+             * @property {"total"} [_total] ResearchTask _total
+             * @property {"run_id"} [_run_id] ResearchTask _run_id
+             * @property {"reason"} [_reason] ResearchTask _reason
+             * @property {"config"} [_config] ResearchTask _config
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a ResearchTask.
+             * @memberof northstar.research
+             * @interface IResearchTask
+             * @augments northstar.research.ResearchTask.$Properties
+             * @deprecated Use northstar.research.ResearchTask.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a ResearchTask.
+             * @typedef {{
+             *   task_id?: string|null;
+             *   snapshot_id?: string|null;
+             *   snapshot_hash?: string|null;
+             *   code_revision?: string|null;
+             *   created_at?: string|null;
+             *   status?: string|null;
+             *   completed?: number|Long|null;
+             *   total?: number|Long|null;
+             *   run_id?: string|null;
+             *   reason?: string|null;
+             *   config?: google.protobuf.Struct.$Shape|null;
+             *   attempts?: Array.<google.protobuf.Struct.$Shape>|null;
+             *   evidence_fields?: Object.<string,google.protobuf.Value.$Shape>|null;
+             *   null_fields?: Array.<string>|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _task_id?: undefined; task_id?: null }|{ _task_id?: "task_id"; task_id: string })
+             * ) & (
+             *   ({ _snapshot_id?: undefined; snapshot_id?: null }|{ _snapshot_id?: "snapshot_id"; snapshot_id: string })
+             * ) & (
+             *   ({ _snapshot_hash?: undefined; snapshot_hash?: null }|{ _snapshot_hash?: "snapshot_hash"; snapshot_hash: string })
+             * ) & (
+             *   ({ _code_revision?: undefined; code_revision?: null }|{ _code_revision?: "code_revision"; code_revision: string })
+             * ) & (
+             *   ({ _created_at?: undefined; created_at?: null }|{ _created_at?: "created_at"; created_at: string })
+             * ) & (
+             *   ({ _status?: undefined; status?: null }|{ _status?: "status"; status: string })
+             * ) & (
+             *   ({ _completed?: undefined; completed?: null }|{ _completed?: "completed"; completed: number|Long })
+             * ) & (
+             *   ({ _total?: undefined; total?: null }|{ _total?: "total"; total: number|Long })
+             * ) & (
+             *   ({ _run_id?: undefined; run_id?: null }|{ _run_id?: "run_id"; run_id: string })
+             * ) & (
+             *   ({ _reason?: undefined; reason?: null }|{ _reason?: "reason"; reason: string })
+             * ) & (
+             *   ({ _config?: undefined; config?: null }|{ _config?: "config"; config: google.protobuf.Struct.$Shape })
+             * )} northstar.research.ResearchTask.$Shape
+             */
+
+            /**
+             * Constructs a new ResearchTask.
+             * @memberof northstar.research
+             * @classdesc Represents a ResearchTask.
+             * @constructor
+             * @param {northstar.research.ResearchTask.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const ResearchTask = function (properties) {
+                this.attempts = [];
+                this.evidence_fields = {};
+                this.null_fields = [];
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * ResearchTask task_id.
+             * @member {string|null|undefined} task_id
+             * @memberof northstar.research.ResearchTask
+             * @instance
+             */
+            ResearchTask.prototype.task_id = null;
+
+            /**
+             * ResearchTask snapshot_id.
+             * @member {string|null|undefined} snapshot_id
+             * @memberof northstar.research.ResearchTask
+             * @instance
+             */
+            ResearchTask.prototype.snapshot_id = null;
+
+            /**
+             * ResearchTask snapshot_hash.
+             * @member {string|null|undefined} snapshot_hash
+             * @memberof northstar.research.ResearchTask
+             * @instance
+             */
+            ResearchTask.prototype.snapshot_hash = null;
+
+            /**
+             * ResearchTask code_revision.
+             * @member {string|null|undefined} code_revision
+             * @memberof northstar.research.ResearchTask
+             * @instance
+             */
+            ResearchTask.prototype.code_revision = null;
+
+            /**
+             * ResearchTask created_at.
+             * @member {string|null|undefined} created_at
+             * @memberof northstar.research.ResearchTask
+             * @instance
+             */
+            ResearchTask.prototype.created_at = null;
+
+            /**
+             * ResearchTask status.
+             * @member {string|null|undefined} status
+             * @memberof northstar.research.ResearchTask
+             * @instance
+             */
+            ResearchTask.prototype.status = null;
+
+            /**
+             * ResearchTask completed.
+             * @member {number|Long|null|undefined} completed
+             * @memberof northstar.research.ResearchTask
+             * @instance
+             */
+            ResearchTask.prototype.completed = null;
+
+            /**
+             * ResearchTask total.
+             * @member {number|Long|null|undefined} total
+             * @memberof northstar.research.ResearchTask
+             * @instance
+             */
+            ResearchTask.prototype.total = null;
+
+            /**
+             * ResearchTask run_id.
+             * @member {string|null|undefined} run_id
+             * @memberof northstar.research.ResearchTask
+             * @instance
+             */
+            ResearchTask.prototype.run_id = null;
+
+            /**
+             * ResearchTask reason.
+             * @member {string|null|undefined} reason
+             * @memberof northstar.research.ResearchTask
+             * @instance
+             */
+            ResearchTask.prototype.reason = null;
+
+            /**
+             * ResearchTask config.
+             * @member {google.protobuf.Struct.$Properties|null|undefined} config
+             * @memberof northstar.research.ResearchTask
+             * @instance
+             */
+            ResearchTask.prototype.config = null;
+
+            /**
+             * ResearchTask attempts.
+             * @member {Array.<google.protobuf.Struct.$Properties>} attempts
+             * @memberof northstar.research.ResearchTask
+             * @instance
+             */
+            ResearchTask.prototype.attempts = $util.emptyArray;
+
+            /**
+             * ResearchTask evidence_fields.
+             * @member {Object.<string,google.protobuf.Value.$Properties>} evidence_fields
+             * @memberof northstar.research.ResearchTask
+             * @instance
+             */
+            ResearchTask.prototype.evidence_fields = $util.emptyObject;
+
+            /**
+             * ResearchTask null_fields.
+             * @member {Array.<string>} null_fields
+             * @memberof northstar.research.ResearchTask
+             * @instance
+             */
+            ResearchTask.prototype.null_fields = $util.emptyArray;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * ResearchTask _task_id.
+             * @member {"task_id"|undefined} _task_id
+             * @memberof northstar.research.ResearchTask
+             * @instance
+             */
+            $Object.defineProperty(ResearchTask.prototype, "_task_id", {
+                get: $util.oneOfGetter($oneOfFields = ["task_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ResearchTask _snapshot_id.
+             * @member {"snapshot_id"|undefined} _snapshot_id
+             * @memberof northstar.research.ResearchTask
+             * @instance
+             */
+            $Object.defineProperty(ResearchTask.prototype, "_snapshot_id", {
+                get: $util.oneOfGetter($oneOfFields = ["snapshot_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ResearchTask _snapshot_hash.
+             * @member {"snapshot_hash"|undefined} _snapshot_hash
+             * @memberof northstar.research.ResearchTask
+             * @instance
+             */
+            $Object.defineProperty(ResearchTask.prototype, "_snapshot_hash", {
+                get: $util.oneOfGetter($oneOfFields = ["snapshot_hash"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ResearchTask _code_revision.
+             * @member {"code_revision"|undefined} _code_revision
+             * @memberof northstar.research.ResearchTask
+             * @instance
+             */
+            $Object.defineProperty(ResearchTask.prototype, "_code_revision", {
+                get: $util.oneOfGetter($oneOfFields = ["code_revision"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ResearchTask _created_at.
+             * @member {"created_at"|undefined} _created_at
+             * @memberof northstar.research.ResearchTask
+             * @instance
+             */
+            $Object.defineProperty(ResearchTask.prototype, "_created_at", {
+                get: $util.oneOfGetter($oneOfFields = ["created_at"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ResearchTask _status.
+             * @member {"status"|undefined} _status
+             * @memberof northstar.research.ResearchTask
+             * @instance
+             */
+            $Object.defineProperty(ResearchTask.prototype, "_status", {
+                get: $util.oneOfGetter($oneOfFields = ["status"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ResearchTask _completed.
+             * @member {"completed"|undefined} _completed
+             * @memberof northstar.research.ResearchTask
+             * @instance
+             */
+            $Object.defineProperty(ResearchTask.prototype, "_completed", {
+                get: $util.oneOfGetter($oneOfFields = ["completed"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ResearchTask _total.
+             * @member {"total"|undefined} _total
+             * @memberof northstar.research.ResearchTask
+             * @instance
+             */
+            $Object.defineProperty(ResearchTask.prototype, "_total", {
+                get: $util.oneOfGetter($oneOfFields = ["total"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ResearchTask _run_id.
+             * @member {"run_id"|undefined} _run_id
+             * @memberof northstar.research.ResearchTask
+             * @instance
+             */
+            $Object.defineProperty(ResearchTask.prototype, "_run_id", {
+                get: $util.oneOfGetter($oneOfFields = ["run_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ResearchTask _reason.
+             * @member {"reason"|undefined} _reason
+             * @memberof northstar.research.ResearchTask
+             * @instance
+             */
+            $Object.defineProperty(ResearchTask.prototype, "_reason", {
+                get: $util.oneOfGetter($oneOfFields = ["reason"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ResearchTask _config.
+             * @member {"config"|undefined} _config
+             * @memberof northstar.research.ResearchTask
+             * @instance
+             */
+            $Object.defineProperty(ResearchTask.prototype, "_config", {
+                get: $util.oneOfGetter($oneOfFields = ["config"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new ResearchTask instance using the specified properties.
+             * @function create
+             * @memberof northstar.research.ResearchTask
+             * @static
+             * @param {northstar.research.ResearchTask.$Properties=} [properties] Properties to set
+             * @returns {northstar.research.ResearchTask} ResearchTask instance
+             * @type {{
+             *   (properties: northstar.research.ResearchTask.$Shape): northstar.research.ResearchTask & northstar.research.ResearchTask.$Shape;
+             *   (properties?: northstar.research.ResearchTask.$Properties): northstar.research.ResearchTask;
+             * }}
+             */
+            ResearchTask.create = function(properties) {
+                return new ResearchTask(properties);
+            };
+
+            /**
+             * Encodes the specified ResearchTask message. Does not implicitly {@link northstar.research.ResearchTask.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.research.ResearchTask
+             * @static
+             * @param {northstar.research.ResearchTask.$Properties} message ResearchTask message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            ResearchTask.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.task_id != null && $Object.hasOwnProperty.call(message, "task_id"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.task_id);
+                if (message.snapshot_id != null && $Object.hasOwnProperty.call(message, "snapshot_id"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.snapshot_id);
+                if (message.snapshot_hash != null && $Object.hasOwnProperty.call(message, "snapshot_hash"))
+                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.snapshot_hash);
+                if (message.code_revision != null && $Object.hasOwnProperty.call(message, "code_revision"))
+                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.code_revision);
+                if (message.created_at != null && $Object.hasOwnProperty.call(message, "created_at"))
+                    writer.uint32(/* id 5, wireType 2 =*/42).string(message.created_at);
+                if (message.status != null && $Object.hasOwnProperty.call(message, "status"))
+                    writer.uint32(/* id 6, wireType 2 =*/50).string(message.status);
+                if (message.completed != null && $Object.hasOwnProperty.call(message, "completed"))
+                    writer.uint32(/* id 7, wireType 0 =*/56).int64(message.completed);
+                if (message.total != null && $Object.hasOwnProperty.call(message, "total"))
+                    writer.uint32(/* id 8, wireType 0 =*/64).int64(message.total);
+                if (message.run_id != null && $Object.hasOwnProperty.call(message, "run_id"))
+                    writer.uint32(/* id 9, wireType 2 =*/74).string(message.run_id);
+                if (message.reason != null && $Object.hasOwnProperty.call(message, "reason"))
+                    writer.uint32(/* id 10, wireType 2 =*/82).string(message.reason);
+                if (message.config != null && $Object.hasOwnProperty.call(message, "config"))
+                    $root.google.protobuf.Struct.encode(message.config, writer.uint32(/* id 11, wireType 2 =*/90).fork(), _depth + 1).ldelim();
+                if (message.attempts != null && message.attempts.length)
+                    for (let i = 0; i < message.attempts.length; ++i)
+                        $root.google.protobuf.Struct.encode(message.attempts[i], writer.uint32(/* id 12, wireType 2 =*/98).fork(), _depth + 1).ldelim();
+                if (message.evidence_fields != null && $Object.hasOwnProperty.call(message, "evidence_fields"))
+                    for (let keys = $Object.keys(message.evidence_fields), i = 0; i < keys.length; ++i) {
+                        writer.uint32(/* id 1000, wireType 2 =*/8002).fork().uint32(/* id 1, wireType 2 =*/10).string(keys[i]);
+                        $root.google.protobuf.Value.encode(message.evidence_fields[keys[i]], writer.uint32(/* id 2, wireType 2 =*/18).fork(), _depth + 1).ldelim().ldelim();
+                    }
+                if (message.null_fields != null && message.null_fields.length)
+                    for (let i = 0; i < message.null_fields.length; ++i)
+                        writer.uint32(/* id 2046, wireType 2 =*/16370).string(message.null_fields[i]);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a ResearchTask message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.research.ResearchTask
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.research.ResearchTask & northstar.research.ResearchTask.$Shape} ResearchTask
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            ResearchTask.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message, key, value;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.research.ResearchTask();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.task_id = reader.stringVerify();
+                            message._task_id = "task_id";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.snapshot_id = reader.stringVerify();
+                            message._snapshot_id = "snapshot_id";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 2)
+                                break;
+                            message.snapshot_hash = reader.stringVerify();
+                            message._snapshot_hash = "snapshot_hash";
+                            continue;
+                        }
+                    case 4: {
+                            if (wireType !== 2)
+                                break;
+                            message.code_revision = reader.stringVerify();
+                            message._code_revision = "code_revision";
+                            continue;
+                        }
+                    case 5: {
+                            if (wireType !== 2)
+                                break;
+                            message.created_at = reader.stringVerify();
+                            message._created_at = "created_at";
+                            continue;
+                        }
+                    case 6: {
+                            if (wireType !== 2)
+                                break;
+                            message.status = reader.stringVerify();
+                            message._status = "status";
+                            continue;
+                        }
+                    case 7: {
+                            if (wireType !== 0)
+                                break;
+                            message.completed = reader.int64();
+                            message._completed = "completed";
+                            continue;
+                        }
+                    case 8: {
+                            if (wireType !== 0)
+                                break;
+                            message.total = reader.int64();
+                            message._total = "total";
+                            continue;
+                        }
+                    case 9: {
+                            if (wireType !== 2)
+                                break;
+                            message.run_id = reader.stringVerify();
+                            message._run_id = "run_id";
+                            continue;
+                        }
+                    case 10: {
+                            if (wireType !== 2)
+                                break;
+                            message.reason = reader.stringVerify();
+                            message._reason = "reason";
+                            continue;
+                        }
+                    case 11: {
+                            if (wireType !== 2)
+                                break;
+                            message.config = $root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1, message.config);
+                            message._config = "config";
+                            continue;
+                        }
+                    case 12: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.attempts && message.attempts.length))
+                                message.attempts = [];
+                            message.attempts.push($root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1));
+                            continue;
+                        }
+                    case 1000: {
+                            if (wireType !== 2)
+                                break;
+                            if (message.evidence_fields === $util.emptyObject)
+                                message.evidence_fields = {};
+                            let end2 = reader.uint32() + reader.pos;
+                            if (end2 > reader.len)
+                                throw $RangeError("index out of range");
+                            reader.len = end2;
+                            key = "";
+                            value = null;
+                            while (reader.pos < end2) {
+                                let tag2 = reader.tag();
+                                wireType = tag2 & 7;
+                                switch (tag2 >>>= 3) {
+                                case 1:
+                                    if (wireType !== 2)
+                                        break;
+                                    key = reader.stringVerify();
+                                    continue;
+                                case 2:
+                                    if (wireType !== 2)
+                                        break;
+                                    value = $root.google.protobuf.Value.decode(reader, reader.uint32(), $undefined, _depth + 1, value);
+                                    continue;
+                                }
+                                reader.skipType(wireType, _depth, tag2);
+                            }
+                            if (reader.pos !== end2)
+                                throw $RangeError("index out of range");
+                            reader.len = end;
+                            if (key === "__proto__")
+                                $util.makeProp(message.evidence_fields, key);
+                            message.evidence_fields[key] = value || new $root.google.protobuf.Value();
+                            continue;
+                        }
+                    case 2046: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.null_fields && message.null_fields.length))
+                                message.null_fields = [];
+                            message.null_fields.push(reader.stringVerify());
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a ResearchTask message.
+             * @function verify
+             * @memberof northstar.research.ResearchTask
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            ResearchTask.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.task_id != null && $Object.hasOwnProperty.call(message, "task_id")) {
+                    properties._task_id = 1;
+                    if (!$util.isString(message.task_id))
+                        return "task_id: string expected";
+                }
+                if (message.snapshot_id != null && $Object.hasOwnProperty.call(message, "snapshot_id")) {
+                    properties._snapshot_id = 1;
+                    if (!$util.isString(message.snapshot_id))
+                        return "snapshot_id: string expected";
+                }
+                if (message.snapshot_hash != null && $Object.hasOwnProperty.call(message, "snapshot_hash")) {
+                    properties._snapshot_hash = 1;
+                    if (!$util.isString(message.snapshot_hash))
+                        return "snapshot_hash: string expected";
+                }
+                if (message.code_revision != null && $Object.hasOwnProperty.call(message, "code_revision")) {
+                    properties._code_revision = 1;
+                    if (!$util.isString(message.code_revision))
+                        return "code_revision: string expected";
+                }
+                if (message.created_at != null && $Object.hasOwnProperty.call(message, "created_at")) {
+                    properties._created_at = 1;
+                    if (!$util.isString(message.created_at))
+                        return "created_at: string expected";
+                }
+                if (message.status != null && $Object.hasOwnProperty.call(message, "status")) {
+                    properties._status = 1;
+                    if (!$util.isString(message.status))
+                        return "status: string expected";
+                }
+                if (message.completed != null && $Object.hasOwnProperty.call(message, "completed")) {
+                    properties._completed = 1;
+                    if (!$util.isInteger(message.completed) && !(message.completed && $util.isInteger(message.completed.low) && $util.isInteger(message.completed.high)))
+                        return "completed: integer|Long expected";
+                }
+                if (message.total != null && $Object.hasOwnProperty.call(message, "total")) {
+                    properties._total = 1;
+                    if (!$util.isInteger(message.total) && !(message.total && $util.isInteger(message.total.low) && $util.isInteger(message.total.high)))
+                        return "total: integer|Long expected";
+                }
+                if (message.run_id != null && $Object.hasOwnProperty.call(message, "run_id")) {
+                    properties._run_id = 1;
+                    if (!$util.isString(message.run_id))
+                        return "run_id: string expected";
+                }
+                if (message.reason != null && $Object.hasOwnProperty.call(message, "reason")) {
+                    properties._reason = 1;
+                    if (!$util.isString(message.reason))
+                        return "reason: string expected";
+                }
+                if (message.config != null && $Object.hasOwnProperty.call(message, "config")) {
+                    properties._config = 1;
+                    {
+                        let error = $root.google.protobuf.Struct.verify(message.config, _depth + 1);
+                        if (error)
+                            return "config." + error;
+                    }
+                }
+                if (message.attempts != null && $Object.hasOwnProperty.call(message, "attempts")) {
+                    if (!$Array.isArray(message.attempts))
+                        return "attempts: array expected";
+                    for (let i = 0; i < message.attempts.length; ++i) {
+                        let error = $root.google.protobuf.Struct.verify(message.attempts[i], _depth + 1);
+                        if (error)
+                            return "attempts." + error;
+                    }
+                }
+                if (message.evidence_fields != null && $Object.hasOwnProperty.call(message, "evidence_fields")) {
+                    if (!$util.isObject(message.evidence_fields))
+                        return "evidence_fields: object expected";
+                    let key = $Object.keys(message.evidence_fields);
+                    for (let i = 0; i < key.length; ++i) {
+                        let error = $root.google.protobuf.Value.verify(message.evidence_fields[key[i]], _depth + 1);
+                        if (error)
+                            return "evidence_fields." + error;
+                    }
+                }
+                if (message.null_fields != null && $Object.hasOwnProperty.call(message, "null_fields")) {
+                    if (!$Array.isArray(message.null_fields))
+                        return "null_fields: array expected";
+                    for (let i = 0; i < message.null_fields.length; ++i)
+                        if (!$util.isString(message.null_fields[i]))
+                            return "null_fields: string[] expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a ResearchTask message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.research.ResearchTask
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.research.ResearchTask} ResearchTask
+             */
+            ResearchTask.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.research.ResearchTask)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.research.ResearchTask: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.research.ResearchTask();
+                if (object.task_id != null)
+                    message.task_id = $String(object.task_id);
+                if (object.snapshot_id != null)
+                    message.snapshot_id = $String(object.snapshot_id);
+                if (object.snapshot_hash != null)
+                    message.snapshot_hash = $String(object.snapshot_hash);
+                if (object.code_revision != null)
+                    message.code_revision = $String(object.code_revision);
+                if (object.created_at != null)
+                    message.created_at = $String(object.created_at);
+                if (object.status != null)
+                    message.status = $String(object.status);
+                if (object.completed != null)
+                    if ($util.Long)
+                        message.completed = $util.Long.fromValue(object.completed, false);
+                    else if (typeof object.completed === "string")
+                        message.completed = $parseInt(object.completed, 10);
+                    else if (typeof object.completed === "number")
+                        message.completed = object.completed;
+                    else if (typeof object.completed === "object")
+                        message.completed = new $util.LongBits(object.completed.low >>> 0, object.completed.high >>> 0).toNumber();
+                if (object.total != null)
+                    if ($util.Long)
+                        message.total = $util.Long.fromValue(object.total, false);
+                    else if (typeof object.total === "string")
+                        message.total = $parseInt(object.total, 10);
+                    else if (typeof object.total === "number")
+                        message.total = object.total;
+                    else if (typeof object.total === "object")
+                        message.total = new $util.LongBits(object.total.low >>> 0, object.total.high >>> 0).toNumber();
+                if (object.run_id != null)
+                    message.run_id = $String(object.run_id);
+                if (object.reason != null)
+                    message.reason = $String(object.reason);
+                if (object.config != null) {
+                    if (!$util.isObject(object.config))
+                        throw $TypeError(".northstar.research.ResearchTask.config: object expected");
+                    message.config = $root.google.protobuf.Struct.fromObject(object.config, _depth + 1);
+                }
+                if (object.attempts) {
+                    if (!$Array.isArray(object.attempts))
+                        throw $TypeError(".northstar.research.ResearchTask.attempts: array expected");
+                    message.attempts = $Array(object.attempts.length);
+                    for (let i = 0; i < object.attempts.length; ++i) {
+                        if (!$util.isObject(object.attempts[i]))
+                            throw $TypeError(".northstar.research.ResearchTask.attempts: object expected");
+                        message.attempts[i] = $root.google.protobuf.Struct.fromObject(object.attempts[i], _depth + 1);
+                    }
+                }
+                if (object.evidence_fields) {
+                    if (!$util.isObject(object.evidence_fields))
+                        throw $TypeError(".northstar.research.ResearchTask.evidence_fields: object expected");
+                    message.evidence_fields = {};
+                    for (let keys = $Object.keys(object.evidence_fields), i = 0; i < keys.length; ++i) {
+                        if (keys[i] === "__proto__")
+                            $util.makeProp(message.evidence_fields, keys[i]);
+                        if (!$util.isObject(object.evidence_fields[keys[i]]))
+                            throw $TypeError(".northstar.research.ResearchTask.evidence_fields: object expected");
+                        message.evidence_fields[keys[i]] = $root.google.protobuf.Value.fromObject(object.evidence_fields[keys[i]], _depth + 1);
+                    }
+                }
+                if (object.null_fields) {
+                    if (!$Array.isArray(object.null_fields))
+                        throw $TypeError(".northstar.research.ResearchTask.null_fields: array expected");
+                    message.null_fields = $Array(object.null_fields.length);
+                    for (let i = 0; i < object.null_fields.length; ++i)
+                        message.null_fields[i] = $String(object.null_fields[i]);
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a ResearchTask message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.research.ResearchTask
+             * @static
+             * @param {northstar.research.ResearchTask} message ResearchTask
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            ResearchTask.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.arrays || options.defaults) {
+                    object.attempts = [];
+                    object.null_fields = [];
+                }
+                if (options.objects || options.defaults)
+                    object.evidence_fields = {};
+                if (message.task_id != null && $Object.hasOwnProperty.call(message, "task_id")) {
+                    object.task_id = message.task_id;
+                    if (options.oneofs)
+                        object._task_id = "task_id";
+                }
+                if (message.snapshot_id != null && $Object.hasOwnProperty.call(message, "snapshot_id")) {
+                    object.snapshot_id = message.snapshot_id;
+                    if (options.oneofs)
+                        object._snapshot_id = "snapshot_id";
+                }
+                if (message.snapshot_hash != null && $Object.hasOwnProperty.call(message, "snapshot_hash")) {
+                    object.snapshot_hash = message.snapshot_hash;
+                    if (options.oneofs)
+                        object._snapshot_hash = "snapshot_hash";
+                }
+                if (message.code_revision != null && $Object.hasOwnProperty.call(message, "code_revision")) {
+                    object.code_revision = message.code_revision;
+                    if (options.oneofs)
+                        object._code_revision = "code_revision";
+                }
+                if (message.created_at != null && $Object.hasOwnProperty.call(message, "created_at")) {
+                    object.created_at = message.created_at;
+                    if (options.oneofs)
+                        object._created_at = "created_at";
+                }
+                if (message.status != null && $Object.hasOwnProperty.call(message, "status")) {
+                    object.status = message.status;
+                    if (options.oneofs)
+                        object._status = "status";
+                }
+                if (message.completed != null && $Object.hasOwnProperty.call(message, "completed")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.completed = typeof message.completed === "number" ? $BigInt(message.completed) : $util.Long.fromBits(message.completed.low >>> 0, message.completed.high >>> 0, false).toBigInt();
+                    else if (typeof message.completed === "number")
+                        object.completed = options.longs === $String ? $String(message.completed) : message.completed;
+                    else
+                        object.completed = options.longs === $String ? $util.Long.prototype.toString.call(message.completed) : options.longs === $Number ? new $util.LongBits(message.completed.low >>> 0, message.completed.high >>> 0).toNumber() : message.completed;
+                    if (options.oneofs)
+                        object._completed = "completed";
+                }
+                if (message.total != null && $Object.hasOwnProperty.call(message, "total")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.total = typeof message.total === "number" ? $BigInt(message.total) : $util.Long.fromBits(message.total.low >>> 0, message.total.high >>> 0, false).toBigInt();
+                    else if (typeof message.total === "number")
+                        object.total = options.longs === $String ? $String(message.total) : message.total;
+                    else
+                        object.total = options.longs === $String ? $util.Long.prototype.toString.call(message.total) : options.longs === $Number ? new $util.LongBits(message.total.low >>> 0, message.total.high >>> 0).toNumber() : message.total;
+                    if (options.oneofs)
+                        object._total = "total";
+                }
+                if (message.run_id != null && $Object.hasOwnProperty.call(message, "run_id")) {
+                    object.run_id = message.run_id;
+                    if (options.oneofs)
+                        object._run_id = "run_id";
+                }
+                if (message.reason != null && $Object.hasOwnProperty.call(message, "reason")) {
+                    object.reason = message.reason;
+                    if (options.oneofs)
+                        object._reason = "reason";
+                }
+                if (message.config != null && $Object.hasOwnProperty.call(message, "config")) {
+                    object.config = $root.google.protobuf.Struct.toObject(message.config, options, _depth + 1);
+                    if (options.oneofs)
+                        object._config = "config";
+                }
+                if (message.attempts && message.attempts.length) {
+                    object.attempts = $Array(message.attempts.length);
+                    for (let j = 0; j < message.attempts.length; ++j)
+                        object.attempts[j] = $root.google.protobuf.Struct.toObject(message.attempts[j], options, _depth + 1);
+                }
+                let keys2;
+                if (message.evidence_fields && (keys2 = $Object.keys(message.evidence_fields)).length) {
+                    object.evidence_fields = {};
+                    for (let j = 0; j < keys2.length; ++j) {
+                        if (keys2[j] === "__proto__")
+                            $util.makeProp(object.evidence_fields, keys2[j]);
+                        object.evidence_fields[keys2[j]] = $root.google.protobuf.Value.toObject(message.evidence_fields[keys2[j]], options, _depth + 1);
+                    }
+                }
+                if (message.null_fields && message.null_fields.length) {
+                    object.null_fields = $Array(message.null_fields.length);
+                    for (let j = 0; j < message.null_fields.length; ++j)
+                        object.null_fields[j] = message.null_fields[j];
+                }
+                return object;
+            };
+
+            /**
+             * Converts this ResearchTask to JSON.
+             * @function toJSON
+             * @memberof northstar.research.ResearchTask
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            ResearchTask.prototype.toJSON = function() {
+                return ResearchTask.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for ResearchTask
+             * @function getTypeUrl
+             * @memberof northstar.research.ResearchTask
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            ResearchTask.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.research.ResearchTask";
+            };
+
+            return ResearchTask;
+        })();
+
+        research.TaskRequest = (function() {
+
+            /**
+             * Properties of a TaskRequest.
+             * @typedef {Object} northstar.research.TaskRequest.$Properties
+             * @property {string|null} [request_id] TaskRequest request_id
+             * @property {string|null} [snapshot_id] TaskRequest snapshot_id
+             * @property {northstar.research.ResearchConfigurationInput.$Properties|null} [config] TaskRequest config
+             * @property {"request_id"} [_request_id] TaskRequest _request_id
+             * @property {"snapshot_id"} [_snapshot_id] TaskRequest _snapshot_id
+             * @property {"config"} [_config] TaskRequest _config
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a TaskRequest.
+             * @memberof northstar.research
+             * @interface ITaskRequest
+             * @augments northstar.research.TaskRequest.$Properties
+             * @deprecated Use northstar.research.TaskRequest.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a TaskRequest.
+             * @typedef {{
+             *   request_id?: string|null;
+             *   snapshot_id?: string|null;
+             *   config?: northstar.research.ResearchConfigurationInput.$Shape|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _request_id?: undefined; request_id?: null }|{ _request_id?: "request_id"; request_id: string })
+             * ) & (
+             *   ({ _snapshot_id?: undefined; snapshot_id?: null }|{ _snapshot_id?: "snapshot_id"; snapshot_id: string })
+             * ) & (
+             *   ({ _config?: undefined; config?: null }|{ _config?: "config"; config: northstar.research.ResearchConfigurationInput.$Shape })
+             * )} northstar.research.TaskRequest.$Shape
+             */
+
+            /**
+             * Constructs a new TaskRequest.
+             * @memberof northstar.research
+             * @classdesc Represents a TaskRequest.
+             * @constructor
+             * @param {northstar.research.TaskRequest.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const TaskRequest = function (properties) {
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * TaskRequest request_id.
+             * @member {string|null|undefined} request_id
+             * @memberof northstar.research.TaskRequest
+             * @instance
+             */
+            TaskRequest.prototype.request_id = null;
+
+            /**
+             * TaskRequest snapshot_id.
+             * @member {string|null|undefined} snapshot_id
+             * @memberof northstar.research.TaskRequest
+             * @instance
+             */
+            TaskRequest.prototype.snapshot_id = null;
+
+            /**
+             * TaskRequest config.
+             * @member {northstar.research.ResearchConfigurationInput.$Properties|null|undefined} config
+             * @memberof northstar.research.TaskRequest
+             * @instance
+             */
+            TaskRequest.prototype.config = null;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * TaskRequest _request_id.
+             * @member {"request_id"|undefined} _request_id
+             * @memberof northstar.research.TaskRequest
+             * @instance
+             */
+            $Object.defineProperty(TaskRequest.prototype, "_request_id", {
+                get: $util.oneOfGetter($oneOfFields = ["request_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * TaskRequest _snapshot_id.
+             * @member {"snapshot_id"|undefined} _snapshot_id
+             * @memberof northstar.research.TaskRequest
+             * @instance
+             */
+            $Object.defineProperty(TaskRequest.prototype, "_snapshot_id", {
+                get: $util.oneOfGetter($oneOfFields = ["snapshot_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * TaskRequest _config.
+             * @member {"config"|undefined} _config
+             * @memberof northstar.research.TaskRequest
+             * @instance
+             */
+            $Object.defineProperty(TaskRequest.prototype, "_config", {
+                get: $util.oneOfGetter($oneOfFields = ["config"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new TaskRequest instance using the specified properties.
+             * @function create
+             * @memberof northstar.research.TaskRequest
+             * @static
+             * @param {northstar.research.TaskRequest.$Properties=} [properties] Properties to set
+             * @returns {northstar.research.TaskRequest} TaskRequest instance
+             * @type {{
+             *   (properties: northstar.research.TaskRequest.$Shape): northstar.research.TaskRequest & northstar.research.TaskRequest.$Shape;
+             *   (properties?: northstar.research.TaskRequest.$Properties): northstar.research.TaskRequest;
+             * }}
+             */
+            TaskRequest.create = function(properties) {
+                return new TaskRequest(properties);
+            };
+
+            /**
+             * Encodes the specified TaskRequest message. Does not implicitly {@link northstar.research.TaskRequest.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.research.TaskRequest
+             * @static
+             * @param {northstar.research.TaskRequest.$Properties} message TaskRequest message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            TaskRequest.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.request_id);
+                if (message.snapshot_id != null && $Object.hasOwnProperty.call(message, "snapshot_id"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.snapshot_id);
+                if (message.config != null && $Object.hasOwnProperty.call(message, "config"))
+                    $root.northstar.research.ResearchConfigurationInput.encode(message.config, writer.uint32(/* id 3, wireType 2 =*/26).fork(), _depth + 1).ldelim();
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a TaskRequest message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.research.TaskRequest
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.research.TaskRequest & northstar.research.TaskRequest.$Shape} TaskRequest
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            TaskRequest.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.research.TaskRequest();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.request_id = reader.stringVerify();
+                            message._request_id = "request_id";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.snapshot_id = reader.stringVerify();
+                            message._snapshot_id = "snapshot_id";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 2)
+                                break;
+                            message.config = $root.northstar.research.ResearchConfigurationInput.decode(reader, reader.uint32(), $undefined, _depth + 1, message.config);
+                            message._config = "config";
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a TaskRequest message.
+             * @function verify
+             * @memberof northstar.research.TaskRequest
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            TaskRequest.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id")) {
+                    properties._request_id = 1;
+                    if (!$util.isString(message.request_id))
+                        return "request_id: string expected";
+                }
+                if (message.snapshot_id != null && $Object.hasOwnProperty.call(message, "snapshot_id")) {
+                    properties._snapshot_id = 1;
+                    if (!$util.isString(message.snapshot_id))
+                        return "snapshot_id: string expected";
+                }
+                if (message.config != null && $Object.hasOwnProperty.call(message, "config")) {
+                    properties._config = 1;
+                    {
+                        let error = $root.northstar.research.ResearchConfigurationInput.verify(message.config, _depth + 1);
+                        if (error)
+                            return "config." + error;
+                    }
+                }
+                return null;
+            };
+
+            /**
+             * Creates a TaskRequest message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.research.TaskRequest
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.research.TaskRequest} TaskRequest
+             */
+            TaskRequest.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.research.TaskRequest)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.research.TaskRequest: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.research.TaskRequest();
+                if (object.request_id != null)
+                    message.request_id = $String(object.request_id);
+                if (object.snapshot_id != null)
+                    message.snapshot_id = $String(object.snapshot_id);
+                if (object.config != null) {
+                    if (!$util.isObject(object.config))
+                        throw $TypeError(".northstar.research.TaskRequest.config: object expected");
+                    message.config = $root.northstar.research.ResearchConfigurationInput.fromObject(object.config, _depth + 1);
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a TaskRequest message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.research.TaskRequest
+             * @static
+             * @param {northstar.research.TaskRequest} message TaskRequest
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            TaskRequest.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id")) {
+                    object.request_id = message.request_id;
+                    if (options.oneofs)
+                        object._request_id = "request_id";
+                }
+                if (message.snapshot_id != null && $Object.hasOwnProperty.call(message, "snapshot_id")) {
+                    object.snapshot_id = message.snapshot_id;
+                    if (options.oneofs)
+                        object._snapshot_id = "snapshot_id";
+                }
+                if (message.config != null && $Object.hasOwnProperty.call(message, "config")) {
+                    object.config = $root.northstar.research.ResearchConfigurationInput.toObject(message.config, options, _depth + 1);
+                    if (options.oneofs)
+                        object._config = "config";
+                }
+                return object;
+            };
+
+            /**
+             * Converts this TaskRequest to JSON.
+             * @function toJSON
+             * @memberof northstar.research.TaskRequest
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            TaskRequest.prototype.toJSON = function() {
+                return TaskRequest.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for TaskRequest
+             * @function getTypeUrl
+             * @memberof northstar.research.TaskRequest
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            TaskRequest.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.research.TaskRequest";
+            };
+
+            return TaskRequest;
+        })();
+
+        research.TaskControl = (function() {
+
+            /**
+             * Properties of a TaskControl.
+             * @typedef {Object} northstar.research.TaskControl.$Properties
+             * @property {string|null} [action] TaskControl action
+             * @property {"action"} [_action] TaskControl _action
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a TaskControl.
+             * @memberof northstar.research
+             * @interface ITaskControl
+             * @augments northstar.research.TaskControl.$Properties
+             * @deprecated Use northstar.research.TaskControl.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a TaskControl.
+             * @typedef {{
+             *   action?: string|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _action?: undefined; action?: null }|{ _action?: "action"; action: string })
+             * )} northstar.research.TaskControl.$Shape
+             */
+
+            /**
+             * Constructs a new TaskControl.
+             * @memberof northstar.research
+             * @classdesc Represents a TaskControl.
+             * @constructor
+             * @param {northstar.research.TaskControl.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const TaskControl = function (properties) {
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * TaskControl action.
+             * @member {string|null|undefined} action
+             * @memberof northstar.research.TaskControl
+             * @instance
+             */
+            TaskControl.prototype.action = null;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * TaskControl _action.
+             * @member {"action"|undefined} _action
+             * @memberof northstar.research.TaskControl
+             * @instance
+             */
+            $Object.defineProperty(TaskControl.prototype, "_action", {
+                get: $util.oneOfGetter($oneOfFields = ["action"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new TaskControl instance using the specified properties.
+             * @function create
+             * @memberof northstar.research.TaskControl
+             * @static
+             * @param {northstar.research.TaskControl.$Properties=} [properties] Properties to set
+             * @returns {northstar.research.TaskControl} TaskControl instance
+             * @type {{
+             *   (properties: northstar.research.TaskControl.$Shape): northstar.research.TaskControl & northstar.research.TaskControl.$Shape;
+             *   (properties?: northstar.research.TaskControl.$Properties): northstar.research.TaskControl;
+             * }}
+             */
+            TaskControl.create = function(properties) {
+                return new TaskControl(properties);
+            };
+
+            /**
+             * Encodes the specified TaskControl message. Does not implicitly {@link northstar.research.TaskControl.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.research.TaskControl
+             * @static
+             * @param {northstar.research.TaskControl.$Properties} message TaskControl message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            TaskControl.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.action != null && $Object.hasOwnProperty.call(message, "action"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.action);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a TaskControl message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.research.TaskControl
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.research.TaskControl & northstar.research.TaskControl.$Shape} TaskControl
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            TaskControl.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.research.TaskControl();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.action = reader.stringVerify();
+                            message._action = "action";
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a TaskControl message.
+             * @function verify
+             * @memberof northstar.research.TaskControl
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            TaskControl.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.action != null && $Object.hasOwnProperty.call(message, "action")) {
+                    properties._action = 1;
+                    if (!$util.isString(message.action))
+                        return "action: string expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a TaskControl message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.research.TaskControl
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.research.TaskControl} TaskControl
+             */
+            TaskControl.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.research.TaskControl)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.research.TaskControl: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.research.TaskControl();
+                if (object.action != null)
+                    message.action = $String(object.action);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a TaskControl message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.research.TaskControl
+             * @static
+             * @param {northstar.research.TaskControl} message TaskControl
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            TaskControl.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (message.action != null && $Object.hasOwnProperty.call(message, "action")) {
+                    object.action = message.action;
+                    if (options.oneofs)
+                        object._action = "action";
+                }
+                return object;
+            };
+
+            /**
+             * Converts this TaskControl to JSON.
+             * @function toJSON
+             * @memberof northstar.research.TaskControl
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            TaskControl.prototype.toJSON = function() {
+                return TaskControl.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for TaskControl
+             * @function getTypeUrl
+             * @memberof northstar.research.TaskControl
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            TaskControl.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.research.TaskControl";
+            };
+
+            return TaskControl;
+        })();
+
+        research.TaskList = (function() {
+
+            /**
+             * Properties of a TaskList.
+             * @typedef {Object} northstar.research.TaskList.$Properties
+             * @property {Array.<northstar.research.ResearchTask.$Properties>|null} [items] TaskList items
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a TaskList.
+             * @memberof northstar.research
+             * @interface ITaskList
+             * @augments northstar.research.TaskList.$Properties
+             * @deprecated Use northstar.research.TaskList.$Properties instead.
+             */
+
+            /**
+             * Shape of a TaskList.
+             * @typedef {{
+             *   items?: Array.<northstar.research.ResearchTask.$Shape>|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * }} northstar.research.TaskList.$Shape
+             */
+
+            /**
+             * Constructs a new TaskList.
+             * @memberof northstar.research
+             * @classdesc Represents a TaskList.
+             * @constructor
+             * @param {northstar.research.TaskList.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const TaskList = function (properties) {
+                this.items = [];
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * TaskList items.
+             * @member {Array.<northstar.research.ResearchTask.$Properties>} items
+             * @memberof northstar.research.TaskList
+             * @instance
+             */
+            TaskList.prototype.items = $util.emptyArray;
+
+            /**
+             * Creates a new TaskList instance using the specified properties.
+             * @function create
+             * @memberof northstar.research.TaskList
+             * @static
+             * @param {northstar.research.TaskList.$Properties=} [properties] Properties to set
+             * @returns {northstar.research.TaskList} TaskList instance
+             * @type {{
+             *   (properties: northstar.research.TaskList.$Shape): northstar.research.TaskList & northstar.research.TaskList.$Shape;
+             *   (properties?: northstar.research.TaskList.$Properties): northstar.research.TaskList;
+             * }}
+             */
+            TaskList.create = function(properties) {
+                return new TaskList(properties);
+            };
+
+            /**
+             * Encodes the specified TaskList message. Does not implicitly {@link northstar.research.TaskList.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.research.TaskList
+             * @static
+             * @param {northstar.research.TaskList.$Properties} message TaskList message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            TaskList.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.items != null && message.items.length)
+                    for (let i = 0; i < message.items.length; ++i)
+                        $root.northstar.research.ResearchTask.encode(message.items[i], writer.uint32(/* id 1, wireType 2 =*/10).fork(), _depth + 1).ldelim();
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a TaskList message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.research.TaskList
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.research.TaskList & northstar.research.TaskList.$Shape} TaskList
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            TaskList.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.research.TaskList();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.items && message.items.length))
+                                message.items = [];
+                            message.items.push($root.northstar.research.ResearchTask.decode(reader, reader.uint32(), $undefined, _depth + 1));
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a TaskList message.
+             * @function verify
+             * @memberof northstar.research.TaskList
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            TaskList.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                if (message.items != null && $Object.hasOwnProperty.call(message, "items")) {
+                    if (!$Array.isArray(message.items))
+                        return "items: array expected";
+                    for (let i = 0; i < message.items.length; ++i) {
+                        let error = $root.northstar.research.ResearchTask.verify(message.items[i], _depth + 1);
+                        if (error)
+                            return "items." + error;
+                    }
+                }
+                return null;
+            };
+
+            /**
+             * Creates a TaskList message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.research.TaskList
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.research.TaskList} TaskList
+             */
+            TaskList.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.research.TaskList)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.research.TaskList: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.research.TaskList();
+                if (object.items) {
+                    if (!$Array.isArray(object.items))
+                        throw $TypeError(".northstar.research.TaskList.items: array expected");
+                    message.items = $Array(object.items.length);
+                    for (let i = 0; i < object.items.length; ++i) {
+                        if (!$util.isObject(object.items[i]))
+                            throw $TypeError(".northstar.research.TaskList.items: object expected");
+                        message.items[i] = $root.northstar.research.ResearchTask.fromObject(object.items[i], _depth + 1);
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a TaskList message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.research.TaskList
+             * @static
+             * @param {northstar.research.TaskList} message TaskList
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            TaskList.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.arrays || options.defaults)
+                    object.items = [];
+                if (message.items && message.items.length) {
+                    object.items = $Array(message.items.length);
+                    for (let j = 0; j < message.items.length; ++j)
+                        object.items[j] = $root.northstar.research.ResearchTask.toObject(message.items[j], options, _depth + 1);
+                }
+                return object;
+            };
+
+            /**
+             * Converts this TaskList to JSON.
+             * @function toJSON
+             * @memberof northstar.research.TaskList
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            TaskList.prototype.toJSON = function() {
+                return TaskList.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for TaskList
+             * @function getTypeUrl
+             * @memberof northstar.research.TaskList
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            TaskList.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.research.TaskList";
+            };
+
+            return TaskList;
         })();
 
         return research;

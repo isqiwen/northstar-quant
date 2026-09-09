@@ -27,6 +27,7 @@ class ResearchUsages:
     def list(self, snapshots: Sequence[UUID]) -> list[dict[str, object]]:
         from .paper import _sessions
         from .runs import _runs
+        from .tasks.store import jobs
 
         query = union_all(
             select(
@@ -43,7 +44,23 @@ class ResearchUsages:
             ).where(_sessions.c.snapshot_id.in_(snapshots)),
         )
         with self.engine.connect() as connection:
-            rows = connection.execute(query.order_by("created_at").limit(200)).mappings().all()
+            rows = list(
+                connection.execute(query.order_by("created_at").limit(200)).mappings().all()
+            )
+            rows.extend(
+                connection.execute(
+                    select(
+                        literal("RESEARCH_TASK").label("kind"),
+                        jobs.c.task_id.label("use_id"),
+                        jobs.c.snapshot_id,
+                        jobs.c.created_at,
+                    )
+                    .where(jobs.c.snapshot_id.in_([str(s) for s in snapshots]))
+                    .limit(200)
+                )
+                .mappings()
+                .all()
+            )
         return [
             {
                 k: str(v) if k in {"use_id", "snapshot_id", "created_at"} else v

@@ -80,3 +80,11 @@ Research 按清单校验 NAS 文件，在本机 DuckDB 查询；不扫描目录�
 - `POST /api/explorer/export`：固定版本的受控分页导出，来源未许可返回 403。
 
 这些 POST 是带浏览器会话保护的只读查询，不更改下载范围或任务状态。源协议在 `proto/data_hub.proto`。
+
+## Research 持久任务
+
+`POST /api/tasks` 固定请求身份、快照和完整配置，返回 202 与任务身份；不在 HTTP 请求里计算。
+`GET /api/tasks`、`GET /api/tasks/{task_id}` 查看进度、原因、尝试、固定证据与结果。
+`POST /api/tasks/{task_id}/control` 的 action 为 cancel 或 retry；取消请求不代表已经停止。
+`GET /api/runs` 与详情读取已保存结果，`POST /api/run-comparisons` 执行同条件比较。
+所有消息由 `proto/research.proto` 定义。

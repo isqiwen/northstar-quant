@@ -331,10 +331,6 @@ message RiskInput {
   optional string max_margin_fraction = 5 [json_name = "max_margin_fraction"];
 }
 
-message RunCreated {
-  optional string run_id = 1 [json_name = "run_id", (northstar.web.required_field) = true];
-  optional string url = 2 [json_name = "url", (northstar.web.required_field) = true];
-}
 
 message RunDetail {
   option (northstar.web.evidence) = true;
@@ -348,10 +344,6 @@ message RunDetail {
   map<string, google.protobuf.Value> evidence_fields = 1000;
 }
 
-message RunRequest {
-  optional ResearchConfigurationInput config = 1 [json_name = "config", (northstar.web.required_field) = true];
-  optional string snapshot_id = 2 [json_name = "snapshot_id", (northstar.web.required_field) = true];
-}
 
 message RunSummary {
   option (northstar.web.evidence) = true;
@@ -495,6 +487,26 @@ message GetApiStrategyVersionsResponse {
 }
 
 service BrowserApi {
+  rpc SubmitTask (TaskRequest) returns (ResearchTask) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/tasks";
+  }
+
+  rpc ListTasks (northstar.web.Empty) returns (TaskList) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/tasks";
+  }
+
+  rpc GetTask (northstar.web.Empty) returns (ResearchTask) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/tasks/{task_id}";
+  }
+
+  rpc ControlTask (TaskControl) returns (ResearchTask) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/tasks/{task_id}/control";
+  }
+
   rpc GetApiBrowserSession (northstar.web.Empty) returns (BrowserSession) {
     option (northstar.web.http_method) = "GET";
     option (northstar.web.http_path) = "/api/browser-session";
@@ -583,10 +595,6 @@ service BrowserApi {
     option (northstar.web.http_method) = "GET";
     option (northstar.web.http_path) = "/api/runs";
   }
-  rpc PostApiRuns (RunRequest) returns (RunCreated) {
-    option (northstar.web.http_method) = "POST";
-    option (northstar.web.http_path) = "/api/runs";
-  }
   rpc GetApiRunsRunId (northstar.web.Empty) returns (RunDetail) {
     option (northstar.web.http_method) = "GET";
     option (northstar.web.http_path) = "/api/runs/{run_id}";
@@ -615,4 +623,32 @@ service BrowserApi {
     option (northstar.web.http_method) = "POST";
     option (northstar.web.http_path) = "/api/strategy-versions/{version_id}/publish";
   }
+}
+
+message ResearchTask {
+  option (northstar.web.evidence) = true;
+  optional string task_id = 1 [json_name = "task_id", (northstar.web.required_field) = true];
+  optional string snapshot_id = 2 [json_name = "snapshot_id", (northstar.web.required_field) = true];
+  optional string snapshot_hash = 3 [json_name = "snapshot_hash", (northstar.web.required_field) = true];
+  optional string code_revision = 4 [json_name = "code_revision", (northstar.web.required_field) = true];
+  optional string created_at = 5 [json_name = "created_at", (northstar.web.required_field) = true];
+  optional string status = 6 [json_name = "status", (northstar.web.required_field) = true];
+  optional int64 completed = 7 [json_name = "completed", (northstar.web.required_field) = true];
+  optional int64 total = 8 [json_name = "total", (northstar.web.required_field) = true];
+  optional string run_id = 9 [json_name = "run_id", (northstar.web.nullable) = true];
+  optional string reason = 10 [json_name = "reason", (northstar.web.required_field) = true];
+  optional google.protobuf.Struct config = 11 [json_name = "config", (northstar.web.required_field) = true];
+  repeated google.protobuf.Struct attempts = 12 [json_name = "attempts", (northstar.web.required_field) = true];
+  map<string, google.protobuf.Value> evidence_fields = 1000;
+  repeated string null_fields = 2046;
+}
+message TaskRequest {
+ optional string request_id = 1 [(northstar.web.required_field) = true];
+ optional string snapshot_id = 2 [(northstar.web.required_field) = true];
+ optional ResearchConfigurationInput config = 3 [(northstar.web.required_field) = true];
+}
+message TaskControl { optional string action = 1 [(northstar.web.required_field) = true]; }
+message TaskList {
+ option (northstar.web.root_array) = true;
+ repeated ResearchTask items = 1;
 }

@@ -274,10 +274,6 @@ export type RiskInput = {
   max_lots?: number;
   max_margin_fraction?: string;
 };
-export type RunCreated = {
-  run_id: string;
-  url: string;
-};
 export type RunDetail = {
   code_revision: string;
   committed_code: boolean;
@@ -287,10 +283,6 @@ export type RunDetail = {
   run_id: string;
   snapshot: SnapshotReference;
   [key: string]: unknown;
-};
-export type RunRequest = {
-  config: ResearchConfigurationInput;
-  snapshot_id: string;
 };
 export type RunSummary = {
   code_revision: string;
@@ -378,6 +370,30 @@ export type PostApiRunComparisonsResponse = (Comparison)[];
 export type GetApiRunsResponse = (RunSummary)[];
 export type GetApiStrategyCandidatesResponse = (StrategyCandidate)[];
 export type GetApiStrategyVersionsResponse = (StrategyVersion)[];
+export type ResearchTask = {
+  task_id: string;
+  snapshot_id: string;
+  snapshot_hash: string;
+  code_revision: string;
+  created_at: string;
+  status: string;
+  completed: number;
+  total: number;
+  run_id?: string | null;
+  reason: string;
+  config: Record<string, JsonValue>;
+  attempts: (Record<string, JsonValue>)[];
+  [key: string]: unknown;
+};
+export type TaskRequest = {
+  request_id: string;
+  snapshot_id: string;
+  config: ResearchConfigurationInput;
+};
+export type TaskControl = {
+  action: string;
+};
+export type TaskList = (ResearchTask)[];
 export type Empty = {
 };
 export type Error = {

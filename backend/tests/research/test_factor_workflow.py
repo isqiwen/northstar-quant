@@ -125,8 +125,20 @@ def test_http_catalog_and_exact_parameter_versions_use_same_business_operations(
             "/api/configurations", json={"name": "range", "config": config.to_dict()}
         ).json()
         submitted = client.post(
-            "/api/runs", json={"snapshot_id": str(dataset.snapshot_id), "config": config.to_dict()}
+            "/api/tasks",
+            json={
+                "request_id": str(uuid4()),
+                "snapshot_id": str(dataset.snapshot_id),
+                "config": config.to_dict(),
+            },
         ).json()
+        from northstar_quant.research.tasks.execution import execute
+        from northstar_quant.research.tasks.store import TaskStore
+
+        tasks = TaskStore(postgres_engine)
+        claimed = tasks.claim()
+        execute(tasks, library, claimed["task_id"])
+        submitted = tasks.get(submitted["task_id"])
         version = client.post(
             "/api/strategy-versions",
             json={

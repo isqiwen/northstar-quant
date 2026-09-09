@@ -96,3 +96,44 @@ PaperStore(engine,PublishedDatasets(Path(sys.argv[2]))).advance(UUID(sys.argv[3]
     assert restore(recovered, target)["status"] == "restored"
     assert RunStore(recovered).get(run_id) == expected
     recovered.dispose()
+
+
+def test_queued_task_backup_retains_its_only_market_reference(
+    postgres_engine, clean_database, tmp_path, monkeypatch
+):
+    from northstar_quant.data_management.publications import PublishedDatasets
+    from northstar_quant.research.tasks.execution import execute
+    from northstar_quant.research.tasks.store import TaskStore
+
+    for name in ("MARKET", "RESEARCH"):
+        root = tmp_path / name.lower()
+        root.mkdir()
+        identity = str(uuid4())
+        identify(root, identity)
+        monkeypatch.setenv(f"NORTHSTAR_{name}_DIR", str(root))
+        monkeypatch.setenv(f"NORTHSTAR_{name}_STORAGE_ID", identity)
+    library, dataset, config = _study(postgres_engine, tmp_path)
+    engine = open_store(tmp_path / "queued.sqlite3")
+    initialize(engine)
+    task = TaskStore(engine).submit(
+        uuid4(),
+        dataset.snapshot_id,
+        dataset.content_hash,
+        config,
+        len(dataset.bars),
+        dataset.details.to_dict(),
+    )
+    destination = tmp_path / "queued-backup"
+    backup(engine, destination)
+    engine.dispose()
+    for name in ("MARKET", "RESEARCH"):
+        monkeypatch.setenv(f"NORTHSTAR_{name}_DIR", str(tmp_path / ("restored-" + name)))
+        monkeypatch.setenv(f"NORTHSTAR_{name}_STORAGE_ID", str(uuid4()))
+    restored = open_store(tmp_path / "restored.sqlite3")
+    restore(restored, destination)
+    tasks = TaskStore(restored)
+    assert tasks.get(task["task_id"])["status"] == "QUEUED"
+    tasks.claim()
+    execute(tasks, PublishedDatasets.from_environment(), task["task_id"])
+    assert tasks.get(task["task_id"])["status"] == "SUCCEEDED"
+    restored.dispose()
