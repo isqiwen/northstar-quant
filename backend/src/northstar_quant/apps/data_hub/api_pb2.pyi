@@ -315,3 +315,41 @@ class ProcessingQueueStatus(_message.Message):
     oldest_pending_seconds: int
     null_fields: _containers.RepeatedScalarFieldContainer[str]
     def __init__(self, observed_at: _Optional[str] = ..., total: _Optional[int] = ..., pending: _Optional[int] = ..., running: _Optional[int] = ..., published: _Optional[int] = ..., failed: _Optional[int] = ..., oldest_pending_id: _Optional[str] = ..., oldest_pending_at: _Optional[str] = ..., oldest_pending_seconds: _Optional[int] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class SyncRequest(_message.Message):
+    __slots__ = ("request_id", "spec")
+    REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
+    SPEC_FIELD_NUMBER: _ClassVar[int]
+    request_id: str
+    spec: _struct_pb2.Struct
+    def __init__(self, request_id: _Optional[str] = ..., spec: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...
+
+class SyncJob(_message.Message):
+    __slots__ = ("request_id", "request_hash", "parameters", "code_revision", "status", "attempt_id", "error", "created_at", "updated_at", "null_fields")
+    REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
+    REQUEST_HASH_FIELD_NUMBER: _ClassVar[int]
+    PARAMETERS_FIELD_NUMBER: _ClassVar[int]
+    CODE_REVISION_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    ATTEMPT_ID_FIELD_NUMBER: _ClassVar[int]
+    ERROR_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    request_id: str
+    request_hash: str
+    parameters: _struct_pb2.Struct
+    code_revision: str
+    status: str
+    attempt_id: str
+    error: str
+    created_at: str
+    updated_at: str
+    null_fields: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, request_id: _Optional[str] = ..., request_hash: _Optional[str] = ..., parameters: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., code_revision: _Optional[str] = ..., status: _Optional[str] = ..., attempt_id: _Optional[str] = ..., error: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class GetApiSyncResponse(_message.Message):
+    __slots__ = ("items",)
+    ITEMS_FIELD_NUMBER: _ClassVar[int]
+    items: _containers.RepeatedCompositeFieldContainer[SyncJob]
+    def __init__(self, items: _Optional[_Iterable[_Union[SyncJob, _Mapping]]] = ...) -> None: ...

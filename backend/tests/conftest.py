@@ -77,6 +77,7 @@ def clean_database(postgres_engine: Engine) -> None:
         for name in (
             "data_sources",
             "data_processing_attempts",
+            "data_sync_jobs",
             "data_admission_rejections",
             "data_backups",
             "broker_query_batches",

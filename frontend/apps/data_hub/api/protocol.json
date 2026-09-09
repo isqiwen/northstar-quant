@@ -882,6 +882,117 @@
       "array": false,
       "evidence": false
     },
+    "northstar.data_hub.SyncRequest": {
+      "fields": {
+        "request_id": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "spec": {
+          "id": 2,
+          "presence": true,
+          "type": "google.protobuf.Struct",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.data_hub.SyncJob": {
+      "fields": {
+        "request_id": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "request_hash": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "parameters": {
+          "id": 3,
+          "presence": true,
+          "type": "google.protobuf.Struct",
+          "required": true,
+          "nullable": false
+        },
+        "code_revision": {
+          "id": 4,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "status": {
+          "id": 5,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "attempt_id": {
+          "id": 6,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": true
+        },
+        "error": {
+          "id": 7,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": true
+        },
+        "created_at": {
+          "id": 8,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "updated_at": {
+          "id": 9,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "null_fields": {
+          "id": 2046,
+          "presence": false,
+          "type": "string",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.data_hub.GetApiSyncResponse": {
+      "fields": {
+        "items": {
+          "id": 1,
+          "presence": false,
+          "type": "northstar.data_hub.SyncJob",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        }
+      },
+      "array": true,
+      "evidence": false
+    },
     "northstar.web.Empty": {
       "fields": {},
       "array": false,
@@ -937,6 +1048,27 @@
     }
   },
   "methods": [
+    {
+      "method": "POST",
+      "path": "/api/sync/tushare",
+      "input": "northstar.data_hub.SyncRequest",
+      "output": "northstar.data_hub.SyncJob",
+      "runtime": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/sync",
+      "input": "northstar.web.Empty",
+      "output": "northstar.data_hub.GetApiSyncResponse",
+      "runtime": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/sync/{request_id}",
+      "input": "northstar.web.Empty",
+      "output": "northstar.data_hub.SyncJob",
+      "runtime": false
+    },
     {
       "method": "GET",
       "path": "/api/processing/status",

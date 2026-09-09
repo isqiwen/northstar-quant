@@ -171,7 +171,40 @@ message ProcessingQueueStatus {
   repeated string null_fields = 2046;
 }
 
+message SyncRequest {
+  optional string request_id = 1 [json_name = "request_id", (northstar.web.required_field) = true];
+  optional google.protobuf.Struct spec = 2 [json_name = "spec", (northstar.web.required_field) = true];
+}
+message SyncJob {
+  optional string request_id = 1 [json_name = "request_id", (northstar.web.required_field) = true];
+  optional string request_hash = 2 [json_name = "request_hash", (northstar.web.required_field) = true];
+  optional google.protobuf.Struct parameters = 3 [json_name = "parameters", (northstar.web.required_field) = true];
+  optional string code_revision = 4 [json_name = "code_revision", (northstar.web.required_field) = true];
+  optional string status = 5 [json_name = "status", (northstar.web.required_field) = true];
+  optional string attempt_id = 6 [json_name = "attempt_id", (northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  optional string error = 7 [json_name = "error", (northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  optional string created_at = 8 [json_name = "created_at", (northstar.web.required_field) = true];
+  optional string updated_at = 9 [json_name = "updated_at", (northstar.web.required_field) = true];
+  repeated string null_fields = 2046;
+}
+message GetApiSyncResponse {
+  option (northstar.web.root_array) = true;
+  repeated SyncJob items = 1;
+}
+
 service BrowserApi {
+  rpc PostApiSyncTushare (SyncRequest) returns (SyncJob) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/sync/tushare";
+  }
+  rpc GetApiSync (northstar.web.Empty) returns (GetApiSyncResponse) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/sync";
+  }
+  rpc GetApiSyncRequestId (northstar.web.Empty) returns (SyncJob) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/sync/{request_id}";
+  }
   rpc GetApiProcessingStatus (northstar.web.Empty) returns (ProcessingQueueStatus) {
     option (northstar.web.http_method) = "GET";
     option (northstar.web.http_path) = "/api/processing/status";

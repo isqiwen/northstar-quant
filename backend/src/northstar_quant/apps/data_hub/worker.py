@@ -8,6 +8,7 @@ from northstar_quant.apps.storage import open_database, require_current_database
 from northstar_quant.data_management.files import SourceFiles
 from northstar_quant.data_management.library import DataLibrary
 from northstar_quant.data_management.processing import process_attempt
+from northstar_quant.data_management.tushare import process_next
 from northstar_quant.logging_ import configure
 
 
@@ -24,10 +25,15 @@ def run() -> None:
         # One bounded operation holds the existing publication lock. Pending
         # receipts remain independent; no in-memory queue or expiry-based takeover.
         while not stop.is_set():
+            sync = process_next(library)
             result = process_attempt(library)
-            if result is None:
+            if sync is not None:
+                logging.getLogger(__name__).info(
+                    "Data sync %s: %s", sync["request_id"], sync["status"]
+                )
+            if result is None and sync is None:
                 stop.wait(1)
-            else:
+            elif result is not None:
                 logging.getLogger(__name__).info(
                     "Data attempt %s: %s", result["attempt_id"], result["status"]
                 )

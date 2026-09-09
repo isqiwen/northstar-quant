@@ -80,7 +80,7 @@ broker integration, recovery or runtime topology; read
 
 ## Domain rules
 
-Data owns ingestion, source evidence, calendars, quality and immutable snapshots.
+Data owns file imports, Tushare historical/post-close synchronization, source evidence, calendars, quality and immutable snapshots. Data Hub does not provide realtime recording or a CTP Recorder; Live owns its independent realtime market intake.
 Its interface owns source retention, processing provenance and publication; the
 workspace calls it rather than manipulating files or database tables. Preserve
 referenced evidence; back up database records and their files together. Temporary

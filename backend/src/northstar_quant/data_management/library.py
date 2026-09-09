@@ -74,7 +74,7 @@ _sources = Table(
     Column("evidence_hash", String(64), nullable=False),
     CheckConstraint("allow_retention AND byte_count > 0 AND byte_count <= 5242880"),
     CheckConstraint(
-        "input_kind IN ('RECEIVED_CSV', 'CONVERTED_CSV', 'CTP_CALLBACK_SEGMENT', 'EDB_CSV')",
+        "input_kind IN ('RECEIVED_CSV', 'CONVERTED_CSV', 'CTP_CALLBACK_SEGMENT', 'TUSHARE_JSON')",
         name="data_sources_input_kind_check",
     ),
 )
@@ -131,7 +131,8 @@ def initialize_library(connection: Connection) -> None:
     connection.exec_driver_sql("""
         ALTER TABLE data_sources DROP CONSTRAINT IF EXISTS data_sources_input_kind_check;
         ALTER TABLE data_sources ADD CONSTRAINT data_sources_input_kind_check
-        CHECK (input_kind IN ('RECEIVED_CSV', 'CONVERTED_CSV', 'CTP_CALLBACK_SEGMENT', 'EDB_CSV'))
+        CHECK (input_kind IN ('RECEIVED_CSV', 'CONVERTED_CSV',
+                             'CTP_CALLBACK_SEGMENT', 'TUSHARE_JSON'))
     """)
     connection.exec_driver_sql("""
         CREATE OR REPLACE FUNCTION data_reject_source_change() RETURNS trigger AS $$
@@ -284,9 +285,9 @@ class DataLibrary:
             try:
                 request_id = _request_id(request_id)
                 parameters = _parameters(spec)
-                if input_kind not in {"RECEIVED_CSV", "CONVERTED_CSV", "EDB_CSV"}:
+                if input_kind not in {"RECEIVED_CSV", "CONVERTED_CSV", "TUSHARE_JSON"}:
                     raise ValueError(
-                        "CSV reception requires RECEIVED_CSV, CONVERTED_CSV or EDB_CSV"
+                        "File reception requires RECEIVED_CSV, CONVERTED_CSV or TUSHARE_JSON"
                     )
                 declaration = self._declaration(
                     filename,
@@ -470,7 +471,12 @@ class DataLibrary:
             raise ValueError(
                 "explicit retention permission and a boolean download permission are required"
             )
-        if input_kind not in {"RECEIVED_CSV", "CONVERTED_CSV", "CTP_CALLBACK_SEGMENT", "EDB_CSV"}:
+        if input_kind not in {
+            "RECEIVED_CSV",
+            "CONVERTED_CSV",
+            "CTP_CALLBACK_SEGMENT",
+            "TUSHARE_JSON",
+        }:
             raise ValueError("source input_kind is not supported")
         if input_kind != "CONVERTED_CSV" and (
             upstream_source_id is not None or transformation_note is not None

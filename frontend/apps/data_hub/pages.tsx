@@ -38,11 +38,16 @@ export function DataHome() {
         title="数据管理中心"
         description="保留来源原文，检查数据质量，发布固定快照。"
         actions={
-          <Link href="/import">
-            <Button type="primary" icon={<CloudUploadOutlined />}>
-              导入数据
-            </Button>
-          </Link>
+          <>
+            <Link href="/sync">
+              <Button>Tushare 历史同步</Button>
+            </Link>
+            <Link href="/import">
+              <Button type="primary" icon={<CloudUploadOutlined />}>
+                导入数据
+              </Button>
+            </Link>
+          </>
         }
       />
       <Failure error={ds.error || sources.error || attempts.error} />

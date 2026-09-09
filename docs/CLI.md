@@ -74,25 +74,25 @@ CLI 把 Live 操作交给所属运行时，最终权限、状态和业务约束�
 退出码 2 表示参数错误、运行失败或未满足检查条件。服务启动命令持续运行。
 只维护当前分组命令，不接受旧的平铺命令别名。
 
-## EDB 可选文件获取
+## Tushare 历史同步
 
-更新后先使用数据库维护账号执行 `northstar maintenance init-db`，安装当前来源格式约束。
-在 Data Hub 主机使用其数据库和来源目录配置，下载一个真实 SHFE 合约的连续日盘子时段：
+先使用 Data Hub 数据库维护账号运行 `northstar maintenance init-db` 安装当前同步表与来源约束。
+在 Data Hub 私有部署配置中填写 `NORTHSTAR_TUSHARE_TOKEN`，仅 data-worker 使用，不提交 token 到仓库。
+已有 EDB 实测记录的开发库不能自动转换成 Tushare 来源；本轮不修改个人数据库或旧原文。
 
 ```bash
-northstar data collect-edb examples/edb.toml --request-id <本次接收的UUID>
+northstar data sync-tushare examples/tushare.toml --request-id <本次请求UUID>
 northstar serve data-worker
-northstar data attempt <返回的attempt_id>
+northstar data sync <请求UUID>
+northstar data attempt <任务返回的attempt_id>
 ```
 
-第一条下载并保存原始 CSV，返回 PENDING；独立 worker 执行质量检查与发布。
-已有 worker 时不必再启动。网页加工队列、来源和任务详情可查询后续结果。
-配置只含 `[source]`，无需本地 CSV 或研究参数；示例为北京时间 13:30–15:00。
-修改日期时同时修改两个 UTC 时刻，并核对合约与 tick/乘数。
+已有 worker 时不重复启动。网页入口为 Data Hub 首页 → Tushare 历史同步，提交同一类任务并查看最近状态。
+CLI 提交返回 PENDING，先持久任务、后下载；RECEIVED 表示原文已进入加工，是否发布要查看加工结果。
+下载失败或中断保留失败任务，需要明确新建请求；同 UUID 同参数返回原记录，不因重试重复下载。
 
-当前限定近 364 天、已结束、最长两小时的连续日盘范围，固定免费 EDB 地址、无 token、无重定向与自动重试，响应最多 5 MiB。
-跨午休、缺失或重复分钟会失败并保留原文，不补价格。按 FINAL_REVISED 的分钟结束时钟研究，不能声称历史首次可得。
-请求 URL、原始内容哈希和映射版本一起留存；持仓量保留在原文，本轮不映射为研究输入。
-重复 UUID 和相同响应复用已接收任务；响应变化则拒绝覆盖。重试下载仍会访问来源。
-下载在 CLI 中执行，退出码 0 表示已经接收，不等于发布成功；下载失败前尚无持久采集任务。
-定时计划、下载中断恢复、增量水位与补数尚未实现，已后置；该命令不等于行情自采 Recorder。
+配置只含 `[source]`，无需本地 CSV 或研究参数。示例是北京时间 13:30–15:00，两个时刻使用 UTC。
+当前只支持过去日期、最长两小时的连续 SHFE 日盘一分钟范围，不能跨午休或夜盘；缺失/重复分钟不补造。
+Tushare trade_time 按分钟结束解释，FINAL_REVISED 表示假定完成时可得，实际样本口径仍须核对。
+当前没有定时增量/自动分片/水位和 15 分钟到日线完整输入支持，不能将有界同步当成全部功能已完成。
+Data Hub 不提供实时录制命令，Live 的行情与交易命令仍由独立 Live 拥有。

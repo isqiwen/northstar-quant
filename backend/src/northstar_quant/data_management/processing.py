@@ -153,7 +153,7 @@ def _process(
                     library._engine,
                     content,
                     spec,
-                    edb=source["input_kind"] == "EDB_CSV",
+                    tushare=source["input_kind"] == "TUSHARE_JSON",
                     archive=archive,
                     processing_hash=str(attempt["processing_hash"]),
                     stage=stage,

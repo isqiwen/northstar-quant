@@ -85,6 +85,9 @@ def initialize_database(engine: Engine, *, owner: str | None = None) -> None:
             """)
         if owner in {"all", "data_hub"}:
             initialize_library(connection)
+            from northstar_quant.data_management.tushare.jobs import initialize as initialize_sync
+
+            initialize_sync(connection)
             initialize_maintenance(connection)
         if owner in {"all", "research"}:
             initialize_factor_catalog(connection)
@@ -142,6 +145,7 @@ def require_current_database(engine: Engine) -> None:
         "paper_steps",
         "data_sources",
         "data_processing_attempts",
+        "data_sync_jobs",
         "data_admission_rejections",
         "data_backups",
         "broker_query_batches",
@@ -179,6 +183,7 @@ def _require_git_identity_columns(connection: Connection) -> None:
         "research_runs",
         "paper_sessions",
         "data_processing_attempts",
+        "data_sync_jobs",
         "broker_query_batches",
     ):
         if table in present and "code_revision" not in {

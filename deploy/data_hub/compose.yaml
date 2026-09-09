@@ -148,6 +148,7 @@ services:
         max-size: 10m
         max-file: '3'
     environment:
+      NORTHSTAR_TUSHARE_TOKEN: ${NORTHSTAR_TUSHARE_TOKEN:-}
       NORTHSTAR_LOG_DIR: /var/log/northstar
       NORTHSTAR_DATABASE_URL: postgresql+psycopg://northstar_data_hub_app:${NORTHSTAR_DATA_HUB_DATABASE_PASSWORD:?Set
         application password}@${NORTHSTAR_NAS_ADDRESS:-nas.local}:${NORTHSTAR_NAS_DATABASE_PORT:-15432}/northstar_data_hub?connect_timeout=5

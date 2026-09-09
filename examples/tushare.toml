@@ -1,0 +1,17 @@
+# Fixed historical day segment; timestamps are UTC. Actual sample validation remains required.
+[source]
+exchange = "SHFE"
+symbol = "RB2610"
+product = "RB"
+timezone = "Asia/Shanghai"
+currency = "CNY"
+quantity_unit = "TON"
+price_tick = "1"
+multiplier = "10"
+trading_day = "2026-09-08"
+session_open = "2026-09-08T05:30:00Z"
+session_close = "2026-09-08T07:00:00Z"
+source_name = "TUSHARE"
+source_reference = "Replaced with the fixed non-secret request when submitted."
+availability_basis = "FINAL_REVISED"
+availability_note = "Trade time is interpreted as bar end; confirm against an entitled sample."

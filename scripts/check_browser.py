@@ -41,6 +41,7 @@ def main() -> None:
         "NORTHSTAR_SIMNOW_CONFIG",
         "NORTHSTAR_LIVE_AUTH",
         "NORTHSTAR_LIVE_URL",
+        "NORTHSTAR_TUSHARE_TOKEN",
     ):
         environment.pop(key, None)
     study = tomllib.loads(args.study.read_text())
@@ -146,12 +147,38 @@ def main() -> None:
                     expect(page.get_by_text("最早排队任务：", exact=False)).to_be_visible()
                     page.locator(f'a[href="/attempts/{imported["attempt_id"]}"]').first.click()
                     page.wait_for_url(re.compile("/attempts/"))
+                    page.goto(data_url + "/sync")
+                    expect(page.get_by_role("heading", name="Tushare 历史同步")).to_be_visible()
+                    for key in (
+                        "symbol",
+                        "product",
+                        "quantity_unit",
+                        "price_tick",
+                        "multiplier",
+                        "trading_day",
+                        "session_open",
+                        "session_close",
+                    ):
+                        page.get_by_label(fields[key], exact=True).fill(spec[key])
+                    with page.expect_response(
+                        lambda r: r.url.endswith("/api/sync/tushare") and r.request.method == "POST"
+                    ) as sync_response:
+                        page.get_by_role("button", name="提交历史同步", exact=True).click()
+                    sync_job = decode(
+                        methods("data_hub")[("POST", "/api/sync/tushare")].output_type,
+                        sync_response.value.body(),
+                    )
+                    assert sync_job["status"] == "PENDING", sync_job
+                    expect(page.get_by_text("PENDING", exact=True)).to_be_visible()
                     page.goto("about:blank")
                 # Both frontend and API have exited. Only the independent processor
                 # now owns completion; reopening the Web reads its durable outcome.
                 with app.data_worker() as processor:
                     imported = app.await_attempt(imported)
                     assert imported["status"] == "PUBLISHED", imported
+                    sync_job = app.command("data", "sync", sync_job["request_id"])
+                    assert sync_job["status"] == "FAILED", sync_job
+                    assert "NORTHSTAR_TUSHARE_TOKEN" in sync_job["error"]
                     assert processor.poll() is None
                     with app.api("data-api") as restarted:
                         assert (
@@ -162,6 +189,10 @@ def main() -> None:
                         )
                         assert processor.poll() is None
                 with app.web("data-api") as data_url:
+                    page.goto(data_url + "/sync")
+                    expect(page.get_by_text("FAILED", exact=True)).to_be_visible()
+                    expect(page.get_by_text(sync_job["error"], exact=True)).to_be_visible()
+                    screenshot("sync")
                     page.goto(data_url + f"/attempts/{imported['attempt_id']}")
                     expect(page.get_by_text("PUBLISHED", exact=True)).to_be_visible(timeout=30000)
                     page.get_by_role("link", name="查看原文来源", exact=True).click()
