@@ -69,7 +69,6 @@ class OrderCheckRequest(ApiModel):
 
 
 class QueryRequest(ApiModel):
-    profile: str
     instrument: str
     request_id: UUIDText
 
@@ -403,7 +402,6 @@ def register(app: FastAPI, access: WorkspaceAccess, live: LiveClient) -> None:
         payload = document.model_dump(mode="json", exclude_unset=True)
         return await run_in_threadpool(
             command_live.broker.query,
-            _string_field(payload, "profile"),
             _string_field(payload, "instrument"),
             request_id=_uuid_field(payload, "request_id"),
         )

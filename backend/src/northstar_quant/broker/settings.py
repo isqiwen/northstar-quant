@@ -9,15 +9,13 @@ from dataclasses import dataclass, field
 
 def require_supported_environment() -> None:
     """Do not silently route an unsupported or mistyped environment to SimNow."""
-    environment = os.environ.get("NORTHSTAR_LIVE_ENVIRONMENT", "simulation")
+    environment = os.environ.get("NORTHSTAR_LIVE_ENVIRONMENT", "simnow_trading")
     if environment == "production":
         raise ValueError(
             "Production Live is not implemented or admitted; no broker connection allowed"
         )
-    if environment != "simulation":
-        raise ValueError(
-            "NORTHSTAR_LIVE_ENVIRONMENT must select the supported simulation environment"
-        )
+    if environment not in {"simnow_trading", "simnow_dev"}:
+        raise ValueError("NORTHSTAR_LIVE_ENVIRONMENT must be simnow_trading or simnow_dev")
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,9 +52,16 @@ def get_profile(name: str) -> SimnowProfile:
         raise ValueError("select an explicitly approved SimNow profile") from error
 
 
-def profiles() -> list[dict[str, object]]:
+def configured_profile(bound_name: str | None = None) -> SimnowProfile:
     require_supported_environment()
-    return [profile.identity() for profile in _PROFILES.values()]
+    name = os.environ.get("NORTHSTAR_LIVE_ENVIRONMENT", "simnow_trading")
+    if bound_name is not None and bound_name != name:
+        raise ValueError("saved broker environment differs from the configured Live environment")
+    return get_profile(name)
+
+
+def profiles() -> list[dict[str, object]]:
+    return [configured_profile().identity()]
 
 
 @dataclass(frozen=True, slots=True)

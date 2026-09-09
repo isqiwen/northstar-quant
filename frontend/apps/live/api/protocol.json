@@ -1246,13 +1246,6 @@
           "required": true,
           "nullable": false
         },
-        "profile": {
-          "id": 2,
-          "presence": true,
-          "type": "string",
-          "required": true,
-          "nullable": false
-        },
         "request_id": {
           "id": 3,
           "presence": true,

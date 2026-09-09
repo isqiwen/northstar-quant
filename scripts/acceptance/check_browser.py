@@ -48,7 +48,7 @@ def main() -> None:
     for key in tuple(environment):
         if key.startswith("NORTHSTAR_SIMNOW_"):
             environment.pop(key)
-    environment["NORTHSTAR_LIVE_ENVIRONMENT"] = "simulation"
+    environment["NORTHSTAR_LIVE_ENVIRONMENT"] = "simnow_dev"
     study = tomllib.loads(args.study.read_text())
     spec = dict(study["source"])
     filename = spec.pop("file")

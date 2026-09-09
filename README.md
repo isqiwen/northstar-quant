@@ -251,7 +251,8 @@ SimNow 凭据填写在 `deploy/live/.env` 的四个 `NORTHSTAR_SIMNOW_*` 配置�
 仅传给 Live 内核，不传给前端/API；不再使用独立凭据文件或配置向导。
 值用单引号包裹，避免 `$` 被 Compose 当作变量；真实凭据不要提交 Git。
 已有部署更新配置时使用 `northstarctl.py deploy live --env-file deploy/live/.env`。
-`NORTHSTAR_LIVE_ENVIRONMENT=simulation` 选择柜台仿真；当前 `production` 明确拒绝启动。
+`NORTHSTAR_LIVE_ENVIRONMENT` 统一选择 `simnow_trading`（默认第一套）、`simnow_dev`（接口联调，无结算）或 `production`（当前拒绝启动）。
+网页和 CLI 只使用内核配置的环境，不再接受 profile 参数；切换后旧环境的接收绑定会被拒绝，需重新查询核对。
 
 ## 数据与运行维护
 

@@ -116,22 +116,22 @@ def test_query_failure_is_fixed_on_retry_and_blocks_concurrent_account_capture(
     workspace = BrokerQueries(postgres_engine)
     request_id = uuid4()
     with ThreadPoolExecutor(max_workers=1) as pool:
-        future = pool.submit(workspace.query, "simnow_dev", "rb2610", request_id=request_id)
+        future = pool.submit(workspace.query, "rb2610", request_id=request_id)
         try:
             assert entered.wait(5)
             with pytest.raises(ValueError, match="already running"):
-                workspace.query("simnow_dev", "rb2610", request_id=uuid4())
+                workspace.query("rb2610", request_id=uuid4())
         finally:
             release.set()
         saved = future.result(timeout=5)
     assert saved["status"] == "FAILED"
-    assert workspace.query("simnow_dev", "rb2610", request_id=request_id) == saved
+    assert workspace.query("rb2610", request_id=request_id) == saved
     with pytest.raises(ValueError, match="different input"):
-        workspace.query("simnow_trading", "rb2610", request_id=request_id)
+        workspace.query("rb2611", request_id=request_id)
     assert calls == 1
     monkeypatch.delenv("NORTHSTAR_SIMNOW_PASSWORD")
     assert BrokerQueries(postgres_engine).get(request_id) == saved
-    assert workspace.query("simnow_dev", "rb2610", request_id=request_id) == saved
+    assert workspace.query("rb2610", request_id=request_id) == saved
     assert calls == 1
 
 
@@ -156,7 +156,7 @@ def test_broker_browser_requires_explicit_command_and_keeps_failure_evidence(
     application = live_web_app(
         postgres_engine, DataLibrary(postgres_engine, SourceFiles(tmp_path / "archive"))
     )
-    payload = {"profile": "simnow_dev", "instrument": "rb2610", "request_id": str(uuid4())}
+    payload = {"instrument": "rb2610", "request_id": str(uuid4())}
     with TestClient(application, base_url="http://127.0.0.1") as client:
         assert client.get("/api/broker/status").status_code == 403
         assert client.post("/api/broker/queries", json=payload).status_code == 403

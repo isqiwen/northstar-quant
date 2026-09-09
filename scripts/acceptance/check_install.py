@@ -50,7 +50,7 @@ def main() -> None:
     for key in tuple(environment):
         if key.startswith("NORTHSTAR_SIMNOW_"):
             environment.pop(key)
-    environment["NORTHSTAR_LIVE_ENVIRONMENT"] = "simulation"
+    environment["NORTHSTAR_LIVE_ENVIRONMENT"] = "simnow_dev"
     environment.pop("NORTHSTAR_LIVE_AUTH", None)
     environment.pop("NORTHSTAR_LIVE_URL", None)
     executable = str(Path(sys.executable).parent / "northstar")

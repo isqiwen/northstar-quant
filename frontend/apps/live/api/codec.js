@@ -15940,10 +15940,8 @@ export const northstar = $root.northstar = (() => {
              * Properties of a QueryRequest.
              * @typedef {Object} northstar.live.QueryRequest.$Properties
              * @property {string|null} [instrument] QueryRequest instrument
-             * @property {string|null} [profile] QueryRequest profile
              * @property {string|null} [request_id] QueryRequest request_id
              * @property {"instrument"} [_instrument] QueryRequest _instrument
-             * @property {"profile"} [_profile] QueryRequest _profile
              * @property {"request_id"} [_request_id] QueryRequest _request_id
              * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
              */
@@ -15960,13 +15958,10 @@ export const northstar = $root.northstar = (() => {
              * Narrowed shape of a QueryRequest.
              * @typedef {{
              *   instrument?: string|null;
-             *   profile?: string|null;
              *   request_id?: string|null;
              *   $unknowns?: Array.<Uint8Array>;
              * } & (
              *   ({ _instrument?: undefined; instrument?: null }|{ _instrument?: "instrument"; instrument: string })
-             * ) & (
-             *   ({ _profile?: undefined; profile?: null }|{ _profile?: "profile"; profile: string })
              * ) & (
              *   ({ _request_id?: undefined; request_id?: null }|{ _request_id?: "request_id"; request_id: string })
              * )} northstar.live.QueryRequest.$Shape
@@ -15996,14 +15991,6 @@ export const northstar = $root.northstar = (() => {
             QueryRequest.prototype.instrument = null;
 
             /**
-             * QueryRequest profile.
-             * @member {string|null|undefined} profile
-             * @memberof northstar.live.QueryRequest
-             * @instance
-             */
-            QueryRequest.prototype.profile = null;
-
-            /**
              * QueryRequest request_id.
              * @member {string|null|undefined} request_id
              * @memberof northstar.live.QueryRequest
@@ -16022,17 +16009,6 @@ export const northstar = $root.northstar = (() => {
              */
             $Object.defineProperty(QueryRequest.prototype, "_instrument", {
                 get: $util.oneOfGetter($oneOfFields = ["instrument"]),
-                set: $util.oneOfSetter($oneOfFields)
-            });
-
-            /**
-             * QueryRequest _profile.
-             * @member {"profile"|undefined} _profile
-             * @memberof northstar.live.QueryRequest
-             * @instance
-             */
-            $Object.defineProperty(QueryRequest.prototype, "_profile", {
-                get: $util.oneOfGetter($oneOfFields = ["profile"]),
                 set: $util.oneOfSetter($oneOfFields)
             });
 
@@ -16081,8 +16057,6 @@ export const northstar = $root.northstar = (() => {
                     throw $Error("max depth exceeded");
                 if (message.instrument != null && $Object.hasOwnProperty.call(message, "instrument"))
                     writer.uint32(/* id 1, wireType 2 =*/10).string(message.instrument);
-                if (message.profile != null && $Object.hasOwnProperty.call(message, "profile"))
-                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.profile);
                 if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id"))
                     writer.uint32(/* id 3, wireType 2 =*/26).string(message.request_id);
                 if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
@@ -16136,13 +16110,6 @@ export const northstar = $root.northstar = (() => {
                             message._instrument = "instrument";
                             continue;
                         }
-                    case 2: {
-                            if (wireType !== 2)
-                                break;
-                            message.profile = reader.stringVerify();
-                            message._profile = "profile";
-                            continue;
-                        }
                     case 3: {
                             if (wireType !== 2)
                                 break;
@@ -16188,11 +16155,6 @@ export const northstar = $root.northstar = (() => {
                     if (!$util.isString(message.instrument))
                         return "instrument: string expected";
                 }
-                if (message.profile != null && $Object.hasOwnProperty.call(message, "profile")) {
-                    properties._profile = 1;
-                    if (!$util.isString(message.profile))
-                        return "profile: string expected";
-                }
                 if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id")) {
                     properties._request_id = 1;
                     if (!$util.isString(message.request_id))
@@ -16221,8 +16183,6 @@ export const northstar = $root.northstar = (() => {
                 let message = new $root.northstar.live.QueryRequest();
                 if (object.instrument != null)
                     message.instrument = $String(object.instrument);
-                if (object.profile != null)
-                    message.profile = $String(object.profile);
                 if (object.request_id != null)
                     message.request_id = $String(object.request_id);
                 return message;
@@ -16249,11 +16209,6 @@ export const northstar = $root.northstar = (() => {
                     object.instrument = message.instrument;
                     if (options.oneofs)
                         object._instrument = "instrument";
-                }
-                if (message.profile != null && $Object.hasOwnProperty.call(message, "profile")) {
-                    object.profile = message.profile;
-                    if (options.oneofs)
-                        object._profile = "profile";
                 }
                 if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id")) {
                     object.request_id = message.request_id;

@@ -268,7 +268,6 @@ message QueryRecord {
 
 message QueryRequest {
   optional string instrument = 1 [json_name = "instrument", (northstar.web.required_field) = true];
-  optional string profile = 2 [json_name = "profile", (northstar.web.required_field) = true];
   optional string request_id = 3 [json_name = "request_id", (northstar.web.required_field) = true];
 }
 

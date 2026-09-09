@@ -207,7 +207,6 @@ export type QueryRecord = {
 };
 export type QueryRequest = {
   instrument: string;
-  profile: string;
   request_id: string;
 };
 export type Readiness = {

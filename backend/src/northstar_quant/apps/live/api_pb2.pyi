@@ -558,14 +558,12 @@ class QueryRecord(_message.Message):
     def __init__(self, batch_id: _Optional[str] = ..., instrument: _Optional[str] = ..., status: _Optional[str] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...
 
 class QueryRequest(_message.Message):
-    __slots__ = ("instrument", "profile", "request_id")
+    __slots__ = ("instrument", "request_id")
     INSTRUMENT_FIELD_NUMBER: _ClassVar[int]
-    PROFILE_FIELD_NUMBER: _ClassVar[int]
     REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
     instrument: str
-    profile: str
     request_id: str
-    def __init__(self, instrument: _Optional[str] = ..., profile: _Optional[str] = ..., request_id: _Optional[str] = ...) -> None: ...
+    def __init__(self, instrument: _Optional[str] = ..., request_id: _Optional[str] = ...) -> None: ...
 
 class Readiness(_message.Message):
     __slots__ = ("status",)

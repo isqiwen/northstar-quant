@@ -34,7 +34,6 @@ def execute(arguments: argparse.Namespace, client: LiveClient) -> int:
     broker = client.broker
     if arguments.operation == "broker-query":
         broker_result = broker.query(
-            arguments.profile,
             arguments.instrument,
             request_id=arguments.request_id,
         )
@@ -126,7 +125,6 @@ def register(commands: argparse._SubParsersAction[argparse.ArgumentParser]) -> N
     parser.add_argument("batch_id", type=UUID)
     parser = commands.add_parser("query", help="显式发起有时限的 SimNow 只读查询")
     parser.set_defaults(scope="broker", operation="broker-query")
-    parser.add_argument("profile", choices=("simnow_dev", "simnow_trading"))
     parser.add_argument("--instrument", required=True, help="one concrete futures instrument")
     parser.add_argument(
         "--request-id", type=UUID, required=True, help="reuse to read an uncertain response"

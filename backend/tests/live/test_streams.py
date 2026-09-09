@@ -46,6 +46,7 @@ def prepare(
     *,
     trading_day: str = "20260907",
 ) -> tuple[DataLibrary, UUID, str, dict[str, Any]]:
+    monkeypatch.setenv("NORTHSTAR_LIVE_ENVIRONMENT", "simnow_dev")
     library = DataLibrary(engine, SourceFiles(root / "archive"), usages=ResearchUsages(engine).list)
     position_baseline(engine, day=trading_day)
     source = ledger_query(engine, day=trading_day)
@@ -479,5 +480,24 @@ def test_lost_owner_database_connection_stops_reception_without_reacquiring_lock
             assert connection.execute(
                 text("SELECT pg_try_advisory_xact_lock(728401929)")
             ).scalar_one()
+    finally:
+        streams.close()
+
+
+def test_environment_switch_rejects_old_query_before_credentials_or_sdk(
+    postgres_engine, clean_database, tmp_path, monkeypatch
+):
+    library, source, configuration, calls = prepare(postgres_engine, tmp_path, monkeypatch)
+    monkeypatch.setenv("NORTHSTAR_LIVE_ENVIRONMENT", "simnow_trading")
+
+    def forbidden():
+        pytest.fail("wrong-environment evidence must be rejected before credentials are read")
+
+    monkeypatch.setattr(module, "load_credentials", forbidden)
+    streams = LiveStreams(postgres_engine, library)
+    try:
+        with pytest.raises(ValueError, match="environment differs"):
+            start(streams, source, configuration, uuid4())
+        assert calls["count"] == 0
     finally:
         streams.close()

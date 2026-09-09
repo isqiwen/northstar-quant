@@ -16,8 +16,8 @@ from sqlalchemy import Engine, text
 from northstar_quant.broker import ctp
 from northstar_quant.broker.records import BrokerRecords, QueryCapture
 from northstar_quant.broker.settings import (
+    configured_profile,
     credential_status,
-    get_profile,
     load_credentials,
     profiles,
     validate_instrument,
@@ -45,8 +45,8 @@ class BrokerQueries:
     def get(self, batch_id: UUID) -> dict[str, object]:
         return self._records.get(batch_id)
 
-    def query(self, profile_name: str, instrument: str, *, request_id: UUID) -> dict[str, object]:
-        profile = get_profile(profile_name)
+    def query(self, instrument: str, *, request_id: UUID) -> dict[str, object]:
+        profile = configured_profile()
         instrument = validate_instrument(instrument)
         try:
             saved = self._records.get(request_id)

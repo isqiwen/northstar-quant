@@ -24,7 +24,7 @@ from northstar_quant.accounting.baselines import BrokerBaselines
 from northstar_quant.accounting.ledger import BrokerLedger
 from northstar_quant.broker import ctp
 from northstar_quant.broker.records import BrokerEvent, BrokerRecords
-from northstar_quant.broker.settings import get_profile, load_credentials
+from northstar_quant.broker.settings import configured_profile, load_credentials
 from northstar_quant.broker.stream_records import append_stream_event, read_stream_archive
 from northstar_quant.data_management.broker import resolve_broker_contract, verify_broker_contract
 from northstar_quant.data_management.library import DataLibrary
@@ -166,7 +166,7 @@ class LiveStreams:
             terms = _object(rows[0])
             contract = resolve_broker_contract(self._engine, terms)
             configuration = self._configurations.get_configuration(configuration_id)
-            profile = get_profile(str(_object(query["profile"])["name"]))
+            profile = configured_profile(str(_object(query["profile"])["name"]))
             credentials = load_credentials()
             if credentials.user_id != query["account_id"]:
                 raise ValueError("configured SimNow account differs from the selected query")
@@ -299,7 +299,7 @@ class LiveStreams:
             if self._poll(identifier, stopped):
                 return
             failure = ctp.stream_account(
-                get_profile(str(_object(binding["profile"])["name"])),
+                configured_profile(str(_object(binding["profile"])["name"])),
                 cast(Credentials, credentials),
                 str(binding["instrument"]),
                 on_event=lambda event: self.accept(identifier, event),

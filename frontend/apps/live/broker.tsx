@@ -28,6 +28,7 @@ export function Broker() {
       <Card>
         <Fields
           value={{
+            运行环境: profiles?.[0]?.name ?? "—",
             凭据配置: status.data?.credentials?.configured
               ? "已配置"
               : "未配置",
@@ -39,10 +40,7 @@ export function Broker() {
       <Action
         title="发起只读柜台查询"
         path="/api/broker/queries"
-        fields={[
-          { name: "profile", label: "已配置的环境名称" },
-          { name: "instrument", label: "合约代码" },
-        ]}
+        fields={[{ name: "instrument", label: "合约代码" }]}
         onDone={(r) => navigate(`/broker/${r.batch_id || r.query_batch_id}`)}
       />
       <Records

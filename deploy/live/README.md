@@ -99,7 +99,10 @@ evidence that a cloud host or real browser session was tested.
 ## Broker environment
 
 Live Sim and future production use this same application and Compose on the Live host.
-`NORTHSTAR_LIVE_ENVIRONMENT=simulation` selects the currently supported SimNow environment.
+`NORTHSTAR_LIVE_ENVIRONMENT=simnow_trading` selects SimNow’s first environment (default).
+`simnow_dev` selects its API-development environment, which does not provide settlement.
+There is no separate NORTHSTAR_SIMNOW_PROFILE setting. Browser/CLI queries use the kernel
+environment, not a caller-supplied profile; saved receptions from another environment are rejected.
 Production trading is not implemented/admitted: `production` or an unknown value fails kernel
 startup before opening its database or reading broker credentials. Configuration never grants sending authority.
 

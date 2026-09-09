@@ -22,11 +22,10 @@ class BrokerClient:
     def get(self, batch_id: UUID) -> dict[str, Any]:
         return self._live.read(f"/broker/queries/{batch_id}")
 
-    def query(self, profile_name: str, instrument: str, *, request_id: UUID) -> dict[str, Any]:
+    def query(self, instrument: str, *, request_id: UUID) -> dict[str, Any]:
         return self._live.mutate(
             "/broker/queries",
             {
-                "profile_name": profile_name,
                 "instrument": instrument,
             },
             request_id,

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Request
@@ -16,7 +16,6 @@ from .commands import execute_command
 
 class QueryBroker(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    profile_name: Literal["simnow_dev", "simnow_trading"]
     instrument: str = Field(min_length=1, max_length=32)
 
 
@@ -65,9 +64,7 @@ def routes(owner: LiveOwner) -> APIRouter:
             owner,
             request,
             body.model_dump(mode="json"),
-            lambda identifier: broker.query(
-                body.profile_name, body.instrument, request_id=identifier
-            ),
+            lambda identifier: broker.query(body.instrument, request_id=identifier),
         )
 
     @router.get("/broker/queries/{batch_id}/baseline")
