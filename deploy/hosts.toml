@@ -1,19 +1,15 @@
 [database]
 host = "core.local"
-user = ""
 port = 22
 
 [data_hub]
 host = "core.local"
-user = ""
 port = 22
 
 [research]
 host = "research.local"
-user = ""
 port = 22
 
 [live]
-host = ""
-user = ""
+host = "quant.wangqiwen.me"
 port = 22

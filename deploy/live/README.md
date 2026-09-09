@@ -17,7 +17,8 @@ until the deployment and connection scope are separately approved.
 Live uses `/opt/northstar/apps/live` for releases and `/opt/northstar/config/live.env` for configuration.
 Persistent database and sources reside in `/opt/northstar/state/live/{postgresql,sources}`;
 authentication resides in `/opt/northstar/credentials/live`, and logs in `/opt/northstar/logs/live`.
-`northstarctl deploy live` prepares local directories and permissions, requesting sudo authentication when needed.
+`northstarctl init-host live` connects as root and prepares the northstar account, public key and passwordless sudo.
+`northstarctl deploy live` then connects as northstar and prepares local directories and permissions.
 The initial `live.env` is uploaded automatically from the committed repository; existing configuration, data and credentials are not overwritten.
 Paths are fixed, without environment overrides. All Live state remains on its own host.
 No existing named volumes or personal data are migrated automatically.

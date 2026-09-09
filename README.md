@@ -22,11 +22,12 @@ Tushare 定时增量/分片补数、15 分钟到日线完整研究输入、持�
 三个应用的前端、API、worker/内核分别运行在独立容器中。
 应用持久目录固定在 `/opt/northstar/`；本机磁盘或主机预先挂载的共享使用同一套配置。
 配置文件在 `deploy/{database,data_hub,research,live}/.env`，数据库密码默认为 `123456`，发布接口无需 token，实际凭据放私有运行副本。
-部署脚本自动准备存储目录、本机运行目录和权限；无挂载时使用本地磁盘，必要时通过终端提示 sudo 密码。存储 UUID 自动生成并持久保存，详见[部署说明](deploy/README.md)。
+部署脚本自动准备存储目录、本机运行目录和权限；无挂载时使用本地磁盘。存储 UUID 自动生成并持久保存，详见[部署说明](deploy/README.md)。
 
 可使用统一远程入口（填写 `deploy/hosts.toml` 后提交代码，首次部署自动上传所属 `.env`）：
 
 ```sh
+./scripts/northstarctl.py init-host
 ./scripts/northstarctl.py deploy database
 ./scripts/northstarctl.py deploy data-hub
 ./scripts/northstarctl.py deploy research
@@ -34,7 +35,8 @@ Tushare 定时增量/分片补数、15 分钟到日线完整研究输入、持�
 ```
 
 远程 `deploy` 自动安装目标 Ubuntu/Debian 主机缺失的 Git、uv、Docker/Compose/Buildx；
-目标仍需 SSH、Python 3.11+、root 或 sudo 权限；交互部署可输入 sudo 密码，首次运行配置自动上传，已有配置不覆盖。
+`hosts.toml` 只填写 host/port；首次 `init-host` 以 root 登录，创建 northstar 用户、配置 SSH 公钥及免密码 sudo。
+之后部署固定使用 northstar，首次运行配置自动上传，已有配置不覆盖；目标先具备 SSH、Python 3.11+。
 脚本部署当前已提交版本，支持 `start`、`restart`、`stop`、`status`、`logs` 和 `--help`。
 `start`/`restart` 使用已部署版本，不重新构建。所有应用统一操作整个部署对象；`restart live` 会重启前端、API、内核和本地数据库。
 也可以在对应主机的仓库根目录执行（需要 Git、uv、Make、Docker）：

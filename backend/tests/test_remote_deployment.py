@@ -59,7 +59,7 @@ def deployment(tmp_path: Path) -> tuple[Path, Path, dict]:
     config = tmp_path / "hosts.toml"
     config.write_text(
         "\n".join(
-            f'[{app.replace("-", "_")}]\nhost="example.invalid"\nuser="test"\n'
+            f'[{app.replace("-", "_")}]\nhost="example.invalid"\n'
             for app in ("database", "data-hub", "research", "live")
         )
     )
@@ -82,6 +82,8 @@ if name == 'sudo':
     while args and args[0] in ('-n', '--'): args.pop(0)
     sys.exit(subprocess.run(args).returncode)
 if name == 'ssh':
+    if '-l' in sys.argv and sys.argv[sys.argv.index('-l') + 1] == 'root':
+        sys.exit(int(os.environ.get('INIT_HOST_RESULT', '0')))
     sys.exit(subprocess.run(sys.argv[-1], shell=True).returncode)
 if name == 'docker' and sys.argv[1:] == ['info']:
     sys.exit(int(os.environ.get('DOCKER_INFO_RESULT', '0')))
@@ -332,3 +334,57 @@ def test_first_deployment_uploads_private_config_and_redeploy_preserves_edits(de
     evidence += Path(env["RECORD"]).read_text()
     assert "initial-private-value" not in evidence
     assert "host-private-value" not in evidence
+
+
+def test_init_host_deduplicates_targets_and_verifies_fixed_deployment_account(deployment, tmp_path):
+    repo, config, env = deployment
+    config.write_text(
+        config.read_text().replace(
+            '[research]\nhost="example.invalid"', '[research]\nhost="research.invalid"'
+        )
+    )
+    key = tmp_path / "deployment-key"
+    subprocess.run(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", str(key)], check=True)
+    command = [
+        sys.executable,
+        str(repo / "scripts/northstarctl.py"),
+        "init-host",
+        "--config",
+        str(config),
+        "--public-key",
+        str(key) + ".pub",
+    ]
+    result = subprocess.run(command, env=env, text=True, capture_output=True)
+    assert result.returncode == 0, result.stderr
+    calls = [json.loads(line) for line in Path(env["RECORD"]).read_text().splitlines()]
+    users = [call[call.index("-l") + 1] for call in calls if call[0] == "ssh"]
+    assert users == ["root", "northstar", "root", "northstar"]
+    assert key.read_text() not in result.stdout + result.stderr + Path(env["RECORD"]).read_text()
+    Path(env["RECORD"]).unlink()
+    env["INIT_HOST_RESULT"] = "9"
+    result = subprocess.run(command, env=env, text=True, capture_output=True)
+    assert result.returncode != 0
+    calls = [json.loads(line) for line in Path(env["RECORD"]).read_text().splitlines()]
+    assert len([call for call in calls if call[0] == "ssh"]) == 1
+
+
+def test_init_host_dry_run_does_not_access_keys_or_connect(deployment):
+    repo, config, env = deployment
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(repo / "scripts/northstarctl.py"),
+            "init-host",
+            "--config",
+            str(config),
+            "--dry-run",
+            "--public-key",
+            "/missing/key",
+        ],
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.count("root@example.invalid") == 1
+    assert not Path(env["RECORD"]).exists()
