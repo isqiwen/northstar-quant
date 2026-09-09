@@ -76,7 +76,9 @@ def test_network_manifest_binds_readonly_files_and_survives_catalog_outage(
     with TestClient(create_app(postgres_engine, library), base_url="http://core.local") as api:
         assert api.get("/api/publications").status_code == 200
         assert api.post("/api/publications").status_code == 403
-        assert api.get("/api/sources").status_code == 403
+        # This client targets the management API, which accepts core.local.
+        # The separate publication gateway rejects management routes in container acceptance.
+        assert api.get("/api/sources").status_code == 200
 
         def remote(request):
             response = api.get(request.url.raw_path.decode(), headers=dict(request.headers))

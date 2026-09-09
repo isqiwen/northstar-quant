@@ -138,6 +138,7 @@ class Deployment:
                 base_url="http://127.0.0.1:" + port, trust_env=False, timeout=10
             ) as remote:
                 assert remote.get("/api/sync", headers={"Host": "127.0.0.1"}).status_code == 404
+                assert remote.get("/api/sources", headers={"Host": "core.local"}).status_code == 404
                 assert remote.get("/api/publications").status_code == 200
                 assert remote.post("/api/publications").status_code == 403
 
