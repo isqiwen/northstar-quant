@@ -31,10 +31,10 @@ use `up --no-build` for deployment of already-verified images. The default passw
 `123456` is the local development database password. Live containers have no Docker
 CPU, memory, swap or process-count limits configured.
 The repository maintains defaults in [live/.env](.env). The deployment script uploads it on first deployment as a private owner-only file; keep real passwords out of Git.
+northstarctl selects backend and frontend images from the application and Git revision;
+image selection is not part of the application .env configuration.
 The supported settings are:
 
-- `NORTHSTAR_LIVE_FRONTEND_IMAGE`: the exact tested Next.js frontend image.
-- `NORTHSTAR_LIVE_IMAGE`: the exact approved image reference.
 - `NORTHSTAR_LIVE_DATABASE_PASSWORD`: the local database password, default `123456`.
 
 Run on the intended host after deployment authorization:
