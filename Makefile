@@ -1,13 +1,8 @@
 .DEFAULT_GOAL := help
 .PHONY: help install up-data up-research up-live up-database down-data down-research down-live down-database ps-data ps-research ps-live ps-database backup-database verify test
 
-# 默认读取应用目录中的 .env；远程或私有配置用 ENV_FILE 显式覆盖。
-up-database down-database ps-database backup-database: ENV_FILE ?= deploy/database/.env
-up-data down-data ps-data: ENV_FILE ?= deploy/data_hub/.env
-up-research down-research ps-research: ENV_FILE ?= deploy/research/.env
-up-live down-live ps-live: ENV_FILE ?= deploy/live/.env
-COMPOSE = docker compose $(if $(ENV_FILE),--env-file "$(ENV_FILE)")
-BUILD_ENV = NORTHSTAR_GIT_REVISION="$$(uv run --project backend python -c 'from northstar_quant import code_revision; print(code_revision())')"
+# Python 执行器默认读取所属应用的 .env；ENV_FILE 可覆盖。
+OPERATE = python3 scripts/operations/compose.py
 
 help:
 	@echo 'make up-data / up-research / up-live       独立构建并启动应用'
@@ -20,49 +15,43 @@ install:
 	uv sync --project backend --locked
 
 up-database:
-	uv run --project backend python scripts/check_nfs_mount.py --app database $(if $(ENV_FILE),--env-file "$(ENV_FILE)")
-	$(BUILD_ENV) $(COMPOSE) -f deploy/database/compose.yaml build initialize
-	$(COMPOSE) -f deploy/database/compose.yaml up -d --wait --wait-timeout 180 postgres
-	$(COMPOSE) -f deploy/database/compose.yaml run --rm initialize
-
-backup-database:
-	uv run --project backend python scripts/check_nfs_mount.py --app database $(if $(ENV_FILE),--env-file "$(ENV_FILE)")
-	$(COMPOSE) -f deploy/database/compose.yaml run --rm --no-deps backup
-
-up-data:
-	uv run --project backend python scripts/check_nfs_mount.py --app data_hub $(if $(ENV_FILE),--env-file "$(ENV_FILE)")
-	$(BUILD_ENV) $(COMPOSE) -f deploy/data_hub/compose.yaml up --build -d --wait --wait-timeout 180
-
-up-research:
-	uv run --project backend python scripts/check_nfs_mount.py --app research $(if $(ENV_FILE),--env-file "$(ENV_FILE)")
-	$(BUILD_ENV) $(COMPOSE) -f deploy/research/compose.yaml up --build -d --wait --wait-timeout 180
-
-up-live:
-	$(BUILD_ENV) $(COMPOSE) -f deploy/live/compose.yaml up --build -d --wait --wait-timeout 180
-
-down-data:
-	$(COMPOSE) -f deploy/data_hub/compose.yaml down
-
-ps-data:
-	$(COMPOSE) -f deploy/data_hub/compose.yaml ps
-
-down-research:
-	$(COMPOSE) -f deploy/research/compose.yaml down
-
-ps-research:
-	$(COMPOSE) -f deploy/research/compose.yaml ps
-
-down-live:
-	$(COMPOSE) -f deploy/live/compose.yaml down
-
-ps-live:
-	$(COMPOSE) -f deploy/live/compose.yaml ps
+	$(OPERATE) deploy database $(if $(ENV_FILE),--env-file "$(ENV_FILE)")
 
 down-database:
-	$(COMPOSE) -f deploy/database/compose.yaml down
+	$(OPERATE) stop database $(if $(ENV_FILE),--env-file "$(ENV_FILE)")
 
 ps-database:
-	$(COMPOSE) -f deploy/database/compose.yaml ps
+	$(OPERATE) status database $(if $(ENV_FILE),--env-file "$(ENV_FILE)")
+
+up-data:
+	$(OPERATE) deploy data-hub $(if $(ENV_FILE),--env-file "$(ENV_FILE)")
+
+down-data:
+	$(OPERATE) stop data-hub $(if $(ENV_FILE),--env-file "$(ENV_FILE)")
+
+ps-data:
+	$(OPERATE) status data-hub $(if $(ENV_FILE),--env-file "$(ENV_FILE)")
+
+up-research:
+	$(OPERATE) deploy research $(if $(ENV_FILE),--env-file "$(ENV_FILE)")
+
+down-research:
+	$(OPERATE) stop research $(if $(ENV_FILE),--env-file "$(ENV_FILE)")
+
+ps-research:
+	$(OPERATE) status research $(if $(ENV_FILE),--env-file "$(ENV_FILE)")
+
+up-live:
+	$(OPERATE) deploy live $(if $(ENV_FILE),--env-file "$(ENV_FILE)")
+
+down-live:
+	$(OPERATE) stop live $(if $(ENV_FILE),--env-file "$(ENV_FILE)")
+
+ps-live:
+	$(OPERATE) status live $(if $(ENV_FILE),--env-file "$(ENV_FILE)")
+
+backup-database:
+	$(OPERATE) backup database $(if $(ENV_FILE),--env-file "$(ENV_FILE)")
 
 test:
 	@test -n "$$NORTHSTAR_TEST_DATABASE_URL" || (echo 'NORTHSTAR_TEST_DATABASE_URL must name disposable northstar_quant_test' >&2; exit 2)
@@ -71,7 +60,7 @@ test:
 verify:
 	uv sync --project backend --locked
 	npm --prefix frontend ci
-	uv run --project backend python scripts/generate_api.py --check
+	uv run --project backend python scripts/protocol/generate_api.py --check
 	npm --prefix frontend run check
 	npm --prefix frontend run build
 	npm --prefix frontend test

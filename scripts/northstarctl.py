@@ -112,7 +112,7 @@ def main() -> int:
                 [
                     "python3",
                     "-c",
-                    (ROOT / "scripts/northstarctl_remote.py").read_text(),
+                    (ROOT / "scripts/operations/remote.py").read_text(),
                     json.dumps(request),
                 ]
             ),

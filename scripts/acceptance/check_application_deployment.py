@@ -1,4 +1,4 @@
-"""Exercise isolated applications over a published NAS database endpoint and mounted source paths.
+"""Exercise core PostgreSQL, Research SQLite and fixed publications over shared files.
 
 Local bind directories model the share; this is not a real NFS/SMB or three-host acceptance.
 """
@@ -24,7 +24,7 @@ import httpx2 as httpx
 
 from northstar_quant.web.protobuf import decode, methods, pack
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 
 
 class Deployment:
@@ -281,7 +281,7 @@ print(json.dumps(DataLibrary(open_database(),SourceFiles.from_environment()).sub
                     "initialize",
                     "python",
                     "-c",
-                    (ROOT / "scripts/check_owned_storage.py").read_text(),
+                    (ROOT / "scripts/acceptance/check_owned_storage.py").read_text(),
                 ),
                 flush=True,
             )

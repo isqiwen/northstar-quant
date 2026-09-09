@@ -10,14 +10,13 @@ import stat
 import subprocess
 import sys
 import tempfile
-from collections.abc import Callable
 from pathlib import Path
 
 TARGETS = {
-    "database": ("database", "database", "northstar-database"),
-    "data-hub": ("data_hub", "data", "northstar-data-hub"),
-    "research": ("research", "research", "northstar-research"),
-    "live": ("live", "live", "northstar-live"),
+    "database": ("database", "northstar-database"),
+    "data-hub": ("data_hub", "northstar-data-hub"),
+    "research": ("research", "northstar-research"),
+    "live": ("live", "northstar-live"),
 }
 
 
@@ -38,36 +37,9 @@ def image_environment(app: str, revision: str) -> None:
         os.environ[f"NORTHSTAR_{key}_FRONTEND_IMAGE"] = f"northstar-{app}-frontend:{revision}"
 
 
-def lifecycle(
-    compose: list[str],
-    app: str,
-    action: str,
-    *,
-    runner: Callable[..., str] = run,
-) -> None:
-    """Manage the complete selected deployment using its existing images."""
-    services = ["postgres"] if app == "database" else []
-    if action == "stop":
-        runner(*compose, "down")
-        return
-    runner(
-        *compose,
-        "up",
-        "--no-build",
-        "--pull",
-        "never",
-        "-d",
-        "--wait",
-        "--wait-timeout",
-        "180",
-        "--force-recreate" if action == "restart" else "--no-recreate",
-        *services,
-    )
-
-
 def execute(request: dict) -> None:
     app, action = request["app"], request["action"]
-    folder, target, project = TARGETS[app]
+    folder, project = TARGETS[app]
     root = Path(request["directory"])
     env_file = Path(request["env_file"])
     if action == "deploy":
@@ -96,7 +68,7 @@ def execute(request: dict) -> None:
         run("docker", "compose", "version", capture=True)
         active = root / "current"
         if action == "deploy":
-            for tool in ("git", "make", "uv"):
+            for tool in ("git", "uv"):
                 if shutil.which(tool) is None:
                     raise ValueError(f"目标主机缺少 {tool}")
             releases = root / "releases"
@@ -134,7 +106,15 @@ def execute(request: dict) -> None:
             link.unlink(missing_ok=True)
             link.symlink_to(release)
             link.replace(active)
-            run("make", f"up-{target}", f"ENV_FILE={env_file}", cwd=release)
+            run(
+                sys.executable,
+                "scripts/operations/compose.py",
+                "deploy",
+                app,
+                "--env-file",
+                str(env_file),
+                cwd=release,
+            )
             (root / "successful-revision").write_text(revision + "\n")
             print(f"部署完成：{app} {revision}", flush=True)
         else:
@@ -162,10 +142,27 @@ def execute(request: dict) -> None:
                     + (successful.read_text().strip() if successful.exists() else "无"),
                     flush=True,
                 )
-                run(*compose, "ps", "--all")
+                run(
+                    sys.executable,
+                    "scripts/operations/compose.py",
+                    "status",
+                    app,
+                    "--env-file",
+                    str(env_file),
+                    cwd=release,
+                )
             elif action == "logs":
                 fcntl.flock(lock, fcntl.LOCK_UN)
-                run(*compose, "logs", "--tail=100", *(["--follow"] if request["follow"] else []))
+                run(
+                    sys.executable,
+                    "scripts/operations/compose.py",
+                    "logs",
+                    app,
+                    "--env-file",
+                    str(env_file),
+                    *(["--follow"] if request["follow"] else []),
+                    cwd=release,
+                )
             elif action in ("start", "restart", "stop"):
                 if action != "stop":
                     successful = root / "successful-revision"
@@ -182,24 +179,15 @@ def execute(request: dict) -> None:
                         capture=True,
                     ):
                         raise ValueError("已部署版本有修改，拒绝启动；请通过 deploy 更新")
-                    if app in ("data-hub", "research"):
-                        run(
-                            "uv",
-                            "run",
-                            "--project",
-                            "backend",
-                            "python",
-                            "scripts/check_nfs_mount.py",
-                            "--app",
-                            folder,
-                            "--env-file",
-                            str(env_file),
-                            cwd=release,
-                        )
-                        run(
-                            *compose, "run", "--rm", "--no-deps", "--pull", "never", "storage-check"
-                        )
-                lifecycle(compose, app, action)
+                run(
+                    sys.executable,
+                    "scripts/operations/compose.py",
+                    action,
+                    app,
+                    "--env-file",
+                    str(env_file),
+                    cwd=release,
+                )
 
 
 if __name__ == "__main__":

@@ -1,0 +1,129 @@
+"""Local Compose operations shared by Make shortcuts and remote management."""
+
+from __future__ import annotations
+
+import argparse
+import os
+import subprocess
+import sys
+from collections.abc import Callable
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+FOLDERS = {"database": "database", "data-hub": "data_hub", "research": "research", "live": "live"}
+
+
+def run(*args: str, cwd: Path | None = None, capture: bool = False) -> str:
+    result = subprocess.run(
+        args, cwd=cwd, check=True, text=True, stdout=subprocess.PIPE if capture else None
+    )
+    return result.stdout.strip() if capture else ""
+
+
+def lifecycle(
+    compose: list[str],
+    app: str,
+    action: str,
+    *,
+    runner: Callable[..., str] = run,
+) -> None:
+    """Manage the complete selected deployment using its existing images."""
+    services = ["postgres"] if app == "database" else []
+    if action == "stop":
+        runner(*compose, "down")
+        return
+    runner(
+        *compose,
+        "up",
+        "--no-build",
+        "--pull",
+        "never",
+        "-d",
+        "--wait",
+        "--wait-timeout",
+        "180",
+        "--force-recreate" if action == "restart" else "--no-recreate",
+        *services,
+    )
+
+
+def manage(app: str, action: str, env_file: Path, *, follow: bool = False) -> None:
+    folder = FOLDERS[app]
+    compose = [
+        "docker",
+        "compose",
+        "--env-file",
+        str(env_file),
+        "-f",
+        str(ROOT / "deploy" / folder / "compose.yaml"),
+    ]
+    if project := os.environ.get("COMPOSE_PROJECT_NAME"):
+        compose[2:2] = ["-p", project]
+    if action in ("deploy", "start", "restart", "backup") and app != "live":
+        run(
+            "uv",
+            "run",
+            "--project",
+            "backend",
+            "python",
+            "scripts/operations/check_nfs_mount.py",
+            "--app",
+            folder,
+            "--env-file",
+            str(env_file),
+            cwd=ROOT,
+        )
+    if action == "deploy":
+        os.environ["NORTHSTAR_GIT_REVISION"] = run(
+            "uv",
+            "run",
+            "--project",
+            "backend",
+            "python",
+            "-c",
+            "from northstar_quant import code_revision; print(code_revision())",
+            cwd=ROOT,
+            capture=True,
+        )
+        if app == "database":
+            run(*compose, "build", "initialize")
+            run(*compose, "up", "-d", "--wait", "--wait-timeout", "180", "postgres")
+            run(*compose, "run", "--rm", "initialize")
+        else:
+            run(*compose, "up", "--build", "-d", "--wait", "--wait-timeout", "180")
+    elif action in ("start", "restart", "stop"):
+        if action != "stop" and app in ("data-hub", "research"):
+            run(*compose, "run", "--rm", "--no-deps", "--pull", "never", "storage-check")
+        lifecycle(compose, app, action)
+    elif action == "status":
+        run(*compose, "ps", "--all")
+    elif action == "logs":
+        run(*compose, "logs", "--tail=100", *(["--follow"] if follow else []))
+    elif action == "backup":
+        run(*compose, "run", "--rm", "--no-deps", "backup")
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="在当前主机执行应用 Compose 操作")
+    parser.add_argument(
+        "action", choices=("deploy", "start", "restart", "stop", "status", "logs", "backup")
+    )
+    parser.add_argument("app", choices=FOLDERS)
+    parser.add_argument("--env-file", type=Path)
+    parser.add_argument("--follow", action="store_true")
+    args = parser.parse_args()
+    if args.follow and args.action != "logs":
+        parser.error("--follow 仅用于 logs")
+    if args.action == "backup" and args.app != "database":
+        parser.error("backup 仅用于 database")
+    env_file = (args.env_file or ROOT / "deploy" / FOLDERS[args.app] / ".env").resolve()
+    try:
+        manage(args.app, args.action, env_file, follow=args.follow)
+    except (OSError, ValueError, subprocess.CalledProcessError):
+        print("本机操作失败，请检查上述错误与目标配置。", file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

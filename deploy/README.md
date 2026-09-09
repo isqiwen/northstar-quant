@@ -72,7 +72,7 @@ make up-data ENV_FILE=/etc/northstar/data-hub.env
 make up-research ENV_FILE=/etc/northstar/research.env
 ```
 
-远程统一入口（本机 Python/Git/SSH；目标 Linux 需要 uv/Make/Docker Compose/findmnt）：
+远程统一入口（本机 Python/Git/SSH；目标 Linux 需要 Python 3.11+/Git/uv/Docker Compose/findmnt）：
 
 ```sh
 ./scripts/northstarctl.py deploy database
@@ -82,6 +82,7 @@ make up-research ENV_FILE=/etc/northstar/research.env
 ./scripts/northstarctl.py restart research
 ```
 
+Makefile 快捷命令与远程入口共用 `scripts/operations/compose.py` 的本机执行规则。
 支持 deploy/start/restart/stop/status/logs、`--config`、`--dry-run`、`--help`。
 部署传送干净 Git HEAD；start/restart 使用已部署镜像；停止保留数据卷。
 Live 的整套启停包含内核，但不代表撤单、平仓或完成核对，启动也不自动连接柜台或授予交易权。

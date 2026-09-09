@@ -65,6 +65,6 @@ Live `/strategy-materials` 只接收与本机干净 Git 版本一致的候选，
 
 ## 验证
 
-运行根目录 `make verify`。安装态数据/研究/候选链使用 `scripts/check_install.py`，
-实际浏览器交互使用 `scripts/check_browser.py`；环境与完整命令以
+运行根目录 `make verify`。安装态数据/研究/候选链使用 `scripts/acceptance/check_install.py`，
+实际浏览器交互使用 `scripts/acceptance/check_browser.py`；环境与完整命令以
 [CI](../.github/workflows/ci.yml) 为准。验收只使用专用可丢弃测试数据库，不连接柜台。

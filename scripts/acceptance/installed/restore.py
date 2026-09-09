@@ -7,8 +7,8 @@ import subprocess
 from pathlib import Path
 from uuid import uuid4
 
-from install_check.catalog import check_restored_catalog
-from install_check.processes import InstalledApplication
+from installed.catalog import check_restored_catalog
+from installed.processes import InstalledApplication
 
 
 def check_restore(

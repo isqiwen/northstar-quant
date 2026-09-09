@@ -1,7 +1,7 @@
 """Run the installed CLI and HTTP workflow against an explicit disposable database.
 
-Uses only the standard library, never imports application source, and launches
-the installed entrypoint from an empty working directory. The study is the
+Runs with the installed interpreter and launches the installed entrypoint from
+an empty working directory; setup imports resolve from that installed package. The study is the
 synthetic intraday example; no application database is reset or deleted.
 """
 
@@ -21,10 +21,10 @@ from pathlib import Path
 from urllib.parse import urlsplit
 from uuid import uuid4
 
-from install_check.broker import check_broker_access
-from install_check.catalog import check_catalog
-from install_check.processes import InstalledApplication
-from install_check.restore import check_restore
+from installed.broker import check_broker_access
+from installed.catalog import check_catalog
+from installed.processes import InstalledApplication
+from installed.restore import check_restore
 
 
 def main() -> None:

@@ -19,8 +19,12 @@ def deployment(tmp_path: Path) -> tuple[Path, Path, dict]:
     repo = tmp_path / "repo"
     repo.mkdir()
     (repo / "scripts").mkdir()
-    for name in ("northstarctl.py", "northstarctl_remote.py"):
-        shutil.copyfile(ROOT / "scripts" / name, repo / "scripts" / name)
+    shutil.copyfile(ROOT / "scripts/northstarctl.py", repo / "scripts/northstarctl.py")
+    shutil.copytree(
+        ROOT / "scripts/operations",
+        repo / "scripts/operations",
+        ignore=shutil.ignore_patterns("__pycache__"),
+    )
     subprocess.run(["git", "init", "-q", str(repo)], check=True)
     (repo / "Makefile").write_text("up-database up-data up-research up-live:\n\t@true\n")
     subprocess.run(["git", "-C", str(repo), "add", "."], check=True)
@@ -61,7 +65,7 @@ with open(os.environ['RECORD'], 'a') as file:
 if name == 'ssh':
     sys.exit(subprocess.run(sys.argv[-1], shell=True).returncode)
 if name == 'uv': sys.exit(int(os.environ.get('MOUNT_RESULT', '0')))
-if name == 'make': sys.exit(int(os.environ.get('MAKE_RESULT', '0')))
+if name == 'docker' and 'up' in sys.argv: sys.exit(int(os.environ.get('DEPLOY_UP_RESULT', '0')))
 """
     for tool in ("ssh", "docker", "make", "uv"):
         file = binaries / tool
@@ -112,7 +116,12 @@ def test_transfer_committed_release_and_isolated_lifecycle(deployment, app, targ
         result = invoke(deployment, action, app)
         assert result.returncode == 0, result.stderr
     calls = [json.loads(line) for line in Path(env["RECORD"]).read_text().splitlines()]
-    assert [c[1] for c in calls if c[0] == "make"] == [f"up-{target}"]
+    assert not any(c[0] == "make" for c in calls)
+    assert (
+        any(c[:2] == ["docker", "compose"] and "--build" in c for c in calls)
+        if app != "database"
+        else any("initialize" in c for c in calls)
+    )
     for call in calls:
         if call[:2] == ["docker", "compose"] and "-p" in call:
             assert call[call.index("-p") + 1] == "northstar-" + app
@@ -121,7 +130,7 @@ def test_transfer_committed_release_and_isolated_lifecycle(deployment, app, targ
 
 def test_failed_up_remains_inspectable_without_false_success(deployment):
     _, config, env = deployment
-    env["MAKE_RESULT"] = "7"
+    env["DEPLOY_UP_RESULT"] = "7"
     assert invoke(deployment, "deploy", "research").returncode != 0
     assert not (config.parent / "research/successful-revision").exists()
     result = invoke(deployment, "status", "research")
@@ -187,11 +196,12 @@ def test_live_uses_complete_deployment_lifecycle(deployment, action):
 
 
 @pytest.mark.parametrize("action", ["start", "restart"])
-def test_mount_failure_prevents_start_or_restart(deployment, action):
+@pytest.mark.parametrize("app", ["database", "data-hub", "research"])
+def test_mount_failure_prevents_start_or_restart(deployment, action, app):
     _, _, env = deployment
-    assert invoke(deployment, "deploy", "research").returncode == 0
+    assert invoke(deployment, "deploy", app).returncode == 0
     Path(env["RECORD"]).write_text("")
     env["MOUNT_RESULT"] = "1"
-    assert invoke(deployment, action, "research").returncode != 0
+    assert invoke(deployment, action, app).returncode != 0
     calls = [json.loads(line) for line in Path(env["RECORD"]).read_text().splitlines()]
     assert not any(c[:2] == ["docker", "compose"] and "up" in c for c in calls)

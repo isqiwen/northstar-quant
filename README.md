@@ -187,6 +187,9 @@ Live 管理 API 使用 `NORTHSTAR_LIVE_URL` 与 `NORTHSTAR_LIVE_AUTH` 访问内�
 | `backend/src/northstar_quant/{factors,strategies,risk,execution,broker,accounting,simulation}/` | 因子、策略、风险、执行、柜台、账户与模拟能力 |
 | `backend/src/northstar_quant/{web,cli}/` | 共享 Web 接入机制与薄命令行入口 |
 | `deploy/`、`backend/tests/` | 部署配置与行为验证 |
+| `scripts/operations/` | 本机 Compose 执行、远程部署和挂载预检 |
+| `scripts/protocol/` | Protobuf 与浏览器代码生成 |
+| `scripts/acceptance/` | 安装、浏览器、容器和恢复验收 |
 
 接口以根目录 `proto/` 下的 `data_hub.proto`、`research.proto`、`live.proto` 为准，生成 Python 消息、TypeScript 类型与浏览器调用声明。
 变更协议后执行，不手工编辑生成文件：
@@ -212,12 +215,21 @@ make verify
 
 `make verify` 检查接口生成同步、前端类型与构建、前端测试、Python 格式与类型及业务测试。
 测试会重置测试库，不能指向应用数据库。安装验收与浏览器验收另由
-`scripts/check_install.py`、`scripts/check_browser.py` 执行；独立容器验收使用
-`scripts/check_application_deployment.py` 和 `scripts/check_live_deployment.py`。CI 配置见 [.github/workflows/ci.yml](.github/workflows/ci.yml)。
+`scripts/acceptance/check_install.py`、`scripts/acceptance/check_browser.py` 执行；独立容器验收使用
+`scripts/acceptance/check_application_deployment.py` 和 `scripts/acceptance/check_live_deployment.py`。CI 配置见 [.github/workflows/ci.yml](.github/workflows/ci.yml)。
+
+SimNow 私密配置向导使用 Python，在自己的终端运行：
+
+```sh
+uv run --project backend python scripts/operations/setup_simnow.py
+```
+
+默认保存到 Git 忽略的 `.northstar/simnow.env`，也可用 `--file` 指定私密路径。
+密码隐藏输入，已有值可按回车保留；只保存配置，不连接柜台。各公开脚本入口支持 `--help`。
 
 ## 数据与运行维护
 
-各应用日志和 Live 认证保存在所属 Docker 卷；Data Hub/Research 的数据库、来源、市场发布、研究产物和备份位于 NAS，Live 内核拥有独立本地数据卷。重建容器不会清空这些数据；不要用 `docker compose down -v` 停止日常应用。
+各应用日志和 Live 认证保存在所属 Docker 卷；Data Hub/Research 的来源、市场发布、研究产物和备份位于 NAS，Live 内核拥有独立本地数据卷。重建容器不会清空这些数据；不要用 `docker compose down -v` 停止日常应用。
 PostgreSQL 活跃目录保留在 core 本机，Research SQLite 保留在 research 本机，不放在 NAS/NFS 上。数据库与其引用的来源文件必须一起备份，市场数据、备份和私密凭据不提交到 Git。
 
 ```sh

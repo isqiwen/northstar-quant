@@ -8,7 +8,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 SRC = ROOT / "backend" / "src"
 PROTO = ROOT / "proto"
 ROLES = ("data_hub", "research", "live")
@@ -59,7 +59,7 @@ def main() -> None:
         place_python_modules(target)
         # Import the generated descriptors in an isolated compiler process.
         subprocess.run(
-            [sys.executable, str(ROOT / "scripts/protocol_browser.py"), str(target)], check=True
+            [sys.executable, str(Path(__file__).with_name("browser.py")), str(target)], check=True
         )
         for role in ROLES:
             subprocess.run(

@@ -10,8 +10,8 @@
     "check": "tsc --noEmit",
     "test": "vitest run --config vitest.config.ts",
     "format": "prettier --write apps shared tests *.ts *.json",
-    "api:generate": "uv run --project ../backend python ../scripts/generate_api.py",
-    "api:check": "uv run --project ../backend python ../scripts/generate_api.py --check",
+    "api:generate": "uv run --project ../backend python ../scripts/protocol/generate_api.py",
+    "api:check": "uv run --project ../backend python ../scripts/protocol/generate_api.py --check",
     "start:data": "HOSTNAME=127.0.0.1 PORT=18082 node apps/data_hub/.next/standalone/apps/data_hub/server.js",
     "start:research": "HOSTNAME=127.0.0.1 PORT=18084 node apps/research/.next/standalone/apps/research/server.js",
     "start:live": "HOSTNAME=127.0.0.1 PORT=18080 node apps/live/.next/standalone/apps/live/server.js"

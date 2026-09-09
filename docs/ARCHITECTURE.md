@@ -12,7 +12,7 @@
 | `frontend/` | 三个 Next.js 应用、共享呈现与独立 `tests/` |
 | `backend/` | Python 源码、测试、依赖、构建与 Dockerfile |
 | `proto/` | 前后端共同消费的协议源码 |
-| `scripts/` | 协议生成、安装及跨进程验收 |
+| `scripts/` | Python 运维工具、协议生成及跨应用验收；Makefile 与远程管理共用 Compose 执行规则 |
 | `deploy/` | 独立部署配置 |
 
 ```text
@@ -208,9 +208,9 @@ CLI 按用户操作分组，高级证据处理不堆到顶层，具体见 [CLI](
 | 验收 | 入口 |
 |---|---|
 | 协议、类型、构建与行为 | 根目录 `make verify`，使用专用 PostgreSQL 测试库 |
-| 安装后数据、研究、Paper 与恢复 | `scripts/check_install.py` |
-| 三个应用的真实浏览器交互 | `scripts/check_browser.py` |
-| Live 独立部署与故障行为 | `scripts/check_live_deployment.py` |
+| 安装后数据、研究、Paper 与恢复 | `scripts/acceptance/check_install.py` |
+| 三个应用的真实浏览器交互 | `scripts/acceptance/check_browser.py` |
+| Live 独立部署与故障行为 | `scripts/acceptance/check_live_deployment.py` |
 
 具体环境与调用见根目录 README 和 CI。合成输入、历史研究、柜台模拟与真实账户证据分别记录。
 Research 持久 worker 应按实测资源调度并保护取消与主机响应；生产 Live 配额按实际需求测量，

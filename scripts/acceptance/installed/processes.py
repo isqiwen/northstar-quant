@@ -235,7 +235,7 @@ run()
             "research-api": "research",
             "live-api": "live",
         }[role]
-        frontend = Path(__file__).resolve().parents[2] / "frontend"
+        frontend = Path(__file__).resolve().parents[3] / "frontend"
         with self.api(role) as backend:
             with socket.socket() as listener:
                 listener.bind(("127.0.0.1", 0))

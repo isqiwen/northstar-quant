@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import runpy
 import secrets
 import socket
 import subprocess
@@ -13,9 +14,12 @@ from time import monotonic, sleep
 from uuid import uuid4
 
 import httpx2 as httpx
-from northstarctl_remote import lifecycle
 
 from northstar_quant.web.protobuf import decode, methods
+
+lifecycle = runpy.run_path(str(Path(__file__).resolve().parents[1] / "operations/compose.py"))[
+    "lifecycle"
+]
 
 
 class Deployment:
@@ -37,7 +41,7 @@ class Deployment:
             NORTHSTAR_LIVE_WEB_PORT=str(self.port),
             NORTHSTAR_LIVE_API_PORT="0",
         )
-        self.compose = Path(__file__).resolve().parents[1] / "deploy/live/compose.yaml"
+        self.compose = Path(__file__).resolve().parents[2] / "deploy/live/compose.yaml"
 
     def run(self, *arguments: str) -> str:
         completed = subprocess.run(

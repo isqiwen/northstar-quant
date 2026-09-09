@@ -76,7 +76,7 @@ trading facts in their durable business stores; log files are not an audit ledge
 ## Reproducible local acceptance
 
 ```sh
-uv run --project backend python scripts/check_live_deployment.py --image northstar-quant:local --frontend-image northstar-live-frontend:local
+uv run --project backend python scripts/acceptance/check_live_deployment.py --image northstar-quant:local --frontend-image northstar-live-frontend:local
 ```
 
 The check creates a uniquely named, isolated Compose project with generated test
