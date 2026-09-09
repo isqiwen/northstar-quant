@@ -105,7 +105,21 @@ export function TushareSync() {
             dataIndex: "status",
             render: (v: string) => <Status value={v} />,
           },
-          { title: "创建时间", dataIndex: "created_at" },
+          {
+            title: "合约与区间（UTC）",
+            dataIndex: "parameters",
+            render: (v: Record<string, unknown>) => (
+              <>
+                <div>
+                  {String(v.symbol)} · {String(v.trading_day)}
+                </div>
+                <div>
+                  {String(v.session_open).slice(11, 16)}–
+                  {String(v.session_close).slice(11, 16)}
+                </div>
+              </>
+            ),
+          },
           {
             title: "加工任务",
             dataIndex: "attempt_id",

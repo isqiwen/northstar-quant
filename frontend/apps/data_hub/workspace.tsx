@@ -1,16 +1,13 @@
 "use client";
 import type { ReactNode } from "react";
-import { query } from "./api/client";
 import {
   DashboardOutlined,
   DatabaseOutlined,
   FolderOpenOutlined,
   CloudUploadOutlined,
+  SyncOutlined,
 } from "@ant-design/icons";
 import { Shell, Providers } from "../../shared/shell";
-import { DatasetDetail, DatasetList } from "../../shared/datasets";
-import { Heading } from "../../shared/ui";
-import { DataHome, Sources, Import, SourceDetail, Attempt } from "./pages";
 
 export default function Workspace({ children }: { children: ReactNode }) {
   return (
@@ -26,6 +23,7 @@ export default function Workspace({ children }: { children: ReactNode }) {
             label: "来源与处理",
             icon: <FolderOpenOutlined />,
           },
+          { key: "/sync", label: "历史同步", icon: <SyncOutlined /> },
           { key: "/import", label: "导入数据", icon: <CloudUploadOutlined /> },
         ]}
       >
