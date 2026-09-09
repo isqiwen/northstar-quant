@@ -2,13 +2,8 @@ name: northstar-research
 services:
   storage-check:
     platform: linux/amd64
-    build:
-      context: ../..
-      dockerfile: backend/Dockerfile
-      args:
-        NORTHSTAR_GIT_REVISION: ${NORTHSTAR_GIT_REVISION:-}
-        NORTHSTAR_DEVELOPMENT_BUILD: ${NORTHSTAR_DEVELOPMENT_BUILD:-0}
     image: ${NORTHSTAR_BACKEND_IMAGE:-northstar-quant:local}
+    pull_policy: never
     environment:
       NORTHSTAR_LOG_DIR: /var/log/northstar
       NORTHSTAR_DATABASE_OWNER: research
@@ -59,6 +54,7 @@ services:
         NORTHSTAR_GIT_REVISION: ${NORTHSTAR_GIT_REVISION:-}
         NORTHSTAR_DEVELOPMENT_BUILD: ${NORTHSTAR_DEVELOPMENT_BUILD:-0}
     image: ${NORTHSTAR_BACKEND_IMAGE:-northstar-quant:local}
+    pull_policy: never
     restart: unless-stopped
     logging:
       driver: local
@@ -166,13 +162,8 @@ services:
     networks:
     - egress
     platform: linux/amd64
-    build:
-      context: ../..
-      dockerfile: backend/Dockerfile
-      args:
-        NORTHSTAR_GIT_REVISION: ${NORTHSTAR_GIT_REVISION:-}
-        NORTHSTAR_DEVELOPMENT_BUILD: ${NORTHSTAR_DEVELOPMENT_BUILD:-0}
     image: ${NORTHSTAR_BACKEND_IMAGE:-northstar-quant:local}
+    pull_policy: never
     logging:
       driver: local
       options:
@@ -240,13 +231,8 @@ services:
     networks:
     - egress
     platform: linux/amd64
-    build:
-      context: ../..
-      dockerfile: backend/Dockerfile
-      args:
-        NORTHSTAR_GIT_REVISION: ${NORTHSTAR_GIT_REVISION:-}
-        NORTHSTAR_DEVELOPMENT_BUILD: ${NORTHSTAR_DEVELOPMENT_BUILD:-0}
     image: ${NORTHSTAR_BACKEND_IMAGE:-northstar-quant:local}
+    pull_policy: never
     cpus: 1.0
     mem_limit: 512m
     memswap_limit: 512m
@@ -274,13 +260,8 @@ services:
     networks:
     - egress
     platform: linux/amd64
-    build:
-      context: ../..
-      dockerfile: backend/Dockerfile
-      args:
-        NORTHSTAR_GIT_REVISION: ${NORTHSTAR_GIT_REVISION:-}
-        NORTHSTAR_DEVELOPMENT_BUILD: ${NORTHSTAR_DEVELOPMENT_BUILD:-0}
     image: ${NORTHSTAR_BACKEND_IMAGE:-northstar-quant:local}
+    pull_policy: never
     restart: unless-stopped
     logging:
       driver: local

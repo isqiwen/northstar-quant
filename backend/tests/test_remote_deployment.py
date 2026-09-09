@@ -165,11 +165,15 @@ def test_transfer_committed_release_and_isolated_lifecycle(deployment, app, targ
         assert result.returncode == 0, result.stderr
     calls = [json.loads(line) for line in Path(env["RECORD"]).read_text().splitlines()]
     assert not any(c[0] == "make" for c in calls)
-    assert (
-        any(c[:2] == ["docker", "compose"] and "--build" in c for c in calls)
-        if app != "database"
-        else any("initialize" in c for c in calls)
-    )
+    if app in {"data-hub", "research"}:
+        builds = [c for c in calls if c[:2] == ["docker", "compose"] and "build" in c]
+        api = "data-api" if app == "data-hub" else "research-api"
+        assert len(builds) == 1 and builds[0][-3:] == ["build", api, app]
+        assert not any("--build" in c for c in calls)
+    elif app == "live":
+        assert any(c[:2] == ["docker", "compose"] and "--build" in c for c in calls)
+    else:
+        assert any("initialize" in c for c in calls)
     for call in calls:
         if call[:2] == ["docker", "compose"] and "-p" in call:
             assert call[call.index("-p") + 1] == "northstar-" + app

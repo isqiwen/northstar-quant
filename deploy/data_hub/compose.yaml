@@ -2,13 +2,8 @@ name: northstar-data-hub
 services:
   storage-check:
     platform: linux/amd64
-    build:
-      context: ../..
-      dockerfile: backend/Dockerfile
-      args:
-        NORTHSTAR_GIT_REVISION: ${NORTHSTAR_GIT_REVISION:-}
-        NORTHSTAR_DEVELOPMENT_BUILD: ${NORTHSTAR_DEVELOPMENT_BUILD:-0}
     image: ${NORTHSTAR_BACKEND_IMAGE:-northstar-quant:local}
+    pull_policy: never
     environment:
       NORTHSTAR_LOG_DIR: /var/log/northstar
       NORTHSTAR_DATABASE_URL: postgresql+psycopg://northstar_data_hub_app:${NORTHSTAR_DATA_HUB_DATABASE_PASSWORD:?Set
@@ -56,13 +51,14 @@ services:
     - frontend
     - storage
     platform: linux/amd64
-    build: &id001
+    build:
       context: ../..
       dockerfile: backend/Dockerfile
       args:
         NORTHSTAR_GIT_REVISION: ${NORTHSTAR_GIT_REVISION:-}
         NORTHSTAR_DEVELOPMENT_BUILD: ${NORTHSTAR_DEVELOPMENT_BUILD:-0}
     image: ${NORTHSTAR_BACKEND_IMAGE:-northstar-quant:local}
+    pull_policy: never
     restart: unless-stopped
     logging:
       driver: local
@@ -145,8 +141,8 @@ services:
     - egress
     - storage
     platform: linux/amd64
-    build: *id001
     image: ${NORTHSTAR_BACKEND_IMAGE:-northstar-quant:local}
+    pull_policy: never
     restart: unless-stopped
     logging:
       driver: local
@@ -243,13 +239,8 @@ services:
     - egress
     - storage
     platform: linux/amd64
-    build:
-      context: ../..
-      dockerfile: backend/Dockerfile
-      args:
-        NORTHSTAR_GIT_REVISION: ${NORTHSTAR_GIT_REVISION:-}
-        NORTHSTAR_DEVELOPMENT_BUILD: ${NORTHSTAR_DEVELOPMENT_BUILD:-0}
     image: ${NORTHSTAR_BACKEND_IMAGE:-northstar-quant:local}
+    pull_policy: never
     logging:
       driver: local
       options:

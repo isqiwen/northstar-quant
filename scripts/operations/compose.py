@@ -102,6 +102,10 @@ def manage(app: str, action: str, *, follow: bool = False) -> None:
                 cwd=ROOT,
                 capture=True,
             )
+        elif app in {"data-hub", "research"}:
+            api = "data-api" if app == "data-hub" else "research-api"
+            run(*compose, "build", api, app)
+            run(*compose, "up", "--no-build", "-d", "--wait", "--wait-timeout", "180")
         else:
             run(*compose, "up", "--build", "-d", "--wait", "--wait-timeout", "180")
     elif action in ("start", "restart", "stop"):
