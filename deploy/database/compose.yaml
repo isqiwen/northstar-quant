@@ -4,10 +4,6 @@ services:
     networks:
     - storage
     image: postgres:17-alpine
-    cpus: 1.0
-    mem_limit: 1g
-    memswap_limit: 1g
-    pids_limit: 128
     logging:
       driver: local
       options:
@@ -43,10 +39,6 @@ services:
         NORTHSTAR_GIT_REVISION: ${NORTHSTAR_GIT_REVISION:-}
         NORTHSTAR_DEVELOPMENT_BUILD: ${NORTHSTAR_DEVELOPMENT_BUILD:-0}
     image: ${NORTHSTAR_BACKEND_IMAGE:-northstar-quant:local}
-    cpus: 1.0
-    mem_limit: 512m
-    memswap_limit: 512m
-    pids_limit: 64
     logging:
       driver: local
       options:
@@ -105,10 +97,6 @@ services:
         NORTHSTAR_GIT_REVISION: ${NORTHSTAR_GIT_REVISION:-}
         NORTHSTAR_DEVELOPMENT_BUILD: ${NORTHSTAR_DEVELOPMENT_BUILD:-0}
     image: ${NORTHSTAR_BACKEND_IMAGE:-northstar-quant:local}
-    cpus: 1.0
-    mem_limit: 512m
-    memswap_limit: 512m
-    pids_limit: 64
     logging:
       driver: local
       options:

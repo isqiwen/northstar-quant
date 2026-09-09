@@ -233,10 +233,6 @@ services:
     platform: linux/amd64
     image: ${NORTHSTAR_BACKEND_IMAGE:-northstar-quant:local}
     pull_policy: never
-    cpus: 1.0
-    mem_limit: 512m
-    memswap_limit: 512m
-    pids_limit: 64
     logging:
       driver: local
       options:
