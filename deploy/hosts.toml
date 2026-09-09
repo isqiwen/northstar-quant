@@ -1,6 +1,3 @@
-# SSH 主机配置；各 deploy/<应用>/.env 是仓库维护的配置源。
-# 将所属配置复制到目标主机 /opt/northstar/config/<应用>.env，填写真实口令。
-# 仅填写 host/user/port；目录由程序固定，不接受路径配置。
 [database]
 host = "core.local"
 user = ""

@@ -21,20 +21,20 @@ Tushare 定时增量/分片补数、15 分钟到日线完整研究输入、持�
 部署位置：Data Hub 和独立 PostgreSQL 在 `core.local`，Research 在 `research.local`。
 三个应用的前端、API、worker/内核分别运行在独立容器中。
 应用持久目录固定在 `/opt/northstar/`；本机磁盘或主机预先挂载的共享使用同一套配置。
-配置文件在 `deploy/{database,data_hub,research,live}/.env`，凭据留空，实际口令放私有运行副本。
-首次准备目录，存储 UUID 由部署程序自动生成并持久保存，详见[部署说明](deploy/README.md)。
+配置文件在 `deploy/{database,data_hub,research,live}/.env`，数据库密码默认为 `123456`，发布接口无需 token，实际凭据放私有运行副本。
+部署脚本自动准备存储目录、本机运行目录和权限；无挂载时使用本地磁盘，必要时通过终端提示 sudo 密码。存储 UUID 自动生成并持久保存，详见[部署说明](deploy/README.md)。
 
-可使用统一远程入口（先填写仓库外的主机配置，详见[部署说明](deploy/README.md)）：
+可使用统一远程入口（填写 `deploy/hosts.toml` 后提交代码，首次部署自动上传所属 `.env`）：
 
 ```sh
-./scripts/northstarctl.py deploy database --config ~/.config/northstar/hosts.toml
-./scripts/northstarctl.py deploy data-hub --config ~/.config/northstar/hosts.toml
-./scripts/northstarctl.py deploy research --config ~/.config/northstar/hosts.toml
-./scripts/northstarctl.py deploy live --config ~/.config/northstar/hosts.toml
+./scripts/northstarctl.py deploy database
+./scripts/northstarctl.py deploy data-hub
+./scripts/northstarctl.py deploy research
+./scripts/northstarctl.py deploy live
 ```
 
 远程 `deploy` 自动安装目标 Ubuntu/Debian 主机缺失的 Git、uv、Docker/Compose/Buildx；
-目标仍需 SSH、Python 3.11+、root 或免交互 sudo，持久目录与私有配置提前准备。
+目标仍需 SSH、Python 3.11+、root 或 sudo 权限；交互部署可输入 sudo 密码，首次运行配置自动上传，已有配置不覆盖。
 脚本部署当前已提交版本，支持 `start`、`restart`、`stop`、`status`、`logs` 和 `--help`。
 `start`/`restart` 使用已部署版本，不重新构建。所有应用统一操作整个部署对象；`restart live` 会重启前端、API、内核和本地数据库。
 也可以在对应主机的仓库根目录执行（需要 Git、uv、Make、Docker）：
@@ -105,7 +105,7 @@ core 上的数据库单独使用 `make ps-database` / `down-database`；停止�
 日常访问前端端口即可。Live 内核为独立的 `18081` 服务。
 core PostgreSQL 仅保存 Data Hub 元数据；Research 的任务与结果保存在 research 本机 SQLite。
 Research 用 Data Hub API 获取固定清单，通过只读市场目录和本机 DuckDB 读取 Parquet。
-配置 `NORTHSTAR_DATA_HUB_URL` 和两端相同的 `NORTHSTAR_PUBLICATION_TOKEN`（至少 32 字符），不向 Research 分发 core 数据库口令。
+配置 `NORTHSTAR_DATA_HUB_URL` 即可访问只读发布接口，无需 token，也不向 Research 分发 core 数据库口令。
 Live 当前仍独立存储，不依赖其他主机的存储；最小恢复日志与异步归档是下一项改造。
 Research 回测由独立 `research-worker` 执行；前端和 API 重启不结束已接收的任务。
 进程隔离不代表已经完成任务检查点恢复，也不能隔离整台主机故障。

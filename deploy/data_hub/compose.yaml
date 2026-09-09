@@ -83,8 +83,6 @@ services:
       NORTHSTAR_RESEARCH_STORAGE_ID: ${NORTHSTAR_RESEARCH_STORAGE_ID:-}
       NORTHSTAR_DATA_DIR: /var/lib/northstar/source
       NORTHSTAR_STORAGE_ID: ${NORTHSTAR_SOURCE_STORAGE_ID:-}
-      NORTHSTAR_PUBLICATION_TOKEN: ${NORTHSTAR_PUBLICATION_TOKEN:?Set shared read-only
-        publication token}
     volumes:
     - type: bind
       source: /opt/northstar/credentials/data-hub
@@ -326,7 +324,7 @@ services:
     - frontend
     - egress
     ports:
-    - ${NORTHSTAR_PUBLICATION_BIND_ADDRESS:?Set core private publication address}:${NORTHSTAR_PUBLICATION_PORT:-19083}:8080
+    - 0.0.0.0:19090:8080
     volumes:
     - ./publications.conf:/etc/nginx/nginx.conf:ro
     depends_on:
@@ -339,4 +337,4 @@ networks:
   egress: null
   storage:
     external: true
-    name: ${NORTHSTAR_DATA_DATABASE_NETWORK:-northstar-data-storage}
+    name: northstar-data-storage

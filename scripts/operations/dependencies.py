@@ -31,13 +31,20 @@ def available(*args: str) -> bool:
 
 
 def admin(*args: str) -> None:
-    run(*([] if os.geteuid() == 0 else ["sudo", "-n"]), *args)
+    elevation = [] if os.geteuid() == 0 else ["sudo", *([] if sys.stdin.isatty() else ["-n"]), "--"]
+    run(*elevation, *args)
 
 
 def prepare(request: dict) -> None:
+    admin(
+        sys.executable,
+        "-c",
+        request["directory_program"],
+        json.dumps({"app": request["app"], "uid": os.getuid(), "gid": os.getgid()}),
+    )
     private = Path(request["env_file"])
-    if not private.is_file() or stat.S_IMODE(private.stat().st_mode) & 0o077:
-        raise ValueError("目标 env_file 必须已存在且仅所属用户可访问（chmod 600）")
+    if private.exists() and (not private.is_file() or stat.S_IMODE(private.stat().st_mode) & 0o077):
+        raise ValueError("已有运行配置必须为私有普通文件（chmod 600）")
     os.environ["PATH"] += os.pathsep + str(Path.home() / ".local/bin") + ":/usr/sbin:/sbin"
     packages = []
     for binary, package in (("git", "git"), ("curl", "curl")):
@@ -162,40 +169,6 @@ def prepare(request: dict) -> None:
     ):
         if not available(*command):
             raise ValueError(f"依赖校验失败：{' '.join(command)}")
-    root = Path(request["directory"])
-    if not root.exists():
-        try:
-            root.mkdir(parents=True)
-        except PermissionError:
-            admin(
-                "install",
-                "-d",
-                "-m",
-                "0755",
-                "-o",
-                str(os.getuid()),
-                "-g",
-                str(os.getgid()),
-                str(root),
-            )
-    if request["app"] != "live":
-        owner = "research" if request["app"] == "research" else "data-hub"
-        bindings = Path(f"/opt/northstar/state/{owner}/bindings")
-        if not bindings.exists():
-            try:
-                bindings.mkdir(parents=True, mode=0o700)
-            except PermissionError:
-                admin(
-                    "install",
-                    "-d",
-                    "-m",
-                    "0700",
-                    "-o",
-                    str(os.getuid()),
-                    "-g",
-                    str(os.getgid()),
-                    str(bindings),
-                )
     print("部署依赖已就绪", flush=True)
 
 

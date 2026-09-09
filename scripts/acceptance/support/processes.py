@@ -29,7 +29,6 @@ class InstalledApplication:
         self.environment = dict(
             environment,
             NORTHSTAR_LOG_DIR=str(directory / "logs"),
-            NORTHSTAR_PUBLICATION_TOKEN="synthetic-publication-token-for-acceptance-only",
         )
         self.environment.setdefault(
             "NORTHSTAR_RESEARCH_DATABASE", str(directory / "research.sqlite3")

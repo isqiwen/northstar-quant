@@ -73,9 +73,7 @@ services:
       NORTHSTAR_MARKET_STORAGE_ID: ${NORTHSTAR_MARKET_STORAGE_ID:-}
       NORTHSTAR_RESEARCH_DIR: /var/lib/northstar/research
       NORTHSTAR_RESEARCH_STORAGE_ID: ${NORTHSTAR_RESEARCH_STORAGE_ID:-}
-      NORTHSTAR_PUBLICATION_TOKEN: ${NORTHSTAR_PUBLICATION_TOKEN:?Set shared read-only
-        publication token}
-      NORTHSTAR_DATA_HUB_URL: ${NORTHSTAR_DATA_HUB_URL:-http://core.local:19083}
+      NORTHSTAR_DATA_HUB_URL: ${NORTHSTAR_DATA_HUB_URL:-http://core.local:19090}
       NORTHSTAR_RESEARCH_DATABASE: /var/lib/northstar/state/research.sqlite3
     volumes:
     - type: bind
@@ -191,9 +189,7 @@ services:
       NORTHSTAR_BACKUP_DIR: /var/lib/northstar/backup
       NORTHSTAR_BACKUP_STORAGE_ID: ${NORTHSTAR_BACKUP_STORAGE_ID:-}
       NORTHSTAR_RESEARCH_DATABASE: /var/lib/northstar/state/research.sqlite3
-      NORTHSTAR_PUBLICATION_TOKEN: ${NORTHSTAR_PUBLICATION_TOKEN:?Set read-only publication
-        token}
-      NORTHSTAR_DATA_HUB_URL: ${NORTHSTAR_DATA_HUB_URL:-http://core.local:19083}
+      NORTHSTAR_DATA_HUB_URL: ${NORTHSTAR_DATA_HUB_URL:-http://core.local:19090}
     volumes:
     - type: bind
       source: /opt/northstar/logs/research
@@ -299,9 +295,7 @@ services:
       NORTHSTAR_MARKET_STORAGE_ID: ${NORTHSTAR_MARKET_STORAGE_ID:-}
       NORTHSTAR_RESEARCH_DIR: /var/lib/northstar/research
       NORTHSTAR_RESEARCH_STORAGE_ID: ${NORTHSTAR_RESEARCH_STORAGE_ID:-}
-      NORTHSTAR_PUBLICATION_TOKEN: ${NORTHSTAR_PUBLICATION_TOKEN:?Set shared read-only
-        publication token}
-      NORTHSTAR_DATA_HUB_URL: ${NORTHSTAR_DATA_HUB_URL:-http://core.local:19083}
+      NORTHSTAR_DATA_HUB_URL: ${NORTHSTAR_DATA_HUB_URL:-http://core.local:19090}
       NORTHSTAR_RESEARCH_DATABASE: /var/lib/northstar/state/research.sqlite3
     volumes:
     - type: bind

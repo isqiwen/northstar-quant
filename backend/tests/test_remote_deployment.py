@@ -28,6 +28,10 @@ def deployment(tmp_path: Path) -> tuple[Path, Path, dict]:
     # Rewrite the copied program's fixed root only inside this disposable test repository.
     for source in (repo / "scripts").rglob("*.py"):
         source.write_text(source.read_text().replace("/opt/northstar", str(tmp_path)))
+    for app in ("database", "data_hub", "research", "live"):
+        folder = repo / "deploy" / app
+        folder.mkdir(parents=True)
+        (folder / ".env").write_text("PASSWORD=initial-private-value\n")
     subprocess.run(["git", "init", "-q", str(repo)], check=True)
     (repo / "Makefile").write_text("up-database up-data up-research up-live:\n\t@true\n")
     subprocess.run(["git", "-C", str(repo), "add", "."], check=True)
@@ -59,6 +63,8 @@ def deployment(tmp_path: Path) -> tuple[Path, Path, dict]:
             for app in ("database", "data-hub", "research", "live")
         )
     )
+    for share in ("source", "market", "research", "backup"):
+        (tmp_path / "files" / share).mkdir(parents=True)
     binaries = tmp_path / "bin"
     binaries.mkdir()
     stub = f"""#!{sys.executable}
@@ -67,6 +73,14 @@ from pathlib import Path
 name = Path(sys.argv[0]).name
 with open(os.environ['RECORD'], 'a') as file:
     file.write(json.dumps([name, *sys.argv[1:]]) + '\\n')
+if name == 'sudo':
+    if os.environ.get('ASK_SUDO'):
+        import getpass
+        if '-n' in sys.argv: sys.exit(1)
+        if getpass.getpass('sudo password: ') != os.environ['ASK_SUDO']: sys.exit(1)
+    args = sys.argv[1:]
+    while args and args[0] in ('-n', '--'): args.pop(0)
+    sys.exit(subprocess.run(args).returncode)
 if name == 'ssh':
     sys.exit(subprocess.run(sys.argv[-1], shell=True).returncode)
 if name == 'docker' and sys.argv[1:] == ['info']:
@@ -76,7 +90,7 @@ if name == 'uv':
     sys.exit(int(os.environ.get('MOUNT_RESULT', '0')))
 if name == 'docker' and 'up' in sys.argv: sys.exit(int(os.environ.get('DEPLOY_UP_RESULT', '0')))
 """
-    for tool in ("ssh", "docker", "make", "uv", "curl"):
+    for tool in ("ssh", "sudo", "docker", "make", "uv", "curl"):
         file = binaries / tool
         file.write_text(stub)
         file.chmod(0o755)
@@ -154,14 +168,15 @@ def test_dirty_source_never_connects_or_deploys(deployment):
     assert not Path(env["RECORD"]).exists()
 
 
-def test_private_configuration_is_required_before_mutation(deployment):
-    _, config, env = deployment
-    (config.parent / "private.env").chmod(0o644)
+def test_private_configuration_permissions_are_fixed_without_changing_content(deployment):
+    _, config, _ = deployment
+    private = config.parent / "private.env"
+    private.chmod(0o644)
     result = invoke(deployment, "deploy", "database")
-    assert result.returncode != 0
-    assert "chmod 600" in result.stderr
-    calls = [json.loads(line) for line in Path(env["RECORD"]).read_text().splitlines()]
-    assert not any(c[0] in ("make", "docker") for c in calls)
+    assert result.returncode == 0, result.stderr
+    assert private.stat().st_mode & 0o777 == 0o600
+    assert private.read_text() == "PASSWORD=not-for-output\n"
+    assert "not-for-output" not in result.stdout + result.stderr
 
 
 def test_modified_remote_release_is_not_overwritten(deployment):
@@ -227,3 +242,93 @@ def test_dependency_failure_prevents_source_transfer_and_application_mutation(de
     calls = [json.loads(line) for line in Path(env["RECORD"]).read_text().splitlines()]
     assert len([call for call in calls if call[0] == "ssh"]) == 1
     assert not any("up" in call or "down" in call for call in calls)
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="root does not request sudo authentication")
+def test_interactive_elevation_keeps_password_out_of_transport_and_bundle(deployment):
+    import pty
+    import select
+    import signal
+    import time
+
+    repo, config, env = deployment
+    env["ASK_SUDO"] = "synthetic-sudo-secret"
+    pid, terminal = pty.fork()
+    if pid == 0:
+        os.execve(
+            sys.executable,
+            [
+                sys.executable,
+                str(repo / "scripts/northstarctl.py"),
+                "deploy",
+                "research",
+                "--config",
+                str(config),
+            ],
+            env,
+        )
+    output = b""
+    answered = False
+    status = None
+    try:
+        deadline = time.monotonic() + 45
+        while time.monotonic() < deadline:
+            if select.select([terminal], [], [], 0.1)[0]:
+                try:
+                    chunk = os.read(terminal, 65536)
+                except OSError:
+                    chunk = b""
+                output += chunk
+                if b"sudo password:" in output and not answered:
+                    os.write(terminal, (env["ASK_SUDO"] + "\n").encode())
+                    answered = True
+            done, result = os.waitpid(pid, os.WNOHANG)
+            if done:
+                status = result
+                break
+        assert status == 0, output.decode(errors="replace")
+        assert answered
+        assert env["ASK_SUDO"].encode() not in output
+        calls = Path(env["RECORD"]).read_text()
+        assert env["ASK_SUDO"] not in calls
+        ssh_calls = [
+            json.loads(line) for line in calls.splitlines() if json.loads(line)[0] == "ssh"
+        ]
+        assert "-tt" in ssh_calls[0] and "-T" in ssh_calls[1]
+        assert (config.parent / "apps/research/successful-revision").is_file()
+    finally:
+        if status is None:
+            os.kill(pid, signal.SIGKILL)
+            os.waitpid(pid, 0)
+        os.close(terminal)
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="root does not require sudo permission")
+def test_unattended_deployment_without_sudo_permission_stops_before_transfer(deployment):
+    _, config, env = deployment
+    env["ASK_SUDO"] = "synthetic-sudo-secret"
+    result = invoke(deployment, "deploy", "research")
+    assert result.returncode != 0
+    assert not (config.parent / "apps/research/current").exists()
+    assert env["ASK_SUDO"] not in result.stdout + result.stderr
+    calls = [json.loads(line) for line in Path(env["RECORD"]).read_text().splitlines()]
+    assert len([call for call in calls if call[0] == "ssh"]) == 1
+    assert not any(call[0] == "docker" for call in calls)
+
+
+def test_first_deployment_uploads_private_config_and_redeploy_preserves_edits(deployment):
+    _, config, env = deployment
+    private = config.parent / "config/research.env"
+    private.unlink()
+    result = invoke(deployment, "deploy", "research")
+    assert result.returncode == 0, result.stderr
+    assert private.read_text() == "PASSWORD=initial-private-value\n"
+    assert private.stat().st_mode & 0o777 == 0o600
+    private.write_text("PASSWORD=host-private-value\n")
+    result2 = invoke(deployment, "deploy", "research")
+    assert result2.returncode == 0, result2.stderr
+    assert private.read_text() == "PASSWORD=host-private-value\n"
+    evidence = result.stdout + result.stderr + result2.stdout + result2.stderr
+    evidence += Path(env["RECORD"]).read_text()
+    assert "initial-private-value" not in evidence
+    assert "host-private-value" not in evidence

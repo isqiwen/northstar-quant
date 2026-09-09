@@ -68,7 +68,6 @@ def run() -> None:
                                 and k
                                 not in {
                                     "NORTHSTAR_DATABASE_URL",
-                                    "NORTHSTAR_PUBLICATION_TOKEN",
                                     "NORTHSTAR_DATA_HUB_URL",
                                 }
                             }

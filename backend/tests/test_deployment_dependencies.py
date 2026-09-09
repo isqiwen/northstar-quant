@@ -26,7 +26,12 @@ def bootstrap(tmp_path, monkeypatch):
     private.write_text("secret")
     private.chmod(0o600)
     monkeypatch.setattr(module.Path, "home", lambda: tmp_path)
-    return module, {"app": "data-hub", "env_file": str(private), "directory": str(tmp_path)}
+    return module, {
+        "app": "data-hub",
+        "env_file": str(private),
+        "directory": str(tmp_path),
+        "directory_program": "# directory preparation",
+    }
 
 
 def test_prepared_host_does_not_install_or_restart_services(bootstrap, monkeypatch):
@@ -37,7 +42,7 @@ def test_prepared_host_does_not_install_or_restart_services(bootstrap, monkeypat
     monkeypatch.setattr(module, "admin", lambda *args: calls.append(args))
     monkeypatch.setattr(module, "run", lambda *args: calls.append(args))
     module.prepare(request)
-    assert calls == []
+    assert len(calls) == 1 and calls[0][1:3] == ("-c", request["directory_program"])
 
 
 @pytest.mark.parametrize("app", ["data-hub", "live", "database"])
@@ -87,4 +92,4 @@ def test_existing_docker_access_failure_does_not_restart_daemon(bootstrap, monke
     monkeypatch.setattr(module, "admin", lambda *args: calls.append(args))
     with pytest.raises(ValueError, match="Docker 不可访问"):
         module.prepare(request)
-    assert calls == []
+    assert len(calls) == 1 and calls[0][1:3] == ("-c", request["directory_program"])

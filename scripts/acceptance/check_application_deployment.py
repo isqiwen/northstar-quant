@@ -48,10 +48,6 @@ class Deployment:
             NORTHSTAR_BACKEND_IMAGE=image,
             NORTHSTAR_DATA_FRONTEND_IMAGE=data_image,
             NORTHSTAR_RESEARCH_FRONTEND_IMAGE=research_image,
-            NORTHSTAR_PUBLICATION_BIND_ADDRESS="0.0.0.0",
-            NORTHSTAR_PUBLICATION_PORT="0",
-            NORTHSTAR_DATA_DATABASE_NETWORK=prefix + "-storage",
-            NORTHSTAR_PUBLICATION_TOKEN=secrets.token_urlsafe(32),
             NORTHSTAR_DATABASE_ADMIN_PASSWORD=self.password,
             NORTHSTAR_DATA_HUB_DATABASE_PASSWORD=secrets.token_urlsafe(32),
             NORTHSTAR_DATA_API_PORT="0",
@@ -78,6 +74,13 @@ class Deployment:
         owner = "research" if app == "research" else "data-hub"
         registry = self.root / "state" / owner / "bindings/storage.json"
         config = json.loads(compose.read_text())
+        if app in {"database", "data_hub"}:
+            # Isolate acceptance from the fixed deployment network.
+            config["networks"]["storage"]["name"] = self.projects["database"] + "-storage"
+        if app == "data_hub":
+            # Only the disposable acceptance copy uses a dynamically allocated host port.
+            for port in config["services"]["publications"]["ports"]:
+                port["published"] = "0"
         try:
             identities, _ = binder(config, app, registry)
         except ValueError as error:
@@ -135,17 +138,8 @@ class Deployment:
                 base_url="http://127.0.0.1:" + port, trust_env=False, timeout=10
             ) as remote:
                 assert remote.get("/api/sync", headers={"Host": "127.0.0.1"}).status_code == 404
-                assert remote.get("/api/publications").status_code == 403
-                assert (
-                    remote.post(
-                        "/api/publications",
-                        headers={
-                            "Authorization": "Bearer "
-                            + self.environment["NORTHSTAR_PUBLICATION_TOKEN"]
-                        },
-                    ).status_code
-                    == 403
-                )
+                assert remote.get("/api/publications").status_code == 200
+                assert remote.post("/api/publications").status_code == 403
 
     @contextmanager
     def client(self, app: str, service: str) -> Iterator[httpx.Client]:

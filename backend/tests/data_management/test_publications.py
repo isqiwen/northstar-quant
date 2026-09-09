@@ -61,7 +61,7 @@ def test_committed_publication_export_is_repaired_without_reprocessing(
 
 
 def test_network_manifest_binds_readonly_files_and_survives_catalog_outage(
-    postgres_engine, clean_database, tmp_path, monkeypatch
+    postgres_engine, clean_database, tmp_path
 ):
     import httpx2
     from fastapi.testclient import TestClient
@@ -69,21 +69,14 @@ def test_network_manifest_binds_readonly_files_and_survives_catalog_outage(
     from northstar_quant.apps.data_hub.application import create_app
     from northstar_quant.data_management.publication_client import PublicationClient
 
-    token = "synthetic-readonly-publication-token-for-test"
-    monkeypatch.setenv("NORTHSTAR_PUBLICATION_TOKEN", token)
     library = DataLibrary(postgres_engine, SourceFiles(tmp_path / "sources"))
     content, spec, _ = _study()
     attempt = _receive(library, content, spec)
     identifier = UUID(str(attempt["snapshot_id"]))
     with TestClient(create_app(postgres_engine, library), base_url="http://core.local") as api:
-        assert api.get("/api/publications").status_code == 403
-        assert (
-            api.get("/api/publications", headers={"Authorization": "Bearer " + token}).status_code
-            == 200
-        )
-        assert (
-            api.get("/api/sources", headers={"Authorization": "Bearer " + token}).status_code == 403
-        )
+        assert api.get("/api/publications").status_code == 200
+        assert api.post("/api/publications").status_code == 403
+        assert api.get("/api/sources").status_code == 403
 
         def remote(request):
             response = api.get(request.url.raw_path.decode(), headers=dict(request.headers))
@@ -91,7 +84,6 @@ def test_network_manifest_binds_readonly_files_and_survives_catalog_outage(
 
         reader = PublicationClient(
             "http://core.local",
-            token,
             library.publications.root,
             "market-published",
             transport=httpx2.MockTransport(remote),

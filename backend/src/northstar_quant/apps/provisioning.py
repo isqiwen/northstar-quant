@@ -27,10 +27,6 @@ def provision() -> None:
     app_passwords = {
         owner: os.environ[f"NORTHSTAR_{owner.upper()}_DATABASE_PASSWORD"] for owner in owners
     }
-    if any(len(value) < 16 for value in [password, *app_passwords.values()]):
-        raise ValueError("Use independent database passwords with at least 16 characters")
-    if len({password, *app_passwords.values()}) != 2:
-        raise ValueError("Database identities require distinct passwords")
     directories = [
         (Path(os.environ[f"NORTHSTAR_{name}_DIR"]), os.environ[f"NORTHSTAR_{name}_STORAGE_ID"])
         for name in ("SOURCE", "MARKET", "RESEARCH", "BACKUP")

@@ -20,7 +20,6 @@ class PublicationClient:
     def __init__(
         self,
         url: str,
-        token: str,
         root: Path,
         storage_id: str,
         *,
@@ -36,9 +35,7 @@ class PublicationClient:
             or parsed.fragment
         ):
             raise ValueError("invalid Data Hub publication URL")
-        if len(token) < 32 or not token.isascii():
-            raise ValueError("publication token requires at least 32 ASCII characters")
-        self.url, self.token, self.storage_id = url.rstrip("/"), token, storage_id
+        self.url, self.storage_id = url.rstrip("/"), storage_id
         self.reader = PublishedDatasets(root, usages=usages)
         self.transport = transport
         self._manifests: dict[UUID, dict[str, Any]] = {}
@@ -50,7 +47,6 @@ class PublicationClient:
         reader = PublishedDatasets.from_environment()
         return cls(
             os.environ["NORTHSTAR_DATA_HUB_URL"],
-            os.environ["NORTHSTAR_PUBLICATION_TOKEN"],
             reader.root,
             os.environ["NORTHSTAR_MARKET_STORAGE_ID"],
             usages=usages,
@@ -61,9 +57,7 @@ class PublicationClient:
             with httpx2.Client(
                 timeout=10, follow_redirects=False, trust_env=False, transport=self.transport
             ) as client:
-                with client.stream(
-                    "GET", self.url + path, headers={"Authorization": "Bearer " + self.token}
-                ) as response:
+                with client.stream("GET", self.url + path) as response:
                     if response.status_code != 200:
                         raise ValueError(
                             f"Data Hub publication unavailable (HTTP {response.status_code})"

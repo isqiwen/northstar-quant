@@ -17,7 +17,8 @@ until the deployment and connection scope are separately approved.
 Live uses `/opt/northstar/apps/live` for releases and `/opt/northstar/config/live.env` for configuration.
 Persistent database and sources reside in `/opt/northstar/state/live/{postgresql,sources}`;
 authentication resides in `/opt/northstar/credentials/live`, and logs in `/opt/northstar/logs/live`.
-Prepare these directories before deployment with permissions for the deployment user and container identity.
+`northstarctl deploy live` prepares local directories and permissions, requesting sudo authentication when needed.
+The initial `live.env` is uploaded automatically from the committed repository; existing configuration, data and credentials are not overwritten.
 Paths are fixed, without environment overrides. All Live state remains on its own host.
 No existing named volumes or personal data are migrated automatically.
 
@@ -26,15 +27,13 @@ No existing named volumes or personal data are migrated automatically.
 Use a previously verified Linux amd64 image by registry digest. Local acceptance
 may instead use `make up-live` to build from the current source. Compose has build definitions;
 use `up --no-build` for deployment of already-verified images. The default password
-`northstar_local` and 1 GiB memory budgets are local development defaults, not production sizing.
-The repository maintains defaults in [live/.env](.env). Copy it to the target host’s
-private owner-only environment file, fill credentials there, and keep real passwords out of Git.
+`123456` and 1 GiB memory budgets are local development defaults, not production sizing.
+The repository maintains defaults in [live/.env](.env). The deployment script uploads it on first deployment as a private owner-only file; keep real passwords out of Git.
 The supported settings are:
 
 - `NORTHSTAR_LIVE_FRONTEND_IMAGE`: the exact tested Next.js frontend image.
 - `NORTHSTAR_LIVE_IMAGE`: the exact approved image reference.
-- `NORTHSTAR_LIVE_DATABASE_PASSWORD`: a generated URL-safe password (for example,
-  `secrets.token_urlsafe(32)`); never place it in an Issue or shared command output.
+- `NORTHSTAR_LIVE_DATABASE_PASSWORD`: the local database password, default `123456`.
 - `NORTHSTAR_LIVE_KERNEL_MEMORY`, `NORTHSTAR_LIVE_DATABASE_MEMORY`: explicit memory
   budgets established from the intended workload. The kernel has no fixed CPU quota.
 - `NORTHSTAR_LIVE_WEB_PORT`: optional loopback port, default 18080.

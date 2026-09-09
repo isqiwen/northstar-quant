@@ -1,6 +1,5 @@
 """Read-only published manifests for Research; no remote database credentials."""
 
-import os
 from uuid import UUID
 
 from fastapi import FastAPI
@@ -24,8 +23,6 @@ class PublicationCatalog(ApiModel):
 
 
 def register(app: FastAPI, library: DataLibrary) -> None:
-    app.state.workspace_access.publication_token = os.environ.get("NORTHSTAR_PUBLICATION_TOKEN")
-
     @app.get("/api/publications", response_model=PublicationCatalog)
     def catalog(limit: int = 50) -> dict[str, object]:
         return {"snapshots": [str(item.snapshot_id) for item in library.list_datasets(limit=limit)]}

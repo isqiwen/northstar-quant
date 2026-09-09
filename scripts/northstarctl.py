@@ -119,11 +119,21 @@ def main() -> int:
                     "python3",
                     "-c",
                     (ROOT / "scripts/operations/dependencies.py").read_text(),
-                    json.dumps(request),
+                    json.dumps(
+                        request
+                        | {
+                            "directory_program": (
+                                ROOT / "scripts/operations/host_directories.py"
+                            ).read_text()
+                        }
+                    ),
                 ]
             )
         ]
-        subprocess.run(bootstrap, stdin=subprocess.DEVNULL, check=True)
+        interactive = sys.stdin.isatty()
+        if interactive:
+            bootstrap[1] = "-tt"
+        subprocess.run(bootstrap, stdin=None if interactive else subprocess.DEVNULL, check=True)
         # Reconnect so Docker group membership from first installation takes effect.
         with tempfile.TemporaryDirectory(prefix="northstar-deploy-") as temporary:
             bundle = Path(temporary) / "source.bundle"
@@ -133,6 +143,27 @@ def main() -> int:
             # Refuse a racing commit/edit rather than transferring a different revision.
             if git("rev-parse", "HEAD") != revision or git("status", "--porcelain"):
                 raise ValueError("打包期间 Git 工作区发生变化，请重新部署")
+            template = Path(temporary) / "application.env"
+            folder = args.app.replace("-", "_")
+            with template.open("xb") as output:
+                template.chmod(0o600)
+                subprocess.run(
+                    ["git", "-C", str(ROOT), "show", f"{revision}:deploy/{folder}/.env"],
+                    stdout=output,
+                    check=True,
+                )
+            upload = command[:-1] + [
+                shlex.join(
+                    [
+                        "python3",
+                        "-c",
+                        (ROOT / "scripts/operations/upload_configuration.py").read_text(),
+                        config["env_file"],
+                    ]
+                )
+            ]
+            with template.open("rb") as source:
+                subprocess.run(upload, stdin=source, check=True)
             with bundle.open("rb") as source:
                 return subprocess.run(command, stdin=source, check=False).returncode
     except (OSError, ValueError, subprocess.CalledProcessError) as error:

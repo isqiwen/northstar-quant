@@ -164,5 +164,5 @@ services:
     - maintenance
 networks:
   storage:
-    name: ${NORTHSTAR_DATA_DATABASE_NETWORK:-northstar-data-storage}
+    name: northstar-data-storage
     internal: true

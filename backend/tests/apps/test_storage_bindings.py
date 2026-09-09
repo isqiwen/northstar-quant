@@ -1,4 +1,4 @@
-"""Automatic binding must survive retries and reject changed or missing storage."""
+"""Automatic binding preserves identities across retries and local disk fallback."""
 
 import importlib.util
 from pathlib import Path
@@ -35,7 +35,7 @@ def binding(tmp_path):
     return module, config, tmp_path / "state/bindings/storage.json"
 
 
-def test_generated_identities_survive_interruption_and_reject_missing_marker(binding):
+def test_generated_identities_survive_interruption_and_empty_local_fallback(binding):
     module, config, state = binding
     initial, pending = module.bind(config, "database", state)
     assert pending
@@ -45,10 +45,12 @@ def test_generated_identities_survive_interruption_and_reject_missing_marker(bin
         initialize(root, initial[f"NORTHSTAR_{share}_STORAGE_ID"])
     module.bind(config, "database", state, complete=True)
     assert module.bind(config, "data_hub", state) == (initial, False)
-    (roots["SOURCE"] / ".northstar-storage-id").unlink()
-    with pytest.raises(ValueError, match="not initialized"):
-        module.bind(config, "database", state)
-    assert not (roots["SOURCE"] / ".northstar-storage-id").exists()
+    previous = roots["SOURCE"].with_name("previous-source")
+    roots["SOURCE"].rename(previous)
+    assert module.bind(config, "database", state) == (initial, False)
+    assert (roots["SOURCE"] / ".northstar-storage-id").read_text().strip() == initial[
+        "NORTHSTAR_SOURCE_STORAGE_ID"
+    ]
 
 
 def test_research_discovers_shared_identity_and_rejects_directory_substitution(binding):

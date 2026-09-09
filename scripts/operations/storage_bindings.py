@@ -9,7 +9,11 @@ import tempfile
 from pathlib import Path
 from uuid import UUID, uuid4
 
-from northstar_quant.data_management.storage_identity import read_identity, require_identity
+from northstar_quant.data_management.storage_identity import (
+    initialize,
+    read_identity,
+    require_identity,
+)
 
 SHARES = ("SOURCE", "MARKET", "RESEARCH", "BACKUP")
 
@@ -27,7 +31,7 @@ def directory_map(config: dict, app: str) -> dict[str, Path]:
 def bind(
     config: dict, app: str, path: Path, *, complete: bool = False
 ) -> tuple[dict[str, str], bool]:
-    """Generate on first install, pin on consumption, and reject loss or substitution thereafter."""
+    """Pin logical storage identities, including newly empty local fallback directories."""
     roots = directory_map(config, app)
     path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     with (path.parent / ".lock").open("a") as lock:
@@ -87,6 +91,13 @@ def bind(
             document = {"version": 1, "identities": identities, "initialized": app != "database"}
         pending = not document["initialized"] and app == "database" and not complete
         for share, root in roots.items():
+            if not root.is_absolute() or root.resolve() != root:
+                raise ValueError("Storage requires an absolute directory without symlinks")
+            root.mkdir(mode=0o750, parents=True, exist_ok=True)
+            if not pending and not any(root.iterdir()):
+                # The path may now use local disk. Reuse the logical identity; retained
+                # manifests still verify every referenced file before data can be read.
+                initialize(root, identities[share])
             if pending and root.is_dir() and not any(root.iterdir()):
                 continue
             require_identity(root, identities[share])

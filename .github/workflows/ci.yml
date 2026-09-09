@@ -62,8 +62,6 @@ jobs:
           uv run --project backend --with playwright==1.62.0 python scripts/acceptance/check_browser.py --executable "$RUNNER_TEMP/northstar-installed/bin/northstar" --study examples/intraday.toml --screenshot "$RUNNER_TEMP/northstar-factor-browser.png"
       - name: Build and verify the runtime image
         env:
-          NORTHSTAR_PUBLICATION_BIND_ADDRESS: 127.0.0.1
-          NORTHSTAR_PUBLICATION_TOKEN: isolated-publication-token-at-least-32-characters
           NORTHSTAR_DATABASE_ADMIN_PASSWORD: isolated-config-admin-password
           NORTHSTAR_DATA_HUB_DATABASE_PASSWORD: isolated-config-data-password
           NORTHSTAR_LIVE_DATABASE_PASSWORD: isolated-config-live-password
