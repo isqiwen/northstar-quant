@@ -14,57 +14,52 @@
 研究、Paper、柜台模拟和实盘是不同的证据。Paper 使用历史文件模拟成交；Live 当前的影子信号不发单。
 接收候选、查询成功或核对一致都不授予交易权限。启动、重启和恢复不会自动连接柜台或恢复接收。
 
-持久研究任务调度、持续采集、跨主机数据交付及完整交易恢复仍待实现，具体进度见 [开发路线](docs/ROADMAP.md)。
+持久研究任务调度、持续采集、离线快照复制及完整交易恢复仍待实现，具体进度见 [开发路线](docs/ROADMAP.md)。
 
 ## 快速启动
 
-在仓库根目录执行。需要 Git、uv、Make 和已启动的 Docker（含 Compose）；Docker 构建阶段会安装前端依赖并构建三个界面。
+部署位置：Data Hub 在 `core.local`，Research 在 `research.local`，PostgreSQL 与文件/备份在 QNAP `nas.local`。
+三个应用的前端、API、worker/内核分别运行在独立容器中。
+
+先根据 [跨主机部署说明](deploy/README.md) 填写各主机私有环境文件，确认 QNAP 实际 NFS 导出路径。
+默认优先 NFSv4，Linux 挂载点 `/mnt/northstar`；Data Hub 挂载读写，Research 挂载只读。
+路径尚未确认时不猜测、不自动创建本地替代存储。
+
+在对应主机的仓库根目录执行（需要 Git、uv、Make、Docker；Linux 客户端还需 NFS 客户端与 `findmnt`）：
 
 ```sh
-# 已提交、工作区干净的代码
-make up-data       # Data Hub：前端、API、worker
-make up-research   # Research：前端、API
-make up-live       # Live：前端、管理 API、交易内核及自有数据库
-
-# 本地修改尚未提交时，显式构建开发版本
-NORTHSTAR_DEVELOPMENT_BUILD=1 make up-data
+# nas.local：先初始化 PostgreSQL 和共享来源目录
+make up-nas ENV_FILE=/absolute/private/nas.env
+# core.local：NFS 已正确挂载后
+make up-data ENV_FILE=/absolute/private/core.env
+# research.local：NFS 已只读挂载后
+make up-research ENV_FILE=/absolute/private/research.env
+# Live 所在主机，仍使用当前独立部署
+make up-live
 ```
 
-按需启动一个或多个应用。未提交修改时可在任一启动命令前加 `NORTHSTAR_DEVELOPMENT_BUILD=1`；开发版本记录 `-dirty` 标记。
-每个应用使用 `deploy/<应用>/compose.yaml`；前端、API、worker/内核各自运行在独立容器中。
+正式构建要求工作区干净；未提交修改时在对应命令前加 `NORTHSTAR_DEVELOPMENT_BUILD=1`。
+Data/Research 启动只检查 NAS 网络数据库、NFS 挂载和存储身份，不启动 NAS 或另一个应用。
+Data API 持久排队，独立 worker 加工；关闭 Data Web/API 不停止已接收任务。
 
-| 应用 | 访问地址 |
+当前工作台通过 SSH 隧道访问，保留本机 Host/Origin 保护：
+
+```sh
+ssh -N -L 18082:127.0.0.1:18082 core.local
+ssh -N -L 18084:127.0.0.1:18084 research.local
+```
+
+| 应用 | 隧道建立后的浏览器地址 |
 |---|---|
 | Data Hub | <http://127.0.0.1:18082> |
 | Research | <http://127.0.0.1:18084> |
-| Live | <http://127.0.0.1:18080> |
+| Live | <http://127.0.0.1:18080>（远程访问见独立 Live 部署说明） |
 
-Data Hub 的 `data-worker` 不开放 HTTP 端口；网页提交后持久排队，关闭前端或 API 不停止加工。
-Data Hub、Research 启动命令自动准备 `deploy/storage/compose.yaml` 中的共用 PostgreSQL 和来源卷，
-不启动另一个应用。Live 使用自己的 PostgreSQL、来源卷和内部认证，不依赖共用存储或其他应用。
-首次启动会初始化所需数据库和目录；Live 内部认证文件不是柜台凭据。
+`make ps-data` / `ps-research` / `ps-live` 查看状态；`make down-data` / `down-research` / `down-live` 只停止对应应用并保留卷。
+Data/Research 命令均需传相同的 `ENV_FILE`。NAS 单独使用 `make ps-nas` / `down-nas`，停止会影响依赖它的数据与研究操作。
 
-```sh
-make ps-data       # 也有 ps-research、ps-live、ps-storage
-make down-data     # 只停止 Data Hub；也有 down-research、down-live
-# 两个应用均不再使用共用存储时，才单独停止它
-make down-storage
-```
-
-查看日志或单独重启一个容器时，显式选择所属配置：
-
-```sh
-docker compose -f deploy/research/compose.yaml logs --tail=100 research-api
-docker compose -f deploy/live/compose.yaml restart live-web
-```
-
-默认端口仅对本机开放：前端见上表，API 为 `19082/19084/19080`，共用 PostgreSQL 为 `15432`；
-Live 内核与自有数据库不发布主机端口。本机默认数据库口令 `northstar_local` 和内存预算用于开发，
-实际部署应通过私有文件显式设置，例如 `make up-live ENV_FILE=/absolute/private/live.env`。
-Data Hub/Research 的存储参数要保持一致；停止和查看时也传入相同 `ENV_FILE`。
-配置项见 [部署说明](deploy/README.md)。
-
-修改代码后重新执行构建启动命令；`restart` 不会重新构建代码或应用新的容器配置。
+修改代码后重新构建；`restart` 不会构建新代码。端口、NFS 参数、存储权限与备份见 [部署说明](deploy/README.md)。
+当前个人容器与数据不会被新命令自动迁移或接管。
 
 ## 前后端如何运行
 
@@ -87,7 +82,8 @@ Data Hub/Research 的存储参数要保持一致；停止和查看时也传入�
 | Live | `18080` | `19080` |
 
 日常访问前端端口即可。Live 内核为独立的 `18081` 服务。
-Data Hub、Research 当前共用存储配套服务；这不是跨主机数据交付。Live 已独立存储。
+Data Hub、Research 使用 NAS 网络 PostgreSQL 与挂载文件，Research 临时计算目录在本机。
+Live 当前仍独立存储，不依赖家庭 NAS；最小恢复日志与异步归档是下一项改造。
 独立持久研究 worker 与持续采集仍待实现。
 进程隔离不代表已经完成任务检查点恢复，也不能隔离整台主机故障。
 
@@ -105,7 +101,7 @@ Compose 把日志保存在持久日志卷，容器内路径为 `/var/log/northst
 例如 `docker compose -f deploy/live/compose.yaml exec live tail -n 50 /var/log/northstar/live/northstar-live-kernel-YYYY-MM-DD.log`。
 将 `YYYY-MM-DD` 替换为日志日期。日期采用进程所在时区，跨日后的首次后台写入自动切换文件。
 每个文件默认 10 MiB，超限后增加 `.1`～`.5` 后缀；每个程序除当前文件外，跨日期和大小轮转合计最多保留 5 份历史文件（按修改时间保留最新）。Python 运行日志写文件；
-容器启动错误仍可通过 `docker compose -f deploy/research/compose.yaml logs --tail=100 research-api` 查看。
+容器启动错误仍可通过 `docker compose --env-file /absolute/private/research.env -f deploy/research/compose.yaml logs --tail=100 research-api` 查看。
 
 可在启动前设置 `NORTHSTAR_LOG_DIR`（日志根目录）、`NORTHSTAR_LOG_MAX_BYTES`（单文件上限）、
 `NORTHSTAR_LOG_BACKUPS`（历史文件总份数）和 `NORTHSTAR_LOG_QUEUE`（队列容量，默认 1024 条）。
@@ -132,11 +128,11 @@ uv sync --project backend --locked
 npm --prefix frontend ci
 ```
 
-先用对应的 `make up-data`、`make up-research` 或 `make up-live` 启动应用，再停止要调试的前端容器，释放端口。例如开发 Research：
+在所属主机先用对应的启动命令和环境文件启动应用，再停止要调试的前端容器，释放端口。例如开发 Research：
 
 ```sh
-make up-research
-docker compose -f deploy/research/compose.yaml stop research
+make up-research ENV_FILE=/absolute/private/research.env
+docker compose --env-file /absolute/private/research.env -f deploy/research/compose.yaml stop research
 NORTHSTAR_API_URL=http://127.0.0.1:19084 npm --prefix frontend run dev:research
 ```
 
@@ -197,12 +193,12 @@ make verify
 
 ## 数据与运行维护
 
-每个应用的日志、备份与 Live 运行认证保存在所属 Docker 卷中；Data Hub/Research 的数据库和来源文件属于独立存储项目，Live 则拥有独立数据卷。重建容器不会清空这些数据；不要用 `docker compose down -v` 停止日常应用。
-数据库与其引用的来源文件必须一起备份，市场数据、备份和私密凭据不提交到 Git。
+每个应用的日志、备份与 Live 运行认证保存在所属 Docker 卷中；Data Hub/Research 的数据库、来源文件和联合备份位于 NAS，Live 则拥有独立数据卷。重建容器不会清空这些数据；不要用 `docker compose down -v` 停止日常应用。
+PostgreSQL 运行目录保留在 NAS 自己的本地卷，不放在 NFS 客户端挂载中。数据库与其引用的来源文件必须一起备份，市场数据、备份和私密凭据不提交到 Git。
 
 ```sh
 # 目标目录必须尚不存在；每次备份换一个名称
-docker compose -f deploy/data_hub/compose.yaml exec data-api northstar maintenance backup /var/lib/northstar/backups/manual-001
+docker compose --env-file /absolute/private/core.env -f deploy/data_hub/compose.yaml exec data-api northstar maintenance backup /var/lib/northstar/backups/manual-001
 ```
 
 恢复时准备空数据库和新的独立来源目录，设置 `NORTHSTAR_DATABASE_URL`、`NORTHSTAR_DATA_DIR`，

@@ -161,7 +161,13 @@ def test_initialization_and_restore_keep_all_interrupted_query_evidence(
     assert streams.get(stream_id) == stream
     with _empty_restore_database(postgres_engine) as target:
         backup(postgres_engine, SourceFiles(tmp_path / "archive"), tmp_path / "backup")
-        result = restore(target, tmp_path / "restored", tmp_path / "backup")
+        storage_identity = str(uuid4())
+        result = restore(
+            target, tmp_path / "restored", tmp_path / "backup", storage_identity=storage_identity
+        )
+        from northstar_quant.data_management.storage_identity import require_identity
+
+        require_identity(tmp_path / "restored", storage_identity)
         assert result["evidence"] == {
             "query_batches_count": 105,
             "pending_queries_count": 101,

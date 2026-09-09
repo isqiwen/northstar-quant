@@ -84,7 +84,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             data_root = os.environ.get("NORTHSTAR_DATA_DIR")
             if not data_root:
                 raise ValueError("NORTHSTAR_DATA_DIR must be an explicitly prepared new directory")
-            result = restore(engine, Path(data_root), arguments.backup.resolve())
+            result = restore(
+                engine,
+                Path(data_root),
+                arguments.backup.resolve(),
+                storage_identity=os.environ.get("NORTHSTAR_STORAGE_ID"),
+            )
             print(json.dumps(result, ensure_ascii=False))
             return 0
         require_current_database(engine)

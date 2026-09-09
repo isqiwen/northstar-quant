@@ -68,6 +68,11 @@ class SourceFiles:
         value = os.environ.get("NORTHSTAR_DATA_DIR")
         if not value:
             raise ValueError("NORTHSTAR_DATA_DIR must name the managed private source directory")
+        identity = os.environ.get("NORTHSTAR_STORAGE_ID")
+        if identity:
+            from .storage_identity import require_identity
+
+            require_identity(Path(value), identity)
         if (Path(value) / ".restore-incomplete").exists():
             raise ValueError("source restore is incomplete; do not start the application")
         return cls(

@@ -1,8 +1,40 @@
 name: northstar-research
 services:
+  storage-check:
+    platform: linux/amd64
+    build:
+      context: ../..
+      dockerfile: backend/Dockerfile
+      args:
+        NORTHSTAR_GIT_REVISION: ${NORTHSTAR_GIT_REVISION:-}
+        NORTHSTAR_DEVELOPMENT_BUILD: ${NORTHSTAR_DEVELOPMENT_BUILD:-0}
+    image: ${NORTHSTAR_BACKEND_IMAGE:-northstar-quant:local}
+    environment:
+      NORTHSTAR_NAS_ADDRESS: ${NORTHSTAR_NAS_ADDRESS:?Set NAS IP}
+      NORTHSTAR_NFS_EXPORT: ${NORTHSTAR_NFS_EXPORT:?Set the verified QNAP NFS export path}
+      NORTHSTAR_NFS_VERSION: ${NORTHSTAR_NFS_VERSION:-4}
+      NORTHSTAR_LOG_DIR: /var/log/northstar
+      NORTHSTAR_DATABASE_URL: postgresql+psycopg://northstar:${NORTHSTAR_NAS_DATABASE_PASSWORD:?Set NAS database password}@nas.local:${NORTHSTAR_NAS_DATABASE_PORT:-15432}/northstar_quant?connect_timeout=5
+      NORTHSTAR_DATA_DIR: /var/lib/northstar/sources
+      NORTHSTAR_STORAGE_ID: ${NORTHSTAR_STORAGE_ID:?Set the source storage UUID initialized on nas.local}
+    extra_hosts:
+    - nas.local:${NORTHSTAR_NAS_ADDRESS:?Set the NAS IP reachable from this Docker host}
+    volumes:
+    - type: bind
+      source: ${NORTHSTAR_NAS_MOUNT:-/mnt/northstar}/sources
+      target: /var/lib/northstar/sources
+      read_only: true
+      bind:
+        create_host_path: false
+    networks:
+    - egress
+    command:
+    - python
+    - -c
+    - from northstar_quant.apps.storage import open_database, require_current_database; from northstar_quant.data_management.files import SourceFiles; engine=open_database(); require_current_database(engine); engine.dispose(); files=SourceFiles.from_environment(); print("NAS database and source mount verified")
   research-api:
     networks:
-    - storage
+    - egress
     - frontend
     platform: linux/amd64
     build:
@@ -20,11 +52,19 @@ services:
         max-file: '3'
     environment:
       NORTHSTAR_LOG_DIR: /var/log/northstar
-      NORTHSTAR_DATABASE_URL: postgresql+psycopg://northstar:${NORTHSTAR_STORAGE_DATABASE_PASSWORD:-northstar_local}@postgres:5432/northstar_quant
+      NORTHSTAR_DATABASE_URL: postgresql+psycopg://northstar:${NORTHSTAR_NAS_DATABASE_PASSWORD:?Set NAS database password}@nas.local:${NORTHSTAR_NAS_DATABASE_PORT:-15432}/northstar_quant?connect_timeout=5
       NORTHSTAR_DATA_DIR: /var/lib/northstar/sources
+      NORTHSTAR_STORAGE_ID: ${NORTHSTAR_STORAGE_ID:?Set the source storage UUID initialized on nas.local}
+      TMPDIR: /var/lib/northstar/work
     volumes:
     - logs:/var/log/northstar
-    - sources:/var/lib/northstar/sources:ro
+    - type: bind
+      source: ${NORTHSTAR_NAS_MOUNT:-/mnt/northstar}/sources
+      target: /var/lib/northstar/sources
+      read_only: true
+      bind:
+        create_host_path: false
+    - work:/var/lib/northstar/work
     ports:
     - 127.0.0.1:${NORTHSTAR_RESEARCH_API_PORT:-19084}:19084
     command:
@@ -45,6 +85,11 @@ services:
       timeout: 5s
       retries: 3
       start_period: 20s
+    extra_hosts:
+    - nas.local:${NORTHSTAR_NAS_ADDRESS:?Set the NAS IP reachable from this Docker host}
+    depends_on:
+      storage-check:
+        condition: service_completed_successfully
   research:
     networks:
     - frontend
@@ -77,13 +122,9 @@ services:
       start_period: 20s
 volumes:
   logs: null
-  sources:
-    external: true
-    name: ${NORTHSTAR_STORAGE_PROJECT:-northstar-storage}_sources
+  work: null
 networks:
-  storage:
-    external: true
-    name: ${NORTHSTAR_STORAGE_PROJECT:-northstar-storage}_storage
   frontend:
     internal: true
   ingress: null
+  egress: null

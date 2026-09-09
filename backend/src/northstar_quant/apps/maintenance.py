@@ -175,7 +175,9 @@ def _read_manifest(directory: Path) -> dict[str, object]:
     return cast(dict[str, object], document)
 
 
-def restore(engine: Engine, source_root: Path, directory: Path) -> dict[str, object]:
+def restore(
+    engine: Engine, source_root: Path, directory: Path, *, storage_identity: str | None = None
+) -> dict[str, object]:
     """Restore a trusted operator-selected backup into an empty database and new directory.
 
     No --clean, DROP, overwrite or compatibility path exists. All referenced bytes
@@ -219,6 +221,11 @@ def restore(engine: Engine, source_root: Path, directory: Path) -> dict[str, obj
         schemas = set(inspect(connection).get_schema_names()) - {"information_schema", "public"}
         if schemas or inspect(connection).get_table_names() or inspect(connection).get_view_names():
             raise ValueError("restore target database must be empty; existing data is never reset")
+    if storage_identity is not None:
+        from northstar_quant.data_management.storage_identity import initialize
+
+        source_root.mkdir(parents=True, mode=0o700)
+        initialize(source_root, storage_identity)
     target = SourceFiles(source_root)
     _write_record(
         target.root / ".restore-incomplete", b"Restore has not passed activation checks.\n"

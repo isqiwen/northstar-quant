@@ -1,4 +1,7 @@
-"""Exercise independent Data Hub/Research Compose projects against disposable storage."""
+"""Exercise isolated applications over a published NAS database endpoint and mounted source paths.
+
+Local bind directories model the share; this is not a real NFS/SMB or three-host acceptance.
+"""
 
 from __future__ import annotations
 
@@ -9,6 +12,7 @@ import os
 import re
 import secrets
 import subprocess
+import tempfile
 import tomllib
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -27,8 +31,13 @@ class Deployment:
     def __init__(self, image: str, data_image: str, research_image: str) -> None:
         prefix = "northstar-app-check-" + uuid4().hex[:12]
         self.projects = {
-            app: f"{prefix}-{app.replace('_', '-')}" for app in ("storage", "data_hub", "research")
+            app: f"{prefix}-{app.replace('_', '-')}" for app in ("nas", "data_hub", "research")
         }
+        self.files = tempfile.TemporaryDirectory(prefix="northstar-nas-check-")
+        self.root = Path(self.files.name)
+        (self.root / "sources").mkdir()
+        (self.root / "backups").mkdir()
+        self.image = image
         self.password = secrets.token_urlsafe(32)
         self.environment = {
             key: value for key, value in os.environ.items() if not key.startswith("NORTHSTAR_")
@@ -37,9 +46,15 @@ class Deployment:
             NORTHSTAR_BACKEND_IMAGE=image,
             NORTHSTAR_DATA_FRONTEND_IMAGE=data_image,
             NORTHSTAR_RESEARCH_FRONTEND_IMAGE=research_image,
-            NORTHSTAR_STORAGE_PROJECT=self.projects["storage"],
-            NORTHSTAR_STORAGE_DATABASE_PASSWORD=self.password,
-            NORTHSTAR_STORAGE_PORT="0",
+            NORTHSTAR_NAS_ADDRESS="host-gateway",
+            NORTHSTAR_NFS_EXPORT="/synthetic-bind-acceptance-not-nfs",
+            NORTHSTAR_NFS_VERSION="4",
+            NORTHSTAR_NAS_BIND_ADDRESS="0.0.0.0",
+            NORTHSTAR_NAS_DATABASE_PASSWORD=self.password,
+            NORTHSTAR_NAS_DATABASE_PORT="0",
+            NORTHSTAR_NAS_SHARE_DIR=str(self.root),
+            NORTHSTAR_NAS_MOUNT=str(self.root),
+            NORTHSTAR_STORAGE_ID=str(uuid4()),
             NORTHSTAR_DATA_API_PORT="0",
             NORTHSTAR_DATA_WEB_PORT="0",
             NORTHSTAR_RESEARCH_API_PORT="0",
@@ -70,9 +85,20 @@ class Deployment:
         return result.stdout
 
     def up(self, app: str) -> None:
-        if app == "storage":
-            self.run(app, "up", "-d", "--no-build", "--wait", "--wait-timeout", "120", "postgres")
+        if app == "nas":
+            self.run(
+                app,
+                "up",
+                "-d",
+                "--no-build",
+                "--wait",
+                "--wait-timeout",
+                "120",
+                "postgres",
+            )
             self.run(app, "run", "--rm", "initialize")
+            address = self.run(app, "port", "postgres", "5432").strip()
+            self.environment["NORTHSTAR_NAS_DATABASE_PORT"] = address.rsplit(":", 1)[1]
             return
         self.run(app, "up", "-d", "--no-build", "--wait", "--wait-timeout", "120")
 
@@ -86,7 +112,7 @@ class Deployment:
             yield client
 
     def exercise(self) -> None:
-        self.up("storage")
+        self.up("nas")
         # Research starts with storage alone: Data Hub has never been started.
         self.up("research")
         with self.client("research", "research") as research:
@@ -153,6 +179,20 @@ class Deployment:
                 flush=True,
             )
             self.up("data_hub")
+            backup = json.loads(
+                self.run(
+                    "data_hub",
+                    "exec",
+                    "-T",
+                    "data-api",
+                    "northstar",
+                    "maintenance",
+                    "backup",
+                    "/var/lib/northstar/backups/acceptance",
+                )
+            )
+            assert backup
+            assert (self.root / "backups/acceptance/database.dump").is_file()
             self.run("research", "down", "--timeout", "10")
             with self.client("data_hub", "data-hub") as data:
                 assert (
@@ -163,6 +203,21 @@ class Deployment:
             with self.client("research", "research") as restarted:
                 saved = request(restarted, "research", "/api/runs/" + run["run_id"])
                 assert saved["run_id"] == run["run_id"]
+            # A bind directory existing locally is insufficient evidence of a NAS mount.
+            self.run("data_hub", "down", "--timeout", "10")
+            wrong = self.root / "unmounted"
+            (wrong / "sources").mkdir(parents=True)
+            self.environment["NORTHSTAR_NAS_MOUNT"] = str(wrong)
+            try:
+                try:
+                    self.run("data_hub", "run", "--rm", "--no-deps", "storage-check")
+                except RuntimeError as error:
+                    assert "mount" in str(error), str(error)
+                else:
+                    raise AssertionError("unidentified local directory was accepted as NAS storage")
+                assert list((wrong / "sources").iterdir()) == []
+            finally:
+                self.environment["NORTHSTAR_NAS_MOUNT"] = str(self.root)
             print(
                 "Each application stops independently; shared data and research results survive",
                 flush=True,
@@ -170,11 +225,35 @@ class Deployment:
 
     def close(self) -> None:
         errors = []
-        for app in ("data_hub", "research", "storage"):
+        for app in ("data_hub", "research", "nas"):
             try:
                 self.run(app, "down", "--volumes", "--timeout", "10")
             except RuntimeError as error:
                 errors.append(str(error))
+        if not errors:
+            # Container-created private directories are root-owned on Linux. Remove only
+            # this acceptance's generated temporary tree through the same container UID.
+            subprocess.run(
+                [
+                    "docker",
+                    "run",
+                    "--rm",
+                    "--network",
+                    "none",
+                    "--mount",
+                    f"type=bind,source={self.root},target=/cleanup",
+                    self.image,
+                    "python",
+                    "-c",
+                    "import pathlib,shutil; "
+                    "[shutil.rmtree(p) if p.is_dir() and not p.is_symlink() else p.unlink() "
+                    "for p in pathlib.Path('/cleanup').iterdir()]",
+                ],
+                check=True,
+                capture_output=True,
+                timeout=60,
+            )
+            self.files.cleanup()
         if errors:
             raise RuntimeError("Disposable cleanup failed: " + "\n".join(errors))
 
@@ -190,7 +269,10 @@ def request(client: httpx.Client, app: str, path: str, payload: dict | None = No
     content = None
     if payload is not None:
         session = request(client, app, "/api/browser-session")
-        headers = {"X-Northstar-CSRF": session["csrf"], "Content-Type": "application/protobuf"}
+        headers = {
+            "X-Northstar-CSRF": session["csrf"],
+            "Content-Type": "application/protobuf",
+        }
         content = pack(binding.input_type, payload).SerializeToString()
     response = client.request(verb, path, content=content, headers=headers)
     response.raise_for_status()

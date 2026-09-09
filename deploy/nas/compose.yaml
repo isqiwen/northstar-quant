@@ -1,8 +1,9 @@
-name: ${NORTHSTAR_STORAGE_PROJECT:-northstar-storage}
+name: northstar-nas
 services:
   postgres:
     networks:
     - storage
+    - ingress
     image: postgres:17-alpine
     cpus: 1.0
     mem_limit: 1g
@@ -16,9 +17,9 @@ services:
     environment:
       POSTGRES_DB: northstar_quant
       POSTGRES_USER: northstar
-      POSTGRES_PASSWORD: ${NORTHSTAR_STORAGE_DATABASE_PASSWORD:-northstar_local}
+      POSTGRES_PASSWORD: ${NORTHSTAR_NAS_DATABASE_PASSWORD:?Set a private URL-safe NAS database password}
     ports:
-    - 127.0.0.1:${NORTHSTAR_STORAGE_PORT:-15432}:5432
+    - ${NORTHSTAR_NAS_BIND_ADDRESS:?Set the NAS private interface address}:${NORTHSTAR_NAS_DATABASE_PORT:-15432}:5432
     volumes:
     - database:/var/lib/postgresql/data
     healthcheck:
@@ -50,20 +51,25 @@ services:
         max-size: 10m
         max-file: '3'
     environment:
-      NORTHSTAR_DATABASE_URL: postgresql+psycopg://northstar:${NORTHSTAR_STORAGE_DATABASE_PASSWORD:-northstar_local}@postgres:5432/northstar_quant
+      NORTHSTAR_DATABASE_URL: postgresql+psycopg://northstar:${NORTHSTAR_NAS_DATABASE_PASSWORD:?Set NAS database password}@postgres:5432/northstar_quant?connect_timeout=5
       NORTHSTAR_DATA_DIR: /var/lib/northstar/sources
+      NORTHSTAR_STORAGE_ID: ${NORTHSTAR_STORAGE_ID:?Set the same source storage UUID on all three hosts}
     volumes:
-    - sources:/var/lib/northstar/sources
+    - type: bind
+      source: ${NORTHSTAR_NAS_SHARE_DIR:?Set NAS shared directory}/sources
+      target: /var/lib/northstar/sources
+      bind:
+        create_host_path: false
     depends_on:
       postgres:
         condition: service_healthy
     command:
     - sh
     - -c
-    - northstar maintenance init-db && python -c 'from northstar_quant.data_management.files import SourceFiles; SourceFiles.from_environment()'
-volumes:
-  database: null
-  sources: null
+    - python -c 'import os; from pathlib import Path; from northstar_quant.data_management.storage_identity import initialize; initialize(Path(os.environ["NORTHSTAR_DATA_DIR"]), os.environ["NORTHSTAR_STORAGE_ID"])' && northstar maintenance init-db
 networks:
+  ingress:
   storage:
     internal: true
+volumes:
+  database:
