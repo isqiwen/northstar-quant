@@ -219,10 +219,22 @@ print(json.dumps(DataLibrary(open_database(),SourceFiles.from_environment()).sub
                 "data-api",
                 "data-hub",
             )
-            assert (
-                request(research, "research", "/api/datasets")[0]["snapshot_id"]
-                == attempt["snapshot_id"]
-            )
+            # API replacement changes its container address. The publication
+            # proxy has a bounded DNS cache; readiness must include that route,
+            # not just the API container's own health check.
+            deadline = monotonic() + 20
+            while True:
+                try:
+                    datasets = request(research, "research", "/api/datasets")
+                except RuntimeError as error:
+                    if "Data Hub publication service unavailable" not in str(error):
+                        raise
+                    if monotonic() >= deadline:
+                        raise
+                else:
+                    assert datasets[0]["snapshot_id"] == attempt["snapshot_id"]
+                    break
+                sleep(0.2)
             self.run("data_hub", "stop", "data-api", "data-hub", "data-worker", "publications")
             self.run("database", "stop", "postgres")
             run = request(
