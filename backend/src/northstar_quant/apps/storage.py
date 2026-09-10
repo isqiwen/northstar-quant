@@ -114,6 +114,9 @@ def initialize_database(engine: Engine, *, owner: str | None = None) -> None:
             )
 
             initialize_compactions(connection)
+            from northstar_quant.data_management.cleanup import initialize as initialize_cleanup
+
+            initialize_cleanup(connection)
         if owner in {"all", "research"}:
             initialize_factor_catalog(connection)
             initialize_strategy_management(connection)
@@ -180,6 +183,7 @@ def require_current_database(engine: Engine) -> None:
         "data_sources",
         "data_processing_attempts",
         "data_compactions",
+        "data_cleanup_receipts",
         "data_sync_jobs",
         "data_sync_settings",
         "data_sync_receipts",

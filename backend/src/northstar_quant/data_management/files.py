@@ -202,6 +202,14 @@ class SourceFiles:
             return "CORRUPT"
         return "AVAILABLE"
 
+    def remove_verified(self, content_hash: str, byte_count: int) -> None:
+        """Unlink one verified orphan; caller must hold the Data reference freeze."""
+        with self._writer():
+            self.read(content_hash, byte_count)
+            path = self._path(content_hash)
+            path.unlink()
+            self._sync(path.parent)
+
     def inventory(self) -> list[FileObject]:
         """Enumerate actual objects, without trusting their names as integrity evidence."""
 

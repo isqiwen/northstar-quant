@@ -84,6 +84,7 @@ def clean_database(postgres_engine: Engine) -> None:
             "data_processing_attempts",
             "data_sync_jobs",
             "data_compactions",
+            "data_cleanup_receipts",
             "data_sync_settings",
             "data_sync_contracts",
             "data_sync_calendar",
