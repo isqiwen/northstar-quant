@@ -119,7 +119,9 @@ class Deployment:
             )
             self.run(app, "run", "--rm", "initialize")
             return
-        self.run(app, "up", "-d", "--no-build", "--wait", "--wait-timeout", "120")
+        self.run(
+            app, "up", "-d", "--no-build", "--force-recreate", "--wait", "--wait-timeout", "120"
+        )
         if app == "data_hub":
             try:
                 port = self.run(app, "port", "publications", "8080").strip().rsplit(":", 1)[1]
@@ -248,7 +250,7 @@ print(json.dumps(DataLibrary(open_database(),SourceFiles.from_environment()).sub
             self.run("database", "up", "-d", "--no-build", "--wait", "postgres")
             # Recreate stopped ephemeral-port containers: a released host port
             # may now be occupied by another connection on the acceptance host.
-            self.run("data_hub", "up", "-d", "--no-build", "--force-recreate", "--wait")
+            self.up("data_hub")
             backup = json.loads(
                 self.run(
                     "data_hub",
@@ -331,6 +333,41 @@ print(json.dumps(DataLibrary(open_database(),SourceFiles.from_environment()).sub
                 flush=True,
             )
 
+    def preserve_failure(self) -> None:
+        directory = os.environ.get("NORTHSTAR_ACCEPTANCE_ARTIFACTS")
+        if not directory:
+            return
+        records = []
+        for project in self.projects.values():
+            found = subprocess.run(
+                ["docker", "ps", "-aq", "--filter", "label=com.docker.compose.project=" + project],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            for identity in found.stdout.split():
+                details = subprocess.run(
+                    ["docker", "inspect", identity],
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                )
+                if details.returncode:
+                    continue
+                value = json.loads(details.stdout)[0]
+                records.append(
+                    {
+                        "name": value["Name"],
+                        "image": value["Image"],
+                        "status": value["State"]["Status"],
+                        "requested_ports": value["HostConfig"]["PortBindings"],
+                        "actual_ports": value["NetworkSettings"]["Ports"],
+                    }
+                )
+        target = Path(directory)
+        target.mkdir(parents=True, exist_ok=True)
+        (target / "application-deployment-failure.json").write_text(json.dumps(records, indent=2))
+
     def close(self) -> None:
         errors = []
         for app in ("data_hub", "research", "database"):
@@ -380,6 +417,9 @@ def main() -> None:
     deployment = Deployment(args.image, args.data_image, args.research_image)
     try:
         deployment.exercise()
+    except Exception:
+        deployment.preserve_failure()
+        raise
     finally:
         deployment.close()
 
