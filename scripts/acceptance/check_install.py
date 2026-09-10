@@ -23,6 +23,7 @@ from uuid import uuid4
 
 from support.broker import check_broker_access
 from support.catalog import check_catalog
+from support.evidence import save as save_evidence
 from support.processes import InstalledApplication
 from support.restore import check_restore
 
@@ -78,6 +79,7 @@ def main() -> None:
         application = InstalledApplication(executable, runtime, environment)
         command, request = application.command, application.request
 
+        outcome = "failed"
         try:
             assert command("maintenance", "init-db") == {"status": "ready"}
             assert command("maintenance", "init-db") == {"status": "ready"}
@@ -393,9 +395,12 @@ def main() -> None:
                 "as unavailable; no replacement owner is started",
                 flush=True,
             )
+            outcome = "passed"
         except Exception:
             print(application.logs(), file=sys.stderr)
             raise
+        finally:
+            save_evidence(runtime, executable, application.environment, outcome)
 
 
 if __name__ == "__main__":

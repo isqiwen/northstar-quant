@@ -15,7 +15,7 @@ from northstar_quant.factors.definition import content_id
 from northstar_quant.research.configuration import ResearchConfig
 from northstar_quant.research.configurations import ConfigurationStore
 from northstar_quant.research.runs import RunStore
-from northstar_quant.research.storage import UTCDateTime
+from northstar_quant.research.storage import UTCDateTime, write_transaction
 from northstar_quant.strategies.artifacts import verify_candidate
 
 _metadata = MetaData()
@@ -85,7 +85,7 @@ class StrategyVersions:
             },
         }
         identity = content_id(document)
-        with self._engine.begin() as connection:
+        with write_transaction(self._engine) as connection:
             connection.execute(
                 insert(_versions)
                 .values(version_id=identity, name=name.strip(), document=document)
@@ -140,7 +140,7 @@ class StrategyVersions:
         verify_candidate(candidate)
         if len(json.dumps(candidate).encode()) > 4_000_000:
             raise ValueError("candidate exceeds the bounded transfer size")
-        with self._engine.begin() as connection:
+        with write_transaction(self._engine) as connection:
             connection.execute(
                 insert(_candidates)
                 .values(candidate_id=identity, version_id=version_id, document=candidate)

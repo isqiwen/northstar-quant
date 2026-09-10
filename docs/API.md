@@ -88,3 +88,17 @@ Research 按清单校验 发布目录中的文件，在本机 DuckDB 查询；�
 `POST /api/tasks/{task_id}/control` 的 action 为 cancel 或 retry；取消请求不代表已经停止。
 `GET /api/runs` 与详情读取已保存结果，`POST /api/run-comparisons` 执行同条件比较。
 所有消息由 `proto/research.proto` 定义。
+
+
+## 工作台身份边界
+
+三个 Next.js 工作台目前均没有用户登录验证。Host、同源、浏览器会话 cookie 和 CSRF 校验防止跨源操作，不能识别访问者身份；任何能访问工作台的人都可能建立会话并调用其管理功能。Protobuf 也不提供身份认证。
+
+| 入口 | 当前边界 |
+|---|---|
+| Data Hub / Research / Live 前端 | 不限制来源 IP；用户身份认证需由明确配置的访问网关提供，普通 Caddy reverse_proxy 和 FRP 转发本身不验证用户 |
+| 三个 Python 管理 API | 部署仅发布到主机回环地址，保留同源与会话校验；它们不实现用户账号登录 |
+| Data Hub 19090 发布接口 | 只读清单网关，无 token，不开放管理路由；只读不等于私有访问 |
+| Live API → 内核 | 使用本地认证文件的客户端凭据与命令权限；这识别管理服务，不等于识别浏览器用户，也不授予交易发送权 |
+
+公网是否存在网关登录必须在实际部署链路验证，不能从 HTTPS、合法域名或成功设置 cookie 推断。变更身份认证方案不等于恢复 IP 限制；个人交易执行仍须独立授权。

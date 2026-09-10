@@ -284,3 +284,12 @@ Live 默认不发送订单。未知结果不能盲目重发；实时执行最终
 - [开发路线](docs/ROADMAP.md)与 [GitHub Project](https://github.com/users/isqiwen/projects/1)
 - [数据、柜台来源与验收边界](docs/SOURCES.md)
 - [独立 Live 部署](deploy/live/README.md)
+
+
+### 验收证据
+
+安装态验收可设置 `NORTHSTAR_ACCEPTANCE_ARTIFACTS=/绝对路径/证据目录`。
+输出实际安装实现身份、包/Python/PostgreSQL/SQLite 版本、存储 UUID、检查结果及脱敏进程日志；恢复阶段单独记录存储绑定。
+CI 无论成功或失败均保留 `acceptance-<SHA>-<attempt>` 产物 14 天，避免临时目录清理后丢失失败诊断。
+源码 SHA、主机当前版本、镜像 ID 和验收结论应分别记录，旧部署健康不代表新提交已验收。
+三个工作台的身份认证现状见 [API 边界](docs/API.md#工作台身份边界)。

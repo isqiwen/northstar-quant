@@ -3,7 +3,7 @@
 import hashlib
 import json
 from datetime import datetime
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from .acquisition import decode
@@ -16,6 +16,14 @@ class Truncated(ValueError):
 
 class Empty(ValueError):
     pass
+
+
+def number(value: Any) -> Decimal:
+    """Malformed supplier numerics are quality failures, not worker crashes."""
+    try:
+        return Decimal(str(value))
+    except InvalidOperation as error:
+        raise ValueError("供应商数值字段无效") from error
 
 
 def normalize(content: bytes, job: dict[str, Any]) -> tuple[list[dict[str, Any]], dict[str, Any]]:
@@ -56,7 +64,7 @@ def normalize(content: bytes, job: dict[str, Any]) -> tuple[list[dict[str, Any]]
                     raise ValueError("数值不是有限十进制值")
                 row[name] = format(value, "f")
         if all(field in row for field in ("open", "high", "low", "close")):
-            prices = [Decimal(str(row[field])) for field in ("open", "high", "low", "close")]
+            prices = [number(row[field]) for field in ("open", "high", "low", "close")]
             if any(not p.is_finite() or p < 0 for p in prices):
                 raise ValueError("OHLC 价格无效")
             o, h, low, c = prices
@@ -64,13 +72,11 @@ def normalize(content: bytes, job: dict[str, Any]) -> tuple[list[dict[str, Any]]
                 raise ValueError("OHLC 高低价关系不成立")
         for field in ("vol", "oi", "amount"):
             if row.get(field) is not None:
-                number = Decimal(str(row[field]))
-                if not number.is_finite() or number < 0:
+                quantity = number(row[field])
+                if not quantity.is_finite() or quantity < 0:
                     raise ValueError("成交量、持仓量或金额无效")
         if row.get("amount") is not None:
-            row["amount_cny"] = format(
-                Decimal(str(row["amount"])) * definition.amount_multiplier, "f"
-            )
+            row["amount_cny"] = format(number(row["amount"]) * definition.amount_multiplier, "f")
         if key in rows and rows[key] != row:
             raise ValueError("同一记录身份返回冲突内容；隔离该区间")
         rows[key] = row

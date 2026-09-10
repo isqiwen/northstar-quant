@@ -18,6 +18,7 @@ from urllib.parse import urlsplit
 from urllib.request import HTTPCookieProcessor, ProxyHandler, Request, build_opener
 
 from northstar_quant.web.protobuf import decode, methods, pack
+from support.evidence import redact
 
 
 class InstalledApplication:
@@ -66,7 +67,9 @@ class InstalledApplication:
             timeout=60,
         )
         if completed.returncode:
-            raise RuntimeError(f"northstar {arguments[0]} failed: {completed.stderr}")
+            raise RuntimeError(
+                f"northstar {arguments[0]} failed: " + redact(completed.stderr, self.environment)
+            )
         return json.loads(completed.stdout)
 
     def seed_source(self, payload: dict, *, wait: bool = False) -> dict:
@@ -457,9 +460,15 @@ run()
             self.backend_starts[role] = self.backend_starts.get(role, 0) + 1
             try:
                 deadline = time.monotonic() + 30
+                last_error = "no readiness response"
                 while True:
                     if process.poll() is not None or time.monotonic() >= deadline:
-                        raise RuntimeError(f"installed {role} process did not become ready")
+                        log.flush()
+                        detail = redact(log_path.read_text()[-12000:], environment)
+                        raise RuntimeError(
+                            f"installed {role} did not become ready: exit={process.poll()}, "
+                            f"url={base_url}, last={last_error}, log={log_path}\n{detail}"
+                        )
                     try:
                         if role == "live-kernel":
                             self.command("status")
@@ -468,8 +477,8 @@ run()
                             "status": "ready"
                         }:
                             break
-                    except (URLError, RuntimeError):
-                        pass
+                    except (URLError, RuntimeError) as error:
+                        last_error = redact(str(error), environment)
                     time.sleep(0.1)
                 yield base_url, process
             finally:
@@ -518,4 +527,7 @@ run()
 
     def logs(self) -> str:
         paths = [*self.log_paths, *Path(self.environment["NORTHSTAR_LOG_DIR"]).glob("**/*.log")]
-        return "\n".join(path.read_text("utf-8")[-16000:] for path in paths if path.exists())
+        return redact(
+            "\n".join(path.read_text("utf-8")[-16000:] for path in paths if path.exists()),
+            self.environment,
+        )

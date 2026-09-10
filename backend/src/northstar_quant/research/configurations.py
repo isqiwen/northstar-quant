@@ -23,7 +23,7 @@ from sqlalchemy.dialects.postgresql import JSONB, insert
 from sqlalchemy.engine import RowMapping
 
 from northstar_quant.research.configuration import ResearchConfig
-from northstar_quant.research.storage import UTCDateTime
+from northstar_quant.research.storage import UTCDateTime, write_transaction
 
 _metadata = MetaData()
 _configurations = Table(
@@ -100,7 +100,7 @@ class ConfigurationStore:
         name = name.strip()
         content = config.to_dict()
         identity = _hash({"name": name, "config": content})
-        with self._engine.begin() as connection:
+        with write_transaction(self._engine) as connection:
             from northstar_quant.research.factor_catalog import register_binding
 
             for _, binding in config.strategy.factors:

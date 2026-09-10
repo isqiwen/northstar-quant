@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -62,11 +64,23 @@ def open_store(path: Path | None = None) -> Engine:
 
     @event.listens_for(engine, "begin")
     def begin(connection: Connection) -> None:
-        # Acquire the sole writer before reading mutable Paper state. A concurrent
-        # advance cannot authorize a second transition from an old checkpoint.
-        connection.exec_driver_sql("BEGIN IMMEDIATE")
+        # Readers retain a snapshot without reserving SQLite's sole writer.
+        statement = (
+            "BEGIN IMMEDIATE"
+            if connection.get_execution_options().get("research_write")
+            else "BEGIN"
+        )
+        connection.exec_driver_sql(statement)
 
     return engine
+
+
+@contextmanager
+def write_transaction(engine: Engine) -> Iterator[Connection]:
+    """Reserve the SQLite writer before reading state that this operation will change."""
+    with engine.connect().execution_options(research_write=True) as connection:
+        with connection.begin():
+            yield connection
 
 
 def immutable(connection: Connection, table: str) -> None:
@@ -102,7 +116,7 @@ def initialize(engine: Engine) -> None:
 
     if engine.dialect.name != "sqlite":
         raise ValueError("Research uses local SQLite")
-    with engine.begin() as connection:
+    with write_transaction(engine) as connection:
         present = set(inspect(connection).get_table_names())
         if present and "northstar_store" not in present:
             raise ValueError("Research storage is not an owned current database")

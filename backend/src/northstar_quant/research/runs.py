@@ -29,7 +29,7 @@ from northstar_quant import code_revision
 from northstar_quant.data_management.research import ResearchDataset
 from northstar_quant.research.backtesting import ResearchResult
 from northstar_quant.research.configuration import ResearchConfig
-from northstar_quant.research.storage import UTCDateTime
+from northstar_quant.research.storage import UTCDateTime, write_transaction
 
 _metadata = MetaData()
 _runs = Table(
@@ -100,7 +100,7 @@ def initialize_run_store(engine: Engine | Connection) -> None:
     if isinstance(engine, Connection):
         guards(engine)
     else:
-        with engine.begin() as connection:
+        with write_transaction(engine) as connection:
             guards(connection)
 
 
@@ -118,7 +118,7 @@ class RunStore:
 
     def begin_attempt(self, snapshot_id: Identifier, config: ResearchConfig) -> Identifier:
         identifier = uuid4()
-        with self._engine.begin() as connection:
+        with write_transaction(self._engine) as connection:
             connection.execute(
                 insert(_attempts).values(
                     attempt_id=identifier,
@@ -133,7 +133,7 @@ class RunStore:
     def finish_attempt(
         self, identifier: Identifier, *, run_id: str | None = None, error: str | None = None
     ) -> None:
-        with self._engine.begin() as connection:
+        with write_transaction(self._engine) as connection:
             connection.execute(
                 update(_attempts)
                 .where(_attempts.c.attempt_id == identifier, _attempts.c.status == "RUNNING")
@@ -188,7 +188,7 @@ class RunStore:
             for key, value in complete_result.items()
             if key not in {"config", "snapshot"}
         }
-        with self._engine.begin() as connection:
+        with write_transaction(self._engine) as connection:
             from northstar_quant.research.factor_catalog import register_binding
 
             for _, binding in config.strategy.factors:

@@ -45,7 +45,7 @@ from northstar_quant.data_management.research import ResearchBar, ResearchDatase
 from northstar_quant.research.backtesting import TradingSession
 from northstar_quant.research.configuration import ResearchConfig
 from northstar_quant.research.configurations import read_configuration, read_configurations
-from northstar_quant.research.storage import UTCDateTime
+from northstar_quant.research.storage import UTCDateTime, write_transaction
 
 _metadata = MetaData()
 _sessions = Table(
@@ -174,7 +174,7 @@ class PaperStore:
                 "Paper currently supports one trading day of minute bars; no settlement"
             )
         implementation = code_revision()
-        with self._engine.begin() as connection:
+        with write_transaction(self._engine) as connection:
             saved_config = read_configuration(connection, configuration_id)
             config = ResearchConfig.from_mapping(_object(saved_config["config"]))
             if len(bars) <= (config.strategy.history_bars - 1):
@@ -370,7 +370,7 @@ class PaperStore:
                 snapshot_id = prior["snapshot_id"]
         dataset = self._library.load_dataset(snapshot_id)
         bars = _ordered_bars(dataset)
-        with self._engine.begin() as connection:
+        with write_transaction(self._engine) as connection:
             if connection.dialect.name == "postgresql":
                 connection.execute(text("SET LOCAL lock_timeout = '5s'"))
             row = self._row(connection, session_id, lock=True)

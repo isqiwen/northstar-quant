@@ -22,7 +22,7 @@ from sqlalchemy import (
 
 from northstar_quant import code_revision
 from northstar_quant.research.configuration import ResearchConfig
-from northstar_quant.research.storage import UTCDateTime
+from northstar_quant.research.storage import UTCDateTime, write_transaction
 
 metadata = MetaData()
 jobs = Table(
@@ -137,7 +137,7 @@ class TaskStore:
             config=config.to_dict(),
             code_revision=code_revision(),
         )
-        with self.engine.begin() as c:
+        with write_transaction(self.engine) as c:
             old = c.execute(select(jobs).where(jobs.c.task_id == str(identity))).mappings().first()
             if old is not None:
                 if any(old[k] != v for k, v in frozen.items()):
@@ -199,7 +199,7 @@ class TaskStore:
         return None if identity is None else self.get(identity)
 
     def waiting(self, identity: str, reason: str) -> None:
-        with self.engine.begin() as c:
+        with write_transaction(self.engine) as c:
             c.execute(
                 update(jobs)
                 .where(jobs.c.task_id == identity, jobs.c.status == "QUEUED")
@@ -207,7 +207,7 @@ class TaskStore:
             )
 
     def claim(self) -> dict[str, Any] | None:
-        with self.engine.begin() as c:
+        with write_transaction(self.engine) as c:
             row = (
                 c.execute(
                     select(jobs)
@@ -240,7 +240,7 @@ class TaskStore:
         return self.get(identity)
 
     def progress(self, identity: str, attempt: str, completed: int) -> None:
-        with self.engine.begin() as c:
+        with write_transaction(self.engine) as c:
             count = c.execute(
                 update(jobs)
                 .where(
@@ -256,7 +256,7 @@ class TaskStore:
                 raise InterruptedError("任务取消或执行权已失效")
 
     def measure(self, identity: str, resources: dict[str, int | str]) -> None:
-        with self.engine.begin() as c:
+        with write_transaction(self.engine) as c:
             c.execute(
                 update(attempts)
                 .where(attempts.c.attempt_id == identity, attempts.c.status == "RUNNING")
@@ -284,7 +284,7 @@ class TaskStore:
         return int(256 * 1024**2 + total * per_bar)
 
     def finalizing(self, identity: str, attempt: str) -> None:
-        with self.engine.begin() as c:
+        with write_transaction(self.engine) as c:
             count = c.execute(
                 update(jobs)
                 .where(
@@ -302,7 +302,7 @@ class TaskStore:
     ) -> None:
         if status not in {"SUCCEEDED", "FAILED", "CANCELLED", "INTERRUPTED"}:
             raise ValueError("invalid terminal status")
-        with self.engine.begin() as c:
+        with write_transaction(self.engine) as c:
             row = (
                 c.execute(select(jobs).where(jobs.c.task_id == identity).with_for_update())
                 .mappings()
@@ -328,7 +328,7 @@ class TaskStore:
             )
 
     def control(self, identity: str, action: str) -> dict[str, Any]:
-        with self.engine.begin() as c:
+        with write_transaction(self.engine) as c:
             row = (
                 c.execute(select(jobs).where(jobs.c.task_id == identity).with_for_update())
                 .mappings()

@@ -26,7 +26,7 @@ from northstar_quant import code_revision
 from northstar_quant.data_management.publications import DatasetReader
 from northstar_quant.factors.definition import Bar, Inputs, content_id
 from northstar_quant.factors.evaluation import Binding, evaluate
-from northstar_quant.research.storage import UTCDateTime
+from northstar_quant.research.storage import UTCDateTime, write_transaction
 
 _metadata = MetaData()
 _revisions = Table(
@@ -127,7 +127,7 @@ class FactorCatalog:
         self._engine, self._library = engine, library
 
     def register(self, binding: Binding) -> str:
-        with self._engine.begin() as connection:
+        with write_transaction(self._engine) as connection:
             return register_binding(connection, binding)
 
     def revision(self, revision_id: str) -> dict[str, Any]:
@@ -148,7 +148,7 @@ class FactorCatalog:
         self.revision(revision_id)
         if not isinstance(description, str) or not 1 <= len(description.strip()) <= 2000:
             raise ValueError("description must contain 1 to 2000 characters")
-        with self._engine.begin() as connection:
+        with write_transaction(self._engine) as connection:
             connection.execute(
                 insert(_notes).values(
                     annotation_id=uuid4(), revision_id=revision_id, description=description.strip()
@@ -212,7 +212,7 @@ class FactorCatalog:
             if prior is not None:
                 return self.get(prior)
         attempt = uuid4()
-        with self._engine.begin() as connection:
+        with write_transaction(self._engine) as connection:
             connection.execute(
                 insert(_runs).values(
                     attempt_id=attempt,
@@ -272,7 +272,7 @@ class FactorCatalog:
                     ],
                 },
             }
-            with self._engine.begin() as connection:
+            with write_transaction(self._engine) as connection:
                 connection.execute(
                     update(_runs)
                     .where(_runs.c.attempt_id == attempt, _runs.c.status == "RUNNING")
@@ -284,7 +284,7 @@ class FactorCatalog:
                     )
                 )
         except Exception as error:
-            with self._engine.begin() as connection:
+            with write_transaction(self._engine) as connection:
                 connection.execute(
                     update(_runs)
                     .where(_runs.c.attempt_id == attempt, _runs.c.status == "RUNNING")
@@ -335,7 +335,7 @@ class FactorCatalog:
         return [self.get(identifier) for identifier in identifiers]
 
     def abandon(self, attempt_id: UUID) -> dict[str, Any]:
-        with self._engine.begin() as connection:
+        with write_transaction(self._engine) as connection:
             connection.execute(
                 update(_runs)
                 .where(_runs.c.attempt_id == attempt_id, _runs.c.status == "RUNNING")

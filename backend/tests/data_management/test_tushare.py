@@ -388,3 +388,22 @@ def test_joint_restore_preserves_downloads_and_fixed_publication(automatic, monk
         assert (
             publication.read_snapshot(row["manifest_hash"], row["manifest_bytes"])["row_count"] == 1
         )
+
+
+@pytest.mark.parametrize("field,value", [("open", None), ("close", "--"), ("vol", "invalid")])
+def test_bad_numeric_is_retained_and_does_not_kill_sync(automatic, monkeypatch, field, value):
+    pending(automatic)
+    raw = json.loads(response())
+    raw["data"]["items"][0][raw["data"]["fields"].index(field)] = value
+    monkeypatch.setattr(acquisition, "fetch", lambda *_: json.dumps(raw).encode())
+    blocked = jobs.process_next(automatic)
+    assert blocked["status"] == "BLOCKED"
+    with automatic._engine.connect() as connection:
+        assert connection.scalar(text("SELECT source_hash FROM data_sync_attempts"))
+        assert connection.scalar(text("SELECT enabled FROM data_sync_settings"))
+    pending(automatic, start="2026-09-02", end="2026-09-02")
+    monkeypatch.setattr(
+        acquisition, "fetch", lambda *_: response().replace(b"20260901", b"20260902")
+    )
+    ready(automatic)
+    assert jobs.process_next(automatic)["status"] == "PUBLISHED"

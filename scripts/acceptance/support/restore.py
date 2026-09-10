@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import json
 import subprocess
+import sys
 from pathlib import Path
 from uuid import uuid4
 
 from support.catalog import check_restored_catalog
+from support.evidence import save as save_evidence
 from support.processes import InstalledApplication
 
 
@@ -57,7 +59,7 @@ def check_restore(
         referenced.rename(unavailable)
         try:
             missing = subprocess.run(
-                [executable, "restore", str(runtime / "backup")],
+                [executable, "maintenance", "restore", str(runtime / "backup")],
                 env=restored,
                 cwd=runtime,
                 capture_output=True,
@@ -106,11 +108,12 @@ def check_restore(
         application.environment["NORTHSTAR_RESEARCH_DATABASE"] = str(
             runtime / "restored-research.sqlite3"
         )
+        bindings = json.loads((runtime / "research-backup/storage-bindings.json").read_text())
         for name in ("MARKET", "RESEARCH"):
             application.environment[f"NORTHSTAR_{name}_DIR"] = str(
                 runtime / ("recovered-" + name.lower())
             )
-            application.environment[f"NORTHSTAR_{name}_STORAGE_ID"] = str(uuid4())
+            application.environment[f"NORTHSTAR_{name}_STORAGE_ID"] = bindings["identities"][name]
         subprocess.run(
             [executable, "maintenance", "restore", str(runtime / "research-backup")],
             env=dict(application.environment, NORTHSTAR_DATABASE_OWNER="research"),
@@ -119,6 +122,7 @@ def check_restore(
             capture_output=True,
             timeout=60,
         )
+        save_evidence(runtime, executable, application.environment, "restore identities verified")
         with application.api("data-api"):
             check_restored_catalog(application, catalog_evidence)
         assert command("data", "dataset", snapshot_id) == data
@@ -129,6 +133,9 @@ def check_restore(
             "and exact research reuse plus saved broker evidence verification passed",
             flush=True,
         )
+    except Exception:
+        print(application.logs(), file=sys.stderr)
+        raise
     finally:
         subprocess.run(
             ["dropdb", *pg_arguments],
