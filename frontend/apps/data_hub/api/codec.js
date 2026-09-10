@@ -9310,6 +9310,318 @@ export const northstar = $root.northstar = (() => {
             return SyncSettingsRequest;
         })();
 
+        data_hub.SyncReprocessRequest = (function() {
+
+            /**
+             * Properties of a SyncReprocessRequest.
+             * @typedef {Object} northstar.data_hub.SyncReprocessRequest.$Properties
+             * @property {string|null} [request_id] SyncReprocessRequest request_id
+             * @property {string|null} [source_generation] SyncReprocessRequest source_generation
+             * @property {"request_id"} [_request_id] SyncReprocessRequest _request_id
+             * @property {"source_generation"} [_source_generation] SyncReprocessRequest _source_generation
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a SyncReprocessRequest.
+             * @memberof northstar.data_hub
+             * @interface ISyncReprocessRequest
+             * @augments northstar.data_hub.SyncReprocessRequest.$Properties
+             * @deprecated Use northstar.data_hub.SyncReprocessRequest.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a SyncReprocessRequest.
+             * @typedef {{
+             *   request_id?: string|null;
+             *   source_generation?: string|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _request_id?: undefined; request_id?: null }|{ _request_id?: "request_id"; request_id: string })
+             * ) & (
+             *   ({ _source_generation?: undefined; source_generation?: null }|{ _source_generation?: "source_generation"; source_generation: string })
+             * )} northstar.data_hub.SyncReprocessRequest.$Shape
+             */
+
+            /**
+             * Constructs a new SyncReprocessRequest.
+             * @memberof northstar.data_hub
+             * @classdesc Represents a SyncReprocessRequest.
+             * @constructor
+             * @param {northstar.data_hub.SyncReprocessRequest.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const SyncReprocessRequest = function (properties) {
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * SyncReprocessRequest request_id.
+             * @member {string|null|undefined} request_id
+             * @memberof northstar.data_hub.SyncReprocessRequest
+             * @instance
+             */
+            SyncReprocessRequest.prototype.request_id = null;
+
+            /**
+             * SyncReprocessRequest source_generation.
+             * @member {string|null|undefined} source_generation
+             * @memberof northstar.data_hub.SyncReprocessRequest
+             * @instance
+             */
+            SyncReprocessRequest.prototype.source_generation = null;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * SyncReprocessRequest _request_id.
+             * @member {"request_id"|undefined} _request_id
+             * @memberof northstar.data_hub.SyncReprocessRequest
+             * @instance
+             */
+            $Object.defineProperty(SyncReprocessRequest.prototype, "_request_id", {
+                get: $util.oneOfGetter($oneOfFields = ["request_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SyncReprocessRequest _source_generation.
+             * @member {"source_generation"|undefined} _source_generation
+             * @memberof northstar.data_hub.SyncReprocessRequest
+             * @instance
+             */
+            $Object.defineProperty(SyncReprocessRequest.prototype, "_source_generation", {
+                get: $util.oneOfGetter($oneOfFields = ["source_generation"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new SyncReprocessRequest instance using the specified properties.
+             * @function create
+             * @memberof northstar.data_hub.SyncReprocessRequest
+             * @static
+             * @param {northstar.data_hub.SyncReprocessRequest.$Properties=} [properties] Properties to set
+             * @returns {northstar.data_hub.SyncReprocessRequest} SyncReprocessRequest instance
+             * @type {{
+             *   (properties: northstar.data_hub.SyncReprocessRequest.$Shape): northstar.data_hub.SyncReprocessRequest & northstar.data_hub.SyncReprocessRequest.$Shape;
+             *   (properties?: northstar.data_hub.SyncReprocessRequest.$Properties): northstar.data_hub.SyncReprocessRequest;
+             * }}
+             */
+            SyncReprocessRequest.create = function(properties) {
+                return new SyncReprocessRequest(properties);
+            };
+
+            /**
+             * Encodes the specified SyncReprocessRequest message. Does not implicitly {@link northstar.data_hub.SyncReprocessRequest.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.data_hub.SyncReprocessRequest
+             * @static
+             * @param {northstar.data_hub.SyncReprocessRequest.$Properties} message SyncReprocessRequest message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            SyncReprocessRequest.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.request_id);
+                if (message.source_generation != null && $Object.hasOwnProperty.call(message, "source_generation"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.source_generation);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a SyncReprocessRequest message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.data_hub.SyncReprocessRequest
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.data_hub.SyncReprocessRequest & northstar.data_hub.SyncReprocessRequest.$Shape} SyncReprocessRequest
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            SyncReprocessRequest.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.data_hub.SyncReprocessRequest();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.request_id = reader.stringVerify();
+                            message._request_id = "request_id";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.source_generation = reader.stringVerify();
+                            message._source_generation = "source_generation";
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a SyncReprocessRequest message.
+             * @function verify
+             * @memberof northstar.data_hub.SyncReprocessRequest
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            SyncReprocessRequest.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id")) {
+                    properties._request_id = 1;
+                    if (!$util.isString(message.request_id))
+                        return "request_id: string expected";
+                }
+                if (message.source_generation != null && $Object.hasOwnProperty.call(message, "source_generation")) {
+                    properties._source_generation = 1;
+                    if (!$util.isString(message.source_generation))
+                        return "source_generation: string expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a SyncReprocessRequest message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.data_hub.SyncReprocessRequest
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.data_hub.SyncReprocessRequest} SyncReprocessRequest
+             */
+            SyncReprocessRequest.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.data_hub.SyncReprocessRequest)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.data_hub.SyncReprocessRequest: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.data_hub.SyncReprocessRequest();
+                if (object.request_id != null)
+                    message.request_id = $String(object.request_id);
+                if (object.source_generation != null)
+                    message.source_generation = $String(object.source_generation);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a SyncReprocessRequest message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.data_hub.SyncReprocessRequest
+             * @static
+             * @param {northstar.data_hub.SyncReprocessRequest} message SyncReprocessRequest
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            SyncReprocessRequest.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id")) {
+                    object.request_id = message.request_id;
+                    if (options.oneofs)
+                        object._request_id = "request_id";
+                }
+                if (message.source_generation != null && $Object.hasOwnProperty.call(message, "source_generation")) {
+                    object.source_generation = message.source_generation;
+                    if (options.oneofs)
+                        object._source_generation = "source_generation";
+                }
+                return object;
+            };
+
+            /**
+             * Converts this SyncReprocessRequest to JSON.
+             * @function toJSON
+             * @memberof northstar.data_hub.SyncReprocessRequest
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            SyncReprocessRequest.prototype.toJSON = function() {
+                return SyncReprocessRequest.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for SyncReprocessRequest
+             * @function getTypeUrl
+             * @memberof northstar.data_hub.SyncReprocessRequest
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            SyncReprocessRequest.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.data_hub.SyncReprocessRequest";
+            };
+
+            return SyncReprocessRequest;
+        })();
+
         data_hub.SyncTokenRequest = (function() {
 
             /**

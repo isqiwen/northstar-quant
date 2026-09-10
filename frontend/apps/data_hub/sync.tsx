@@ -21,7 +21,7 @@ import { Evidence, Failure, Heading } from "../../shared/ui";
 type Row = Record<string, unknown>;
 const labels: Record<string, string> = {
   PENDING: "待同步",
-  RUNNING: "下载中",
+  RUNNING: "处理中",
   WAITING: "等待重试或源端发布",
   BLOCKED: "需处理",
   VALIDATED: "已校验并发布",
@@ -41,6 +41,7 @@ export function TushareSync() {
         .then(setDetail)
         .catch((e) => message.error((e as Error).message));
   }, [message]);
+  const source = detail?.reprocess_source as Row | undefined;
   const data = current.error ? undefined : current.data;
   const config = data?.settings;
   const groups = data?.progress ?? [];
@@ -327,6 +328,40 @@ export function TushareSync() {
                 },
               ]}
             />
+            {source && (
+              <Space direction="vertical">
+                <p>
+                  使用当前规则重处理最新留存响应，不重新下载。同步暂停时任务保留排队；页面关闭不影响执行。
+                </p>
+                <Button
+                  loading={busy}
+                  disabled={
+                    detail.status === "RUNNING" ||
+                    detail.status === "SPLIT" ||
+                    !!detail.source_generation
+                  }
+                  onClick={async () => {
+                    setBusy(true);
+                    try {
+                      setDetail(
+                        await mutate("/api/sync/reprocess", {
+                          request_id: String(detail.request_id),
+                          source_generation: String(source.generation),
+                        }),
+                      );
+                      current.refresh();
+                      message.success("已排队重处理留存响应");
+                    } catch (e) {
+                      message.error((e as Error).message);
+                    } finally {
+                      setBusy(false);
+                    }
+                  }}
+                >
+                  重处理已留存响应
+                </Button>
+              </Space>
+            )}
             <Evidence value={detail} />
           </>
         )}

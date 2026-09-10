@@ -198,6 +198,30 @@ def main() -> None:
                         .get_by_text(market["request_id"], exact=False)
                         .first
                     ).to_be_visible()
+                    page.get_by_role("button", name="重处理已留存响应", exact=True).click()
+                    expect(page.get_by_text("已排队重处理留存响应", exact=True)).to_be_visible()
+                    page.reload()
+                    expect(
+                        page.get_by_role("button", name="重处理已留存响应", exact=True)
+                    ).to_be_disabled()
+                    with app.data_worker(synthetic_tushare=True):
+                        deadline = time.monotonic() + 20
+                        while True:
+                            sync = app.command("data", "sync")
+                            result = next(
+                                j for j in sync["jobs"] if j["request_id"] == market["request_id"]
+                            )
+                            if result["status"] == "VALIDATED":
+                                break
+                            assert time.monotonic() < deadline, result
+                            time.sleep(0.2)
+                    assert result["receipt_id"] == market["receipt_id"], result
+                    assert result["attempts"] == market["attempts"], result
+                    page.reload()
+                    expect(
+                        page.get_by_role("button", name="重处理已留存响应", exact=True)
+                    ).to_be_enabled()
+                    screenshot("reprocessed")
                     page.goto(
                         data_url
                         + "/versions?dataset=1min&scope=RB2610.SHF&start=2026-09-01&end=2026-09-03"

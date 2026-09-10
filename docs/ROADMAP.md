@@ -9,7 +9,7 @@
 
 | 建议顺序 | Issue | 完成后得到什么 |
 |---|---|---|
-| 1 | [#46 响应规范化与质量版本](https://github.com/isqiwen/northstar-quant/issues/46) | 已接通响应校验、精确数值与 Decimal Parquet；待完整重处理、逐项质量/修订差异 |
+| 1 | [#46 响应规范化与质量版本](https://github.com/isqiwen/northstar-quant/issues/46) | 已接通响应校验、精确数值与 Decimal Parquet；已接通留存原文重处理，待逐项质量/修订差异 |
 | 并行核实 | [#41 Tushare真实来源验收](https://github.com/isqiwen/northstar-quant/issues/41) | 全量同步/补缺正确，明确接口权限与真实样本；不要求全市场已下载完 |
 | 2 | [#18 合约、时段与信息时钟](https://github.com/isqiwen/northstar-quant/issues/18) | 已接通显式单夜盘发布/重读；待真实日历、跨日清单、有效条款与修订语义 |
 | 3 | [#19 统一期货账户](https://github.com/isqiwen/northstar-quant/issues/19) | 多空今昨仓、费用、结算、保证金和权益逐项勾稽 |
@@ -18,7 +18,7 @@
 | 并行工程 | [#23 持久研究负载验收](https://github.com/isqiwen/northstar-quant/issues/23) | 现有SQLite/worker的并发、取消、重启与实测资源管理 |
 | 6 | [#47 数据检查工作台](https://github.com/isqiwen/northstar-quant/issues/47) | 图表、覆盖、异常行和修订差异同源可查 |
 
-已交付 #46 的响应校验、数值规范化与规则身份、Decimal Parquet 和页面精确读取；完整领域规范化、重处理及修订差异仍未完成。
+已交付 #46 的响应校验、数值规范化与规则身份、Decimal Parquet 和页面精确读取；留存原文重处理已接通原 worker；完整领域规范化、逐项质量及修订差异仍未完成。
 已交付 [#56 共享消息总线](https://github.com/isqiwen/northstar-quant/issues/56)：Research/Live 实际接入、事件隔离与研究整步回滚。
 已交付 [#57 共享交易内核](https://github.com/isqiwen/northstar-quant/issues/57)：统一事件入口、生命周期、失败策略和行情窗口；完整账户/执行业务继续按下表推进。
 #48 已将 `Environment`（BACKTEST/SANDBOX/LIVE）接入共享内核、实例绑定、配置与管理协议。SimNow 为 SANDBOX，柜台 profile 单独固定；完整材料、健康告警仍待交付。

@@ -290,6 +290,14 @@ class SyncSettingsRequest(_message.Message):
     enabled: bool
     def __init__(self, revision: _Optional[int] = ..., enabled: _Optional[bool] = ...) -> None: ...
 
+class SyncReprocessRequest(_message.Message):
+    __slots__ = ("request_id", "source_generation")
+    REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_GENERATION_FIELD_NUMBER: _ClassVar[int]
+    request_id: str
+    source_generation: str
+    def __init__(self, request_id: _Optional[str] = ..., source_generation: _Optional[str] = ...) -> None: ...
+
 class SyncTokenRequest(_message.Message):
     __slots__ = ("token",)
     TOKEN_FIELD_NUMBER: _ClassVar[int]

@@ -798,6 +798,26 @@
       "array": false,
       "evidence": false
     },
+    "northstar.data_hub.SyncReprocessRequest": {
+      "fields": {
+        "request_id": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "source_generation": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
     "northstar.data_hub.SyncTokenRequest": {
       "fields": {
         "token": {
@@ -1396,6 +1416,13 @@
       "path": "/api/sync/settings",
       "input": "northstar.data_hub.SyncSettingsRequest",
       "output": "northstar.data_hub.SyncStatus",
+      "runtime": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/sync/reprocess",
+      "input": "northstar.data_hub.SyncReprocessRequest",
+      "output": "northstar.data_hub.SyncEvidence",
       "runtime": false
     },
     {

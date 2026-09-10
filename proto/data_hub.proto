@@ -159,6 +159,10 @@ message SyncSettingsRequest {
   optional int64 revision = 1 [(northstar.web.required_field) = true];
   optional bool enabled = 2 [(northstar.web.required_field) = true];
 }
+message SyncReprocessRequest {
+  optional string request_id = 1 [(northstar.web.required_field) = true];
+  optional string source_generation = 2 [(northstar.web.required_field) = true];
+}
 message SyncTokenRequest {
   optional string token = 1 [(northstar.web.required_field) = true];
 }
@@ -269,6 +273,10 @@ service BrowserApi {
   rpc PostApiSyncSettings (SyncSettingsRequest) returns (SyncStatus) {
     option (northstar.web.http_method) = "POST";
     option (northstar.web.http_path) = "/api/sync/settings";
+  }
+  rpc ReprocessSync (SyncReprocessRequest) returns (SyncEvidence) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/sync/reprocess";
   }
   rpc PostApiSyncToken (SyncTokenRequest) returns (SyncStatus) {
     option (northstar.web.http_method) = "POST";

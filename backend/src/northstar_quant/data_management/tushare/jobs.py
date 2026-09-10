@@ -39,8 +39,6 @@ def process_next(library: DataLibrary) -> dict[str, Any] | None:
             )
         planning.refresh(engine)
         planning.plan(engine)
-        if datetime.fromisoformat(config["next_request_at"]) > datetime.now(UTC):
-            return None
         with engine.begin() as connection:
             # Every fifth request gives old history a turn even while new data arrives.
             count = connection.scalar(text("SELECT count(*) FROM data_sync_attempts")) or 0
@@ -49,10 +47,17 @@ def process_next(library: DataLibrary) -> dict[str, Any] | None:
                 connection.execute(
                     text(f"""SELECT * FROM data_sync_jobs j
                 WHERE status IN ('PENDING','WAITING') AND next_at<=now()
-                AND NOT EXISTS (SELECT 1 FROM data_sync_jobs b WHERE b.dataset=j.dataset AND
-                b.status='BLOCKED' AND b.error LIKE 'Tushare 权限%')
-                ORDER BY CASE dataset WHEN 'contracts' THEN 0 WHEN 'calendar' THEN 1 ELSE 2 END,
-                {order},created_at LIMIT 1 FOR UPDATE SKIP LOCKED""")
+                AND (source_generation IS NOT NULL OR :download_ready)
+                AND (source_generation IS NOT NULL OR NOT EXISTS (SELECT 1 FROM data_sync_jobs b
+                WHERE b.dataset=j.dataset AND
+                b.status='BLOCKED' AND b.error LIKE 'Tushare 权限%'))
+                ORDER BY (source_generation IS NOT NULL) DESC,
+                CASE dataset WHEN 'contracts' THEN 0 WHEN 'calendar' THEN 1 ELSE 2 END,
+                {order},created_at LIMIT 1 FOR UPDATE SKIP LOCKED"""),
+                    {
+                        "download_ready": datetime.fromisoformat(config["next_request_at"])
+                        <= datetime.now(UTC)
+                    },
                 )
                 .mappings()
                 .one_or_none()
@@ -63,24 +68,49 @@ def process_next(library: DataLibrary) -> dict[str, Any] | None:
             generation = uuid4()
             connection.execute(
                 text("""UPDATE data_sync_jobs SET status='RUNNING',generation=:g,
-                attempts=attempts+1,updated_at=now() WHERE request_id=:id"""),
+                attempts=attempts+CASE WHEN source_generation IS NULL THEN 1 ELSE 0 END,
+                updated_at=now() WHERE request_id=:id"""),
                 {"g": generation, "id": selected["request_id"]},
             )
             connection.execute(
-                text("INSERT INTO data_sync_attempts(generation,request_id) VALUES(:g,:id)"),
-                {"g": generation, "id": selected["request_id"]},
+                text("""INSERT INTO data_sync_attempts
+                    (generation,request_id,parent_generation,code_revision)
+                    VALUES(:g,:id,:parent,:revision)"""),
+                {
+                    "g": generation,
+                    "id": selected["request_id"],
+                    "parent": selected["source_generation"],
+                    "revision": code_revision(),
+                },
             )
-            connection.execute(
-                text("UPDATE data_sync_settings SET next_request_at=now()+:delay"),
-                {"delay": timedelta(seconds=60 / config["requests_per_minute"])},
-            )
+            if not selected["source_generation"]:
+                connection.execute(
+                    text("UPDATE data_sync_settings SET next_request_at=now()+:delay"),
+                    {"delay": timedelta(seconds=60 / config["requests_per_minute"])},
+                )
         selected["generation"] = generation
-        selected["attempts"] += 1
+        selected["attempts"] += int(not selected["source_generation"])
         stage = "download"
         try:
-            content = acquisition.fetch(
-                BY_KEY[selected["dataset"]].api, selected["parameters"], credentials.read()
-            )
+            if selected["source_generation"]:
+                stage = "source"
+                with engine.connect() as connection:
+                    source = (
+                        connection.execute(
+                            text(
+                                "SELECT source_hash,source_bytes FROM data_sync_attempts "
+                                "WHERE generation=:g AND request_id=:id"
+                            ),
+                            {"g": selected["source_generation"], "id": selected["request_id"]},
+                        )
+                        .mappings()
+                        .one()
+                    )
+                content = library._files.read(source["source_hash"], source["source_bytes"])
+            else:
+                content = acquisition.fetch(
+                    BY_KEY[selected["dataset"]].api, selected["parameters"], credentials.read()
+                )
             stage = "storage"
             archived = library._files.store(content)
             with engine.begin() as connection:
@@ -125,7 +155,11 @@ def process_next(library: DataLibrary) -> dict[str, Any] | None:
                     {"id": selected["request_id"]},
                 )
                 if current == generation:
-                    divided = bool(selected["start_at"]) and planning.split(connection, selected)
+                    divided = (
+                        not selected["source_generation"]
+                        and bool(selected["start_at"])
+                        and planning.split(connection, selected)
+                    )
                     _finish(
                         connection,
                         selected,
@@ -139,13 +173,20 @@ def process_next(library: DataLibrary) -> dict[str, Any] | None:
                 bool(selected["end_at"])
                 and selected["end_at"] >= (planning.target_day() - timedelta(days=10)).isoformat()
             )
-            _fail(engine, selected, str(error), retry=True, waiting=recent)
+            _fail(
+                engine,
+                selected,
+                str(error),
+                retry=not selected["source_generation"],
+                waiting=recent,
+            )
         except acquisition.DownloadError as error:
             _fail(engine, selected, str(error), retry=error.retry)
         except InvalidResponse as error:
             _fail(engine, selected, f"{error}；原文已留存", retry=False)
         except (ValueError, OSError, LookupError):
             reason = {
+                "source": "已留存原文缺失或损坏；重处理已停止，不重新下载替代原文",
                 "download": "凭据配置不可用，请在界面重新保存 token",
                 "storage": (
                     "持久存储不可用或容量不足；自动同步已暂停，请检查存储目录、权限与可用空间"
@@ -172,7 +213,9 @@ def _finish(
 ) -> None:
     connection.execute(
         text("""UPDATE data_sync_jobs SET status=:status,error=:error,
-        next_at=now()+:delay,updated_at=now() WHERE request_id=:id AND generation=:g"""),
+        next_at=now()+:delay,updated_at=now(),
+        source_generation=CASE WHEN :status='WAITING' THEN source_generation ELSE NULL END
+        WHERE request_id=:id AND generation=:g"""),
         {
             "status": status,
             "error": error,
@@ -287,4 +330,8 @@ def _commit(
                         "open": row["is_open"] == 1,
                     },
                 )
+        connection.execute(
+            text("UPDATE data_sync_attempts SET receipt_id=:receipt WHERE generation=:g"),
+            {"receipt": receipt, "g": selected["generation"]},
+        )
         _finish(connection, selected, "VALIDATED")

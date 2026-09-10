@@ -118,6 +118,10 @@ export type SyncSettingsRequest = {
   revision: number;
   enabled: boolean;
 };
+export type SyncReprocessRequest = {
+  request_id: string;
+  source_generation: string;
+};
 export type SyncTokenRequest = {
   token: string;
 };

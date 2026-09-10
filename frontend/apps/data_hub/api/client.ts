@@ -22,12 +22,13 @@ P extends `/api/attempts` ? messages.GetApiAttemptsResponse :
 P extends `/api/datasets` ? messages.GetApiDatasetsResponse :
 P extends `/api/sources` ? messages.GetApiSourcesResponse :
 P extends `/api/sync` ? messages.SyncStatus : never;
-export type CommandPath = `/api/explorer/contracts` | `/api/explorer/versions` | `/api/explorer/coverage` | `/api/explorer/export` | `/api/explorer/query` | `/api/sync/settings` | `/api/sync/token`;
+export type CommandPath = `/api/explorer/contracts` | `/api/explorer/versions` | `/api/explorer/coverage` | `/api/explorer/export` | `/api/explorer/query` | `/api/sync/reprocess` | `/api/sync/settings` | `/api/sync/token`;
 export type CommandResponse<P> = P extends `/api/explorer/contracts` ? messages.ExplorerList :
 P extends `/api/explorer/versions` ? messages.ExplorerList :
 P extends `/api/explorer/coverage` ? messages.ExplorerCoverage :
 P extends `/api/explorer/export` ? messages.ExplorerRows :
 P extends `/api/explorer/query` ? messages.ExplorerRows :
+P extends `/api/sync/reprocess` ? messages.SyncEvidence :
 P extends `/api/sync/settings` ? messages.SyncStatus :
 P extends `/api/sync/token` ? messages.SyncStatus : never;
 export type CommandBody<P> = P extends `/api/explorer/contracts` ? messages.ContractSearch :
@@ -35,6 +36,7 @@ P extends `/api/explorer/versions` ? messages.ExplorerRange :
 P extends `/api/explorer/coverage` ? messages.ExplorerRange :
 P extends `/api/explorer/export` ? messages.ExplorerQuery :
 P extends `/api/explorer/query` ? messages.ExplorerQuery :
+P extends `/api/sync/reprocess` ? messages.SyncReprocessRequest :
 P extends `/api/sync/settings` ? messages.SyncSettingsRequest :
 P extends `/api/sync/token` ? messages.SyncTokenRequest : never;
 export function query<P extends GetPath>(path: P | null): Query<GetResponse<P>> | null {return path === null ? null : {path};}

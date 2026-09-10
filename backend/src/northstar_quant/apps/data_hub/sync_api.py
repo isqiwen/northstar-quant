@@ -8,7 +8,13 @@ from pydantic import Field, JsonValue
 from sqlalchemy import Engine, text
 from starlette.concurrency import run_in_threadpool
 
-from northstar_quant.data_management.tushare import credentials, publication, settings, store
+from northstar_quant.data_management.tushare import (
+    credentials,
+    publication,
+    reprocessing,
+    settings,
+    store,
+)
 from northstar_quant.web.access import WorkspaceAccess
 from northstar_quant.web.requests import ApiModel, EvidenceRecord
 
@@ -16,6 +22,11 @@ from northstar_quant.web.requests import ApiModel, EvidenceRecord
 class SyncSettingsRequest(ApiModel):
     revision: int
     enabled: bool
+
+
+class SyncReprocessRequest(ApiModel):
+    request_id: str
+    source_generation: str
 
 
 class SyncTokenRequest(ApiModel):
@@ -44,6 +55,16 @@ def register(app: FastAPI, access: WorkspaceAccess, engine: Engine) -> None:
     async def configure(request: Request, document: SyncSettingsRequest) -> dict[str, Any]:
         access.protect(request)
         return await run_in_threadpool(settings.configure, engine, **document.model_dump())
+
+    @app.post("/api/sync/reprocess", response_model=SyncEvidence)
+    async def reprocess(request: Request, document: SyncReprocessRequest) -> dict[str, Any]:
+        access.protect(request)
+        return await run_in_threadpool(
+            reprocessing.enqueue,
+            engine,
+            request_id=UUID(document.request_id),
+            source_generation=UUID(document.source_generation),
+        )
 
     @app.post("/api/sync/token", response_model=SyncStatus)
     async def token(request: Request, document: SyncTokenRequest) -> dict[str, Any]:

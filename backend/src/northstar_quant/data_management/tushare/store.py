@@ -48,6 +48,7 @@ def initialize(connection: Connection) -> None:
             status text NOT NULL DEFAULT 'PENDING'
                 CHECK(status IN ('PENDING','RUNNING','WAITING','BLOCKED','VALIDATED','SPLIT')),
             generation uuid,
+            source_generation uuid,
             attempts integer NOT NULL DEFAULT 0,
             next_at timestamptz NOT NULL DEFAULT now(),
             checked_at timestamptz,
@@ -90,8 +91,17 @@ def initialize(connection: Connection) -> None:
             outcome text,
             error text,
             source_hash text,
-            source_bytes bigint
+            source_bytes bigint,
+            parent_generation uuid REFERENCES data_sync_attempts(generation),
+            receipt_id uuid REFERENCES data_sync_receipts,
+            code_revision text
         );
+        ALTER TABLE data_sync_jobs ADD COLUMN IF NOT EXISTS source_generation uuid;
+        ALTER TABLE data_sync_attempts ADD COLUMN IF NOT EXISTS parent_generation uuid
+            REFERENCES data_sync_attempts(generation);
+        ALTER TABLE data_sync_attempts ADD COLUMN IF NOT EXISTS receipt_id uuid
+            REFERENCES data_sync_receipts;
+        ALTER TABLE data_sync_attempts ADD COLUMN IF NOT EXISTS code_revision text;
         CREATE OR REPLACE FUNCTION data_sync_immutable_receipt() RETURNS trigger AS $$
         BEGIN RAISE EXCEPTION 'Downloaded revisions are immutable'; END;
         $$ LANGUAGE plpgsql;
@@ -132,6 +142,17 @@ def job(engine: Engine, request_id: UUID) -> dict[str, Any]:
         if row is None:
             raise LookupError("同步分片不存在")
         result = serial(row)
+        source = (
+            connection.execute(
+                text("""SELECT generation,source_hash,source_bytes FROM data_sync_attempts
+            WHERE request_id=:id AND source_hash IS NOT NULL AND parent_generation IS NULL
+            AND finished_at IS NOT NULL ORDER BY started_at DESC,generation DESC LIMIT 1"""),
+                {"id": request_id},
+            )
+            .mappings()
+            .one_or_none()
+        )
+        result["reprocess_source"] = serial(source) if source else None
         result["attempts_detail"] = [
             serial(value)
             for value in connection.execute(

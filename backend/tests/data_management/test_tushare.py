@@ -219,12 +219,20 @@ def test_failed_storage_does_not_advance_coverage(automatic, monkeypatch):
         assert connection.scalar(text("SELECT count(*) FROM data_sync_coverage")) == 0
 
 
-def test_ui_token_is_write_only_and_manual_interfaces_are_absent(automatic):
+def test_ui_token_is_write_only_and_manual_interfaces_are_absent(automatic, monkeypatch):
     from northstar_quant.apps.data_hub import create_app
     from tests.apps.browser import ProtocolClient as TestClient
 
+    pending(automatic)
+    monkeypatch.setattr(acquisition, "fetch", lambda *a: response())
+    completed = jobs.process_next(automatic)
+    replay = {
+        "request_id": completed["request_id"],
+        "source_generation": completed["reprocess_source"]["generation"],
+    }
     app = create_app(automatic._engine, automatic)
     with TestClient(app, base_url="http://127.0.0.1") as client:
+        assert client.post("/api/sync/reprocess", json=replay).status_code == 403
         assert client.post("/api/sync/token", json={"token": TOKEN}).status_code == 403
         csrf = client.get("/api/browser-session").json()["csrf"]
         client.headers.update({"x-northstar-csrf": csrf, "origin": "http://127.0.0.1"})
@@ -238,6 +246,9 @@ def test_ui_token_is_write_only_and_manual_interfaces_are_absent(automatic):
             "/api/sources/8600b795-36d0-44b9-80e3-d3b22e805e92/reprocess",
         ):
             assert client.post(path, json={}).status_code in (404, 405)
+        queued = client.post("/api/sync/reprocess", json=replay)
+        assert queued.status_code == 200, queued.text
+        assert queued.json()["source_generation"] == replay["source_generation"]
         config = saved.json()["settings"]
         assert client.post(
             "/api/sync/settings",
@@ -605,3 +616,126 @@ def test_normalized_decimal_publication_keeps_source_and_semantic_retry_identity
     assert (
         publication.read_snapshot(receipt["manifest_hash"], receipt["manifest_bytes"]) == snapshot
     )
+
+
+def test_retained_reprocessing_survives_pause_and_preserves_versions(automatic, monkeypatch):
+    from uuid import UUID
+
+    from northstar_quant.data_management.tushare import quality, reprocessing
+
+    library = automatic
+    request_id = UUID(pending(library))
+    monkeypatch.setattr(acquisition, "fetch", lambda *a: response())
+    original = jobs.process_next(library)
+    source = UUID(original["reprocess_source"]["generation"])
+    old_receipt = original["receipt_id"]
+    with library._engine.begin() as connection:
+        old = connection.execute(text("SELECT * FROM data_sync_receipts")).mappings().one()
+        old_snapshot = publication.read_snapshot(old["manifest_hash"], old["manifest_bytes"])
+        connection.execute(text("UPDATE data_sync_settings SET enabled=false"))
+    queued = reprocessing.enqueue(library._engine, request_id=request_id, source_generation=source)
+    assert queued["status"] == "PENDING"
+    assert jobs.process_next(library) is None
+    assert reprocessing.enqueue(library._engine, request_id=request_id, source_generation=source)[
+        "source_generation"
+    ] == str(source)
+    monkeypatch.setattr(acquisition, "fetch", lambda *a: pytest.fail("must not download"))
+    monkeypatch.setattr(credentials, "read", lambda: pytest.fail("must not require credentials"))
+    monkeypatch.setattr(quality, "RULE", "test-reprocessing-rule")
+    with library._engine.begin() as connection:
+        connection.execute(
+            text(
+                "UPDATE data_sync_settings SET enabled=true, next_request_at=now()+interval '1 day'"
+            )
+        )
+    # A new library/worker observes the durable request without the original Web caller.
+    reopened = DataLibrary(library._engine, SourceFiles(library._files.root))
+    result = jobs.process_next(reopened)
+    assert result["status"] == "VALIDATED"
+    assert result["receipt_id"] != old_receipt
+    assert result["attempts"] == original["attempts"]
+    attempt = result["attempts_detail"][0]
+    assert attempt["parent_generation"] == str(source)
+    assert attempt["receipt_id"] == result["receipt_id"]
+    assert attempt["code_revision"]
+    assert publication.read_snapshot(old["manifest_hash"], old["manifest_bytes"]) == old_snapshot
+    reprocessing.enqueue(library._engine, request_id=request_id, source_generation=source)
+    again = jobs.process_next(reopened)
+    assert again["receipt_id"] == result["receipt_id"]
+    with library._engine.connect() as connection:
+        assert connection.scalar(text("SELECT count(*) FROM data_sync_receipts")) == 2
+
+
+def test_reprocessing_rejects_stale_source_and_corruption(automatic, monkeypatch):
+    from uuid import UUID, uuid4
+
+    from northstar_quant.data_management.tushare import reprocessing
+
+    library = automatic
+    request_id = UUID(pending(library))
+    monkeypatch.setattr(acquisition, "fetch", lambda *a: response())
+    old = jobs.process_next(library)
+    with library._engine.begin() as connection:
+        connection.execute(
+            text("UPDATE data_sync_jobs SET status='PENDING',next_at=now() WHERE request_id=:id"),
+            {"id": request_id},
+        )
+    ready(library)
+    monkeypatch.setattr(acquisition, "fetch", lambda *a: response(3200))
+    current = jobs.process_next(library)
+    with pytest.raises(ValueError, match="最新"):
+        reprocessing.enqueue(
+            library._engine,
+            request_id=request_id,
+            source_generation=UUID(old["reprocess_source"]["generation"]),
+        )
+    with pytest.raises(ValueError, match="最新"):
+        reprocessing.enqueue(library._engine, request_id=request_id, source_generation=uuid4())
+    source = current["reprocess_source"]
+    reprocessing.enqueue(
+        library._engine, request_id=request_id, source_generation=UUID(source["generation"])
+    )
+    monkeypatch.setattr(acquisition, "fetch", lambda *a: pytest.fail("no fallback download"))
+    library._files._path(source["source_hash"]).write_bytes(b"corrupt")
+    result = jobs.process_next(library)
+    assert result["status"] == "BLOCKED"
+    assert "缺失或损坏" in result["error"]
+    assert result["receipt_id"] == current["receipt_id"]
+    with library._engine.connect() as connection:
+        assert (
+            str(
+                connection.scalar(
+                    text("SELECT receipt_id FROM data_sync_coverage WHERE request_id=:id"),
+                    {"id": request_id},
+                )
+            )
+            == current["receipt_id"]
+        )
+
+
+def test_interrupted_reprocessing_keeps_the_same_source(automatic, monkeypatch):
+    from uuid import UUID
+
+    from northstar_quant.data_management.tushare import reprocessing
+
+    library = automatic
+    request_id = UUID(pending(library))
+    monkeypatch.setattr(acquisition, "fetch", lambda *a: response())
+    original = jobs.process_next(library)
+    source = UUID(original["reprocess_source"]["generation"])
+    reprocessing.enqueue(library._engine, request_id=request_id, source_generation=source)
+    publish = publication.publish
+    monkeypatch.setattr(acquisition, "fetch", lambda *a: pytest.fail("no download"))
+    monkeypatch.setattr(
+        publication, "publish", lambda *a, **kw: (_ for _ in ()).throw(KeyboardInterrupt())
+    )
+    with pytest.raises(KeyboardInterrupt):
+        jobs.process_next(library)
+    with pytest.raises(ValueError, match="正在处理"):
+        reprocessing.enqueue(library._engine, request_id=request_id, source_generation=source)
+    monkeypatch.setattr(publication, "publish", publish)
+    result = jobs.process_next(library)
+    assert result["status"] == "VALIDATED"
+    assert result["receipt_id"] == original["receipt_id"]
+    assert result["attempts_detail"][1]["outcome"] == "INTERRUPTED"
+    assert result["attempts_detail"][0]["parent_generation"] == str(source)
