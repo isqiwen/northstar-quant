@@ -286,17 +286,21 @@ def main() -> int:
                 stdin=subprocess.DEVNULL,
                 check=True,
             )
-            targets = [server_config]
-            if config["host"] != server_config["host"]:
-                targets.append(config)
-            for target in targets:
-                # Managed hosts already have northstar's sudo authority from init-host.
+            # NFS server dependencies/permissions belong exclusively to deploy nfs.
+            for target, operation in [
+                (server_config, "check-server"),
+                *([(config, "deploy")] if config["host"] != server_config["host"] else []),
+            ]:
                 elevated = (
                     "import subprocess,sys; subprocess.run(['sudo','-n','--',"
                     "'python3','-c'," + repr(program) + ",sys.argv[1]],check=True)"
                 )
                 subprocess.run(
-                    ssh(target, elevated, json.dumps(nfs | {"host": target["host"]})),
+                    ssh(
+                        target,
+                        elevated,
+                        json.dumps(nfs | {"host": target["host"], "action": operation}),
+                    ),
                     stdin=subprocess.DEVNULL,
                     check=True,
                 )

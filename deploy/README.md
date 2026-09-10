@@ -28,8 +28,8 @@ port = 22
 
 `[nfs]` 直接填写服务端的 SSH 信息，格式与应用主机一致。与 Data Hub 或 Research 同机时使用相同的 `host`，脚本自动判断本地服务端与远程客户端；其他地址则两台应用主机都作为客户端。
 自动管理的服务端和客户端要求 Ubuntu/Debian Linux；QNAP 等设备不能直接使用 Linux SSH 安装流程。
-`init-host` 会同时准备所需 NFS 服务端账号；`deploy database/data-hub/research` 先准备服务端，
-再准备当前应用挂载和依赖。Research 自己的 `deploy research` 同样自动安装 Docker、Compose、Buildx 和 uv。
+`init-host` 会同时准备所需 NFS 服务端账号；`deploy nfs` 安装服务端依赖、设置共享权限与导出。
+`deploy database/data-hub/research` 只检查服务端已部署并运行，再准备当前应用的客户端挂载和依赖，不修改服务端。Research 自己的 `deploy research` 同样自动安装 Docker、Compose、Buildx 和 uv。
 服务端只需 NFS，不因仅提供文件共享而安装 Docker。
 
 NFS 与 database、data-hub、research、live 是同级管理对象，可以单独执行：

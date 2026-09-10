@@ -97,8 +97,10 @@ def backup(engine: Engine, files: SourceFiles, destination: Path) -> dict[str, o
                 max_total_bytes=files.max_total_bytes,
                 min_free_bytes=files.min_free_bytes,
             )
-            for item in references:
-                archived.store(files.read(str(item["content_hash"]), cast(int, item["byte_count"])))
+            archived.store_many(
+                files.read(str(item["content_hash"]), cast(int, item["byte_count"]))
+                for item in references
+            )
             dump = target / "database.dump"
             _pg_command(
                 engine,
@@ -230,8 +232,10 @@ def restore(
     _write_record(
         target.root / ".restore-incomplete", b"Restore has not passed activation checks.\n"
     )
-    for item in sources:
-        target.store(archive.read(str(item["content_hash"]), int(cast(int, item["byte_count"]))))
+    target.store_many(
+        archive.read(str(item["content_hash"]), int(cast(int, item["byte_count"])))
+        for item in sources
+    )
     _pg_command(
         engine,
         "pg_restore",

@@ -296,6 +296,17 @@ def manage(request: dict) -> int:
     if os.geteuid() != 0:
         raise ValueError("NFS 服务管理需要 root 权限")
     service = "nfs-server.service"
+    if action == "check-server":
+        saved = STATE / "server-storage-id"
+        if not saved.is_file() or not EXPORTS.is_file():
+            raise ValueError("NFS 服务端未准备，请先执行 northstarctl.py deploy nfs")
+        if saved.read_text().strip() != identity():
+            raise ValueError("NFS 服务端存储 UUID 不匹配")
+        result = subprocess.run(["systemctl", "is-active", "--quiet", service], check=False)
+        if result.returncode:
+            raise ValueError("NFS 服务端未运行，请先执行 start nfs")
+        print(f"NFS 服务端已验证，UUID={identity()}", flush=True)
+        return 0
     if action == "logs":
         return subprocess.run(
             [

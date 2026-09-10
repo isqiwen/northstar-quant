@@ -15,7 +15,7 @@ import re
 import shutil
 import stat
 import tempfile
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -125,40 +125,55 @@ class SourceFiles:
             os.close(descriptor)
 
     def store(self, content: bytes) -> FileObject:
+        with self._writer():
+            return self._store_locked(content, None)[0]
+
+    def store_many(self, contents: Iterable[bytes]) -> tuple[FileObject, ...]:
+        """Retain a bounded stream under one writer lock and one capacity inventory."""
+        with self._writer():
+            used_bytes = cast(int, self.health()["used_bytes"])
+            result = []
+            for content in contents:
+                saved, added = self._store_locked(content, used_bytes)
+                used_bytes += added
+                result.append(saved)
+            return tuple(result)
+
+    def _store_locked(self, content: bytes, used_bytes: int | None) -> tuple[FileObject, int]:
         if not isinstance(content, bytes) or not 1 <= len(content) <= self.max_file_bytes:
             raise ValueError("source must be nonempty bytes within the 5 MiB upload limit")
         identity = hashlib.sha256(content).hexdigest()
         result = FileObject(identity, len(content))
         destination = self._path(identity)
-        with self._writer():
-            if destination.exists() or destination.is_symlink():
-                self.read(identity, len(content))
-                return result
-            usage = self.health()
-            if cast(int, usage["used_bytes"]) + len(content) > self.max_total_bytes:
-                raise ValueError("managed source archive capacity exceeded; nothing accepted")
-            if shutil.disk_usage(self.root).free < self.min_free_bytes + len(content):
-                raise ValueError("insufficient free disk space for durable source reception")
-            self._directory(destination.parent)
-            staging = self.root / "staging"
-            self._directory(staging)
-            descriptor, temporary = tempfile.mkstemp(prefix="receive-", dir=staging)
-            path = Path(temporary)
-            try:
-                with os.fdopen(descriptor, "wb") as stream:
-                    if self.shared_read:
-                        os.fchmod(stream.fileno(), 0o644)
-                    stream.write(content)
-                    stream.flush()
-                    os.fsync(stream.fileno())
-                if hashlib.sha256(path.read_bytes()).hexdigest() != identity:
-                    raise ValueError("source bytes failed verification before publication")
-                os.link(path, destination, follow_symlinks=False)
-                self._sync(destination.parent)
-            finally:
-                path.unlink(missing_ok=True)
-                self._sync(staging)
-        return result
+        if destination.exists() or destination.is_symlink():
+            self.read(identity, len(content))
+            return result, 0
+        if used_bytes is None:
+            used_bytes = cast(int, self.health()["used_bytes"])
+        if used_bytes + len(content) > self.max_total_bytes:
+            raise ValueError("managed source archive capacity exceeded; nothing accepted")
+        if shutil.disk_usage(self.root).free < self.min_free_bytes + len(content):
+            raise ValueError("insufficient free disk space for durable source reception")
+        self._directory(destination.parent)
+        staging = self.root / "staging"
+        self._directory(staging)
+        descriptor, temporary = tempfile.mkstemp(prefix="receive-", dir=staging)
+        path = Path(temporary)
+        try:
+            with os.fdopen(descriptor, "wb") as stream:
+                if self.shared_read:
+                    os.fchmod(stream.fileno(), 0o644)
+                stream.write(content)
+                stream.flush()
+                os.fsync(stream.fileno())
+            if hashlib.sha256(path.read_bytes()).hexdigest() != identity:
+                raise ValueError("source bytes failed verification before publication")
+            os.link(path, destination, follow_symlinks=False)
+            self._sync(destination.parent)
+        finally:
+            path.unlink(missing_ok=True)
+            self._sync(staging)
+        return result, len(content)
 
     def read(self, content_hash: str, byte_count: int) -> bytes:
         if type(byte_count) is not int or not 1 <= byte_count <= self.max_file_bytes:

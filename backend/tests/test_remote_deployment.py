@@ -592,3 +592,62 @@ def test_nfs_target_uses_service_transport_without_env_bundle_or_docker(deployme
     calls = [json.loads(line) for line in Path(env["RECORD"]).read_text().splitlines()]
     assert not any(call[0] in {"docker", "uv", "make"} for call in calls)
     assert len([call for call in calls if call[0] == "ssh"]) == 1
+
+
+@pytest.mark.parametrize("server_failure", [False, True])
+def test_app_deploy_checks_nfs_server_without_reprovisioning_it(deployment, server_failure):
+    import shlex
+
+    repo, config, env = deployment
+    config.write_text(config.read_text() + '\n[nfs]\nhost="storage.invalid"\nuser="root"\n')
+    (repo / "scripts/operations/nfs.py").write_text(
+        "import json,sys,os\n"
+        "def topology(s): return {'server': s['nfs']['host'], "
+        "'writer': s['data_hub']['host'], 'reader': s['research']['host']}\n"
+        "if __name__ == '__main__':\n"
+        " r=json.loads(sys.argv[1])\n"
+        " failed=r.get('action')=='check-server' and os.environ.get('NFS_SERVER_FAILURE')\n"
+        " sys.exit(9 if failed else 0)\n"
+    )
+    subprocess.run(["git", "-C", str(repo), "add", "."], check=True)
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(repo),
+            "-c",
+            "user.name=Test",
+            "-c",
+            "user.email=test@example.invalid",
+            "commit",
+            "-qm",
+            "NFS transport double",
+        ],
+        check=True,
+    )
+    if server_failure:
+        env["NFS_SERVER_FAILURE"] = "1"
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(repo / "scripts/northstarctl.py"),
+            "deploy",
+            "data-hub",
+            "--config",
+            str(config),
+        ],
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    assert (result.returncode != 0) == server_failure, result.stderr
+    calls = [json.loads(line) for line in Path(env["RECORD"]).read_text().splitlines()]
+    requests = [json.loads(shlex.split(call[-1])[-1]) for call in calls if call[0] == "ssh"]
+    nfs_requests = [item for item in requests if "server" in item]
+    assert [(r["host"], r.get("action")) for r in nfs_requests] == [
+        ("example.invalid", None),
+        ("storage.invalid", "check-server"),
+        *([] if server_failure else [("example.invalid", "deploy")]),
+    ]
+    if server_failure:
+        assert not any(call[0] == "docker" for call in calls)
