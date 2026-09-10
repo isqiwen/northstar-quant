@@ -122,7 +122,7 @@ def test_commit_retry_revision_and_backup_pins(automatic, monkeypatch):
     # Missing coverage is discovered independently of maximum observed date.
     with library._engine.begin() as connection:
         connection.execute(text("DELETE FROM data_sync_coverage"))
-        connection.execute(text("UPDATE data_sync_settings SET refresh_at=now()"))
+        connection.execute(text("UPDATE data_sync_settings SET refresh_at=now()-interval '1 day'"))
     planning.refresh(library._engine)
     # This case verifies coverage repair of an existing window, not new catalog planning.
     monkeypatch.setattr(planning, "plan", lambda *_: None)
