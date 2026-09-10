@@ -57,6 +57,7 @@ def routes(owner: LiveOwner) -> APIRouter:
 
     @router.post("/broker/queries")
     def query_broker(request: Request, body: QueryBroker) -> dict[str, Any]:
+        owner.require_account()
         validate_instrument(body.instrument)
         if not credential_status()["configured"]:
             raise ValueError("Live broker credentials are not configured")

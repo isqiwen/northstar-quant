@@ -50,6 +50,7 @@ def routes(owner: LiveOwner) -> APIRouter:
 
     @router.post("/streams")
     def start_stream(request: Request, body: StartStream) -> dict[str, Any]:
+        owner.require_account()
         if not body.allow_retention:
             raise HTTPException(422, "Reception requires explicit retention permission")
         return execute_command(

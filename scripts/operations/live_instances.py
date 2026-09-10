@@ -42,6 +42,16 @@ def expand(config: dict) -> dict:
             # Auth and source directories are host-owned. Run Python as that same
             # UID rather than weakening owner-only authentication checks.
             service["user"] = f"{os.getuid()}:{os.getgid()}"
+            if key == "live":
+                service["volumes"].append(
+                    {
+                        "type": "bind",
+                        "source": "/opt/northstar/state/live/accounts",
+                        "target": "/opt/northstar/state/live/accounts",
+                        "read_only": False,
+                        "bind": {"create_host_path": False},
+                    }
+                )
             services[service_name] = service
         endpoints.append(
             {

@@ -126,7 +126,9 @@ def db_session(session_factory: sessionmaker[Session]) -> Generator[Session, Non
 
 
 @pytest.fixture
-def live_client() -> Generator[Callable[[Engine, DataLibrary], object], None, None]:
+def live_client(
+    tmp_path, monkeypatch
+) -> Generator[Callable[[Engine, DataLibrary], object], None, None]:
     """Exercise the actual Live HTTP Interface; only this fixture stops its owner."""
     from northstar_quant.apps.live.kernel import create_app
     from northstar_quant.live import LiveAuth, LiveClient
@@ -139,6 +141,24 @@ def live_client() -> Generator[Callable[[Engine, DataLibrary], object], None, No
             key = engine, library
             if key not in applications:
                 application = create_app(engine, library, auth)
+                # Shared PostgreSQL domain tests still exercise the actual local
+                # SQLite instance/account guard before their synthetic SDK calls.
+                from northstar_quant.live import account_ownership
+                from northstar_quant.live.instances import InstanceBinding
+                from northstar_quant.live.storage import initialize, open_store
+
+                accounts = tmp_path / "accounts"
+                accounts.mkdir(mode=0o700, exist_ok=True)
+                monkeypatch.setattr(account_ownership, "ACCOUNT_DIRECTORY", accounts)
+                local = open_store(tmp_path / f"owner-{len(applications)}.sqlite")
+                initialize(local)
+                lifespans.callback(local.dispose)
+                application.state.owner.binding = InstanceBinding(
+                    local,
+                    Instance.from_environment(),
+                    "9999",
+                    os.environ.get("NORTHSTAR_SIMNOW_USER_ID", ""),
+                )
                 lifespans.enter_context(TestClient(application, base_url="http://127.0.0.1"))
                 applications[key] = application
             transport = TestClient(applications[key], base_url="http://127.0.0.1")

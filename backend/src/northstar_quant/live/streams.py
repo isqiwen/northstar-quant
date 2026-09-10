@@ -919,6 +919,8 @@ class LiveStreams:
             stop.set()
         for worker, _ in tuple(self._workers.values()):
             worker.join(timeout=8)
+        if any(worker.is_alive() for worker, _ in tuple(self._workers.values())):
+            raise RuntimeError("Live receiver has not stopped; account ownership retained")
 
     def verify_all(self) -> int:
         """Verify restored source/step chains; never activate a recovered receiver."""

@@ -38,6 +38,11 @@ class Deployment:
             NORTHSTAR_LIVE_IMAGE=image,
             NORTHSTAR_LIVE_INSTANCES="sim:simnow_dev,other:simnow_trading",
             NORTHSTAR_LIVE_FRONTEND_IMAGE=frontend_image,
+            # Synthetic identities only; starting a kernel never connects CTP.
+            NORTHSTAR_SIMNOW_USER_ID="123456",
+            NORTHSTAR_SIMNOW_PASSWORD="acceptance_only",
+            NORTHSTAR_SIMNOW_APP_ID="acceptance_only",
+            NORTHSTAR_SIMNOW_AUTH_CODE="acceptance_only",
         )
         self.files = tempfile.TemporaryDirectory(prefix="northstar-live-files-")
         self.root = Path(self.files.name)
@@ -114,6 +119,26 @@ class Deployment:
             self.wait_http(client, "/api/browser-session")
             before = self.wait_http(client, "/api/live/status").json()
             identity = before["runtime_id"]
+            # Same account/environment is refused from another container, even
+            # though it owns a different database. Its own environment is active.
+            self.run(
+                "exec",
+                "-T",
+                "other-live",
+                "python",
+                "-c",
+                "from northstar_quant.live.account_ownership import AccountOwnership\n"
+                "try:\n"
+                "    lock = AccountOwnership('simnow_dev', '9999', '123456')\n"
+                "except ValueError as error:\n"
+                "    assert 'account already has an active Live instance' in str(error)\n"
+                "else:\n"
+                "    lock.close(); raise AssertionError('duplicate account owner admitted')\n",
+            )
+            print(
+                "Duplicate account refused across independent kernel containers",
+                flush=True,
+            )
             kernel = self.run("ps", "-q", "sim-live").strip()
             assert (
                 json.loads(

@@ -73,11 +73,15 @@ class InstanceBinding:
 
         from sqlalchemy import text
 
+        from northstar_quant.live.account_ownership import AccountOwnership
         from northstar_quant.live.storage import KernelLock, write_transaction
 
         if engine.dialect.name != "sqlite":
             raise ValueError("Live instances require local SQLite")
         self.instance = instance
+        self._account_id = account_id
+        self._broker_id = broker_id
+        self._account: AccountOwnership | None = None
         self._path = Path(str(engine.url.database))
         self._identity = (self._path.stat().st_dev, self._path.stat().st_ino)
         try:
@@ -85,6 +89,8 @@ class InstanceBinding:
         except BlockingIOError as exc:
             raise ValueError("This Live database already has an active kernel") from exc
         try:
+            if account_id:
+                self._account = AccountOwnership(instance.environment, broker_id, account_id)
             identity = dict(
                 instance_id=instance.identifier,
                 environment=instance.environment,
@@ -124,14 +130,28 @@ class InstanceBinding:
                         identity,
                     )
         except BaseException:
-            self._lock.close()
+            self.close()
             raise
 
     def status(self) -> dict[str, str]:
+        self._lock.check()
+        if self._account:
+            self._account.check()
         info = self._path.stat()
         if (info.st_dev, info.st_ino) != self._identity:
             raise ValueError("Live database file was replaced; restart and reconcile required")
         return {"instance_id": self.instance.identifier, "environment": self.instance.environment}
 
+    def require_account(self, environment: str, broker_id: str, account_id: str) -> None:
+        self.status()
+        if self._account is None or (environment, broker_id, account_id) != (
+            self.instance.environment,
+            self._broker_id,
+            self._account_id,
+        ):
+            raise ValueError("Broker credentials differ from the active Live account binding")
+
     def close(self) -> None:
+        if self._account:
+            self._account.close()
         self._lock.close()

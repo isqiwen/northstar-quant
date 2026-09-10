@@ -143,6 +143,7 @@ def test_broker_browser_requires_explicit_command_and_keeps_failure_evidence(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     del clean_database
+    monkeypatch.setenv("NORTHSTAR_SIMNOW_USER_ID", "123456")
     monkeypatch.delenv("NORTHSTAR_SIMNOW_PASSWORD", raising=False)
     calls = 0
 

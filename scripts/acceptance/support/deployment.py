@@ -95,7 +95,7 @@ def isolated_compose(
                 raise ValueError("Acceptance bind escapes its private root")
             # Existing database directories may be unreadable to the host after PostgreSQL chown.
             if not target.exists():
-                target.mkdir(parents=True)
+                target.mkdir(parents=True, mode=0o700)
             volume["source"] = str(target)
     destination.touch(mode=0o600, exist_ok=True)
     destination.write_text(json.dumps(config))

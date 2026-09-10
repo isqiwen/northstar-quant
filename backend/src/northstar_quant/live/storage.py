@@ -21,15 +21,24 @@ class KernelLock:
 
     def __init__(self, database: Path) -> None:
         path = Path(str(database) + ".owner")
+        self._path = path
         self._fd = os.open(path, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
         try:
             info = os.fstat(self._fd)
             if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid():
                 raise ValueError("Live owner lock must be an owned regular file")
             fcntl.flock(self._fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            self._identity = (info.st_dev, info.st_ino)
         except BaseException:
             os.close(self._fd)
             raise
+
+    def check(self) -> None:
+        if self._fd < 0:
+            raise ValueError("Live ownership lock is closed")
+        info = self._path.lstat()
+        if (info.st_dev, info.st_ino) != self._identity:
+            raise ValueError("Live ownership lock was replaced; stop and reconcile required")
 
     def close(self) -> None:
         if self._fd >= 0:
@@ -37,7 +46,7 @@ class KernelLock:
             self._fd = -1
 
 
-def open_store(path: Path) -> Engine:
+def require_local_path(path: Path) -> None:
     if not path.is_absolute() or not path.parent.is_dir():
         raise ValueError("Live SQLite requires an absolute file in an existing local directory")
     if any(p.is_symlink() for p in (path, *path.parents)):
@@ -54,6 +63,10 @@ def open_store(path: Path) -> Engine:
                     matches.append((len(str(mount)), after.split()[0]))
         if matches and max(matches)[1] in {"nfs", "nfs4", "cifs", "smb3", "fuse.sshfs"}:
             raise ValueError("Live SQLite must use local storage")
+
+
+def open_store(path: Path) -> Engine:
+    require_local_path(path)
     fd = os.open(path, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
     try:
         info = os.fstat(fd)

@@ -47,6 +47,10 @@ def prepare(
     trading_day: str = "20260907",
 ) -> tuple[DataLibrary, UUID, str, dict[str, Any]]:
     monkeypatch.setenv("NORTHSTAR_LIVE_ENVIRONMENT", "simnow_dev")
+    monkeypatch.setenv("NORTHSTAR_SIMNOW_USER_ID", "123456")
+    monkeypatch.setenv("NORTHSTAR_SIMNOW_PASSWORD", "secret")
+    monkeypatch.setenv("NORTHSTAR_SIMNOW_APP_ID", "test")
+    monkeypatch.setenv("NORTHSTAR_SIMNOW_AUTH_CODE", "code")
     library = DataLibrary(engine, SourceFiles(root / "archive"), usages=ResearchUsages(engine).list)
     position_baseline(engine, day=trading_day)
     source = ledger_query(engine, day=trading_day)

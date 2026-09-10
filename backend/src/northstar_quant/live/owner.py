@@ -55,9 +55,17 @@ class LiveOwner:
     def read(self, value: dict[str, Any]) -> dict[str, Any]:
         return {**value, "live_runtime": self.status()}
 
+    def require_account(self) -> None:
+        from northstar_quant.broker.settings import configured_profile, load_credentials
+
+        if self.binding is None:
+            raise ValueError("Broker access requires an active Live account owner")
+        credentials = load_credentials()
+        self.binding.require_account(
+            configured_profile().name, credentials.broker_id, credentials.user_id
+        )
+
     def close(self) -> None:
-        try:
-            self.streams.close()
-        finally:
-            if self.binding:
-                self.binding.close()
+        self.streams.close()
+        if self.binding:
+            self.binding.close()
