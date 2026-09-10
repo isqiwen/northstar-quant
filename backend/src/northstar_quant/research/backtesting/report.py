@@ -35,7 +35,10 @@ def build_result(session: TradingSession, steps: Sequence[TradingStep]) -> Resea
     if (
         len(steps) != session._bar_count
         or sum(step.decision is not None for step in steps) != session._decision_count
-        or sum(step.fill is not None for step in steps) != session.account.fill_count
+        or tuple(step.fill for step in steps if step.fill is not None)
+        != session.account.applied_fills
+        or tuple(fact for step in steps for fact in step.settlements)
+        != session.account.applied_settlements
         or steps[-1].point["observation_id"] != str(session._last.observation_id)
     ):
         raise ValueError("research report requires the complete committed step history")

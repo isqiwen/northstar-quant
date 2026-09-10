@@ -7,7 +7,7 @@ from uuid import uuid4
 import httpx2
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from northstar_quant.apps.data_hub import api_pb2
@@ -262,9 +262,32 @@ def test_cross_day_settlement_is_fixed_offline_replayable_and_survives_every_res
     config = ResearchConfig(strategy=StrategyConfig.create(supplied={"threshold": "0.001"}))
     batch = run_research(fixed, config).to_dict()
     assert batch == run_research(offline.load_dataset(identifier), config).to_dict()
+    assert batch == run_research(replace(fixed, bars=tuple(reversed(fixed.bars))), config).to_dict()
     assert len(batch["settlements"]) == 1
     assert batch["settlements"][0]["price"] == "105"
     assert any(item["offset"] == "CLOSE_YESTERDAY" for item in batch["fills"])
+    from northstar_quant.research.backtesting.report import build_result
+    from northstar_quant.research.backtesting.session import TradingSession, TradingStep
+
+    replay = TradingSession(
+        fixed.market,
+        config,
+        snapshot_id=fixed.snapshot_id,
+        content_hash=fixed.content_hash,
+        data_details=fixed.details,
+    )
+    try:
+        steps = [step for bar in fixed.bars if (step := replay.advance(bar)) is not None]
+        altered = list(steps)
+        index = next(i for i, step in enumerate(steps) if step.settlements)
+        document = steps[index].to_dict()
+        document["settlements"] = []
+        altered[index] = TradingStep.from_dict(document)
+        with pytest.raises(ValueError, match="complete committed"):
+            build_result(replay, altered)
+        assert build_result(replay, steps).to_dict() == batch
+    finally:
+        replay.close()
     # The actual Research state owner is local SQLite, independent of Data Hub/PostgreSQL.
     engine = create_engine(f"sqlite:///{tmp_path / 'research.db'}")
     initialize(engine)
@@ -382,3 +405,15 @@ def test_settlement_price_changes_publication_identity_and_invalid_scope_cannot_
     ):
         with pytest.raises(DatasetSnapshotPublicationError, match="settlement"):
             _publish(postgres_engine, [first, following], settlements=invalid)
+
+    from northstar_quant.data_management.catalog.models import DatasetSnapshotManifest
+    from northstar_quant.data_management.snapshots.service import DatasetSnapshotResolutionError
+
+    with Session(postgres_engine) as session, session.begin():
+        # Inject corruption beyond the normal immutable-table guard, as in a bad restore.
+        session.execute(text("SET LOCAL session_replication_role = replica"))
+        manifest = session.get(DatasetSnapshotManifest, original.snapshot_id)
+        assert manifest is not None
+        manifest.settlements = [{**fact.to_dict(), "unhashed_override": "106"}]
+    with pytest.raises(DatasetSnapshotResolutionError, match="settlement"):
+        load_dataset(postgres_engine, original.snapshot_id)

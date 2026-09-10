@@ -149,6 +149,30 @@ def test_configuration_is_complete_and_changed_strategy_changes_result_identity(
     assert len(second["fills"]) == 1
 
 
+def test_report_rejects_altered_fill_even_when_history_counts_match() -> None:
+    data = dataset(("100", "110", "120", "120"))
+    session = TradingSession(
+        data.market, ResearchConfig(), snapshot_id=data.snapshot_id, content_hash=data.content_hash
+    )
+    try:
+        steps = [session.advance(bar) for bar in data.bars]
+        assert all(step is not None for step in steps)
+        committed = [step for step in steps if step is not None]
+        original = build_result(session, committed).to_dict()
+        index = next(i for i, step in enumerate(committed) if step.fill is not None)
+        fill = committed[index].fill
+        assert fill is not None
+        altered = list(committed)
+        document = committed[index].to_dict()
+        document["fill"] = replace(fill, cash=fill.cash + Decimal(1)).to_dict()
+        altered[index] = TradingStep.from_dict(document)
+        with pytest.raises(ValueError, match="complete committed"):
+            build_result(session, altered)
+        assert build_result(session, committed).to_dict() == original
+    finally:
+        session.close()
+
+
 def test_checkpoint_recovery_preserves_pending_fifo_warmup_and_complete_result() -> None:
     data = dataset(("100", "110", "112", "112", "108", "106", "106", "112"))
     config = ResearchConfig(

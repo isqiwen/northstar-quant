@@ -197,6 +197,14 @@ class Account:
         return len(self._fills)
 
     @property
+    def applied_fills(self) -> tuple[AppliedFill, ...]:
+        return tuple(self._fills.values())
+
+    @property
+    def applied_settlements(self) -> tuple[AppliedSettlement, ...]:
+        return tuple(self._settlements.values())
+
+    @property
     def position(self) -> Position:
         return self._position
 

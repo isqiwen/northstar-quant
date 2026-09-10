@@ -33,14 +33,12 @@ def run_research(
     steps: list[TradingStep] = []
     session.kernel.subscribe(STEP_COMPLETED, steps.append)
     try:
-        session.validate_inputs(dataset.bars)
-        for index, bar in enumerate(
-            sorted(
-                dataset.bars,
-                key=lambda item: (item.available_at, item.completed_at, str(item.observation_id)),
-            ),
-            1,
-        ):
+        ordered = sorted(
+            dataset.bars,
+            key=lambda item: (item.available_at, item.completed_at, str(item.observation_id)),
+        )
+        session.validate_inputs(ordered)
+        for index, bar in enumerate(ordered, 1):
             if progress is not None:
                 progress(index - 1, len(dataset.bars))
             session.advance(bar)

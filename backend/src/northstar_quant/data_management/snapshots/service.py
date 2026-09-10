@@ -1560,6 +1560,8 @@ def _assert_persisted_hashes(
         )
     try:
         settlements = tuple(SettlementFact.from_dict(item) for item in manifest.settlements)
+        if [fact.to_dict() for fact in settlements] != manifest.settlements:
+            raise ValueError("stored settlement facts must match their canonical content")
     except (ValueError, TypeError) as error:
         raise DatasetSnapshotResolutionError(
             "SNAPSHOT_SETTLEMENT_INVALID", "stored settlement facts are invalid"
