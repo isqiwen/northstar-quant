@@ -68,6 +68,9 @@ def initialize_run_store(engine: Engine | Connection) -> None:
     _metadata.create_all(engine)
 
     def guards(connection: Connection) -> None:
+        from .experiments import initialize as initialize_experiments
+
+        initialize_experiments(connection)
         if connection.dialect.name == "sqlite":
             from .storage import immutable, transitions
 

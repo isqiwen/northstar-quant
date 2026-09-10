@@ -10,8 +10,10 @@ import subprocess
 import sys
 from pathlib import Path
 from threading import Event
+from time import monotonic
 
 from northstar_quant.logging_ import configure
+from northstar_quant.research.experiments import Experiments
 from northstar_quant.research.storage import open_store, require_current
 from northstar_quant.research.tasks.resources import capacity
 from northstar_quant.research.tasks.store import TaskStore
@@ -33,7 +35,9 @@ def run() -> None:
             except BlockingIOError:
                 raise ValueError("已有研究执行器或未退出的计算进程持有执行权") from None
             store = TaskStore(engine)
+            experiments = Experiments(engine)
             store.recover()
+            next_experiments = 0.0
             while not stop.is_set():
                 for process, (identity, budget) in list(children.items()):
                     if process.poll() is None:
@@ -47,6 +51,10 @@ def run() -> None:
                             f"计算进程退出：{process.returncode}",
                         )
                     del children[process]
+                if monotonic() >= next_experiments:
+                    for identity in experiments.pending():
+                        experiments.advance(identity)
+                    next_experiments = monotonic() + 2.0
                 task = store.queued()
                 if task:
                     # Initial conservative budget includes Python/Arrow and retained result facts.

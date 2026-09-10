@@ -30732,6 +30732,1362 @@ export const northstar = $root.northstar = (() => {
             return TaskControl;
         })();
 
+        research.ExperimentRequest = (function() {
+
+            /**
+             * Properties of an ExperimentRequest.
+             * @typedef {Object} northstar.research.ExperimentRequest.$Properties
+             * @property {string|null} [request_id] ExperimentRequest request_id
+             * @property {string|null} [hypothesis] ExperimentRequest hypothesis
+             * @property {string|null} [train_snapshot] ExperimentRequest train_snapshot
+             * @property {string|null} [validation_snapshot] ExperimentRequest validation_snapshot
+             * @property {string|null} [test_snapshot] ExperimentRequest test_snapshot
+             * @property {Array.<northstar.research.ResearchConfigurationInput.$Properties>|null} [configurations] ExperimentRequest configurations
+             * @property {"request_id"} [_request_id] ExperimentRequest _request_id
+             * @property {"hypothesis"} [_hypothesis] ExperimentRequest _hypothesis
+             * @property {"train_snapshot"} [_train_snapshot] ExperimentRequest _train_snapshot
+             * @property {"validation_snapshot"} [_validation_snapshot] ExperimentRequest _validation_snapshot
+             * @property {"test_snapshot"} [_test_snapshot] ExperimentRequest _test_snapshot
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of an ExperimentRequest.
+             * @memberof northstar.research
+             * @interface IExperimentRequest
+             * @augments northstar.research.ExperimentRequest.$Properties
+             * @deprecated Use northstar.research.ExperimentRequest.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of an ExperimentRequest.
+             * @typedef {{
+             *   request_id?: string|null;
+             *   hypothesis?: string|null;
+             *   train_snapshot?: string|null;
+             *   validation_snapshot?: string|null;
+             *   test_snapshot?: string|null;
+             *   configurations?: Array.<northstar.research.ResearchConfigurationInput.$Shape>|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _request_id?: undefined; request_id?: null }|{ _request_id?: "request_id"; request_id: string })
+             * ) & (
+             *   ({ _hypothesis?: undefined; hypothesis?: null }|{ _hypothesis?: "hypothesis"; hypothesis: string })
+             * ) & (
+             *   ({ _train_snapshot?: undefined; train_snapshot?: null }|{ _train_snapshot?: "train_snapshot"; train_snapshot: string })
+             * ) & (
+             *   ({ _validation_snapshot?: undefined; validation_snapshot?: null }|{ _validation_snapshot?: "validation_snapshot"; validation_snapshot: string })
+             * ) & (
+             *   ({ _test_snapshot?: undefined; test_snapshot?: null }|{ _test_snapshot?: "test_snapshot"; test_snapshot: string })
+             * )} northstar.research.ExperimentRequest.$Shape
+             */
+
+            /**
+             * Constructs a new ExperimentRequest.
+             * @memberof northstar.research
+             * @classdesc Represents an ExperimentRequest.
+             * @constructor
+             * @param {northstar.research.ExperimentRequest.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const ExperimentRequest = function (properties) {
+                this.configurations = [];
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * ExperimentRequest request_id.
+             * @member {string|null|undefined} request_id
+             * @memberof northstar.research.ExperimentRequest
+             * @instance
+             */
+            ExperimentRequest.prototype.request_id = null;
+
+            /**
+             * ExperimentRequest hypothesis.
+             * @member {string|null|undefined} hypothesis
+             * @memberof northstar.research.ExperimentRequest
+             * @instance
+             */
+            ExperimentRequest.prototype.hypothesis = null;
+
+            /**
+             * ExperimentRequest train_snapshot.
+             * @member {string|null|undefined} train_snapshot
+             * @memberof northstar.research.ExperimentRequest
+             * @instance
+             */
+            ExperimentRequest.prototype.train_snapshot = null;
+
+            /**
+             * ExperimentRequest validation_snapshot.
+             * @member {string|null|undefined} validation_snapshot
+             * @memberof northstar.research.ExperimentRequest
+             * @instance
+             */
+            ExperimentRequest.prototype.validation_snapshot = null;
+
+            /**
+             * ExperimentRequest test_snapshot.
+             * @member {string|null|undefined} test_snapshot
+             * @memberof northstar.research.ExperimentRequest
+             * @instance
+             */
+            ExperimentRequest.prototype.test_snapshot = null;
+
+            /**
+             * ExperimentRequest configurations.
+             * @member {Array.<northstar.research.ResearchConfigurationInput.$Properties>} configurations
+             * @memberof northstar.research.ExperimentRequest
+             * @instance
+             */
+            ExperimentRequest.prototype.configurations = $util.emptyArray;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * ExperimentRequest _request_id.
+             * @member {"request_id"|undefined} _request_id
+             * @memberof northstar.research.ExperimentRequest
+             * @instance
+             */
+            $Object.defineProperty(ExperimentRequest.prototype, "_request_id", {
+                get: $util.oneOfGetter($oneOfFields = ["request_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ExperimentRequest _hypothesis.
+             * @member {"hypothesis"|undefined} _hypothesis
+             * @memberof northstar.research.ExperimentRequest
+             * @instance
+             */
+            $Object.defineProperty(ExperimentRequest.prototype, "_hypothesis", {
+                get: $util.oneOfGetter($oneOfFields = ["hypothesis"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ExperimentRequest _train_snapshot.
+             * @member {"train_snapshot"|undefined} _train_snapshot
+             * @memberof northstar.research.ExperimentRequest
+             * @instance
+             */
+            $Object.defineProperty(ExperimentRequest.prototype, "_train_snapshot", {
+                get: $util.oneOfGetter($oneOfFields = ["train_snapshot"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ExperimentRequest _validation_snapshot.
+             * @member {"validation_snapshot"|undefined} _validation_snapshot
+             * @memberof northstar.research.ExperimentRequest
+             * @instance
+             */
+            $Object.defineProperty(ExperimentRequest.prototype, "_validation_snapshot", {
+                get: $util.oneOfGetter($oneOfFields = ["validation_snapshot"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ExperimentRequest _test_snapshot.
+             * @member {"test_snapshot"|undefined} _test_snapshot
+             * @memberof northstar.research.ExperimentRequest
+             * @instance
+             */
+            $Object.defineProperty(ExperimentRequest.prototype, "_test_snapshot", {
+                get: $util.oneOfGetter($oneOfFields = ["test_snapshot"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new ExperimentRequest instance using the specified properties.
+             * @function create
+             * @memberof northstar.research.ExperimentRequest
+             * @static
+             * @param {northstar.research.ExperimentRequest.$Properties=} [properties] Properties to set
+             * @returns {northstar.research.ExperimentRequest} ExperimentRequest instance
+             * @type {{
+             *   (properties: northstar.research.ExperimentRequest.$Shape): northstar.research.ExperimentRequest & northstar.research.ExperimentRequest.$Shape;
+             *   (properties?: northstar.research.ExperimentRequest.$Properties): northstar.research.ExperimentRequest;
+             * }}
+             */
+            ExperimentRequest.create = function(properties) {
+                return new ExperimentRequest(properties);
+            };
+
+            /**
+             * Encodes the specified ExperimentRequest message. Does not implicitly {@link northstar.research.ExperimentRequest.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.research.ExperimentRequest
+             * @static
+             * @param {northstar.research.ExperimentRequest.$Properties} message ExperimentRequest message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            ExperimentRequest.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.request_id);
+                if (message.hypothesis != null && $Object.hasOwnProperty.call(message, "hypothesis"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.hypothesis);
+                if (message.train_snapshot != null && $Object.hasOwnProperty.call(message, "train_snapshot"))
+                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.train_snapshot);
+                if (message.validation_snapshot != null && $Object.hasOwnProperty.call(message, "validation_snapshot"))
+                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.validation_snapshot);
+                if (message.test_snapshot != null && $Object.hasOwnProperty.call(message, "test_snapshot"))
+                    writer.uint32(/* id 5, wireType 2 =*/42).string(message.test_snapshot);
+                if (message.configurations != null && message.configurations.length)
+                    for (let i = 0; i < message.configurations.length; ++i)
+                        $root.northstar.research.ResearchConfigurationInput.encode(message.configurations[i], writer.uint32(/* id 6, wireType 2 =*/50).fork(), _depth + 1).ldelim();
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes an ExperimentRequest message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.research.ExperimentRequest
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.research.ExperimentRequest & northstar.research.ExperimentRequest.$Shape} ExperimentRequest
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            ExperimentRequest.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.research.ExperimentRequest();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.request_id = reader.stringVerify();
+                            message._request_id = "request_id";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.hypothesis = reader.stringVerify();
+                            message._hypothesis = "hypothesis";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 2)
+                                break;
+                            message.train_snapshot = reader.stringVerify();
+                            message._train_snapshot = "train_snapshot";
+                            continue;
+                        }
+                    case 4: {
+                            if (wireType !== 2)
+                                break;
+                            message.validation_snapshot = reader.stringVerify();
+                            message._validation_snapshot = "validation_snapshot";
+                            continue;
+                        }
+                    case 5: {
+                            if (wireType !== 2)
+                                break;
+                            message.test_snapshot = reader.stringVerify();
+                            message._test_snapshot = "test_snapshot";
+                            continue;
+                        }
+                    case 6: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.configurations && message.configurations.length))
+                                message.configurations = [];
+                            message.configurations.push($root.northstar.research.ResearchConfigurationInput.decode(reader, reader.uint32(), $undefined, _depth + 1));
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies an ExperimentRequest message.
+             * @function verify
+             * @memberof northstar.research.ExperimentRequest
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            ExperimentRequest.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id")) {
+                    properties._request_id = 1;
+                    if (!$util.isString(message.request_id))
+                        return "request_id: string expected";
+                }
+                if (message.hypothesis != null && $Object.hasOwnProperty.call(message, "hypothesis")) {
+                    properties._hypothesis = 1;
+                    if (!$util.isString(message.hypothesis))
+                        return "hypothesis: string expected";
+                }
+                if (message.train_snapshot != null && $Object.hasOwnProperty.call(message, "train_snapshot")) {
+                    properties._train_snapshot = 1;
+                    if (!$util.isString(message.train_snapshot))
+                        return "train_snapshot: string expected";
+                }
+                if (message.validation_snapshot != null && $Object.hasOwnProperty.call(message, "validation_snapshot")) {
+                    properties._validation_snapshot = 1;
+                    if (!$util.isString(message.validation_snapshot))
+                        return "validation_snapshot: string expected";
+                }
+                if (message.test_snapshot != null && $Object.hasOwnProperty.call(message, "test_snapshot")) {
+                    properties._test_snapshot = 1;
+                    if (!$util.isString(message.test_snapshot))
+                        return "test_snapshot: string expected";
+                }
+                if (message.configurations != null && $Object.hasOwnProperty.call(message, "configurations")) {
+                    if (!$Array.isArray(message.configurations))
+                        return "configurations: array expected";
+                    for (let i = 0; i < message.configurations.length; ++i) {
+                        let error = $root.northstar.research.ResearchConfigurationInput.verify(message.configurations[i], _depth + 1);
+                        if (error)
+                            return "configurations." + error;
+                    }
+                }
+                return null;
+            };
+
+            /**
+             * Creates an ExperimentRequest message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.research.ExperimentRequest
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.research.ExperimentRequest} ExperimentRequest
+             */
+            ExperimentRequest.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.research.ExperimentRequest)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.research.ExperimentRequest: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.research.ExperimentRequest();
+                if (object.request_id != null)
+                    message.request_id = $String(object.request_id);
+                if (object.hypothesis != null)
+                    message.hypothesis = $String(object.hypothesis);
+                if (object.train_snapshot != null)
+                    message.train_snapshot = $String(object.train_snapshot);
+                if (object.validation_snapshot != null)
+                    message.validation_snapshot = $String(object.validation_snapshot);
+                if (object.test_snapshot != null)
+                    message.test_snapshot = $String(object.test_snapshot);
+                if (object.configurations) {
+                    if (!$Array.isArray(object.configurations))
+                        throw $TypeError(".northstar.research.ExperimentRequest.configurations: array expected");
+                    message.configurations = $Array(object.configurations.length);
+                    for (let i = 0; i < object.configurations.length; ++i) {
+                        if (!$util.isObject(object.configurations[i]))
+                            throw $TypeError(".northstar.research.ExperimentRequest.configurations: object expected");
+                        message.configurations[i] = $root.northstar.research.ResearchConfigurationInput.fromObject(object.configurations[i], _depth + 1);
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from an ExperimentRequest message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.research.ExperimentRequest
+             * @static
+             * @param {northstar.research.ExperimentRequest} message ExperimentRequest
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            ExperimentRequest.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.arrays || options.defaults)
+                    object.configurations = [];
+                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id")) {
+                    object.request_id = message.request_id;
+                    if (options.oneofs)
+                        object._request_id = "request_id";
+                }
+                if (message.hypothesis != null && $Object.hasOwnProperty.call(message, "hypothesis")) {
+                    object.hypothesis = message.hypothesis;
+                    if (options.oneofs)
+                        object._hypothesis = "hypothesis";
+                }
+                if (message.train_snapshot != null && $Object.hasOwnProperty.call(message, "train_snapshot")) {
+                    object.train_snapshot = message.train_snapshot;
+                    if (options.oneofs)
+                        object._train_snapshot = "train_snapshot";
+                }
+                if (message.validation_snapshot != null && $Object.hasOwnProperty.call(message, "validation_snapshot")) {
+                    object.validation_snapshot = message.validation_snapshot;
+                    if (options.oneofs)
+                        object._validation_snapshot = "validation_snapshot";
+                }
+                if (message.test_snapshot != null && $Object.hasOwnProperty.call(message, "test_snapshot")) {
+                    object.test_snapshot = message.test_snapshot;
+                    if (options.oneofs)
+                        object._test_snapshot = "test_snapshot";
+                }
+                if (message.configurations && message.configurations.length) {
+                    object.configurations = $Array(message.configurations.length);
+                    for (let j = 0; j < message.configurations.length; ++j)
+                        object.configurations[j] = $root.northstar.research.ResearchConfigurationInput.toObject(message.configurations[j], options, _depth + 1);
+                }
+                return object;
+            };
+
+            /**
+             * Converts this ExperimentRequest to JSON.
+             * @function toJSON
+             * @memberof northstar.research.ExperimentRequest
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            ExperimentRequest.prototype.toJSON = function() {
+                return ExperimentRequest.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for ExperimentRequest
+             * @function getTypeUrl
+             * @memberof northstar.research.ExperimentRequest
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            ExperimentRequest.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.research.ExperimentRequest";
+            };
+
+            return ExperimentRequest;
+        })();
+
+        research.Experiment = (function() {
+
+            /**
+             * Properties of an Experiment.
+             * @typedef {Object} northstar.research.Experiment.$Properties
+             * @property {string|null} [experiment_id] Experiment experiment_id
+             * @property {string|null} [plan_id] Experiment plan_id
+             * @property {string|null} [created_at] Experiment created_at
+             * @property {string|null} [status] Experiment status
+             * @property {google.protobuf.Struct.$Properties|null} [plan] Experiment plan
+             * @property {google.protobuf.Struct.$Properties|null} [selection] Experiment selection
+             * @property {Array.<google.protobuf.Struct.$Properties>|null} [trials] Experiment trials
+             * @property {Array.<string>|null} [null_fields] Experiment null_fields
+             * @property {"experiment_id"} [_experiment_id] Experiment _experiment_id
+             * @property {"plan_id"} [_plan_id] Experiment _plan_id
+             * @property {"created_at"} [_created_at] Experiment _created_at
+             * @property {"status"} [_status] Experiment _status
+             * @property {"plan"} [_plan] Experiment _plan
+             * @property {"selection"} [_selection] Experiment _selection
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of an Experiment.
+             * @memberof northstar.research
+             * @interface IExperiment
+             * @augments northstar.research.Experiment.$Properties
+             * @deprecated Use northstar.research.Experiment.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of an Experiment.
+             * @typedef {{
+             *   experiment_id?: string|null;
+             *   plan_id?: string|null;
+             *   created_at?: string|null;
+             *   status?: string|null;
+             *   plan?: google.protobuf.Struct.$Shape|null;
+             *   selection?: google.protobuf.Struct.$Shape|null;
+             *   trials?: Array.<google.protobuf.Struct.$Shape>|null;
+             *   null_fields?: Array.<string>|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _experiment_id?: undefined; experiment_id?: null }|{ _experiment_id?: "experiment_id"; experiment_id: string })
+             * ) & (
+             *   ({ _plan_id?: undefined; plan_id?: null }|{ _plan_id?: "plan_id"; plan_id: string })
+             * ) & (
+             *   ({ _created_at?: undefined; created_at?: null }|{ _created_at?: "created_at"; created_at: string })
+             * ) & (
+             *   ({ _status?: undefined; status?: null }|{ _status?: "status"; status: string })
+             * ) & (
+             *   ({ _plan?: undefined; plan?: null }|{ _plan?: "plan"; plan: google.protobuf.Struct.$Shape })
+             * ) & (
+             *   ({ _selection?: undefined; selection?: null }|{ _selection?: "selection"; selection: google.protobuf.Struct.$Shape })
+             * )} northstar.research.Experiment.$Shape
+             */
+
+            /**
+             * Constructs a new Experiment.
+             * @memberof northstar.research
+             * @classdesc Represents an Experiment.
+             * @constructor
+             * @param {northstar.research.Experiment.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const Experiment = function (properties) {
+                this.trials = [];
+                this.null_fields = [];
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * Experiment experiment_id.
+             * @member {string|null|undefined} experiment_id
+             * @memberof northstar.research.Experiment
+             * @instance
+             */
+            Experiment.prototype.experiment_id = null;
+
+            /**
+             * Experiment plan_id.
+             * @member {string|null|undefined} plan_id
+             * @memberof northstar.research.Experiment
+             * @instance
+             */
+            Experiment.prototype.plan_id = null;
+
+            /**
+             * Experiment created_at.
+             * @member {string|null|undefined} created_at
+             * @memberof northstar.research.Experiment
+             * @instance
+             */
+            Experiment.prototype.created_at = null;
+
+            /**
+             * Experiment status.
+             * @member {string|null|undefined} status
+             * @memberof northstar.research.Experiment
+             * @instance
+             */
+            Experiment.prototype.status = null;
+
+            /**
+             * Experiment plan.
+             * @member {google.protobuf.Struct.$Properties|null|undefined} plan
+             * @memberof northstar.research.Experiment
+             * @instance
+             */
+            Experiment.prototype.plan = null;
+
+            /**
+             * Experiment selection.
+             * @member {google.protobuf.Struct.$Properties|null|undefined} selection
+             * @memberof northstar.research.Experiment
+             * @instance
+             */
+            Experiment.prototype.selection = null;
+
+            /**
+             * Experiment trials.
+             * @member {Array.<google.protobuf.Struct.$Properties>} trials
+             * @memberof northstar.research.Experiment
+             * @instance
+             */
+            Experiment.prototype.trials = $util.emptyArray;
+
+            /**
+             * Experiment null_fields.
+             * @member {Array.<string>} null_fields
+             * @memberof northstar.research.Experiment
+             * @instance
+             */
+            Experiment.prototype.null_fields = $util.emptyArray;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * Experiment _experiment_id.
+             * @member {"experiment_id"|undefined} _experiment_id
+             * @memberof northstar.research.Experiment
+             * @instance
+             */
+            $Object.defineProperty(Experiment.prototype, "_experiment_id", {
+                get: $util.oneOfGetter($oneOfFields = ["experiment_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Experiment _plan_id.
+             * @member {"plan_id"|undefined} _plan_id
+             * @memberof northstar.research.Experiment
+             * @instance
+             */
+            $Object.defineProperty(Experiment.prototype, "_plan_id", {
+                get: $util.oneOfGetter($oneOfFields = ["plan_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Experiment _created_at.
+             * @member {"created_at"|undefined} _created_at
+             * @memberof northstar.research.Experiment
+             * @instance
+             */
+            $Object.defineProperty(Experiment.prototype, "_created_at", {
+                get: $util.oneOfGetter($oneOfFields = ["created_at"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Experiment _status.
+             * @member {"status"|undefined} _status
+             * @memberof northstar.research.Experiment
+             * @instance
+             */
+            $Object.defineProperty(Experiment.prototype, "_status", {
+                get: $util.oneOfGetter($oneOfFields = ["status"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Experiment _plan.
+             * @member {"plan"|undefined} _plan
+             * @memberof northstar.research.Experiment
+             * @instance
+             */
+            $Object.defineProperty(Experiment.prototype, "_plan", {
+                get: $util.oneOfGetter($oneOfFields = ["plan"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Experiment _selection.
+             * @member {"selection"|undefined} _selection
+             * @memberof northstar.research.Experiment
+             * @instance
+             */
+            $Object.defineProperty(Experiment.prototype, "_selection", {
+                get: $util.oneOfGetter($oneOfFields = ["selection"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new Experiment instance using the specified properties.
+             * @function create
+             * @memberof northstar.research.Experiment
+             * @static
+             * @param {northstar.research.Experiment.$Properties=} [properties] Properties to set
+             * @returns {northstar.research.Experiment} Experiment instance
+             * @type {{
+             *   (properties: northstar.research.Experiment.$Shape): northstar.research.Experiment & northstar.research.Experiment.$Shape;
+             *   (properties?: northstar.research.Experiment.$Properties): northstar.research.Experiment;
+             * }}
+             */
+            Experiment.create = function(properties) {
+                return new Experiment(properties);
+            };
+
+            /**
+             * Encodes the specified Experiment message. Does not implicitly {@link northstar.research.Experiment.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.research.Experiment
+             * @static
+             * @param {northstar.research.Experiment.$Properties} message Experiment message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            Experiment.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.experiment_id != null && $Object.hasOwnProperty.call(message, "experiment_id"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.experiment_id);
+                if (message.plan_id != null && $Object.hasOwnProperty.call(message, "plan_id"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.plan_id);
+                if (message.created_at != null && $Object.hasOwnProperty.call(message, "created_at"))
+                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.created_at);
+                if (message.status != null && $Object.hasOwnProperty.call(message, "status"))
+                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.status);
+                if (message.plan != null && $Object.hasOwnProperty.call(message, "plan"))
+                    $root.google.protobuf.Struct.encode(message.plan, writer.uint32(/* id 5, wireType 2 =*/42).fork(), _depth + 1).ldelim();
+                if (message.selection != null && $Object.hasOwnProperty.call(message, "selection"))
+                    $root.google.protobuf.Struct.encode(message.selection, writer.uint32(/* id 6, wireType 2 =*/50).fork(), _depth + 1).ldelim();
+                if (message.trials != null && message.trials.length)
+                    for (let i = 0; i < message.trials.length; ++i)
+                        $root.google.protobuf.Struct.encode(message.trials[i], writer.uint32(/* id 7, wireType 2 =*/58).fork(), _depth + 1).ldelim();
+                if (message.null_fields != null && message.null_fields.length)
+                    for (let i = 0; i < message.null_fields.length; ++i)
+                        writer.uint32(/* id 2046, wireType 2 =*/16370).string(message.null_fields[i]);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes an Experiment message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.research.Experiment
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.research.Experiment & northstar.research.Experiment.$Shape} Experiment
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            Experiment.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.research.Experiment();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.experiment_id = reader.stringVerify();
+                            message._experiment_id = "experiment_id";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.plan_id = reader.stringVerify();
+                            message._plan_id = "plan_id";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 2)
+                                break;
+                            message.created_at = reader.stringVerify();
+                            message._created_at = "created_at";
+                            continue;
+                        }
+                    case 4: {
+                            if (wireType !== 2)
+                                break;
+                            message.status = reader.stringVerify();
+                            message._status = "status";
+                            continue;
+                        }
+                    case 5: {
+                            if (wireType !== 2)
+                                break;
+                            message.plan = $root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1, message.plan);
+                            message._plan = "plan";
+                            continue;
+                        }
+                    case 6: {
+                            if (wireType !== 2)
+                                break;
+                            message.selection = $root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1, message.selection);
+                            message._selection = "selection";
+                            continue;
+                        }
+                    case 7: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.trials && message.trials.length))
+                                message.trials = [];
+                            message.trials.push($root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1));
+                            continue;
+                        }
+                    case 2046: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.null_fields && message.null_fields.length))
+                                message.null_fields = [];
+                            message.null_fields.push(reader.stringVerify());
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies an Experiment message.
+             * @function verify
+             * @memberof northstar.research.Experiment
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            Experiment.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.experiment_id != null && $Object.hasOwnProperty.call(message, "experiment_id")) {
+                    properties._experiment_id = 1;
+                    if (!$util.isString(message.experiment_id))
+                        return "experiment_id: string expected";
+                }
+                if (message.plan_id != null && $Object.hasOwnProperty.call(message, "plan_id")) {
+                    properties._plan_id = 1;
+                    if (!$util.isString(message.plan_id))
+                        return "plan_id: string expected";
+                }
+                if (message.created_at != null && $Object.hasOwnProperty.call(message, "created_at")) {
+                    properties._created_at = 1;
+                    if (!$util.isString(message.created_at))
+                        return "created_at: string expected";
+                }
+                if (message.status != null && $Object.hasOwnProperty.call(message, "status")) {
+                    properties._status = 1;
+                    if (!$util.isString(message.status))
+                        return "status: string expected";
+                }
+                if (message.plan != null && $Object.hasOwnProperty.call(message, "plan")) {
+                    properties._plan = 1;
+                    {
+                        let error = $root.google.protobuf.Struct.verify(message.plan, _depth + 1);
+                        if (error)
+                            return "plan." + error;
+                    }
+                }
+                if (message.selection != null && $Object.hasOwnProperty.call(message, "selection")) {
+                    properties._selection = 1;
+                    {
+                        let error = $root.google.protobuf.Struct.verify(message.selection, _depth + 1);
+                        if (error)
+                            return "selection." + error;
+                    }
+                }
+                if (message.trials != null && $Object.hasOwnProperty.call(message, "trials")) {
+                    if (!$Array.isArray(message.trials))
+                        return "trials: array expected";
+                    for (let i = 0; i < message.trials.length; ++i) {
+                        let error = $root.google.protobuf.Struct.verify(message.trials[i], _depth + 1);
+                        if (error)
+                            return "trials." + error;
+                    }
+                }
+                if (message.null_fields != null && $Object.hasOwnProperty.call(message, "null_fields")) {
+                    if (!$Array.isArray(message.null_fields))
+                        return "null_fields: array expected";
+                    for (let i = 0; i < message.null_fields.length; ++i)
+                        if (!$util.isString(message.null_fields[i]))
+                            return "null_fields: string[] expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates an Experiment message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.research.Experiment
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.research.Experiment} Experiment
+             */
+            Experiment.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.research.Experiment)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.research.Experiment: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.research.Experiment();
+                if (object.experiment_id != null)
+                    message.experiment_id = $String(object.experiment_id);
+                if (object.plan_id != null)
+                    message.plan_id = $String(object.plan_id);
+                if (object.created_at != null)
+                    message.created_at = $String(object.created_at);
+                if (object.status != null)
+                    message.status = $String(object.status);
+                if (object.plan != null) {
+                    if (!$util.isObject(object.plan))
+                        throw $TypeError(".northstar.research.Experiment.plan: object expected");
+                    message.plan = $root.google.protobuf.Struct.fromObject(object.plan, _depth + 1);
+                }
+                if (object.selection != null) {
+                    if (!$util.isObject(object.selection))
+                        throw $TypeError(".northstar.research.Experiment.selection: object expected");
+                    message.selection = $root.google.protobuf.Struct.fromObject(object.selection, _depth + 1);
+                }
+                if (object.trials) {
+                    if (!$Array.isArray(object.trials))
+                        throw $TypeError(".northstar.research.Experiment.trials: array expected");
+                    message.trials = $Array(object.trials.length);
+                    for (let i = 0; i < object.trials.length; ++i) {
+                        if (!$util.isObject(object.trials[i]))
+                            throw $TypeError(".northstar.research.Experiment.trials: object expected");
+                        message.trials[i] = $root.google.protobuf.Struct.fromObject(object.trials[i], _depth + 1);
+                    }
+                }
+                if (object.null_fields) {
+                    if (!$Array.isArray(object.null_fields))
+                        throw $TypeError(".northstar.research.Experiment.null_fields: array expected");
+                    message.null_fields = $Array(object.null_fields.length);
+                    for (let i = 0; i < object.null_fields.length; ++i)
+                        message.null_fields[i] = $String(object.null_fields[i]);
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from an Experiment message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.research.Experiment
+             * @static
+             * @param {northstar.research.Experiment} message Experiment
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            Experiment.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.arrays || options.defaults) {
+                    object.trials = [];
+                    object.null_fields = [];
+                }
+                if (message.experiment_id != null && $Object.hasOwnProperty.call(message, "experiment_id")) {
+                    object.experiment_id = message.experiment_id;
+                    if (options.oneofs)
+                        object._experiment_id = "experiment_id";
+                }
+                if (message.plan_id != null && $Object.hasOwnProperty.call(message, "plan_id")) {
+                    object.plan_id = message.plan_id;
+                    if (options.oneofs)
+                        object._plan_id = "plan_id";
+                }
+                if (message.created_at != null && $Object.hasOwnProperty.call(message, "created_at")) {
+                    object.created_at = message.created_at;
+                    if (options.oneofs)
+                        object._created_at = "created_at";
+                }
+                if (message.status != null && $Object.hasOwnProperty.call(message, "status")) {
+                    object.status = message.status;
+                    if (options.oneofs)
+                        object._status = "status";
+                }
+                if (message.plan != null && $Object.hasOwnProperty.call(message, "plan")) {
+                    object.plan = $root.google.protobuf.Struct.toObject(message.plan, options, _depth + 1);
+                    if (options.oneofs)
+                        object._plan = "plan";
+                }
+                if (message.selection != null && $Object.hasOwnProperty.call(message, "selection")) {
+                    object.selection = $root.google.protobuf.Struct.toObject(message.selection, options, _depth + 1);
+                    if (options.oneofs)
+                        object._selection = "selection";
+                }
+                if (message.trials && message.trials.length) {
+                    object.trials = $Array(message.trials.length);
+                    for (let j = 0; j < message.trials.length; ++j)
+                        object.trials[j] = $root.google.protobuf.Struct.toObject(message.trials[j], options, _depth + 1);
+                }
+                if (message.null_fields && message.null_fields.length) {
+                    object.null_fields = $Array(message.null_fields.length);
+                    for (let j = 0; j < message.null_fields.length; ++j)
+                        object.null_fields[j] = message.null_fields[j];
+                }
+                return object;
+            };
+
+            /**
+             * Converts this Experiment to JSON.
+             * @function toJSON
+             * @memberof northstar.research.Experiment
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            Experiment.prototype.toJSON = function() {
+                return Experiment.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for Experiment
+             * @function getTypeUrl
+             * @memberof northstar.research.Experiment
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            Experiment.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.research.Experiment";
+            };
+
+            return Experiment;
+        })();
+
+        research.ExperimentList = (function() {
+
+            /**
+             * Properties of an ExperimentList.
+             * @typedef {Object} northstar.research.ExperimentList.$Properties
+             * @property {Array.<northstar.research.Experiment.$Properties>|null} [items] ExperimentList items
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of an ExperimentList.
+             * @memberof northstar.research
+             * @interface IExperimentList
+             * @augments northstar.research.ExperimentList.$Properties
+             * @deprecated Use northstar.research.ExperimentList.$Properties instead.
+             */
+
+            /**
+             * Shape of an ExperimentList.
+             * @typedef {{
+             *   items?: Array.<northstar.research.Experiment.$Shape>|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * }} northstar.research.ExperimentList.$Shape
+             */
+
+            /**
+             * Constructs a new ExperimentList.
+             * @memberof northstar.research
+             * @classdesc Represents an ExperimentList.
+             * @constructor
+             * @param {northstar.research.ExperimentList.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const ExperimentList = function (properties) {
+                this.items = [];
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * ExperimentList items.
+             * @member {Array.<northstar.research.Experiment.$Properties>} items
+             * @memberof northstar.research.ExperimentList
+             * @instance
+             */
+            ExperimentList.prototype.items = $util.emptyArray;
+
+            /**
+             * Creates a new ExperimentList instance using the specified properties.
+             * @function create
+             * @memberof northstar.research.ExperimentList
+             * @static
+             * @param {northstar.research.ExperimentList.$Properties=} [properties] Properties to set
+             * @returns {northstar.research.ExperimentList} ExperimentList instance
+             * @type {{
+             *   (properties: northstar.research.ExperimentList.$Shape): northstar.research.ExperimentList & northstar.research.ExperimentList.$Shape;
+             *   (properties?: northstar.research.ExperimentList.$Properties): northstar.research.ExperimentList;
+             * }}
+             */
+            ExperimentList.create = function(properties) {
+                return new ExperimentList(properties);
+            };
+
+            /**
+             * Encodes the specified ExperimentList message. Does not implicitly {@link northstar.research.ExperimentList.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.research.ExperimentList
+             * @static
+             * @param {northstar.research.ExperimentList.$Properties} message ExperimentList message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            ExperimentList.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.items != null && message.items.length)
+                    for (let i = 0; i < message.items.length; ++i)
+                        $root.northstar.research.Experiment.encode(message.items[i], writer.uint32(/* id 1, wireType 2 =*/10).fork(), _depth + 1).ldelim();
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes an ExperimentList message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.research.ExperimentList
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.research.ExperimentList & northstar.research.ExperimentList.$Shape} ExperimentList
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            ExperimentList.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.research.ExperimentList();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.items && message.items.length))
+                                message.items = [];
+                            message.items.push($root.northstar.research.Experiment.decode(reader, reader.uint32(), $undefined, _depth + 1));
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies an ExperimentList message.
+             * @function verify
+             * @memberof northstar.research.ExperimentList
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            ExperimentList.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                if (message.items != null && $Object.hasOwnProperty.call(message, "items")) {
+                    if (!$Array.isArray(message.items))
+                        return "items: array expected";
+                    for (let i = 0; i < message.items.length; ++i) {
+                        let error = $root.northstar.research.Experiment.verify(message.items[i], _depth + 1);
+                        if (error)
+                            return "items." + error;
+                    }
+                }
+                return null;
+            };
+
+            /**
+             * Creates an ExperimentList message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.research.ExperimentList
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.research.ExperimentList} ExperimentList
+             */
+            ExperimentList.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.research.ExperimentList)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.research.ExperimentList: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.research.ExperimentList();
+                if (object.items) {
+                    if (!$Array.isArray(object.items))
+                        throw $TypeError(".northstar.research.ExperimentList.items: array expected");
+                    message.items = $Array(object.items.length);
+                    for (let i = 0; i < object.items.length; ++i) {
+                        if (!$util.isObject(object.items[i]))
+                            throw $TypeError(".northstar.research.ExperimentList.items: object expected");
+                        message.items[i] = $root.northstar.research.Experiment.fromObject(object.items[i], _depth + 1);
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from an ExperimentList message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.research.ExperimentList
+             * @static
+             * @param {northstar.research.ExperimentList} message ExperimentList
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            ExperimentList.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.arrays || options.defaults)
+                    object.items = [];
+                if (message.items && message.items.length) {
+                    object.items = $Array(message.items.length);
+                    for (let j = 0; j < message.items.length; ++j)
+                        object.items[j] = $root.northstar.research.Experiment.toObject(message.items[j], options, _depth + 1);
+                }
+                return object;
+            };
+
+            /**
+             * Converts this ExperimentList to JSON.
+             * @function toJSON
+             * @memberof northstar.research.ExperimentList
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            ExperimentList.prototype.toJSON = function() {
+                return ExperimentList.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for ExperimentList
+             * @function getTypeUrl
+             * @memberof northstar.research.ExperimentList
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            ExperimentList.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.research.ExperimentList";
+            };
+
+            return ExperimentList;
+        })();
+
         research.TaskList = (function() {
 
             /**

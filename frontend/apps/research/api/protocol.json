@@ -2684,6 +2684,133 @@
       "array": false,
       "evidence": false
     },
+    "northstar.research.ExperimentRequest": {
+      "fields": {
+        "request_id": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "hypothesis": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "train_snapshot": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "validation_snapshot": {
+          "id": 4,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "test_snapshot": {
+          "id": 5,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "configurations": {
+          "id": 6,
+          "presence": false,
+          "type": "northstar.research.ResearchConfigurationInput",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.research.Experiment": {
+      "fields": {
+        "experiment_id": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "plan_id": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "created_at": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "status": {
+          "id": 4,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "plan": {
+          "id": 5,
+          "presence": true,
+          "type": "google.protobuf.Struct",
+          "required": true,
+          "nullable": false
+        },
+        "selection": {
+          "id": 6,
+          "presence": true,
+          "type": "google.protobuf.Struct",
+          "required": true,
+          "nullable": true
+        },
+        "trials": {
+          "id": 7,
+          "presence": false,
+          "type": "google.protobuf.Struct",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "null_fields": {
+          "id": 2046,
+          "presence": false,
+          "type": "string",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.research.ExperimentList": {
+      "fields": {
+        "items": {
+          "id": 1,
+          "presence": false,
+          "type": "northstar.research.Experiment",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        }
+      },
+      "array": true,
+      "evidence": false
+    },
     "northstar.research.TaskList": {
       "fields": {
         "items": {
@@ -3177,6 +3304,27 @@
     }
   },
   "methods": [
+    {
+      "method": "POST",
+      "path": "/api/experiments",
+      "input": "northstar.research.ExperimentRequest",
+      "output": "northstar.research.Experiment",
+      "runtime": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/experiments",
+      "input": "northstar.web.Empty",
+      "output": "northstar.research.ExperimentList",
+      "runtime": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/experiments/{experiment_id}",
+      "input": "northstar.web.Empty",
+      "output": "northstar.research.Experiment",
+      "runtime": false
+    },
     {
       "method": "POST",
       "path": "/api/login",

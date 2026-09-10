@@ -418,6 +418,24 @@ export type TaskRequest = {
 export type TaskControl = {
   action: string;
 };
+export type ExperimentRequest = {
+  request_id: string;
+  hypothesis: string;
+  train_snapshot: string;
+  validation_snapshot: string;
+  test_snapshot: string;
+  configurations: (ResearchConfigurationInput)[];
+};
+export type Experiment = {
+  experiment_id: string;
+  plan_id: string;
+  created_at: string;
+  status: string;
+  plan: Record<string, JsonValue>;
+  selection: Record<string, JsonValue> | null;
+  trials: (Record<string, JsonValue>)[];
+};
+export type ExperimentList = (Experiment)[];
 export type TaskList = (ResearchTask)[];
 export type EvaluationPlan = {
   plan_id: string;

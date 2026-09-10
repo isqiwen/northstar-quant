@@ -1005,6 +1005,48 @@ class TaskControl(_message.Message):
     action: str
     def __init__(self, action: _Optional[str] = ...) -> None: ...
 
+class ExperimentRequest(_message.Message):
+    __slots__ = ("request_id", "hypothesis", "train_snapshot", "validation_snapshot", "test_snapshot", "configurations")
+    REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
+    HYPOTHESIS_FIELD_NUMBER: _ClassVar[int]
+    TRAIN_SNAPSHOT_FIELD_NUMBER: _ClassVar[int]
+    VALIDATION_SNAPSHOT_FIELD_NUMBER: _ClassVar[int]
+    TEST_SNAPSHOT_FIELD_NUMBER: _ClassVar[int]
+    CONFIGURATIONS_FIELD_NUMBER: _ClassVar[int]
+    request_id: str
+    hypothesis: str
+    train_snapshot: str
+    validation_snapshot: str
+    test_snapshot: str
+    configurations: _containers.RepeatedCompositeFieldContainer[ResearchConfigurationInput]
+    def __init__(self, request_id: _Optional[str] = ..., hypothesis: _Optional[str] = ..., train_snapshot: _Optional[str] = ..., validation_snapshot: _Optional[str] = ..., test_snapshot: _Optional[str] = ..., configurations: _Optional[_Iterable[_Union[ResearchConfigurationInput, _Mapping]]] = ...) -> None: ...
+
+class Experiment(_message.Message):
+    __slots__ = ("experiment_id", "plan_id", "created_at", "status", "plan", "selection", "trials", "null_fields")
+    EXPERIMENT_ID_FIELD_NUMBER: _ClassVar[int]
+    PLAN_ID_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    PLAN_FIELD_NUMBER: _ClassVar[int]
+    SELECTION_FIELD_NUMBER: _ClassVar[int]
+    TRIALS_FIELD_NUMBER: _ClassVar[int]
+    NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    experiment_id: str
+    plan_id: str
+    created_at: str
+    status: str
+    plan: _struct_pb2.Struct
+    selection: _struct_pb2.Struct
+    trials: _containers.RepeatedCompositeFieldContainer[_struct_pb2.Struct]
+    null_fields: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, experiment_id: _Optional[str] = ..., plan_id: _Optional[str] = ..., created_at: _Optional[str] = ..., status: _Optional[str] = ..., plan: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., selection: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., trials: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class ExperimentList(_message.Message):
+    __slots__ = ("items",)
+    ITEMS_FIELD_NUMBER: _ClassVar[int]
+    items: _containers.RepeatedCompositeFieldContainer[Experiment]
+    def __init__(self, items: _Optional[_Iterable[_Union[Experiment, _Mapping]]] = ...) -> None: ...
+
 class TaskList(_message.Message):
     __slots__ = ("items",)
     ITEMS_FIELD_NUMBER: _ClassVar[int]

@@ -292,7 +292,8 @@ def main() -> None:
                     visit(data_url + "/sync")
                     expect(
                         page.get_by_text(
-                            "Synthetic acceptance: provider permission denied", exact=True
+                            "Synthetic acceptance: provider permission denied",
+                            exact=True,
                         ).first
                     ).to_be_visible()
                     screenshot("sync")
@@ -310,7 +311,41 @@ def main() -> None:
                     ).to_be_visible()
                     expect(page.get_by_text("后台自动同步已启用", exact=False)).to_be_visible()
                     screenshot("data")
-                with app.api("data-api"), app.research_worker(), app.web("research-api") as url:
+                from datetime import date, timedelta
+
+                study_snapshots = [imported["snapshot_id"]]
+                original_day = spec["trading_day"]
+                for shift in (1, 2):
+                    shifted_day = (
+                        date.fromisoformat(original_day) + timedelta(days=shift)
+                    ).isoformat()
+                    shifted_spec = {
+                        k: v.replace(original_day, shifted_day) if isinstance(v, str) else v
+                        for k, v in spec.items()
+                    }
+                    shifted = app.seed_source(
+                        {
+                            "content_base64": base64.b64encode(
+                                (args.study.parent / filename)
+                                .read_text()
+                                .replace(original_day, shifted_day)
+                                .encode()
+                            ).decode(),
+                            "filename": f"study-{shift}.csv",
+                            "source_name": spec["source_name"],
+                            "spec": shifted_spec,
+                            **study["archive"],
+                            "request_id": str(uuid4()),
+                        },
+                        wait=True,
+                    )
+                    assert shifted["status"] == "PUBLISHED", shifted
+                    study_snapshots.append(shifted["snapshot_id"])
+                with (
+                    app.api("data-api"),
+                    app.research_worker(),
+                    app.web("research-api") as url,
+                ):
                     visit(url + "/factors/trend.return")
                     choose("固定数据快照", imported["snapshot_id"][:8])
                     page.get_by_label("收益窗口 · bars", exact=True).fill("2")
@@ -360,6 +395,25 @@ def main() -> None:
                     ).to_be_visible()
                     expect(page.get_by_text("策略参数与因子绑定", exact=True)).to_be_visible()
                     screenshot("comparison")
+                    page.get_by_role("tab", name="参数实验", exact=True).click()
+                    page.get_by_label("研究假设", exact=True).fill("浏览器固定参数实验")
+                    for label, snapshot in zip(
+                        ("训练快照", "验证快照", "测试快照"),
+                        study_snapshots,
+                        strict=True,
+                    ):
+                        choose(label, snapshot[:8])
+                    for name in ("浏览器动量", "浏览器区间反转"):
+                        choose("候选配置（2–64 个，仅策略或因子参数不同）", name)
+                    page.get_by_role("button", name="固定计划并提交", exact=True).click()
+                    study_row = page.locator("tr").filter(
+                        has=page.get_by_text("浏览器固定参数实验", exact=True)
+                    )
+                    expect(study_row.get_by_text("完成", exact=True)).to_be_visible(timeout=60000)
+                    study_row.locator(".ant-table-row-expand-icon").click()
+                    expect(page.get_by_role("cell", name="测试", exact=True)).to_have_count(1)
+                    expect(page.get_by_role("link", name="查看任务", exact=True)).to_have_count(5)
+                    screenshot("parameter-study")
                     visit(url + "/candidates")
                     version_form = (
                         page.locator(".ant-card")
@@ -394,7 +448,11 @@ def main() -> None:
                     expect(page.locator(".facts").get_by_text("1", exact=True)).to_be_visible()
                     visit(url + "/")
                     screenshot("research")
-                with app.api("data-api"), app.research_worker(), app.web("research-api") as url:
+                with (
+                    app.api("data-api"),
+                    app.research_worker(),
+                    app.web("research-api") as url,
+                ):
                     visit(url + factor_path)
                     expect(page.get_by_text(annotation, exact=False)).to_be_visible()
                     visit(url + version_path)
@@ -418,9 +476,10 @@ def main() -> None:
                         completed_task = app.command("research", "task", task_id)
                         if completed_task["status"] == "SUCCEEDED":
                             break
-                        assert completed_task["status"] not in {"FAILED", "INTERRUPTED"}, (
-                            completed_task
-                        )
+                        assert completed_task["status"] not in {
+                            "FAILED",
+                            "INTERRUPTED",
+                        }, completed_task
                         time.sleep(0.2)
                     assert completed_task["status"] == "SUCCEEDED", completed_task
                 with app.web("research-api") as url:
@@ -462,7 +521,8 @@ def main() -> None:
                     screenshot("settlements")
                     page.get_by_role("tab", name="费用与保证金条款", exact=True).click()
                     page.get_by_text(
-                        "该研究使用配置中的模拟费用和保证金假设，未绑定历史条款。", exact=True
+                        "该研究使用配置中的模拟费用和保证金假设，未绑定历史条款。",
+                        exact=True,
                     ).wait_for(state="visible")
                     screenshot("terms")
                 print(

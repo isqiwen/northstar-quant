@@ -514,6 +514,18 @@ message GetApiStrategyVersionsResponse {
 }
 
 service BrowserApi {
+  rpc SubmitExperiment (ExperimentRequest) returns (Experiment) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/experiments";
+  }
+  rpc ListExperiments (northstar.web.Empty) returns (ExperimentList) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/experiments";
+  }
+  rpc GetExperiment (northstar.web.Empty) returns (Experiment) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/experiments/{experiment_id}";
+  }
   rpc PostApiLogin (northstar.web.auth.LoginRequest) returns (northstar.web.auth.BrowserSession) {
     option (northstar.web.http_method) = "POST";
     option (northstar.web.http_path) = "/api/login";
@@ -683,6 +695,28 @@ message TaskRequest {
  optional ResearchConfigurationInput config = 3 [(northstar.web.required_field) = true];
 }
 message TaskControl { optional string action = 1 [(northstar.web.required_field) = true]; }
+message ExperimentRequest {
+  optional string request_id = 1 [(northstar.web.required_field) = true];
+  optional string hypothesis = 2 [(northstar.web.required_field) = true];
+  optional string train_snapshot = 3 [(northstar.web.required_field) = true];
+  optional string validation_snapshot = 4 [(northstar.web.required_field) = true];
+  optional string test_snapshot = 5 [(northstar.web.required_field) = true];
+  repeated ResearchConfigurationInput configurations = 6 [(northstar.web.required_field) = true];
+}
+message Experiment {
+  optional string experiment_id = 1 [(northstar.web.required_field) = true];
+  optional string plan_id = 2 [(northstar.web.required_field) = true];
+  optional string created_at = 3 [(northstar.web.required_field) = true];
+  optional string status = 4 [(northstar.web.required_field) = true];
+  optional google.protobuf.Struct plan = 5 [(northstar.web.required_field) = true];
+  optional google.protobuf.Struct selection = 6 [(northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  repeated google.protobuf.Struct trials = 7 [(northstar.web.required_field) = true];
+  repeated string null_fields = 2046;
+}
+message ExperimentList {
+  option (northstar.web.root_array) = true;
+  repeated Experiment items = 1;
+}
 message TaskList {
  option (northstar.web.root_array) = true;
  repeated ResearchTask items = 1;

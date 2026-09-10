@@ -5,11 +5,12 @@ import type { Query } from "../../../shared/data";
 import protocol from "./protocol.json";
 import codec from "./codec";
 registerProtocol(protocol, codec);
-export type GetPath = `/api/strategy-definitions/${string}` | `/api/datasets/${string}/lineage` | `/api/factor-definitions/${string}` | `/api/strategy-versions/${string}` | `/api/factor-runs/${string}` | `/api/configuration-defaults` | `/api/datasets/${string}` | `/api/strategy-candidates` | `/api/paper/${string}` | `/api/research-attempts` | `/api/strategy-versions` | `/api/factor-revisions` | `/api/tasks/${string}` | `/api/browser-session` | `/api/configurations` | `/api/runs/${string}` | `/api/factor-runs` | `/api/datasets` | `/api/catalog` | `/api/tasks` | `/api/paper` | `/api/runs`;
+export type GetPath = `/api/strategy-definitions/${string}` | `/api/datasets/${string}/lineage` | `/api/factor-definitions/${string}` | `/api/strategy-versions/${string}` | `/api/experiments/${string}` | `/api/factor-runs/${string}` | `/api/configuration-defaults` | `/api/datasets/${string}` | `/api/strategy-candidates` | `/api/paper/${string}` | `/api/research-attempts` | `/api/strategy-versions` | `/api/factor-revisions` | `/api/tasks/${string}` | `/api/browser-session` | `/api/configurations` | `/api/runs/${string}` | `/api/experiments` | `/api/factor-runs` | `/api/datasets` | `/api/catalog` | `/api/tasks` | `/api/paper` | `/api/runs`;
 export type GetResponse<P> = P extends `/api/strategy-definitions/${string}` ? messages.StrategyDescription :
 P extends `/api/datasets/${string}/lineage` ? messages.DatasetLineage :
 P extends `/api/factor-definitions/${string}` ? messages.FactorDescription :
 P extends `/api/strategy-versions/${string}` ? messages.StrategyVersion :
+P extends `/api/experiments/${string}` ? messages.Experiment :
 P extends `/api/factor-runs/${string}` ? messages.FactorRun :
 P extends `/api/configuration-defaults` ? messages.ResearchConfiguration :
 P extends `/api/datasets/${string}` ? messages.DatasetDetails :
@@ -22,13 +23,14 @@ P extends `/api/tasks/${string}` ? messages.ResearchTask :
 P extends `/api/browser-session` ? messages.BrowserSession :
 P extends `/api/configurations` ? messages.GetApiConfigurationsResponse :
 P extends `/api/runs/${string}` ? messages.RunDetail :
+P extends `/api/experiments` ? messages.ExperimentList :
 P extends `/api/factor-runs` ? messages.GetApiFactorRunsResponse :
 P extends `/api/datasets` ? messages.GetApiDatasetsResponse :
 P extends `/api/catalog` ? messages.Catalog :
 P extends `/api/tasks` ? messages.TaskList :
 P extends `/api/paper` ? messages.GetApiPaperResponse :
 P extends `/api/runs` ? messages.GetApiRunsResponse : never;
-export type CommandPath = `/api/factor-revisions/${string}/annotations` | `/api/strategy-versions/${string}/publish` | `/api/paper/${string}/advance` | `/api/tasks/${string}/control` | `/api/strategy-versions` | `/api/factor-revisions` | `/api/run-comparisons` | `/api/configurations` | `/api/factor-runs` | `/api/logout` | `/api/login` | `/api/tasks` | `/api/paper`;
+export type CommandPath = `/api/factor-revisions/${string}/annotations` | `/api/strategy-versions/${string}/publish` | `/api/paper/${string}/advance` | `/api/tasks/${string}/control` | `/api/strategy-versions` | `/api/factor-revisions` | `/api/run-comparisons` | `/api/configurations` | `/api/experiments` | `/api/factor-runs` | `/api/logout` | `/api/login` | `/api/tasks` | `/api/paper`;
 export type CommandResponse<P> = P extends `/api/factor-revisions/${string}/annotations` ? messages.RevisionCreated :
 P extends `/api/strategy-versions/${string}/publish` ? messages.StrategyCandidate :
 P extends `/api/paper/${string}/advance` ? messages.PaperAdvanced :
@@ -37,6 +39,7 @@ P extends `/api/strategy-versions` ? messages.VersionCreated :
 P extends `/api/factor-revisions` ? messages.RevisionCreated :
 P extends `/api/run-comparisons` ? messages.PostApiRunComparisonsResponse :
 P extends `/api/configurations` ? messages.SavedConfiguration :
+P extends `/api/experiments` ? messages.Experiment :
 P extends `/api/factor-runs` ? messages.FactorRun :
 P extends `/api/logout` ? messages.BrowserSession :
 P extends `/api/login` ? messages.BrowserSession :
@@ -50,6 +53,7 @@ P extends `/api/strategy-versions` ? messages.StrategyVersionRequest :
 P extends `/api/factor-revisions` ? messages.FactorRevisionRequest :
 P extends `/api/run-comparisons` ? messages.ComparisonRequest :
 P extends `/api/configurations` ? messages.ConfigurationRequest :
+P extends `/api/experiments` ? messages.ExperimentRequest :
 P extends `/api/factor-runs` ? messages.FactorRunRequest :
 P extends `/api/logout` ? messages.Empty :
 P extends `/api/login` ? messages.LoginRequest :
