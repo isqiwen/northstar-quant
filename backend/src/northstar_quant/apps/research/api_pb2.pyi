@@ -92,13 +92,13 @@ class ConfigurationRequest(_message.Message):
     def __init__(self, config: _Optional[_Union[ResearchConfigurationInput, _Mapping]] = ..., name: _Optional[str] = ...) -> None: ...
 
 class DatasetDetails(_message.Message):
-    __slots__ = ("availability_basis", "availability_note", "bar_count", "content_hash", "exchange", "import_spec", "limitations", "processing_provenance", "product", "published_at", "quality", "semantics", "session_close", "session_open", "snapshot_id", "source_reference", "sources", "symbol", "trading_day", "null_fields")
+    __slots__ = ("availability_basis", "availability_note", "bar_count", "content_hash", "exchange", "import_specs", "limitations", "processing_provenance", "product", "published_at", "quality", "semantics", "session_close", "session_open", "snapshot_id", "source_reference", "sources", "symbol", "trading_days", "null_fields")
     AVAILABILITY_BASIS_FIELD_NUMBER: _ClassVar[int]
     AVAILABILITY_NOTE_FIELD_NUMBER: _ClassVar[int]
     BAR_COUNT_FIELD_NUMBER: _ClassVar[int]
     CONTENT_HASH_FIELD_NUMBER: _ClassVar[int]
     EXCHANGE_FIELD_NUMBER: _ClassVar[int]
-    IMPORT_SPEC_FIELD_NUMBER: _ClassVar[int]
+    IMPORT_SPECS_FIELD_NUMBER: _ClassVar[int]
     LIMITATIONS_FIELD_NUMBER: _ClassVar[int]
     PROCESSING_PROVENANCE_FIELD_NUMBER: _ClassVar[int]
     PRODUCT_FIELD_NUMBER: _ClassVar[int]
@@ -111,14 +111,14 @@ class DatasetDetails(_message.Message):
     SOURCE_REFERENCE_FIELD_NUMBER: _ClassVar[int]
     SOURCES_FIELD_NUMBER: _ClassVar[int]
     SYMBOL_FIELD_NUMBER: _ClassVar[int]
-    TRADING_DAY_FIELD_NUMBER: _ClassVar[int]
+    TRADING_DAYS_FIELD_NUMBER: _ClassVar[int]
     NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
     availability_basis: str
     availability_note: str
     bar_count: int
     content_hash: str
     exchange: str
-    import_spec: ImportSpecification
+    import_specs: _containers.RepeatedCompositeFieldContainer[ImportSpecification]
     limitations: _containers.RepeatedScalarFieldContainer[str]
     processing_provenance: _struct_pb2.Struct
     product: str
@@ -131,9 +131,9 @@ class DatasetDetails(_message.Message):
     source_reference: str
     sources: _containers.RepeatedCompositeFieldContainer[_struct_pb2.Struct]
     symbol: str
-    trading_day: str
+    trading_days: _containers.RepeatedScalarFieldContainer[str]
     null_fields: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, availability_basis: _Optional[str] = ..., availability_note: _Optional[str] = ..., bar_count: _Optional[int] = ..., content_hash: _Optional[str] = ..., exchange: _Optional[str] = ..., import_spec: _Optional[_Union[ImportSpecification, _Mapping]] = ..., limitations: _Optional[_Iterable[str]] = ..., processing_provenance: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., product: _Optional[str] = ..., published_at: _Optional[str] = ..., quality: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., semantics: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., session_close: _Optional[str] = ..., session_open: _Optional[str] = ..., snapshot_id: _Optional[str] = ..., source_reference: _Optional[str] = ..., sources: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., symbol: _Optional[str] = ..., trading_day: _Optional[str] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+    def __init__(self, availability_basis: _Optional[str] = ..., availability_note: _Optional[str] = ..., bar_count: _Optional[int] = ..., content_hash: _Optional[str] = ..., exchange: _Optional[str] = ..., import_specs: _Optional[_Iterable[_Union[ImportSpecification, _Mapping]]] = ..., limitations: _Optional[_Iterable[str]] = ..., processing_provenance: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., product: _Optional[str] = ..., published_at: _Optional[str] = ..., quality: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., semantics: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., session_close: _Optional[str] = ..., session_open: _Optional[str] = ..., snapshot_id: _Optional[str] = ..., source_reference: _Optional[str] = ..., sources: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., symbol: _Optional[str] = ..., trading_days: _Optional[_Iterable[str]] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class DatasetLineage(_message.Message):
     __slots__ = ("attempts", "snapshot_id", "sources", "usages")
@@ -148,7 +148,7 @@ class DatasetLineage(_message.Message):
     def __init__(self, attempts: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., snapshot_id: _Optional[str] = ..., sources: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., usages: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ...) -> None: ...
 
 class DatasetSummary(_message.Message):
-    __slots__ = ("bar_count", "content_hash", "exchange", "product", "published_at", "session_close", "session_open", "snapshot_id", "symbol", "trading_day")
+    __slots__ = ("bar_count", "content_hash", "exchange", "product", "published_at", "session_close", "session_open", "snapshot_id", "symbol", "trading_days")
     BAR_COUNT_FIELD_NUMBER: _ClassVar[int]
     CONTENT_HASH_FIELD_NUMBER: _ClassVar[int]
     EXCHANGE_FIELD_NUMBER: _ClassVar[int]
@@ -158,7 +158,7 @@ class DatasetSummary(_message.Message):
     SESSION_OPEN_FIELD_NUMBER: _ClassVar[int]
     SNAPSHOT_ID_FIELD_NUMBER: _ClassVar[int]
     SYMBOL_FIELD_NUMBER: _ClassVar[int]
-    TRADING_DAY_FIELD_NUMBER: _ClassVar[int]
+    TRADING_DAYS_FIELD_NUMBER: _ClassVar[int]
     bar_count: int
     content_hash: str
     exchange: str
@@ -168,8 +168,8 @@ class DatasetSummary(_message.Message):
     session_open: str
     snapshot_id: str
     symbol: str
-    trading_day: str
-    def __init__(self, bar_count: _Optional[int] = ..., content_hash: _Optional[str] = ..., exchange: _Optional[str] = ..., product: _Optional[str] = ..., published_at: _Optional[str] = ..., session_close: _Optional[str] = ..., session_open: _Optional[str] = ..., snapshot_id: _Optional[str] = ..., symbol: _Optional[str] = ..., trading_day: _Optional[str] = ...) -> None: ...
+    trading_days: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, bar_count: _Optional[int] = ..., content_hash: _Optional[str] = ..., exchange: _Optional[str] = ..., product: _Optional[str] = ..., published_at: _Optional[str] = ..., session_close: _Optional[str] = ..., session_open: _Optional[str] = ..., snapshot_id: _Optional[str] = ..., symbol: _Optional[str] = ..., trading_days: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class EquityPoint(_message.Message):
     __slots__ = ("at", "equity", "observation_id", "evidence_fields")

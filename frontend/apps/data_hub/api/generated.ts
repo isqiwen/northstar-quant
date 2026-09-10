@@ -14,7 +14,7 @@ export type DatasetDetails = {
   bar_count: number;
   content_hash: string;
   exchange: string;
-  import_spec: ImportSpecification;
+  import_specs: (ImportSpecification)[];
   limitations: (string)[];
   processing_provenance?: Record<string, JsonValue> | null;
   product: string;
@@ -27,7 +27,7 @@ export type DatasetDetails = {
   source_reference: string;
   sources: (Record<string, JsonValue>)[];
   symbol: string;
-  trading_day: string;
+  trading_days: (string)[];
 };
 export type DatasetLineage = {
   attempts: (Record<string, JsonValue>)[];
@@ -45,7 +45,7 @@ export type DatasetSummary = {
   session_open: string;
   snapshot_id: string;
   symbol: string;
-  trading_day: string;
+  trading_days: (string)[];
 };
 export type HttpError = {
   detail: string;

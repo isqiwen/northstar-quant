@@ -32,7 +32,7 @@ export type ArchiveDataset = {
   bar_count: number;
   content_hash: string;
   exchange: string;
-  import_spec: ImportSpecification;
+  import_specs: (ImportSpecification)[];
   limitations: (string)[];
   live_runtime: Record<string, JsonValue>;
   processing_provenance?: Record<string, JsonValue> | null;
@@ -46,7 +46,7 @@ export type ArchiveDataset = {
   source_reference: string;
   sources: (Record<string, JsonValue>)[];
   symbol: string;
-  trading_day: string;
+  trading_days: (string)[];
 };
 export type ArchiveReprocessRequest = {
   request_id: string;

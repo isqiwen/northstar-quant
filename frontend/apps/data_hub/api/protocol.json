@@ -78,12 +78,13 @@
           "required": true,
           "nullable": false
         },
-        "import_spec": {
+        "import_specs": {
           "id": 6,
-          "presence": true,
+          "presence": false,
           "type": "northstar.data_hub.ImportSpecification",
           "required": true,
-          "nullable": false
+          "nullable": false,
+          "rule": "repeated"
         },
         "limitations": {
           "id": 7,
@@ -171,12 +172,13 @@
           "required": true,
           "nullable": false
         },
-        "trading_day": {
+        "trading_days": {
           "id": 19,
-          "presence": true,
+          "presence": false,
           "type": "string",
           "required": true,
-          "nullable": false
+          "nullable": false,
+          "rule": "repeated"
         },
         "null_fields": {
           "id": 2046,
@@ -292,12 +294,13 @@
           "required": true,
           "nullable": false
         },
-        "trading_day": {
+        "trading_days": {
           "id": 10,
-          "presence": true,
+          "presence": false,
           "type": "string",
           "required": true,
-          "nullable": false
+          "nullable": false,
+          "rule": "repeated"
         }
       },
       "array": false,

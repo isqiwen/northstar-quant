@@ -43,7 +43,10 @@ from sqlalchemy.engine import RowMapping
 
 from northstar_quant import code_revision
 from northstar_quant.broker.records import EvidenceTimestamp
-from northstar_quant.data_management.catalog.models import DatasetSnapshotManifest
+from northstar_quant.data_management.catalog.models import (
+    DatasetSnapshotImportQualityPin,
+    DatasetSnapshotManifest,
+)
 from northstar_quant.data_management.files import SourceFiles
 from northstar_quant.data_management.maintenance import library_write
 from northstar_quant.data_management.research import (
@@ -51,10 +54,11 @@ from northstar_quant.data_management.research import (
     DatasetSummary,
     ResearchDataset,
     _digest,
-    _load_dataset,
     _source_evidence,
     _timestamp,
 )
+
+from .research_reader import load_dataset
 
 _metadata = MetaData()
 _sources = Table(
@@ -885,14 +889,45 @@ class DataLibrary:
 
     def load_dataset(self, snapshot_id: UUID) -> ResearchDataset:
         with self._engine.connect() as connection:
-            published = connection.scalar(
-                select(_attempts.c.attempt_id)
-                .where(_attempts.c.snapshot_id == snapshot_id, _attempts.c.status == "PUBLISHED")
-                .limit(1)
+            if (
+                connection.scalar(
+                    select(DatasetSnapshotManifest.id).where(
+                        DatasetSnapshotManifest.id == snapshot_id
+                    )
+                )
+                is None
+            ):
+                raise LookupError("published library dataset not found")
+        dataset = load_dataset(self._engine, snapshot_id)
+        assert dataset.details is not None
+        import_ids = {pin.import_run_id for pin in dataset.details.import_quality}
+        with self._engine.connect() as connection:
+            completed = set(
+                connection.scalars(
+                    select(DatasetSnapshotImportQualityPin.import_run_id).where(
+                        DatasetSnapshotImportQualityPin.import_run_id.in_(import_ids),
+                        DatasetSnapshotImportQualityPin.manifest_id.in_(
+                            select(_attempts.c.snapshot_id).where(_attempts.c.status == "PUBLISHED")
+                        ),
+                    )
+                )
             )
-        if published is None:
-            raise LookupError("published library dataset not found")
-        dataset = _load_dataset(self._engine, snapshot_id)
+        if completed != import_ids:
+            raise LookupError("published library dataset has unconfirmed source processing")
+        if len(dataset.details.import_specs) == 1:
+            with self._engine.connect() as connection:
+                confirmed = connection.scalar(
+                    select(_attempts.c.attempt_id)
+                    .where(
+                        _attempts.c.snapshot_id == snapshot_id,
+                        _attempts.c.status == "PUBLISHED",
+                    )
+                    .limit(1)
+                )
+            if confirmed is None:
+                raise LookupError("published library dataset not found")
+        elif self.publications.load_dataset(snapshot_id) != dataset:
+            raise ValueError("fixed multi-session export differs from canonical publication")
         self._verify_dataset_sources(dataset)
         return dataset
 
@@ -908,10 +943,8 @@ class DataLibrary:
         with self._engine.connect() as connection:
             ids = (
                 connection.execute(
-                    select(_attempts.c.snapshot_id)
-                    .where(_attempts.c.status == "PUBLISHED")
-                    .group_by(_attempts.c.snapshot_id)
-                    .order_by(text("max(created_at) DESC"))
+                    select(DatasetSnapshotManifest.id)
+                    .order_by(DatasetSnapshotManifest.created_at.desc())
                     .limit(limit)
                 )
                 .scalars()
@@ -934,7 +967,7 @@ class DataLibrary:
         Dynamic file status is intentionally outside the immutable run identity.
         """
 
-        dataset = _load_dataset(self._engine, snapshot_id)
+        dataset = load_dataset(self._engine, snapshot_id)
         details = dataset.details
         assert details is not None
         with self._engine.connect() as connection:

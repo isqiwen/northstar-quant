@@ -9,16 +9,16 @@
 
 | 建议顺序 | Issue | 完成后得到什么 |
 |---|---|---|
-| 1 | [#46 响应规范化与质量版本](https://github.com/isqiwen/northstar-quant/issues/46) | 已接通响应校验、精确数值与 Decimal Parquet；已接通留存原文重处理、逐项质量报告与固定版本差异；待最终验收 |
-| 并行核实 | [#41 Tushare真实来源验收](https://github.com/isqiwen/northstar-quant/issues/41) | 已取得 RB2610 真实分钟/日线固定样本并逐项核对；请求异常隔离修复待 CI 验收 |
-| 2 | [#18 合约、时段与信息时钟](https://github.com/isqiwen/northstar-quant/issues/18) | 已接通单夜盘发布/重读与共享重叠区间/交易日倒退拒绝；待真实日历、跨日清单及条款 |
+| 1 | [#46 响应规范化与质量版本](https://github.com/isqiwen/northstar-quant/issues/46) | 响应校验、Decimal Parquet、留存原文重处理、逐项质量与固定版本差异已通过完整 CI，已关闭 |
+| 并行核实 | [#41 Tushare真实来源验收](https://github.com/isqiwen/northstar-quant/issues/41) | 已取得 RB2610 真实分钟/日线固定样本并逐项核对；请求异常隔离修复已通过 CI，已关闭 |
+| 2 | [#18 合约、时段与信息时钟](https://github.com/isqiwen/northstar-quant/issues/18) | 已接通固定多时段/多交易日读取与时间顺序拒绝；待真实 Tushare 装配、日历及条款 |
 | 3 | [#19 统一期货账户](https://github.com/isqiwen/northstar-quant/issues/19) | 多空今昨仓、费用、结算、保证金和权益逐项勾稽 |
 | 4 | [#20 事件原子性与受约束成交](https://github.com/isqiwen/northstar-quant/issues/20) | 失败不留半状态，成交遵守量价/时段，部分成交与残量可解释 |
 | 5 | [#21 可核对报告与固定评价](https://github.com/isqiwen/northstar-quant/issues/21) | 同一账本报告、固定窗口/基准和明确样本外边界 |
 | 并行工程 | [#23 持久研究负载验收](https://github.com/isqiwen/northstar-quant/issues/23) | 现有SQLite/worker的并发、取消、重启与实测资源管理 |
 | 6 | [#47 数据检查工作台](https://github.com/isqiwen/northstar-quant/issues/47) | 图表、覆盖、异常行和修订差异同源可查 |
 
-已交付 #46 的响应校验、数值规范化与规则身份、Decimal Parquet 和页面精确读取；留存原文重处理已接通原 worker；逐项质量报告和固定版本差异已实现，等待该提交 CI；完整领域时间与条款继续 #18。
+已交付 #46：响应校验、Decimal Parquet、留存原文重处理、逐项质量报告与固定版本差异均已通过完整 CI 与浏览器验收；完整领域时间与条款继续 #18。
 已交付 [#56 共享消息总线](https://github.com/isqiwen/northstar-quant/issues/56)：Research/Live 实际接入、事件隔离与研究整步回滚。
 已交付 [#57 共享交易内核](https://github.com/isqiwen/northstar-quant/issues/57)：统一事件入口、生命周期、失败策略和行情窗口；完整账户/执行业务继续按下表推进。
 #48 已将 `Environment`（BACKTEST/SANDBOX/LIVE）接入共享内核、实例绑定、配置与管理协议。SimNow 为 SANDBOX，柜台 profile 单独固定；完整材料、健康告警仍待交付。

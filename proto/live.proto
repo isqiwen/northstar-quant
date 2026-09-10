@@ -43,7 +43,7 @@ message ArchiveDataset {
   optional int64 bar_count = 3 [json_name = "bar_count", (northstar.web.required_field) = true];
   optional string content_hash = 4 [json_name = "content_hash", (northstar.web.required_field) = true];
   optional string exchange = 5 [json_name = "exchange", (northstar.web.required_field) = true];
-  optional ImportSpecification import_spec = 6 [json_name = "import_spec", (northstar.web.required_field) = true];
+  repeated ImportSpecification import_specs = 6 [json_name = "import_specs", (northstar.web.required_field) = true];
   repeated string limitations = 7 [json_name = "limitations", (northstar.web.required_field) = true];
   optional google.protobuf.Struct live_runtime = 8 [json_name = "live_runtime", (northstar.web.required_field) = true];
   optional google.protobuf.Struct processing_provenance = 9 [json_name = "processing_provenance", (northstar.web.nullable) = true];
@@ -57,7 +57,7 @@ message ArchiveDataset {
   optional string source_reference = 17 [json_name = "source_reference", (northstar.web.required_field) = true];
   repeated google.protobuf.Struct sources = 18 [json_name = "sources", (northstar.web.required_field) = true];
   optional string symbol = 19 [json_name = "symbol", (northstar.web.required_field) = true];
-  optional string trading_day = 20 [json_name = "trading_day", (northstar.web.required_field) = true];
+  repeated string trading_days = 20 [json_name = "trading_days", (northstar.web.required_field) = true];
   repeated string null_fields = 2046;
 }
 

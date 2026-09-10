@@ -91,11 +91,11 @@ def test_import_research_and_reopen_preserve_complete_result(
         assert client.get("/api/runs").json() == []
         assert client.get("/api/datasets").json()[0]["snapshot_id"] == dataset["snapshot_id"]
         details = client.get(f"/api/datasets/{dataset['snapshot_id']}").json()
-        assert details["import_spec"] == specification
+        assert details["import_specs"][0] == specification
         assert details["sources"][0]["source_name"] == specification["source_name"].upper()
         assert details["quality"]["imports"][0]["rows_accepted"] == len(prices)
-        assert details["quality"]["minute"]["observed_count"] == len(prices)
-        assert details["quality"]["minute"]["missing_observation_count"] == 0
+        assert details["quality"]["minutes"][0]["observed_count"] == len(prices)
+        assert details["quality"]["minutes"][0]["missing_observation_count"] == 0
         assert details["semantics"]["price_tick"] == specification["price_tick"]
         data_page = client.get(f"/datasets/{dataset['snapshot_id']}")
         assert data_page.status_code == 404

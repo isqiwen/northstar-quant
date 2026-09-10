@@ -72,7 +72,7 @@ export function SnapshotSelect({
   name = "snapshot_id",
   label = "固定数据快照",
 }: {
-  rows: { snapshot_id: string; symbol: string; trading_day: string }[];
+  rows: { snapshot_id: string; symbol: string; trading_days: string[] }[];
   name?: string;
   label?: string;
 }) {
@@ -84,7 +84,7 @@ export function SnapshotSelect({
         placeholder="选择已发布快照"
         options={rows.map((r) => ({
           value: r.snapshot_id,
-          label: `${r.symbol} · ${r.trading_day} · ${String(r.snapshot_id).slice(0, 8)}`,
+          label: `${r.symbol} · ${r.trading_days.join("、")} · ${String(r.snapshot_id).slice(0, 8)}`,
         }))}
       />
     </Form.Item>

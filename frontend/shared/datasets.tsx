@@ -19,7 +19,11 @@ import {
 } from "./ui";
 export const datasetColumns = [
   { title: "合约", dataIndex: "symbol" },
-  { title: "交易日", dataIndex: "trading_day" },
+  {
+    title: "交易日",
+    dataIndex: "trading_days",
+    render: (days: string[]) => days.join("、"),
+  },
   { title: "分钟数", dataIndex: "bar_count" },
   {
     title: "快照",
@@ -77,7 +81,7 @@ export function DatasetDetail({
               <Fields
                 value={{
                   合约: q.data.symbol,
-                  交易日: q.data.trading_day,
+                  交易日: q.data.trading_days.join("、"),
                   分钟数: q.data.bar_count,
                   快照: id,
                 }}

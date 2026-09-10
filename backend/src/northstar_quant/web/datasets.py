@@ -36,7 +36,7 @@ class DatasetSummary(ApiModel):
     exchange: str
     product: str
     symbol: str
-    trading_day: str
+    trading_days: list[str]
     session_open: str
     session_close: str
     bar_count: int
@@ -47,7 +47,7 @@ class DatasetDetails(DatasetSummary):
     source_reference: str
     availability_basis: str
     availability_note: str
-    import_spec: ImportSpecification
+    import_specs: list[ImportSpecification]
     sources: list[dict[str, JsonValue]]
     quality: dict[str, JsonValue]
     semantics: dict[str, JsonValue]

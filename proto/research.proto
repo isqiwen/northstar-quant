@@ -59,7 +59,7 @@ message DatasetDetails {
   optional int64 bar_count = 3 [json_name = "bar_count", (northstar.web.required_field) = true];
   optional string content_hash = 4 [json_name = "content_hash", (northstar.web.required_field) = true];
   optional string exchange = 5 [json_name = "exchange", (northstar.web.required_field) = true];
-  optional ImportSpecification import_spec = 6 [json_name = "import_spec", (northstar.web.required_field) = true];
+  repeated ImportSpecification import_specs = 6 [json_name = "import_specs", (northstar.web.required_field) = true];
   repeated string limitations = 7 [json_name = "limitations", (northstar.web.required_field) = true];
   optional google.protobuf.Struct processing_provenance = 8 [json_name = "processing_provenance", (northstar.web.nullable) = true];
   optional string product = 9 [json_name = "product", (northstar.web.required_field) = true];
@@ -72,7 +72,7 @@ message DatasetDetails {
   optional string source_reference = 16 [json_name = "source_reference", (northstar.web.required_field) = true];
   repeated google.protobuf.Struct sources = 17 [json_name = "sources", (northstar.web.required_field) = true];
   optional string symbol = 18 [json_name = "symbol", (northstar.web.required_field) = true];
-  optional string trading_day = 19 [json_name = "trading_day", (northstar.web.required_field) = true];
+  repeated string trading_days = 19 [json_name = "trading_days", (northstar.web.required_field) = true];
   repeated string null_fields = 2046;
 }
 
@@ -93,7 +93,7 @@ message DatasetSummary {
   optional string session_open = 7 [json_name = "session_open", (northstar.web.required_field) = true];
   optional string snapshot_id = 8 [json_name = "snapshot_id", (northstar.web.required_field) = true];
   optional string symbol = 9 [json_name = "symbol", (northstar.web.required_field) = true];
-  optional string trading_day = 10 [json_name = "trading_day", (northstar.web.required_field) = true];
+  repeated string trading_days = 10 [json_name = "trading_days", (northstar.web.required_field) = true];
 }
 
 message EquityPoint {

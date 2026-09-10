@@ -208,16 +208,16 @@ def test_dataset_can_be_reopened_without_a_research_run_or_original_file(
     assert listed[0].session_close == spec.session_close
     details = library.describe_dataset(dataset.snapshot_id)
     assert details == library.load_dataset(dataset.snapshot_id).details == dataset.details
-    assert details.import_spec == spec
+    assert details.import_specs[0] == spec
     assert details.sources[0].source_name == "SYNTHETIC_OPERATOR_FILE"
     assert details.sources[0].content_hash == original_hash
     assert details.sources[0].retention_policy == "CONTROLLED"
     assert details.sources[0].acquisition_use == (
         "SYNTHETIC_TEST_ONLY" if availability_basis == "SYNTHETIC" else "PRIVATE_RESEARCH_ONLY"
     )
-    assert details.minute_quality.expected_observation_count == 3
-    assert details.minute_quality.observed_count == 3
-    assert details.minute_quality.missing_observation_count == 0
+    assert details.minute_quality[0].expected_observation_count == 3
+    assert details.minute_quality[0].observed_count == 3
+    assert details.minute_quality[0].missing_observation_count == 0
     assert details.import_quality[0].rows_inserted == 3
     serialized = json.loads(json.dumps(details.to_dict()))
     assert serialized["availability_basis"] == availability_basis
@@ -254,7 +254,7 @@ def test_reuploaded_observations_keep_the_original_pinned_source_evidence(
     )
     reused = library.describe_dataset(another.snapshot_id)
     assert reused.sources == original.sources
-    assert reused.import_spec == original.import_spec
+    assert reused.import_specs[0] == original.import_specs[0]
     assert reused.sources[0].content_hash != new_hash
     assert another.bars == first.bars
     with Session(postgres_engine) as session:
@@ -349,7 +349,7 @@ def test_night_publication_preserves_declared_day_across_midnight_and_weekend(
     reopened = PublishedDatasets(library.publications.root).load_dataset(dataset.snapshot_id)
     assert dataset == reopened
     assert reopened.details is not None
-    assert reopened.details.import_spec == spec
+    assert reopened.details.import_specs[0] == spec
     assert {bar.trading_day.isoformat() for bar in reopened.bars} == {trading_day}
     assert all(bar.available_at == bar.completed_at + timedelta(seconds=2) for bar in reopened.bars)
     checkpoints = []

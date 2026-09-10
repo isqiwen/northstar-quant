@@ -62,7 +62,7 @@ def test_paused_shadow_source_publishes_without_rewriting_decisions_and_reuses_a
         assert dataset.bars[0].available_at == OPEN + timedelta(minutes=2, milliseconds=100)
         assert dataset.bars[1].available_at == OPEN + timedelta(minutes=3, milliseconds=100)
         assert dataset.details is not None
-        assert dataset.details.import_spec.availability_basis == "LOCAL_CAPTURE_RECONSTRUCTED"
+        assert dataset.details.import_specs[0].availability_basis == "LOCAL_CAPTURE_RECONSTRUCTED"
         assert dataset.details.sources[0].content_hash == attempt["source"]["content_hash"]
         # Later actual receipt and shadow controls cannot rebind an archived prefix.
         later = tick(49, OPEN + timedelta(seconds=184), volume=149)

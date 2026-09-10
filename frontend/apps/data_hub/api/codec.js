@@ -1756,7 +1756,7 @@ export const northstar = $root.northstar = (() => {
              * @property {number|Long|null} [bar_count] DatasetDetails bar_count
              * @property {string|null} [content_hash] DatasetDetails content_hash
              * @property {string|null} [exchange] DatasetDetails exchange
-             * @property {northstar.data_hub.ImportSpecification.$Properties|null} [import_spec] DatasetDetails import_spec
+             * @property {Array.<northstar.data_hub.ImportSpecification.$Properties>|null} [import_specs] DatasetDetails import_specs
              * @property {Array.<string>|null} [limitations] DatasetDetails limitations
              * @property {google.protobuf.Struct.$Properties|null} [processing_provenance] DatasetDetails processing_provenance
              * @property {string|null} [product] DatasetDetails product
@@ -1769,14 +1769,13 @@ export const northstar = $root.northstar = (() => {
              * @property {string|null} [source_reference] DatasetDetails source_reference
              * @property {Array.<google.protobuf.Struct.$Properties>|null} [sources] DatasetDetails sources
              * @property {string|null} [symbol] DatasetDetails symbol
-             * @property {string|null} [trading_day] DatasetDetails trading_day
+             * @property {Array.<string>|null} [trading_days] DatasetDetails trading_days
              * @property {Array.<string>|null} [null_fields] DatasetDetails null_fields
              * @property {"availability_basis"} [_availability_basis] DatasetDetails _availability_basis
              * @property {"availability_note"} [_availability_note] DatasetDetails _availability_note
              * @property {"bar_count"} [_bar_count] DatasetDetails _bar_count
              * @property {"content_hash"} [_content_hash] DatasetDetails _content_hash
              * @property {"exchange"} [_exchange] DatasetDetails _exchange
-             * @property {"import_spec"} [_import_spec] DatasetDetails _import_spec
              * @property {"processing_provenance"} [_processing_provenance] DatasetDetails _processing_provenance
              * @property {"product"} [_product] DatasetDetails _product
              * @property {"published_at"} [_published_at] DatasetDetails _published_at
@@ -1787,7 +1786,6 @@ export const northstar = $root.northstar = (() => {
              * @property {"snapshot_id"} [_snapshot_id] DatasetDetails _snapshot_id
              * @property {"source_reference"} [_source_reference] DatasetDetails _source_reference
              * @property {"symbol"} [_symbol] DatasetDetails _symbol
-             * @property {"trading_day"} [_trading_day] DatasetDetails _trading_day
              * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
              */
 
@@ -1807,7 +1805,7 @@ export const northstar = $root.northstar = (() => {
              *   bar_count?: number|Long|null;
              *   content_hash?: string|null;
              *   exchange?: string|null;
-             *   import_spec?: northstar.data_hub.ImportSpecification.$Shape|null;
+             *   import_specs?: Array.<northstar.data_hub.ImportSpecification.$Shape>|null;
              *   limitations?: Array.<string>|null;
              *   processing_provenance?: google.protobuf.Struct.$Shape|null;
              *   product?: string|null;
@@ -1820,7 +1818,7 @@ export const northstar = $root.northstar = (() => {
              *   source_reference?: string|null;
              *   sources?: Array.<google.protobuf.Struct.$Shape>|null;
              *   symbol?: string|null;
-             *   trading_day?: string|null;
+             *   trading_days?: Array.<string>|null;
              *   null_fields?: Array.<string>|null;
              *   $unknowns?: Array.<Uint8Array>;
              * } & (
@@ -1833,8 +1831,6 @@ export const northstar = $root.northstar = (() => {
              *   ({ _content_hash?: undefined; content_hash?: null }|{ _content_hash?: "content_hash"; content_hash: string })
              * ) & (
              *   ({ _exchange?: undefined; exchange?: null }|{ _exchange?: "exchange"; exchange: string })
-             * ) & (
-             *   ({ _import_spec?: undefined; import_spec?: null }|{ _import_spec?: "import_spec"; import_spec: northstar.data_hub.ImportSpecification.$Shape })
              * ) & (
              *   ({ _processing_provenance?: undefined; processing_provenance?: null }|{ _processing_provenance?: "processing_provenance"; processing_provenance: google.protobuf.Struct.$Shape })
              * ) & (
@@ -1855,8 +1851,6 @@ export const northstar = $root.northstar = (() => {
              *   ({ _source_reference?: undefined; source_reference?: null }|{ _source_reference?: "source_reference"; source_reference: string })
              * ) & (
              *   ({ _symbol?: undefined; symbol?: null }|{ _symbol?: "symbol"; symbol: string })
-             * ) & (
-             *   ({ _trading_day?: undefined; trading_day?: null }|{ _trading_day?: "trading_day"; trading_day: string })
              * )} northstar.data_hub.DatasetDetails.$Shape
              */
 
@@ -1869,8 +1863,10 @@ export const northstar = $root.northstar = (() => {
              * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
              */
             const DatasetDetails = function (properties) {
+                this.import_specs = [];
                 this.limitations = [];
                 this.sources = [];
+                this.trading_days = [];
                 this.null_fields = [];
                 if (properties)
                     for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
@@ -1919,12 +1915,12 @@ export const northstar = $root.northstar = (() => {
             DatasetDetails.prototype.exchange = null;
 
             /**
-             * DatasetDetails import_spec.
-             * @member {northstar.data_hub.ImportSpecification.$Properties|null|undefined} import_spec
+             * DatasetDetails import_specs.
+             * @member {Array.<northstar.data_hub.ImportSpecification.$Properties>} import_specs
              * @memberof northstar.data_hub.DatasetDetails
              * @instance
              */
-            DatasetDetails.prototype.import_spec = null;
+            DatasetDetails.prototype.import_specs = $util.emptyArray;
 
             /**
              * DatasetDetails limitations.
@@ -2023,12 +2019,12 @@ export const northstar = $root.northstar = (() => {
             DatasetDetails.prototype.symbol = null;
 
             /**
-             * DatasetDetails trading_day.
-             * @member {string|null|undefined} trading_day
+             * DatasetDetails trading_days.
+             * @member {Array.<string>} trading_days
              * @memberof northstar.data_hub.DatasetDetails
              * @instance
              */
-            DatasetDetails.prototype.trading_day = null;
+            DatasetDetails.prototype.trading_days = $util.emptyArray;
 
             /**
              * DatasetDetails null_fields.
@@ -2093,17 +2089,6 @@ export const northstar = $root.northstar = (() => {
              */
             $Object.defineProperty(DatasetDetails.prototype, "_exchange", {
                 get: $util.oneOfGetter($oneOfFields = ["exchange"]),
-                set: $util.oneOfSetter($oneOfFields)
-            });
-
-            /**
-             * DatasetDetails _import_spec.
-             * @member {"import_spec"|undefined} _import_spec
-             * @memberof northstar.data_hub.DatasetDetails
-             * @instance
-             */
-            $Object.defineProperty(DatasetDetails.prototype, "_import_spec", {
-                get: $util.oneOfGetter($oneOfFields = ["import_spec"]),
                 set: $util.oneOfSetter($oneOfFields)
             });
 
@@ -2218,17 +2203,6 @@ export const northstar = $root.northstar = (() => {
             });
 
             /**
-             * DatasetDetails _trading_day.
-             * @member {"trading_day"|undefined} _trading_day
-             * @memberof northstar.data_hub.DatasetDetails
-             * @instance
-             */
-            $Object.defineProperty(DatasetDetails.prototype, "_trading_day", {
-                get: $util.oneOfGetter($oneOfFields = ["trading_day"]),
-                set: $util.oneOfSetter($oneOfFields)
-            });
-
-            /**
              * Creates a new DatasetDetails instance using the specified properties.
              * @function create
              * @memberof northstar.data_hub.DatasetDetails
@@ -2270,8 +2244,9 @@ export const northstar = $root.northstar = (() => {
                     writer.uint32(/* id 4, wireType 2 =*/34).string(message.content_hash);
                 if (message.exchange != null && $Object.hasOwnProperty.call(message, "exchange"))
                     writer.uint32(/* id 5, wireType 2 =*/42).string(message.exchange);
-                if (message.import_spec != null && $Object.hasOwnProperty.call(message, "import_spec"))
-                    $root.northstar.data_hub.ImportSpecification.encode(message.import_spec, writer.uint32(/* id 6, wireType 2 =*/50).fork(), _depth + 1).ldelim();
+                if (message.import_specs != null && message.import_specs.length)
+                    for (let i = 0; i < message.import_specs.length; ++i)
+                        $root.northstar.data_hub.ImportSpecification.encode(message.import_specs[i], writer.uint32(/* id 6, wireType 2 =*/50).fork(), _depth + 1).ldelim();
                 if (message.limitations != null && message.limitations.length)
                     for (let i = 0; i < message.limitations.length; ++i)
                         writer.uint32(/* id 7, wireType 2 =*/58).string(message.limitations[i]);
@@ -2298,8 +2273,9 @@ export const northstar = $root.northstar = (() => {
                         $root.google.protobuf.Struct.encode(message.sources[i], writer.uint32(/* id 17, wireType 2 =*/138).fork(), _depth + 1).ldelim();
                 if (message.symbol != null && $Object.hasOwnProperty.call(message, "symbol"))
                     writer.uint32(/* id 18, wireType 2 =*/146).string(message.symbol);
-                if (message.trading_day != null && $Object.hasOwnProperty.call(message, "trading_day"))
-                    writer.uint32(/* id 19, wireType 2 =*/154).string(message.trading_day);
+                if (message.trading_days != null && message.trading_days.length)
+                    for (let i = 0; i < message.trading_days.length; ++i)
+                        writer.uint32(/* id 19, wireType 2 =*/154).string(message.trading_days[i]);
                 if (message.null_fields != null && message.null_fields.length)
                     for (let i = 0; i < message.null_fields.length; ++i)
                         writer.uint32(/* id 2046, wireType 2 =*/16370).string(message.null_fields[i]);
@@ -2385,8 +2361,9 @@ export const northstar = $root.northstar = (() => {
                     case 6: {
                             if (wireType !== 2)
                                 break;
-                            message.import_spec = $root.northstar.data_hub.ImportSpecification.decode(reader, reader.uint32(), $undefined, _depth + 1, message.import_spec);
-                            message._import_spec = "import_spec";
+                            if (!(message.import_specs && message.import_specs.length))
+                                message.import_specs = [];
+                            message.import_specs.push($root.northstar.data_hub.ImportSpecification.decode(reader, reader.uint32(), $undefined, _depth + 1));
                             continue;
                         }
                     case 7: {
@@ -2478,8 +2455,9 @@ export const northstar = $root.northstar = (() => {
                     case 19: {
                             if (wireType !== 2)
                                 break;
-                            message.trading_day = reader.stringVerify();
-                            message._trading_day = "trading_day";
+                            if (!(message.trading_days && message.trading_days.length))
+                                message.trading_days = [];
+                            message.trading_days.push(reader.stringVerify());
                             continue;
                         }
                     case 2046: {
@@ -2548,12 +2526,13 @@ export const northstar = $root.northstar = (() => {
                     if (!$util.isString(message.exchange))
                         return "exchange: string expected";
                 }
-                if (message.import_spec != null && $Object.hasOwnProperty.call(message, "import_spec")) {
-                    properties._import_spec = 1;
-                    {
-                        let error = $root.northstar.data_hub.ImportSpecification.verify(message.import_spec, _depth + 1);
+                if (message.import_specs != null && $Object.hasOwnProperty.call(message, "import_specs")) {
+                    if (!$Array.isArray(message.import_specs))
+                        return "import_specs: array expected";
+                    for (let i = 0; i < message.import_specs.length; ++i) {
+                        let error = $root.northstar.data_hub.ImportSpecification.verify(message.import_specs[i], _depth + 1);
                         if (error)
-                            return "import_spec." + error;
+                            return "import_specs." + error;
                     }
                 }
                 if (message.limitations != null && $Object.hasOwnProperty.call(message, "limitations")) {
@@ -2631,10 +2610,12 @@ export const northstar = $root.northstar = (() => {
                     if (!$util.isString(message.symbol))
                         return "symbol: string expected";
                 }
-                if (message.trading_day != null && $Object.hasOwnProperty.call(message, "trading_day")) {
-                    properties._trading_day = 1;
-                    if (!$util.isString(message.trading_day))
-                        return "trading_day: string expected";
+                if (message.trading_days != null && $Object.hasOwnProperty.call(message, "trading_days")) {
+                    if (!$Array.isArray(message.trading_days))
+                        return "trading_days: array expected";
+                    for (let i = 0; i < message.trading_days.length; ++i)
+                        if (!$util.isString(message.trading_days[i]))
+                            return "trading_days: string[] expected";
                 }
                 if (message.null_fields != null && $Object.hasOwnProperty.call(message, "null_fields")) {
                     if (!$Array.isArray(message.null_fields))
@@ -2681,10 +2662,15 @@ export const northstar = $root.northstar = (() => {
                     message.content_hash = $String(object.content_hash);
                 if (object.exchange != null)
                     message.exchange = $String(object.exchange);
-                if (object.import_spec != null) {
-                    if (!$util.isObject(object.import_spec))
-                        throw $TypeError(".northstar.data_hub.DatasetDetails.import_spec: object expected");
-                    message.import_spec = $root.northstar.data_hub.ImportSpecification.fromObject(object.import_spec, _depth + 1);
+                if (object.import_specs) {
+                    if (!$Array.isArray(object.import_specs))
+                        throw $TypeError(".northstar.data_hub.DatasetDetails.import_specs: array expected");
+                    message.import_specs = $Array(object.import_specs.length);
+                    for (let i = 0; i < object.import_specs.length; ++i) {
+                        if (!$util.isObject(object.import_specs[i]))
+                            throw $TypeError(".northstar.data_hub.DatasetDetails.import_specs: object expected");
+                        message.import_specs[i] = $root.northstar.data_hub.ImportSpecification.fromObject(object.import_specs[i], _depth + 1);
+                    }
                 }
                 if (object.limitations) {
                     if (!$Array.isArray(object.limitations))
@@ -2732,8 +2718,13 @@ export const northstar = $root.northstar = (() => {
                 }
                 if (object.symbol != null)
                     message.symbol = $String(object.symbol);
-                if (object.trading_day != null)
-                    message.trading_day = $String(object.trading_day);
+                if (object.trading_days) {
+                    if (!$Array.isArray(object.trading_days))
+                        throw $TypeError(".northstar.data_hub.DatasetDetails.trading_days: array expected");
+                    message.trading_days = $Array(object.trading_days.length);
+                    for (let i = 0; i < object.trading_days.length; ++i)
+                        message.trading_days[i] = $String(object.trading_days[i]);
+                }
                 if (object.null_fields) {
                     if (!$Array.isArray(object.null_fields))
                         throw $TypeError(".northstar.data_hub.DatasetDetails.null_fields: array expected");
@@ -2762,8 +2753,10 @@ export const northstar = $root.northstar = (() => {
                     throw $Error("max depth exceeded");
                 let object = {};
                 if (options.arrays || options.defaults) {
+                    object.import_specs = [];
                     object.limitations = [];
                     object.sources = [];
+                    object.trading_days = [];
                     object.null_fields = [];
                 }
                 if (message.availability_basis != null && $Object.hasOwnProperty.call(message, "availability_basis")) {
@@ -2796,10 +2789,10 @@ export const northstar = $root.northstar = (() => {
                     if (options.oneofs)
                         object._exchange = "exchange";
                 }
-                if (message.import_spec != null && $Object.hasOwnProperty.call(message, "import_spec")) {
-                    object.import_spec = $root.northstar.data_hub.ImportSpecification.toObject(message.import_spec, options, _depth + 1);
-                    if (options.oneofs)
-                        object._import_spec = "import_spec";
+                if (message.import_specs && message.import_specs.length) {
+                    object.import_specs = $Array(message.import_specs.length);
+                    for (let j = 0; j < message.import_specs.length; ++j)
+                        object.import_specs[j] = $root.northstar.data_hub.ImportSpecification.toObject(message.import_specs[j], options, _depth + 1);
                 }
                 if (message.limitations && message.limitations.length) {
                     object.limitations = $Array(message.limitations.length);
@@ -2861,10 +2854,10 @@ export const northstar = $root.northstar = (() => {
                     if (options.oneofs)
                         object._symbol = "symbol";
                 }
-                if (message.trading_day != null && $Object.hasOwnProperty.call(message, "trading_day")) {
-                    object.trading_day = message.trading_day;
-                    if (options.oneofs)
-                        object._trading_day = "trading_day";
+                if (message.trading_days && message.trading_days.length) {
+                    object.trading_days = $Array(message.trading_days.length);
+                    for (let j = 0; j < message.trading_days.length; ++j)
+                        object.trading_days[j] = message.trading_days[j];
                 }
                 if (message.null_fields && message.null_fields.length) {
                     object.null_fields = $Array(message.null_fields.length);
@@ -3326,7 +3319,7 @@ export const northstar = $root.northstar = (() => {
              * @property {string|null} [session_open] DatasetSummary session_open
              * @property {string|null} [snapshot_id] DatasetSummary snapshot_id
              * @property {string|null} [symbol] DatasetSummary symbol
-             * @property {string|null} [trading_day] DatasetSummary trading_day
+             * @property {Array.<string>|null} [trading_days] DatasetSummary trading_days
              * @property {"bar_count"} [_bar_count] DatasetSummary _bar_count
              * @property {"content_hash"} [_content_hash] DatasetSummary _content_hash
              * @property {"exchange"} [_exchange] DatasetSummary _exchange
@@ -3336,7 +3329,6 @@ export const northstar = $root.northstar = (() => {
              * @property {"session_open"} [_session_open] DatasetSummary _session_open
              * @property {"snapshot_id"} [_snapshot_id] DatasetSummary _snapshot_id
              * @property {"symbol"} [_symbol] DatasetSummary _symbol
-             * @property {"trading_day"} [_trading_day] DatasetSummary _trading_day
              * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
              */
 
@@ -3360,7 +3352,7 @@ export const northstar = $root.northstar = (() => {
              *   session_open?: string|null;
              *   snapshot_id?: string|null;
              *   symbol?: string|null;
-             *   trading_day?: string|null;
+             *   trading_days?: Array.<string>|null;
              *   $unknowns?: Array.<Uint8Array>;
              * } & (
              *   ({ _bar_count?: undefined; bar_count?: null }|{ _bar_count?: "bar_count"; bar_count: number|Long })
@@ -3380,8 +3372,6 @@ export const northstar = $root.northstar = (() => {
              *   ({ _snapshot_id?: undefined; snapshot_id?: null }|{ _snapshot_id?: "snapshot_id"; snapshot_id: string })
              * ) & (
              *   ({ _symbol?: undefined; symbol?: null }|{ _symbol?: "symbol"; symbol: string })
-             * ) & (
-             *   ({ _trading_day?: undefined; trading_day?: null }|{ _trading_day?: "trading_day"; trading_day: string })
              * )} northstar.data_hub.DatasetSummary.$Shape
              */
 
@@ -3394,6 +3384,7 @@ export const northstar = $root.northstar = (() => {
              * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
              */
             const DatasetSummary = function (properties) {
+                this.trading_days = [];
                 if (properties)
                     for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
                         if (properties[keys[i]] != null && keys[i] !== "__proto__")
@@ -3473,12 +3464,12 @@ export const northstar = $root.northstar = (() => {
             DatasetSummary.prototype.symbol = null;
 
             /**
-             * DatasetSummary trading_day.
-             * @member {string|null|undefined} trading_day
+             * DatasetSummary trading_days.
+             * @member {Array.<string>} trading_days
              * @memberof northstar.data_hub.DatasetSummary
              * @instance
              */
-            DatasetSummary.prototype.trading_day = null;
+            DatasetSummary.prototype.trading_days = $util.emptyArray;
 
             // OneOf field names bound to virtual getters and setters
             let $oneOfFields;
@@ -3583,17 +3574,6 @@ export const northstar = $root.northstar = (() => {
             });
 
             /**
-             * DatasetSummary _trading_day.
-             * @member {"trading_day"|undefined} _trading_day
-             * @memberof northstar.data_hub.DatasetSummary
-             * @instance
-             */
-            $Object.defineProperty(DatasetSummary.prototype, "_trading_day", {
-                get: $util.oneOfGetter($oneOfFields = ["trading_day"]),
-                set: $util.oneOfSetter($oneOfFields)
-            });
-
-            /**
              * Creates a new DatasetSummary instance using the specified properties.
              * @function create
              * @memberof northstar.data_hub.DatasetSummary
@@ -3643,8 +3623,9 @@ export const northstar = $root.northstar = (() => {
                     writer.uint32(/* id 8, wireType 2 =*/66).string(message.snapshot_id);
                 if (message.symbol != null && $Object.hasOwnProperty.call(message, "symbol"))
                     writer.uint32(/* id 9, wireType 2 =*/74).string(message.symbol);
-                if (message.trading_day != null && $Object.hasOwnProperty.call(message, "trading_day"))
-                    writer.uint32(/* id 10, wireType 2 =*/82).string(message.trading_day);
+                if (message.trading_days != null && message.trading_days.length)
+                    for (let i = 0; i < message.trading_days.length; ++i)
+                        writer.uint32(/* id 10, wireType 2 =*/82).string(message.trading_days[i]);
                 if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
                     for (let i = 0; i < message.$unknowns.length; ++i)
                         writer.raw(message.$unknowns[i]);
@@ -3755,8 +3736,9 @@ export const northstar = $root.northstar = (() => {
                     case 10: {
                             if (wireType !== 2)
                                 break;
-                            message.trading_day = reader.stringVerify();
-                            message._trading_day = "trading_day";
+                            if (!(message.trading_days && message.trading_days.length))
+                                message.trading_days = [];
+                            message.trading_days.push(reader.stringVerify());
                             continue;
                         }
                     }
@@ -3837,10 +3819,12 @@ export const northstar = $root.northstar = (() => {
                     if (!$util.isString(message.symbol))
                         return "symbol: string expected";
                 }
-                if (message.trading_day != null && $Object.hasOwnProperty.call(message, "trading_day")) {
-                    properties._trading_day = 1;
-                    if (!$util.isString(message.trading_day))
-                        return "trading_day: string expected";
+                if (message.trading_days != null && $Object.hasOwnProperty.call(message, "trading_days")) {
+                    if (!$Array.isArray(message.trading_days))
+                        return "trading_days: array expected";
+                    for (let i = 0; i < message.trading_days.length; ++i)
+                        if (!$util.isString(message.trading_days[i]))
+                            return "trading_days: string[] expected";
                 }
                 return null;
             };
@@ -3888,8 +3872,13 @@ export const northstar = $root.northstar = (() => {
                     message.snapshot_id = $String(object.snapshot_id);
                 if (object.symbol != null)
                     message.symbol = $String(object.symbol);
-                if (object.trading_day != null)
-                    message.trading_day = $String(object.trading_day);
+                if (object.trading_days) {
+                    if (!$Array.isArray(object.trading_days))
+                        throw $TypeError(".northstar.data_hub.DatasetSummary.trading_days: array expected");
+                    message.trading_days = $Array(object.trading_days.length);
+                    for (let i = 0; i < object.trading_days.length; ++i)
+                        message.trading_days[i] = $String(object.trading_days[i]);
+                }
                 return message;
             };
 
@@ -3910,6 +3899,8 @@ export const northstar = $root.northstar = (() => {
                 if (_depth > $util.recursionLimit)
                     throw $Error("max depth exceeded");
                 let object = {};
+                if (options.arrays || options.defaults)
+                    object.trading_days = [];
                 if (message.bar_count != null && $Object.hasOwnProperty.call(message, "bar_count")) {
                     if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
                         object.bar_count = typeof message.bar_count === "number" ? $BigInt(message.bar_count) : $util.Long.fromBits(message.bar_count.low >>> 0, message.bar_count.high >>> 0, false).toBigInt();
@@ -3960,10 +3951,10 @@ export const northstar = $root.northstar = (() => {
                     if (options.oneofs)
                         object._symbol = "symbol";
                 }
-                if (message.trading_day != null && $Object.hasOwnProperty.call(message, "trading_day")) {
-                    object.trading_day = message.trading_day;
-                    if (options.oneofs)
-                        object._trading_day = "trading_day";
+                if (message.trading_days && message.trading_days.length) {
+                    object.trading_days = $Array(message.trading_days.length);
+                    for (let j = 0; j < message.trading_days.length; ++j)
+                        object.trading_days[j] = message.trading_days[j];
                 }
                 return object;
             };
