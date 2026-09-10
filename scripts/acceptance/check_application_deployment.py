@@ -210,6 +210,7 @@ print(json.dumps(DataLibrary(open_database(),SourceFiles.from_environment()).sub
                 "-d",
                 "--no-build",
                 "--no-deps",
+                "--force-recreate",
                 "--wait",
                 "--wait-timeout",
                 "120",
@@ -245,7 +246,9 @@ print(json.dumps(DataLibrary(open_database(),SourceFiles.from_environment()).sub
                 flush=True,
             )
             self.run("database", "up", "-d", "--no-build", "--wait", "postgres")
-            self.run("data_hub", "start")
+            # Recreate stopped ephemeral-port containers: a released host port
+            # may now be occupied by another connection on the acceptance host.
+            self.run("data_hub", "up", "-d", "--no-build", "--force-recreate", "--wait")
             backup = json.loads(
                 self.run(
                     "data_hub",
