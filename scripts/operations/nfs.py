@@ -22,25 +22,20 @@ UNIT = "opt-northstar-files-market.mount"
 
 
 def topology(settings: dict) -> dict | None:
-    item = settings.get("nfs", {})
-    if set(item) - {"server", "enabled"} or type(item.get("enabled", True)) is not bool:
-        raise ValueError("nfs 只接受 server 和 enabled")
-    if not item.get("enabled", bool(item)):
+    item = settings.get("nfs")
+    if item is None:
         return None
-    server = item.get("server", "research")
-    key = {"core": "data_hub", "research": "research", "external": "nfs_server"}.get(server)
-    if key is None:
-        raise ValueError("nfs.server 必须为 core、research 或 external")
-    for name in {key, "data_hub", "research"}:
-        if not settings.get(name, {}).get("host"):
+    if not isinstance(item, dict) or set(item) - {"host", "user", "port"}:
+        raise ValueError("nfs 只接受 host/user/port")
+    for name in ("nfs", "data_hub", "research"):
+        if not isinstance(settings.get(name, {}).get("host"), str) or not settings[name]["host"]:
             raise ValueError(f"NFS 需要配置 {name}.host")
-    if any(":" in settings[name]["host"] for name in {key, "data_hub", "research"}):
+    if any(":" in settings[name]["host"] for name in ("nfs", "data_hub", "research")):
         raise ValueError("NFS 主机请填写可解析为 IPv4 的主机名或 IPv4 地址")
     if settings.get("database", {}).get("host") != settings["data_hub"]["host"]:
         raise ValueError("database 与 Data Hub 必须部署到同一主机")
     return {
-        "server_key": key,
-        "server": settings[key]["host"],
+        "server": item["host"],
         "writer": settings["data_hub"]["host"],
         "reader": settings["research"]["host"],
     }

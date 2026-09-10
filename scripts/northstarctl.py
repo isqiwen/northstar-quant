@@ -85,7 +85,7 @@ def initialize_hosts(args: argparse.Namespace) -> int:
         else None
     )
     if nfs and (args.app is None or args.app in {"database", "data-hub", "research"}):
-        apps = [*apps, nfs["server_key"].replace("_", "-")]
+        apps = [*apps, "nfs"]
     targets = {}
     for app in apps:
         config = configuration(args.config, app)
@@ -193,9 +193,9 @@ def main() -> int:
         if args.app in {"database", "data-hub", "research"}:
             nfs = runpy.run_path(str(ROOT / "scripts/operations/nfs.py"))["topology"](settings)
             if nfs:
-                for key in ("data_hub", "research", nfs["server_key"]):
+                for key in ("data_hub", "research", "nfs"):
                     configuration(args.config, key.replace("_", "-"))
-                server_config = configuration(args.config, nfs["server_key"].replace("_", "-"))
+                server_config = configuration(args.config, "nfs")
         revision = None
         custom_environment = None
         environment_path = args.env_file or ROOT / "deploy" / args.app.replace("-", "_") / ".env"

@@ -24,25 +24,27 @@ def nfs(tmp_path, monkeypatch):
     return module
 
 
-@pytest.mark.parametrize(
-    "server,host",
-    [("core", "core.local"), ("research", "research.local"), ("external", "storage.local")],
-)
-def test_selected_server_preserves_data_writer_and_reader(nfs, server, host):
+@pytest.mark.parametrize("host", ["core.local", "research.local", "storage.local"])
+def test_selected_server_preserves_data_writer_and_reader(nfs, host):
     settings = {
         name: {"host": value}
         for name, value in [
             ("database", "core.local"),
             ("data_hub", "core.local"),
             ("research", "research.local"),
-            ("nfs_server", "storage.local"),
         ]
     }
-    settings["nfs"] = {"server": server}
+    settings["nfs"] = {"host": host, "user": "qiwen", "port": 22}
     plan = nfs.topology(settings)
     assert plan["server"] == host
     assert plan["writer"] == "core.local" and plan["reader"] == "research.local"
-    assert nfs.topology({"nfs": {"enabled": False}}) is None
+    assert nfs.topology({}) is None
+
+
+@pytest.mark.parametrize("item", [{"server": "research"}, {"enabled": False}, {}, {"host": ""}])
+def test_invalid_nfs_configuration_is_rejected(nfs, item):
+    with pytest.raises(ValueError):
+        nfs.topology({"nfs": item})
 
 
 def test_nonempty_directory_rejected_before_install_or_mount(nfs, monkeypatch):

@@ -388,8 +388,9 @@ def test_first_deployment_uploads_private_config_and_redeploy_preserves_edits(de
 
 
 @pytest.mark.parametrize("bootstrap_user", ["root", "bootstrap-admin"])
+@pytest.mark.parametrize("nfs_host", ["research.invalid", "storage.invalid"])
 def test_init_host_deduplicates_targets_and_verifies_fixed_deployment_account(
-    deployment, tmp_path, bootstrap_user
+    deployment, tmp_path, bootstrap_user, nfs_host
 ):
     repo, config, env = deployment
     config.write_text(
@@ -397,6 +398,7 @@ def test_init_host_deduplicates_targets_and_verifies_fixed_deployment_account(
             '[research]\nhost="example.invalid"', '[research]\nhost="research.invalid"'
         )
     )
+    config.write_text(config.read_text() + f'\n[nfs]\nhost="{nfs_host}"\nuser="root"\nport=22\n')
     config.write_text(config.read_text().replace('user="root"', f'user="{bootstrap_user}"'))
     (tmp_path / ".ssh").mkdir()
     key = tmp_path / ".ssh/id_ed25519"
@@ -412,7 +414,7 @@ def test_init_host_deduplicates_targets_and_verifies_fixed_deployment_account(
     assert result.returncode == 0, result.stderr
     calls = [json.loads(line) for line in Path(env["RECORD"]).read_text().splitlines()]
     users = [call[call.index("-l") + 1] for call in calls if call[0] == "ssh"]
-    assert users == [bootstrap_user, "northstar", bootstrap_user, "northstar"]
+    assert users == [bootstrap_user, "northstar"] * (3 if nfs_host == "storage.invalid" else 2)
     import shlex
 
     init_calls = [

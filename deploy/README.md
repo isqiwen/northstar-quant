@@ -15,17 +15,18 @@
 
 ```toml
 [nfs]
-server = "research" # core / research / external
-enabled = true
+host = "research.local"
+user = "qiwen"
+port = 22
 ```
 
 | 服务端选择 | core | Research |
 |---|---|---|
-| `research`（默认） | NFS 读写挂载 | 本地提供共享，研究容器只读 |
-| `core` | 本地写入并提供共享 | NFS 只读挂载 |
-| `external` | NFS 读写挂载 | NFS 只读挂载 |
+| `research.local`（默认） | NFS 读写挂载 | 本地提供共享，研究容器只读 |
+| `core.local` | 本地写入并提供共享 | NFS 只读挂载 |
+| 其他主机地址 | NFS 读写挂载 | NFS 只读挂载 |
 
-选择 `external` 时增加 `[nfs_server]`，填写 `host`、`user`、`port`，格式与应用主机一致。
+`[nfs]` 直接填写服务端的 SSH 信息，格式与应用主机一致。与 Data Hub 或 Research 同机时使用相同的 `host`，脚本自动判断本地服务端与远程客户端；其他地址则两台应用主机都作为客户端。
 自动管理的服务端和客户端要求 Ubuntu/Debian Linux；QNAP 等设备不能直接使用 Linux SSH 安装流程。
 `init-host` 会同时准备所需 NFS 服务端账号；`deploy database/data-hub/research` 先准备服务端，
 再准备当前应用挂载和依赖。Research 自己的 `deploy research` 同样自动安装 Docker、Compose、Buildx 和 uv。
@@ -45,10 +46,10 @@ Research 的 SQLite、计算临时目录、研究产物和备份目录仍在本�
 **切换已有部署**：先停止 Data Hub 写入和 Research 使用，联合备份数据库与文件；把完整市场目录
 （包括 `.northstar-storage-id`）迁移到目标服务端并核对文件哈希。保留旧数据直至验证完成。
 卸载旧客户端挂载并移除对应 `opt-northstar-files-market.mount`、Docker 的
-`northstar-market.conf` 和 `state/nfs/client.json`；再修改 `server` 并重新部署受影响应用。
+`northstar-market.conf` 和 `state/nfs/client.json`；再修改 `[nfs].host` 并重新部署受影响应用。
 旧服务端停止使用后移除其 `/etc/exports.d/northstar.exports` 并执行 `exportfs -ra`。
 脚本拒绝覆盖非空本地目录或替换不同挂载，不自动移动、删除业务数据。
-`enabled = false` 适用于本地部署；它也不会自动卸载已有共享或删除其配置。
+不配置 `[nfs]` 时使用本地目录；删除该节不会自动卸载已有共享或删除其运行配置。
 
 ## 主机与凭据
 
