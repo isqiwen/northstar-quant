@@ -13,7 +13,7 @@ from uuid import UUID
 
 from northstar_quant.accounting.amounts import decimal_text
 from northstar_quant.accounting.fifo import Account
-from northstar_quant.accounting.valuation import value_account
+from northstar_quant.accounting.portfolio import value_account
 from northstar_quant.execution.history import OrderHistory
 
 if TYPE_CHECKING:

@@ -204,7 +204,7 @@ def test_gross_opens_explicit_closes_and_broker_projection_share_quantities() ->
     assert applied.gross_position.long_today == applied.gross_position.short_today == 1
     assert account.position_lots == 0  # Flat net exposure still has two gross holdings.
     assert account.equity(Decimal(105)) == Decimal(1296)
-    from northstar_quant.accounting.valuation import value_account
+    from northstar_quant.accounting.portfolio import value_account
 
     valuation = value_account(account, Decimal(105), at=close.filled_at)
     assert valuation.long_lots == valuation.short_lots == 1

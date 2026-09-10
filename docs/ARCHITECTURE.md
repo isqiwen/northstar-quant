@@ -351,7 +351,7 @@ Accounting 仍在同一整步事务内接收独立成交，负责事实去重与
 
 同日核对 [Nautilus Portfolio](https://nautilustrader.io/docs/latest/concepts/portfolio/) 的当前文档，
 采用从账户和持仓推导只读估值的边界；Northstar 暂只处理单合约同币种，不复制其跨币种/多账户聚合。
-账户估值由 `accounting.valuation` 从已接受账本和明确标记价格推导，不能倒置到账本事实之前。
+账户估值由 `accounting.portfolio` 从已接受账本和明确标记价格推导，不能倒置到账本事实之前。
 Research/Paper 不另算保证金；报告发布前按同一账户规则顺序重放成交/结算，
 逐行核对资金、持仓、费用、权益、保证金及回撤，再核对最终账户。
 此校验按报告生成执行，不进入每根行情的累计历史复制；市场来源身份仍由固定输入和持久步骤哈希证明。

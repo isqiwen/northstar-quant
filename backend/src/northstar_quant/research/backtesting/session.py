@@ -14,11 +14,10 @@ from uuid import UUID
 
 from northstar_quant.accounting.amounts import decimal_text
 from northstar_quant.accounting.fifo import Account, AppliedFill, FillFact
-from northstar_quant.accounting.portfolio import PortfolioState
+from northstar_quant.accounting.portfolio import PortfolioState, value_account
 from northstar_quant.accounting.positions import Position
 from northstar_quant.accounting.settlement import AppliedSettlement, SettlementFact
 from northstar_quant.accounting.terms import FuturesTerms, ordered_terms
-from northstar_quant.accounting.valuation import value_account
 from northstar_quant.data_management.research import DatasetDetails
 from northstar_quant.execution.orders import (
     OrderUpdate,

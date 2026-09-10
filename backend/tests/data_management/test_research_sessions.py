@@ -318,6 +318,32 @@ def test_cross_day_settlement_is_fixed_offline_replayable_and_survives_every_res
     assert len(batch["settlements"]) == 1
     assert batch["settlements"][0]["price"] == "105"
     assert any(item["offset"] == "CLOSE_YESTERDAY" for item in batch["fills"])
+    from zoneinfo import ZoneInfo
+
+    from northstar_quant.research.evaluation import EvaluationPlan
+
+    shanghai = ZoneInfo("Asia/Shanghai")
+    local_summary = replace(
+        fixed.details.summary,
+        session_open=fixed.details.summary.session_open.astimezone(shanghai),
+        session_close=fixed.details.summary.session_close.astimezone(shanghai),
+    )
+    local_details = replace(fixed.details, summary=local_summary)
+    assert (
+        EvaluationPlan.bind(fixed.snapshot_id, fixed.content_hash, local_details).to_dict()
+        == batch["evaluation"]["plan"]
+    )
+    with pytest.raises(ValueError, match="explicit timezones"):
+        EvaluationPlan.bind(
+            fixed.snapshot_id,
+            fixed.content_hash,
+            replace(
+                local_details,
+                summary=replace(
+                    local_summary, session_open=local_summary.session_open.replace(tzinfo=None)
+                ),
+            ),
+        )
     evaluation = batch["evaluation"]
     assert evaluation["status"] == "COMPLETE_WINDOW"
     assert evaluation["plan"]["expected_bars"] == len(fixed.bars)

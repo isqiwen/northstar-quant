@@ -6,7 +6,7 @@ import hashlib
 import json
 import re
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from decimal import ROUND_HALF_EVEN, Decimal, localcontext
 from uuid import UUID
 
@@ -51,11 +51,13 @@ class EvaluationPlan:
         summary = details.summary
         if summary.snapshot_id != snapshot_id or summary.content_hash != content_hash:
             raise ValueError("evaluation must bind the same immutable research input")
+        if summary.session_open.utcoffset() is None or summary.session_close.utcoffset() is None:
+            raise ValueError("evaluation source window requires explicit timezones")
         return cls(
             snapshot_id,
             content_hash,
-            summary.session_open,
-            summary.session_close,
+            summary.session_open.astimezone(UTC),
+            summary.session_close.astimezone(UTC),
             summary.bar_count,
         )
 
