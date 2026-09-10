@@ -21,7 +21,7 @@ import { ArchiveSource, ArchiveAttempt } from "./archive";
 
 export default function Workspace({ children }: { children: ReactNode }) {
   return (
-    <Providers>
+    <Providers name="Live">
       <Shell
         name="Live"
         lookupCommand={(id) => fetchQuery(query(`/api/live/commands/${id}`))}

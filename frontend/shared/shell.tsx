@@ -116,7 +116,13 @@ function SpaceHeader({
     </div>
   );
 }
-export function Providers({ children }: { children: ReactNode }) {
+export function Providers({
+  children,
+  name,
+}: {
+  children: ReactNode;
+  name: string;
+}) {
   return (
     <ConfigProvider
       locale={zhCN}
@@ -135,7 +141,7 @@ export function Providers({ children }: { children: ReactNode }) {
       }}
     >
       <App>
-        <AuthGate>{children}</AuthGate>
+        <AuthGate name={name}>{children}</AuthGate>
       </App>
     </ConfigProvider>
   );

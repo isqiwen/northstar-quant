@@ -16,6 +16,7 @@ from urllib.parse import urlsplit
 from uuid import uuid4
 
 from playwright.sync_api import expect, sync_playwright
+from sqlalchemy import create_engine, text
 from support.market import seed_market
 from support.processes import InstalledApplication
 
@@ -68,6 +69,15 @@ def main() -> None:
             environment[f"NORTHSTAR_{share}_STORAGE_ID"] = identity
 
         app = InstalledApplication(str(args.executable.resolve()), runtime, environment)
+        # The explicit disposable database belongs to this acceptance run. A previous
+        # failed run must not contribute duplicate receipts or missing temporary files.
+        engine = create_engine(parsed.geturl())
+        try:
+            with engine.begin() as connection:
+                connection.execute(text("DROP SCHEMA public CASCADE"))
+                connection.execute(text("CREATE SCHEMA public"))
+        finally:
+            engine.dispose()
         app.command("maintenance", "init-db")
         authentication = app.command("maintenance", "init-auth", str(runtime / "auth"))
         app.environment["NORTHSTAR_LIVE_AUTH"] = authentication["web_auth"]
@@ -87,9 +97,8 @@ def main() -> None:
                 if url == "about:blank":
                     return
                 # A navigation may follow an API restart, which revokes its sessions.
-                page.wait_for_function(
-                    "document.querySelector('input[autocomplete=\"current-password\"]') || "
-                    "document.querySelector('.workspace')"
+                page.locator('input[autocomplete="current-password"], .workspace').first.wait_for(
+                    state="visible"
                 )
                 password = page.get_by_label("工作台密码", exact=True)
                 if password.is_visible():
@@ -145,7 +154,9 @@ def main() -> None:
                     visit(data_url + "/sync")
                     expect(page.get_by_role("heading", name="Tushare 自动同步")).to_be_visible()
                     page.get_by_role("button", name="退出登录", exact=True).click()
-                    expect(page.get_by_role("heading", name="登录 Northstar")).to_be_visible()
+                    expect(
+                        page.get_by_role("heading", name="登录 Northstar Data Hub")
+                    ).to_be_visible()
                     assert context.request.get(data_url + "/api/sync").status == 401
                     screenshot("login")
                     visit(data_url + "/sync")

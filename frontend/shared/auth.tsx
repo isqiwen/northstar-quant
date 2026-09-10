@@ -25,7 +25,13 @@ export function Logout() {
     </Button>
   ) : null;
 }
-export function AuthGate({ children }: { children: ReactNode }) {
+export function AuthGate({
+  children,
+  name,
+}: {
+  children: ReactNode;
+  name: string;
+}) {
   const generation = useRef(0);
   const [current, setCurrent] = useState<BrowserSession | null>(null);
   const [checking, setChecking] = useState(true);
@@ -90,7 +96,8 @@ export function AuthGate({ children }: { children: ReactNode }) {
   if (checking)
     return (
       <div style={{ padding: 80, textAlign: "center" }}>
-        <Spin tip="检查登录状态" />
+        <Spin />
+        <p>检查登录状态</p>
       </div>
     );
   if (current?.authenticated)
@@ -110,7 +117,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
       }}
     >
       <Card style={{ width: "100%", maxWidth: 400 }}>
-        <Typography.Title level={3}>登录 Northstar</Typography.Title>
+        <Typography.Title level={3}>登录 Northstar {name}</Typography.Title>
         <Typography.Paragraph type="secondary">
           使用当前应用的工作台密码。
         </Typography.Paragraph>
@@ -125,7 +132,13 @@ export function AuthGate({ children }: { children: ReactNode }) {
           >
             <Input.Password autoComplete="current-password" maxLength={1024} />
           </Form.Item>
-          <Button htmlType="submit" type="primary" loading={busy} block>
+          <Button
+            autoInsertSpace={false}
+            htmlType="submit"
+            type="primary"
+            loading={busy}
+            block
+          >
             登录
           </Button>
         </Form>
