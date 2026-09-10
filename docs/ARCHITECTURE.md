@@ -5,6 +5,46 @@
 当前提供数据、研究、文件回放 Paper 和 Live 只读/影子能力，第一轮完整回测与报撤单闭环仍待交付。
 启动和环境配置见 [README](../README.md)，后续工作见 [ROADMAP](ROADMAP.md)。
 
+## 0. 设计依据与运行模型
+
+长期对照 [NautilusTrader](https://github.com/nautechsystems/nautilus_trader)，本次审阅日期为
+2026-09-10，依据其官方 `latest` 文档；这些页面会更新，不视为固定软件版本。
+参考的是职责、事件顺序和恢复边界，不把 NautilusTrader 引入为运行依赖，也不改写为 Rust。
+国内期货的交易日、结算、今昨仓、费用、保证金和 CTP 核对规则由 Northstar 自己验证。
+
+| 官方参考 | Northstar 的设计与实际实现 |
+|---|---|
+| [Architecture：Kernel / Trader](https://nautilustrader.io/docs/latest/concepts/architecture/) | 三个应用各自装配；Live 的 `LiveOwner` 管理实例生命周期，Research/Paper 的 `TradingSession` 组织历史事件。两者复用 `strategies/runtime.py` 的预热、去重、因果顺序和策略状态推进，不让 Live 导入回测循环 |
+| [Data：DataEngine / Catalog](https://nautilustrader.io/docs/latest/concepts/data/) | `market_data/` 定义无数据库依赖的行情值与校验；`broker/sampling.py` 处理 CTP 观察分钟；Data Hub 管理来源与发布，运行内核独立接收实时输入 |
+| [Execution](https://nautilustrader.io/docs/latest/concepts/execution/) | `execution/orders.py` 拥有有界订单请求和方向；Simulation 只依据请求产生模拟成交，Broker 只提供柜台事实，Accounting 应用确认事实。请求不是成交，账户估值只读视图归 Accounting |
+| [Execution Reconciliation](https://nautilustrader.io/docs/latest/concepts/reconciliation/) | 本地恢复、柜台核对、操作者授权是三个独立步骤；UNKNOWN 保留，不能通过缓存恢复、重连或账户锁重获自动重发 |
+| [Event Sourcing](https://nautilustrader.io/docs/latest/concepts/event_sourcing/) | 保存原始回报与固定输入，再提交派生账户/处理进度；检查点是加速恢复的投影，不能独立重建资金事实。异步普通日志不承担发送前持久化 |
+
+```text
+Data Hub：Tushare → 来源证据 → 校验/发布 → 固定清单与 Parquet
+                                              ↓
+Research：固定输入 → 历史事件驱动 → Simulation → Accounting
+                         ↓                         ↓
+                    StrategyRuntime → 目标意图 → Risk ← 当前只读账户估值
+
+Live：Broker 回报 → 原始接收证据 → 账户/订单观察与核对
+          行情 → 确认分钟 → 同一个 StrategyRuntime → 目标意图
+                                                    ↓
+                                  Risk / 执行授权 / Execution → Broker
+                                  （完整发送链仍待交付）
+```
+
+运行组件通过明确 Python 调用传递值和结果，当前不需要通用消息总线或一个中央大应用。
+策略运行时只持有固定策略配置、有界行情窗口和策略内部状态；评估成功后才提交窗口与状态，
+重复观察不再次推进，身份相同但内容变化及倒退输入被拒绝。间断后的重新预热由 Live 明确重置。
+Risk、Accounting、Simulation 不导入数据目录/ORM 来取得行情类型；适配器负责把来源转换成值。
+Research 负责结果装配和任务持久化，报表代码不参与每个行情事件的计算。
+
+目录设计参考 Catalog 的范围和标的语义，但已发布行情仍按固定清单与内容哈希读取。
+不为模仿目录形状移动已有快照，合并小文件必须发布新清单并保留旧引用。
+当前没有自动合并服务或完整多区间查询能力，不因采用参考架构就宣称这些功能已实现。
+同样，重构当前计算与装配不替代跨日结算、部分成交、真实柜台报撤单的业务验收。
+
 ## 1. 工程与运行结构
 
 | 目录 | 职责 |
@@ -112,14 +152,15 @@ Live Sim 使用获准柜台仿真账户和资金，复用正式 Live 的运行�
 |---|---|
 | `apps/` | 应用装配、启动、API 注册和进程生命周期接入 |
 | `data_management/` | 来源、加工尝试、质量、数据目录、快照、发布及保留 |
+| `market_data/` | 不依赖存储的行情值、时间/数值校验，供适配器与核心计算共同使用 |
 | `research/` | 研究尝试、因子运行、固定配置、回测、Paper、策略版本与候选 |
 | `live/` | 运行实例、接收与控制、恢复协调及材料接收 |
 | `factors/` | 因子输入、预热、计算与可得性语义 |
-| `strategies/` | 账户无关目标、决策原因和策略内部状态 |
+| `strategies/` | 账户无关目标、决策原因；共同运行时拥有有界预热和策略内部状态 |
 | `risk/` | 手数、限制与风险预算计算 |
-| `execution/` | 当前的委托观察与核对；后续订单身份、状态机和预占也归此模块 |
-| `broker/` | 具体 SDK 接入、查询、原始回报及接收证据 |
-| `accounting/` | 确认事实入账、持仓投影、资金观察及核对差异 |
+| `execution/` | 有界订单请求、方向、委托观察与核对；后续发送状态机和预占也归此模块 |
+| `broker/` | `events.py` 定义无存储依赖的回调值；SDK 接入、查询、CTP 观察分钟重建与持久接收记录分别实现 |
+| `accounting/` | 确认事实入账、持仓投影、只读账户估值、资金观察及核对差异 |
 | `simulation/` | 固定假设下的模拟成交与成本 |
 | `web/` | Python 共享接入、会话保护及 Protobuf 传输 |
 | `cli/` | 参数转换、调用、输出及退出码 |

@@ -10,8 +10,8 @@ from typing import Any
 from uuid import UUID, uuid5
 
 from northstar_quant.accounting.amounts import decimal_text
+from northstar_quant.broker.events import BrokerEvent
 from northstar_quant.broker.market import DAY, FRESH, SHANGHAI, decode_quote
-from northstar_quant.broker.records import BrokerEvent
 
 
 def sample_market(

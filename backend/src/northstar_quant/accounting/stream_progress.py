@@ -19,7 +19,8 @@ from sqlalchemy.sql.selectable import TextualSelect
 
 from northstar_quant import code_revision
 from northstar_quant.accounting.ledger import _hash, _time
-from northstar_quant.broker.records import BrokerEvent, EvidenceTimestamp
+from northstar_quant.broker.events import BrokerEvent
+from northstar_quant.broker.records import EvidenceTimestamp
 from northstar_quant.broker.stream_records import read_stream_source
 from northstar_quant.live.storage import write_transaction
 

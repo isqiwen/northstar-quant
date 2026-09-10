@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from decimal import ROUND_CEILING, ROUND_HALF_EVEN, Decimal, localcontext
 
 from northstar_quant.accounting.amounts import decimal_text
-from northstar_quant.risk.sizing import Side
+from northstar_quant.execution.orders import Side
 
 _MAX_FINANCIAL = Decimal("9" * 34)
 

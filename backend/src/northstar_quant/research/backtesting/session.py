@@ -2,11 +2,7 @@
 
 from __future__ import annotations
 
-import hashlib
-import json
 import re
-from collections import deque
-from collections.abc import Callable, Sequence
 from dataclasses import asdict, dataclass
 from datetime import date, datetime, timedelta
 from decimal import ROUND_HALF_EVEN, Decimal, localcontext
@@ -14,29 +10,14 @@ from uuid import UUID
 
 from northstar_quant.accounting.amounts import decimal_text
 from northstar_quant.accounting.fifo import Account, AppliedFill, FillFact
-from northstar_quant.data_management.research import (
-    DatasetDetails,
-    Market,
-    ResearchBar,
-    ResearchDataset,
-)
-from northstar_quant.factors.definition import Bar as FactorBar
-from northstar_quant.factors.definition import Inputs
+from northstar_quant.accounting.portfolio import PortfolioState
+from northstar_quant.data_management.research import DatasetDetails
+from northstar_quant.execution.orders import PendingOrder
+from northstar_quant.market_data import Market, MarketBar
 from northstar_quant.research.configuration import ResearchConfig
-from northstar_quant.risk import PortfolioState, evaluate_risk
-from northstar_quant.simulation import PendingOrder, simulate_fill
-from northstar_quant.strategies.evaluation import step as strategy_step
-
-
-@dataclass(frozen=True, slots=True)
-class ResearchResult:
-    """Canonical immutable bytes prevent callers mutating stored result identity."""
-
-    _document: str
-
-    def to_dict(self) -> dict[str, object]:
-        result: dict[str, object] = json.loads(self._document)
-        return result
+from northstar_quant.risk import evaluate_risk
+from northstar_quant.simulation import simulate_fill
+from northstar_quant.strategies.runtime import StrategyRuntime
 
 
 @dataclass(frozen=True, slots=True)
@@ -99,7 +80,7 @@ class TradingSession:
     """
 
     # Bump for changed Strategy/Risk/Simulation/Accounting rules or checkpoint format.
-    REVISION = "2"
+    REVISION = "3"
 
     def __init__(
         self,
@@ -144,28 +125,22 @@ class TradingSession:
         self.account = Account(config.simulation.initial_cash, market)
         self.pending: PendingOrder | None = None
         self._policy = config.risk_policy()
-        self._history: deque[ResearchBar] = deque(maxlen=(config.strategy.history_bars - 1) + 1)
+        self._trader = StrategyRuntime(
+            config.strategy, market.contract_id, market.interval_seconds, source_scope=content_hash
+        )
         self._trading_day: date | None = None
-        self._last: ResearchBar | None = None
+        self._last: MarketBar | None = None
         self._bar_count = 0
         self._decision_count = 0
         self._last_decision: tuple[UUID, datetime] | None = None
-        self._strategy_state: tuple[tuple[str, str | int], ...] = ()
         self._peak = config.simulation.initial_cash
         self._maximum_drawdown = Decimal(0)
         self._maximum_drawdown_fraction = Decimal(0)
 
-    def advance(self, bar: ResearchBar) -> TradingStep | None:
+    def advance(self, bar: MarketBar) -> TradingStep | None:
         self._validate_bar(bar)
-        for previous in self._history:
-            if bar.observation_id == previous.observation_id:
-                if previous != bar:
-                    raise ValueError("observation identity was reused with different facts")
-                return None
-        if self._last is not None and (
-            bar.event_time <= self._last.event_time or bar.available_at < self._last.available_at
-        ):
-            raise ValueError("research rejects late or revised bars until revision replay exists")
+        if not self._trader.accepts(bar):
+            return None
         if self._trading_day is not None and self._trading_day != bar.trading_day:
             raise ValueError(
                 "research currently supports one trading day; settlement is not modeled"
@@ -176,7 +151,7 @@ class TradingSession:
             context.rounding = ROUND_HALF_EVEN
             return self._advance(bar)
 
-    def _advance(self, bar: ResearchBar) -> TradingStep:
+    def _advance(self, bar: MarketBar) -> TradingStep:
         self._trading_day = bar.trading_day
         fill = None
         if self.pending is not None:
@@ -192,7 +167,6 @@ class TradingSession:
                 self.pending = None
             elif bar.available_at > self.pending.expires_at:
                 self.pending = None
-        self._history.append(bar)
         self._bar_count += 1
         self._last = bar
         equity = self.account.equity(bar.close)
@@ -215,27 +189,8 @@ class TradingSession:
             "drawdown_fraction": decimal_text(drawdown_fraction),
         }
         decision: dict[str, object] | None = None
-        signal = strategy_step(
-            self.config.strategy,
-            Inputs(
-                tuple(
-                    FactorBar(
-                        item.observation_id,
-                        self.market.contract_id,
-                        item.completed_at,
-                        item.available_at,
-                        item.close,
-                    )
-                    for item in self._history
-                ),
-                bar.available_at,
-                self.market.contract_id,
-                self.market.interval_seconds,
-                source_scope=self.content_hash,
-            ),
-            self._strategy_state,
-        )
-        self._strategy_state = signal.decision.state
+        signal = self._trader.advance(bar)
+        assert signal is not None
         point["strategy"] = {
             "kind": signal.decision.kind.value,
             "reason": signal.decision.reason,
@@ -314,66 +269,6 @@ class TradingSession:
                 "max_drawdown_fraction": decimal_text(self._maximum_drawdown_fraction),
             }
 
-    def result(self, steps: Sequence[TradingStep]) -> ResearchResult:
-        """Assemble a report on demand, never copying historical rows per advance."""
-
-        if self._last is None:
-            raise ValueError("research requires at least one bar")
-        if (
-            len(steps) != self._bar_count
-            or sum(step.decision is not None for step in steps) != self._decision_count
-            or sum(step.fill is not None for step in steps) != self.account.fill_count
-            or steps[-1].point["observation_id"] != str(self._last.observation_id)
-        ):
-            raise ValueError("research report requires the complete committed step history")
-        with localcontext() as context:
-            context.prec = 96
-            context.rounding = ROUND_HALF_EVEN
-            payload: dict[str, object] = {
-                "mode": "research",
-                "data": None if self._data_details is None else self._data_details.to_dict(),
-                "snapshot": {"id": str(self.snapshot_id), "content_hash": self.content_hash},
-                "market": {
-                    key: str(value)
-                    if isinstance(value, UUID)
-                    else decimal_text(value)
-                    if isinstance(value, Decimal)
-                    else value
-                    for key, value in asdict(self.market).items()
-                },
-                "config": self.config.to_dict(),
-                "summary": self.summary(),
-                "fills": [step.fill.to_dict() for step in steps if step.fill is not None],
-                "equity_curve": [step.point for step in steps],
-                "decisions": [step.decision for step in steps if step.decision is not None],
-                "pending_order": None if self.pending is None else self.pending.to_dict(),
-                "assumptions": [
-                    "Single-contract, single-trading-day linear futures; no settlement or funding.",
-                    "A decision uses completed bars available then; fills use a strictly later "
-                    "completed bar's close plus adverse tick slippage.",
-                    "Orders fill completely without liquidity or volume modeling "
-                    "and are replaced at each new decision.",
-                    "Fees are charged per filled lot; Risk reserves fees "
-                    "and mark-to-close slippage.",
-                    "Open terminal positions are marked to the final observed close, "
-                    "not forcibly liquidated.",
-                    "Historical research is not live Paper or broker execution; "
-                    "no annualized performance is inferred.",
-                    "Fees, slippage and margin fractions are declared simulation assumptions, "
-                    "not independently verified historical broker or exchange terms.",
-                    *(
-                        ("Calculation input has no verified source evidence.",)
-                        if self._data_details is None
-                        else self._data_details.limitations
-                    ),
-                ],
-            }
-        content = json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False)
-        payload["result_hash"] = hashlib.sha256(content.encode()).hexdigest()
-        return ResearchResult(
-            json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False)
-        )
-
     def checkpoint(self) -> dict[str, object]:
         """Persist only the current projection and bounded strategy warmup.
 
@@ -384,7 +279,7 @@ class TradingSession:
 
         return {
             "engine_revision": self.REVISION,
-            "strategy_state": dict(self._strategy_state),
+            "strategy_state": dict(self._trader.state),
             "last_decision": None
             if self._last_decision is None
             else {
@@ -403,7 +298,7 @@ class TradingSession:
             },
             "config": self.config.to_dict(),
             "account": self.account.checkpoint(),
-            "history": [_bar_dict(bar) for bar in self._history],
+            "history": [_bar_dict(bar) for bar in self._trader.history],
             "last": None if self._last is None else _bar_dict(self._last),
             "trading_day": None if self._trading_day is None else self._trading_day.isoformat(),
             "pending": None if self.pending is None else self.pending.to_dict(),
@@ -467,6 +362,7 @@ class TradingSession:
         ):
             raise ValueError("checkpoint warmup must have the exact bounded history")
         previous = None
+        accepted_history = []
         history_ids: set[UUID] = set()
         for item in history:
             bar = _bar_from_dict(_object(item))
@@ -481,7 +377,7 @@ class TradingSession:
                 or bar.observation_id == previous.observation_id
             ):
                 raise ValueError("checkpoint history is not one ordered trading day")
-            session._history.append(bar)
+            accepted_history.append(bar)
             previous = bar
         session._last = previous
         session._trading_day = None if previous is None else previous.trading_day
@@ -519,10 +415,14 @@ class TradingSession:
         raw_state = _object(checkpoint["strategy_state"])
         if any(type(value) not in {str, int} for value in raw_state.values()):
             raise ValueError("invalid strategy checkpoint state")
-        session._strategy_state = tuple((key, value) for key, value in raw_state.items())  # type: ignore[misc]
-        from northstar_quant.strategies.registry import resolve
-
-        resolve(config.strategy.strategy_id).validate_state(session._strategy_state)
+        session._trader = StrategyRuntime(
+            config.strategy,
+            market.contract_id,
+            market.interval_seconds,
+            source_scope=content_hash,
+            history=tuple(accepted_history),
+            state=tuple((key, value) for key, value in raw_state.items()),  # type: ignore[misc]
+        )
         session._peak = _money(checkpoint["peak"])
         session._maximum_drawdown = _money(checkpoint["maximum_drawdown"])
         session._maximum_drawdown_fraction = _money(checkpoint["maximum_drawdown_fraction"])
@@ -550,43 +450,12 @@ class TradingSession:
             raise ValueError("checkpoint representation is not canonical")
         return session
 
-    def _validate_bar(self, bar: ResearchBar) -> None:
-        if not isinstance(bar, ResearchBar) or not isinstance(bar.observation_id, UUID):
+    def _validate_bar(self, bar: MarketBar) -> None:
+        if not isinstance(bar, MarketBar):
             raise ValueError("research requires canonical observations")
-        for at in (bar.event_time, bar.completed_at, bar.available_at):
-            if not isinstance(at, datetime) or at.utcoffset() != timedelta(0):
-                raise ValueError("bar times must be aware UTC")
-        if (
-            bar.completed_at != bar.event_time + timedelta(seconds=self.market.interval_seconds)
-            or bar.available_at < bar.completed_at
-        ):
-            raise ValueError("bar availability cannot precede its declared completion")
-        if type(bar.trading_day) is not date:
-            raise ValueError("bar trading_day must be explicit")
-        if not isinstance(bar.close, Decimal) or not bar.close.is_finite() or bar.close <= 0:
-            raise ValueError("bar close must be a positive Decimal")
-        exponent = bar.close.as_tuple().exponent
-        if (
-            not isinstance(exponent, int)
-            or exponent < -18
-            or len(bar.close.as_tuple().digits) > 34
-            or bar.close.adjusted() > 33
-        ):
-            raise ValueError("bar close exceeds the bounded 34-digit/18-place financial domain")
-        if not isinstance(bar.volume, Decimal) or not bar.volume.is_finite() or bar.volume < 0:
-            raise ValueError("bar volume must be a nonnegative Decimal")
-        volume_exponent = bar.volume.as_tuple().exponent
-        if (
-            not isinstance(volume_exponent, int)
-            or volume_exponent < -18
-            or len(bar.volume.as_tuple().digits) > 34
-            or bar.volume.adjusted() > 33
-        ):
-            raise ValueError("bar volume exceeds the bounded observation domain")
-        numerator, denominator = bar.close.as_integer_ratio()
-        tick_numerator, tick_denominator = self.market.price_tick.as_integer_ratio()
-        if (numerator * tick_denominator) % (denominator * tick_numerator):
-            raise ValueError("bar close must be tick aligned")
+        bar.validate(
+            interval_seconds=self.market.interval_seconds, price_tick=self.market.price_tick
+        )
 
 
 def _object(value: object) -> dict[str, object]:
@@ -614,7 +483,7 @@ def _money(value: object) -> Decimal:
     return result
 
 
-def _bar_dict(bar: ResearchBar) -> dict[str, object]:
+def _bar_dict(bar: MarketBar) -> dict[str, object]:
     return {
         "observation_id": str(bar.observation_id),
         "event_time": bar.event_time.isoformat(),
@@ -626,9 +495,9 @@ def _bar_dict(bar: ResearchBar) -> dict[str, object]:
     }
 
 
-def _bar_from_dict(value: dict[str, object]) -> ResearchBar:
+def _bar_from_dict(value: dict[str, object]) -> MarketBar:
     try:
-        return ResearchBar(
+        return MarketBar(
             UUID(str(value["observation_id"])),
             datetime.fromisoformat(str(value["event_time"])),
             datetime.fromisoformat(str(value["completed_at"])),
@@ -639,40 +508,3 @@ def _bar_from_dict(value: dict[str, object]) -> ResearchBar:
         )
     except (KeyError, TypeError, ArithmeticError) as error:
         raise ValueError("invalid persisted warmup observation") from error
-
-
-def run_research(
-    dataset: ResearchDataset,
-    config: ResearchConfig,
-    *,
-    progress: Callable[[int, int], None] | None = None,
-) -> ResearchResult:
-    if not isinstance(dataset, ResearchDataset) or len(dataset.bars) <= (
-        config.strategy.history_bars - 1
-    ):
-        raise ValueError("research requires more bars than the configured lookback")
-    if len(dataset.bars) > 100000:
-        raise ValueError("research input exceeds 100000 bars")
-    session = TradingSession(
-        dataset.market,
-        config,
-        snapshot_id=dataset.snapshot_id,
-        content_hash=dataset.content_hash,
-        data_details=dataset.details,
-    )
-    steps: list[TradingStep] = []
-    for index, bar in enumerate(
-        sorted(
-            dataset.bars,
-            key=lambda item: (item.available_at, item.completed_at, str(item.observation_id)),
-        ),
-        1,
-    ):
-        if progress is not None:
-            progress(index - 1, len(dataset.bars))
-        step = session.advance(bar)
-        if step is not None:
-            steps.append(step)
-    if progress is not None:
-        progress(len(dataset.bars), len(dataset.bars))
-    return session.result(steps)

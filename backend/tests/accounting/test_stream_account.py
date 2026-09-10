@@ -11,7 +11,7 @@ from sqlalchemy import Engine, text
 
 from northstar_quant.accounting.baselines import BrokerBaselines
 from northstar_quant.accounting.ledger import BrokerLedger
-from northstar_quant.broker.records import BrokerEvent
+from northstar_quant.broker.events import BrokerEvent
 from northstar_quant.live.streams import LiveStreams
 from tests.accounting.test_baselines import saved_query
 from tests.accounting.test_ledger import ledger_query, trade

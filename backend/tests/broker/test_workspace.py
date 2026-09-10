@@ -15,8 +15,8 @@ from sqlalchemy import Engine, create_engine
 from northstar_quant.accounting.baselines import BrokerBaselines
 from northstar_quant.accounting.ledger import BrokerLedger
 from northstar_quant.broker import ctp
+from northstar_quant.broker.events import QueryCapture
 from northstar_quant.broker.queries import BrokerQueries
-from northstar_quant.broker.records import QueryCapture
 from northstar_quant.broker.settings import credential_status, load_credentials
 from northstar_quant.cli import main
 from northstar_quant.data_management.files import SourceFiles

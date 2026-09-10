@@ -14,6 +14,38 @@ lifecycle, factor/strategy/risk configuration, workspace controls, trading,
 broker integration, recovery or runtime topology; read
 `README.md` to run the application. Code documents implemented details.
 
+## Long-term architecture reference: NautilusTrader
+
+Use [NautilusTrader](https://github.com/nautechsystems/nautilus_trader) as the
+primary external architecture reference when designing or changing trading,
+market-data catalogs, execution or recovery. Read the relevant current official
+guides: [Architecture](https://nautilustrader.io/docs/latest/concepts/architecture/),
+[Data catalog](https://nautilustrader.io/docs/latest/concepts/data/),
+[Execution](https://nautilustrader.io/docs/latest/concepts/execution/),
+[Execution reconciliation](https://nautilustrader.io/docs/latest/concepts/reconciliation/),
+and [Event sourcing](https://nautilustrader.io/docs/latest/concepts/event_sourcing/).
+Record the consulted version/date and the concrete Northstar decisions in
+`docs/ARCHITECTURE.md`; documentation on `latest` is mutable.
+
+Apply its separation of market-data processing, strategy lifecycle, risk,
+execution, derived portfolio state and runtime composition to actual callers.
+Keep market values independent of ORM/storage, strategy output account-neutral,
+and order commands distinct from confirmed execution facts. Backtest and Live
+reuse decisions and accounting rules with explicit environment-specific input
+and execution adapters; broker simulation must never use internal simulated fills.
+An in-memory cache is a reconstructible read projection, not another account
+authority. Async cache/event persistence is not a substitute for durable
+pre-send order identity/reservations or external reconciliation after restart.
+Catalog range queries and compaction must preserve immutable publications and
+provenance; file names and directory shape alone do not establish correctness.
+
+Reference principles, not package names or implementation language. Do not
+rewrite the Python kernel in Rust, add NautilusTrader as a runtime dependency,
+or introduce a universal message bus solely to resemble the reference.
+Domestic futures calendars, settlement, fees, margin and CTP semantics still
+require their own verified rules. Preserve Northstar's three independent apps,
+local Live SQLite, account ownership and explicit execution authorization.
+
 ## Permanent engineering rules
 
 - Python implementation, tests, dependencies and build live in `backend/`; Next.js lives

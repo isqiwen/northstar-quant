@@ -22,7 +22,8 @@ import pytest
 from sqlalchemy import Engine
 
 from northstar_quant.broker import _ctp_worker, ctp
-from northstar_quant.broker.records import BrokerEvent, BrokerRecords
+from northstar_quant.broker.events import BrokerEvent
+from northstar_quant.broker.records import BrokerRecords
 from northstar_quant.broker.settings import Credentials, SimnowProfile, get_profile
 
 

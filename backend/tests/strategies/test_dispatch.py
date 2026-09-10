@@ -6,7 +6,9 @@ from decimal import Decimal, localcontext
 import pytest
 
 from northstar_quant.factors.evaluation import Binding
-from northstar_quant.research.backtesting import TradingSession, run_research
+from northstar_quant.research.backtesting import run_research
+from northstar_quant.research.backtesting.report import build_result
+from northstar_quant.research.backtesting.session import TradingSession
 from northstar_quant.research.configuration import ResearchConfig
 from northstar_quant.strategies.configuration import StrategyConfig
 from northstar_quant.strategies.definition import DecisionKind
@@ -32,7 +34,7 @@ def test_second_algorithm_needs_no_engine_branch_and_instances_are_isolated(
     before = other.checkpoint()
     steps = [instance.advance(bar) for bar in data.bars]
     assert other.checkpoint() == before
-    assert instance.result(steps).to_dict() == expected
+    assert build_result(instance, steps).to_dict() == expected
     decisions = expected["decisions"]
     assert all(item["strategy_id"] == strategy_id and item["factors"] for item in decisions)
     target = Decimal(decisions[-1]["target_fraction"])

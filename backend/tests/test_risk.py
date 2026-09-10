@@ -5,16 +5,16 @@ from uuid import UUID
 
 import pytest
 
-from northstar_quant.data_management.research import Market
+from northstar_quant.accounting.portfolio import PortfolioState
+from northstar_quant.execution.orders import Side
+from northstar_quant.market_data import Market
 from northstar_quant.risk import (
     OpeningAccount,
     OpeningCandidate,
     OpeningLimits,
     OpeningTerms,
     Outcome,
-    PortfolioState,
     RiskPolicy,
-    Side,
     evaluate_opening_budget,
     evaluate_risk,
 )

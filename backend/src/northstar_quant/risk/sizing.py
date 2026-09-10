@@ -9,7 +9,9 @@ from enum import StrEnum
 from math import lcm
 
 from northstar_quant.accounting.amounts import decimal_text
-from northstar_quant.data_management.research import Market
+from northstar_quant.accounting.portfolio import PortfolioState
+from northstar_quant.execution.orders import Side
+from northstar_quant.market_data import Market
 from northstar_quant.strategies import StrategyIntent
 
 _MAX_FINANCIAL = Decimal("9" * 34)
@@ -20,19 +22,6 @@ class Outcome(StrEnum):
     REDUCE = "REDUCE"
     REJECT = "REJECT"
     UNKNOWN = "UNKNOWN"
-
-
-class Side(StrEnum):
-    BUY = "BUY"
-    SELL = "SELL"
-
-
-@dataclass(frozen=True, slots=True)
-class PortfolioState:
-    observed_at: datetime
-    equity: Decimal
-    position_lots: int
-    mark_price: Decimal
 
 
 @dataclass(frozen=True, slots=True)

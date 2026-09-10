@@ -9,7 +9,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from northstar_quant.accounting.amounts import decimal_text
-from northstar_quant.broker.records import BrokerEvent
+from northstar_quant.broker.events import BrokerEvent
 
 SHANGHAI = ZoneInfo("Asia/Shanghai")
 DAY = ((time(9), time(10, 15)), (time(10, 30), time(11, 30)), (time(13, 30), time(15)))

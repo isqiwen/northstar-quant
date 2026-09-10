@@ -16,9 +16,9 @@ from typing import Any
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
-from northstar_quant.broker.records import BrokerEvent
+from northstar_quant.broker.events import BrokerEvent
+from northstar_quant.broker.sampling import sample_market
 from northstar_quant.broker.settings import get_profile
-from northstar_quant.data_management.sampling import sample_market
 
 
 @dataclass(frozen=True)

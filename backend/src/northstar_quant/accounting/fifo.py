@@ -14,8 +14,8 @@ from decimal import ROUND_HALF_EVEN, Decimal, localcontext
 from uuid import UUID
 
 from northstar_quant.accounting.amounts import decimal_text
-from northstar_quant.data_management.research import Market
-from northstar_quant.risk import Side
+from northstar_quant.execution.orders import Side
+from northstar_quant.market_data import Market
 
 
 @dataclass(frozen=True, slots=True)

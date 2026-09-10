@@ -9,7 +9,7 @@ from uuid import UUID
 
 import pytest
 
-from northstar_quant.broker.records import BrokerEvent
+from northstar_quant.broker.events import BrokerEvent
 from northstar_quant.broker.settings import get_profile
 from northstar_quant.data_management.stream import reconstruct_stream
 from tests.live.test_market import CONTRACT, OPEN, tick

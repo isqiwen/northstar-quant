@@ -6,9 +6,9 @@ from uuid import UUID
 import pytest
 
 from northstar_quant.accounting.fifo import Account, FillFact
-from northstar_quant.data_management.research import Market, ResearchBar
-from northstar_quant.risk import Side
-from northstar_quant.simulation import PendingOrder, simulate_fill
+from northstar_quant.execution.orders import PendingOrder, Side
+from northstar_quant.market_data import Market, MarketBar
+from northstar_quant.simulation import simulate_fill
 
 
 def test_fill_enforces_actual_slipped_price_and_fifo_cost_conservation() -> None:
@@ -27,7 +27,7 @@ def test_fill_enforces_actual_slipped_price_and_fifo_cost_conservation() -> None
         Decimal(100),
         Decimal(102),
     )
-    bar = ResearchBar(
+    bar = MarketBar(
         UUID(int=11),
         at,
         at + timedelta(minutes=1),
@@ -52,7 +52,7 @@ def test_fill_enforces_actual_slipped_price_and_fifo_cost_conservation() -> None
         Decimal(100),
         Decimal(110),
     )
-    later = ResearchBar(
+    later = MarketBar(
         UUID(int=12),
         at + timedelta(minutes=1),
         at + timedelta(minutes=2),

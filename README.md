@@ -201,6 +201,7 @@ Live 管理 API 使用 `NORTHSTAR_LIVE_URL` 与 `NORTHSTAR_LIVE_AUTH` 访问内�
 | `frontend/tests/` | 前端行为测试与接口类型检查 |
 | `frontend/shared/` | 复用控件、图表、请求与浏览器状态处理 |
 | `backend/src/northstar_quant/apps/` | 应用装配、启动及各功能的 `*_api.py` 接口 |
+| `backend/src/northstar_quant/market_data/` | 无数据库依赖的行情值与时间/数值校验 |
 | `backend/src/northstar_quant/{data_management,research,live}/` | 数据业务、研究流程与生产会话 |
 | `backend/src/northstar_quant/{factors,strategies,risk,execution,broker,accounting,simulation}/` | 因子、策略、风险、执行、柜台、账户与模拟能力 |
 | `backend/src/northstar_quant/{web,cli}/` | 共享 Web 接入机制与薄命令行入口 |
@@ -218,6 +219,8 @@ npm --prefix frontend run check
 ```
 
 详细定义位置与变更流程见 [接口说明](docs/API.md)；新增算法见 [因子与策略开发](docs/FACTOR_STRATEGY_DEVELOPMENT.md)。
+架构长期对照 NautilusTrader；具体取舍与参考链接见[架构设计](docs/ARCHITECTURE.md#0-设计依据与运行模型)。
+Research/Paper 与 Live 共用策略运行时，分别使用历史模拟成交和柜台事实；不依赖 NautilusTrader 运行库。
 CLI 按 `serve`、`status`、`check`、`data`、`research`、`maintenance`、`advanced` 分组。
 使用 `northstar --help` 查看入口，具体命令与示例见 [命令行说明](docs/CLI.md)。
 Web 与 CLI 调用同一套业务规则，CLI 不另行实现采集、回测或交易逻辑。

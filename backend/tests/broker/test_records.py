@@ -12,7 +12,8 @@ import pytest
 from sqlalchemy import Engine, create_engine, text
 from sqlalchemy.exc import DBAPIError
 
-from northstar_quant.broker.records import BrokerEvent, BrokerRecords, QueryCapture
+from northstar_quant.broker.events import BrokerEvent, QueryCapture
+from northstar_quant.broker.records import BrokerRecords
 from northstar_quant.broker.settings import get_profile
 
 

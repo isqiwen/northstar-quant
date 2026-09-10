@@ -10,7 +10,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from northstar_quant.broker.records import BrokerEvent
+from northstar_quant.broker.events import BrokerEvent
 from northstar_quant.factors.evaluation import Binding
 from northstar_quant.live.market import advance_market
 from northstar_quant.research.configuration import ResearchConfig
@@ -51,10 +51,12 @@ def advance(state: dict[str, Any], event: BrokerEvent, **changes: Any) -> dict[s
         "instrument": "rb2610",
         "contract_id": CONTRACT,
         "price_tick": Decimal("1"),
-        "config": CONFIG,
+        "config": CONFIG.strategy,
         "now": datetime.fromisoformat(event.received_at),
         **changes,
     }
+    if isinstance(parameters["config"], ResearchConfig):
+        parameters["config"] = parameters["config"].strategy
     return advance_market(state, event, **parameters)
 
 
@@ -244,14 +246,14 @@ def test_longer_warmup_stays_bounded_and_retry_does_not_repeat_last_signal() -> 
             volume=100 + sequence,
         )
         previous = json.loads(json.dumps(state))
-        state = advance(state, event, config=config)
-        assert advance(previous, event, config=config) == state
+        state = advance(state, event, config=config.strategy)
+        assert advance(previous, event, config=config.strategy) == state
         if state["intent"]:
             emitted.append(state["intent"])
         assert len(state["recent_closes"]) <= 3
     assert len(emitted) == 3
     assert [bar["close"] for bar in emitted[-1]["used_bars"]] == ["3130", "3140", "3150"]
-    duplicate = advance(state, event, config=config)
+    duplicate = advance(state, event, config=config.strategy)
     assert duplicate["quality"] == "DUPLICATE"
     assert duplicate["intent"] is None and duplicate["completed_bar"] is None
     assert duplicate["recent_closes"] == state["recent_closes"]

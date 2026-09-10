@@ -20,7 +20,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import cast
 
-from northstar_quant.broker.records import BrokerEvent, QueryCapture
+from northstar_quant.broker.events import BrokerEvent, QueryCapture
 from northstar_quant.broker.settings import (
     Credentials,
     SimnowProfile,

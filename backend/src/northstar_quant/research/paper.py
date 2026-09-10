@@ -41,8 +41,9 @@ from northstar_quant import code_revision
 from northstar_quant.accounting.amounts import decimal_text
 from northstar_quant.accounting.fifo import Account, FillFact
 from northstar_quant.data_management.publications import DatasetReader
-from northstar_quant.data_management.research import ResearchBar, ResearchDataset
-from northstar_quant.research.backtesting import TradingSession
+from northstar_quant.data_management.research import ResearchDataset
+from northstar_quant.market_data import MarketBar
+from northstar_quant.research.backtesting.session import TradingSession
 from northstar_quant.research.configuration import ResearchConfig
 from northstar_quant.research.configurations import read_configuration, read_configurations
 from northstar_quant.research.storage import UTCDateTime, write_transaction
@@ -139,7 +140,7 @@ def _object(value: object) -> dict[str, object]:
     return cast(dict[str, object], value)
 
 
-def _bar_hash(bar: ResearchBar) -> str:
+def _bar_hash(bar: MarketBar) -> str:
     return _hash(
         {
             key: decimal_text(value) if isinstance(value, Decimal) else str(value)
@@ -569,7 +570,7 @@ class PaperStore:
         return rows
 
 
-def _ordered_bars(dataset: ResearchDataset) -> tuple[ResearchBar, ...]:
+def _ordered_bars(dataset: ResearchDataset) -> tuple[MarketBar, ...]:
     return tuple(
         sorted(
             dataset.bars,

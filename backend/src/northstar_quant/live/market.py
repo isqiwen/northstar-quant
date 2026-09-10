@@ -6,12 +6,12 @@ from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
+from northstar_quant.broker.events import BrokerEvent
 from northstar_quant.broker.market import DAY, FRESH, SHANGHAI
-from northstar_quant.broker.records import BrokerEvent
-from northstar_quant.data_management.sampling import sample_market
-from northstar_quant.factors.definition import Bar, Inputs
-from northstar_quant.research.configuration import ResearchConfig
-from northstar_quant.strategies.evaluation import step
+from northstar_quant.broker.sampling import sample_market
+from northstar_quant.market_data import MarketBar
+from northstar_quant.strategies.configuration import StrategyConfig
+from northstar_quant.strategies.runtime import StrategyRuntime
 
 
 def advance_market(
@@ -21,10 +21,10 @@ def advance_market(
     instrument: str,
     contract_id: UUID,
     price_tick: Decimal,
-    config: ResearchConfig,
+    config: StrategyConfig,
     now: datetime,
 ) -> dict[str, Any]:
-    strategy = config.strategy.to_dict()
+    strategy = config.to_dict()
     if state and state["binding"].get("strategy") != strategy:
         raise ValueError("live market checkpoint cannot change its fixed binding")
     sampling = deepcopy(state)
@@ -53,23 +53,14 @@ def advance_market(
     completed = result["completed_bar"]
     decision = {"kind": "INPUT_UNAVAILABLE", "reason": "NO_COMPLETED_BAR", "factors": {}}
     if completed is not None:
-        recent.append(dict(completed))
-        recent = recent[-config.strategy.history_bars :]
-        inputs = Inputs(
-            tuple(
-                Bar(
-                    UUID(item["observation_id"]),
-                    contract_id,
-                    datetime.fromisoformat(item["completed_at"]),
-                    datetime.fromisoformat(item["available_at"]),
-                    Decimal(item["close"]),
-                )
-                for item in recent
-            ),
-            now,
-            contract_id,
+        runtime = StrategyRuntime(
+            config, contract_id, history=tuple(_bar(item) for item in recent), state=strategy_state
         )
-        signal = step(config.strategy, inputs, strategy_state)
+        signal = runtime.advance(_bar(completed), at=now)
+        if signal is None:
+            raise ValueError("sampler repeated a completed bar")
+        recent.append(dict(completed))
+        recent = recent[-len(runtime.history) :]
         strategy_state = signal.decision.state
         decision = {
             "kind": signal.decision.kind.value,
@@ -90,7 +81,7 @@ def advance_market(
         strategy_decision=decision,
     )
     if result["reason"] in {"CLOCK_TOLERANCE_WAIT", "OBSERVING_MINUTE"}:
-        ready = len(recent) == (config.strategy.history_bars - 1) + 1
+        ready = len(recent) == (config.history_bars - 1) + 1
         result.update(
             status="READY" if ready else "WARMING_UP",
             reason="CLOCK_TOLERANCE_WAIT"
@@ -102,6 +93,18 @@ def advance_market(
             else "WARMING_COMPLETED_MINUTES",
         )
     return result
+
+
+def _bar(item: dict[str, Any]) -> MarketBar:
+    return MarketBar(
+        UUID(item["observation_id"]),
+        datetime.fromisoformat(item["start_at"]),
+        datetime.fromisoformat(item["completed_at"]),
+        datetime.fromisoformat(item["available_at"]),
+        datetime.strptime(item["trading_day"], "%Y%m%d").date(),
+        Decimal(item["close"]),
+        Decimal(item["volume"]),
+    )
 
 
 def idle_reason(state: dict[str, Any] | None, *, now: datetime) -> str | None:

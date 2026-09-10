@@ -16,7 +16,8 @@ from uuid import UUID
 from sqlalchemy import Engine, text
 
 from northstar_quant.broker import ctp
-from northstar_quant.broker.records import BrokerRecords, QueryCapture
+from northstar_quant.broker.events import QueryCapture
+from northstar_quant.broker.records import BrokerRecords
 from northstar_quant.broker.settings import (
     configured_profile,
     credential_status,

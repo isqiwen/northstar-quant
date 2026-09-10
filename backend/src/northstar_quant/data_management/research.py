@@ -67,6 +67,7 @@ from northstar_quant.data_management.snapshots.service import (
     DatasetSnapshotPublicationService,
     DatasetSnapshotResolutionService,
 )
+from northstar_quant.market_data import Market, MarketBar
 
 if TYPE_CHECKING:
     from northstar_quant.data_management.stream import StreamMinutes
@@ -226,34 +227,11 @@ class ImportSpec:
 
 
 @dataclass(frozen=True, slots=True)
-class Market:
-    contract_id: UUID
-    symbol: str
-    exchange_timezone: str
-    currency: str
-    quantity_unit: str
-    price_tick: Decimal
-    multiplier: Decimal
-    interval_seconds: int
-
-
-@dataclass(frozen=True, slots=True)
-class ResearchBar:
-    observation_id: UUID
-    event_time: datetime
-    completed_at: datetime
-    available_at: datetime
-    trading_day: date
-    close: Decimal
-    volume: Decimal
-
-
-@dataclass(frozen=True, slots=True)
 class ResearchDataset:
     snapshot_id: UUID
     content_hash: str
     market: Market
-    bars: tuple[ResearchBar, ...]
+    bars: tuple[MarketBar, ...]
     # Pure in-memory calculations need no persisted source receipt. Every Data
     # read/import supplies verified details; absence is never historical evidence.
     details: DatasetDetails | None = None
@@ -722,7 +700,7 @@ def _read_dataset(session: Session, snapshot_id: UUID) -> tuple[ResearchDataset,
         multiplier=partition.contract_multiplier,
         interval_seconds=60,
     )
-    bars: list[ResearchBar] = []
+    bars: list[MarketBar] = []
     member_import_ids: set[UUID] = set()
     for member in resolved.members:
         bar = member.canonical_bar
@@ -735,7 +713,7 @@ def _read_dataset(session: Session, snapshot_id: UUID) -> tuple[ResearchDataset,
         if member.available_at < completed:
             raise ValueError("a bar cannot be available before its completion")
         bars.append(
-            ResearchBar(
+            MarketBar(
                 observation_id=bar.id,
                 event_time=member.event_time,
                 completed_at=completed,

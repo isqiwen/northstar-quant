@@ -12,7 +12,8 @@ from sqlalchemy import JSON, Connection, Engine, Uuid
 from sqlalchemy import text as sql_text
 from sqlalchemy.sql.selectable import TextualSelect
 
-from northstar_quant.broker.records import BrokerEvent, BrokerRecords, EvidenceTimestamp
+from northstar_quant.broker.events import BrokerEvent
+from northstar_quant.broker.records import BrokerRecords, EvidenceTimestamp
 from northstar_quant.data_management.broker import verify_broker_contract
 
 _ARCHIVE_BYTES = 5 * 1024 * 1024

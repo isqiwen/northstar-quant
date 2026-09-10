@@ -10,7 +10,7 @@ import pytest
 from sqlalchemy import Engine
 
 from northstar_quant.accounting.ledger import BrokerLedger
-from northstar_quant.broker.records import BrokerEvent
+from northstar_quant.broker.events import BrokerEvent
 from northstar_quant.execution.reviews import OrderReviews
 from northstar_quant.live.streams import LiveStreams
 from tests.accounting.test_ledger import ledger_query, position, trade

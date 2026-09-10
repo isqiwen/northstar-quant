@@ -20,7 +20,7 @@ from datetime import UTC, datetime
 from multiprocessing.connection import Connection
 from typing import Any, cast
 
-from northstar_quant.broker.records import CALLBACK_FIELDS, BrokerEvent
+from northstar_quant.broker.events import CALLBACK_FIELDS, BrokerEvent
 from northstar_quant.broker.settings import Credentials, SimnowProfile
 
 _MAX_EVENTS = 10_000

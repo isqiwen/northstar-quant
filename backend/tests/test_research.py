@@ -7,9 +7,12 @@ from uuid import UUID
 import pytest
 
 from northstar_quant.accounting.fifo import Account, FillFact
-from northstar_quant.data_management.research import Market, ResearchBar, ResearchDataset
+from northstar_quant.data_management.research import ResearchDataset
 from northstar_quant.factors.evaluation import Binding
-from northstar_quant.research.backtesting import TradingSession, TradingStep, run_research
+from northstar_quant.market_data import Market, MarketBar
+from northstar_quant.research.backtesting import run_research
+from northstar_quant.research.backtesting.report import build_result
+from northstar_quant.research.backtesting.session import TradingSession, TradingStep
 from northstar_quant.research.configuration import ResearchConfig
 from northstar_quant.risk.configuration import RiskConfig
 from northstar_quant.simulation.configuration import SimulationConfig
@@ -24,7 +27,7 @@ def dataset(prices: tuple[str, ...]) -> ResearchDataset:
         "a" * 64,
         Market(UUID(int=200), "RB2605", "Asia/Shanghai", "CNY", "TON", Decimal(1), Decimal(10), 60),
         tuple(
-            ResearchBar(
+            MarketBar(
                 UUID(int=index + 1),
                 AT + timedelta(minutes=index),
                 AT + timedelta(minutes=index + 1),
@@ -109,12 +112,12 @@ def test_risk_rejection_and_incremental_retries_are_observable_and_deterministic
         assert step is not None
         steps.append(step)
         assert session.advance(bar) is None
-    assert session.result(steps).to_dict() == batch
+    assert build_result(session, steps).to_dict() == batch
     assert batch["fills"] == []
     assert batch["decisions"][0]["reason"] == "NO_PERMITTED_POSITION"
     with pytest.raises(ValueError, match="reused"):
         session.advance(replace(data.bars[-1], close=Decimal(121)))
-    assert session.result(steps).to_dict() == batch
+    assert build_result(session, steps).to_dict() == batch
     with localcontext() as context:
         context.prec = 6
         context.rounding = ROUND_DOWN
@@ -181,7 +184,7 @@ def test_checkpoint_recovery_preserves_pending_fifo_warmup_and_complete_result()
         assert len(checkpoint["history"]) <= (config.strategy.history_bars - 1) + 1
         assert "decisions" not in checkpoint and "equity_curve" not in checkpoint
         assert session.advance(bar) is None
-    assert session.result(steps).to_dict() == batch
+    assert build_result(session, steps).to_dict() == batch
     assert session.summary() == batch["summary"]
     with pytest.raises(ValueError, match="counters"):
         TradingSession.from_checkpoint(

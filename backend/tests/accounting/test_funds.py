@@ -15,7 +15,8 @@ from sqlalchemy import Engine, text
 from northstar_quant.accounting.baselines import BrokerBaselines
 from northstar_quant.accounting.funds import BrokerFunds
 from northstar_quant.accounting.ledger import BrokerLedger
-from northstar_quant.broker.records import BrokerRecords, QueryCapture
+from northstar_quant.broker.events import QueryCapture
+from northstar_quant.broker.records import BrokerRecords
 from northstar_quant.broker.settings import get_profile
 from northstar_quant.data_management.files import SourceFiles
 from northstar_quant.data_management.library import DataLibrary
