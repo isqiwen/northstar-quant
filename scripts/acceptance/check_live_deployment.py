@@ -36,6 +36,7 @@ class Deployment:
         }
         self.environment.update(
             NORTHSTAR_LIVE_IMAGE=image,
+            NORTHSTAR_LIVE_ENVIRONMENT="simnow_dev",
             NORTHSTAR_LIVE_FRONTEND_IMAGE=frontend_image,
             NORTHSTAR_LIVE_DATABASE_PASSWORD=self.password,
         )
@@ -238,6 +239,19 @@ def main() -> None:
     deployment = Deployment(arguments.image, arguments.frontend_image)
     try:
         deployment.exercise()
+    except BaseException:
+        try:
+            diagnostic = deployment.run("logs", "--no-color", "--tail=100").replace(
+                deployment.password, "<REDACTED>"
+            )
+            print(diagnostic, flush=True)
+            if output := os.environ.get("NORTHSTAR_ACCEPTANCE_ARTIFACTS"):
+                destination = Path(output) / (deployment.name + ".log")
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_text(diagnostic)
+        except (OSError, RuntimeError):
+            print("Live acceptance container diagnostics unavailable", flush=True)
+        raise
     finally:
         # The generated project name is never user input or the personal project's name.
         deployment.run("down", "--volumes", "--timeout", "10")

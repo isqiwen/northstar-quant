@@ -1,5 +1,6 @@
 """Successful deployment removes only unused owned versions, never evidence or active mounts."""
 
+import hashlib
 import importlib.util
 import json
 from pathlib import Path
@@ -21,6 +22,18 @@ def cleanup(tmp_path, monkeypatch):
         (directory / "source.py").write_text("application")
     (root / "current").symlink_to(root / "releases" / new)
     (root / "successful-revision").write_text(new)
+    configuration = root.parent.parent / "config/data-hub.env"
+    configuration.parent.mkdir()
+    configuration.write_bytes(b"private-test-configuration")
+    (root / "deployment.json").write_text(
+        json.dumps(
+            {
+                "phase": "verified",
+                "revision": new,
+                "configuration_sha256": hashlib.sha256(configuration.read_bytes()).hexdigest(),
+            }
+        )
+    )
     monkeypatch.setattr(module, "output", lambda *args: "")
     return module, root, old, new
 
@@ -91,3 +104,11 @@ def test_old_release_symlink_never_deletes_target(cleanup):
     with pytest.raises(ValueError, match="Unexpected"):
         module.cleanup("data-hub", root, new)
     assert target.is_dir()
+
+
+def test_changed_configuration_cannot_use_old_success_to_delete_versions(cleanup):
+    module, root, old, new = cleanup
+    (root.parent.parent / "config/data-hub.env").write_text("changed")
+    with pytest.raises(ValueError, match="configuration is not verified"):
+        module.cleanup("data-hub", root, new)
+    assert (root / "releases" / old).is_dir()

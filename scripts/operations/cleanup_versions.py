@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import shutil
@@ -25,6 +26,17 @@ def cleanup(app: str, root: Path, revision: str) -> None:
         raise ValueError("Current release changed; refusing cleanup")
     if (root / "successful-revision").read_text().strip() != revision:
         raise ValueError("Deployment is not verified; refusing cleanup")
+    state_path = root / "deployment.json"
+    state = json.loads(state_path.read_text()) if state_path.exists() else {}
+    configuration = root.parent.parent / "config" / f"{app}.env"
+    if (
+        state.get("phase") not in {"verified", "complete", "cleanup_failed"}
+        or state.get("revision") != revision
+        or not configuration.is_file()
+        or state.get("configuration_sha256")
+        != hashlib.sha256(configuration.read_bytes()).hexdigest()
+    ):
+        raise ValueError("Deployment configuration is not verified; refusing cleanup")
     identifiers = output("docker", "ps", "-aq").splitlines()
     mounts = []
     for identifier in identifiers:

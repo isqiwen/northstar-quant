@@ -6,7 +6,9 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import runpy
 import shlex
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -185,6 +187,9 @@ def main() -> int:
         if args.action == "deploy":
             with environment_path.expanduser().open("rb") as source:
                 custom_environment = source.read(1024 * 1024 + 1)
+            runpy.run_path(str(ROOT / "scripts/operations/application_configuration.py"))[
+                "validate"
+            ](args.app, custom_environment)
             if len(custom_environment) > 1024 * 1024:
                 raise ValueError("应用配置超过大小限制")
             if git("status", "--porcelain", "--untracked-files=all", *source_paths):
@@ -197,6 +202,7 @@ def main() -> int:
             "action": args.action,
             "revision": revision,
             "follow": args.follow,
+            "replace_configuration": args.env_file is not None,
         }
         print(
             f"{args.action} {args.app} → {config['user']}@{config['host']}:{config['port']} "
@@ -258,26 +264,17 @@ def main() -> int:
             # Refuse a racing commit/edit rather than transferring a different revision.
             if git("rev-parse", "HEAD") != revision or git("status", "--porcelain", *source_paths):
                 raise ValueError("打包期间 Git 工作区发生变化，请重新部署")
-            template = Path(temporary) / "application.env"
-            with template.open("xb") as output:
-                template.chmod(0o600)
+            payload = Path(temporary) / "deployment.payload"
+            with payload.open("xb") as output:
+                payload.chmod(0o600)
                 assert custom_environment is not None
+                output.write(len(custom_environment).to_bytes(8, "big"))
                 output.write(custom_environment)
-            upload = command[:-1] + [
-                shlex.join(
-                    [
-                        "python3",
-                        "-c",
-                        (ROOT / "scripts/operations/upload_configuration.py").read_text(),
-                        config["env_file"],
-                        *(["--replace"] if args.env_file is not None else []),
-                    ]
-                )
-            ]
-            with template.open("rb") as source:
-                subprocess.run(upload, stdin=source, check=True)
-            with bundle.open("rb") as source:
+                with bundle.open("rb") as source:
+                    shutil.copyfileobj(source, output)
+            with payload.open("rb") as source:
                 return subprocess.run(command, stdin=source, check=False).returncode
+
     except subprocess.CalledProcessError as error:
         print(
             f"操作失败（退出码 {error.returncode}），请查看上方错误；修复后重新执行当前命令。",

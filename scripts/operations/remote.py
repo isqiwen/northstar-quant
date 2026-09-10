@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import fcntl
+import hashlib
 import json
 import os
+import runpy
 import shutil
 import signal
 import stat
@@ -100,7 +102,9 @@ def execute(request: dict) -> None:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             raise ValueError("该对象已有部署/管理命令运行") from None
-        if not env_file.is_file() or stat.S_IMODE(env_file.stat().st_mode) & 0o077:
+        if action != "deploy" and (
+            not env_file.is_file() or stat.S_IMODE(env_file.stat().st_mode) & 0o077
+        ):
             raise ValueError("目标 env_file 必须已存在且仅所属用户可访问（chmod 600）")
         # No ambient Compose or Make flags may redirect operations to a different project.
         for key in list(os.environ):
@@ -124,6 +128,12 @@ def execute(request: dict) -> None:
             revision = request["revision"]
             release = releases / revision
             with tempfile.TemporaryDirectory(prefix=".upload-", dir=root) as temporary:
+                header = sys.stdin.buffer.read(8)
+                if len(header) != 8 or not 0 < int.from_bytes(header, "big") <= 1024 * 1024:
+                    raise ValueError("部署配置传输不完整或超过大小限制")
+                incoming = sys.stdin.buffer.read(int.from_bytes(header, "big"))
+                if len(incoming) != int.from_bytes(header, "big"):
+                    raise ValueError("部署配置传输不完整")
                 bundle = Path(temporary) / "source.bundle"
                 with bundle.open("wb") as destination:
                     shutil.copyfileobj(sys.stdin.buffer, destination)
@@ -136,35 +146,81 @@ def execute(request: dict) -> None:
                 "git", "status", "--porcelain", "--untracked-files=all", cwd=release, capture=True
             ):
                 raise ValueError("目标版本目录身份不匹配或有修改，拒绝覆盖")
-            compose = [
-                "docker",
-                "compose",
-                "--env-file",
-                str(env_file),
-                "-p",
-                project,
-                "-f",
-                str(release / "deploy" / folder / "compose.yaml"),
+            config_module = runpy.run_path(
+                str(release / "scripts/operations/application_configuration.py")
+            )
+            installer = runpy.run_path(str(release / "scripts/operations/upload_configuration.py"))[
+                "install"
             ]
+            journal = runpy.run_path(str(release / "scripts/operations/deployment_state.py"))[
+                "record"
+            ]
+            if env_file.is_symlink() or (
+                env_file.exists()
+                and (not env_file.is_file() or stat.S_IMODE(env_file.stat().st_mode) & 0o077)
+            ):
+                raise ValueError("运行配置必须是权限 600 的私有普通文件")
+            chosen = (
+                incoming
+                if request["replace_configuration"] or not env_file.exists()
+                else env_file.read_bytes()
+            )
+            config_module["validate"](app, chosen)
+            digest = hashlib.sha256(chosen).hexdigest()
+            state = root / "deployment.json"
             image_environment(app, revision)
-            run(*compose, "config", "--quiet")
+            with tempfile.NamedTemporaryFile(
+                dir=env_file.parent, prefix=".preflight-"
+            ) as candidate:
+                candidate.write(chosen)
+                candidate.flush()
+                # Compose errors can echo values: only publish a neutral preflight result.
+                preflight = subprocess.run(
+                    [
+                        "docker",
+                        "compose",
+                        "--env-file",
+                        candidate.name,
+                        "-p",
+                        project,
+                        "-f",
+                        str(release / "deploy" / folder / "compose.yaml"),
+                        "config",
+                        "--quiet",
+                    ],
+                    cwd=release,
+                    capture_output=True,
+                )
+                if preflight.returncode:
+                    raise ValueError("新配置未通过 Compose 校验；运行配置和容器未修改")
+            journal(state, revision, digest, "prepared", project)
+            installer(env_file, chosen, replace=True)
             # Point management commands at the attempted release, even if up partially fails.
             # Never claim an atomic rollback of databases/containers.
             link = root / ".current-next"
             link.unlink(missing_ok=True)
             link.symlink_to(release)
             link.replace(active)
-            run(
-                sys.executable,
-                "scripts/operations/compose.py",
-                "deploy",
-                app,
-                cwd=release,
-            )
-            (root / "successful-revision").write_text(revision + "\n")
-            run(
-                sys.executable, "scripts/operations/cleanup_versions.py", app, revision, cwd=release
-            )
+            try:
+                journal(state, revision, digest, "applying", project)
+                run(sys.executable, "scripts/operations/compose.py", "deploy", app, cwd=release)
+                journal(state, revision, digest, "verified", project)
+                (root / "successful-revision").write_text(revision + "\n")
+            except BaseException:
+                journal(state, revision, digest, "failed", project)
+                raise
+            try:
+                run(
+                    sys.executable,
+                    "scripts/operations/cleanup_versions.py",
+                    app,
+                    revision,
+                    cwd=release,
+                )
+            except BaseException:
+                journal(state, revision, digest, "cleanup_failed", project)
+                raise
+            journal(state, revision, digest, "complete", project)
             print(f"部署完成：{app} {revision}", flush=True)
         else:
             if not active.is_symlink():
@@ -175,6 +231,12 @@ def execute(request: dict) -> None:
             image_environment(app, release.name)
             print(f"当前配置版本：{release.name}", flush=True)
             if action == "status":
+                state = root / "deployment.json"
+                print(
+                    "部署记录："
+                    + (state.read_text() if state.exists() else "未记录，请重新 deploy"),
+                    flush=True,
+                )
                 successful = root / "successful-revision"
                 print(
                     "最后成功版本："
@@ -200,6 +262,15 @@ def execute(request: dict) -> None:
                 )
             elif action in ("start", "restart", "stop"):
                 if action != "stop":
+                    state = root / "deployment.json"
+                    evidence = json.loads(state.read_text()) if state.exists() else {}
+                    if (
+                        evidence.get("phase") not in ("complete", "verified", "cleanup_failed")
+                        or evidence.get("revision") != release.name
+                        or evidence.get("configuration_sha256")
+                        != hashlib.sha256(env_file.read_bytes()).hexdigest()
+                    ):
+                        raise ValueError("当前配置/版本未成功部署或已被修改，请先执行 deploy")
                     successful = root / "successful-revision"
                     if not successful.exists() or successful.read_text().strip() != release.name:
                         raise ValueError("当前版本尚未成功部署，请先重试 deploy")

@@ -14,6 +14,23 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 
 
+def configuration_text(app, value):
+    if app == "research":
+        return f"NORTHSTAR_DATA_HUB_URL='http://{value}:19090'\n"
+    keys = {
+        "database": ["NORTHSTAR_DATABASE_ADMIN_PASSWORD", "NORTHSTAR_DATA_HUB_DATABASE_PASSWORD"],
+        "data-hub": ["NORTHSTAR_DATA_HUB_DATABASE_PASSWORD"],
+        "live": ["NORTHSTAR_LIVE_DATABASE_PASSWORD"],
+    }
+    result = "".join(f"{key}='{value}'\n" for key in keys[app])
+    if app == "live":
+        result += "NORTHSTAR_LIVE_ENVIRONMENT=simnow_dev\n"
+        result += "".join(
+            f"NORTHSTAR_SIMNOW_{key}=\n" for key in ("USER_ID", "APP_ID", "AUTH_CODE", "PASSWORD")
+        )
+    return result
+
+
 @pytest.fixture
 def deployment(tmp_path: Path) -> tuple[Path, Path, dict]:
     repo = tmp_path / "repo"
@@ -45,7 +62,9 @@ def deployment(tmp_path: Path) -> tuple[Path, Path, dict]:
     for app in ("database", "data_hub", "research", "live"):
         folder = repo / "deploy" / app
         folder.mkdir(parents=True)
-        (folder / ".env").write_text("PASSWORD=initial-private-value\n")
+        (folder / ".env").write_text(
+            configuration_text(app.replace("_", "-"), "initial-private-value")
+        )
     subprocess.run(["git", "init", "-q", str(repo)], check=True)
     (repo / "Makefile").write_text("up-database up-data up-research up-live:\n\t@true\n")
     subprocess.run(["git", "-C", str(repo), "add", "."], check=True)
@@ -65,11 +84,16 @@ def deployment(tmp_path: Path) -> tuple[Path, Path, dict]:
         check=True,
     )
     private = tmp_path / "private.env"
-    private.write_text("PASSWORD=not-for-output\n")
+    private.write_text(configuration_text("database", "not-for-output"))
     private.chmod(0o600)
     (tmp_path / "config").mkdir()
     for app in ("database", "data-hub", "research", "live"):
-        os.link(private, tmp_path / "config" / f"{app}.env")
+        target = tmp_path / "config" / f"{app}.env"
+        if app == "database":
+            os.link(private, target)
+        else:
+            target.write_text(configuration_text(app, "not-for-output"))
+            target.chmod(0o600)
     config = tmp_path / "hosts.toml"
     config.write_text(
         "\n".join(
@@ -204,7 +228,7 @@ def test_private_configuration_permissions_are_fixed_without_changing_content(de
     result = invoke(deployment, "deploy", "database")
     assert result.returncode == 0, result.stderr
     assert private.stat().st_mode & 0o777 == 0o600
-    assert private.read_text() == "PASSWORD=not-for-output\n"
+    assert private.read_text() == configuration_text("database", "not-for-output")
     assert "not-for-output" not in result.stdout + result.stderr
 
 
@@ -351,12 +375,12 @@ def test_first_deployment_uploads_private_config_and_redeploy_preserves_edits(de
     private.unlink()
     result = invoke(deployment, "deploy", "research")
     assert result.returncode == 0, result.stderr
-    assert private.read_text() == "PASSWORD=initial-private-value\n"
+    assert private.read_text() == configuration_text("research", "initial-private-value")
     assert private.stat().st_mode & 0o777 == 0o600
-    private.write_text("PASSWORD=host-private-value\n")
+    private.write_text(configuration_text("research", "host-private-value"))
     result2 = invoke(deployment, "deploy", "research")
     assert result2.returncode == 0, result2.stderr
-    assert private.read_text() == "PASSWORD=host-private-value\n"
+    assert private.read_text() == configuration_text("research", "host-private-value")
     evidence = result.stdout + result.stderr + result2.stdout + result2.stderr
     evidence += Path(env["RECORD"]).read_text()
     assert "initial-private-value" not in evidence
@@ -433,7 +457,7 @@ def test_explicit_environment_updates_only_selected_app_without_disclosing_value
 ):
     _, config, env = deployment
     custom = tmp_path / "private.env.input"
-    content = b"PASSWORD=custom-secret-$literal\nNOTE='spaces stay intact'\n"
+    content = configuration_text(app, "custom-secret-$literal").encode()
     custom.write_bytes(content)
     result = invoke(deployment, "deploy", app, "--env-file", str(custom))
     assert result.returncode == 0, result.stderr
@@ -442,9 +466,9 @@ def test_explicit_environment_updates_only_selected_app_without_disclosing_value
     assert target.stat().st_mode & 0o777 == 0o600
     for other in ("database", "data-hub", "research", "live"):
         if other != app:
-            assert (
-                config.parent / "config" / f"{other}.env"
-            ).read_text() == "PASSWORD=not-for-output\n"
+            assert (config.parent / "config" / f"{other}.env").read_text() == configuration_text(
+                other, "not-for-output"
+            )
     result2 = invoke(deployment, "deploy", app)
     assert result2.returncode == 0, result2.stderr
     assert target.read_bytes() == content
@@ -469,7 +493,7 @@ def test_missing_custom_environment_fails_before_connecting(deployment):
 def test_local_env_is_uploaded_without_entering_source_bundle(deployment):
     repo, config, env = deployment
     selected = repo / "deploy/research/.env"
-    secret = "PASSWORD='private-$literal'\n"
+    secret = configuration_text("research", "private-$literal")
     selected.write_text(secret)
     result = invoke(deployment, "deploy", "research", "--env-file", str(selected))
     assert result.returncode == 0, result.stderr
@@ -479,3 +503,61 @@ def test_local_env_is_uploaded_without_entering_source_bundle(deployment):
     assert "private-$literal" not in result.stdout + result.stderr + Path(env["RECORD"]).read_text()
     (repo / "deploy/live/.env").write_text("UNCOMMITTED=other-app\n")
     assert invoke(deployment, "deploy", "research").returncode != 0
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        "NORTHSTAR_DATA_HUB_URL=http://core.local:19090\nREMOVED_PORT=1234\n",
+        "NORTHSTAR_DATA_HUB_URL=http://core.local:19090\nNORTHSTAR_DATA_HUB_URL=http://other\n",
+        "NORTHSTAR_DATA_HUB_URL=\n",
+        "NORTHSTAR_DATA_HUB_URL=${PRIVATE_VALUE}\n",
+    ],
+)
+def test_invalid_configuration_never_connects(deployment, tmp_path, content):
+    _, _, env = deployment
+    source = tmp_path / "invalid.env"
+    source.write_text(content)
+    result = invoke(deployment, "deploy", "research", "--env-file", str(source))
+    assert result.returncode != 0
+    assert not Path(env["RECORD"]).exists()
+
+
+def test_preserved_obsolete_config_rejected_without_activation(deployment):
+    _, config, _ = deployment
+    assert invoke(deployment, "deploy", "research").returncode == 0
+    state = config.parent / "apps/research/deployment.json"
+    previous = state.read_bytes()
+    target = config.parent / "config/research.env"
+    target.write_text(target.read_text() + "OBSOLETE=private-obsolete-value\n")
+    result = invoke(deployment, "deploy", "research")
+    assert result.returncode != 0
+    assert state.read_bytes() == previous
+    assert "private-obsolete-value" not in result.stdout + result.stderr
+    assert invoke(deployment, "start", "research").returncode != 0
+
+
+def test_failed_same_revision_configuration_blocks_start_and_records_last_success(
+    deployment, tmp_path
+):
+    _, config, env = deployment
+    assert invoke(deployment, "deploy", "research").returncode == 0
+    state = config.parent / "apps/research/deployment.json"
+    before = json.loads(state.read_text())
+    source = tmp_path / "new.env"
+    source.write_text(configuration_text("research", "changed-private-value"))
+    env["DEPLOY_UP_RESULT"] = "7"
+    failed = invoke(deployment, "deploy", "research", "--env-file", str(source))
+    assert failed.returncode != 0
+    after = json.loads(state.read_text())
+    assert after["phase"] == "failed"
+    assert after["revision"] == before["revision"]
+    assert after["configuration_sha256"] != before["configuration_sha256"]
+    assert after["last_success"] == before["last_success"]
+    assert "changed-private-value" not in state.read_text() + failed.stdout + failed.stderr
+    assert invoke(deployment, "status", "research").returncode == 0
+    assert invoke(deployment, "start", "research").returncode != 0
+    env.pop("DEPLOY_UP_RESULT")
+    assert invoke(deployment, "deploy", "research").returncode == 0
+    assert json.loads(state.read_text())["phase"] == "complete"
+    assert invoke(deployment, "start", "research").returncode == 0
