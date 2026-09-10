@@ -276,6 +276,21 @@ def restore(
     for snapshot_id in snapshot_ids:
         library.load_dataset(snapshot_id)
     audit = library.reconcile()
+    with engine.connect() as connection:
+        owner = connection.execute(text("SELECT owner FROM northstar_store")).scalar_one()
+    if owner == "data_hub":
+        # Data Hub owns no broker, account or Research tables. Its activation
+        # checks end at the verified source relationships and fixed publications.
+        (target.root / ".restore-incomplete").unlink()
+        SourceFiles._sync(target.root)
+        return {
+            "status": "restored",
+            "owner": owner,
+            "backup_id": document["backup_id"],
+            "source_count": len(sources),
+            "audit": audit,
+            "scope": "Data Hub database, retained sources and fixed publications",
+        }
     records = BrokerRecords(engine)
     query_batches_count = pending_queries_count = 0
     # A restored database is not active yet. Stream every identity, not the

@@ -43,6 +43,7 @@ Tushare 定时增量/分片补数、15 分钟到日线完整研究输入、持�
 管理对象为 `database`、`nfs`、`data-hub`、`research`、`live`；NFS 使用主机服务和 journalctl 日志，不使用 `.env` 或 Docker 镜像。
 
 `hosts.toml` 填写各主机 host/user/port，`[nfs]` 同样填写服务端 host/user/port（默认 research.local），自动判断共享角色；user 仅供 `init-host` 登录和提权，创建 northstar 用户、配置 SSH 公钥及免密码 sudo。
+Research 部署会在主机上解析发布接口的 `.local` 地址，并为容器生成主机映射；部署主机必须能解析该地址，IP 变化后执行 `restart research` 刷新映射。
 之后部署固定使用 northstar，首次运行配置自动上传，默认保留已有配置；目标先具备 SSH、Python 3.11+。
 脚本部署当前已提交版本；可用 `deploy data-hub --env-file /本地路径/data-hub.env` 指定应用配置并更新远程运行副本。
 不指定时默认首次上传仓库中的 `.env`，后续保留远程配置；支持 `start`、`restart`、`stop`、`status`、`logs` 和 `--help`。

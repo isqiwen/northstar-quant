@@ -474,3 +474,24 @@ def test_restore_requires_self_contained_bytes_not_symlink_to_live_archive(tmp_p
         assert live.inventory() == []
     finally:
         engine.dispose()
+
+
+def test_owned_data_hub_restore_does_not_require_other_application_tables(
+    postgres_engine: Engine, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from sqlalchemy import inspect
+
+    monkeypatch.setenv("NORTHSTAR_DATABASE_OWNER", "data_hub")
+    with _empty_restore_database(postgres_engine) as source:
+        initialize_database(source)
+        destination = tmp_path / "owned-backup"
+        backup(source, SourceFiles(tmp_path / "owned-sources"), destination)
+        with _empty_restore_database(postgres_engine) as target:
+            result = restore(target, tmp_path / "owned-restored", destination)
+            assert result["owner"] == "data_hub"
+            assert result["status"] == "restored"
+            assert not (tmp_path / "owned-restored/.restore-incomplete").exists()
+            assert not any(
+                name.startswith(("broker_", "research_"))
+                for name in inspect(target).get_table_names()
+            )

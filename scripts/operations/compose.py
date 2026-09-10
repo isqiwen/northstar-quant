@@ -13,12 +13,21 @@ from uuid import uuid4
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "backend/src"))
-FOLDERS = {"database": "database", "data-hub": "data_hub", "research": "research", "live": "live"}
+FOLDERS = {
+    "database": "database",
+    "data-hub": "data_hub",
+    "research": "research",
+    "live": "live",
+}
 
 
 def run(*args: str, cwd: Path | None = None, capture: bool = False) -> str:
     result = subprocess.run(
-        args, cwd=cwd, check=True, text=True, stdout=subprocess.PIPE if capture else None
+        args,
+        cwd=cwd,
+        check=True,
+        text=True,
+        stdout=subprocess.PIPE if capture else None,
     )
     return result.stdout.strip() if capture else ""
 
@@ -51,6 +60,28 @@ def lifecycle(
 
 
 def manage(app: str, action: str, *, follow: bool = False) -> None:
+    from contextlib import nullcontext
+
+    from publication_network import publication_hosts
+
+    folder = FOLDERS[app]
+    base = [
+        "docker",
+        "compose",
+        "--env-file",
+        f"/opt/northstar/config/{app}.env",
+        "-f",
+        str(ROOT / "deploy" / folder / "compose.yaml"),
+    ]
+    context = nullcontext([])
+    if app == "research" and action in {"deploy", "start", "restart", "backup"}:
+        config = json.loads(run(*base, "config", "--format", "json", capture=True))
+        context = publication_hosts(config)
+    with context as overrides:
+        _manage(app, action, follow=follow, overrides=overrides)
+
+
+def _manage(app: str, action: str, *, follow: bool, overrides: list[str]) -> None:
     folder = FOLDERS[app]
     env_file = Path(f"/opt/northstar/config/{app}.env")
     compose = [
@@ -61,9 +92,14 @@ def manage(app: str, action: str, *, follow: bool = False) -> None:
         "-f",
         str(ROOT / "deploy" / folder / "compose.yaml"),
     ]
+    compose.extend(overrides)
     if project := os.environ.get("COMPOSE_PROJECT_NAME"):
         compose[2:2] = ["-p", project]
-    if app in {"data-hub", "research", "live"} and action in {"deploy", "start", "restart"}:
+    if app in {"data-hub", "research", "live"} and action in {
+        "deploy",
+        "start",
+        "restart",
+    }:
         config = json.loads(run(*compose, "config", "--format", "json", capture=True))
         service = "live-web" if app == "live" else app
         port = str(config["services"][service]["ports"][0]["published"])
@@ -111,7 +147,9 @@ def manage(app: str, action: str, *, follow: bool = False) -> None:
             run(*compose, "up", "--build", "-d", "--wait", "--wait-timeout", "180")
     elif action in ("start", "restart", "stop"):
         if action != "stop" and app in ("data-hub", "research"):
-            run(*compose, "run", "--rm", "--no-deps", "--pull", "never", "storage-check")
+            run(
+                *compose, "run", "--rm", "--no-deps", "--pull", "never", "storage-check"
+            )
         lifecycle(compose, app, action)
     elif action == "status":
         run(*compose, "ps", "--all")
@@ -137,7 +175,8 @@ def manage(app: str, action: str, *, follow: bool = False) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description="在当前主机执行应用 Compose 操作")
     parser.add_argument(
-        "action", choices=("deploy", "start", "restart", "stop", "status", "logs", "backup")
+        "action",
+        choices=("deploy", "start", "restart", "stop", "status", "logs", "backup"),
     )
     parser.add_argument("app", choices=FOLDERS)
     parser.add_argument("--follow", action="store_true")
