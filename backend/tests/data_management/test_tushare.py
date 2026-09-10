@@ -505,7 +505,9 @@ def test_permission_failure_cannot_claim_any_data_coverage(automatic, monkeypatc
     pending(automatic)
 
     def denied(*_):
-        acquisition.decode(json.dumps({"code": 2002, "msg": TOKEN}).encode())
+        acquisition.decode(
+            json.dumps({"code": 2002, "msg": "没有访问该接口的权限 " + TOKEN}).encode()
+        )
 
     monkeypatch.setattr(acquisition, "fetch", denied)
     failed = jobs.process_next(automatic)
@@ -757,3 +759,38 @@ def test_interrupted_reprocessing_keeps_the_same_source(automatic, monkeypatch):
     assert result["receipt_id"] == original["receipt_id"]
     assert result["attempts_detail"][1]["outcome"] == "INTERRUPTED"
     assert result["attempts_detail"][0]["parent_generation"] == str(source)
+
+
+@pytest.mark.parametrize("permission", [False, True])
+def test_only_confirmed_permission_failure_blocks_other_windows(automatic, monkeypatch, permission):
+    pending(automatic)
+    message = "没有访问该接口的权限" if permission else "请求范围无效"
+
+    def rejected(*_):
+        acquisition.decode(json.dumps({"code": 40203, "msg": message + TOKEN}).encode())
+
+    monkeypatch.setattr(acquisition, "fetch", rejected)
+    failed = jobs.process_next(automatic)
+    assert failed["status"] == "BLOCKED"
+    assert TOKEN not in failed["error"]
+    pending(automatic, start="2026-09-02", end="2026-09-02")
+    ready(automatic)
+    monkeypatch.setattr(
+        acquisition, "fetch", lambda *_: response().replace(b"20260901", b"20260902")
+    )
+    following = jobs.process_next(automatic)
+    if permission:
+        assert following is None
+    else:
+        assert following["status"] == "VALIDATED"
+    with automatic._engine.connect() as connection:
+        assert connection.scalar(text("SELECT count(*) FROM data_sync_coverage")) == int(
+            not permission
+        )
+        assert (
+            connection.scalar(
+                text("SELECT status FROM data_sync_jobs WHERE request_id=:id"),
+                {"id": failed["request_id"]},
+            )
+            == "BLOCKED"
+        )

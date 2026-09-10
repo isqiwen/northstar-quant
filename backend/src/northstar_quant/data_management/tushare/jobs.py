@@ -50,7 +50,7 @@ def process_next(library: DataLibrary) -> dict[str, Any] | None:
                 AND (source_generation IS NOT NULL OR :download_ready)
                 AND (source_generation IS NOT NULL OR NOT EXISTS (SELECT 1 FROM data_sync_jobs b
                 WHERE b.dataset=j.dataset AND
-                b.status='BLOCKED' AND b.error LIKE 'Tushare 权限%'))
+                b.status='BLOCKED' AND b.error LIKE 'Tushare 权限不足%'))
                 ORDER BY (source_generation IS NOT NULL) DESC,
                 CASE dataset WHEN 'contracts' THEN 0 WHEN 'calendar' THEN 1 ELSE 2 END,
                 {order},created_at LIMIT 1 FOR UPDATE SKIP LOCKED"""),
