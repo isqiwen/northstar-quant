@@ -654,6 +654,7 @@ def test_retained_reprocessing_survives_pause_and_preserves_versions(automatic, 
     assert result["status"] == "VALIDATED"
     assert result["receipt_id"] != old_receipt
     assert result["attempts"] == original["attempts"]
+    assert result["checked_at"] == original["checked_at"]
     attempt = result["attempts_detail"][0]
     assert attempt["parent_generation"] == str(source)
     assert attempt["receipt_id"] == result["receipt_id"]
@@ -679,6 +680,12 @@ def test_reprocessing_rejects_stale_source_and_corruption(automatic, monkeypatch
         connection.execute(
             text("UPDATE data_sync_jobs SET status='PENDING',next_at=now() WHERE request_id=:id"),
             {"id": request_id},
+        )
+    with pytest.raises(ValueError, match="下载已排队"):
+        reprocessing.enqueue(
+            library._engine,
+            request_id=request_id,
+            source_generation=UUID(old["reprocess_source"]["generation"]),
         )
     ready(library)
     monkeypatch.setattr(acquisition, "fetch", lambda *a: response(3200))

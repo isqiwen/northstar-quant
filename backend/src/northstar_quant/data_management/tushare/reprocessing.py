@@ -23,6 +23,8 @@ def enqueue(engine: Engine, *, request_id: UUID, source_generation: UUID) -> dic
             raise LookupError("同步分片不存在")
         if current["status"] in ("RUNNING", "SPLIT"):
             raise ValueError("分片正在处理或已经拆分，请刷新记录")
+        if current["status"] in ("PENDING", "WAITING") and current["source_generation"] is None:
+            raise ValueError("下载已排队，不能用旧原文重处理替代下载")
         latest = connection.scalar(
             text("""SELECT generation FROM data_sync_attempts
             WHERE request_id=:id AND source_hash IS NOT NULL AND parent_generation IS NULL

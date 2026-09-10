@@ -166,6 +166,8 @@ def process_next(library: DataLibrary) -> dict[str, Any] | None:
                         "SPLIT" if divided else "BLOCKED",
                         "达到接口上限，已拆分区间"
                         if divided
+                        else "留存响应达到接口上限；需要正常同步获取完整响应"
+                        if selected["source_generation"]
                         else "最小分片或合约目录达到接口上限，需核查供应商覆盖",
                     )
         except Empty as error:
@@ -297,7 +299,8 @@ def _commit(
         )
         connection.execute(
             text(
-                "UPDATE data_sync_jobs SET receipt_id=:receipt,checked_at=now() WHERE "
+                "UPDATE data_sync_jobs SET receipt_id=:receipt,checked_at=CASE "
+                "WHEN source_generation IS NULL THEN now() ELSE checked_at END WHERE "
                 "request_id=:id"
             ),
             {"id": selected["request_id"], "receipt": receipt},
