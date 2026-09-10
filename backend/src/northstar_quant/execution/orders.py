@@ -57,19 +57,28 @@ class PendingOrder:
             or self.expires_at <= self.submitted_at
         ):
             raise ValueError("order requires a positive UTC lifetime")
-        if (
-            not self.minimum_fill_price.is_finite()
-            or not self.maximum_fill_price.is_finite()
-            or not Decimal(0) < self.minimum_fill_price <= self.maximum_fill_price
+        for name in (
+            "minimum_fill_price",
+            "maximum_fill_price",
+            "fee_budget_per_lot",
+            "margin_budget_per_lot",
         ):
+            value = getattr(self, name)
+            if (
+                not isinstance(value, Decimal)
+                or not value.is_finite()
+                or value < 0
+                or len(value.as_tuple().digits) > 34
+                or value.adjusted() > 33
+            ):
+                raise ValueError("order prices and budgets exceed the exact financial domain")
+            exponent = value.as_tuple().exponent
+            if not isinstance(exponent, int) or exponent < -18:
+                raise ValueError("order prices and budgets require at most 18 decimal places")
+        if not Decimal(0) < self.minimum_fill_price <= self.maximum_fill_price:
             raise ValueError("order requires an exact positive fill-price interval")
-        if any(
-            not isinstance(value, Decimal) or not value.is_finite() or value < 0
-            for value in (self.fee_budget_per_lot, self.margin_budget_per_lot)
-        ) or (self.offset is not Offset.OPEN and self.margin_budget_per_lot != 0):
-            raise ValueError(
-                "order requires fixed nonnegative fee/margin budgets; closes hold no new margin"
-            )
+        if self.offset is not Offset.OPEN and self.margin_budget_per_lot != 0:
+            raise ValueError("closing orders cannot reserve new opening margin")
 
     @property
     def remaining_lots(self) -> int:

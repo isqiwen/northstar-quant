@@ -393,3 +393,36 @@ def test_limit_queue_keeps_order_and_reservation_without_inventing_a_fill(side, 
     # into its unobserved queue (and vice versa at the lower limit).
     opposite = replace(order, side=Side.SELL if side is Side.BUY else Side.BUY)
     assert attempt(opposite, bar).fill is not None
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        "minimum_fill_price",
+        "maximum_fill_price",
+        "fee_budget_per_lot",
+        "margin_budget_per_lot",
+    ],
+)
+@pytest.mark.parametrize("value", ["1e999999999", "1e-999999999", "NaN", "Infinity"])
+def test_order_restore_rejects_unbounded_money_before_reservation(field, value):
+    from northstar_quant.execution.orders import reservation
+
+    at = datetime(2026, 1, 5, 1, tzinfo=UTC)
+    order = PendingOrder(
+        "open",
+        UUID(int=10),
+        at,
+        at + timedelta(minutes=1),
+        Side.BUY,
+        Offset.OPEN,
+        2,
+        Decimal(100),
+        Decimal(102),
+        fee_budget_per_lot=Decimal(2),
+        margin_budget_per_lot=Decimal(102),
+    )
+    prior = reservation(order)
+    with pytest.raises(ValueError, match="financial domain|decimal places"):
+        PendingOrder.from_dict(order.to_dict() | {field: value})
+    assert reservation(order) == prior
