@@ -43,6 +43,10 @@ class MarketWindow:
             bar.event_time <= history[-1].event_time or bar.available_at < history[-1].available_at
         ):
             raise ValueError("market window rejects late or revised bars")
+        if history and bar.event_time < history[-1].completed_at:
+            raise ValueError("market window rejects overlapping bar intervals")
+        if history and bar.trading_day < history[-1].trading_day:
+            raise ValueError("market window rejects decreasing trading days")
         return True
 
     def accepts(self, bar: MarketBar) -> bool:

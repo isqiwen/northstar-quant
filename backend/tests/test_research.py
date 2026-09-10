@@ -229,3 +229,26 @@ def test_checkpoint_recovery_preserves_pending_fifo_warmup_and_complete_result()
             checkpoint=checkpoint,
             account=rebuilt,
         )
+
+
+def test_overlapping_market_interval_cannot_fill_a_pending_order() -> None:
+    data = dataset(("100", "110", "112"))
+    session = TradingSession(
+        data.market, ResearchConfig(), snapshot_id=data.snapshot_id, content_hash=data.content_hash
+    )
+    session.advance(data.bars[0])
+    session.advance(data.bars[1])
+    assert session.pending is not None
+    before = session.checkpoint()
+    overlap = replace(
+        data.bars[2],
+        event_time=data.bars[2].event_time - timedelta(seconds=30),
+        completed_at=data.bars[2].completed_at - timedelta(seconds=30),
+    )
+    with pytest.raises(ValueError, match="overlapping"):
+        session.advance(overlap)
+    assert session.checkpoint() == before
+    # The rejected input did not consume the observation or the pending order.
+    step = session.advance(data.bars[2])
+    assert step is not None and step.fill is not None
+    session.close()

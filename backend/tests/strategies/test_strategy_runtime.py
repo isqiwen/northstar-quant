@@ -55,3 +55,68 @@ def test_restore_refuses_duplicate_or_overlong_warmup():
     for history in ((data.bars[0], data.bars[0]), data.bars):
         with pytest.raises(ValueError):
             StrategyRuntime(config, data.market.contract_id, history=history)
+
+
+@pytest.mark.parametrize("invalid", ["overlap", "trading_day"])
+def test_invalid_time_sequence_never_reaches_strategy_and_cannot_restore(monkeypatch, invalid):
+    data = dataset(("100", "103"))
+    first, second = data.bars
+    if invalid == "overlap":
+        second = replace(
+            second,
+            event_time=second.event_time - timedelta(seconds=30),
+            completed_at=second.completed_at - timedelta(seconds=30),
+        )
+        reason = "overlapping"
+    else:
+        second = replace(second, trading_day=first.trading_day - timedelta(days=1))
+        reason = "decreasing trading days"
+    config = StrategyConfig.create()
+    runtime = StrategyRuntime(config, data.market.contract_id)
+    runtime.advance(first)
+    saved = runtime.history, runtime.state
+    called = []
+    original = module.step
+
+    def observed(*args, **kwargs):
+        called.append(True)
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(module, "step", observed)
+    with pytest.raises(ValueError, match=reason):
+        runtime.advance(second)
+    assert (runtime.history, runtime.state) == saved
+    assert called == []
+    with pytest.raises(ValueError, match=reason):
+        StrategyRuntime(config, data.market.contract_id, history=(first, second))
+
+
+def test_explicit_weekend_trading_day_and_session_gap_preserve_only_received_bars():
+    from datetime import UTC, date, datetime
+
+    data = dataset(("100", "103"))
+    bars = tuple(
+        replace(
+            bar,
+            event_time=at,
+            completed_at=at + timedelta(minutes=1),
+            available_at=at + timedelta(minutes=1),
+            trading_day=date(2026, 9, 14),
+        )
+        for bar, at in zip(
+            data.bars,
+            (datetime(2026, 9, 11, 13, tzinfo=UTC), datetime(2026, 9, 14, 1, tzinfo=UTC)),
+            strict=True,
+        )
+    )
+    runtime = StrategyRuntime(StrategyConfig.create(), data.market.contract_id)
+    for bar in bars:
+        runtime.advance(bar)
+    assert runtime.history == bars
+    restored = StrategyRuntime(
+        StrategyConfig.create(),
+        data.market.contract_id,
+        history=runtime.history,
+        state=runtime.state,
+    )
+    assert restored.history == bars
