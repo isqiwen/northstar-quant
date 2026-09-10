@@ -100,6 +100,11 @@ def main() -> None:
                 if name != "failure":
                     expect(page.locator(".facts").get_by_text("—", exact=True)).to_have_count(0)
                     expect(page.locator(".ant-spin-spinning")).to_have_count(0)
+                # Wait for the actual dialog, not merely its text in a scale-in frame.
+                # Fast-forwarding Ant's CSS animation during capture can leave only its mask.
+                for modal in page.locator(".ant-modal:visible").all():
+                    expect(modal).to_have_css("transform", "none")
+                    expect(modal).to_have_css("opacity", "1")
                 page.evaluate("window.scrollTo(0, 0)")
                 target = args.screenshot.resolve()
                 page.screenshot(
@@ -241,6 +246,10 @@ def main() -> None:
                             "新增 0 行，删除 0 行，修改 1 行，未变 439 行", exact=True
                         )
                     ).to_be_visible()
+                    dialog = page.get_by_role("dialog")
+                    expect(dialog.get_by_role("cell", name="open", exact=True)).to_be_visible()
+                    expect(dialog.get_by_role("cell", name="3100", exact=True)).to_be_visible()
+                    expect(dialog.get_by_role("cell", name="3100.5", exact=True)).to_be_visible()
                     screenshot("revision-diff")
                     page.get_by_role("dialog").locator(".ant-modal-close").click()
                     page.get_by_role("link", name="浏览此版本", exact=True).first.click()
