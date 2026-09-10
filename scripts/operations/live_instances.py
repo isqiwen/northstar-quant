@@ -33,7 +33,8 @@ def expand(config: dict) -> dict:
             environment = service.get("environment", {})
             if key == "live":
                 environment["NORTHSTAR_LIVE_INSTANCE"] = name
-                environment["NORTHSTAR_LIVE_ENVIRONMENT"] = instance.environment
+                environment["NORTHSTAR_BROKER_PROFILE"] = instance.broker_profile
+                environment["NORTHSTAR_ENVIRONMENT"] = instance.environment.value
             for volume in service.get("volumes", []):
                 if volume.get("type") == "bind":
                     volume["source"] = volume["source"].replace(
@@ -56,7 +57,8 @@ def expand(config: dict) -> dict:
         endpoints.append(
             {
                 "id": name,
-                "environment": instance.environment,
+                "environment": instance.environment.value,
+                "broker_profile": instance.broker_profile,
                 "url": f"http://{name}-live:18081",
                 "auth": f"/var/lib/northstar/auth/{name}/live-web.toml",
             }

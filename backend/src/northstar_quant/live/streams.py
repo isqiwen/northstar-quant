@@ -37,7 +37,8 @@ from northstar_quant.live.storage import KernelLock, write_transaction
 from northstar_quant.messaging import Endpoint
 from northstar_quant.research.configuration import ResearchConfig
 from northstar_quant.research.configurations import ConfigurationStore
-from northstar_quant.trading import KernelState, TradingKernel
+from northstar_quant.trading.environment import Environment
+from northstar_quant.trading.kernel import KernelState, TradingKernel
 
 ACCEPT_BROKER_EVENT: Endpoint[BrokerEvent, None] = Endpoint("live.broker.receive", BrokerEvent)
 
@@ -265,6 +266,7 @@ class LiveStreams:
                 )
             binding = {
                 "request": request,
+                "environment": Environment.SANDBOX.value,
                 "profile": profile.identity(),
                 "account_id": query["account_id"],
                 "instrument": query["instrument"],
@@ -331,7 +333,15 @@ class LiveStreams:
                 stopped = threading.Event()
                 worker = threading.Thread(
                     target=self._run,
-                    args=(request_id, binding, credentials, owner, locked, stopped),
+                    args=(
+                        request_id,
+                        binding,
+                        credentials,
+                        owner,
+                        locked,
+                        stopped,
+                        Environment.SANDBOX,
+                    ),
                     name="northstar-simnow-shadow",
                     daemon=True,
                 )
@@ -367,12 +377,17 @@ class LiveStreams:
         owner: Connection,
         locks: list[int],
         stopped: threading.Event,
+        environment: Environment,
     ) -> None:
         from northstar_quant.broker.settings import Credentials
 
         failure: str | None = None
         # The SDK channel enters one owner thread; faults require local recovery.
-        kernel = TradingKernel(ACCEPT_BROKER_EVENT, lambda event: self.accept(identifier, event))
+        kernel = TradingKernel(
+            ACCEPT_BROKER_EVENT,
+            lambda event: self.accept(identifier, event),
+            environment=environment,
+        )
         kernel.start()
         try:
             pid_query = "SELECT 1" if owner.dialect.name == "sqlite" else "SELECT pg_backend_pid()"

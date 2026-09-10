@@ -10,6 +10,8 @@ from threading import current_thread
 
 from northstar_quant.messaging import DispatchFailed, Endpoint, MessageBus, Topic
 
+from .environment import Environment
+
 
 class KernelState(StrEnum):
     READY = "READY"
@@ -27,6 +29,7 @@ class FailurePolicy(StrEnum):
 @dataclass(frozen=True, slots=True)
 class KernelStatus:
     state: KernelState
+    environment: Environment
     processed: int
     failures: int
 
@@ -49,11 +52,17 @@ class TradingKernel[M, R]:
         endpoint: Endpoint[M, R],
         process: Callable[[M], R],
         *,
+        environment: Environment,
         failure_policy: FailurePolicy = FailurePolicy.HALT,
         completed: Topic[R] | None = None,
     ) -> None:
+        if not isinstance(environment, Environment):
+            raise ValueError("kernel requires an explicit Environment")
+        if environment is not Environment.BACKTEST and failure_policy is FailurePolicy.ROLLBACK:
+            raise ValueError("external execution cannot roll back confirmed broker facts")
         if not isinstance(failure_policy, FailurePolicy):
             raise ValueError("kernel requires an explicit failure policy")
+        self._environment = environment
         self._owner, self._pid = current_thread(), os.getpid()
         self._bus = MessageBus()
         self._bus.register(endpoint, process)
@@ -71,7 +80,7 @@ class TradingKernel[M, R]:
     @property
     def status(self) -> KernelStatus:
         self._check_owner()
-        return KernelStatus(self._state, self._processed, self._failures)
+        return KernelStatus(self._state, self._environment, self._processed, self._failures)
 
     def start(self) -> None:
         self._check_owner()

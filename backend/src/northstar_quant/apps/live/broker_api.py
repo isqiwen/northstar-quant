@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Annotated, cast
+from typing import Annotated, Literal, cast
 from uuid import UUID
 
 from fastapi import Depends, FastAPI, Request
@@ -75,7 +75,8 @@ class QueryRequest(ApiModel):
 
 class RuntimeStatus(ApiModel):
     instance_id: str | None = None
-    environment: str | None = None
+    environment: Literal["BACKTEST", "SANDBOX", "LIVE"] | None = None
+    broker_profile: str | None = None
     runtime_id: str
     pid: int
     started_at: str

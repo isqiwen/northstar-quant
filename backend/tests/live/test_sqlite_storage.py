@@ -83,7 +83,7 @@ def test_sqlite_broker_query_and_account_baseline(tmp_path, monkeypatch):
     from northstar_quant.broker.records import initialize_broker_records
     from tests.accounting.test_baselines import saved_query
 
-    monkeypatch.setenv("NORTHSTAR_LIVE_ENVIRONMENT", "simnow_dev")
+    monkeypatch.setenv("NORTHSTAR_BROKER_PROFILE", "simnow_dev")
     engine = open_store(tmp_path / "evidence.sqlite")
     try:
         with write_transaction(engine) as connection:

@@ -48,7 +48,7 @@ def prepare(
     *,
     trading_day: str = "20260907",
 ) -> tuple[DataLibrary, UUID, str, dict[str, Any]]:
-    monkeypatch.setenv("NORTHSTAR_LIVE_ENVIRONMENT", "simnow_dev")
+    monkeypatch.setenv("NORTHSTAR_BROKER_PROFILE", "simnow_dev")
     monkeypatch.setenv("NORTHSTAR_SIMNOW_USER_ID", "123456")
     monkeypatch.setenv("NORTHSTAR_SIMNOW_PASSWORD", "secret")
     monkeypatch.setenv("NORTHSTAR_SIMNOW_APP_ID", "test")
@@ -524,7 +524,7 @@ def test_environment_switch_rejects_old_query_before_credentials_or_sdk(
     postgres_engine, clean_database, tmp_path, monkeypatch
 ):
     library, source, configuration, calls = prepare(postgres_engine, tmp_path, monkeypatch)
-    monkeypatch.setenv("NORTHSTAR_LIVE_ENVIRONMENT", "simnow_trading")
+    monkeypatch.setenv("NORTHSTAR_BROKER_PROFILE", "simnow_trading")
 
     def forbidden():
         pytest.fail("wrong-environment evidence must be rejected before credentials are read")

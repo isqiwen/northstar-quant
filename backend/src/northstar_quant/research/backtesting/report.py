@@ -44,6 +44,7 @@ def build_result(session: TradingSession, steps: Sequence[TradingStep]) -> Resea
         context.rounding = ROUND_HALF_EVEN
         payload: dict[str, object] = {
             "mode": "research",
+            "environment": session.kernel.status.environment.value,
             "data": None if session._data_details is None else session._data_details.to_dict(),
             "snapshot": {"id": str(session.snapshot_id), "content_hash": session.content_hash},
             "market": {

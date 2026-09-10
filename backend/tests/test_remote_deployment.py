@@ -70,6 +70,11 @@ def deployment(tmp_path: Path) -> tuple[Path, Path, dict]:
     shutil.copyfile(
         ROOT / "backend/src/northstar_quant/live/instances.py", package / "live/instances.py"
     )
+    (package / "trading").mkdir()
+    for filename in ("__init__.py", "environment.py"):
+        shutil.copyfile(
+            ROOT / "backend/src/northstar_quant/trading" / filename, package / "trading" / filename
+        )
     # Storage behavior is covered separately; this transport double must not install dependencies.
     (repo / "scripts/operations/check_storage.py").write_text(
         "import os, sys\nprint('{}')\nsys.exit(int(os.environ.get('MOUNT_RESULT', '0')))\n"

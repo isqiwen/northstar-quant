@@ -15,6 +15,13 @@
           "type": "string",
           "required": true,
           "nullable": false
+        },
+        "broker_profile": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
         }
       },
       "array": false,
@@ -1322,6 +1329,13 @@
         },
         "environment": {
           "id": 12,
+          "presence": true,
+          "type": "string",
+          "required": false,
+          "nullable": true
+        },
+        "broker_profile": {
+          "id": 13,
           "presence": true,
           "type": "string",
           "required": false,

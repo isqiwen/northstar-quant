@@ -50,6 +50,17 @@ Domestic futures calendars, settlement, fees, margin and CTP semantics still
 require their own verified rules. Preserve Northstar's three independent apps,
 local Live SQLite, account ownership and explicit execution authorization.
 
+## Trading environments
+
+A node binds one immutable `Environment`: `BACKTEST` for historical replay,
+`SANDBOX` for simulated funds (including external SimNow), `LIVE` for real money.
+All contexts share the trading kernel and domain rules. Broker profiles remain
+separate (`simnow_trading`, `simnow_dev`, `ctp_production`); the context/profile
+pair must agree and cannot change for a running account or saved instance.
+SimNow fills remain external CTP facts, never internal simulator fills. Current
+file-driven Paper is historical replay and therefore BACKTEST. Context labels
+never grant credentials, production admission or execution authorization.
+
 ## Module-specific reference projects
 
 Read [the reference catalog](docs/REFERENCES.md) when designing or changing a

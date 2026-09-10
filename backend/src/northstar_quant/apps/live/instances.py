@@ -5,19 +5,22 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Request
 
 from northstar_quant.live.auth import LiveAuth
 from northstar_quant.live.client import LiveClient
 from northstar_quant.live.instances import Instance
+from northstar_quant.trading.environment import Environment
 from northstar_quant.web.access import WorkspaceAccess
 from northstar_quant.web.requests import ApiModel
 
 
 class InstanceRecord(ApiModel):
     instance_id: str
-    environment: str
+    environment: Literal["BACKTEST", "SANDBOX", "LIVE"]
+    broker_profile: str
 
 
 class InstanceCatalog(ApiModel):
@@ -46,8 +49,12 @@ class Instances:
         identities = []
         try:
             for entry in json.loads(document):
-                instance = Instance(entry["id"], entry["environment"])
-                if instance.environment == "production" or instance.identifier in clients:
+                instance = Instance(entry["id"], entry["broker_profile"])
+                if (
+                    instance.environment is Environment.LIVE
+                    or instance.environment.value != entry["environment"]
+                    or instance.identifier in clients
+                ):
                     raise ValueError("Unsupported or duplicate Live instance")
                 auth = LiveAuth.from_file(Path(entry["auth"]))
                 clients[instance.identifier] = LiveClient(
@@ -78,7 +85,11 @@ class Instances:
             access.require_request(request)
             return {
                 "instances": [
-                    {"instance_id": i.identifier, "environment": i.environment}
+                    {
+                        "instance_id": i.identifier,
+                        "environment": i.environment.value,
+                        "broker_profile": i.broker_profile,
+                    }
                     for i in self.identities
                 ],
                 "production_available": False,

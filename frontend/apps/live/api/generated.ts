@@ -2,7 +2,8 @@
 export type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
 export type InstanceRecord = {
   instance_id: string;
-  environment: string;
+  environment: "BACKTEST" | "SANDBOX" | "LIVE";
+  broker_profile: string;
 };
 export type InstanceCatalog = {
   instances: (InstanceRecord)[];
@@ -222,7 +223,8 @@ export type Readiness = {
 };
 export type RuntimeStatus = {
   instance_id?: string | null;
-  environment?: string | null;
+  environment?: "BACKTEST" | "SANDBOX" | "LIVE" | null;
+  broker_profile?: string | null;
   cancel_sending: boolean;
   control_available?: boolean;
   observed_at: string;

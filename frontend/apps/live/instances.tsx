@@ -8,7 +8,7 @@ import { query } from "./api/client";
 const labels: Record<string, string> = {
   simnow_trading: "SIM · SimNow 第一套",
   simnow_dev: "SIM · SimNow 开发环境",
-  production: "实盘",
+  ctp_production: "实盘 CTP",
 };
 export function InstanceProvider({ children }: { children: ReactNode }) {
   const catalog = useData(query("/api/live/instances"));
@@ -42,7 +42,7 @@ export function InstanceProvider({ children }: { children: ReactNode }) {
           style={{ minWidth: 280 }}
           options={catalog.data?.instances.map((i) => ({
             value: i.instance_id,
-            label: `${i.instance_id} · ${labels[i.environment]}`,
+            label: `${i.instance_id} · ${`${i.environment} · ${labels[i.broker_profile]}`}`,
           }))}
           onChange={(id) => {
             try {
@@ -55,7 +55,7 @@ export function InstanceProvider({ children }: { children: ReactNode }) {
             }
           }}
         />
-        {current && <Tag color="blue">{labels[current.environment]}</Tag>}
+        {current && <Tag color="blue">{current.environment}</Tag>}
         <Tag>实盘尚未开放</Tag>
       </Space>
       {error && <Alert type="error" title={error} />}

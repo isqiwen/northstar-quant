@@ -188,6 +188,7 @@ def initialize(engine: Engine) -> None:
             WHEN OLD.account_id <> '' OR OLD.singleton IS NOT NEW.singleton
                 OR OLD.instance_id IS NOT NEW.instance_id
                 OR OLD.environment IS NOT NEW.environment OR OLD.broker_id IS NOT NEW.broker_id
+                OR OLD.broker_profile IS NOT NEW.broker_profile
             BEGIN SELECT RAISE(ABORT, 'Live binding is immutable'); END
         """)
 
@@ -211,6 +212,11 @@ def require_current(engine: Engine) -> None:
         names = set(inspect(connection).get_table_names())
         if (
             not required <= names
+            or "broker_profile"
+            not in {
+                column["name"]
+                for column in inspect(connection).get_columns("live_instance_binding")
+            }
             or connection.exec_driver_sql("SELECT owner FROM northstar_store").scalar_one()
             != "live"
         ):

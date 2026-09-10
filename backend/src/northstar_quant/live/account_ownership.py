@@ -17,11 +17,11 @@ ACCOUNT_DIRECTORY = Path("/opt/northstar/state/live/accounts")
 class AccountOwnership:
     """Process-lifetime exclusion, never a time-based lease or trading admission."""
 
-    def __init__(self, environment: str, broker_id: str, account_id: str) -> None:
-        if not all((environment, broker_id, account_id)):
-            raise ValueError("Account ownership requires environment, broker and account")
+    def __init__(self, broker_profile: str, broker_id: str, account_id: str) -> None:
+        if not all((broker_profile, broker_id, account_id)):
+            raise ValueError("Account ownership requires broker profile, broker and account")
         key = hashlib.sha256(
-            json.dumps([environment, broker_id, account_id], separators=(",", ":")).encode()
+            json.dumps([broker_profile, broker_id, account_id], separators=(",", ":")).encode()
         ).hexdigest()
         path = ACCOUNT_DIRECTORY / key
         require_local_path(path)

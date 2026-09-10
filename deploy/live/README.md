@@ -13,7 +13,7 @@ Live 在自己的主机上运行，包含独立的 Next.js 前端、Python 管�
 
 | 参数 | 用途 |
 |---|---|
-| `NORTHSTAR_LIVE_INSTANCES` | 实例列表，例如 `sim:simnow_trading,dev:simnow_dev`；同一环境仅一套账户实例；`production` 尚未开放 |
+| `NORTHSTAR_LIVE_INSTANCES` | 实例列表（`id:broker_profile`），例如 `sim:simnow_trading,dev:simnow_dev`；每个柜台 profile 仅一套账户实例；`ctp_production`（LIVE）尚未开放 |
 | `NORTHSTAR_SIMNOW_USER_ID` | SimNow 账号 |
 | `NORTHSTAR_SIMNOW_APP_ID` | SimNow 应用标识 |
 | `NORTHSTAR_SIMNOW_AUTH_CODE` | SimNow 认证码 |
@@ -114,3 +114,5 @@ SQLite 使用 WAL、FULL 同步和短写事务；实例进程锁不随时间过�
 在对应内核容器执行 `northstar maintenance backup /绝对备份目录`，备份目的地需另行挂载。
 恢复需先停止对应内核，使用空 SQLite 和新的来源目录执行 `northstar maintenance restore /绝对备份目录`。
 恢复保留实例、环境和账户绑定，不自动重新连接或授权发送。当前没有旧 PostgreSQL 数据自动转换工具。
+
+运行环境固定为 `BACKTEST` / `SANDBOX` / `LIVE`。两个 SimNow profile 都属于 SANDBOX，仍使用外部 CTP 柜台；生产资金属于 LIVE。部署按 profile 自动注入 `NORTHSTAR_ENVIRONMENT` 和 `NORTHSTAR_BROKER_PROFILE`；独立启动也必须匹配这两个值。修改配置不能切换已有数据库的账户绑定。

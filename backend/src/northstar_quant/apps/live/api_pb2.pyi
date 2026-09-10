@@ -10,12 +10,14 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class InstanceRecord(_message.Message):
-    __slots__ = ("instance_id", "environment")
+    __slots__ = ("instance_id", "environment", "broker_profile")
     INSTANCE_ID_FIELD_NUMBER: _ClassVar[int]
     ENVIRONMENT_FIELD_NUMBER: _ClassVar[int]
+    BROKER_PROFILE_FIELD_NUMBER: _ClassVar[int]
     instance_id: str
     environment: str
-    def __init__(self, instance_id: _Optional[str] = ..., environment: _Optional[str] = ...) -> None: ...
+    broker_profile: str
+    def __init__(self, instance_id: _Optional[str] = ..., environment: _Optional[str] = ..., broker_profile: _Optional[str] = ...) -> None: ...
 
 class InstanceCatalog(_message.Message):
     __slots__ = ("instances", "production_available")
@@ -588,9 +590,10 @@ class Readiness(_message.Message):
     def __init__(self, status: _Optional[str] = ...) -> None: ...
 
 class RuntimeStatus(_message.Message):
-    __slots__ = ("instance_id", "environment", "null_fields", "cancel_sending", "control_available", "observed_at", "order_sending", "pid", "protocol", "release", "runtime_id", "started_at", "status")
+    __slots__ = ("instance_id", "environment", "broker_profile", "null_fields", "cancel_sending", "control_available", "observed_at", "order_sending", "pid", "protocol", "release", "runtime_id", "started_at", "status")
     INSTANCE_ID_FIELD_NUMBER: _ClassVar[int]
     ENVIRONMENT_FIELD_NUMBER: _ClassVar[int]
+    BROKER_PROFILE_FIELD_NUMBER: _ClassVar[int]
     NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
     CANCEL_SENDING_FIELD_NUMBER: _ClassVar[int]
     CONTROL_AVAILABLE_FIELD_NUMBER: _ClassVar[int]
@@ -604,6 +607,7 @@ class RuntimeStatus(_message.Message):
     STATUS_FIELD_NUMBER: _ClassVar[int]
     instance_id: str
     environment: str
+    broker_profile: str
     null_fields: _containers.RepeatedScalarFieldContainer[str]
     cancel_sending: bool
     control_available: bool
@@ -615,7 +619,7 @@ class RuntimeStatus(_message.Message):
     runtime_id: str
     started_at: str
     status: str
-    def __init__(self, instance_id: _Optional[str] = ..., environment: _Optional[str] = ..., null_fields: _Optional[_Iterable[str]] = ..., cancel_sending: _Optional[bool] = ..., control_available: _Optional[bool] = ..., observed_at: _Optional[str] = ..., order_sending: _Optional[bool] = ..., pid: _Optional[int] = ..., protocol: _Optional[str] = ..., release: _Optional[str] = ..., runtime_id: _Optional[str] = ..., started_at: _Optional[str] = ..., status: _Optional[str] = ...) -> None: ...
+    def __init__(self, instance_id: _Optional[str] = ..., environment: _Optional[str] = ..., broker_profile: _Optional[str] = ..., null_fields: _Optional[_Iterable[str]] = ..., cancel_sending: _Optional[bool] = ..., control_available: _Optional[bool] = ..., observed_at: _Optional[str] = ..., order_sending: _Optional[bool] = ..., pid: _Optional[int] = ..., protocol: _Optional[str] = ..., release: _Optional[str] = ..., runtime_id: _Optional[str] = ..., started_at: _Optional[str] = ..., status: _Optional[str] = ...) -> None: ...
 
 class StrategyMaterial(_message.Message):
     __slots__ = ("candidate_id", "evidence_fields")

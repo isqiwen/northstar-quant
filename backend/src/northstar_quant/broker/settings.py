@@ -6,16 +6,30 @@ import os
 import re
 from dataclasses import dataclass, field
 
+from northstar_quant.trading.environment import Environment
+
+
+def configured_environment() -> Environment:
+    environment = Environment(os.environ.get("NORTHSTAR_ENVIRONMENT", "SANDBOX"))
+    if environment is Environment.LIVE:
+        raise ValueError(
+            "Production Live is not implemented or admitted; no broker connection allowed"
+        )
+    if environment is not Environment.SANDBOX:
+        raise ValueError("broker runtime requires SANDBOX")
+    return environment
+
 
 def require_supported_environment() -> None:
     """Do not silently route an unsupported or mistyped environment to SimNow."""
-    environment = os.environ.get("NORTHSTAR_LIVE_ENVIRONMENT", "simnow_trading")
+    configured_environment()
+    environment = os.environ.get("NORTHSTAR_BROKER_PROFILE", "simnow_trading")
     if environment == "production":
         raise ValueError(
             "Production Live is not implemented or admitted; no broker connection allowed"
         )
     if environment not in {"simnow_trading", "simnow_dev"}:
-        raise ValueError("NORTHSTAR_LIVE_ENVIRONMENT must be simnow_trading or simnow_dev")
+        raise ValueError("NORTHSTAR_BROKER_PROFILE must be simnow_trading or simnow_dev")
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,7 +68,7 @@ def get_profile(name: str) -> SimnowProfile:
 
 def configured_profile(bound_name: str | None = None) -> SimnowProfile:
     require_supported_environment()
-    name = os.environ.get("NORTHSTAR_LIVE_ENVIRONMENT", "simnow_trading")
+    name = os.environ.get("NORTHSTAR_BROKER_PROFILE", "simnow_trading")
     if bound_name is not None and bound_name != name:
         raise ValueError("saved broker environment differs from the configured Live environment")
     return get_profile(name)

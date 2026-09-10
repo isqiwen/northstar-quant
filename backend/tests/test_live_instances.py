@@ -217,3 +217,22 @@ def test_wrong_endpoint_identity_cannot_receive_a_command():
         assert requests == ["GET"]
     finally:
         client.close()
+
+
+def test_unconfigured_account_cannot_change_broker_profile(local_engine):
+    from sqlalchemy import text
+    from sqlalchemy.exc import DatabaseError
+
+    from northstar_quant.live.storage import write_transaction
+
+    owner = InstanceBinding(local_engine, Instance("sim", "simnow_dev"), "9999", "")
+    try:
+        with pytest.raises(DatabaseError, match="immutable"):
+            with write_transaction(local_engine) as connection:
+                connection.execute(
+                    text("UPDATE live_instance_binding SET broker_profile='simnow_trading'")
+                )
+        assert owner.status()["broker_profile"] == "simnow_dev"
+        assert owner.status()["environment"] == "SANDBOX"
+    finally:
+        owner.close()

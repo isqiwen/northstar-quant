@@ -1089,8 +1089,10 @@ export const northstar = $root.northstar = (() => {
              * @typedef {Object} northstar.live.InstanceRecord.$Properties
              * @property {string|null} [instance_id] InstanceRecord instance_id
              * @property {string|null} [environment] InstanceRecord environment
+             * @property {string|null} [broker_profile] InstanceRecord broker_profile
              * @property {"instance_id"} [_instance_id] InstanceRecord _instance_id
              * @property {"environment"} [_environment] InstanceRecord _environment
+             * @property {"broker_profile"} [_broker_profile] InstanceRecord _broker_profile
              * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
              */
 
@@ -1107,11 +1109,14 @@ export const northstar = $root.northstar = (() => {
              * @typedef {{
              *   instance_id?: string|null;
              *   environment?: string|null;
+             *   broker_profile?: string|null;
              *   $unknowns?: Array.<Uint8Array>;
              * } & (
              *   ({ _instance_id?: undefined; instance_id?: null }|{ _instance_id?: "instance_id"; instance_id: string })
              * ) & (
              *   ({ _environment?: undefined; environment?: null }|{ _environment?: "environment"; environment: string })
+             * ) & (
+             *   ({ _broker_profile?: undefined; broker_profile?: null }|{ _broker_profile?: "broker_profile"; broker_profile: string })
              * )} northstar.live.InstanceRecord.$Shape
              */
 
@@ -1146,6 +1151,14 @@ export const northstar = $root.northstar = (() => {
              */
             InstanceRecord.prototype.environment = null;
 
+            /**
+             * InstanceRecord broker_profile.
+             * @member {string|null|undefined} broker_profile
+             * @memberof northstar.live.InstanceRecord
+             * @instance
+             */
+            InstanceRecord.prototype.broker_profile = null;
+
             // OneOf field names bound to virtual getters and setters
             let $oneOfFields;
 
@@ -1168,6 +1181,17 @@ export const northstar = $root.northstar = (() => {
              */
             $Object.defineProperty(InstanceRecord.prototype, "_environment", {
                 get: $util.oneOfGetter($oneOfFields = ["environment"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * InstanceRecord _broker_profile.
+             * @member {"broker_profile"|undefined} _broker_profile
+             * @memberof northstar.live.InstanceRecord
+             * @instance
+             */
+            $Object.defineProperty(InstanceRecord.prototype, "_broker_profile", {
+                get: $util.oneOfGetter($oneOfFields = ["broker_profile"]),
                 set: $util.oneOfSetter($oneOfFields)
             });
 
@@ -1207,6 +1231,8 @@ export const northstar = $root.northstar = (() => {
                     writer.uint32(/* id 1, wireType 2 =*/10).string(message.instance_id);
                 if (message.environment != null && $Object.hasOwnProperty.call(message, "environment"))
                     writer.uint32(/* id 2, wireType 2 =*/18).string(message.environment);
+                if (message.broker_profile != null && $Object.hasOwnProperty.call(message, "broker_profile"))
+                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.broker_profile);
                 if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
                     for (let i = 0; i < message.$unknowns.length; ++i)
                         writer.raw(message.$unknowns[i]);
@@ -1265,6 +1291,13 @@ export const northstar = $root.northstar = (() => {
                             message._environment = "environment";
                             continue;
                         }
+                    case 3: {
+                            if (wireType !== 2)
+                                break;
+                            message.broker_profile = reader.stringVerify();
+                            message._broker_profile = "broker_profile";
+                            continue;
+                        }
                     }
                     reader.skipType(wireType, _depth, tag);
                     if (!reader.discardUnknown) {
@@ -1308,6 +1341,11 @@ export const northstar = $root.northstar = (() => {
                     if (!$util.isString(message.environment))
                         return "environment: string expected";
                 }
+                if (message.broker_profile != null && $Object.hasOwnProperty.call(message, "broker_profile")) {
+                    properties._broker_profile = 1;
+                    if (!$util.isString(message.broker_profile))
+                        return "broker_profile: string expected";
+                }
                 return null;
             };
 
@@ -1333,6 +1371,8 @@ export const northstar = $root.northstar = (() => {
                     message.instance_id = $String(object.instance_id);
                 if (object.environment != null)
                     message.environment = $String(object.environment);
+                if (object.broker_profile != null)
+                    message.broker_profile = $String(object.broker_profile);
                 return message;
             };
 
@@ -1362,6 +1402,11 @@ export const northstar = $root.northstar = (() => {
                     object.environment = message.environment;
                     if (options.oneofs)
                         object._environment = "environment";
+                }
+                if (message.broker_profile != null && $Object.hasOwnProperty.call(message, "broker_profile")) {
+                    object.broker_profile = message.broker_profile;
+                    if (options.oneofs)
+                        object._broker_profile = "broker_profile";
                 }
                 return object;
             };
@@ -17147,6 +17192,7 @@ export const northstar = $root.northstar = (() => {
              * @typedef {Object} northstar.live.RuntimeStatus.$Properties
              * @property {string|null} [instance_id] RuntimeStatus instance_id
              * @property {string|null} [environment] RuntimeStatus environment
+             * @property {string|null} [broker_profile] RuntimeStatus broker_profile
              * @property {Array.<string>|null} [null_fields] RuntimeStatus null_fields
              * @property {boolean|null} [cancel_sending] RuntimeStatus cancel_sending
              * @property {boolean|null} [control_available] RuntimeStatus control_available
@@ -17160,6 +17206,7 @@ export const northstar = $root.northstar = (() => {
              * @property {string|null} [status] RuntimeStatus status
              * @property {"instance_id"} [_instance_id] RuntimeStatus _instance_id
              * @property {"environment"} [_environment] RuntimeStatus _environment
+             * @property {"broker_profile"} [_broker_profile] RuntimeStatus _broker_profile
              * @property {"cancel_sending"} [_cancel_sending] RuntimeStatus _cancel_sending
              * @property {"control_available"} [_control_available] RuntimeStatus _control_available
              * @property {"observed_at"} [_observed_at] RuntimeStatus _observed_at
@@ -17186,6 +17233,7 @@ export const northstar = $root.northstar = (() => {
              * @typedef {{
              *   instance_id?: string|null;
              *   environment?: string|null;
+             *   broker_profile?: string|null;
              *   null_fields?: Array.<string>|null;
              *   cancel_sending?: boolean|null;
              *   control_available?: boolean|null;
@@ -17202,6 +17250,8 @@ export const northstar = $root.northstar = (() => {
              *   ({ _instance_id?: undefined; instance_id?: null }|{ _instance_id?: "instance_id"; instance_id: string })
              * ) & (
              *   ({ _environment?: undefined; environment?: null }|{ _environment?: "environment"; environment: string })
+             * ) & (
+             *   ({ _broker_profile?: undefined; broker_profile?: null }|{ _broker_profile?: "broker_profile"; broker_profile: string })
              * ) & (
              *   ({ _cancel_sending?: undefined; cancel_sending?: null }|{ _cancel_sending?: "cancel_sending"; cancel_sending: boolean })
              * ) & (
@@ -17256,6 +17306,14 @@ export const northstar = $root.northstar = (() => {
              * @instance
              */
             RuntimeStatus.prototype.environment = null;
+
+            /**
+             * RuntimeStatus broker_profile.
+             * @member {string|null|undefined} broker_profile
+             * @memberof northstar.live.RuntimeStatus
+             * @instance
+             */
+            RuntimeStatus.prototype.broker_profile = null;
 
             /**
              * RuntimeStatus null_fields.
@@ -17367,6 +17425,17 @@ export const northstar = $root.northstar = (() => {
              */
             $Object.defineProperty(RuntimeStatus.prototype, "_environment", {
                 get: $util.oneOfGetter($oneOfFields = ["environment"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * RuntimeStatus _broker_profile.
+             * @member {"broker_profile"|undefined} _broker_profile
+             * @memberof northstar.live.RuntimeStatus
+             * @instance
+             */
+            $Object.defineProperty(RuntimeStatus.prototype, "_broker_profile", {
+                get: $util.oneOfGetter($oneOfFields = ["broker_profile"]),
                 set: $util.oneOfSetter($oneOfFields)
             });
 
@@ -17536,6 +17605,8 @@ export const northstar = $root.northstar = (() => {
                     writer.uint32(/* id 11, wireType 2 =*/90).string(message.instance_id);
                 if (message.environment != null && $Object.hasOwnProperty.call(message, "environment"))
                     writer.uint32(/* id 12, wireType 2 =*/98).string(message.environment);
+                if (message.broker_profile != null && $Object.hasOwnProperty.call(message, "broker_profile"))
+                    writer.uint32(/* id 13, wireType 2 =*/106).string(message.broker_profile);
                 if (message.null_fields != null && message.null_fields.length)
                     for (let i = 0; i < message.null_fields.length; ++i)
                         writer.uint32(/* id 2046, wireType 2 =*/16370).string(message.null_fields[i]);
@@ -17595,6 +17666,13 @@ export const northstar = $root.northstar = (() => {
                                 break;
                             message.environment = reader.stringVerify();
                             message._environment = "environment";
+                            continue;
+                        }
+                    case 13: {
+                            if (wireType !== 2)
+                                break;
+                            message.broker_profile = reader.stringVerify();
+                            message._broker_profile = "broker_profile";
                             continue;
                         }
                     case 2046: {
@@ -17718,6 +17796,11 @@ export const northstar = $root.northstar = (() => {
                     if (!$util.isString(message.environment))
                         return "environment: string expected";
                 }
+                if (message.broker_profile != null && $Object.hasOwnProperty.call(message, "broker_profile")) {
+                    properties._broker_profile = 1;
+                    if (!$util.isString(message.broker_profile))
+                        return "broker_profile: string expected";
+                }
                 if (message.null_fields != null && $Object.hasOwnProperty.call(message, "null_fields")) {
                     if (!$Array.isArray(message.null_fields))
                         return "null_fields: array expected";
@@ -17800,6 +17883,8 @@ export const northstar = $root.northstar = (() => {
                     message.instance_id = $String(object.instance_id);
                 if (object.environment != null)
                     message.environment = $String(object.environment);
+                if (object.broker_profile != null)
+                    message.broker_profile = $String(object.broker_profile);
                 if (object.null_fields) {
                     if (!$Array.isArray(object.null_fields))
                         throw $TypeError(".northstar.live.RuntimeStatus.null_fields: array expected");
@@ -17920,6 +18005,11 @@ export const northstar = $root.northstar = (() => {
                     object.environment = message.environment;
                     if (options.oneofs)
                         object._environment = "environment";
+                }
+                if (message.broker_profile != null && $Object.hasOwnProperty.call(message, "broker_profile")) {
+                    object.broker_profile = message.broker_profile;
+                    if (options.oneofs)
+                        object._broker_profile = "broker_profile";
                 }
                 if (message.null_fields && message.null_fields.length) {
                     object.null_fields = $Array(message.null_fields.length);

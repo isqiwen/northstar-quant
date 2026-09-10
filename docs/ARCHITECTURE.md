@@ -35,7 +35,7 @@ NFS 的准备、导出和挂载规则见 [部署说明](../deploy/README.md)，�
 
 当前同一受管 Live 主机用共享账户进程锁保证唯一占用；身份为环境、BrokerID、账户。
 不同环境/账户可并行，同账户不得同时运行两个所有者。锁无超时自动接管，跨主机主备不在当前范围。
-`simnow_trading`、`simnow_dev` 共用内核，凭据/实例/数据库隔离；`production` 当前拒绝启动。
+`simnow_trading`、`simnow_dev` 是 SANDBOX 的柜台 profile；`ctp_production` 对应 LIVE，目前拒绝启动。实例/数据库隔离，账户锁按柜台 profile、BrokerID、账户确定，不能将两个 SimNow 柜台混成同一个资金账户。
 
 ## 2. 当前实现与目标的差距
 
@@ -47,7 +47,7 @@ NFS 的准备、导出和挂载规则见 [部署说明](../deploy/README.md)，�
 | 安装、浏览器、备份与容器故障验收；#53 跨主机实机证据 | 用真实固定数据完成跨日研究，并在明确授权的 SimNow 完成非空交易闭环 |
 
 当前已共享内核入口、行情窗口、策略运行时及部分风险/账户能力，**尚未共享完整期货账户与执行实现**。
-研究 `Accounting/fifo` 是净仓简化模型；Live 有独立的同日多空持仓观察。后续统一为下述事实模型并替换调用，
+Research 与 Live 已共用多空数量投影，Research 另按明确开平计算 FIFO 成本；柜台资金与跨日计价仍需接入统一事实模型，
 不能通过重命名或并列保存两套余额宣称统一完成。当前研究仍拒绝跨日，模拟仍有后续 bar 全量成交假设。
 
 ## 3. 模块、接口与状态所有权
@@ -112,6 +112,13 @@ Research/Paper runner                 Live 账户接收 runner
                   Portfolio / Cache 投影
 ```
 
+`Environment` 在内核构造时固定：`BACKTEST`、`SANDBOX`、`LIVE`。Research/文件驱动 Paper 为 BACKTEST，
+两个 SimNow profile 为 SANDBOX，真实资金为 LIVE；三类共享 TradingKernel 和所属业务能力。
+这是 Northstar 按资金用途采用的定义：2026-09-10 核对的 Nautilus latest 将外部柜台模拟账户也归入 Live，我们保留其适配器边界但不照搬该分类。
+部署实例列表使用 `id:broker_profile`，自动推导不可变环境；独立启动使用 `NORTHSTAR_ENVIRONMENT` 与
+`NORTHSTAR_BROKER_PROFILE`，不匹配即拒绝，真实资金仍未准入。协议/实例状态分别返回 environment 和 broker_profile。
+环境进入研究结果、检查点和柜台接收绑定；SANDBOX/LIVE 不允许采用研究整步回滚策略。实际账户锁继续绑定柜台与账户，不能靠换环境标签取得第二份发送权。
+
 图为组件关系；具体业务顺序仍遵循第 5 节，先应用已发生事实再计算新决策。
 Kernel 不实现公式/撮合/账本，不增加独立账户缓存权威。当前处理器为 Research `TradingSession._process`
 和 Live `LiveStreams.accept`：前者装配已有模拟/账户/策略/Risk，后者装配可靠接收/账本/行情/影子策略。
@@ -123,7 +130,7 @@ Kernel 不实现公式/撮合/账本，不增加独立账户缓存权威。当�
 - Live 默认任何处理异常均使内核故障，后续回调不得继续写入；原始接收/账户提交仍由原来的可靠事务负责。关闭内核不表示订单终态或账户空仓。
 - `market_data.MarketWindow` 拥有不可变有界历史、重复/冲突/迟到与可得时间校验；`StrategyRuntime` 只在策略计算成功后替换窗口及内部状态。两类运行复用同一组件；这不是 Data Hub 下载服务。
 - 当前窗口面向单合约完整 Bar，CTP 采样仍由柜台适配器产生标准化 Bar；不把完整订阅引擎、多策略 Trader、统一执行算法或跨日账户标为已实现。
-- 回测从固定历史输入推进，Paper 使用内部模拟成交；SimNow 与实盘都使用 Live 柜台路径。SimNow 不是内部 Sandbox，运行环境名称本身不授予交易。
+- 回测和当前文件驱动 Paper 都从历史输入推进，Environment 为 BACKTEST；SimNow 为 SANDBOX，真实资金为 LIVE。SimNow 始终采用外部柜台成交，不能以本地撮合替代。环境名称不授予交易。
 - 一个 Live 账户所有者独立进程与本地 SQLite；Research 用独立计算进程并行，Web/API 继续独立监管。串行处理不保证外部输入天然可重放，仍需固定输入顺序、时钟与配置身份。
 - 网络接收、普通日志和归档可在外围；发送前身份/预占必须可靠提交，成交去重与账本更新保持事务一致，不能统一改成异步后置。
 

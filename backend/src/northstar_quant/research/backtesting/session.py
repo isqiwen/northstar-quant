@@ -22,7 +22,8 @@ from northstar_quant.research.configuration import ResearchConfig
 from northstar_quant.risk import evaluate_risk
 from northstar_quant.simulation import simulate_fill
 from northstar_quant.strategies.runtime import StrategyRuntime
-from northstar_quant.trading import FailurePolicy, TradingKernel
+from northstar_quant.trading.environment import Environment
+from northstar_quant.trading.kernel import FailurePolicy, TradingKernel
 
 
 @dataclass(frozen=True, slots=True, init=False)
@@ -119,7 +120,7 @@ class TradingSession:
     """
 
     # Bump for changed Strategy/Risk/Simulation/Accounting rules or checkpoint format.
-    REVISION = "5"
+    REVISION = "6"
 
     def __init__(
         self,
@@ -178,6 +179,7 @@ class TradingSession:
         self.kernel = TradingKernel(
             ADVANCE_BAR,
             self._process,
+            environment=Environment.BACKTEST,
             failure_policy=FailurePolicy.ROLLBACK,
             completed=STEP_COMPLETED,
         )
@@ -341,6 +343,7 @@ class TradingSession:
 
         return {
             "engine_revision": self.REVISION,
+            "environment": self.kernel.status.environment.value,
             "strategy_state": dict(self._trader.state),
             "last_decision": None
             if self._last_decision is None

@@ -213,7 +213,7 @@ def test_manual_entry_with_market_tail_is_reused_by_fixed_account_catchup(
 ) -> None:
     del clean_database
     library, _, configuration, calls = prepare(postgres_engine, tmp_path, monkeypatch)
-    monkeypatch.setenv("NORTHSTAR_LIVE_ENVIRONMENT", "simnow_trading")
+    monkeypatch.setenv("NORTHSTAR_BROKER_PROFILE", "simnow_trading")
     # This second approved synthetic environment has no baseline at stream start.
     # Establishing one locally does not silently bind the already-running stream.
     source = ledger_query(postgres_engine, profile="simnow_trading")

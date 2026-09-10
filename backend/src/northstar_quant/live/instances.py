@@ -7,6 +7,8 @@ import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from northstar_quant.trading.environment import Environment
+
 if TYPE_CHECKING:
     from sqlalchemy import Connection, Engine
 
@@ -14,20 +16,28 @@ if TYPE_CHECKING:
 @dataclass(frozen=True)
 class Instance:
     identifier: str
-    environment: str
+    broker_profile: str
 
     def __post_init__(self) -> None:
         if not re.fullmatch(r"[a-z][a-z0-9-]{0,31}", self.identifier):
             raise ValueError("Live instance ID must use lowercase letters, digits and hyphens")
-        if self.environment not in {"simnow_trading", "simnow_dev", "production"}:
+        if self.broker_profile not in {"simnow_trading", "simnow_dev", "ctp_production"}:
             raise ValueError("Unknown Live instance environment")
+
+    @property
+    def environment(self) -> Environment:
+        return Environment.LIVE if self.broker_profile == "ctp_production" else Environment.SANDBOX
 
     @classmethod
     def from_environment(cls) -> Instance:
-        return cls(
+        instance = cls(
             os.environ.get("NORTHSTAR_LIVE_INSTANCE", "sim"),
-            os.environ.get("NORTHSTAR_LIVE_ENVIRONMENT", "simnow_trading"),
+            os.environ.get("NORTHSTAR_BROKER_PROFILE", "simnow_trading"),
         )
+        environment = Environment(os.environ.get("NORTHSTAR_ENVIRONMENT", "SANDBOX"))
+        if instance.environment is not environment:
+            raise ValueError("Environment differs from the configured broker profile")
+        return instance
 
 
 def configured_instances(value: str) -> list[Instance]:
@@ -36,15 +46,15 @@ def configured_instances(value: str) -> list[Instance]:
     for item in value.split(","):
         parts = item.strip().split(":")
         if len(parts) != 2:
-            raise ValueError("Live instances use id:environment separated by commas")
+            raise ValueError("Live instances use id:broker_profile separated by commas")
         result.append(Instance(*parts))
     if len({i.identifier for i in result}) != len(result):
         raise ValueError("Duplicate Live instance ID")
     # This deployment has one credential set per environment. Never create two
     # owners for the same configured account/environment.
-    if len({i.environment for i in result}) != len(result):
+    if len({i.broker_profile for i in result}) != len(result):
         raise ValueError("One Live instance per configured account and environment")
-    if any(i.environment == "production" for i in result):
+    if any(i.environment is Environment.LIVE for i in result):
         raise ValueError("Production Live is not implemented or admitted")
     return result
 
@@ -58,6 +68,7 @@ def initialize(connection: Connection) -> None:
             singleton integer PRIMARY KEY CHECK (singleton = 1),
             instance_id text NOT NULL,
             environment text NOT NULL,
+            broker_profile text NOT NULL,
             broker_id text NOT NULL,
             account_id text NOT NULL
         )
@@ -90,10 +101,11 @@ class InstanceBinding:
             raise ValueError("This Live database already has an active kernel") from exc
         try:
             if account_id:
-                self._account = AccountOwnership(instance.environment, broker_id, account_id)
+                self._account = AccountOwnership(instance.broker_profile, broker_id, account_id)
             identity = dict(
                 instance_id=instance.identifier,
-                environment=instance.environment,
+                environment=instance.environment.value,
+                broker_profile=instance.broker_profile,
                 broker_id=broker_id,
                 account_id=account_id,
             )
@@ -106,7 +118,8 @@ class InstanceBinding:
                 saved = dict(row) if row is not None else None
                 if saved is not None and not saved["account_id"] and account_id:
                     if all(
-                        saved[k] == identity[k] for k in ("instance_id", "environment", "broker_id")
+                        saved[k] == identity[k]
+                        for k in ("instance_id", "environment", "broker_profile", "broker_id")
                     ):
                         connection.execute(
                             text(
@@ -124,7 +137,7 @@ class InstanceBinding:
                     connection.execute(
                         text(
                             "INSERT INTO live_instance_binding VALUES (1, "
-                            ":instance_id, :environment, :broker_id, "
+                            ":instance_id, :environment, :broker_profile, :broker_id, "
                             ":account_id)"
                         ),
                         identity,
@@ -140,12 +153,16 @@ class InstanceBinding:
         info = self._path.stat()
         if (info.st_dev, info.st_ino) != self._identity:
             raise ValueError("Live database file was replaced; restart and reconcile required")
-        return {"instance_id": self.instance.identifier, "environment": self.instance.environment}
+        return {
+            "instance_id": self.instance.identifier,
+            "environment": self.instance.environment.value,
+            "broker_profile": self.instance.broker_profile,
+        }
 
-    def require_account(self, environment: str, broker_id: str, account_id: str) -> None:
+    def require_account(self, broker_profile: str, broker_id: str, account_id: str) -> None:
         self.status()
-        if self._account is None or (environment, broker_id, account_id) != (
-            self.instance.environment,
+        if self._account is None or (broker_profile, broker_id, account_id) != (
+            self.instance.broker_profile,
             self._broker_id,
             self._account_id,
         ):
