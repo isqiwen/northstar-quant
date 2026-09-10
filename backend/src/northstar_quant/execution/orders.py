@@ -57,6 +57,8 @@ class PendingOrder:
             or self.expires_at <= self.submitted_at
         ):
             raise ValueError("order requires a positive UTC lifetime")
+        # Risk-derived bounds can retain the full 96-digit calculation context.
+        # Bound expansion without rounding them to a broker price or a cash fee.
         for name in (
             "minimum_fill_price",
             "maximum_fill_price",
@@ -68,13 +70,13 @@ class PendingOrder:
                 not isinstance(value, Decimal)
                 or not value.is_finite()
                 or value < 0
-                or len(value.as_tuple().digits) > 34
+                or len(value.as_tuple().digits) > 96
                 or value.adjusted() > 33
             ):
                 raise ValueError("order prices and budgets exceed the exact financial domain")
             exponent = value.as_tuple().exponent
-            if not isinstance(exponent, int) or exponent < -18:
-                raise ValueError("order prices and budgets require at most 18 decimal places")
+            if not isinstance(exponent, int) or exponent < -96:
+                raise ValueError("order prices and budgets require at most 96 decimal places")
         if not Decimal(0) < self.minimum_fill_price <= self.maximum_fill_price:
             raise ValueError("order requires an exact positive fill-price interval")
         if self.offset is not Offset.OPEN and self.margin_budget_per_lot != 0:

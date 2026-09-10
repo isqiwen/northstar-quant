@@ -7,7 +7,9 @@ import pytest
 from sqlalchemy.exc import DBAPIError
 
 from northstar_quant.live.commands import CommandConflict, Commands, initialize_live_commands
-from northstar_quant.live.storage import KernelLock, open_store, write_transaction
+from northstar_quant.live.storage import open_store
+from northstar_quant.persistence.locks import FileLock
+from northstar_quant.persistence.sql import write_transaction
 
 
 def test_command_acknowledgement_and_unknown_survive_reopen(tmp_path):
@@ -87,10 +89,10 @@ def test_command_acknowledgement_and_unknown_survive_reopen(tmp_path):
 def test_writer_is_exclusive_and_failed_transaction_rolls_back(tmp_path):
     path = tmp_path / "live.sqlite"
     engine = open_store(path)
-    lock = KernelLock(path)
+    lock = FileLock(path)
     try:
         with pytest.raises(BlockingIOError):
-            KernelLock(path)
+            FileLock(path)
         with write_transaction(engine) as connection:
             connection.exec_driver_sql("CREATE TABLE ledger (amount TEXT NOT NULL)")
         with pytest.raises(RuntimeError):
@@ -104,7 +106,7 @@ def test_writer_is_exclusive_and_failed_transaction_rolls_back(tmp_path):
     finally:
         lock.close()
         engine.dispose()
-    reopened = KernelLock(path)
+    reopened = FileLock(path)
     reopened.close()
 
 

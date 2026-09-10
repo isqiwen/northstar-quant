@@ -16,7 +16,8 @@ from sqlalchemy import Engine, inspect
 from northstar_quant import code_revision
 from northstar_quant.data_management.files import SourceFiles
 from northstar_quant.data_management.library import manifest
-from northstar_quant.live.storage import KernelLock, open_store, require_current
+from northstar_quant.live.storage import open_store, require_current
+from northstar_quant.persistence.locks import FileLock
 
 
 def _hash(path: Path) -> str:
@@ -103,7 +104,7 @@ def restore(engine: Engine, source_root: Path, directory: Path) -> dict[str, Any
     finally:
         frozen.dispose()
     database = Path(str(engine.url.database))
-    with closing(KernelLock(database)):
+    with closing(FileLock(database)):
         with engine.connect() as connection:
             if inspect(connection).get_table_names():
                 raise ValueError("Live restore never overwrites existing facts")

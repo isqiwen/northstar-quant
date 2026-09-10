@@ -229,7 +229,7 @@ def test_unconfigured_account_cannot_change_broker_profile(local_engine):
     from sqlalchemy import text
     from sqlalchemy.exc import DatabaseError
 
-    from northstar_quant.live.storage import write_transaction
+    from northstar_quant.persistence.sql import write_transaction
 
     owner = InstanceBinding(local_engine, Instance("sim", "simnow_dev"), "9999", "")
     try:

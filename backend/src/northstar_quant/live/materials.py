@@ -18,8 +18,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
-from northstar_quant.broker.records import EvidenceTimestamp
-from northstar_quant.live.storage import write_transaction
+from northstar_quant.persistence.sql import UTCDateTime, write_transaction
 from northstar_quant.strategies.artifacts import verify_candidate
 
 _metadata = MetaData()
@@ -28,7 +27,7 @@ _materials = Table(
     _metadata,
     Column("candidate_id", String(64), primary_key=True),
     Column("document", JSON().with_variant(JSONB, "postgresql"), nullable=False),
-    Column("received_at", EvidenceTimestamp(), server_default=func.now(), nullable=False),
+    Column("received_at", UTCDateTime(), server_default=func.now(), nullable=False),
 )
 
 

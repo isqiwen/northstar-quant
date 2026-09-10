@@ -27,9 +27,9 @@ from sqlalchemy.dialects.postgresql import JSONB, insert
 
 from northstar_quant import code_revision
 from northstar_quant.data_management.research import ResearchDataset
+from northstar_quant.persistence.sql import UTCDateTime, write_transaction
 from northstar_quant.research.backtesting import ResearchResult
 from northstar_quant.research.configuration import ResearchConfig
-from northstar_quant.research.storage import UTCDateTime, write_transaction
 
 _metadata = MetaData()
 _runs = Table(

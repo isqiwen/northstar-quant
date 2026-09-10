@@ -43,10 +43,10 @@ from northstar_quant.accounting.fifo import Account, FillFact
 from northstar_quant.data_management.publications import DatasetReader
 from northstar_quant.data_management.research import ResearchDataset
 from northstar_quant.market_data import MarketBar
+from northstar_quant.persistence.sql import UTCDateTime, write_transaction
 from northstar_quant.research.backtesting.session import TradingSession, TradingStep
 from northstar_quant.research.configuration import ResearchConfig
 from northstar_quant.research.configurations import read_configuration, read_configurations
-from northstar_quant.research.storage import UTCDateTime, write_transaction
 
 _metadata = MetaData()
 _sessions = Table(

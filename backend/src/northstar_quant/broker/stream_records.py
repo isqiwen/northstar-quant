@@ -13,8 +13,9 @@ from sqlalchemy import text as sql_text
 from sqlalchemy.sql.selectable import TextualSelect
 
 from northstar_quant.broker.events import BrokerEvent
-from northstar_quant.broker.records import BrokerRecords, EvidenceTimestamp
+from northstar_quant.broker.records import BrokerRecords
 from northstar_quant.data_management.broker import verify_broker_contract
+from northstar_quant.persistence.sql import UTCDateTime
 
 _ARCHIVE_BYTES = 5 * 1024 * 1024
 
@@ -33,9 +34,9 @@ def text(statement: str) -> TextualSelect:
         account_entry_id=Uuid,
         request_id=Uuid,
         entry_id=Uuid,
-        created_at=EvidenceTimestamp(),
-        updated_at=EvidenceTimestamp(),
-        committed_at=EvidenceTimestamp(),
+        created_at=UTCDateTime(),
+        updated_at=UTCDateTime(),
+        committed_at=UTCDateTime(),
     )
 
 

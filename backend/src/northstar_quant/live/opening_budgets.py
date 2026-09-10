@@ -34,13 +34,13 @@ from northstar_quant import code_revision
 from northstar_quant.accounting.amounts import decimal_text
 from northstar_quant.accounting.ledger import BrokerLedger
 from northstar_quant.broker.market import ctp_day_quote_time
-from northstar_quant.broker.records import BrokerRecords, EvidenceTimestamp
+from northstar_quant.broker.records import BrokerRecords
 from northstar_quant.data_management.broker import verify_broker_contract
 from northstar_quant.data_management.library import DataLibrary
 from northstar_quant.execution.orders import Side
 from northstar_quant.execution.reviews import OrderReviews
-from northstar_quant.live.storage import write_transaction
 from northstar_quant.live.streams import LiveStreams
+from northstar_quant.persistence.sql import UTCDateTime, write_transaction
 from northstar_quant.risk import (
     OpeningAccount,
     OpeningCandidate,
@@ -57,7 +57,7 @@ _budgets = Table(
     Column("stream_id", PGUUID(as_uuid=True), nullable=False),
     Column("sequence", Integer, nullable=False),
     Column("order_check_id", PGUUID(as_uuid=True), nullable=False),
-    Column("recorded_at", EvidenceTimestamp(), nullable=False),
+    Column("recorded_at", UTCDateTime(), nullable=False),
     Column("document", JSON().with_variant(JSONB, "postgresql"), nullable=False),
     Column("sha256", String(64), nullable=False),
 )

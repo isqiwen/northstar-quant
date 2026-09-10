@@ -12,10 +12,10 @@ from sqlalchemy.dialects.postgresql import JSONB, insert
 
 from northstar_quant import code_revision
 from northstar_quant.factors.definition import content_id
+from northstar_quant.persistence.sql import UTCDateTime, write_transaction
 from northstar_quant.research.configuration import ResearchConfig
 from northstar_quant.research.configurations import ConfigurationStore
 from northstar_quant.research.runs import RunStore
-from northstar_quant.research.storage import UTCDateTime, write_transaction
 from northstar_quant.strategies.artifacts import CANDIDATE_FORMAT, verify_candidate
 
 _metadata = MetaData()

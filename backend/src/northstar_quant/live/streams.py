@@ -28,14 +28,15 @@ from northstar_quant.accounting.baselines import BrokerBaselines
 from northstar_quant.accounting.ledger import BrokerLedger
 from northstar_quant.broker import ctp
 from northstar_quant.broker.events import BrokerEvent
-from northstar_quant.broker.records import BrokerRecords, EvidenceTimestamp
+from northstar_quant.broker.records import BrokerRecords
 from northstar_quant.broker.settings import configured_profile, load_credentials
 from northstar_quant.broker.stream_records import append_stream_event, read_stream_archive
 from northstar_quant.data_management.broker import resolve_broker_contract, verify_broker_contract
 from northstar_quant.data_management.library import DataLibrary
 from northstar_quant.live.market import advance_market, idle_reason
-from northstar_quant.live.storage import KernelLock, write_transaction
 from northstar_quant.messaging import Endpoint
+from northstar_quant.persistence.locks import FileLock
+from northstar_quant.persistence.sql import UTCDateTime, write_transaction
 from northstar_quant.research.configuration import ResearchConfig
 from northstar_quant.research.configurations import ConfigurationStore
 from northstar_quant.trading.environment import Environment
@@ -61,9 +62,9 @@ def text(statement: str) -> TextualSelect:
         account_entry_id=Uuid,
         request_id=Uuid,
         entry_id=Uuid,
-        created_at=EvidenceTimestamp(),
-        updated_at=EvidenceTimestamp(),
-        committed_at=EvidenceTimestamp(),
+        created_at=UTCDateTime(),
+        updated_at=UTCDateTime(),
+        committed_at=UTCDateTime(),
     )
 
 
@@ -304,7 +305,7 @@ class LiveStreams:
                     if owner.dialect.name == "sqlite":
                         path = Path(str(self._engine.url.database) + f".{key}")
                         try:
-                            lock = KernelLock(path)
+                            lock = FileLock(path)
                         except BlockingIOError as exc:
                             raise ValueError(
                                 "a SimNow receiver or account query is already running"

@@ -26,7 +26,7 @@ from northstar_quant import code_revision
 from northstar_quant.data_management.publications import DatasetReader
 from northstar_quant.factors.definition import Bar, Inputs, content_id
 from northstar_quant.factors.evaluation import Binding, evaluate
-from northstar_quant.research.storage import UTCDateTime, write_transaction
+from northstar_quant.persistence.sql import UTCDateTime, write_transaction
 
 _metadata = MetaData()
 _revisions = Table(

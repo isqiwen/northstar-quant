@@ -17,7 +17,6 @@ from sqlalchemy.orm import Session, joinedload
 
 from northstar_quant.accounting.settlement import SettlementFact
 from northstar_quant.accounting.terms import FuturesTerms, ordered_terms
-from northstar_quant.broker.records import EvidenceTimestamp
 from northstar_quant.data_management.catalog.models import (
     CanonicalBar,
     DataSeries,
@@ -79,6 +78,7 @@ from northstar_quant.data_management.snapshots.publication import (
     SnapshotPartitionSelection,
     validate_publish_dataset_snapshot_command,
 )
+from northstar_quant.persistence.sql import UTCDateTime
 
 
 @dataclass(frozen=True)
@@ -1011,7 +1011,7 @@ def _require_clean_idle_session(session: Session) -> None:
 
 
 def _assert_cutoff_is_not_after_snapshot(available_at_cutoff: datetime, session: Session) -> None:
-    snapshot_now = session.scalar(select(func.current_timestamp(type_=EvidenceTimestamp())))
+    snapshot_now = session.scalar(select(func.current_timestamp(type_=UTCDateTime())))
     if not isinstance(snapshot_now, datetime):  # pragma: no cover - database result guard
         raise DatasetSnapshotPublicationError(
             "SNAPSHOT_AUTHORITY_TIME_UNAVAILABLE",

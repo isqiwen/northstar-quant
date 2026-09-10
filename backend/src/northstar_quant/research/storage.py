@@ -3,22 +3,12 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Iterator
-from contextlib import contextmanager
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import Connection, DateTime, Engine, create_engine, event, inspect
-from sqlalchemy.types import TypeDecorator
+from sqlalchemy import Connection, Engine, create_engine, event, inspect
 
-
-class UTCDateTime(TypeDecorator[datetime]):
-    impl = DateTime(timezone=True)
-    cache_ok = True
-
-    def process_result_value(self, value: datetime | None, dialect: Any) -> datetime | None:
-        return value.replace(tzinfo=UTC) if value is not None and value.tzinfo is None else value
+from northstar_quant.persistence.sql import write_transaction
 
 
 def open_store(path: Path | None = None) -> Engine:
@@ -67,20 +57,12 @@ def open_store(path: Path | None = None) -> Engine:
         # Readers retain a snapshot without reserving SQLite's sole writer.
         statement = (
             "BEGIN IMMEDIATE"
-            if connection.get_execution_options().get("research_write")
+            if connection.get_execution_options().get("northstar_write")
             else "BEGIN"
         )
         connection.exec_driver_sql(statement)
 
     return engine
-
-
-@contextmanager
-def write_transaction(engine: Engine) -> Iterator[Connection]:
-    """Reserve the SQLite writer before reading state that this operation will change."""
-    with engine.connect().execution_options(research_write=True) as connection:
-        with connection.begin():
-            yield connection
 
 
 def immutable(connection: Connection, table: str) -> None:

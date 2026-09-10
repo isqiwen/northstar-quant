@@ -42,7 +42,6 @@ from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.engine import RowMapping
 
 from northstar_quant import code_revision
-from northstar_quant.broker.records import EvidenceTimestamp
 from northstar_quant.data_management.catalog.models import (
     DatasetSnapshotImportQualityPin,
     DatasetSnapshotManifest,
@@ -57,6 +56,7 @@ from northstar_quant.data_management.research import (
     _source_evidence,
     _timestamp,
 )
+from northstar_quant.persistence.sql import UTCDateTime
 
 from .research_reader import load_dataset
 
@@ -76,7 +76,7 @@ _sources = Table(
     Column("upstream_evidence_hash", String(64)),
     Column("content_hash", String(64), nullable=False),
     Column("byte_count", BigInteger, nullable=False),
-    Column("received_at", EvidenceTimestamp(), nullable=False),
+    Column("received_at", UTCDateTime(), nullable=False),
     Column("evidence_hash", String(64), nullable=False),
     CheckConstraint("allow_retention AND byte_count > 0 AND byte_count <= 5242880"),
     CheckConstraint(
@@ -102,8 +102,8 @@ _attempts = Table(
     Column("retry_of", PGUUID(as_uuid=True), ForeignKey("data_processing_attempts.attempt_id")),
     Column("snapshot_id", PGUUID(as_uuid=True), ForeignKey(DatasetSnapshotManifest.id)),
     Column("reused_product", Boolean, nullable=False),
-    Column("created_at", EvidenceTimestamp(), nullable=False),
-    Column("updated_at", EvidenceTimestamp(), nullable=False),
+    Column("created_at", UTCDateTime(), nullable=False),
+    Column("updated_at", UTCDateTime(), nullable=False),
     CheckConstraint("status IN ('PENDING', 'RUNNING', 'FAILED', 'PUBLISHED')"),
     CheckConstraint(
         "(status = 'PUBLISHED' AND snapshot_id IS NOT NULL AND error IS NULL) "
@@ -115,7 +115,7 @@ _rejections = Table(
     _metadata,
     Column("rejection_id", PGUUID(as_uuid=True), primary_key=True),
     Column("request_id", String(36)),
-    Column("created_at", EvidenceTimestamp(), nullable=False),
+    Column("created_at", UTCDateTime(), nullable=False),
     Column("reason", String(512), nullable=False),
 )
 _ADMISSION_LOCK = 0x4E535141444D49

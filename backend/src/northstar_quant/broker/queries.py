@@ -25,7 +25,7 @@ from northstar_quant.broker.settings import (
     profiles,
     validate_instrument,
 )
-from northstar_quant.live.storage import KernelLock
+from northstar_quant.persistence.locks import FileLock
 
 
 class BrokerQueries:
@@ -69,7 +69,7 @@ class BrokerQueries:
             if connection.dialect.name == "sqlite":
                 try:
                     locks.enter_context(
-                        closing(KernelLock(Path(str(self._engine.url.database) + f".{lock_key}")))
+                        closing(FileLock(Path(str(self._engine.url.database) + f".{lock_key}")))
                     )
                 except BlockingIOError:
                     raise ValueError("a query or receiver already owns this account") from None

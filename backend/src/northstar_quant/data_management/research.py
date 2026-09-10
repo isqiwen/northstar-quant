@@ -391,7 +391,9 @@ def _import_market(
                     "or fixed sources"
                 )
     with Session(
-        engine.execution_options(live_write=True) if engine.dialect.name == "sqlite" else engine,
+        engine.execution_options(northstar_write=True)
+        if engine.dialect.name == "sqlite"
+        else engine,
         autoflush=False,
         expire_on_commit=False,
     ) as session:
@@ -440,7 +442,7 @@ def _import_market(
     pins: list[SnapshotImportQualityPinSelection] = []
     for import_id in import_ids:
         with Session(
-            engine.execution_options(live_write=True)
+            engine.execution_options(northstar_write=True)
             if engine.dialect.name == "sqlite"
             else engine,
             autoflush=False,
@@ -459,7 +461,9 @@ def _import_market(
                 SnapshotImportQualityPinSelection(import_id, quality.import_quality_evaluation_id)
             )
     with Session(
-        engine.execution_options(live_write=True) if engine.dialect.name == "sqlite" else engine,
+        engine.execution_options(northstar_write=True)
+        if engine.dialect.name == "sqlite"
+        else engine,
         autoflush=False,
         expire_on_commit=False,
     ) as session:
@@ -480,7 +484,9 @@ def _import_market(
             )
     stage("PUBLISHING", {"minute_evaluation_id": str(coverage.quality_evaluation_id)})
     with Session(
-        engine.execution_options(live_write=True) if engine.dialect.name == "sqlite" else engine,
+        engine.execution_options(northstar_write=True)
+        if engine.dialect.name == "sqlite"
+        else engine,
         autoflush=False,
         expire_on_commit=False,
     ) as session:
@@ -506,7 +512,9 @@ def _import_market(
 def _catalog(engine: Engine, spec: ImportSpec) -> UUID:
     commands = CatalogCommands()
     with Session(
-        engine.execution_options(live_write=True) if engine.dialect.name == "sqlite" else engine,
+        engine.execution_options(northstar_write=True)
+        if engine.dialect.name == "sqlite"
+        else engine,
         autoflush=False,
         expire_on_commit=False,
     ) as session:

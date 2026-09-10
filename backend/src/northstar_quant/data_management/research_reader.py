@@ -38,7 +38,9 @@ def load_dataset(engine: Engine, snapshot_id: UUID) -> ResearchDataset:
     """Verify observations and their original source evidence in one read transaction."""
 
     with Session(
-        engine.execution_options(live_write=True) if engine.dialect.name == "sqlite" else engine,
+        engine.execution_options(northstar_write=True)
+        if engine.dialect.name == "sqlite"
+        else engine,
         autoflush=False,
         expire_on_commit=False,
     ) as session:

@@ -21,7 +21,6 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.sql.elements import ColumnElement
 
-from northstar_quant.broker.records import EvidenceTimestamp
 from northstar_quant.data_management.catalog.models import (
     CalendarTradingDay,
     CanonicalBar,
@@ -44,6 +43,7 @@ from northstar_quant.data_management.quality.evaluations import (
     MinuteQualityEvaluationResult,
     validate_minute_quality_evaluation_command,
 )
+from northstar_quant.persistence.sql import UTCDateTime
 
 _ONE_MINUTE = timedelta(minutes=1)
 _MAX_EVIDENCE_SAMPLE_DAYS = 20
@@ -1043,7 +1043,7 @@ def _inclusive_days(from_trading_day: date, to_trading_day: date) -> Iterable[da
 def _assert_cutoff_is_not_after_snapshot(as_of: datetime, db_session: Session) -> None:
     """Reject an unverifiable future cutoff using the authority database clock."""
 
-    snapshot_now = db_session.scalar(select(func.current_timestamp(type_=EvidenceTimestamp())))
+    snapshot_now = db_session.scalar(select(func.current_timestamp(type_=UTCDateTime())))
     if not isinstance(snapshot_now, datetime):  # pragma: no cover
         raise MinuteQualityEvaluationError(
             "MINUTE_QUALITY_AUTHORITY_TIME_UNAVAILABLE",

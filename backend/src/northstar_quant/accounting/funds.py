@@ -36,8 +36,8 @@ from northstar_quant.accounting.baselines import BrokerBaselines
 from northstar_quant.accounting.ledger import BrokerLedger
 from northstar_quant.accounting.observations import compare_account_amounts
 from northstar_quant.broker.account_reports import account_observation
-from northstar_quant.broker.records import BrokerRecords, EvidenceTimestamp
-from northstar_quant.live.storage import write_transaction
+from northstar_quant.broker.records import BrokerRecords
+from northstar_quant.persistence.sql import UTCDateTime, write_transaction
 
 _metadata = MetaData()
 _entries = Table(
@@ -47,7 +47,7 @@ _entries = Table(
     Column("baseline_id", PGUUID(as_uuid=True), nullable=False),
     Column("source_batch_id", PGUUID(as_uuid=True), nullable=False),
     Column("ordinal", Integer, nullable=False),
-    Column("recorded_at", EvidenceTimestamp(), nullable=False),
+    Column("recorded_at", UTCDateTime(), nullable=False),
     Column("document", JSON().with_variant(JSONB, "postgresql"), nullable=False),
     Column("sha256", String(64), nullable=False),
     UniqueConstraint("baseline_id", "ordinal"),

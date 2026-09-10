@@ -2,12 +2,9 @@
 
 from __future__ import annotations
 
-import fcntl
 import os
 import sqlite3
 import stat
-from collections.abc import Iterator
-from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -15,35 +12,7 @@ from uuid import UUID
 
 from sqlalchemy import Connection, Engine, create_engine, event, inspect
 
-
-class KernelLock:
-    """A local process lock has no expiry and cannot authorize trading failover."""
-
-    def __init__(self, database: Path) -> None:
-        path = Path(str(database) + ".owner")
-        self._path = path
-        self._fd = os.open(path, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
-        try:
-            info = os.fstat(self._fd)
-            if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid():
-                raise ValueError("Live owner lock must be an owned regular file")
-            fcntl.flock(self._fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            self._identity = (info.st_dev, info.st_ino)
-        except BaseException:
-            os.close(self._fd)
-            raise
-
-    def check(self) -> None:
-        if self._fd < 0:
-            raise ValueError("Live ownership lock is closed")
-        info = self._path.lstat()
-        if (info.st_dev, info.st_ino) != self._identity:
-            raise ValueError("Live ownership lock was replaced; stop and reconcile required")
-
-    def close(self) -> None:
-        if self._fd >= 0:
-            os.close(self._fd)
-            self._fd = -1
+from northstar_quant.persistence.sql import write_transaction
 
 
 def require_local_path(path: Path) -> None:
@@ -99,17 +68,12 @@ def open_store(path: Path) -> Engine:
         if (info.st_dev, info.st_ino) != file_identity:
             raise ValueError("Live database file changed; restart and reconcile required")
         connection.exec_driver_sql(
-            "BEGIN IMMEDIATE" if connection.get_execution_options().get("live_write") else "BEGIN"
+            "BEGIN IMMEDIATE"
+            if connection.get_execution_options().get("northstar_write")
+            else "BEGIN"
         )
 
     return engine
-
-
-@contextmanager
-def write_transaction(engine: Engine) -> Iterator[Connection]:
-    with engine.connect().execution_options(live_write=True) as connection:
-        with connection.begin():
-            yield connection
 
 
 def initialize(engine: Engine) -> None:

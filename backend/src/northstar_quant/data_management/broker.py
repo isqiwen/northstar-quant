@@ -113,7 +113,7 @@ def _contract(
 
     with (
         Session(
-            engine.execution_options(live_write=True)
+            engine.execution_options(northstar_write=True)
             if engine.dialect.name == "sqlite" and expected_id is None
             else engine,
             expire_on_commit=False,

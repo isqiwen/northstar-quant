@@ -20,9 +20,8 @@ from sqlalchemy.sql.selectable import TextualSelect
 from northstar_quant import code_revision
 from northstar_quant.accounting.ledger import _hash, _time
 from northstar_quant.broker.events import BrokerEvent
-from northstar_quant.broker.records import EvidenceTimestamp
 from northstar_quant.broker.stream_records import read_stream_source
-from northstar_quant.live.storage import write_transaction
+from northstar_quant.persistence.sql import UTCDateTime, write_transaction
 
 if TYPE_CHECKING:
     from northstar_quant.accounting.ledger import BrokerLedger
@@ -42,9 +41,9 @@ def text(statement: str) -> TextualSelect:
         account_entry_id=Uuid,
         request_id=Uuid,
         entry_id=Uuid,
-        created_at=EvidenceTimestamp(),
-        updated_at=EvidenceTimestamp(),
-        committed_at=EvidenceTimestamp(),
+        created_at=UTCDateTime(),
+        updated_at=UTCDateTime(),
+        committed_at=UTCDateTime(),
     )
 
 

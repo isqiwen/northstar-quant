@@ -22,7 +22,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import insert as postgres_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
-from northstar_quant.live.storage import write_transaction
+from northstar_quant.persistence.sql import write_transaction
 
 _metadata = MetaData()
 _commands = Table(

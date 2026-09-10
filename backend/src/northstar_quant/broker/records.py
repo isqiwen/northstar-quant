@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import re
 from datetime import UTC, datetime
-from typing import Any, cast
+from typing import cast
 from uuid import UUID
 
 from sqlalchemy import (
@@ -17,7 +17,6 @@ from sqlalchemy import (
     CheckConstraint,
     Column,
     Connection,
-    DateTime,
     Engine,
     MetaData,
     String,
@@ -29,7 +28,6 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
-from sqlalchemy.types import TypeDecorator
 
 from northstar_quant import code_revision
 from northstar_quant.broker.events import (
@@ -39,29 +37,7 @@ from northstar_quant.broker.events import (
     timestamp,
 )
 from northstar_quant.broker.settings import get_profile, validate_instrument
-from northstar_quant.live.storage import write_transaction
-
-
-class EvidenceTimestamp(TypeDecorator[datetime]):
-    """Broker evidence clocks are UTC even when the local DB stores no timezone."""
-
-    impl = DateTime(timezone=True)
-    cache_ok = True
-
-    def process_bind_param(self, value: datetime | None, dialect: Any) -> datetime | None:
-        if value is None:
-            return None
-        if value.tzinfo is None or value.utcoffset() is None:
-            raise ValueError("Evidence timestamps must be timezone-aware")
-        return value.astimezone(UTC)
-
-    def process_result_value(self, value: datetime | None, dialect: Any) -> datetime | None:
-        return (
-            (value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC))
-            if value is not None
-            else None
-        )
-
+from northstar_quant.persistence.sql import UTCDateTime, write_transaction
 
 _QUERIES = {
     "account": ("ReqQryTradingAccount", "OnRspQryTradingAccount"),
@@ -83,7 +59,7 @@ _batches = Table(
     Column("account_id", String(12), nullable=False),
     Column("instrument", String(32), nullable=False),
     Column("query_scope", JSON().with_variant(JSONB, "postgresql"), nullable=False),
-    Column("created_at", EvidenceTimestamp(), nullable=False),
+    Column("created_at", UTCDateTime(), nullable=False),
     Column("code_revision", String(64), nullable=False),
     Column("request_hash", String(64), nullable=False),
     Column("binding_hash", String(64), nullable=False),

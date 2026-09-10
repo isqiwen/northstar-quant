@@ -34,8 +34,8 @@ from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from northstar_quant import code_revision
 from northstar_quant.accounting.amounts import decimal_text
 from northstar_quant.broker.account_reports import account_baseline
-from northstar_quant.broker.records import BrokerRecords, EvidenceTimestamp
-from northstar_quant.live.storage import write_transaction
+from northstar_quant.broker.records import BrokerRecords
+from northstar_quant.persistence.sql import UTCDateTime, write_transaction
 
 _FLAT_ZERO = ("CurrMargin", "FrozenMargin", "FrozenCash", "FrozenCommission", "PositionProfit")
 _ACTIVITY = ("positions", "orders", "trades")
@@ -48,7 +48,7 @@ _baselines = Table(
     Column("profile_name", String(32), nullable=False),
     Column("account_id", String(12), nullable=False),
     Column("source_batch_id", PGUUID(as_uuid=True), nullable=False, unique=True),
-    Column("created_at", EvidenceTimestamp(), nullable=False),
+    Column("created_at", UTCDateTime(), nullable=False),
     Column("document", JSON().with_variant(JSONB, "postgresql"), nullable=False),
     Column("sha256", String(64), nullable=False),
     UniqueConstraint("profile_name", "account_id"),
@@ -61,7 +61,7 @@ _checks = Table(
         "baseline_id", PGUUID(as_uuid=True), ForeignKey(_baselines.c.baseline_id), nullable=False
     ),
     Column("query_batch_id", PGUUID(as_uuid=True), nullable=False),
-    Column("created_at", EvidenceTimestamp(), nullable=False),
+    Column("created_at", UTCDateTime(), nullable=False),
     Column("document", JSON().with_variant(JSONB, "postgresql"), nullable=False),
     Column("sha256", String(64), nullable=False),
     UniqueConstraint("baseline_id", "query_batch_id"),
