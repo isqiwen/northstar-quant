@@ -414,7 +414,7 @@ message StrategyCandidate {
   optional string candidate_id = 1 [json_name = "candidate_id", (northstar.web.required_field) = true];
   optional VersionDocument document = 2 [json_name = "document", (northstar.web.required_field) = true];
   optional int64 format = 3 [json_name = "format", (northstar.web.required_field) = true];
-  optional bool production_eligible = 4 [json_name = "production_eligible", (northstar.web.required_field) = true];
+  optional bool same_clean_revision = 4 [json_name = "same_clean_revision", (northstar.web.required_field) = true];
   optional string version_id = 5 [json_name = "version_id", (northstar.web.required_field) = true];
 }
 

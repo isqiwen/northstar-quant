@@ -172,6 +172,8 @@ def build_result(session: TradingSession, steps: Sequence[TradingStep]) -> Resea
                 "completed bar's close plus adverse tick slippage.",
                 "Simulated participation uses only complete post-order bar volume. Partial fills "
                 "retain remaining lots; target replacement explicitly cancels the remainder.",
+                "With fixed daily limits, buying at the upper limit or selling at the lower "
+                "limit remains unfilled: bar volume does not establish queue priority.",
                 "Fees follow the fixed offset-specific terms and explicit rounding. Risk budgets "
                 "the worst fee and directional margin over the fixed daily price interval. "
                 "Account available excludes holds; available_after_reservations deducts the "

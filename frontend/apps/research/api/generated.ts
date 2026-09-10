@@ -345,7 +345,7 @@ export type StrategyCandidate = {
   candidate_id: string;
   document: VersionDocument;
   format: number;
-  production_eligible: boolean;
+  same_clean_revision: boolean;
   version_id: string;
 };
 export type StrategyDescription = {

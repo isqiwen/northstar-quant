@@ -456,7 +456,9 @@ export function Version() {
                   已发布：
                   <Identity value={c.candidate_id} />{" "}
                   <Tag>
-                    {c.production_eligible ? "正式代码材料" : "开发材料"}
+                    {c.same_clean_revision
+                      ? "同一干净代码版本"
+                      : "开发或混合版本"}
                   </Tag>
                   <Button
                     onClick={() =>

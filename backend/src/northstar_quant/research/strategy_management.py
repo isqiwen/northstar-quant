@@ -16,7 +16,7 @@ from northstar_quant.research.configuration import ResearchConfig
 from northstar_quant.research.configurations import ConfigurationStore
 from northstar_quant.research.runs import RunStore
 from northstar_quant.research.storage import UTCDateTime, write_transaction
-from northstar_quant.strategies.artifacts import verify_candidate
+from northstar_quant.strategies.artifacts import CANDIDATE_FORMAT, verify_candidate
 
 _metadata = MetaData()
 _versions = Table(
@@ -130,10 +130,10 @@ class StrategyVersions:
             *(run["code_revision"] for run in document["evidence"]),
         ]
         candidate: dict[str, Any] = {
-            "format": 1,
+            "format": CANDIDATE_FORMAT,
             "version_id": version_id,
             "document": document,
-            "production_eligible": len(set(refs)) == 1 and not refs[0].endswith("-dirty"),
+            "same_clean_revision": len(set(refs)) == 1 and not refs[0].endswith("-dirty"),
         }
         identity = content_id(candidate)
         candidate["candidate_id"] = identity

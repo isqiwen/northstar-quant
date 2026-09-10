@@ -23460,12 +23460,12 @@ export const northstar = $root.northstar = (() => {
              * @property {string|null} [candidate_id] StrategyCandidate candidate_id
              * @property {northstar.research.VersionDocument.$Properties|null} [document] StrategyCandidate document
              * @property {number|Long|null} [format] StrategyCandidate format
-             * @property {boolean|null} [production_eligible] StrategyCandidate production_eligible
+             * @property {boolean|null} [same_clean_revision] StrategyCandidate same_clean_revision
              * @property {string|null} [version_id] StrategyCandidate version_id
              * @property {"candidate_id"} [_candidate_id] StrategyCandidate _candidate_id
              * @property {"document"} [_document] StrategyCandidate _document
              * @property {"format"} [_format] StrategyCandidate _format
-             * @property {"production_eligible"} [_production_eligible] StrategyCandidate _production_eligible
+             * @property {"same_clean_revision"} [_same_clean_revision] StrategyCandidate _same_clean_revision
              * @property {"version_id"} [_version_id] StrategyCandidate _version_id
              * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
              */
@@ -23484,7 +23484,7 @@ export const northstar = $root.northstar = (() => {
              *   candidate_id?: string|null;
              *   document?: northstar.research.VersionDocument.$Shape|null;
              *   format?: number|Long|null;
-             *   production_eligible?: boolean|null;
+             *   same_clean_revision?: boolean|null;
              *   version_id?: string|null;
              *   $unknowns?: Array.<Uint8Array>;
              * } & (
@@ -23494,7 +23494,7 @@ export const northstar = $root.northstar = (() => {
              * ) & (
              *   ({ _format?: undefined; format?: null }|{ _format?: "format"; format: number|Long })
              * ) & (
-             *   ({ _production_eligible?: undefined; production_eligible?: null }|{ _production_eligible?: "production_eligible"; production_eligible: boolean })
+             *   ({ _same_clean_revision?: undefined; same_clean_revision?: null }|{ _same_clean_revision?: "same_clean_revision"; same_clean_revision: boolean })
              * ) & (
              *   ({ _version_id?: undefined; version_id?: null }|{ _version_id?: "version_id"; version_id: string })
              * )} northstar.research.StrategyCandidate.$Shape
@@ -23540,12 +23540,12 @@ export const northstar = $root.northstar = (() => {
             StrategyCandidate.prototype.format = null;
 
             /**
-             * StrategyCandidate production_eligible.
-             * @member {boolean|null|undefined} production_eligible
+             * StrategyCandidate same_clean_revision.
+             * @member {boolean|null|undefined} same_clean_revision
              * @memberof northstar.research.StrategyCandidate
              * @instance
              */
-            StrategyCandidate.prototype.production_eligible = null;
+            StrategyCandidate.prototype.same_clean_revision = null;
 
             /**
              * StrategyCandidate version_id.
@@ -23592,13 +23592,13 @@ export const northstar = $root.northstar = (() => {
             });
 
             /**
-             * StrategyCandidate _production_eligible.
-             * @member {"production_eligible"|undefined} _production_eligible
+             * StrategyCandidate _same_clean_revision.
+             * @member {"same_clean_revision"|undefined} _same_clean_revision
              * @memberof northstar.research.StrategyCandidate
              * @instance
              */
-            $Object.defineProperty(StrategyCandidate.prototype, "_production_eligible", {
-                get: $util.oneOfGetter($oneOfFields = ["production_eligible"]),
+            $Object.defineProperty(StrategyCandidate.prototype, "_same_clean_revision", {
+                get: $util.oneOfGetter($oneOfFields = ["same_clean_revision"]),
                 set: $util.oneOfSetter($oneOfFields)
             });
 
@@ -23651,8 +23651,8 @@ export const northstar = $root.northstar = (() => {
                     $root.northstar.research.VersionDocument.encode(message.document, writer.uint32(/* id 2, wireType 2 =*/18).fork(), _depth + 1).ldelim();
                 if (message.format != null && $Object.hasOwnProperty.call(message, "format"))
                     writer.uint32(/* id 3, wireType 0 =*/24).int64(message.format);
-                if (message.production_eligible != null && $Object.hasOwnProperty.call(message, "production_eligible"))
-                    writer.uint32(/* id 4, wireType 0 =*/32).bool(message.production_eligible);
+                if (message.same_clean_revision != null && $Object.hasOwnProperty.call(message, "same_clean_revision"))
+                    writer.uint32(/* id 4, wireType 0 =*/32).bool(message.same_clean_revision);
                 if (message.version_id != null && $Object.hasOwnProperty.call(message, "version_id"))
                     writer.uint32(/* id 5, wireType 2 =*/42).string(message.version_id);
                 if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
@@ -23723,8 +23723,8 @@ export const northstar = $root.northstar = (() => {
                     case 4: {
                             if (wireType !== 0)
                                 break;
-                            message.production_eligible = reader.bool();
-                            message._production_eligible = "production_eligible";
+                            message.same_clean_revision = reader.bool();
+                            message._same_clean_revision = "same_clean_revision";
                             continue;
                         }
                     case 5: {
@@ -23785,10 +23785,10 @@ export const northstar = $root.northstar = (() => {
                     if (!$util.isInteger(message.format) && !(message.format && $util.isInteger(message.format.low) && $util.isInteger(message.format.high)))
                         return "format: integer|Long expected";
                 }
-                if (message.production_eligible != null && $Object.hasOwnProperty.call(message, "production_eligible")) {
-                    properties._production_eligible = 1;
-                    if (typeof message.production_eligible !== "boolean")
-                        return "production_eligible: boolean expected";
+                if (message.same_clean_revision != null && $Object.hasOwnProperty.call(message, "same_clean_revision")) {
+                    properties._same_clean_revision = 1;
+                    if (typeof message.same_clean_revision !== "boolean")
+                        return "same_clean_revision: boolean expected";
                 }
                 if (message.version_id != null && $Object.hasOwnProperty.call(message, "version_id")) {
                     properties._version_id = 1;
@@ -23832,8 +23832,8 @@ export const northstar = $root.northstar = (() => {
                         message.format = object.format;
                     else if (typeof object.format === "object")
                         message.format = new $util.LongBits(object.format.low >>> 0, object.format.high >>> 0).toNumber();
-                if (object.production_eligible != null)
-                    message.production_eligible = $Boolean(object.production_eligible);
+                if (object.same_clean_revision != null)
+                    message.same_clean_revision = $Boolean(object.same_clean_revision);
                 if (object.version_id != null)
                     message.version_id = $String(object.version_id);
                 return message;
@@ -23876,10 +23876,10 @@ export const northstar = $root.northstar = (() => {
                     if (options.oneofs)
                         object._format = "format";
                 }
-                if (message.production_eligible != null && $Object.hasOwnProperty.call(message, "production_eligible")) {
-                    object.production_eligible = message.production_eligible;
+                if (message.same_clean_revision != null && $Object.hasOwnProperty.call(message, "same_clean_revision")) {
+                    object.same_clean_revision = message.same_clean_revision;
                     if (options.oneofs)
-                        object._production_eligible = "production_eligible";
+                        object._same_clean_revision = "same_clean_revision";
                 }
                 if (message.version_id != null && $Object.hasOwnProperty.call(message, "version_id")) {
                     object.version_id = message.version_id;

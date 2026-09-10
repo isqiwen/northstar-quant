@@ -68,7 +68,7 @@ def test_factor_revisions_causal_results_references_and_candidate_survive_reopen
     assert reopened.get(UUID(calculated["attempt_id"])) == calculated
     assert StrategyVersions(postgres_engine).get(version)["document"] == candidate["document"]
     assert StrategyMaterials(postgres_engine).list() == []
-    if not candidate["production_eligible"]:
+    if not candidate["same_clean_revision"]:
         with pytest.raises(ValueError, match="clean candidate"):
             StrategyMaterials(postgres_engine).accept(candidate)
     with pytest.raises(ValueError, match="exact"):
@@ -179,8 +179,19 @@ def test_clean_material_is_received_locally_without_research_or_execution_author
     candidate = versions.publish(
         versions.register("synthetic build", saved["configuration_id"], [run_id])
     )
-    assert candidate["production_eligible"] is True
+    assert candidate["same_clean_revision"] is True
     materials = StrategyMaterials(postgres_engine)
+    from northstar_quant.factors.definition import content_id
+
+    malformed = deepcopy(candidate)
+    del malformed["document"]["configuration"]
+    malformed["version_id"] = content_id(malformed["document"])
+    malformed["candidate_id"] = content_id(
+        {key: value for key, value in malformed.items() if key != "candidate_id"}
+    )
+    with pytest.raises(ValueError, match="incomplete or invalid"):
+        materials.accept(malformed)
+    assert materials.list() == []
     received = materials.accept(candidate)
     assert received["execution_authorized"] is False and received["status"] == "RECEIVED"
     assert materials.accept(candidate) == received

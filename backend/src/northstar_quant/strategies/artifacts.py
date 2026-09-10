@@ -9,11 +9,28 @@ from northstar_quant.simulation.configuration import SimulationConfig
 
 from .configuration import StrategyConfig
 
+CANDIDATE_FORMAT = 2
 
-def verify_candidate(value: dict[str, Any], *, production: bool = False) -> dict[str, Any]:
+
+def verify_candidate(
+    value: dict[str, Any], *, require_installed_revision: bool = False
+) -> dict[str, Any]:
+    """Verify content and code bindings, never production admission or authority.
+
+    A receiver may require matching installed code in either SANDBOX or LIVE.
+    This proves neither historical validity nor permission to send an order.
+    """
+    try:
+        return _verify(value, require_installed_revision=require_installed_revision)
+    except (KeyError, TypeError, AttributeError, ArithmeticError) as error:
+        raise ValueError("candidate content is incomplete or invalid") from error
+
+
+def _verify(value: dict[str, Any], *, require_installed_revision: bool) -> dict[str, Any]:
     if (
-        set(value) != {"format", "candidate_id", "version_id", "document", "production_eligible"}
-        or value["format"] != 1
+        not isinstance(value, dict)
+        or set(value) != {"format", "candidate_id", "version_id", "document", "same_clean_revision"}
+        or value["format"] != CANDIDATE_FORMAT
     ):
         raise ValueError("unsupported fixed strategy candidate")
     document = value["document"]
@@ -51,9 +68,11 @@ def verify_candidate(value: dict[str, Any], *, production: bool = False) -> dict
         document["code_revision"],
         *(run["code_revision"] for run in document["evidence"]),
     ]
-    eligible = all(not ref.endswith("-dirty") for ref in refs) and len(set(refs)) == 1
-    if value["production_eligible"] is not eligible:
+    same_clean_revision = all(not ref.endswith("-dirty") for ref in refs) and len(set(refs)) == 1
+    if value["same_clean_revision"] is not same_clean_revision:
         raise ValueError("candidate code provenance is inconsistent")
-    if production and (not eligible or any(ref != current for ref in refs)):
+    if require_installed_revision and (
+        not same_clean_revision or any(ref != current for ref in refs)
+    ):
         raise ValueError("Live requires a clean candidate matching its installed Git revision")
     return value

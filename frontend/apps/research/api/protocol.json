@@ -2155,7 +2155,7 @@
           "required": true,
           "nullable": false
         },
-        "production_eligible": {
+        "same_clean_revision": {
           "id": 4,
           "presence": true,
           "type": "bool",

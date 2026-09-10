@@ -75,6 +75,13 @@ def simulate_fill(
             return FillAttempt(None, "PRICE_OUTSIDE_AUTHORIZATION")
         if terms is not None and not terms.lower_limit <= price <= terms.upper_limit:
             return FillAttempt(None, "PRICE_OUTSIDE_DAILY_LIMITS")
+        if terms is not None and (
+            order.side is Side.BUY and price == terms.upper_limit
+            or order.side is Side.SELL and price == terms.lower_limit
+        ):
+            # Bar volume does not establish our place in a limit-price queue.
+            # Keep the order and its budget; this is neither a fill nor a cancel.
+            return FillAttempt(None, "LIMIT_QUEUE_UNOBSERVED")
         identity = hashlib.sha256(
             f"simulation:{order.order_id}:{bar.observation_id}".encode()
         ).hexdigest()

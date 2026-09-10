@@ -321,3 +321,75 @@ def test_participation_uses_only_post_order_volume_and_explains_each_rejection()
     )
     assert attempt(request=replace(order, expires_at=bar.available_at)).reason == "EXPIRED"
     assert attempt(request=replace(order, filled_lots=5)).reason == "ALREADY_FILLED"
+
+
+@pytest.mark.parametrize("side", list(Side))
+@pytest.mark.parametrize("offset", [Offset.OPEN, Offset.CLOSE_TODAY])
+def test_limit_queue_keeps_order_and_reservation_without_inventing_a_fill(side, offset):
+    from northstar_quant.execution.orders import reservation
+    from tests.accounting.test_terms import terms
+
+    fixed = terms()
+    at = fixed.effective_from + timedelta(hours=1)
+    market = Market(
+        fixed.contract_id, "RB2605", "Asia/Shanghai", "CNY", "TON", Decimal(1), Decimal(10), 60
+    )
+    order = PendingOrder(
+        "limit-queue",
+        UUID(int=10),
+        at,
+        at + timedelta(minutes=10),
+        side,
+        offset,
+        5,
+        fixed.lower_limit,
+        fixed.upper_limit,
+        fee_budget_per_lot=Decimal(4),
+        margin_budget_per_lot=Decimal(300) if offset is Offset.OPEN else Decimal(0),
+    )
+    price = fixed.upper_limit if side is Side.BUY else fixed.lower_limit
+    bar = MarketBar(
+        UUID(int=11),
+        at,
+        at + timedelta(minutes=1),
+        at + timedelta(minutes=1),
+        at.date(),
+        price,
+        Decimal(1000),
+    )
+
+    def attempt(request, observation):
+        return simulate_fill(
+            request,
+            observation,
+            market,
+            fee_per_lot=Decimal(2),
+            slippage_ticks=0,
+            max_volume_participation=Decimal("0.1"),
+            terms=fixed,
+        )
+
+    before = reservation(order)
+    blocked = attempt(order, bar)
+    assert blocked.fill is None and blocked.reason == "LIMIT_QUEUE_UNOBSERVED"
+    assert reservation(order) == before
+    # Trading away from the adverse queue can fill only available participation.
+    later = replace(
+        bar,
+        observation_id=UUID(int=12),
+        event_time=bar.completed_at,
+        completed_at=bar.completed_at + timedelta(minutes=1),
+        available_at=bar.available_at + timedelta(minutes=1),
+        close=price - 1 if side is Side.BUY else price + 1,
+        volume=Decimal(10),
+    )
+    filled = attempt(order, later)
+    assert filled.fill is not None and filled.fill.quantity_lots == 1
+    remaining = order.record_fill(1, at=later.available_at, reason=filled.reason).order
+    assert Decimal(reservation(remaining)["reserved_fee"]) == Decimal(
+        before["reserved_fee"]
+    ) * Decimal("0.8")
+    # A daily limit is directional; selling into the upper limit is not buying
+    # into its unobserved queue (and vice versa at the lower limit).
+    opposite = replace(order, side=Side.SELL if side is Side.BUY else Side.BUY)
+    assert attempt(opposite, bar).fill is not None

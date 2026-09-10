@@ -154,7 +154,7 @@ class StrategyCandidate(ApiModel):
     format: int
     version_id: str
     document: VersionDocument
-    production_eligible: bool
+    same_clean_revision: bool
     candidate_id: str
 
 

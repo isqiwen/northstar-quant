@@ -57,7 +57,7 @@ class StrategyMaterials:
         self._engine = engine
 
     def accept(self, candidate: dict[str, Any]) -> dict[str, Any]:
-        verified = verify_candidate(candidate, production=True)
+        verified = verify_candidate(candidate, require_installed_revision=True)
         with write_transaction(self._engine) as connection:
             connection.execute(
                 (sqlite_insert if connection.dialect.name == "sqlite" else pg_insert)(_materials)

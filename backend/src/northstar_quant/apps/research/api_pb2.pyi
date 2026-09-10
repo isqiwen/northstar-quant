@@ -786,18 +786,18 @@ class SnapshotReference(_message.Message):
     def __init__(self, content_hash: _Optional[str] = ..., id: _Optional[str] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...
 
 class StrategyCandidate(_message.Message):
-    __slots__ = ("candidate_id", "document", "format", "production_eligible", "version_id")
+    __slots__ = ("candidate_id", "document", "format", "same_clean_revision", "version_id")
     CANDIDATE_ID_FIELD_NUMBER: _ClassVar[int]
     DOCUMENT_FIELD_NUMBER: _ClassVar[int]
     FORMAT_FIELD_NUMBER: _ClassVar[int]
-    PRODUCTION_ELIGIBLE_FIELD_NUMBER: _ClassVar[int]
+    SAME_CLEAN_REVISION_FIELD_NUMBER: _ClassVar[int]
     VERSION_ID_FIELD_NUMBER: _ClassVar[int]
     candidate_id: str
     document: VersionDocument
     format: int
-    production_eligible: bool
+    same_clean_revision: bool
     version_id: str
-    def __init__(self, candidate_id: _Optional[str] = ..., document: _Optional[_Union[VersionDocument, _Mapping]] = ..., format: _Optional[int] = ..., production_eligible: _Optional[bool] = ..., version_id: _Optional[str] = ...) -> None: ...
+    def __init__(self, candidate_id: _Optional[str] = ..., document: _Optional[_Union[VersionDocument, _Mapping]] = ..., format: _Optional[int] = ..., same_clean_revision: _Optional[bool] = ..., version_id: _Optional[str] = ...) -> None: ...
 
 class StrategyDescription(_message.Message):
     __slots__ = ("category", "description", "factor_slots", "name", "parameters", "revision", "strategy_id")
