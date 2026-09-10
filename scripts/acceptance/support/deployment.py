@@ -1,9 +1,29 @@
 """Render production Compose into a private disposable filesystem for acceptance only."""
 
+import ipaddress
 import json
 import os
 import subprocess
+from functools import cache
 from pathlib import Path
+
+
+@cache
+def docker_host_gateway() -> str:
+    # Some Engine builds render the host-gateway keyword as "invalid IP".
+    # Resolve the actual default bridge gateway for this disposable host probe.
+    result = subprocess.run(
+        ["docker", "network", "inspect", "bridge"],
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=10,
+    )
+    for config in json.loads(result.stdout)[0]["IPAM"]["Config"]:
+        gateway = config.get("Gateway")
+        if gateway and ipaddress.ip_address(gateway).version == 4:
+            return gateway
+    raise ValueError("Acceptance requires an IPv4 Docker host gateway")
 
 
 def isolated_compose(
@@ -34,6 +54,13 @@ def isolated_compose(
     )
     config = json.loads(result.stdout)
     for service in config["services"].values():
+        if "extra_hosts" in service:
+            service["extra_hosts"] = [
+                entry.replace("host-gateway", docker_host_gateway())
+                if entry.endswith(("=host-gateway", ":host-gateway"))
+                else entry
+                for entry in service["extra_hosts"]
+            ]
         # Production ports are fixed; disposable concurrent runs need Docker to
         # allocate host ports, including APIs no longer controlled by env vars.
         for port in service.get("ports", []):

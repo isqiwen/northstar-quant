@@ -374,11 +374,40 @@ print(json.dumps(DataLibrary(open_database(),SourceFiles.from_environment()).sub
                         "status": value["State"]["Status"],
                         "requested_ports": value["HostConfig"]["PortBindings"],
                         "actual_ports": value["NetworkSettings"]["Ports"],
+                        "networks": value["NetworkSettings"]["Networks"],
+                        "extra_hosts": value["HostConfig"]["ExtraHosts"],
                     }
                 )
+        probes = []
+        for record in records:
+            if "research-api" not in record["name"] or record["status"] != "running":
+                continue
+            probe = subprocess.run(
+                [
+                    "docker",
+                    "exec",
+                    record["name"],
+                    "python",
+                    "-c",
+                    (
+                        "import os,urllib.request; u=os.environ['NORTHSTAR_DATA_HUB_URL']; "
+                        "print(u,flush=True); "
+                        "r=urllib.request.urlopen(u+'/api/publications',timeout=5); "
+                        "print(r.status,len(r.read()))"
+                    ),
+                ],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            probes.append(
+                {"container": record["name"], "stdout": probe.stdout, "stderr": probe.stderr}
+            )
         target = Path(directory)
         target.mkdir(parents=True, exist_ok=True)
-        (target / "application-deployment-failure.json").write_text(json.dumps(records, indent=2))
+        (target / "application-deployment-failure.json").write_text(
+            json.dumps({"containers": records, "publication_probes": probes}, indent=2)
+        )
 
     def close(self) -> None:
         errors = []
@@ -430,7 +459,10 @@ def main() -> None:
     try:
         deployment.exercise()
     except Exception:
-        deployment.preserve_failure()
+        try:
+            deployment.preserve_failure()
+        except (OSError, ValueError, subprocess.SubprocessError) as error:
+            print(f"Failed to preserve container diagnostics: {type(error).__name__}", flush=True)
         raise
     finally:
         deployment.close()
