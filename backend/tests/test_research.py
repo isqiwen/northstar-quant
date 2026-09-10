@@ -72,6 +72,12 @@ def test_repeated_decisions_use_fills_and_costs_to_close_both_directions() -> No
         ("SELL", 1, "105", -1),
         ("BUY", 1, "107", 0),
     ]
+    assert [item["offset"] for item in result["fills"]] == [
+        "OPEN",
+        "CLOSE_TODAY",
+        "OPEN",
+        "CLOSE_TODAY",
+    ]
     assert result["pending_order"] is None
 
 

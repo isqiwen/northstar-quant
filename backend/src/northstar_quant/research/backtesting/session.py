@@ -13,8 +13,9 @@ from uuid import UUID
 from northstar_quant.accounting.amounts import decimal_text
 from northstar_quant.accounting.fifo import Account, AppliedFill, FillFact
 from northstar_quant.accounting.portfolio import PortfolioState
+from northstar_quant.accounting.positions import Position
 from northstar_quant.data_management.research import DatasetDetails
-from northstar_quant.execution.orders import PendingOrder
+from northstar_quant.execution.orders import PendingOrder, intraday_offset
 from northstar_quant.market_data import Market, MarketBar
 from northstar_quant.messaging import Endpoint, Topic
 from northstar_quant.research.configuration import ResearchConfig
@@ -88,6 +89,7 @@ class TradingStep:
                     position,
                     _money(item["cash"]),
                     _money(item["total_fees"]),
+                    Position.from_dict(_object(item["gross_position"])),
                 )
             return cls(
                 dict(_object(value["point"])),
@@ -117,7 +119,7 @@ class TradingSession:
     """
 
     # Bump for changed Strategy/Risk/Simulation/Accounting rules or checkpoint format.
-    REVISION = "4"
+    REVISION = "5"
 
     def __init__(
         self,
@@ -296,6 +298,7 @@ class TradingSession:
                     bar.available_at,
                     risk.expires_at,
                     risk.side,
+                    intraday_offset(self.account.position_lots, risk.side, risk.quantity_lots),
                     risk.quantity_lots,
                     risk.minimum_fill_price,
                     risk.maximum_fill_price,
@@ -467,6 +470,10 @@ class TradingSession:
             or session._last_decision
             != (session.pending.observation_id, session.pending.submitted_at)
             or session.pending.quantity_lots > config.risk.max_lots
+            or session.pending.offset
+            is not intraday_offset(
+                account.position_lots, session.pending.side, session.pending.quantity_lots
+            )
         ):
             raise ValueError("checkpoint pending order differs from its last decision")
         session.account = account

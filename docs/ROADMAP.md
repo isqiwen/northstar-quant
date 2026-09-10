@@ -20,7 +20,8 @@
 
 已交付 #46 的响应校验与规则身份；完整规范化仍未完成。
 已交付 [#56 共享消息总线](https://github.com/isqiwen/northstar-quant/issues/56)：Research/Live 实际接入、事件隔离与研究整步回滚。
-按用户指定推进 [#57 共享交易内核](https://github.com/isqiwen/northstar-quant/issues/57)：统一事件入口、生命周期、失败策略和行情窗口；完整账户/执行业务继续按下表推进。
+已交付 [#57 共享交易内核](https://github.com/isqiwen/northstar-quant/issues/57)：统一事件入口、生命周期、失败策略和行情窗口；完整账户/执行业务继续按下表推进。
+#19 已接入 Research/Live 共用的多空持仓数量规则及显式开平、FIFO 平仓计价与恢复核验；费用调整、跨日结算和保证金仍待完成。
 #20 的单事件异常回滚已随 #56 实现；完整成交模型仍需 #19。#41 的外部权限问题不阻止无凭据工程验证。
 
 ## 第一轮：Live Sim

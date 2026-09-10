@@ -62,6 +62,8 @@ def build_result(session: TradingSession, steps: Sequence[TradingStep]) -> Resea
             "pending_order": None if session.pending is None else session.pending.to_dict(),
             "assumptions": [
                 "Single-contract, single-trading-day linear futures; no settlement or funding.",
+                "Orders explicitly open or close today; reversal first closes the existing "
+                "position and requires a later decision to open the opposite side.",
                 "A decision uses completed bars available then; fills use a strictly later "
                 "completed bar's close plus adverse tick slippage.",
                 "Orders fill completely without liquidity or volume modeling "

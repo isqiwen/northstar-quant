@@ -55,6 +55,7 @@ def simulate_fill(
             bar.available_at,
             bar.trading_day,
             order.side,
+            order.offset,
             order.quantity_lots,
             price,
             order.quantity_lots * fee_per_lot,

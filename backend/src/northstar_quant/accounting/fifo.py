@@ -16,7 +16,8 @@ from decimal import ROUND_HALF_EVEN, Decimal, localcontext
 from uuid import UUID
 
 from northstar_quant.accounting.amounts import decimal_text
-from northstar_quant.execution.orders import Side
+from northstar_quant.accounting.positions import Position, PositionChange
+from northstar_quant.execution.orders import Offset, Side
 from northstar_quant.market_data import Market
 
 
@@ -31,6 +32,7 @@ class FillFact:
     filled_at: datetime
     trading_day: date
     side: Side
+    offset: Offset
     quantity_lots: int
     price: Decimal
     fee: Decimal
@@ -44,6 +46,7 @@ class FillFact:
             or self.observation_id is not None
             and not isinstance(self.observation_id, UUID)
             or not isinstance(self.side, Side)
+            or not isinstance(self.offset, Offset)
         ):
             raise ValueError("fill requires a canonical contract and side")
         if (
@@ -77,6 +80,7 @@ class FillFact:
             "filled_at": self.filled_at.isoformat(),
             "trading_day": self.trading_day.isoformat(),
             "side": self.side.value,
+            "offset": self.offset.value,
             "quantity_lots": self.quantity_lots,
             "price": decimal_text(self.price),
             "fee": decimal_text(self.fee),
@@ -107,6 +111,7 @@ class FillFact:
                 datetime.fromisoformat(str(value["filled_at"])),
                 date.fromisoformat(str(value["trading_day"])),
                 Side(str(value["side"])),
+                Offset(str(value["offset"])),
                 quantity,
                 Decimal(price),
                 Decimal(fee),
@@ -122,6 +127,7 @@ class AppliedFill:
     position_lots: int
     cash: Decimal
     total_fees: Decimal
+    gross_position: Position
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -130,6 +136,7 @@ class AppliedFill:
             "position_lots": self.position_lots,
             "cash": decimal_text(self.cash),
             "total_fees": decimal_text(self.total_fees),
+            "gross_position": self.gross_position.to_dict(),
         }
 
 
@@ -177,15 +184,20 @@ class Account:
         self.total_fees = Decimal(0)
         self._fills: dict[str, AppliedFill] = {}
         self._lots: list[_Lot] = []
-        self._ledger_position = 0
+        self._position = Position()
+        self._trading_day: date | None = None
 
     @property
     def fill_count(self) -> int:
         return len(self._fills)
 
     @property
+    def position(self) -> Position:
+        return self._position
+
+    @property
     def position_lots(self) -> int:
-        return self._ledger_position
+        return self._position.net_lots
 
     def unrealized_pnl(self, mark: Decimal) -> Decimal:
         if not isinstance(mark, Decimal) or not mark.is_finite() or mark <= 0:
@@ -215,37 +227,59 @@ class Account:
             if previous.fact != fact:
                 raise ValueError("fill identity was reused with different facts")
             return previous
+        if self._trading_day is not None and fact.trading_day != self._trading_day:
+            raise ValueError("account requires settlement before a new trading day")
+        position = self._position.apply(
+            (
+                PositionChange(
+                    fact.contract_id,
+                    fact.trading_day,
+                    fact.side.value,
+                    fact.offset.value,
+                    fact.quantity_lots,
+                    fact.filled_at,
+                ),
+            )
+        )
         with localcontext() as context:
             context.prec = 96
             context.rounding = ROUND_HALF_EVEN
             direction = 1 if fact.side is Side.BUY else -1
             quantity = fact.quantity_lots
             realized = Decimal(0)
-            while quantity and self._lots and self._lots[0].direction != direction:
-                lot = self._lots[0]
-                closed = min(quantity, lot.quantity)
-                realized += (
-                    lot.direction * (fact.price - lot.entry_price) * closed * self.market.multiplier
-                )
-                lot.quantity -= closed
-                quantity -= closed
-                if lot.quantity == 0:
-                    self._lots.pop(0)
-            if quantity:
-                if self._lots and self._lots[-1].entry_price == fact.price:
-                    self._lots[-1].quantity += quantity
-                else:
-                    self._lots.append(_Lot(direction, quantity, fact.price))
-            self.total_fees += fact.fee
-            self.realized_pnl += realized
-            self.cash += realized - fact.fee
-            self._ledger_position += direction * fact.quantity_lots
+            lots = [replace(lot) for lot in self._lots]
+            if fact.offset is Offset.OPEN:
+                lots.append(_Lot(direction, quantity, fact.price))
+            else:
+                for lot in lots:
+                    if lot.direction == direction:
+                        continue
+                    closed = min(quantity, lot.quantity)
+                    realized += (
+                        lot.direction
+                        * (fact.price - lot.entry_price)
+                        * closed
+                        * self.market.multiplier
+                    )
+                    lot.quantity -= closed
+                    quantity -= closed
+                    if not quantity:
+                        break
+                lots = [lot for lot in lots if lot.quantity]
+                if quantity:
+                    raise RuntimeError("account lots disagree with gross positions")
+            total_fees = self.total_fees + fact.fee
+            realized_pnl = self.realized_pnl + realized
+            cash = self.cash + realized - fact.fee
             if (
-                sum(lot.direction * lot.quantity for lot in self._lots) != self._ledger_position
-                or self.cash != self.initial_cash + self.realized_pnl - self.total_fees
+                sum(lot.quantity for lot in lots if lot.direction == 1) != position.long_today
+                or sum(lot.quantity for lot in lots if lot.direction == -1) != position.short_today
+                or cash != self.initial_cash + realized_pnl - total_fees
             ):
                 raise RuntimeError("account ledger conservation failed")
-            applied = AppliedFill(fact, realized, self.position_lots, self.cash, self.total_fees)
+            applied = AppliedFill(fact, realized, position.net_lots, cash, total_fees, position)
+            self._lots, self._position, self._trading_day = lots, position, fact.trading_day
+            self.total_fees, self.realized_pnl, self.cash = total_fees, realized_pnl, cash
             self._fills[fact.fill_id] = applied
             return applied
 
@@ -256,13 +290,21 @@ class Account:
         Only open lots and scalar projections are copied; new fill identities are
         removed on failure. Broker facts use their durable owner's transactions.
         """
-        projection = (self.cash, self.realized_pnl, self.total_fees, self._ledger_position)
+        projection = (
+            self.cash,
+            self.realized_pnl,
+            self.total_fees,
+            self._position,
+            self._trading_day,
+        )
         lots = [replace(lot) for lot in self._lots]
         count = len(self._fills)
         try:
             yield
         except BaseException:
-            self.cash, self.realized_pnl, self.total_fees, self._ledger_position = projection
+            self.cash, self.realized_pnl, self.total_fees, self._position, self._trading_day = (
+                projection
+            )
             self._lots = lots
             while len(self._fills) > count:
                 self._fills.popitem()
@@ -279,6 +321,8 @@ class Account:
             "total_fees": decimal_text(self.total_fees),
             "position_lots": self.position_lots,
             "fill_count": self.fill_count,
+            "gross_position": self._position.to_dict(),
+            "trading_day": None if self._trading_day is None else self._trading_day.isoformat(),
             "lots": [
                 {
                     "direction": lot.direction,

@@ -112,6 +112,8 @@ export function Report() {
                           dataIndex: "fill_id",
                           render: (v) => <Identity value={v} />,
                         },
+                        { title: "方向", dataIndex: "side" },
+                        { title: "开平", dataIndex: "offset" },
                         { title: "价格", dataIndex: "price" },
                         { title: "数量", dataIndex: "quantity_lots" },
                         { title: "费用", dataIndex: "fee" },
