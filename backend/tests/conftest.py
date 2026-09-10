@@ -179,3 +179,13 @@ def live_web_app(live_client: Callable[[Engine, DataLibrary], object]) -> Callab
         )
 
     return compose
+
+
+@pytest.fixture(scope="session", autouse=True)
+def workspace_password() -> Generator[None, None, None]:
+    from northstar_quant.web.passwords import hash_password
+    from tests.apps.browser import WORKSPACE_PASSWORD
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setenv("NORTHSTAR_WORKSPACE_PASSWORD_HASH", hash_password(WORKSPACE_PASSWORD))
+        yield

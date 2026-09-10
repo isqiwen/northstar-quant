@@ -5,9 +5,6 @@ export type AdmissionRejection = {
   rejection_id: string;
   [key: string]: unknown;
 };
-export type BrowserSession = {
-  csrf: string;
-};
 export type DatasetDetails = {
   availability_basis: string;
   availability_note: string;
@@ -230,6 +227,15 @@ export type Error = {
   runtime_id?: string;
   url?: string;
   rejection_id?: string;
+};
+export type BrowserSession = {
+  authenticated: boolean;
+  csrf: string | null;
+  operator: string | null;
+  expires_at: string | null;
+};
+export type LoginRequest = {
+  password: string;
 };
 export type ChargeRate = {
   by_money: string;

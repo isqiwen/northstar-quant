@@ -12,29 +12,77 @@ export function selectLiveInstance(value: string) {
 function instanceHeaders(value: string | undefined): Record<string, string> {
   return value ? { "X-Live-Instance-Id": value } : {};
 }
+export type BrowserSession = {
+  authenticated: boolean;
+  csrf: string | null;
+  operator: string | null;
+  expires_at: string | null;
+};
 let session: Promise<string> | undefined;
-export function sessionToken(): Promise<string> {
-  return (session ??= fetch("/api/browser-session", {
+export const AUTH_REQUIRED = "northstar-auth-required";
+function requireLogin() {
+  session = undefined;
+  if (typeof window !== "undefined")
+    window.dispatchEvent(new Event(AUTH_REQUIRED));
+}
+export async function browserSession(): Promise<BrowserSession> {
+  const response = await fetch("/api/browser-session", {
     credentials: "same-origin",
     cache: "no-store",
     signal: AbortSignal.timeout(15_000),
-  })
-    .then(async (r) => {
-      if (!r.ok)
-        throw new Error(
-          r.status === 403
-            ? "当前访问地址或来源未获允许，无法建立浏览器会话。请检查访问地址和同源请求。"
-            : `无法建立浏览器会话（HTTP ${r.status}），请检查后端服务。`,
-        );
-      return (
-        (await decodeResponse("GET", "/api/browser-session", r)) as {
-          csrf: string;
-        }
-      ).csrf;
+  });
+  if (!response.ok)
+    throw new Error(`无法检查登录状态（HTTP ${response.status}）`);
+  const value = (await decodeResponse(
+    "GET",
+    "/api/browser-session",
+    response,
+  )) as BrowserSession;
+  if (value.authenticated && value.csrf) session = Promise.resolve(value.csrf);
+  else session = undefined;
+  return value;
+}
+export async function login(password: string): Promise<BrowserSession> {
+  const response = await fetch("/api/login", {
+    method: "POST",
+    credentials: "same-origin",
+    signal: AbortSignal.timeout(15_000),
+    headers: { "Content-Type": "application/protobuf" },
+    body: encodeRequest("POST", "/api/login", { password }) as BodyInit,
+  });
+  const value = await decodeResponse("POST", "/api/login", response);
+  if (!response.ok)
+    throw new Error(String((value as RecordValue).detail || "登录失败"));
+  return browserSession();
+}
+export async function logout(): Promise<void> {
+  const csrf = await sessionToken();
+  const response = await fetch("/api/logout", {
+    method: "POST",
+    credentials: "same-origin",
+    signal: AbortSignal.timeout(15_000),
+    headers: {
+      "Content-Type": "application/protobuf",
+      "X-Northstar-CSRF": csrf,
+    },
+    body: encodeRequest("POST", "/api/logout", {}) as BodyInit,
+  });
+  if (!response.ok && response.status !== 401)
+    throw new Error("退出未确认，请重试");
+  requireLogin();
+}
+export function sessionToken(): Promise<string> {
+  return (session ??= browserSession()
+    .then((value) => {
+      if (!value.authenticated || !value.csrf) {
+        requireLogin();
+        throw new Error("请登录工作台");
+      }
+      return value.csrf;
     })
-    .catch((e) => {
+    .catch((error) => {
       session = undefined;
-      throw e;
+      throw error;
     }));
 }
 export class ApiError extends Error {
@@ -61,6 +109,7 @@ export async function read<T = unknown>(
       : AbortSignal.timeout(15_000),
   });
   if (!response.ok) {
+    if (response.status === 401) requireLogin();
     const value = (await decodeResponse("GET", path, response).catch(
       () => ({}),
     )) as RecordValue;
@@ -74,7 +123,6 @@ export async function read<T = unknown>(
 }
 export type Pending = {
   path: string;
-  body: RecordValue;
   runtime?: string;
   instance?: string;
   id: string;
@@ -84,9 +132,20 @@ const key = "northstar.pending-command";
 let restored = false;
 export function pendingCommand(): Pending | null {
   try {
-    const value: Pending | null = JSON.parse(
+    const stored: Pending | null = JSON.parse(
       sessionStorage.getItem(key) || "null",
     );
+    const value: Pending | null = stored
+      ? {
+          id: stored.id,
+          path: stored.path,
+          runtime: stored.runtime,
+          instance: stored.instance,
+          status: stored.status,
+        }
+      : null;
+    // Persist only the fields needed to inquire about a command, never request payloads.
+    if (value) sessionStorage.setItem(key, JSON.stringify(value));
     if (!restored) {
       restored = true;
       if (value?.status === "SENDING") {
@@ -131,7 +190,6 @@ export async function mutate<T = unknown>(
   const encoded = new Uint8Array(encodeRequest("POST", path, body));
   const command: Pending = {
     path,
-    body,
     runtime,
     instance: target,
     id,
@@ -168,6 +226,7 @@ export async function mutate<T = unknown>(
   } else {
     acknowledge();
     if (response.status === 403) session = undefined;
+    if (response.status === 401) requireLogin();
   }
   throw new ApiError(
     String(value?.detail || "操作未得到确认"),

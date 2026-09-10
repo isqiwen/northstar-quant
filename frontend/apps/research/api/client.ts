@@ -28,7 +28,7 @@ P extends `/api/catalog` ? messages.Catalog :
 P extends `/api/tasks` ? messages.TaskList :
 P extends `/api/paper` ? messages.GetApiPaperResponse :
 P extends `/api/runs` ? messages.GetApiRunsResponse : never;
-export type CommandPath = `/api/factor-revisions/${string}/annotations` | `/api/strategy-versions/${string}/publish` | `/api/paper/${string}/advance` | `/api/tasks/${string}/control` | `/api/strategy-versions` | `/api/factor-revisions` | `/api/run-comparisons` | `/api/configurations` | `/api/factor-runs` | `/api/tasks` | `/api/paper`;
+export type CommandPath = `/api/factor-revisions/${string}/annotations` | `/api/strategy-versions/${string}/publish` | `/api/paper/${string}/advance` | `/api/tasks/${string}/control` | `/api/strategy-versions` | `/api/factor-revisions` | `/api/run-comparisons` | `/api/configurations` | `/api/factor-runs` | `/api/logout` | `/api/login` | `/api/tasks` | `/api/paper`;
 export type CommandResponse<P> = P extends `/api/factor-revisions/${string}/annotations` ? messages.RevisionCreated :
 P extends `/api/strategy-versions/${string}/publish` ? messages.StrategyCandidate :
 P extends `/api/paper/${string}/advance` ? messages.PaperAdvanced :
@@ -38,6 +38,8 @@ P extends `/api/factor-revisions` ? messages.RevisionCreated :
 P extends `/api/run-comparisons` ? messages.PostApiRunComparisonsResponse :
 P extends `/api/configurations` ? messages.SavedConfiguration :
 P extends `/api/factor-runs` ? messages.FactorRun :
+P extends `/api/logout` ? messages.BrowserSession :
+P extends `/api/login` ? messages.BrowserSession :
 P extends `/api/tasks` ? messages.ResearchTask :
 P extends `/api/paper` ? messages.PaperSession : never;
 export type CommandBody<P> = P extends `/api/factor-revisions/${string}/annotations` ? messages.AnnotationRequest :
@@ -49,6 +51,8 @@ P extends `/api/factor-revisions` ? messages.FactorRevisionRequest :
 P extends `/api/run-comparisons` ? messages.ComparisonRequest :
 P extends `/api/configurations` ? messages.ConfigurationRequest :
 P extends `/api/factor-runs` ? messages.FactorRunRequest :
+P extends `/api/logout` ? messages.Empty :
+P extends `/api/login` ? messages.LoginRequest :
 P extends `/api/tasks` ? messages.TaskRequest :
 P extends `/api/paper` ? messages.PaperRequest : never;
 export function query<P extends GetPath>(path: P | null): Query<GetResponse<P>> | null {return path === null ? null : {path};}

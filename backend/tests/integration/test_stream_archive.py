@@ -21,6 +21,7 @@ from northstar_quant.research.configurations import ConfigurationStore
 from northstar_quant.research.paper import PaperStore
 from northstar_quant.research.runs import RunStore
 from tests.apps.browser import ProtocolClient as TestClient
+from tests.apps.browser import login_response
 from tests.live.test_market import OPEN as LIVE_OPEN
 from tests.live.test_market import tick
 from tests.live.test_streams import Clock, logins, prepare, start
@@ -213,7 +214,7 @@ def test_browser_archive_requires_csrf_and_publishes_saved_prefix_without_connec
     monkeypatch.setenv("NORTHSTAR_DATA_DIR", str(tmp_path / "archive"))
     monkeypatch.setattr(stream_module, "load_credentials", lambda: pytest.fail("archive connected"))
     with TestClient(live_web_app(postgres_engine, library), base_url="http://127.0.0.1") as client:
-        page = client.get("/api/browser-session")
+        page = login_response(client)
         csrf = page.json()["csrf"]
         payload = {
             "through_sequence": 48,

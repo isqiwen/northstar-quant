@@ -82,6 +82,21 @@ def main() -> None:
             page.on("requestfailed", lambda req: network.append((req.url, req.failure)))
             page.on("pageerror", lambda error: errors.append(str(error)))
 
+            def visit(url):
+                page.goto(url)
+                if url == "about:blank":
+                    return
+                # A navigation may follow an API restart, which revokes its sessions.
+                page.wait_for_function(
+                    "document.querySelector('input[autocomplete=\"current-password\"]') || "
+                    "document.querySelector('.workspace')"
+                )
+                password = page.get_by_label("工作台密码", exact=True)
+                if password.is_visible():
+                    password.fill(app.workspace_password)
+                    page.get_by_role("button", name="登录", exact=True).click()
+                    expect(page.locator(".workspace")).to_be_visible()
+
             def fulfill(route, path, value):
                 descriptor = methods("live")[("GET", path)].output_type
                 route.fulfill(
@@ -127,8 +142,13 @@ def main() -> None:
                     }
                 )
                 with app.web("data-api") as data_url:
-                    page.goto(data_url + "/sync")
+                    visit(data_url + "/sync")
                     expect(page.get_by_role("heading", name="Tushare 自动同步")).to_be_visible()
+                    page.get_by_role("button", name="退出登录", exact=True).click()
+                    expect(page.get_by_role("heading", name="登录 Northstar")).to_be_visible()
+                    assert context.request.get(data_url + "/api/sync").status == 401
+                    screenshot("login")
+                    visit(data_url + "/sync")
                     page.get_by_label("Tushare token", exact=True).fill(
                         "synthetic-browser-test-token"
                     )
@@ -138,7 +158,7 @@ def main() -> None:
                     expect(page.get_by_label("Tushare token", exact=True)).to_have_value("")
                     page.get_by_role("button", name="开始同步全部数据", exact=True).click()
                     expect(page.get_by_text("已启用", exact=True)).to_be_visible()
-                    page.goto("about:blank")
+                    visit("about:blank")
                 # Both frontend and API have exited. Only the independent processor
                 # now owns completion; reopening the Web reads its durable outcome.
                 with app.data_worker(synthetic_tushare=True) as processor:
@@ -164,11 +184,11 @@ def main() -> None:
                         assert processor.poll() is None
                 market = seed_market(app)
                 with app.web("data-api") as data_url:
-                    page.goto(data_url)
+                    visit(data_url)
                     expect(page.get_by_role("heading", name="期货数据工作台")).to_be_visible()
                     expect(page.get_by_text("已发现合约", exact=True)).to_be_visible()
                     screenshot("overview")
-                    page.goto(
+                    visit(
                         data_url
                         + "/browse?dataset=1min&scope=RB2610.SHF&start=2026-09-01&end=2026-09-03"
                     )
@@ -185,7 +205,7 @@ def main() -> None:
                         page.get_by_text("行情图 · 当前第 201–400 条", exact=True)
                     ).to_be_visible()
                     screenshot("browse")
-                    page.goto(
+                    visit(
                         data_url
                         + "/quality?dataset=1min&scope=RB2610.SHF&start=2026-09-01&end=2026-09-04"
                     )
@@ -233,7 +253,7 @@ def main() -> None:
                         page.get_by_role("button", name="重处理已留存响应", exact=True)
                     ).to_be_enabled()
                     screenshot("reprocessed")
-                    page.goto(
+                    visit(
                         data_url
                         + "/versions?dataset=1min&scope=RB2610.SHF&start=2026-09-01&end=2026-09-03"
                     )
@@ -258,14 +278,14 @@ def main() -> None:
                     page.reload()
                     page.get_by_role("button", name="查询数据", exact=True).click()
                     expect(page.get_by_text("440 条记录", exact=True)).to_be_visible()
-                    page.goto(data_url + "/sync")
+                    visit(data_url + "/sync")
                     expect(
                         page.get_by_text(
                             "Synthetic acceptance: provider permission denied", exact=True
                         ).first
                     ).to_be_visible()
                     screenshot("sync")
-                    page.goto(data_url + f"/attempts/{imported['attempt_id']}")
+                    visit(data_url + f"/attempts/{imported['attempt_id']}")
                     expect(page.get_by_text("PUBLISHED", exact=True)).to_be_visible(timeout=30000)
                     page.get_by_role("link", name="查看原文来源", exact=True).click()
                     with page.expect_download() as downloaded:
@@ -273,14 +293,14 @@ def main() -> None:
                     destination = runtime / "download.csv"
                     downloaded.value.save_as(destination)
                     assert destination.read_bytes() == (args.study.parent / filename).read_bytes()
-                    page.goto(data_url + "/")
+                    visit(data_url + "/")
                     expect(
                         page.get_by_role("heading", name="期货数据工作台", exact=True)
                     ).to_be_visible()
                     expect(page.get_by_text("后台自动同步已启用", exact=False)).to_be_visible()
                     screenshot("data")
                 with app.api("data-api"), app.research_worker(), app.web("research-api") as url:
-                    page.goto(url + "/factors/trend.return")
+                    visit(url + "/factors/trend.return")
                     choose("固定数据快照", imported["snapshot_id"][:8])
                     page.get_by_label("收益窗口 · bars", exact=True).fill("2")
                     page.get_by_role("button", name="固定参数并计算", exact=True).click()
@@ -295,11 +315,11 @@ def main() -> None:
                         ("trend.momentum", "浏览器动量"),
                         ("mean_reversion.range", "浏览器区间反转"),
                     ):
-                        page.goto(url + "/configurations/new?strategy=" + strategy)
+                        visit(url + "/configurations/new?strategy=" + strategy)
                         page.get_by_label("配置名称", exact=True).fill(name)
                         page.get_by_role("button", name="保存不可变配置", exact=True).click()
                         page.wait_for_url(url + "/")
-                        page.goto(url + "/experiments/new")
+                        visit(url + "/experiments/new")
                         choose("固定数据快照", imported["snapshot_id"][:8])
                         # The home has two configuration forms; select the run form explicitly.
                         run_form = (
@@ -319,8 +339,8 @@ def main() -> None:
                         expect(
                             page.get_by_role("tab", name="策略与风险决定", exact=True)
                         ).to_be_visible()
-                    page.goto(url + "/")
-                    page.goto(url + "/experiments")
+                    visit(url + "/")
+                    visit(url + "/experiments")
                     for identity in runs:
                         choose("选择两个研究结果", identity[:12])
                     page.get_by_role("button", name="比较固定结果", exact=True).click()
@@ -329,7 +349,7 @@ def main() -> None:
                     ).to_be_visible()
                     expect(page.get_by_text("策略参数与因子绑定", exact=True)).to_be_visible()
                     screenshot("comparison")
-                    page.goto(url + "/candidates")
+                    visit(url + "/candidates")
                     version_form = (
                         page.locator(".ant-card")
                         .filter(has=page.get_by_text("登记固定策略版本", exact=True))
@@ -353,7 +373,7 @@ def main() -> None:
                         candidate["document"]["configuration"]["config"]["strategy"]["strategy_id"]
                         == "mean_reversion.range"
                     )
-                    page.goto(url + "/paper")
+                    visit(url + "/paper")
                     choose("固定数据快照", imported["snapshot_id"][:8])
                     choose("固定策略配置", "浏览器区间反转")
                     page.get_by_role("button", name="创建文件 Paper", exact=True).click()
@@ -361,18 +381,18 @@ def main() -> None:
                     paper_path = urlsplit(page.url).path
                     page.get_by_role("button", name="推进下一条观察", exact=True).click()
                     expect(page.locator(".facts").get_by_text("1", exact=True)).to_be_visible()
-                    page.goto(url + "/")
+                    visit(url + "/")
                     screenshot("research")
                 with app.api("data-api"), app.research_worker(), app.web("research-api") as url:
-                    page.goto(url + factor_path)
+                    visit(url + factor_path)
                     expect(page.get_by_text(annotation, exact=False)).to_be_visible()
-                    page.goto(url + version_path)
+                    visit(url + version_path)
                     expect(page.get_by_text("已发布：", exact=False)).to_be_visible()
-                    page.goto(url + paper_path)
+                    visit(url + paper_path)
                     expect(page.locator(".facts").get_by_text("1", exact=True)).to_be_visible()
                 # Accept in the actual browser with no worker, then stop both Web services.
                 with app.api("data-api"), app.web("research-api") as url:
-                    page.goto(url + "/experiments/new")
+                    visit(url + "/experiments/new")
                     choose("固定数据快照", imported["snapshot_id"][:8])
                     choose("固定策略配置", "浏览器动量")
                     page.get_by_role("button", name="提交回测", exact=True).click()
@@ -393,7 +413,7 @@ def main() -> None:
                         time.sleep(0.2)
                     assert completed_task["status"] == "SUCCEEDED", completed_task
                 with app.web("research-api") as url:
-                    page.goto(url + "/tasks/" + task_id)
+                    visit(url + "/tasks/" + task_id)
                     expect(
                         page.get_by_role("button", name="查看研究报告", exact=True)
                     ).to_be_visible()
@@ -441,7 +461,7 @@ def main() -> None:
                 with app.live() as owner:
                     original = app.command("status")
                     with app.web() as url:
-                        page.goto(url)
+                        visit(url)
                         expect(page.get_by_text("AVAILABLE", exact=True)).to_be_visible()
                         screenshot("live")
                         # Exercise selection using synthetic browser transport.
@@ -529,7 +549,7 @@ def main() -> None:
                             route.abort("failed")
 
                         page.route("**/api/streams/browser-synthetic/control", lost)
-                        page.goto(url + "/streams/browser-synthetic")
+                        visit(url + "/streams/browser-synthetic")
                         page.get_by_role("button", name="暂停影子计算", exact=True).click()
                         expect(page.get_by_text("操作结果未知", exact=True)).to_be_visible()
                         assert len(commands) == 1 and commands[0]["runtime"] == observed
@@ -553,11 +573,11 @@ def main() -> None:
                         page.unroute("**/api/live/status")
                     app.assert_live(owner, original)
                     with app.web() as url:
-                        page.goto(url)
+                        visit(url)
                         expect(page.get_by_text("AVAILABLE", exact=True)).to_be_visible()
                         assert app.command("status")["runtime_id"] == observed
                 with app.web() as url:
-                    page.goto(url)
+                    visit(url)
                     expect(page.get_by_text("Live 内核不可用", exact=True)).to_be_visible()
                 assert not errors, errors
                 print(

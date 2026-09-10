@@ -571,19 +571,6 @@
       "array": false,
       "evidence": true
     },
-    "northstar.live.BrowserSession": {
-      "fields": {
-        "csrf": {
-          "id": 1,
-          "presence": true,
-          "type": "string",
-          "required": true,
-          "nullable": false
-        }
-      },
-      "array": false,
-      "evidence": false
-    },
     "northstar.live.BudgetContext": {
       "fields": {
         "budgets": {
@@ -1991,6 +1978,61 @@
       "array": false,
       "evidence": false
     },
+    "northstar.web.auth.BrowserSession": {
+      "fields": {
+        "authenticated": {
+          "id": 1,
+          "presence": true,
+          "type": "bool",
+          "required": true,
+          "nullable": false
+        },
+        "csrf": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": true
+        },
+        "operator": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": true
+        },
+        "expires_at": {
+          "id": 4,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": true
+        },
+        "null_fields": {
+          "id": 2046,
+          "presence": false,
+          "type": "string",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.web.auth.LoginRequest": {
+      "fields": {
+        "password": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
     "northstar.accounting.ChargeRate": {
       "fields": {
         "by_money": {
@@ -2187,6 +2229,20 @@
   },
   "methods": [
     {
+      "method": "POST",
+      "path": "/api/login",
+      "input": "northstar.web.auth.LoginRequest",
+      "output": "northstar.web.auth.BrowserSession",
+      "runtime": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/logout",
+      "input": "northstar.web.Empty",
+      "output": "northstar.web.auth.BrowserSession",
+      "runtime": false
+    },
+    {
       "method": "GET",
       "path": "/api/live/instances",
       "input": "northstar.web.Empty",
@@ -2337,7 +2393,7 @@
       "method": "GET",
       "path": "/api/browser-session",
       "input": "northstar.web.Empty",
-      "output": "northstar.live.BrowserSession",
+      "output": "northstar.web.auth.BrowserSession",
       "runtime": false
     },
     {

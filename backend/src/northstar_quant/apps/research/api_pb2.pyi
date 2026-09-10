@@ -1,6 +1,7 @@
 from google.protobuf import struct_pb2 as _struct_pb2
 from northstar_quant.web import api_options_pb2 as _api_options_pb2
 from northstar_quant.web import common_pb2 as _common_pb2
+from northstar_quant.web import auth_pb2 as _web_auth_pb2
 from northstar_quant.accounting import protocol_pb2 as _accounting_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
@@ -29,12 +30,6 @@ class AnnotationRequest(_message.Message):
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     description: str
     def __init__(self, description: _Optional[str] = ...) -> None: ...
-
-class BrowserSession(_message.Message):
-    __slots__ = ("csrf",)
-    CSRF_FIELD_NUMBER: _ClassVar[int]
-    csrf: str
-    def __init__(self, csrf: _Optional[str] = ...) -> None: ...
 
 class Catalog(_message.Message):
     __slots__ = ("factors", "strategies")

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any, cast
 
 from fastapi import FastAPI, Request
@@ -51,13 +52,23 @@ def install(app: FastAPI, access: WorkspaceAccess) -> None:
         method = getattr(app.state, "protobuf_methods", {}).get(
             (request.method, getattr(route, "path", ""))
         )
-        if method is not None and response.headers.get("content-type", "").startswith(
-            "application/json"
-        ):
+        if getattr(request.state, "operator", None) and request.method not in {"GET", "HEAD"}:
+            logging.getLogger(__name__).info(
+                "workspace_operation operator=%s method=%s route=%s status=%s",
+                request.state.operator,
+                request.method,
+                getattr(route, "path", "unmatched"),
+                response.status_code,
+            )
+        if (method is not None or response.status_code >= 400) and response.headers.get(
+            "content-type", ""
+        ).startswith("application/json"):
             content = b"".join([chunk async for chunk in cast(Any, response).body_iterator])
             value = json.loads(content)
             descriptor = (
-                method.output_type if response.status_code < 400 else common_pb2.Error.DESCRIPTOR
+                method.output_type
+                if method is not None and response.status_code < 400
+                else common_pb2.Error.DESCRIPTOR
             )
             encoded = pack(descriptor, value).SerializeToString()
             headers = {

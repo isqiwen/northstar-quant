@@ -15,8 +15,15 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def configuration_text(app, value):
+    identity = (
+        ""
+        if app == "database"
+        else "NORTHSTAR_WORKSPACE_PASSWORD_HASH='"
+        + os.environ["NORTHSTAR_WORKSPACE_PASSWORD_HASH"]
+        + "'\n"
+    )
     if app == "research":
-        return f"NORTHSTAR_DATA_HUB_URL='http://{value}:19090'\n"
+        return f"NORTHSTAR_DATA_HUB_URL='http://{value}:19090'\n" + identity
     keys = {
         "database": ["NORTHSTAR_DATABASE_ADMIN_PASSWORD", "NORTHSTAR_DATA_HUB_DATABASE_PASSWORD"],
         "data-hub": ["NORTHSTAR_DATA_HUB_DATABASE_PASSWORD"],
@@ -40,7 +47,7 @@ def configuration_text(app, value):
                 "AUTH_CODE",
             )
         )
-    return result
+    return result + identity
 
 
 @pytest.fixture
@@ -66,6 +73,10 @@ def deployment(tmp_path: Path) -> tuple[Path, Path, dict]:
     package = repo / "backend/src/northstar_quant"
     package.mkdir(parents=True)
     shutil.copyfile(ROOT / "backend/src/northstar_quant/__init__.py", package / "__init__.py")
+    (package / "web").mkdir()
+    shutil.copyfile(
+        ROOT / "backend/src/northstar_quant/web/passwords.py", package / "web/passwords.py"
+    )
     (package / "live").mkdir()
     shutil.copyfile(
         ROOT / "backend/src/northstar_quant/live/instances.py", package / "live/instances.py"
@@ -679,3 +690,28 @@ def test_app_deploy_checks_nfs_server_without_reprovisioning_it(deployment, serv
     ]
     if server_failure:
         assert not any(call[0] == "docker" for call in calls)
+
+
+def test_workspace_password_bootstrap_preserves_identity_and_requires_explicit_rotation():
+    import runpy
+
+    from northstar_quant.web.passwords import hash_password, verify_password
+
+    module = runpy.run_path(str(ROOT / "scripts/operations/application_configuration.py"))
+    prepare = module["prepare_workspace_password"]
+    parse = module["validate"]
+    key = "NORTHSTAR_WORKSPACE_PASSWORD_HASH"
+    original = b"NORTHSTAR_DATA_HUB_URL=http://core.local:8080\n"
+    installed, password = prepare("research", original, None)
+    assert password and password.encode() not in installed
+    encoded = parse("research", installed)[key]
+    assert verify_password(password, encoded)
+    again, next_password = prepare("research", original, installed)
+    assert again == installed and next_password is None
+    cleaned, disclosed = prepare("research", original, installed + b"OBSOLETE=removed\n")
+    assert cleaned == installed and disclosed is None
+    replacement = hash_password("new-private-password")
+    explicit = original + f"{key}='{replacement}'\n".encode()
+    changed, disclosed = prepare("research", explicit, installed)
+    assert changed == explicit and disclosed is None
+    assert parse("research", changed)[key] != encoded

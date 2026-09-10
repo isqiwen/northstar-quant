@@ -92,9 +92,6 @@ export type BrokerStatus = {
   sdk: Record<string, JsonValue>;
   [key: string]: unknown;
 };
-export type BrowserSession = {
-  csrf: string;
-};
 export type BudgetContext = {
   budgets: (Record<string, JsonValue>)[];
   live_runtime?: Record<string, JsonValue> | null;
@@ -325,6 +322,15 @@ export type Error = {
   runtime_id?: string;
   url?: string;
   rejection_id?: string;
+};
+export type BrowserSession = {
+  authenticated: boolean;
+  csrf: string | null;
+  operator: string | null;
+  expires_at: string | null;
+};
+export type LoginRequest = {
+  password: string;
 };
 export type ChargeRate = {
   by_money: string;

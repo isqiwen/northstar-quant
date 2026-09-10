@@ -15,6 +15,7 @@ from northstar_quant.data_management.library import DataLibrary
 from northstar_quant.live import LiveAuth, LiveClient
 from northstar_quant.live.instances import Instance
 from tests.apps.browser import ProtocolClient as TestClient
+from tests.apps.browser import login_response
 
 
 def test_readonly_diagnostics_report_capacity_and_missing_storage(
@@ -42,7 +43,7 @@ def test_readonly_diagnostics_report_capacity_and_missing_storage(
             live_web_app(instances=Instances({"sim": borrowed}, [Instance("sim", "simnow_dev")])),
             base_url="http://localhost",
         ) as console:
-            page = console.get("/api/browser-session")
+            page = login_response(console)
             assert page.status_code == 200
             observation = console.get("/api/live/diagnostics").json()
             assert observation["source_filesystem"]["status"] == "UNAVAILABLE"

@@ -1,6 +1,7 @@
 from google.protobuf import struct_pb2 as _struct_pb2
 from northstar_quant.web import api_options_pb2 as _api_options_pb2
 from northstar_quant.web import common_pb2 as _common_pb2
+from northstar_quant.web import auth_pb2 as _web_auth_pb2
 from northstar_quant.accounting import protocol_pb2 as _accounting_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
@@ -248,12 +249,6 @@ class BrokerStatus(_message.Message):
     sdk: _struct_pb2.Struct
     evidence_fields: _containers.MessageMap[str, _struct_pb2.Value]
     def __init__(self, connection: _Optional[str] = ..., credentials: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., execution: _Optional[_Mapping[str, bool]] = ..., profiles: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., sdk: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...
-
-class BrowserSession(_message.Message):
-    __slots__ = ("csrf",)
-    CSRF_FIELD_NUMBER: _ClassVar[int]
-    csrf: str
-    def __init__(self, csrf: _Optional[str] = ...) -> None: ...
 
 class BudgetContext(_message.Message):
     __slots__ = ("budgets", "live_runtime", "order_checks", "null_fields")

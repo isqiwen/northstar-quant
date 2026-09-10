@@ -104,6 +104,7 @@ services:
     <<: *runtime
     restart: unless-stopped
     environment:
+      NORTHSTAR_WORKSPACE_PASSWORD_HASH: ${NORTHSTAR_WORKSPACE_PASSWORD_HASH:-}
       NORTHSTAR_LOG_DIR: /var/log/northstar
       NORTHSTAR_LIVE_URL: http://live:18081
       NORTHSTAR_LIVE_AUTH: /var/lib/northstar/auth/live-web.toml

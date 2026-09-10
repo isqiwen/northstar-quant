@@ -22,6 +22,7 @@ from northstar_quant.live import opening_budgets as budget_module
 from northstar_quant.live.opening_budgets import BrokerOpeningBudgets
 from northstar_quant.live.streams import LiveStreams
 from tests.apps.browser import ProtocolClient as TestClient
+from tests.apps.browser import login_response
 from tests.broker.test_records import _capture
 from tests.live.test_market import OPEN, tick
 from tests.live.test_streams import Clock, logins, prepare, start
@@ -302,7 +303,7 @@ def test_browser_budget_uses_saved_inputs_rejects_account_injection_and_shows_un
     del clean_database
     library, stream, order, sequence = budget_case(postgres_engine, tmp_path, monkeypatch)
     with TestClient(live_web_app(postgres_engine, library), base_url="http://127.0.0.1") as client:
-        page = client.get("/api/browser-session")
+        page = login_response(client)
         assert page.status_code == 200
         csrf = page.json()["csrf"]
         payload = {

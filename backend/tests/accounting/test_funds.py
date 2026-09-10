@@ -23,6 +23,7 @@ from northstar_quant.data_management.library import DataLibrary
 from tests.accounting.test_baselines import saved_query
 from tests.accounting.test_ledger import ledger_query, position_baseline, trade
 from tests.apps.browser import ProtocolClient as TestClient
+from tests.apps.browser import login_response
 
 
 def money_query(
@@ -240,9 +241,9 @@ def test_browser_money_registration_requires_session_csrf_and_saved_inputs_only(
     )
     with TestClient(application, base_url="http://127.0.0.1") as client:
         path = f"/api/broker/funds-entries/{command}"
-        assert client.get(path).status_code == 403
-        assert client.post("/api/broker/funds-entries", json=payload).status_code == 403
-        page = client.get("/api/browser-session")
+        assert client.get(path).status_code == 401
+        assert client.post("/api/broker/funds-entries", json=payload).status_code == 401
+        page = login_response(client)
         token = page.json()["csrf"]
         assert client.post("/api/broker/funds-entries", json=payload).status_code == 403
         client.headers["X-Northstar-CSRF"] = token
@@ -259,5 +260,5 @@ def test_browser_money_registration_requires_session_csrf_and_saved_inputs_only(
         result = posted.json()
         assert client.get(path).json() == result
         assert client.post("/api/broker/funds-entries", json=payload).json() == result
-        page = client.get("/api/browser-session")
+        page = login_response(client)
         assert BrokerFunds(postgres_engine).verify_all() == 1

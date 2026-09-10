@@ -24,6 +24,7 @@ from northstar_quant.data_management.library import DataLibrary
 from tests.accounting.test_baselines import saved_query
 from tests.accounting.test_ledger import ledger_query, position, position_baseline, trade
 from tests.apps.browser import ProtocolClient as TestClient
+from tests.apps.browser import login_response
 from tests.execution.test_orders import order
 
 
@@ -41,12 +42,12 @@ def test_saved_stream_catchup_rejects_missing_session_before_database_or_broker_
         with TestClient(live_web_app(engine, library), base_url="http://127.0.0.1") as client:
             path = f"/api/streams/{uuid4()}/account-catchup"
             payload = {"baseline_id": str(uuid4()), "through_sequence": 3}
-            assert client.post(path, json=payload).status_code == 403
+            assert client.post(path, json=payload).status_code == 401
             assert (
                 client.post(
                     path, json=payload, headers={"X-Northstar-CSRF": "unbound-token"}
                 ).status_code
-                == 403
+                == 401
             )
     finally:
         engine.dispose()
@@ -159,9 +160,9 @@ def test_broker_browser_requires_explicit_command_and_keeps_failure_evidence(
     )
     payload = {"instrument": "rb2610", "request_id": str(uuid4())}
     with TestClient(application, base_url="http://127.0.0.1") as client:
-        assert client.get("/api/broker/status").status_code == 403
-        assert client.post("/api/broker/queries", json=payload).status_code == 403
-        page = client.get("/api/browser-session")
+        assert client.get("/api/broker/status").status_code == 401
+        assert client.post("/api/broker/queries", json=payload).status_code == 401
+        page = login_response(client)
         assert page.status_code == 200
         assert not client.get("/api/broker/status").json()["credentials"]["configured"]
         assert client.post("/api/broker/queries", json=payload).status_code == 403
@@ -218,11 +219,11 @@ def test_browser_baseline_commands_are_private_local_and_preserve_original_queri
     library = DataLibrary(postgres_engine, SourceFiles(tmp_path / "archive"))
     context_url = f"/api/broker/queries/{source}/baseline-context"
     with TestClient(live_web_app(postgres_engine, library), base_url="http://127.0.0.1") as client:
-        assert client.get(context_url).status_code == 403
-        assert client.get(f"/api/broker/baseline-checks/{check_id}").status_code == 403
-        assert client.post("/api/broker/baselines", json=baseline_payload).status_code == 403
-        assert client.post("/api/broker/baseline-checks", json={}).status_code == 403
-        page = client.get("/api/browser-session")
+        assert client.get(context_url).status_code == 401
+        assert client.get(f"/api/broker/baseline-checks/{check_id}").status_code == 401
+        assert client.post("/api/broker/baselines", json=baseline_payload).status_code == 401
+        assert client.post("/api/broker/baseline-checks", json={}).status_code == 401
+        page = login_response(client)
         assert page.status_code == 200
         context = client.get(context_url).json()
         assert context == {
@@ -290,8 +291,8 @@ def test_browser_baseline_commands_are_private_local_and_preserve_original_queri
     with TestClient(
         live_web_app(postgres_engine, library), base_url="http://127.0.0.1"
     ) as restarted:
-        assert restarted.get(context_url).status_code == 403
-        assert restarted.get("/api/browser-session").status_code == 200
+        assert restarted.get(context_url).status_code == 401
+        assert login_response(restarted).status_code == 200
         context = restarted.get(context_url).json()
         assert context["baseline"] == baseline and context["checks"] == [check]
         assert restarted.get(f"/api/broker/queries/{source}").json() == original
@@ -405,10 +406,10 @@ def test_browser_position_ledger_requires_local_commands_and_independent_evidenc
     library = DataLibrary(postgres_engine, SourceFiles(tmp_path / "archive"))
     with TestClient(live_web_app(postgres_engine, library), base_url="http://127.0.0.1") as client:
         for url in (context_url, entry_url, check_url):
-            assert client.get(url).status_code == 403
-        assert client.post("/api/broker/position-entries", json=entry_payload).status_code == 403
-        assert client.post("/api/broker/position-checks", json=check_payload).status_code == 403
-        page = client.get("/api/browser-session")
+            assert client.get(url).status_code == 401
+        assert client.post("/api/broker/position-entries", json=entry_payload).status_code == 401
+        assert client.post("/api/broker/position-checks", json=check_payload).status_code == 401
+        page = login_response(client)
         assert page.status_code == 200
         client.get(f"/broker/{origin}")
         assert client.get(context_url).json()["current"] is None
@@ -470,8 +471,8 @@ def test_browser_position_ledger_requires_local_commands_and_independent_evidenc
     with TestClient(
         live_web_app(postgres_engine, library), base_url="http://127.0.0.1"
     ) as restarted:
-        assert restarted.get(context_url).status_code == 403
-        assert restarted.get("/api/browser-session").status_code == 200
+        assert restarted.get(context_url).status_code == 401
+        assert login_response(restarted).status_code == 200
         context = restarted.get(context_url).json()
         assert context["current"] == entry and context["source_entry"] == entry
         assert context["checks"] == [check]
@@ -638,9 +639,9 @@ def test_browser_order_check_uses_fixed_inputs_without_credentials_or_manual_fac
     context_url = f"/api/broker/queries/{later}/ledger-context"
     library = DataLibrary(postgres_engine, SourceFiles(tmp_path / "archive"))
     with TestClient(live_web_app(postgres_engine, library), base_url="http://127.0.0.1") as client:
-        assert client.get(check_url).status_code == 403
-        assert client.post("/api/broker/order-checks", json=payload).status_code == 403
-        page = client.get("/api/browser-session")
+        assert client.get(check_url).status_code == 401
+        assert client.post("/api/broker/order-checks", json=payload).status_code == 401
+        page = login_response(client)
         assert page.status_code == 200
         assert client.get(context_url).json()["current_order_check"] is None
         assert client.post("/api/broker/order-checks", json=payload).status_code == 403
@@ -689,8 +690,8 @@ def test_browser_order_check_uses_fixed_inputs_without_credentials_or_manual_fac
     with TestClient(
         live_web_app(postgres_engine, library), base_url="http://127.0.0.1"
     ) as restarted:
-        assert restarted.get(check_url).status_code == 403
-        assert restarted.get("/api/browser-session").status_code == 200
+        assert restarted.get(check_url).status_code == 401
+        assert login_response(restarted).status_code == 200
         assert restarted.get(check_url).json() == check
         context = restarted.get(context_url).json()
         assert context["current_order_check"] == check and context["order_checks"] == [check]

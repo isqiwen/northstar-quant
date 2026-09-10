@@ -13,6 +13,7 @@ Live 在自己的主机上运行，包含独立的 Next.js 前端、Python 管�
 
 | 参数 | 用途 |
 |---|---|
+| `NORTHSTAR_WORKSPACE_PASSWORD_HASH` | 可选工作台密码摘要；首次部署为空时生成随机密码，后续保留；用 `northstar maintenance password-hash` 生成替换值并保留单引号 |
 | `NORTHSTAR_LIVE_INSTANCES` | 实例列表（`id:broker_profile`），例如 `sim:simnow_trading,dev:simnow_dev`；每个柜台 profile 仅一套账户实例；`ctp_production`（LIVE）尚未开放 |
 | `NORTHSTAR_SIMNOW_USER_ID` | SimNow 账号 |
 | `NORTHSTAR_SIMNOW_APP_ID` | SimNow 应用标识 |

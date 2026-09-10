@@ -66,6 +66,7 @@ services:
         max-size: 10m
         max-file: '3'
     environment:
+      NORTHSTAR_WORKSPACE_PASSWORD_HASH: ${NORTHSTAR_WORKSPACE_PASSWORD_HASH:-}
       NORTHSTAR_DATA_SECRET_DIR: /var/lib/northstar/credentials/private
       NORTHSTAR_LOG_DIR: /var/log/northstar
       NORTHSTAR_DATABASE_URL: postgresql+psycopg://northstar_data_hub_app:${NORTHSTAR_DATA_HUB_DATABASE_PASSWORD:?Set

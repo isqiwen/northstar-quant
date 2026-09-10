@@ -25,6 +25,7 @@ def main() -> None:
         sys.modules[name] = namespace
     options = importlib.import_module("northstar_quant.web.api_options_pb2")
     common = importlib.import_module("northstar_quant.web.common_pb2")
+    auth = importlib.import_module("northstar_quant.web.auth_pb2")
     accounting = importlib.import_module("northstar_quant.accounting.protocol_pb2")
     from google.protobuf.descriptor import FieldDescriptor as F
 
@@ -33,6 +34,7 @@ def main() -> None:
         descriptors = {
             **module.DESCRIPTOR.message_types_by_name,
             **common.DESCRIPTOR.message_types_by_name,
+            **auth.DESCRIPTOR.message_types_by_name,
             **accounting.DESCRIPTOR.message_types_by_name,
         }
         definitions = {}

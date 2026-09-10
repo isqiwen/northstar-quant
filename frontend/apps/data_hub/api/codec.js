@@ -1479,273 +1479,6 @@ export const northstar = $root.northstar = (() => {
             return AdmissionRejection;
         })();
 
-        data_hub.BrowserSession = (function() {
-
-            /**
-             * Properties of a BrowserSession.
-             * @typedef {Object} northstar.data_hub.BrowserSession.$Properties
-             * @property {string|null} [csrf] BrowserSession csrf
-             * @property {"csrf"} [_csrf] BrowserSession _csrf
-             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
-             */
-
-            /**
-             * Properties of a BrowserSession.
-             * @memberof northstar.data_hub
-             * @interface IBrowserSession
-             * @augments northstar.data_hub.BrowserSession.$Properties
-             * @deprecated Use northstar.data_hub.BrowserSession.$Properties instead.
-             */
-
-            /**
-             * Narrowed shape of a BrowserSession.
-             * @typedef {{
-             *   csrf?: string|null;
-             *   $unknowns?: Array.<Uint8Array>;
-             * } & (
-             *   ({ _csrf?: undefined; csrf?: null }|{ _csrf?: "csrf"; csrf: string })
-             * )} northstar.data_hub.BrowserSession.$Shape
-             */
-
-            /**
-             * Constructs a new BrowserSession.
-             * @memberof northstar.data_hub
-             * @classdesc Represents a BrowserSession.
-             * @constructor
-             * @param {northstar.data_hub.BrowserSession.$Properties=} [properties] Properties to set
-             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
-             */
-            const BrowserSession = function (properties) {
-                if (properties)
-                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
-                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
-                            this[keys[i]] = properties[keys[i]];
-            };
-
-            /**
-             * BrowserSession csrf.
-             * @member {string|null|undefined} csrf
-             * @memberof northstar.data_hub.BrowserSession
-             * @instance
-             */
-            BrowserSession.prototype.csrf = null;
-
-            // OneOf field names bound to virtual getters and setters
-            let $oneOfFields;
-
-            /**
-             * BrowserSession _csrf.
-             * @member {"csrf"|undefined} _csrf
-             * @memberof northstar.data_hub.BrowserSession
-             * @instance
-             */
-            $Object.defineProperty(BrowserSession.prototype, "_csrf", {
-                get: $util.oneOfGetter($oneOfFields = ["csrf"]),
-                set: $util.oneOfSetter($oneOfFields)
-            });
-
-            /**
-             * Creates a new BrowserSession instance using the specified properties.
-             * @function create
-             * @memberof northstar.data_hub.BrowserSession
-             * @static
-             * @param {northstar.data_hub.BrowserSession.$Properties=} [properties] Properties to set
-             * @returns {northstar.data_hub.BrowserSession} BrowserSession instance
-             * @type {{
-             *   (properties: northstar.data_hub.BrowserSession.$Shape): northstar.data_hub.BrowserSession & northstar.data_hub.BrowserSession.$Shape;
-             *   (properties?: northstar.data_hub.BrowserSession.$Properties): northstar.data_hub.BrowserSession;
-             * }}
-             */
-            BrowserSession.create = function(properties) {
-                return new BrowserSession(properties);
-            };
-
-            /**
-             * Encodes the specified BrowserSession message. Does not implicitly {@link northstar.data_hub.BrowserSession.verify|verify} messages.
-             * @function encode
-             * @memberof northstar.data_hub.BrowserSession
-             * @static
-             * @param {northstar.data_hub.BrowserSession.$Properties} message BrowserSession message or plain object to encode
-             * @param {$protobuf.Writer} [writer] Writer to encode to
-             * @returns {$protobuf.Writer} Writer
-             */
-            BrowserSession.encode = function (message, writer, _depth) {
-                if (!writer)
-                    writer = $Writer.create();
-                if (_depth === $undefined)
-                    _depth = 0;
-                if (_depth > $util.recursionLimit)
-                    throw $Error("max depth exceeded");
-                if (message.csrf != null && $Object.hasOwnProperty.call(message, "csrf"))
-                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.csrf);
-                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
-                    for (let i = 0; i < message.$unknowns.length; ++i)
-                        writer.raw(message.$unknowns[i]);
-                return writer;
-            };
-
-            /**
-             * Decodes a BrowserSession message from the specified reader or buffer.
-             * @function decode
-             * @memberof northstar.data_hub.BrowserSession
-             * @static
-             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @param {number} [length] Message length if known beforehand
-             * @returns {northstar.data_hub.BrowserSession & northstar.data_hub.BrowserSession.$Shape} BrowserSession
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            BrowserSession.decode = function (reader, length, _end, _depth, _target) {
-                if (!(reader instanceof $Reader))
-                    reader = $Reader.create(reader);
-                if (_depth === $undefined)
-                    _depth = 0;
-                if (_depth > $Reader.recursionLimit)
-                    throw $Error("max depth exceeded");
-                let end, message;
-                if (length === $undefined)
-                    end = reader.len;
-                else {
-                    end = reader.pos + length;
-                    if (end > reader.len)
-                        throw $RangeError("index out of range");
-                    length = reader.len;
-                    reader.len = end;
-                }
-                message = _target || new $root.northstar.data_hub.BrowserSession();
-                while (reader.pos < end) {
-                    let start = reader.pos;
-                    let tag = reader.tag();
-                    if (tag === _end) {
-                        _end = $undefined;
-                        break;
-                    }
-                    let wireType = tag & 7;
-                    switch (tag >>>= 3) {
-                    case 1: {
-                            if (wireType !== 2)
-                                break;
-                            message.csrf = reader.stringVerify();
-                            message._csrf = "csrf";
-                            continue;
-                        }
-                    }
-                    reader.skipType(wireType, _depth, tag);
-                    if (!reader.discardUnknown) {
-                        $util.makeProp(message, "$unknowns", false);
-                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
-                    }
-                }
-                if (length !== $undefined) {
-                    if (reader.pos !== end)
-                        throw $RangeError("index out of range");
-                    reader.len = length;
-                }
-                if (_end !== $undefined)
-                    throw $Error("missing end group");
-                return message;
-            };
-
-            /**
-             * Verifies a BrowserSession message.
-             * @function verify
-             * @memberof northstar.data_hub.BrowserSession
-             * @static
-             * @param {Object.<string,*>} message Plain object to verify
-             * @returns {string|null} `null` if valid, otherwise the reason why it is not
-             */
-            BrowserSession.verify = function (message, _depth) {
-                if (typeof message !== "object" || message === null)
-                    return "object expected";
-                if (_depth === $undefined)
-                    _depth = 0;
-                if (_depth > $util.recursionLimit)
-                    return "max depth exceeded";
-                let properties = {};
-                if (message.csrf != null && $Object.hasOwnProperty.call(message, "csrf")) {
-                    properties._csrf = 1;
-                    if (!$util.isString(message.csrf))
-                        return "csrf: string expected";
-                }
-                return null;
-            };
-
-            /**
-             * Creates a BrowserSession message from a plain object. Also converts values to their respective internal types.
-             * @function fromObject
-             * @memberof northstar.data_hub.BrowserSession
-             * @static
-             * @param {Object.<string,*>} object Plain object
-             * @returns {northstar.data_hub.BrowserSession} BrowserSession
-             */
-            BrowserSession.fromObject = function (object, _depth) {
-                if (object instanceof $root.northstar.data_hub.BrowserSession)
-                    return object;
-                if (!$util.isObject(object))
-                    throw $TypeError(".northstar.data_hub.BrowserSession: object expected");
-                if (_depth === $undefined)
-                    _depth = 0;
-                if (_depth > $util.recursionLimit)
-                    throw $Error("max depth exceeded");
-                let message = new $root.northstar.data_hub.BrowserSession();
-                if (object.csrf != null)
-                    message.csrf = $String(object.csrf);
-                return message;
-            };
-
-            /**
-             * Creates a plain object from a BrowserSession message. Also converts values to other types if specified.
-             * @function toObject
-             * @memberof northstar.data_hub.BrowserSession
-             * @static
-             * @param {northstar.data_hub.BrowserSession} message BrowserSession
-             * @param {$protobuf.IConversionOptions} [options] Conversion options
-             * @returns {Object.<string,*>} Plain object
-             */
-            BrowserSession.toObject = function (message, options, _depth) {
-                if (!options)
-                    options = {};
-                if (_depth === $undefined)
-                    _depth = 0;
-                if (_depth > $util.recursionLimit)
-                    throw $Error("max depth exceeded");
-                let object = {};
-                if (message.csrf != null && $Object.hasOwnProperty.call(message, "csrf")) {
-                    object.csrf = message.csrf;
-                    if (options.oneofs)
-                        object._csrf = "csrf";
-                }
-                return object;
-            };
-
-            /**
-             * Converts this BrowserSession to JSON.
-             * @function toJSON
-             * @memberof northstar.data_hub.BrowserSession
-             * @instance
-             * @returns {Object.<string,*>} JSON object
-             */
-            BrowserSession.prototype.toJSON = function() {
-                return BrowserSession.toObject(this, $protobuf.util.toJSONOptions);
-            };
-
-            /**
-             * Gets the type url for BrowserSession
-             * @function getTypeUrl
-             * @memberof northstar.data_hub.BrowserSession
-             * @static
-             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
-             * @returns {string} The type url
-             */
-            BrowserSession.getTypeUrl = function(prefix) {
-                if (prefix === $undefined)
-                    prefix = "type.googleapis.com";
-                return prefix + "/northstar.data_hub.BrowserSession";
-            };
-
-            return BrowserSession;
-        })();
-
         data_hub.DatasetDetails = (function() {
 
             /**
@@ -16865,6 +16598,730 @@ export const northstar = $root.northstar = (() => {
             };
 
             return Error;
+        })();
+
+        web.auth = (function() {
+
+            /**
+             * Namespace auth.
+             * @memberof northstar.web
+             * @namespace
+             */
+            const auth = {};
+
+            auth.BrowserSession = (function() {
+
+                /**
+                 * Properties of a BrowserSession.
+                 * @typedef {Object} northstar.web.auth.BrowserSession.$Properties
+                 * @property {boolean|null} [authenticated] BrowserSession authenticated
+                 * @property {string|null} [csrf] BrowserSession csrf
+                 * @property {string|null} [operator] BrowserSession operator
+                 * @property {string|null} [expires_at] BrowserSession expires_at
+                 * @property {Array.<string>|null} [null_fields] BrowserSession null_fields
+                 * @property {"authenticated"} [_authenticated] BrowserSession _authenticated
+                 * @property {"csrf"} [_csrf] BrowserSession _csrf
+                 * @property {"operator"} [_operator] BrowserSession _operator
+                 * @property {"expires_at"} [_expires_at] BrowserSession _expires_at
+                 * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+                 */
+
+                /**
+                 * Properties of a BrowserSession.
+                 * @memberof northstar.web.auth
+                 * @interface IBrowserSession
+                 * @augments northstar.web.auth.BrowserSession.$Properties
+                 * @deprecated Use northstar.web.auth.BrowserSession.$Properties instead.
+                 */
+
+                /**
+                 * Narrowed shape of a BrowserSession.
+                 * @typedef {{
+                 *   authenticated?: boolean|null;
+                 *   csrf?: string|null;
+                 *   operator?: string|null;
+                 *   expires_at?: string|null;
+                 *   null_fields?: Array.<string>|null;
+                 *   $unknowns?: Array.<Uint8Array>;
+                 * } & (
+                 *   ({ _authenticated?: undefined; authenticated?: null }|{ _authenticated?: "authenticated"; authenticated: boolean })
+                 * ) & (
+                 *   ({ _csrf?: undefined; csrf?: null }|{ _csrf?: "csrf"; csrf: string })
+                 * ) & (
+                 *   ({ _operator?: undefined; operator?: null }|{ _operator?: "operator"; operator: string })
+                 * ) & (
+                 *   ({ _expires_at?: undefined; expires_at?: null }|{ _expires_at?: "expires_at"; expires_at: string })
+                 * )} northstar.web.auth.BrowserSession.$Shape
+                 */
+
+                /**
+                 * Constructs a new BrowserSession.
+                 * @memberof northstar.web.auth
+                 * @classdesc Represents a BrowserSession.
+                 * @constructor
+                 * @param {northstar.web.auth.BrowserSession.$Properties=} [properties] Properties to set
+                 * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+                 */
+                const BrowserSession = function (properties) {
+                    this.null_fields = [];
+                    if (properties)
+                        for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                            if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                                this[keys[i]] = properties[keys[i]];
+                };
+
+                /**
+                 * BrowserSession authenticated.
+                 * @member {boolean|null|undefined} authenticated
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @instance
+                 */
+                BrowserSession.prototype.authenticated = null;
+
+                /**
+                 * BrowserSession csrf.
+                 * @member {string|null|undefined} csrf
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @instance
+                 */
+                BrowserSession.prototype.csrf = null;
+
+                /**
+                 * BrowserSession operator.
+                 * @member {string|null|undefined} operator
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @instance
+                 */
+                BrowserSession.prototype.operator = null;
+
+                /**
+                 * BrowserSession expires_at.
+                 * @member {string|null|undefined} expires_at
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @instance
+                 */
+                BrowserSession.prototype.expires_at = null;
+
+                /**
+                 * BrowserSession null_fields.
+                 * @member {Array.<string>} null_fields
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @instance
+                 */
+                BrowserSession.prototype.null_fields = $util.emptyArray;
+
+                // OneOf field names bound to virtual getters and setters
+                let $oneOfFields;
+
+                /**
+                 * BrowserSession _authenticated.
+                 * @member {"authenticated"|undefined} _authenticated
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @instance
+                 */
+                $Object.defineProperty(BrowserSession.prototype, "_authenticated", {
+                    get: $util.oneOfGetter($oneOfFields = ["authenticated"]),
+                    set: $util.oneOfSetter($oneOfFields)
+                });
+
+                /**
+                 * BrowserSession _csrf.
+                 * @member {"csrf"|undefined} _csrf
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @instance
+                 */
+                $Object.defineProperty(BrowserSession.prototype, "_csrf", {
+                    get: $util.oneOfGetter($oneOfFields = ["csrf"]),
+                    set: $util.oneOfSetter($oneOfFields)
+                });
+
+                /**
+                 * BrowserSession _operator.
+                 * @member {"operator"|undefined} _operator
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @instance
+                 */
+                $Object.defineProperty(BrowserSession.prototype, "_operator", {
+                    get: $util.oneOfGetter($oneOfFields = ["operator"]),
+                    set: $util.oneOfSetter($oneOfFields)
+                });
+
+                /**
+                 * BrowserSession _expires_at.
+                 * @member {"expires_at"|undefined} _expires_at
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @instance
+                 */
+                $Object.defineProperty(BrowserSession.prototype, "_expires_at", {
+                    get: $util.oneOfGetter($oneOfFields = ["expires_at"]),
+                    set: $util.oneOfSetter($oneOfFields)
+                });
+
+                /**
+                 * Creates a new BrowserSession instance using the specified properties.
+                 * @function create
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @static
+                 * @param {northstar.web.auth.BrowserSession.$Properties=} [properties] Properties to set
+                 * @returns {northstar.web.auth.BrowserSession} BrowserSession instance
+                 * @type {{
+                 *   (properties: northstar.web.auth.BrowserSession.$Shape): northstar.web.auth.BrowserSession & northstar.web.auth.BrowserSession.$Shape;
+                 *   (properties?: northstar.web.auth.BrowserSession.$Properties): northstar.web.auth.BrowserSession;
+                 * }}
+                 */
+                BrowserSession.create = function(properties) {
+                    return new BrowserSession(properties);
+                };
+
+                /**
+                 * Encodes the specified BrowserSession message. Does not implicitly {@link northstar.web.auth.BrowserSession.verify|verify} messages.
+                 * @function encode
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @static
+                 * @param {northstar.web.auth.BrowserSession.$Properties} message BrowserSession message or plain object to encode
+                 * @param {$protobuf.Writer} [writer] Writer to encode to
+                 * @returns {$protobuf.Writer} Writer
+                 */
+                BrowserSession.encode = function (message, writer, _depth) {
+                    if (!writer)
+                        writer = $Writer.create();
+                    if (_depth === $undefined)
+                        _depth = 0;
+                    if (_depth > $util.recursionLimit)
+                        throw $Error("max depth exceeded");
+                    if (message.authenticated != null && $Object.hasOwnProperty.call(message, "authenticated"))
+                        writer.uint32(/* id 1, wireType 0 =*/8).bool(message.authenticated);
+                    if (message.csrf != null && $Object.hasOwnProperty.call(message, "csrf"))
+                        writer.uint32(/* id 2, wireType 2 =*/18).string(message.csrf);
+                    if (message.operator != null && $Object.hasOwnProperty.call(message, "operator"))
+                        writer.uint32(/* id 3, wireType 2 =*/26).string(message.operator);
+                    if (message.expires_at != null && $Object.hasOwnProperty.call(message, "expires_at"))
+                        writer.uint32(/* id 4, wireType 2 =*/34).string(message.expires_at);
+                    if (message.null_fields != null && message.null_fields.length)
+                        for (let i = 0; i < message.null_fields.length; ++i)
+                            writer.uint32(/* id 2046, wireType 2 =*/16370).string(message.null_fields[i]);
+                    if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                        for (let i = 0; i < message.$unknowns.length; ++i)
+                            writer.raw(message.$unknowns[i]);
+                    return writer;
+                };
+
+                /**
+                 * Decodes a BrowserSession message from the specified reader or buffer.
+                 * @function decode
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @static
+                 * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+                 * @param {number} [length] Message length if known beforehand
+                 * @returns {northstar.web.auth.BrowserSession & northstar.web.auth.BrowserSession.$Shape} BrowserSession
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                BrowserSession.decode = function (reader, length, _end, _depth, _target) {
+                    if (!(reader instanceof $Reader))
+                        reader = $Reader.create(reader);
+                    if (_depth === $undefined)
+                        _depth = 0;
+                    if (_depth > $Reader.recursionLimit)
+                        throw $Error("max depth exceeded");
+                    let end, message;
+                    if (length === $undefined)
+                        end = reader.len;
+                    else {
+                        end = reader.pos + length;
+                        if (end > reader.len)
+                            throw $RangeError("index out of range");
+                        length = reader.len;
+                        reader.len = end;
+                    }
+                    message = _target || new $root.northstar.web.auth.BrowserSession();
+                    while (reader.pos < end) {
+                        let start = reader.pos;
+                        let tag = reader.tag();
+                        if (tag === _end) {
+                            _end = $undefined;
+                            break;
+                        }
+                        let wireType = tag & 7;
+                        switch (tag >>>= 3) {
+                        case 1: {
+                                if (wireType !== 0)
+                                    break;
+                                message.authenticated = reader.bool();
+                                message._authenticated = "authenticated";
+                                continue;
+                            }
+                        case 2: {
+                                if (wireType !== 2)
+                                    break;
+                                message.csrf = reader.stringVerify();
+                                message._csrf = "csrf";
+                                continue;
+                            }
+                        case 3: {
+                                if (wireType !== 2)
+                                    break;
+                                message.operator = reader.stringVerify();
+                                message._operator = "operator";
+                                continue;
+                            }
+                        case 4: {
+                                if (wireType !== 2)
+                                    break;
+                                message.expires_at = reader.stringVerify();
+                                message._expires_at = "expires_at";
+                                continue;
+                            }
+                        case 2046: {
+                                if (wireType !== 2)
+                                    break;
+                                if (!(message.null_fields && message.null_fields.length))
+                                    message.null_fields = [];
+                                message.null_fields.push(reader.stringVerify());
+                                continue;
+                            }
+                        }
+                        reader.skipType(wireType, _depth, tag);
+                        if (!reader.discardUnknown) {
+                            $util.makeProp(message, "$unknowns", false);
+                            (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                        }
+                    }
+                    if (length !== $undefined) {
+                        if (reader.pos !== end)
+                            throw $RangeError("index out of range");
+                        reader.len = length;
+                    }
+                    if (_end !== $undefined)
+                        throw $Error("missing end group");
+                    return message;
+                };
+
+                /**
+                 * Verifies a BrowserSession message.
+                 * @function verify
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @static
+                 * @param {Object.<string,*>} message Plain object to verify
+                 * @returns {string|null} `null` if valid, otherwise the reason why it is not
+                 */
+                BrowserSession.verify = function (message, _depth) {
+                    if (typeof message !== "object" || message === null)
+                        return "object expected";
+                    if (_depth === $undefined)
+                        _depth = 0;
+                    if (_depth > $util.recursionLimit)
+                        return "max depth exceeded";
+                    let properties = {};
+                    if (message.authenticated != null && $Object.hasOwnProperty.call(message, "authenticated")) {
+                        properties._authenticated = 1;
+                        if (typeof message.authenticated !== "boolean")
+                            return "authenticated: boolean expected";
+                    }
+                    if (message.csrf != null && $Object.hasOwnProperty.call(message, "csrf")) {
+                        properties._csrf = 1;
+                        if (!$util.isString(message.csrf))
+                            return "csrf: string expected";
+                    }
+                    if (message.operator != null && $Object.hasOwnProperty.call(message, "operator")) {
+                        properties._operator = 1;
+                        if (!$util.isString(message.operator))
+                            return "operator: string expected";
+                    }
+                    if (message.expires_at != null && $Object.hasOwnProperty.call(message, "expires_at")) {
+                        properties._expires_at = 1;
+                        if (!$util.isString(message.expires_at))
+                            return "expires_at: string expected";
+                    }
+                    if (message.null_fields != null && $Object.hasOwnProperty.call(message, "null_fields")) {
+                        if (!$Array.isArray(message.null_fields))
+                            return "null_fields: array expected";
+                        for (let i = 0; i < message.null_fields.length; ++i)
+                            if (!$util.isString(message.null_fields[i]))
+                                return "null_fields: string[] expected";
+                    }
+                    return null;
+                };
+
+                /**
+                 * Creates a BrowserSession message from a plain object. Also converts values to their respective internal types.
+                 * @function fromObject
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @static
+                 * @param {Object.<string,*>} object Plain object
+                 * @returns {northstar.web.auth.BrowserSession} BrowserSession
+                 */
+                BrowserSession.fromObject = function (object, _depth) {
+                    if (object instanceof $root.northstar.web.auth.BrowserSession)
+                        return object;
+                    if (!$util.isObject(object))
+                        throw $TypeError(".northstar.web.auth.BrowserSession: object expected");
+                    if (_depth === $undefined)
+                        _depth = 0;
+                    if (_depth > $util.recursionLimit)
+                        throw $Error("max depth exceeded");
+                    let message = new $root.northstar.web.auth.BrowserSession();
+                    if (object.authenticated != null)
+                        message.authenticated = $Boolean(object.authenticated);
+                    if (object.csrf != null)
+                        message.csrf = $String(object.csrf);
+                    if (object.operator != null)
+                        message.operator = $String(object.operator);
+                    if (object.expires_at != null)
+                        message.expires_at = $String(object.expires_at);
+                    if (object.null_fields) {
+                        if (!$Array.isArray(object.null_fields))
+                            throw $TypeError(".northstar.web.auth.BrowserSession.null_fields: array expected");
+                        message.null_fields = $Array(object.null_fields.length);
+                        for (let i = 0; i < object.null_fields.length; ++i)
+                            message.null_fields[i] = $String(object.null_fields[i]);
+                    }
+                    return message;
+                };
+
+                /**
+                 * Creates a plain object from a BrowserSession message. Also converts values to other types if specified.
+                 * @function toObject
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @static
+                 * @param {northstar.web.auth.BrowserSession} message BrowserSession
+                 * @param {$protobuf.IConversionOptions} [options] Conversion options
+                 * @returns {Object.<string,*>} Plain object
+                 */
+                BrowserSession.toObject = function (message, options, _depth) {
+                    if (!options)
+                        options = {};
+                    if (_depth === $undefined)
+                        _depth = 0;
+                    if (_depth > $util.recursionLimit)
+                        throw $Error("max depth exceeded");
+                    let object = {};
+                    if (options.arrays || options.defaults)
+                        object.null_fields = [];
+                    if (message.authenticated != null && $Object.hasOwnProperty.call(message, "authenticated")) {
+                        object.authenticated = message.authenticated;
+                        if (options.oneofs)
+                            object._authenticated = "authenticated";
+                    }
+                    if (message.csrf != null && $Object.hasOwnProperty.call(message, "csrf")) {
+                        object.csrf = message.csrf;
+                        if (options.oneofs)
+                            object._csrf = "csrf";
+                    }
+                    if (message.operator != null && $Object.hasOwnProperty.call(message, "operator")) {
+                        object.operator = message.operator;
+                        if (options.oneofs)
+                            object._operator = "operator";
+                    }
+                    if (message.expires_at != null && $Object.hasOwnProperty.call(message, "expires_at")) {
+                        object.expires_at = message.expires_at;
+                        if (options.oneofs)
+                            object._expires_at = "expires_at";
+                    }
+                    if (message.null_fields && message.null_fields.length) {
+                        object.null_fields = $Array(message.null_fields.length);
+                        for (let j = 0; j < message.null_fields.length; ++j)
+                            object.null_fields[j] = message.null_fields[j];
+                    }
+                    return object;
+                };
+
+                /**
+                 * Converts this BrowserSession to JSON.
+                 * @function toJSON
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @instance
+                 * @returns {Object.<string,*>} JSON object
+                 */
+                BrowserSession.prototype.toJSON = function() {
+                    return BrowserSession.toObject(this, $protobuf.util.toJSONOptions);
+                };
+
+                /**
+                 * Gets the type url for BrowserSession
+                 * @function getTypeUrl
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @static
+                 * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+                 * @returns {string} The type url
+                 */
+                BrowserSession.getTypeUrl = function(prefix) {
+                    if (prefix === $undefined)
+                        prefix = "type.googleapis.com";
+                    return prefix + "/northstar.web.auth.BrowserSession";
+                };
+
+                return BrowserSession;
+            })();
+
+            auth.LoginRequest = (function() {
+
+                /**
+                 * Properties of a LoginRequest.
+                 * @typedef {Object} northstar.web.auth.LoginRequest.$Properties
+                 * @property {string|null} [password] LoginRequest password
+                 * @property {"password"} [_password] LoginRequest _password
+                 * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+                 */
+
+                /**
+                 * Properties of a LoginRequest.
+                 * @memberof northstar.web.auth
+                 * @interface ILoginRequest
+                 * @augments northstar.web.auth.LoginRequest.$Properties
+                 * @deprecated Use northstar.web.auth.LoginRequest.$Properties instead.
+                 */
+
+                /**
+                 * Narrowed shape of a LoginRequest.
+                 * @typedef {{
+                 *   password?: string|null;
+                 *   $unknowns?: Array.<Uint8Array>;
+                 * } & (
+                 *   ({ _password?: undefined; password?: null }|{ _password?: "password"; password: string })
+                 * )} northstar.web.auth.LoginRequest.$Shape
+                 */
+
+                /**
+                 * Constructs a new LoginRequest.
+                 * @memberof northstar.web.auth
+                 * @classdesc Represents a LoginRequest.
+                 * @constructor
+                 * @param {northstar.web.auth.LoginRequest.$Properties=} [properties] Properties to set
+                 * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+                 */
+                const LoginRequest = function (properties) {
+                    if (properties)
+                        for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                            if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                                this[keys[i]] = properties[keys[i]];
+                };
+
+                /**
+                 * LoginRequest password.
+                 * @member {string|null|undefined} password
+                 * @memberof northstar.web.auth.LoginRequest
+                 * @instance
+                 */
+                LoginRequest.prototype.password = null;
+
+                // OneOf field names bound to virtual getters and setters
+                let $oneOfFields;
+
+                /**
+                 * LoginRequest _password.
+                 * @member {"password"|undefined} _password
+                 * @memberof northstar.web.auth.LoginRequest
+                 * @instance
+                 */
+                $Object.defineProperty(LoginRequest.prototype, "_password", {
+                    get: $util.oneOfGetter($oneOfFields = ["password"]),
+                    set: $util.oneOfSetter($oneOfFields)
+                });
+
+                /**
+                 * Creates a new LoginRequest instance using the specified properties.
+                 * @function create
+                 * @memberof northstar.web.auth.LoginRequest
+                 * @static
+                 * @param {northstar.web.auth.LoginRequest.$Properties=} [properties] Properties to set
+                 * @returns {northstar.web.auth.LoginRequest} LoginRequest instance
+                 * @type {{
+                 *   (properties: northstar.web.auth.LoginRequest.$Shape): northstar.web.auth.LoginRequest & northstar.web.auth.LoginRequest.$Shape;
+                 *   (properties?: northstar.web.auth.LoginRequest.$Properties): northstar.web.auth.LoginRequest;
+                 * }}
+                 */
+                LoginRequest.create = function(properties) {
+                    return new LoginRequest(properties);
+                };
+
+                /**
+                 * Encodes the specified LoginRequest message. Does not implicitly {@link northstar.web.auth.LoginRequest.verify|verify} messages.
+                 * @function encode
+                 * @memberof northstar.web.auth.LoginRequest
+                 * @static
+                 * @param {northstar.web.auth.LoginRequest.$Properties} message LoginRequest message or plain object to encode
+                 * @param {$protobuf.Writer} [writer] Writer to encode to
+                 * @returns {$protobuf.Writer} Writer
+                 */
+                LoginRequest.encode = function (message, writer, _depth) {
+                    if (!writer)
+                        writer = $Writer.create();
+                    if (_depth === $undefined)
+                        _depth = 0;
+                    if (_depth > $util.recursionLimit)
+                        throw $Error("max depth exceeded");
+                    if (message.password != null && $Object.hasOwnProperty.call(message, "password"))
+                        writer.uint32(/* id 1, wireType 2 =*/10).string(message.password);
+                    if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                        for (let i = 0; i < message.$unknowns.length; ++i)
+                            writer.raw(message.$unknowns[i]);
+                    return writer;
+                };
+
+                /**
+                 * Decodes a LoginRequest message from the specified reader or buffer.
+                 * @function decode
+                 * @memberof northstar.web.auth.LoginRequest
+                 * @static
+                 * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+                 * @param {number} [length] Message length if known beforehand
+                 * @returns {northstar.web.auth.LoginRequest & northstar.web.auth.LoginRequest.$Shape} LoginRequest
+                 * @throws {Error} If the payload is not a reader or valid buffer
+                 * @throws {$protobuf.util.ProtocolError} If required fields are missing
+                 */
+                LoginRequest.decode = function (reader, length, _end, _depth, _target) {
+                    if (!(reader instanceof $Reader))
+                        reader = $Reader.create(reader);
+                    if (_depth === $undefined)
+                        _depth = 0;
+                    if (_depth > $Reader.recursionLimit)
+                        throw $Error("max depth exceeded");
+                    let end, message;
+                    if (length === $undefined)
+                        end = reader.len;
+                    else {
+                        end = reader.pos + length;
+                        if (end > reader.len)
+                            throw $RangeError("index out of range");
+                        length = reader.len;
+                        reader.len = end;
+                    }
+                    message = _target || new $root.northstar.web.auth.LoginRequest();
+                    while (reader.pos < end) {
+                        let start = reader.pos;
+                        let tag = reader.tag();
+                        if (tag === _end) {
+                            _end = $undefined;
+                            break;
+                        }
+                        let wireType = tag & 7;
+                        switch (tag >>>= 3) {
+                        case 1: {
+                                if (wireType !== 2)
+                                    break;
+                                message.password = reader.stringVerify();
+                                message._password = "password";
+                                continue;
+                            }
+                        }
+                        reader.skipType(wireType, _depth, tag);
+                        if (!reader.discardUnknown) {
+                            $util.makeProp(message, "$unknowns", false);
+                            (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                        }
+                    }
+                    if (length !== $undefined) {
+                        if (reader.pos !== end)
+                            throw $RangeError("index out of range");
+                        reader.len = length;
+                    }
+                    if (_end !== $undefined)
+                        throw $Error("missing end group");
+                    return message;
+                };
+
+                /**
+                 * Verifies a LoginRequest message.
+                 * @function verify
+                 * @memberof northstar.web.auth.LoginRequest
+                 * @static
+                 * @param {Object.<string,*>} message Plain object to verify
+                 * @returns {string|null} `null` if valid, otherwise the reason why it is not
+                 */
+                LoginRequest.verify = function (message, _depth) {
+                    if (typeof message !== "object" || message === null)
+                        return "object expected";
+                    if (_depth === $undefined)
+                        _depth = 0;
+                    if (_depth > $util.recursionLimit)
+                        return "max depth exceeded";
+                    let properties = {};
+                    if (message.password != null && $Object.hasOwnProperty.call(message, "password")) {
+                        properties._password = 1;
+                        if (!$util.isString(message.password))
+                            return "password: string expected";
+                    }
+                    return null;
+                };
+
+                /**
+                 * Creates a LoginRequest message from a plain object. Also converts values to their respective internal types.
+                 * @function fromObject
+                 * @memberof northstar.web.auth.LoginRequest
+                 * @static
+                 * @param {Object.<string,*>} object Plain object
+                 * @returns {northstar.web.auth.LoginRequest} LoginRequest
+                 */
+                LoginRequest.fromObject = function (object, _depth) {
+                    if (object instanceof $root.northstar.web.auth.LoginRequest)
+                        return object;
+                    if (!$util.isObject(object))
+                        throw $TypeError(".northstar.web.auth.LoginRequest: object expected");
+                    if (_depth === $undefined)
+                        _depth = 0;
+                    if (_depth > $util.recursionLimit)
+                        throw $Error("max depth exceeded");
+                    let message = new $root.northstar.web.auth.LoginRequest();
+                    if (object.password != null)
+                        message.password = $String(object.password);
+                    return message;
+                };
+
+                /**
+                 * Creates a plain object from a LoginRequest message. Also converts values to other types if specified.
+                 * @function toObject
+                 * @memberof northstar.web.auth.LoginRequest
+                 * @static
+                 * @param {northstar.web.auth.LoginRequest} message LoginRequest
+                 * @param {$protobuf.IConversionOptions} [options] Conversion options
+                 * @returns {Object.<string,*>} Plain object
+                 */
+                LoginRequest.toObject = function (message, options, _depth) {
+                    if (!options)
+                        options = {};
+                    if (_depth === $undefined)
+                        _depth = 0;
+                    if (_depth > $util.recursionLimit)
+                        throw $Error("max depth exceeded");
+                    let object = {};
+                    if (message.password != null && $Object.hasOwnProperty.call(message, "password")) {
+                        object.password = message.password;
+                        if (options.oneofs)
+                            object._password = "password";
+                    }
+                    return object;
+                };
+
+                /**
+                 * Converts this LoginRequest to JSON.
+                 * @function toJSON
+                 * @memberof northstar.web.auth.LoginRequest
+                 * @instance
+                 * @returns {Object.<string,*>} JSON object
+                 */
+                LoginRequest.prototype.toJSON = function() {
+                    return LoginRequest.toObject(this, $protobuf.util.toJSONOptions);
+                };
+
+                /**
+                 * Gets the type url for LoginRequest
+                 * @function getTypeUrl
+                 * @memberof northstar.web.auth.LoginRequest
+                 * @static
+                 * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+                 * @returns {string} The type url
+                 */
+                LoginRequest.getTypeUrl = function(prefix) {
+                    if (prefix === $undefined)
+                        prefix = "type.googleapis.com";
+                    return prefix + "/northstar.web.auth.LoginRequest";
+                };
+
+                return LoginRequest;
+            })();
+
+            return auth;
         })();
 
         return web;

@@ -12,6 +12,7 @@ from northstar_quant.data_management.files import SourceFiles
 from northstar_quant.data_management.library import DataLibrary
 from northstar_quant.data_management.storage_identity import initialize
 from northstar_quant.data_management.tushare import acquisition, credentials, jobs, planning
+from tests.apps.browser import login_response
 
 
 @pytest.fixture
@@ -122,7 +123,7 @@ def test_protocol_range_export_and_corruption_refusal(published):
     with ProtocolClient(
         create_app(library._engine, library), base_url="http://127.0.0.1"
     ) as client:
-        csrf = client.get("/api/browser-session").json()["csrf"]
+        csrf = login_response(client).json()["csrf"]
         client.headers.update({"x-northstar-csrf": csrf, "origin": "http://127.0.0.1"})
         selection = dict(
             dataset="1min",
@@ -194,7 +195,7 @@ def test_revision_comparison_pins_both_versions_and_distinguishes_null(published
     from tests.apps.browser import ProtocolClient
 
     with ProtocolClient(create_app(engine, library), base_url="http://127.0.0.1") as client:
-        csrf = client.get("/api/browser-session").json()["csrf"]
+        csrf = login_response(client).json()["csrf"]
         client.headers.update({"x-northstar-csrf": csrf, "origin": "http://127.0.0.1"})
         response = client.post(
             "/api/explorer/compare",

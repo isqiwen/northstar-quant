@@ -20,6 +20,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { PendingNotice } from "./ui";
 import "./theme.css";
+import { AuthGate, Logout } from "./auth";
 export function Shell({
   name,
   subtitle,
@@ -80,6 +81,7 @@ export function Shell({
           />
           <div>
             <Tag bordered={false}>{name}</Tag>
+            <Logout />
             {items.find((item) => item.key === active)?.label}
           </div>
         </Layout.Header>
@@ -132,7 +134,9 @@ export function Providers({ children }: { children: ReactNode }) {
         },
       }}
     >
-      <App>{children}</App>
+      <App>
+        <AuthGate>{children}</AuthGate>
+      </App>
     </ConfigProvider>
   );
 }

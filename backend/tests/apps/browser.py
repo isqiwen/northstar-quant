@@ -7,9 +7,21 @@ from uuid import uuid4
 
 from fastapi.testclient import TestClient
 
+WORKSPACE_PASSWORD = "synthetic-workspace-test-password"
+
+
+def login_response(client: TestClient):
+    from northstar_quant.web.auth_pb2 import LoginRequest
+
+    return client.post(
+        "/api/login",
+        content=LoginRequest(password=WORKSPACE_PASSWORD).SerializeToString(),
+        headers={"Content-Type": "application/protobuf"},
+    )
+
 
 def _browser_session(client: TestClient) -> None:
-    session = client.get("/api/browser-session")
+    session = login_response(client)
     assert session.status_code == 200
     client.headers["X-Northstar-CSRF"] = session.json()["csrf"]
 

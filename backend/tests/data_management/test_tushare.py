@@ -17,6 +17,7 @@ from northstar_quant.data_management.tushare import (
     publication,
     settings,
 )
+from tests.apps.browser import login_response
 
 TOKEN = "private-test-token-never-returned"
 
@@ -232,9 +233,9 @@ def test_ui_token_is_write_only_and_manual_interfaces_are_absent(automatic, monk
     }
     app = create_app(automatic._engine, automatic)
     with TestClient(app, base_url="http://127.0.0.1") as client:
-        assert client.post("/api/sync/reprocess", json=replay).status_code == 403
-        assert client.post("/api/sync/token", json={"token": TOKEN}).status_code == 403
-        csrf = client.get("/api/browser-session").json()["csrf"]
+        assert client.post("/api/sync/reprocess", json=replay).status_code == 401
+        assert client.post("/api/sync/token", json={"token": TOKEN}).status_code == 401
+        csrf = login_response(client).json()["csrf"]
         client.headers.update({"x-northstar-csrf": csrf, "origin": "http://127.0.0.1"})
         saved = client.post("/api/sync/token", json={"token": TOKEN})
         assert saved.status_code == 200, saved.text

@@ -3,6 +3,7 @@ package northstar.research;
 import "google/protobuf/struct.proto";
 import "api_options.proto";
 import "common.proto";
+import "web_auth.proto";
 import "accounting.proto";
 
 message AdvanceRequest {
@@ -16,10 +17,6 @@ message Annotation {
 
 message AnnotationRequest {
   optional string description = 1 [json_name = "description", (northstar.web.required_field) = true];
-}
-
-message BrowserSession {
-  optional string csrf = 1 [json_name = "csrf", (northstar.web.required_field) = true];
 }
 
 message Catalog {
@@ -517,6 +514,14 @@ message GetApiStrategyVersionsResponse {
 }
 
 service BrowserApi {
+  rpc PostApiLogin (northstar.web.auth.LoginRequest) returns (northstar.web.auth.BrowserSession) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/login";
+  }
+  rpc PostApiLogout (northstar.web.Empty) returns (northstar.web.auth.BrowserSession) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/logout";
+  }
   rpc SubmitTask (TaskRequest) returns (ResearchTask) {
     option (northstar.web.http_method) = "POST";
     option (northstar.web.http_path) = "/api/tasks";
@@ -537,7 +542,7 @@ service BrowserApi {
     option (northstar.web.http_path) = "/api/tasks/{task_id}/control";
   }
 
-  rpc GetApiBrowserSession (northstar.web.Empty) returns (BrowserSession) {
+  rpc GetApiBrowserSession (northstar.web.Empty) returns (northstar.web.auth.BrowserSession) {
     option (northstar.web.http_method) = "GET";
     option (northstar.web.http_path) = "/api/browser-session";
   }

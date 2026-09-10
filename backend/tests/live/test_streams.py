@@ -30,6 +30,7 @@ from northstar_quant.research.configurations import ConfigurationStore
 from northstar_quant.strategies.configuration import StrategyConfig
 from tests.accounting.test_ledger import ledger_query, position_baseline, trade
 from tests.apps.browser import ProtocolClient as TestClient
+from tests.apps.browser import login_response
 from tests.live.test_market import OPEN, tick
 
 
@@ -392,8 +393,8 @@ def test_browser_stream_start_stop_requires_csrf_and_never_reconnects_on_reads(
         "use_basis": "Synthetic engineering acceptance",
     }
     with TestClient(live_web_app(postgres_engine, library), base_url="http://127.0.0.1") as client:
-        assert client.post("/api/streams", json=payload).status_code == 403
-        page = client.get("/api/browser-session")
+        assert client.post("/api/streams", json=payload).status_code == 401
+        page = login_response(client)
         assert page.status_code == 200 and calls["count"] == 0
         token = page.json()["csrf"]
         client.headers["X-Northstar-CSRF"] = token
@@ -461,9 +462,9 @@ def test_identity_error_cannot_resume_and_stop_keeps_tail_callbacks(
     assert report["status"] == "STOPPED" and report["received"] == report["cursor"] == 4
     assert streams.events(identifier)[-1]["event"] == calls["tail"].to_dict()
     with TestClient(live_web_app(postgres_engine, library), base_url="http://127.0.0.1") as client:
-        assert client.get(f"/api/streams/{identifier}").status_code == 403
+        assert client.get(f"/api/streams/{identifier}").status_code == 401
         assert client.get("/streams").status_code == 404
-        assert client.get("/api/browser-session").status_code == 200
+        assert login_response(client).status_code == 200
         result = client.get(f"/api/streams/{identifier}").json()
         assert result["paused"] and result["connection"] == "NOT_ATTACHED"
         assert calls["count"] == 1

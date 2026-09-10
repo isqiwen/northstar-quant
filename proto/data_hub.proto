@@ -3,6 +3,7 @@ package northstar.data_hub;
 import "google/protobuf/struct.proto";
 import "api_options.proto";
 import "common.proto";
+import "web_auth.proto";
 import "accounting.proto";
 
 message AdmissionRejection {
@@ -10,10 +11,6 @@ message AdmissionRejection {
   optional string reason = 1 [json_name = "reason", (northstar.web.required_field) = true];
   optional string rejection_id = 2 [json_name = "rejection_id", (northstar.web.required_field) = true];
   map<string, google.protobuf.Value> evidence_fields = 1000;
-}
-
-message BrowserSession {
-  optional string csrf = 1 [json_name = "csrf", (northstar.web.required_field) = true];
 }
 
 message DatasetDetails {
@@ -274,6 +271,14 @@ message RevisionComparison {
 }
 
 service BrowserApi {
+  rpc PostApiLogin (northstar.web.auth.LoginRequest) returns (northstar.web.auth.BrowserSession) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/login";
+  }
+  rpc PostApiLogout (northstar.web.Empty) returns (northstar.web.auth.BrowserSession) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/logout";
+  }
   rpc CompareRevisions (RevisionRequest) returns (RevisionComparison) {
     option (northstar.web.http_method) = "POST";
     option (northstar.web.http_path) = "/api/explorer/compare";
@@ -329,7 +334,7 @@ service BrowserApi {
     option (northstar.web.http_method) = "GET";
     option (northstar.web.http_path) = "/api/attempts/{attempt_id}";
   }
-  rpc GetApiBrowserSession (northstar.web.Empty) returns (BrowserSession) {
+  rpc GetApiBrowserSession (northstar.web.Empty) returns (northstar.web.auth.BrowserSession) {
     option (northstar.web.http_method) = "GET";
     option (northstar.web.http_path) = "/api/browser-session";
   }

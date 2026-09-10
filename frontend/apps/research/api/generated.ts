@@ -10,9 +10,6 @@ export type Annotation = {
 export type AnnotationRequest = {
   description: string;
 };
-export type BrowserSession = {
-  csrf: string;
-};
 export type Catalog = {
   factors: (FactorSummary)[];
   strategies: (StrategySummary)[];
@@ -456,6 +453,15 @@ export type Error = {
   runtime_id?: string;
   url?: string;
   rejection_id?: string;
+};
+export type BrowserSession = {
+  authenticated: boolean;
+  csrf: string | null;
+  operator: string | null;
+  expires_at: string | null;
+};
+export type LoginRequest = {
+  password: string;
 };
 export type ChargeRate = {
   by_money: string;

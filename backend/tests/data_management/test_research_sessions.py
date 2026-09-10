@@ -30,6 +30,7 @@ from northstar_quant.data_management.snapshots.publication import (
 )
 from northstar_quant.data_management.snapshots.service import DatasetSnapshotPublicationService
 from northstar_quant.web.protobuf import decode
+from tests.apps.browser import login_response
 from tests.data_management.test_research import _csv, _receive, _spec
 
 
@@ -150,6 +151,7 @@ def test_night_day_and_next_day_keep_fixed_sessions_and_offline_parquet(
     library.publications.publish(fixed)
     assert PublishedDatasets(library.publications.root).load_dataset(identifier) == fixed
     with TestClient(create_app(postgres_engine, library), base_url="http://core.local") as api:
+        assert login_response(api).status_code == 200
         response = api.get(f"/api/datasets/{identifier}")
         assert response.status_code == 200
         details = decode(api_pb2.DatasetDetails.DESCRIPTOR, response.content)
@@ -289,6 +291,7 @@ def test_cross_day_settlement_is_fixed_offline_replayable_and_survives_every_res
     assert fixed.details.settlements == (fact,)
     assert fixed.details.terms == (first_terms, next_terms)
     with TestClient(create_app(postgres_engine, library), base_url="http://core.local") as api:
+        assert login_response(api).status_code == 200
         response = api.get(f"/api/datasets/{identifier}")
         assert response.status_code == 200
         presented = decode(api_pb2.DatasetDetails.DESCRIPTOR, response.content)

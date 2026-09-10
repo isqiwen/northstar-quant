@@ -1,0 +1,14 @@
+syntax = "proto3";
+package northstar.web.auth;
+import "api_options.proto";
+
+message BrowserSession {
+  optional bool authenticated = 1 [(northstar.web.required_field) = true];
+  optional string csrf = 2 [(northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  optional string operator = 3 [(northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  optional string expires_at = 4 [json_name = "expires_at", (northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  repeated string null_fields = 2046;
+}
+message LoginRequest {
+  optional string password = 1 [(northstar.web.required_field) = true];
+}

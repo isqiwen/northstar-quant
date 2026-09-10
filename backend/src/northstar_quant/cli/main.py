@@ -24,6 +24,16 @@ def main(argv: Sequence[str] | None = None) -> int:
     arguments = parse(argv)
     engine = None
     try:
+        if arguments.operation == "password-hash":
+            from getpass import getpass
+
+            from northstar_quant.web.passwords import hash_password
+
+            password = getpass("工作台密码：")
+            if password != getpass("再次输入："):
+                raise ValueError("两次输入的密码不一致")
+            print("NORTHSTAR_WORKSPACE_PASSWORD_HASH='" + hash_password(password) + "'")
+            return 0
         if arguments.operation == "init-live-auth":
             from northstar_quant.apps.live.bootstrap import initialize_auth
 

@@ -49,7 +49,7 @@ Research 部署会在主机上解析发布接口的 `.local` 地址，并为容�
 不指定时默认首次上传仓库中的 `.env`，后续保留远程配置；支持 `start`、`restart`、`stop`、`status`、`logs` 和 `--help`。
 部署前会校验当前应用允许的参数：未知/废弃、重复、缺失或无效配置拒绝部署；保留的远程配置也必须通过当前版本校验。
 `.env` 使用单行 `KEY=value`；需要字面 `$变量` 的密码使用单引号，不允许依赖主机环境展开变量。
-显式 `--env-file` 整体替换配置；配置与源码在同一次受部署锁保护的传输中处理，校验通过后才激活。
+显式 `--env-file` 替换配置（未提供新工作台密码摘要时保留已安装摘要）；配置与源码在同一次受部署锁保护的传输中处理，校验通过后才激活。
 
 `status` 显示 `apps/<应用>/deployment.json`：目标 SHA、配置 SHA256、部署阶段、最后成功组合和实际容器镜像身份。
 部署失败保留新配置及失败记录，不宣称容器或数据库已原子回滚；请修正后重新 `deploy`。
@@ -69,6 +69,11 @@ make up-research
 # Live 所在主机，仍使用当前独立部署
 make up-live
 ```
+
+三个工作台需要分别登录。首次 `deploy` 自动生成并显示该应用的随机密码，后续部署保留密码。
+自定义或忘记密码时运行 `uv run --project backend northstar maintenance password-hash`，
+把输出的 `NORTHSTAR_WORKSPACE_PASSWORD_HASH='...'` 加入该应用私有 `.env`，再用 `deploy <应用> --env-file <文件>` 更新。
+API 重启后重新登录；登录不会连接柜台或开启交易。手动 Make/Compose 启动前也须在运行配置中填写摘要。
 
 本机 Make 命令读取 `/opt/northstar/config/<应用>.env`，不提供路径覆盖。
 正式构建要求工作区干净；未提交修改时在对应命令前加 `NORTHSTAR_DEVELOPMENT_BUILD=1`。

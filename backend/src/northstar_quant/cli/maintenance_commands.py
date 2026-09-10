@@ -13,6 +13,8 @@ from northstar_quant.data_management.library import DataLibrary
 
 
 def register(commands: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
+    parser = commands.add_parser("password-hash", help="交互生成工作台密码摘要，不保存明文")
+    parser.set_defaults(scope="maintenance", operation="password-hash")
     parser = commands.add_parser("init-db", help="初始化或检查当前数据库结构")
     parser.set_defaults(scope="maintenance", operation="init-db")
     parser = commands.add_parser("audit-data", help="核查来源文件并恢复中断处理记录，不删除数据")
