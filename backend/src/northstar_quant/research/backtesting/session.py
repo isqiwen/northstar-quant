@@ -156,7 +156,7 @@ class TradingSession:
     """
 
     # Bump for changed Strategy/Risk/Simulation/Accounting rules or checkpoint format.
-    REVISION = "10"
+    REVISION = "11"
 
     def __init__(
         self,

@@ -105,6 +105,24 @@ message EquityPoint {
   optional string equity = 2 [json_name = "equity", (northstar.web.required_field) = true];
   optional string observation_id = 3 [json_name = "observation_id", (northstar.web.required_field) = true];
   map<string, google.protobuf.Value> evidence_fields = 1000;
+  optional string close = 4 [json_name = "close", (northstar.web.required_field) = true];
+  optional string cash = 5 [json_name = "cash", (northstar.web.required_field) = true];
+  optional int64 position_lots = 6 [json_name = "position_lots", (northstar.web.required_field) = true];
+  optional string realized_pnl = 7 [json_name = "realized_pnl", (northstar.web.required_field) = true];
+  optional string unrealized_pnl = 8 [json_name = "unrealized_pnl", (northstar.web.required_field) = true];
+  optional string total_fees = 9 [json_name = "total_fees", (northstar.web.required_field) = true];
+  optional string drawdown = 10 [json_name = "drawdown", (northstar.web.required_field) = true];
+  optional string drawdown_fraction = 11 [json_name = "drawdown_fraction", (northstar.web.required_field) = true];
+  optional int64 long_lots = 12 [json_name = "long_lots", (northstar.web.required_field) = true];
+  optional int64 short_lots = 13 [json_name = "short_lots", (northstar.web.required_field) = true];
+  optional string net_exposure = 14 [json_name = "net_exposure", (northstar.web.required_field) = true];
+  optional string gross_exposure = 15 [json_name = "gross_exposure", (northstar.web.required_field) = true];
+  optional string settlement_pnl = 16 [json_name = "settlement_pnl", (northstar.web.required_field) = true];
+  optional string trade_realized_pnl = 17 [json_name = "trade_realized_pnl", (northstar.web.required_field) = true];
+  optional string terms_id = 18 [json_name = "terms_id", (northstar.web.nullable) = true];
+  optional string margin_used = 19 [json_name = "margin_used", (northstar.web.nullable) = true];
+  optional string available = 20 [json_name = "available", (northstar.web.nullable) = true];
+  repeated string null_fields = 2046;
 }
 
 message FactorBinding {

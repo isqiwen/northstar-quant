@@ -537,6 +537,133 @@
           "required": false,
           "nullable": false,
           "keyType": "string"
+        },
+        "close": {
+          "id": 4,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "cash": {
+          "id": 5,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "position_lots": {
+          "id": 6,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "realized_pnl": {
+          "id": 7,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "unrealized_pnl": {
+          "id": 8,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "total_fees": {
+          "id": 9,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "drawdown": {
+          "id": 10,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "drawdown_fraction": {
+          "id": 11,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "long_lots": {
+          "id": 12,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "short_lots": {
+          "id": 13,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "net_exposure": {
+          "id": 14,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "gross_exposure": {
+          "id": 15,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "settlement_pnl": {
+          "id": 16,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "trade_realized_pnl": {
+          "id": 17,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "terms_id": {
+          "id": 18,
+          "presence": true,
+          "type": "string",
+          "required": false,
+          "nullable": true
+        },
+        "margin_used": {
+          "id": 19,
+          "presence": true,
+          "type": "string",
+          "required": false,
+          "nullable": true
+        },
+        "available": {
+          "id": 20,
+          "presence": true,
+          "type": "string",
+          "required": false,
+          "nullable": true
+        },
+        "null_fields": {
+          "id": 2046,
+          "presence": false,
+          "type": "string",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
         }
       },
       "array": false,

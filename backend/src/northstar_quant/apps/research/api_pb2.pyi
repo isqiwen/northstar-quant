@@ -177,7 +177,7 @@ class DatasetSummary(_message.Message):
     def __init__(self, bar_count: _Optional[int] = ..., content_hash: _Optional[str] = ..., exchange: _Optional[str] = ..., product: _Optional[str] = ..., published_at: _Optional[str] = ..., session_close: _Optional[str] = ..., session_open: _Optional[str] = ..., snapshot_id: _Optional[str] = ..., symbol: _Optional[str] = ..., trading_days: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class EquityPoint(_message.Message):
-    __slots__ = ("at", "equity", "observation_id", "evidence_fields")
+    __slots__ = ("at", "equity", "observation_id", "evidence_fields", "close", "cash", "position_lots", "realized_pnl", "unrealized_pnl", "total_fees", "drawdown", "drawdown_fraction", "long_lots", "short_lots", "net_exposure", "gross_exposure", "settlement_pnl", "trade_realized_pnl", "terms_id", "margin_used", "available", "null_fields")
     class EvidenceFieldsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -189,11 +189,47 @@ class EquityPoint(_message.Message):
     EQUITY_FIELD_NUMBER: _ClassVar[int]
     OBSERVATION_ID_FIELD_NUMBER: _ClassVar[int]
     EVIDENCE_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    CLOSE_FIELD_NUMBER: _ClassVar[int]
+    CASH_FIELD_NUMBER: _ClassVar[int]
+    POSITION_LOTS_FIELD_NUMBER: _ClassVar[int]
+    REALIZED_PNL_FIELD_NUMBER: _ClassVar[int]
+    UNREALIZED_PNL_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_FEES_FIELD_NUMBER: _ClassVar[int]
+    DRAWDOWN_FIELD_NUMBER: _ClassVar[int]
+    DRAWDOWN_FRACTION_FIELD_NUMBER: _ClassVar[int]
+    LONG_LOTS_FIELD_NUMBER: _ClassVar[int]
+    SHORT_LOTS_FIELD_NUMBER: _ClassVar[int]
+    NET_EXPOSURE_FIELD_NUMBER: _ClassVar[int]
+    GROSS_EXPOSURE_FIELD_NUMBER: _ClassVar[int]
+    SETTLEMENT_PNL_FIELD_NUMBER: _ClassVar[int]
+    TRADE_REALIZED_PNL_FIELD_NUMBER: _ClassVar[int]
+    TERMS_ID_FIELD_NUMBER: _ClassVar[int]
+    MARGIN_USED_FIELD_NUMBER: _ClassVar[int]
+    AVAILABLE_FIELD_NUMBER: _ClassVar[int]
+    NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
     at: str
     equity: str
     observation_id: str
     evidence_fields: _containers.MessageMap[str, _struct_pb2.Value]
-    def __init__(self, at: _Optional[str] = ..., equity: _Optional[str] = ..., observation_id: _Optional[str] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...
+    close: str
+    cash: str
+    position_lots: int
+    realized_pnl: str
+    unrealized_pnl: str
+    total_fees: str
+    drawdown: str
+    drawdown_fraction: str
+    long_lots: int
+    short_lots: int
+    net_exposure: str
+    gross_exposure: str
+    settlement_pnl: str
+    trade_realized_pnl: str
+    terms_id: str
+    margin_used: str
+    available: str
+    null_fields: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, at: _Optional[str] = ..., equity: _Optional[str] = ..., observation_id: _Optional[str] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., close: _Optional[str] = ..., cash: _Optional[str] = ..., position_lots: _Optional[int] = ..., realized_pnl: _Optional[str] = ..., unrealized_pnl: _Optional[str] = ..., total_fees: _Optional[str] = ..., drawdown: _Optional[str] = ..., drawdown_fraction: _Optional[str] = ..., long_lots: _Optional[int] = ..., short_lots: _Optional[int] = ..., net_exposure: _Optional[str] = ..., gross_exposure: _Optional[str] = ..., settlement_pnl: _Optional[str] = ..., trade_realized_pnl: _Optional[str] = ..., terms_id: _Optional[str] = ..., margin_used: _Optional[str] = ..., available: _Optional[str] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class FactorBinding(_message.Message):
     __slots__ = ("code_revision", "factor_id", "parameters", "revision")

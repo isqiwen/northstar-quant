@@ -56,6 +56,23 @@ class EquityPoint(EvidenceRecord):
     at: str
     equity: str
     observation_id: str
+    close: str
+    cash: str
+    position_lots: int
+    realized_pnl: str
+    unrealized_pnl: str
+    total_fees: str
+    drawdown: str
+    drawdown_fraction: str
+    long_lots: int
+    short_lots: int
+    net_exposure: str
+    gross_exposure: str
+    settlement_pnl: str
+    trade_realized_pnl: str
+    terms_id: str | None = None
+    margin_used: str | None = None
+    available: str | None = None
 
 
 class ResearchResultDocument(EvidenceRecord):

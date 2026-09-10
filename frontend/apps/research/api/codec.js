@@ -6374,9 +6374,44 @@ export const northstar = $root.northstar = (() => {
              * @property {string|null} [equity] EquityPoint equity
              * @property {string|null} [observation_id] EquityPoint observation_id
              * @property {Object.<string,google.protobuf.Value.$Properties>|null} [evidence_fields] EquityPoint evidence_fields
+             * @property {string|null} [close] EquityPoint close
+             * @property {string|null} [cash] EquityPoint cash
+             * @property {number|Long|null} [position_lots] EquityPoint position_lots
+             * @property {string|null} [realized_pnl] EquityPoint realized_pnl
+             * @property {string|null} [unrealized_pnl] EquityPoint unrealized_pnl
+             * @property {string|null} [total_fees] EquityPoint total_fees
+             * @property {string|null} [drawdown] EquityPoint drawdown
+             * @property {string|null} [drawdown_fraction] EquityPoint drawdown_fraction
+             * @property {number|Long|null} [long_lots] EquityPoint long_lots
+             * @property {number|Long|null} [short_lots] EquityPoint short_lots
+             * @property {string|null} [net_exposure] EquityPoint net_exposure
+             * @property {string|null} [gross_exposure] EquityPoint gross_exposure
+             * @property {string|null} [settlement_pnl] EquityPoint settlement_pnl
+             * @property {string|null} [trade_realized_pnl] EquityPoint trade_realized_pnl
+             * @property {string|null} [terms_id] EquityPoint terms_id
+             * @property {string|null} [margin_used] EquityPoint margin_used
+             * @property {string|null} [available] EquityPoint available
+             * @property {Array.<string>|null} [null_fields] EquityPoint null_fields
              * @property {"at"} [_at] EquityPoint _at
              * @property {"equity"} [_equity] EquityPoint _equity
              * @property {"observation_id"} [_observation_id] EquityPoint _observation_id
+             * @property {"close"} [_close] EquityPoint _close
+             * @property {"cash"} [_cash] EquityPoint _cash
+             * @property {"position_lots"} [_position_lots] EquityPoint _position_lots
+             * @property {"realized_pnl"} [_realized_pnl] EquityPoint _realized_pnl
+             * @property {"unrealized_pnl"} [_unrealized_pnl] EquityPoint _unrealized_pnl
+             * @property {"total_fees"} [_total_fees] EquityPoint _total_fees
+             * @property {"drawdown"} [_drawdown] EquityPoint _drawdown
+             * @property {"drawdown_fraction"} [_drawdown_fraction] EquityPoint _drawdown_fraction
+             * @property {"long_lots"} [_long_lots] EquityPoint _long_lots
+             * @property {"short_lots"} [_short_lots] EquityPoint _short_lots
+             * @property {"net_exposure"} [_net_exposure] EquityPoint _net_exposure
+             * @property {"gross_exposure"} [_gross_exposure] EquityPoint _gross_exposure
+             * @property {"settlement_pnl"} [_settlement_pnl] EquityPoint _settlement_pnl
+             * @property {"trade_realized_pnl"} [_trade_realized_pnl] EquityPoint _trade_realized_pnl
+             * @property {"terms_id"} [_terms_id] EquityPoint _terms_id
+             * @property {"margin_used"} [_margin_used] EquityPoint _margin_used
+             * @property {"available"} [_available] EquityPoint _available
              * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
              */
 
@@ -6395,6 +6430,24 @@ export const northstar = $root.northstar = (() => {
              *   equity?: string|null;
              *   observation_id?: string|null;
              *   evidence_fields?: Object.<string,google.protobuf.Value.$Shape>|null;
+             *   close?: string|null;
+             *   cash?: string|null;
+             *   position_lots?: number|Long|null;
+             *   realized_pnl?: string|null;
+             *   unrealized_pnl?: string|null;
+             *   total_fees?: string|null;
+             *   drawdown?: string|null;
+             *   drawdown_fraction?: string|null;
+             *   long_lots?: number|Long|null;
+             *   short_lots?: number|Long|null;
+             *   net_exposure?: string|null;
+             *   gross_exposure?: string|null;
+             *   settlement_pnl?: string|null;
+             *   trade_realized_pnl?: string|null;
+             *   terms_id?: string|null;
+             *   margin_used?: string|null;
+             *   available?: string|null;
+             *   null_fields?: Array.<string>|null;
              *   $unknowns?: Array.<Uint8Array>;
              * } & (
              *   ({ _at?: undefined; at?: null }|{ _at?: "at"; at: string })
@@ -6402,6 +6455,40 @@ export const northstar = $root.northstar = (() => {
              *   ({ _equity?: undefined; equity?: null }|{ _equity?: "equity"; equity: string })
              * ) & (
              *   ({ _observation_id?: undefined; observation_id?: null }|{ _observation_id?: "observation_id"; observation_id: string })
+             * ) & (
+             *   ({ _close?: undefined; close?: null }|{ _close?: "close"; close: string })
+             * ) & (
+             *   ({ _cash?: undefined; cash?: null }|{ _cash?: "cash"; cash: string })
+             * ) & (
+             *   ({ _position_lots?: undefined; position_lots?: null }|{ _position_lots?: "position_lots"; position_lots: number|Long })
+             * ) & (
+             *   ({ _realized_pnl?: undefined; realized_pnl?: null }|{ _realized_pnl?: "realized_pnl"; realized_pnl: string })
+             * ) & (
+             *   ({ _unrealized_pnl?: undefined; unrealized_pnl?: null }|{ _unrealized_pnl?: "unrealized_pnl"; unrealized_pnl: string })
+             * ) & (
+             *   ({ _total_fees?: undefined; total_fees?: null }|{ _total_fees?: "total_fees"; total_fees: string })
+             * ) & (
+             *   ({ _drawdown?: undefined; drawdown?: null }|{ _drawdown?: "drawdown"; drawdown: string })
+             * ) & (
+             *   ({ _drawdown_fraction?: undefined; drawdown_fraction?: null }|{ _drawdown_fraction?: "drawdown_fraction"; drawdown_fraction: string })
+             * ) & (
+             *   ({ _long_lots?: undefined; long_lots?: null }|{ _long_lots?: "long_lots"; long_lots: number|Long })
+             * ) & (
+             *   ({ _short_lots?: undefined; short_lots?: null }|{ _short_lots?: "short_lots"; short_lots: number|Long })
+             * ) & (
+             *   ({ _net_exposure?: undefined; net_exposure?: null }|{ _net_exposure?: "net_exposure"; net_exposure: string })
+             * ) & (
+             *   ({ _gross_exposure?: undefined; gross_exposure?: null }|{ _gross_exposure?: "gross_exposure"; gross_exposure: string })
+             * ) & (
+             *   ({ _settlement_pnl?: undefined; settlement_pnl?: null }|{ _settlement_pnl?: "settlement_pnl"; settlement_pnl: string })
+             * ) & (
+             *   ({ _trade_realized_pnl?: undefined; trade_realized_pnl?: null }|{ _trade_realized_pnl?: "trade_realized_pnl"; trade_realized_pnl: string })
+             * ) & (
+             *   ({ _terms_id?: undefined; terms_id?: null }|{ _terms_id?: "terms_id"; terms_id: string })
+             * ) & (
+             *   ({ _margin_used?: undefined; margin_used?: null }|{ _margin_used?: "margin_used"; margin_used: string })
+             * ) & (
+             *   ({ _available?: undefined; available?: null }|{ _available?: "available"; available: string })
              * )} northstar.research.EquityPoint.$Shape
              */
 
@@ -6415,6 +6502,7 @@ export const northstar = $root.northstar = (() => {
              */
             const EquityPoint = function (properties) {
                 this.evidence_fields = {};
+                this.null_fields = [];
                 if (properties)
                     for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
                         if (properties[keys[i]] != null && keys[i] !== "__proto__")
@@ -6453,6 +6541,150 @@ export const northstar = $root.northstar = (() => {
              */
             EquityPoint.prototype.evidence_fields = $util.emptyObject;
 
+            /**
+             * EquityPoint close.
+             * @member {string|null|undefined} close
+             * @memberof northstar.research.EquityPoint
+             * @instance
+             */
+            EquityPoint.prototype.close = null;
+
+            /**
+             * EquityPoint cash.
+             * @member {string|null|undefined} cash
+             * @memberof northstar.research.EquityPoint
+             * @instance
+             */
+            EquityPoint.prototype.cash = null;
+
+            /**
+             * EquityPoint position_lots.
+             * @member {number|Long|null|undefined} position_lots
+             * @memberof northstar.research.EquityPoint
+             * @instance
+             */
+            EquityPoint.prototype.position_lots = null;
+
+            /**
+             * EquityPoint realized_pnl.
+             * @member {string|null|undefined} realized_pnl
+             * @memberof northstar.research.EquityPoint
+             * @instance
+             */
+            EquityPoint.prototype.realized_pnl = null;
+
+            /**
+             * EquityPoint unrealized_pnl.
+             * @member {string|null|undefined} unrealized_pnl
+             * @memberof northstar.research.EquityPoint
+             * @instance
+             */
+            EquityPoint.prototype.unrealized_pnl = null;
+
+            /**
+             * EquityPoint total_fees.
+             * @member {string|null|undefined} total_fees
+             * @memberof northstar.research.EquityPoint
+             * @instance
+             */
+            EquityPoint.prototype.total_fees = null;
+
+            /**
+             * EquityPoint drawdown.
+             * @member {string|null|undefined} drawdown
+             * @memberof northstar.research.EquityPoint
+             * @instance
+             */
+            EquityPoint.prototype.drawdown = null;
+
+            /**
+             * EquityPoint drawdown_fraction.
+             * @member {string|null|undefined} drawdown_fraction
+             * @memberof northstar.research.EquityPoint
+             * @instance
+             */
+            EquityPoint.prototype.drawdown_fraction = null;
+
+            /**
+             * EquityPoint long_lots.
+             * @member {number|Long|null|undefined} long_lots
+             * @memberof northstar.research.EquityPoint
+             * @instance
+             */
+            EquityPoint.prototype.long_lots = null;
+
+            /**
+             * EquityPoint short_lots.
+             * @member {number|Long|null|undefined} short_lots
+             * @memberof northstar.research.EquityPoint
+             * @instance
+             */
+            EquityPoint.prototype.short_lots = null;
+
+            /**
+             * EquityPoint net_exposure.
+             * @member {string|null|undefined} net_exposure
+             * @memberof northstar.research.EquityPoint
+             * @instance
+             */
+            EquityPoint.prototype.net_exposure = null;
+
+            /**
+             * EquityPoint gross_exposure.
+             * @member {string|null|undefined} gross_exposure
+             * @memberof northstar.research.EquityPoint
+             * @instance
+             */
+            EquityPoint.prototype.gross_exposure = null;
+
+            /**
+             * EquityPoint settlement_pnl.
+             * @member {string|null|undefined} settlement_pnl
+             * @memberof northstar.research.EquityPoint
+             * @instance
+             */
+            EquityPoint.prototype.settlement_pnl = null;
+
+            /**
+             * EquityPoint trade_realized_pnl.
+             * @member {string|null|undefined} trade_realized_pnl
+             * @memberof northstar.research.EquityPoint
+             * @instance
+             */
+            EquityPoint.prototype.trade_realized_pnl = null;
+
+            /**
+             * EquityPoint terms_id.
+             * @member {string|null|undefined} terms_id
+             * @memberof northstar.research.EquityPoint
+             * @instance
+             */
+            EquityPoint.prototype.terms_id = null;
+
+            /**
+             * EquityPoint margin_used.
+             * @member {string|null|undefined} margin_used
+             * @memberof northstar.research.EquityPoint
+             * @instance
+             */
+            EquityPoint.prototype.margin_used = null;
+
+            /**
+             * EquityPoint available.
+             * @member {string|null|undefined} available
+             * @memberof northstar.research.EquityPoint
+             * @instance
+             */
+            EquityPoint.prototype.available = null;
+
+            /**
+             * EquityPoint null_fields.
+             * @member {Array.<string>} null_fields
+             * @memberof northstar.research.EquityPoint
+             * @instance
+             */
+            EquityPoint.prototype.null_fields = $util.emptyArray;
+
             // OneOf field names bound to virtual getters and setters
             let $oneOfFields;
 
@@ -6486,6 +6718,193 @@ export const northstar = $root.northstar = (() => {
              */
             $Object.defineProperty(EquityPoint.prototype, "_observation_id", {
                 get: $util.oneOfGetter($oneOfFields = ["observation_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * EquityPoint _close.
+             * @member {"close"|undefined} _close
+             * @memberof northstar.research.EquityPoint
+             * @instance
+             */
+            $Object.defineProperty(EquityPoint.prototype, "_close", {
+                get: $util.oneOfGetter($oneOfFields = ["close"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * EquityPoint _cash.
+             * @member {"cash"|undefined} _cash
+             * @memberof northstar.research.EquityPoint
+             * @instance
+             */
+            $Object.defineProperty(EquityPoint.prototype, "_cash", {
+                get: $util.oneOfGetter($oneOfFields = ["cash"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * EquityPoint _position_lots.
+             * @member {"position_lots"|undefined} _position_lots
+             * @memberof northstar.research.EquityPoint
+             * @instance
+             */
+            $Object.defineProperty(EquityPoint.prototype, "_position_lots", {
+                get: $util.oneOfGetter($oneOfFields = ["position_lots"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * EquityPoint _realized_pnl.
+             * @member {"realized_pnl"|undefined} _realized_pnl
+             * @memberof northstar.research.EquityPoint
+             * @instance
+             */
+            $Object.defineProperty(EquityPoint.prototype, "_realized_pnl", {
+                get: $util.oneOfGetter($oneOfFields = ["realized_pnl"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * EquityPoint _unrealized_pnl.
+             * @member {"unrealized_pnl"|undefined} _unrealized_pnl
+             * @memberof northstar.research.EquityPoint
+             * @instance
+             */
+            $Object.defineProperty(EquityPoint.prototype, "_unrealized_pnl", {
+                get: $util.oneOfGetter($oneOfFields = ["unrealized_pnl"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * EquityPoint _total_fees.
+             * @member {"total_fees"|undefined} _total_fees
+             * @memberof northstar.research.EquityPoint
+             * @instance
+             */
+            $Object.defineProperty(EquityPoint.prototype, "_total_fees", {
+                get: $util.oneOfGetter($oneOfFields = ["total_fees"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * EquityPoint _drawdown.
+             * @member {"drawdown"|undefined} _drawdown
+             * @memberof northstar.research.EquityPoint
+             * @instance
+             */
+            $Object.defineProperty(EquityPoint.prototype, "_drawdown", {
+                get: $util.oneOfGetter($oneOfFields = ["drawdown"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * EquityPoint _drawdown_fraction.
+             * @member {"drawdown_fraction"|undefined} _drawdown_fraction
+             * @memberof northstar.research.EquityPoint
+             * @instance
+             */
+            $Object.defineProperty(EquityPoint.prototype, "_drawdown_fraction", {
+                get: $util.oneOfGetter($oneOfFields = ["drawdown_fraction"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * EquityPoint _long_lots.
+             * @member {"long_lots"|undefined} _long_lots
+             * @memberof northstar.research.EquityPoint
+             * @instance
+             */
+            $Object.defineProperty(EquityPoint.prototype, "_long_lots", {
+                get: $util.oneOfGetter($oneOfFields = ["long_lots"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * EquityPoint _short_lots.
+             * @member {"short_lots"|undefined} _short_lots
+             * @memberof northstar.research.EquityPoint
+             * @instance
+             */
+            $Object.defineProperty(EquityPoint.prototype, "_short_lots", {
+                get: $util.oneOfGetter($oneOfFields = ["short_lots"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * EquityPoint _net_exposure.
+             * @member {"net_exposure"|undefined} _net_exposure
+             * @memberof northstar.research.EquityPoint
+             * @instance
+             */
+            $Object.defineProperty(EquityPoint.prototype, "_net_exposure", {
+                get: $util.oneOfGetter($oneOfFields = ["net_exposure"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * EquityPoint _gross_exposure.
+             * @member {"gross_exposure"|undefined} _gross_exposure
+             * @memberof northstar.research.EquityPoint
+             * @instance
+             */
+            $Object.defineProperty(EquityPoint.prototype, "_gross_exposure", {
+                get: $util.oneOfGetter($oneOfFields = ["gross_exposure"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * EquityPoint _settlement_pnl.
+             * @member {"settlement_pnl"|undefined} _settlement_pnl
+             * @memberof northstar.research.EquityPoint
+             * @instance
+             */
+            $Object.defineProperty(EquityPoint.prototype, "_settlement_pnl", {
+                get: $util.oneOfGetter($oneOfFields = ["settlement_pnl"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * EquityPoint _trade_realized_pnl.
+             * @member {"trade_realized_pnl"|undefined} _trade_realized_pnl
+             * @memberof northstar.research.EquityPoint
+             * @instance
+             */
+            $Object.defineProperty(EquityPoint.prototype, "_trade_realized_pnl", {
+                get: $util.oneOfGetter($oneOfFields = ["trade_realized_pnl"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * EquityPoint _terms_id.
+             * @member {"terms_id"|undefined} _terms_id
+             * @memberof northstar.research.EquityPoint
+             * @instance
+             */
+            $Object.defineProperty(EquityPoint.prototype, "_terms_id", {
+                get: $util.oneOfGetter($oneOfFields = ["terms_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * EquityPoint _margin_used.
+             * @member {"margin_used"|undefined} _margin_used
+             * @memberof northstar.research.EquityPoint
+             * @instance
+             */
+            $Object.defineProperty(EquityPoint.prototype, "_margin_used", {
+                get: $util.oneOfGetter($oneOfFields = ["margin_used"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * EquityPoint _available.
+             * @member {"available"|undefined} _available
+             * @memberof northstar.research.EquityPoint
+             * @instance
+             */
+            $Object.defineProperty(EquityPoint.prototype, "_available", {
+                get: $util.oneOfGetter($oneOfFields = ["available"]),
                 set: $util.oneOfSetter($oneOfFields)
             });
 
@@ -6527,11 +6946,48 @@ export const northstar = $root.northstar = (() => {
                     writer.uint32(/* id 2, wireType 2 =*/18).string(message.equity);
                 if (message.observation_id != null && $Object.hasOwnProperty.call(message, "observation_id"))
                     writer.uint32(/* id 3, wireType 2 =*/26).string(message.observation_id);
+                if (message.close != null && $Object.hasOwnProperty.call(message, "close"))
+                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.close);
+                if (message.cash != null && $Object.hasOwnProperty.call(message, "cash"))
+                    writer.uint32(/* id 5, wireType 2 =*/42).string(message.cash);
+                if (message.position_lots != null && $Object.hasOwnProperty.call(message, "position_lots"))
+                    writer.uint32(/* id 6, wireType 0 =*/48).int64(message.position_lots);
+                if (message.realized_pnl != null && $Object.hasOwnProperty.call(message, "realized_pnl"))
+                    writer.uint32(/* id 7, wireType 2 =*/58).string(message.realized_pnl);
+                if (message.unrealized_pnl != null && $Object.hasOwnProperty.call(message, "unrealized_pnl"))
+                    writer.uint32(/* id 8, wireType 2 =*/66).string(message.unrealized_pnl);
+                if (message.total_fees != null && $Object.hasOwnProperty.call(message, "total_fees"))
+                    writer.uint32(/* id 9, wireType 2 =*/74).string(message.total_fees);
+                if (message.drawdown != null && $Object.hasOwnProperty.call(message, "drawdown"))
+                    writer.uint32(/* id 10, wireType 2 =*/82).string(message.drawdown);
+                if (message.drawdown_fraction != null && $Object.hasOwnProperty.call(message, "drawdown_fraction"))
+                    writer.uint32(/* id 11, wireType 2 =*/90).string(message.drawdown_fraction);
+                if (message.long_lots != null && $Object.hasOwnProperty.call(message, "long_lots"))
+                    writer.uint32(/* id 12, wireType 0 =*/96).int64(message.long_lots);
+                if (message.short_lots != null && $Object.hasOwnProperty.call(message, "short_lots"))
+                    writer.uint32(/* id 13, wireType 0 =*/104).int64(message.short_lots);
+                if (message.net_exposure != null && $Object.hasOwnProperty.call(message, "net_exposure"))
+                    writer.uint32(/* id 14, wireType 2 =*/114).string(message.net_exposure);
+                if (message.gross_exposure != null && $Object.hasOwnProperty.call(message, "gross_exposure"))
+                    writer.uint32(/* id 15, wireType 2 =*/122).string(message.gross_exposure);
+                if (message.settlement_pnl != null && $Object.hasOwnProperty.call(message, "settlement_pnl"))
+                    writer.uint32(/* id 16, wireType 2 =*/130).string(message.settlement_pnl);
+                if (message.trade_realized_pnl != null && $Object.hasOwnProperty.call(message, "trade_realized_pnl"))
+                    writer.uint32(/* id 17, wireType 2 =*/138).string(message.trade_realized_pnl);
+                if (message.terms_id != null && $Object.hasOwnProperty.call(message, "terms_id"))
+                    writer.uint32(/* id 18, wireType 2 =*/146).string(message.terms_id);
+                if (message.margin_used != null && $Object.hasOwnProperty.call(message, "margin_used"))
+                    writer.uint32(/* id 19, wireType 2 =*/154).string(message.margin_used);
+                if (message.available != null && $Object.hasOwnProperty.call(message, "available"))
+                    writer.uint32(/* id 20, wireType 2 =*/162).string(message.available);
                 if (message.evidence_fields != null && $Object.hasOwnProperty.call(message, "evidence_fields"))
                     for (let keys = $Object.keys(message.evidence_fields), i = 0; i < keys.length; ++i) {
                         writer.uint32(/* id 1000, wireType 2 =*/8002).fork().uint32(/* id 1, wireType 2 =*/10).string(keys[i]);
                         $root.google.protobuf.Value.encode(message.evidence_fields[keys[i]], writer.uint32(/* id 2, wireType 2 =*/18).fork(), _depth + 1).ldelim().ldelim();
                     }
+                if (message.null_fields != null && message.null_fields.length)
+                    for (let i = 0; i < message.null_fields.length; ++i)
+                        writer.uint32(/* id 2046, wireType 2 =*/16370).string(message.null_fields[i]);
                 if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
                     for (let i = 0; i < message.$unknowns.length; ++i)
                         writer.raw(message.$unknowns[i]);
@@ -6633,6 +7089,133 @@ export const northstar = $root.northstar = (() => {
                             message.evidence_fields[key] = value || new $root.google.protobuf.Value();
                             continue;
                         }
+                    case 4: {
+                            if (wireType !== 2)
+                                break;
+                            message.close = reader.stringVerify();
+                            message._close = "close";
+                            continue;
+                        }
+                    case 5: {
+                            if (wireType !== 2)
+                                break;
+                            message.cash = reader.stringVerify();
+                            message._cash = "cash";
+                            continue;
+                        }
+                    case 6: {
+                            if (wireType !== 0)
+                                break;
+                            message.position_lots = reader.int64();
+                            message._position_lots = "position_lots";
+                            continue;
+                        }
+                    case 7: {
+                            if (wireType !== 2)
+                                break;
+                            message.realized_pnl = reader.stringVerify();
+                            message._realized_pnl = "realized_pnl";
+                            continue;
+                        }
+                    case 8: {
+                            if (wireType !== 2)
+                                break;
+                            message.unrealized_pnl = reader.stringVerify();
+                            message._unrealized_pnl = "unrealized_pnl";
+                            continue;
+                        }
+                    case 9: {
+                            if (wireType !== 2)
+                                break;
+                            message.total_fees = reader.stringVerify();
+                            message._total_fees = "total_fees";
+                            continue;
+                        }
+                    case 10: {
+                            if (wireType !== 2)
+                                break;
+                            message.drawdown = reader.stringVerify();
+                            message._drawdown = "drawdown";
+                            continue;
+                        }
+                    case 11: {
+                            if (wireType !== 2)
+                                break;
+                            message.drawdown_fraction = reader.stringVerify();
+                            message._drawdown_fraction = "drawdown_fraction";
+                            continue;
+                        }
+                    case 12: {
+                            if (wireType !== 0)
+                                break;
+                            message.long_lots = reader.int64();
+                            message._long_lots = "long_lots";
+                            continue;
+                        }
+                    case 13: {
+                            if (wireType !== 0)
+                                break;
+                            message.short_lots = reader.int64();
+                            message._short_lots = "short_lots";
+                            continue;
+                        }
+                    case 14: {
+                            if (wireType !== 2)
+                                break;
+                            message.net_exposure = reader.stringVerify();
+                            message._net_exposure = "net_exposure";
+                            continue;
+                        }
+                    case 15: {
+                            if (wireType !== 2)
+                                break;
+                            message.gross_exposure = reader.stringVerify();
+                            message._gross_exposure = "gross_exposure";
+                            continue;
+                        }
+                    case 16: {
+                            if (wireType !== 2)
+                                break;
+                            message.settlement_pnl = reader.stringVerify();
+                            message._settlement_pnl = "settlement_pnl";
+                            continue;
+                        }
+                    case 17: {
+                            if (wireType !== 2)
+                                break;
+                            message.trade_realized_pnl = reader.stringVerify();
+                            message._trade_realized_pnl = "trade_realized_pnl";
+                            continue;
+                        }
+                    case 18: {
+                            if (wireType !== 2)
+                                break;
+                            message.terms_id = reader.stringVerify();
+                            message._terms_id = "terms_id";
+                            continue;
+                        }
+                    case 19: {
+                            if (wireType !== 2)
+                                break;
+                            message.margin_used = reader.stringVerify();
+                            message._margin_used = "margin_used";
+                            continue;
+                        }
+                    case 20: {
+                            if (wireType !== 2)
+                                break;
+                            message.available = reader.stringVerify();
+                            message._available = "available";
+                            continue;
+                        }
+                    case 2046: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.null_fields && message.null_fields.length))
+                                message.null_fields = [];
+                            message.null_fields.push(reader.stringVerify());
+                            continue;
+                        }
                     }
                     reader.skipType(wireType, _depth, tag);
                     if (!reader.discardUnknown) {
@@ -6691,6 +7274,98 @@ export const northstar = $root.northstar = (() => {
                             return "evidence_fields." + error;
                     }
                 }
+                if (message.close != null && $Object.hasOwnProperty.call(message, "close")) {
+                    properties._close = 1;
+                    if (!$util.isString(message.close))
+                        return "close: string expected";
+                }
+                if (message.cash != null && $Object.hasOwnProperty.call(message, "cash")) {
+                    properties._cash = 1;
+                    if (!$util.isString(message.cash))
+                        return "cash: string expected";
+                }
+                if (message.position_lots != null && $Object.hasOwnProperty.call(message, "position_lots")) {
+                    properties._position_lots = 1;
+                    if (!$util.isInteger(message.position_lots) && !(message.position_lots && $util.isInteger(message.position_lots.low) && $util.isInteger(message.position_lots.high)))
+                        return "position_lots: integer|Long expected";
+                }
+                if (message.realized_pnl != null && $Object.hasOwnProperty.call(message, "realized_pnl")) {
+                    properties._realized_pnl = 1;
+                    if (!$util.isString(message.realized_pnl))
+                        return "realized_pnl: string expected";
+                }
+                if (message.unrealized_pnl != null && $Object.hasOwnProperty.call(message, "unrealized_pnl")) {
+                    properties._unrealized_pnl = 1;
+                    if (!$util.isString(message.unrealized_pnl))
+                        return "unrealized_pnl: string expected";
+                }
+                if (message.total_fees != null && $Object.hasOwnProperty.call(message, "total_fees")) {
+                    properties._total_fees = 1;
+                    if (!$util.isString(message.total_fees))
+                        return "total_fees: string expected";
+                }
+                if (message.drawdown != null && $Object.hasOwnProperty.call(message, "drawdown")) {
+                    properties._drawdown = 1;
+                    if (!$util.isString(message.drawdown))
+                        return "drawdown: string expected";
+                }
+                if (message.drawdown_fraction != null && $Object.hasOwnProperty.call(message, "drawdown_fraction")) {
+                    properties._drawdown_fraction = 1;
+                    if (!$util.isString(message.drawdown_fraction))
+                        return "drawdown_fraction: string expected";
+                }
+                if (message.long_lots != null && $Object.hasOwnProperty.call(message, "long_lots")) {
+                    properties._long_lots = 1;
+                    if (!$util.isInteger(message.long_lots) && !(message.long_lots && $util.isInteger(message.long_lots.low) && $util.isInteger(message.long_lots.high)))
+                        return "long_lots: integer|Long expected";
+                }
+                if (message.short_lots != null && $Object.hasOwnProperty.call(message, "short_lots")) {
+                    properties._short_lots = 1;
+                    if (!$util.isInteger(message.short_lots) && !(message.short_lots && $util.isInteger(message.short_lots.low) && $util.isInteger(message.short_lots.high)))
+                        return "short_lots: integer|Long expected";
+                }
+                if (message.net_exposure != null && $Object.hasOwnProperty.call(message, "net_exposure")) {
+                    properties._net_exposure = 1;
+                    if (!$util.isString(message.net_exposure))
+                        return "net_exposure: string expected";
+                }
+                if (message.gross_exposure != null && $Object.hasOwnProperty.call(message, "gross_exposure")) {
+                    properties._gross_exposure = 1;
+                    if (!$util.isString(message.gross_exposure))
+                        return "gross_exposure: string expected";
+                }
+                if (message.settlement_pnl != null && $Object.hasOwnProperty.call(message, "settlement_pnl")) {
+                    properties._settlement_pnl = 1;
+                    if (!$util.isString(message.settlement_pnl))
+                        return "settlement_pnl: string expected";
+                }
+                if (message.trade_realized_pnl != null && $Object.hasOwnProperty.call(message, "trade_realized_pnl")) {
+                    properties._trade_realized_pnl = 1;
+                    if (!$util.isString(message.trade_realized_pnl))
+                        return "trade_realized_pnl: string expected";
+                }
+                if (message.terms_id != null && $Object.hasOwnProperty.call(message, "terms_id")) {
+                    properties._terms_id = 1;
+                    if (!$util.isString(message.terms_id))
+                        return "terms_id: string expected";
+                }
+                if (message.margin_used != null && $Object.hasOwnProperty.call(message, "margin_used")) {
+                    properties._margin_used = 1;
+                    if (!$util.isString(message.margin_used))
+                        return "margin_used: string expected";
+                }
+                if (message.available != null && $Object.hasOwnProperty.call(message, "available")) {
+                    properties._available = 1;
+                    if (!$util.isString(message.available))
+                        return "available: string expected";
+                }
+                if (message.null_fields != null && $Object.hasOwnProperty.call(message, "null_fields")) {
+                    if (!$Array.isArray(message.null_fields))
+                        return "null_fields: array expected";
+                    for (let i = 0; i < message.null_fields.length; ++i)
+                        if (!$util.isString(message.null_fields[i]))
+                            return "null_fields: string[] expected";
+                }
                 return null;
             };
 
@@ -6730,6 +7405,68 @@ export const northstar = $root.northstar = (() => {
                         message.evidence_fields[keys[i]] = $root.google.protobuf.Value.fromObject(object.evidence_fields[keys[i]], _depth + 1);
                     }
                 }
+                if (object.close != null)
+                    message.close = $String(object.close);
+                if (object.cash != null)
+                    message.cash = $String(object.cash);
+                if (object.position_lots != null)
+                    if ($util.Long)
+                        message.position_lots = $util.Long.fromValue(object.position_lots, false);
+                    else if (typeof object.position_lots === "string")
+                        message.position_lots = $parseInt(object.position_lots, 10);
+                    else if (typeof object.position_lots === "number")
+                        message.position_lots = object.position_lots;
+                    else if (typeof object.position_lots === "object")
+                        message.position_lots = new $util.LongBits(object.position_lots.low >>> 0, object.position_lots.high >>> 0).toNumber();
+                if (object.realized_pnl != null)
+                    message.realized_pnl = $String(object.realized_pnl);
+                if (object.unrealized_pnl != null)
+                    message.unrealized_pnl = $String(object.unrealized_pnl);
+                if (object.total_fees != null)
+                    message.total_fees = $String(object.total_fees);
+                if (object.drawdown != null)
+                    message.drawdown = $String(object.drawdown);
+                if (object.drawdown_fraction != null)
+                    message.drawdown_fraction = $String(object.drawdown_fraction);
+                if (object.long_lots != null)
+                    if ($util.Long)
+                        message.long_lots = $util.Long.fromValue(object.long_lots, false);
+                    else if (typeof object.long_lots === "string")
+                        message.long_lots = $parseInt(object.long_lots, 10);
+                    else if (typeof object.long_lots === "number")
+                        message.long_lots = object.long_lots;
+                    else if (typeof object.long_lots === "object")
+                        message.long_lots = new $util.LongBits(object.long_lots.low >>> 0, object.long_lots.high >>> 0).toNumber();
+                if (object.short_lots != null)
+                    if ($util.Long)
+                        message.short_lots = $util.Long.fromValue(object.short_lots, false);
+                    else if (typeof object.short_lots === "string")
+                        message.short_lots = $parseInt(object.short_lots, 10);
+                    else if (typeof object.short_lots === "number")
+                        message.short_lots = object.short_lots;
+                    else if (typeof object.short_lots === "object")
+                        message.short_lots = new $util.LongBits(object.short_lots.low >>> 0, object.short_lots.high >>> 0).toNumber();
+                if (object.net_exposure != null)
+                    message.net_exposure = $String(object.net_exposure);
+                if (object.gross_exposure != null)
+                    message.gross_exposure = $String(object.gross_exposure);
+                if (object.settlement_pnl != null)
+                    message.settlement_pnl = $String(object.settlement_pnl);
+                if (object.trade_realized_pnl != null)
+                    message.trade_realized_pnl = $String(object.trade_realized_pnl);
+                if (object.terms_id != null)
+                    message.terms_id = $String(object.terms_id);
+                if (object.margin_used != null)
+                    message.margin_used = $String(object.margin_used);
+                if (object.available != null)
+                    message.available = $String(object.available);
+                if (object.null_fields) {
+                    if (!$Array.isArray(object.null_fields))
+                        throw $TypeError(".northstar.research.EquityPoint.null_fields: array expected");
+                    message.null_fields = $Array(object.null_fields.length);
+                    for (let i = 0; i < object.null_fields.length; ++i)
+                        message.null_fields[i] = $String(object.null_fields[i]);
+                }
                 return message;
             };
 
@@ -6750,6 +7487,8 @@ export const northstar = $root.northstar = (() => {
                 if (_depth > $util.recursionLimit)
                     throw $Error("max depth exceeded");
                 let object = {};
+                if (options.arrays || options.defaults)
+                    object.null_fields = [];
                 if (options.objects || options.defaults)
                     object.evidence_fields = {};
                 if (message.at != null && $Object.hasOwnProperty.call(message, "at")) {
@@ -6767,6 +7506,106 @@ export const northstar = $root.northstar = (() => {
                     if (options.oneofs)
                         object._observation_id = "observation_id";
                 }
+                if (message.close != null && $Object.hasOwnProperty.call(message, "close")) {
+                    object.close = message.close;
+                    if (options.oneofs)
+                        object._close = "close";
+                }
+                if (message.cash != null && $Object.hasOwnProperty.call(message, "cash")) {
+                    object.cash = message.cash;
+                    if (options.oneofs)
+                        object._cash = "cash";
+                }
+                if (message.position_lots != null && $Object.hasOwnProperty.call(message, "position_lots")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.position_lots = typeof message.position_lots === "number" ? $BigInt(message.position_lots) : $util.Long.fromBits(message.position_lots.low >>> 0, message.position_lots.high >>> 0, false).toBigInt();
+                    else if (typeof message.position_lots === "number")
+                        object.position_lots = options.longs === $String ? $String(message.position_lots) : message.position_lots;
+                    else
+                        object.position_lots = options.longs === $String ? $util.Long.prototype.toString.call(message.position_lots) : options.longs === $Number ? new $util.LongBits(message.position_lots.low >>> 0, message.position_lots.high >>> 0).toNumber() : message.position_lots;
+                    if (options.oneofs)
+                        object._position_lots = "position_lots";
+                }
+                if (message.realized_pnl != null && $Object.hasOwnProperty.call(message, "realized_pnl")) {
+                    object.realized_pnl = message.realized_pnl;
+                    if (options.oneofs)
+                        object._realized_pnl = "realized_pnl";
+                }
+                if (message.unrealized_pnl != null && $Object.hasOwnProperty.call(message, "unrealized_pnl")) {
+                    object.unrealized_pnl = message.unrealized_pnl;
+                    if (options.oneofs)
+                        object._unrealized_pnl = "unrealized_pnl";
+                }
+                if (message.total_fees != null && $Object.hasOwnProperty.call(message, "total_fees")) {
+                    object.total_fees = message.total_fees;
+                    if (options.oneofs)
+                        object._total_fees = "total_fees";
+                }
+                if (message.drawdown != null && $Object.hasOwnProperty.call(message, "drawdown")) {
+                    object.drawdown = message.drawdown;
+                    if (options.oneofs)
+                        object._drawdown = "drawdown";
+                }
+                if (message.drawdown_fraction != null && $Object.hasOwnProperty.call(message, "drawdown_fraction")) {
+                    object.drawdown_fraction = message.drawdown_fraction;
+                    if (options.oneofs)
+                        object._drawdown_fraction = "drawdown_fraction";
+                }
+                if (message.long_lots != null && $Object.hasOwnProperty.call(message, "long_lots")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.long_lots = typeof message.long_lots === "number" ? $BigInt(message.long_lots) : $util.Long.fromBits(message.long_lots.low >>> 0, message.long_lots.high >>> 0, false).toBigInt();
+                    else if (typeof message.long_lots === "number")
+                        object.long_lots = options.longs === $String ? $String(message.long_lots) : message.long_lots;
+                    else
+                        object.long_lots = options.longs === $String ? $util.Long.prototype.toString.call(message.long_lots) : options.longs === $Number ? new $util.LongBits(message.long_lots.low >>> 0, message.long_lots.high >>> 0).toNumber() : message.long_lots;
+                    if (options.oneofs)
+                        object._long_lots = "long_lots";
+                }
+                if (message.short_lots != null && $Object.hasOwnProperty.call(message, "short_lots")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.short_lots = typeof message.short_lots === "number" ? $BigInt(message.short_lots) : $util.Long.fromBits(message.short_lots.low >>> 0, message.short_lots.high >>> 0, false).toBigInt();
+                    else if (typeof message.short_lots === "number")
+                        object.short_lots = options.longs === $String ? $String(message.short_lots) : message.short_lots;
+                    else
+                        object.short_lots = options.longs === $String ? $util.Long.prototype.toString.call(message.short_lots) : options.longs === $Number ? new $util.LongBits(message.short_lots.low >>> 0, message.short_lots.high >>> 0).toNumber() : message.short_lots;
+                    if (options.oneofs)
+                        object._short_lots = "short_lots";
+                }
+                if (message.net_exposure != null && $Object.hasOwnProperty.call(message, "net_exposure")) {
+                    object.net_exposure = message.net_exposure;
+                    if (options.oneofs)
+                        object._net_exposure = "net_exposure";
+                }
+                if (message.gross_exposure != null && $Object.hasOwnProperty.call(message, "gross_exposure")) {
+                    object.gross_exposure = message.gross_exposure;
+                    if (options.oneofs)
+                        object._gross_exposure = "gross_exposure";
+                }
+                if (message.settlement_pnl != null && $Object.hasOwnProperty.call(message, "settlement_pnl")) {
+                    object.settlement_pnl = message.settlement_pnl;
+                    if (options.oneofs)
+                        object._settlement_pnl = "settlement_pnl";
+                }
+                if (message.trade_realized_pnl != null && $Object.hasOwnProperty.call(message, "trade_realized_pnl")) {
+                    object.trade_realized_pnl = message.trade_realized_pnl;
+                    if (options.oneofs)
+                        object._trade_realized_pnl = "trade_realized_pnl";
+                }
+                if (message.terms_id != null && $Object.hasOwnProperty.call(message, "terms_id")) {
+                    object.terms_id = message.terms_id;
+                    if (options.oneofs)
+                        object._terms_id = "terms_id";
+                }
+                if (message.margin_used != null && $Object.hasOwnProperty.call(message, "margin_used")) {
+                    object.margin_used = message.margin_used;
+                    if (options.oneofs)
+                        object._margin_used = "margin_used";
+                }
+                if (message.available != null && $Object.hasOwnProperty.call(message, "available")) {
+                    object.available = message.available;
+                    if (options.oneofs)
+                        object._available = "available";
+                }
                 let keys2;
                 if (message.evidence_fields && (keys2 = $Object.keys(message.evidence_fields)).length) {
                     object.evidence_fields = {};
@@ -6775,6 +7614,11 @@ export const northstar = $root.northstar = (() => {
                             $util.makeProp(object.evidence_fields, keys2[j]);
                         object.evidence_fields[keys2[j]] = $root.google.protobuf.Value.toObject(message.evidence_fields[keys2[j]], options, _depth + 1);
                     }
+                }
+                if (message.null_fields && message.null_fields.length) {
+                    object.null_fields = $Array(message.null_fields.length);
+                    for (let j = 0; j < message.null_fields.length; ++j)
+                        object.null_fields[j] = message.null_fields[j];
                 }
                 return object;
             };

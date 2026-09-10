@@ -22,6 +22,12 @@ class AccountValuation:
     equity: Decimal
     terms_id: str | None
     margin_used: Decimal | None
+    long_lots: int
+    short_lots: int
+    net_exposure: Decimal
+    gross_exposure: Decimal
+    settlement_pnl: Decimal
+    trade_realized_pnl: Decimal
 
     def to_dict(self) -> dict[str, object]:
         result: dict[str, object] = {
@@ -31,6 +37,12 @@ class AccountValuation:
             "unrealized_pnl": decimal_text(self.unrealized_pnl),
             "total_fees": decimal_text(self.total_fees),
             "equity": decimal_text(self.equity),
+            "long_lots": self.long_lots,
+            "short_lots": self.short_lots,
+            "net_exposure": decimal_text(self.net_exposure),
+            "gross_exposure": decimal_text(self.gross_exposure),
+            "settlement_pnl": decimal_text(self.settlement_pnl),
+            "trade_realized_pnl": decimal_text(self.trade_realized_pnl),
         }
         if self.margin_used is not None:
             with localcontext() as context:
@@ -68,9 +80,12 @@ def value_account(
         context.prec = 192
         context.rounding = ROUND_HALF_EVEN
         unrealized = account.unrealized_pnl(mark)
+        position = account.position
+        long_lots = position.long_today + position.long_yesterday
+        short_lots = position.short_today + position.short_yesterday
+        notional = mark * account.market.multiplier
         margin = None
         if terms is not None:
-            position = account.position
             margin = terms.margin(
                 Side.BUY,
                 mark,
@@ -91,4 +106,10 @@ def value_account(
             account.cash + unrealized,
             None if terms is None else terms.terms_id,
             margin,
+            long_lots,
+            short_lots,
+            (long_lots - short_lots) * notional,
+            (long_lots + short_lots) * notional,
+            account.settlement_pnl,
+            account.realized_pnl - account.settlement_pnl,
         )

@@ -204,6 +204,16 @@ def test_gross_opens_explicit_closes_and_broker_projection_share_quantities() ->
     assert applied.gross_position.long_today == applied.gross_position.short_today == 1
     assert account.position_lots == 0  # Flat net exposure still has two gross holdings.
     assert account.equity(Decimal(105)) == Decimal(1296)
+    from northstar_quant.accounting.valuation import value_account
+
+    valuation = value_account(account, Decimal(105), at=close.filled_at)
+    assert valuation.long_lots == valuation.short_lots == 1
+    assert valuation.net_exposure == 0 and valuation.gross_exposure == Decimal(2100)
+    assert valuation.trade_realized_pnl == Decimal(200) and valuation.settlement_pnl == 0
+    assert valuation.equity == Decimal(1296)
+    assert valuation.margin_used is None and "available" not in valuation.to_dict()
+    with pytest.raises(ValueError, match="precede"):
+        value_account(account, Decimal(105), at=at)
     changes = tuple(
         PositionChange(
             f.contract_id, f.trading_day, f.side.value, f.offset.value, f.quantity_lots, f.filled_at

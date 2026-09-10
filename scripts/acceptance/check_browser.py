@@ -401,6 +401,14 @@ def main() -> None:
                     page.get_by_role("button", name="查看研究报告", exact=True).click()
                     expect(page.get_by_role("img", name="账户回撤")).to_be_visible()
                     screenshot("report")
+                    page.get_by_role("tab", name="敞口与保证金", exact=True).click()
+                    expect(
+                        page.get_by_role("columnheader", name="总名义敞口", exact=True)
+                    ).to_be_visible()
+                    expect(
+                        page.get_by_role("columnheader", name="多头手数", exact=True)
+                    ).to_be_visible()
+                    screenshot("exposure")
                     page.get_by_role("tab", name="订单过程", exact=True).click()
                     expect(
                         page.get_by_role("columnheader", name="委托手数", exact=True)

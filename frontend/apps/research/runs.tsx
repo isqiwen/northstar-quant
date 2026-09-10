@@ -70,15 +70,41 @@ export function Report() {
                         { title: "时间", dataIndex: "at" },
                         { title: "权益", dataIndex: "equity" },
                         { title: "资金", dataIndex: "cash" },
-                        { title: "条款保证金", dataIndex: "margin_used" },
-                        { title: "扣除保证金后资金", dataIndex: "available" },
-                        { title: "持仓手数", dataIndex: "position_lots" },
-                        { title: "已实现盈亏", dataIndex: "realized_pnl" },
+                        { title: "净持仓手数", dataIndex: "position_lots" },
+                        { title: "平仓盈亏", dataIndex: "trade_realized_pnl" },
+                        { title: "结算盈亏", dataIndex: "settlement_pnl" },
+                        { title: "累计实现盈亏", dataIndex: "realized_pnl" },
                         { title: "浮动盈亏", dataIndex: "unrealized_pnl" },
                         { title: "累计费用", dataIndex: "total_fees" },
                         { title: "回撤", dataIndex: "drawdown" },
                       ]}
                     />
+                  ),
+                },
+                {
+                  key: "exposure",
+                  label: "敞口与保证金",
+                  children: (
+                    <>
+                      <Alert
+                        type="info"
+                        showIcon
+                        title="按观察价格计算名义敞口；总敞口保留多空双边持仓。扣除保证金后资金未扣未决委托预占。"
+                      />
+                      <Records
+                        rowKey="observation_id"
+                        rows={curve}
+                        columns={[
+                          { title: "时间", dataIndex: "at" },
+                          { title: "多头手数", dataIndex: "long_lots" },
+                          { title: "空头手数", dataIndex: "short_lots" },
+                          { title: "净名义敞口", dataIndex: "net_exposure" },
+                          { title: "总名义敞口", dataIndex: "gross_exposure" },
+                          { title: "条款保证金", dataIndex: "margin_used" },
+                          { title: "扣除保证金后资金", dataIndex: "available" },
+                        ]}
+                      />
+                    </>
                   ),
                 },
                 {

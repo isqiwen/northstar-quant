@@ -87,6 +87,23 @@ export type EquityPoint = {
   equity: string;
   observation_id: string;
   [key: string]: unknown;
+  close: string;
+  cash: string;
+  position_lots: number;
+  realized_pnl: string;
+  unrealized_pnl: string;
+  total_fees: string;
+  drawdown: string;
+  drawdown_fraction: string;
+  long_lots: number;
+  short_lots: number;
+  net_exposure: string;
+  gross_exposure: string;
+  settlement_pnl: string;
+  trade_realized_pnl: string;
+  terms_id?: string | null;
+  margin_used?: string | null;
+  available?: string | null;
 };
 export type FactorBinding = {
   code_revision: string;
