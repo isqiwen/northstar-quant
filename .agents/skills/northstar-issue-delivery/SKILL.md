@@ -31,9 +31,13 @@ acceptance read the adjacent `../northstar-runtime-verification/SKILL.md`.
 A missing dependency is not permission to connect a broker, provision a host or
 operate a personal deployment.
 
-After an authorized commit/push, check CI for that exact SHA. Record delivered
+Follow `AGENTS.md` → "Asynchronous CI follow-up": continue independent authorized
+work while CI runs; do not block on every push. At task boundaries or on resumption,
+check the pending run for its exact SHA. Record delivered
 behavior, reproducible checks, data/evidence category and remaining acceptance
-gaps in the Issue; align Project status. Partial delivery stays open. A new
+gaps in the Issue; align Project status. If ending before CI completes, leave its
+SHA/run URL and pending status for the next turn. Partial or unverified delivery
+stays open; acceptance requires the delivered SHA's checks to pass. A new
 version's CLI check does not replace a required browser or broker acceptance.
 
 If a GitHub write times out, read back before retrying comments or creating Issues.

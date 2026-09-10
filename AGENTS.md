@@ -217,3 +217,19 @@ CI follow-up and Issue/Project updates are authorized without repeated approval.
 Read-only questions authorize inspection, not implementation or publication.
 Merges, releases, broker connections and irreversible data operations require
 their own explicit task scope; routine development authority does not imply them.
+
+### Asynchronous CI follow-up
+
+After appropriate local checks, commit/push and start CI; do not block on every
+run or idle through the pipeline when independent authorized work is available.
+Continue that work and check CI at natural task boundaries. Wait only when the
+result is needed for the next dependent action or an acceptance conclusion.
+A turn may end with "pushed; CI pending". Record the exact SHA and run URL in
+the owning Issue (or the final handoff for a documentation-only task), and check
+that pending run when work resumes. Do not imply monitoring continues after the turn.
+Fix relevant failures before claiming acceptance. Close an Issue or mark its
+Project item Done only after the required checks for the delivered SHA pass;
+local success, a successful push and a superseded run are not that evidence.
+Avoid repetitive unchanged CI progress messages and tight polling; report failures,
+meaningful milestones or required user input. A superseded redundant run may be
+cancelled after its replacement is confirmed, but cancellation is not a pass.
