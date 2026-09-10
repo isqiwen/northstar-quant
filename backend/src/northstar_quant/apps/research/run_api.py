@@ -73,6 +73,10 @@ class EquityPoint(EvidenceRecord):
     terms_id: str | None = None
     margin_used: str | None = None
     available: str | None = None
+    reserved_fee: str
+    reserved_margin: str
+    reserved_close_lots: int
+    available_after_reservations: str | None = None
 
 
 class EvaluationPlan(ApiModel):

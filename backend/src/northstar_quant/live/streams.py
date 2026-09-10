@@ -12,6 +12,7 @@ import hashlib
 import json
 import threading
 import time
+from collections.abc import Callable
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
@@ -201,11 +202,18 @@ def initialize_streams(connection: Connection) -> None:
 class LiveStreams:
     """Own explicit start, durable reception, shadow pause and terminal stop."""
 
-    def __init__(self, engine: Engine, library: DataLibrary) -> None:
+    def __init__(
+        self,
+        engine: Engine,
+        library: DataLibrary,
+        *,
+        check_ownership: Callable[[], None] | None = None,
+    ) -> None:
         self._engine = engine
         self._library = library
         self._configurations = ConfigurationStore(engine)
         self._ledger = BrokerLedger(engine)
+        self._check_ownership = check_ownership
         self._guard = threading.Lock()
         self._workers: dict[UUID, tuple[threading.Thread, threading.Event]] = {}
 
@@ -246,6 +254,8 @@ class LiveStreams:
                 if _object(existing["binding"])["request"] != request:
                     raise ValueError("stream request identity is bound to different input")
                 return existing
+            if self._check_ownership is not None:
+                self._check_ownership()
             query = BrokerRecords(self._engine).get(query_batch_id)
             completeness = _object(query["completeness"])
             if query["status"] != "COMPLETE" or completeness["identity"] != "CONFIRMED":
@@ -406,6 +416,14 @@ class LiveStreams:
                     return True
                 if time.monotonic() - last_check < 0.5:
                     return False
+                # HTTP requests are not the receiver's lifecycle monitor. Check
+                # instance/account ownership even when no browser is connected.
+                # These bounded filesystem checks run on the existing poll, not
+                # on every tick. They grant no execution or failover authority.
+                if self._check_ownership is not None:
+                    self._check_ownership()
+                for held in owner.info.get("live_locks", []):
+                    held.check()
                 if database_path is not None and database_identity is not None:
                     observed = database_path.stat()
                     if (observed.st_dev, observed.st_ino) != (

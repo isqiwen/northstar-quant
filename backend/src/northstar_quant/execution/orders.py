@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
-from decimal import Decimal
+from decimal import ROUND_HALF_EVEN, Decimal, localcontext
 from enum import StrEnum
 from uuid import UUID
 
@@ -35,6 +35,8 @@ class PendingOrder:
     minimum_fill_price: Decimal
     maximum_fill_price: Decimal
     filled_lots: int = 0
+    fee_budget_per_lot: Decimal = field(kw_only=True)
+    margin_budget_per_lot: Decimal = field(kw_only=True)
 
     def __post_init__(self) -> None:
         if (
@@ -61,6 +63,13 @@ class PendingOrder:
             or not Decimal(0) < self.minimum_fill_price <= self.maximum_fill_price
         ):
             raise ValueError("order requires an exact positive fill-price interval")
+        if any(
+            not isinstance(value, Decimal) or not value.is_finite() or value < 0
+            for value in (self.fee_budget_per_lot, self.margin_budget_per_lot)
+        ) or (self.offset is not Offset.OPEN and self.margin_budget_per_lot != 0):
+            raise ValueError(
+                "order requires fixed nonnegative fee/margin budgets; closes hold no new margin"
+            )
 
     @property
     def remaining_lots(self) -> int:
@@ -126,6 +135,8 @@ class PendingOrder:
             "filled_lots": self.filled_lots,
             "minimum_fill_price": decimal_text(self.minimum_fill_price),
             "maximum_fill_price": decimal_text(self.maximum_fill_price),
+            "fee_budget_per_lot": decimal_text(self.fee_budget_per_lot),
+            "margin_budget_per_lot": decimal_text(self.margin_budget_per_lot),
         }
 
     @classmethod
@@ -135,6 +146,16 @@ class PendingOrder:
             filled = value["filled_lots"]
             if type(quantity) is not int or type(filled) is not int:
                 raise ValueError("order quantity must be an integer")
+            for name in (
+                "minimum_fill_price",
+                "maximum_fill_price",
+                "fee_budget_per_lot",
+                "margin_budget_per_lot",
+            ):
+                if not isinstance(value[name], str):
+                    raise ValueError(
+                        "persisted order prices and budgets must be exact decimal strings"
+                    )
             return cls(
                 str(value["order_id"]),
                 UUID(str(value["observation_id"])),
@@ -146,9 +167,35 @@ class PendingOrder:
                 Decimal(str(value["minimum_fill_price"])),
                 Decimal(str(value["maximum_fill_price"])),
                 filled,
+                fee_budget_per_lot=Decimal(str(value["fee_budget_per_lot"])),
+                margin_budget_per_lot=Decimal(str(value["margin_budget_per_lot"])),
             )
         except (KeyError, TypeError, ArithmeticError) as error:
             raise ValueError("invalid persisted pending order") from error
+
+
+def reservation(order: PendingOrder | None) -> dict[str, object]:
+    """Hold the remaining budget until the owner records fills or a terminal fact.
+
+    Wall time, an expired authorization or a cancellation request cannot release
+    this view. The execution owner removes a confirmed terminal order. A broker
+    UNKNOWN outcome would retain it; this function never consults an SDK/account.
+    """
+    with localcontext() as context:
+        context.prec = 192
+        context.rounding = ROUND_HALF_EVEN
+        remaining = 0 if order is None else order.remaining_lots
+        return {
+            "reserved_fee": decimal_text(
+                Decimal(0) if order is None else remaining * order.fee_budget_per_lot
+            ),
+            "reserved_margin": decimal_text(
+                Decimal(0) if order is None else remaining * order.margin_budget_per_lot
+            ),
+            "reserved_close_lots": remaining
+            if order is not None and order.offset is not Offset.OPEN
+            else 0,
+        }
 
 
 def order_slice(position: Position, side: Side, quantity_lots: int) -> tuple[Offset, int]:

@@ -55,7 +55,11 @@ class OrderHistory:
         if update.at > at:
             raise ValueError("order notification is later than its owning step")
         if prior is None:
-            if update.status is not OrderStatus.SUBMITTED or order.filled_lots:
+            if (
+                update.status is not OrderStatus.SUBMITTED
+                or order.filled_lots
+                or update.at != order.submitted_at
+            ):
                 raise ValueError("order history must start with an unfilled submission")
             if self._working is not None:
                 raise ValueError("research execution permits only one working order")

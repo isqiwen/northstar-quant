@@ -308,12 +308,21 @@ def test_partial_execution_and_target_replacement_preserve_order_quantities_and_
     for update in report["orders"]:
         assert update["filled_lots"] + update["remaining_lots"] == update["quantity_lots"]
     assert all(item["reason"] == "TARGET_REPLACED" for item in canceled)
+    # A partial fill consumes only its slice; the residual hold is not booked
+    # as a fee. Replacement cancels it before reserving the new close order.
+    curve = report["equity_curve"]
+    assert Decimal(curve[1]["reserved_fee"]) > Decimal(curve[2]["reserved_fee"]) > 0
+    assert Decimal(curve[1]["reserved_margin"]) > Decimal(curve[2]["reserved_margin"]) > 0
+    assert curve[-1]["reserved_margin"] == "0"
+    assert curve[-1]["reserved_close_lots"] == report["summary"]["ending_position_lots"]
+    assert all("available_after_reservations" not in point for point in curve)
     empty = replace(data, bars=tuple(replace(bar, volume=Decimal(0)) for bar in data.bars))
     unfilled = run_research(empty, config).to_dict()
     assert unfilled["fills"] == []
     assert any(item["reason"] == "NO_EXECUTABLE_VOLUME" for item in unfilled["orders"])
     assert unfilled["summary"]["total_fees"] == "0"
     assert unfilled["summary"]["ending_equity"] == "100000"
+    assert any(Decimal(point["reserved_fee"]) > 0 for point in unfilled["equity_curve"])
 
 
 def test_a_shorter_risk_window_replaces_the_old_working_order(monkeypatch) -> None:
@@ -377,6 +386,9 @@ def test_report_rejects_changed_intermediate_valuation_with_unchanged_ledger() -
         ("position_lots", 9),
         ("drawdown_fraction", "0.9"),
         ("margin_used", "0"),
+        ("reserved_fee", "999"),
+        ("reserved_margin", "999"),
+        ("reserved_close_lots", 999),
     ):
         document = steps[2].to_dict()
         document["point"][field] = changed

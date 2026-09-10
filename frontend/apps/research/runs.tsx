@@ -1,6 +1,6 @@
 "use client";
 import { query } from "./api/client";
-import { Alert, Card, Spin, Tabs } from "antd";
+import { Alert, Card, Descriptions, Spin, Tabs } from "antd";
 import { useParams } from "next/navigation";
 import { useData } from "../../shared/data";
 import {
@@ -91,26 +91,65 @@ export function Report() {
                         showIcon
                         title="探索性研究：重复选参或反复使用此区间，不构成未使用的样本外验证。"
                       />
-                      <Fields
-                        value={{
-                          评价身份: result.evaluation.plan.plan_id,
-                          输入窗口: "整个固定快照",
-                          行情开始: result.evaluation.plan.event_start,
-                          行情结束: result.evaluation.plan.event_end,
-                          计划记录数: result.evaluation.plan.expected_bars,
-                          已观察记录数: result.evaluation.observed_bars,
-                          窗口状态:
-                            result.evaluation.status === "COMPLETE_WINDOW"
-                              ? "已完成固定输入窗口"
-                              : result.evaluation.status === "INCOMPLETE_WINDOW"
-                                ? "输入窗口尚未完成"
-                                : "未验证来源",
-                          比较基准: "不交易、无利息的初始现金",
-                          基准期末权益:
-                            result.evaluation.benchmark_ending_equity,
-                          相对基准收益率: result.evaluation.excess_return,
-                          年化与夏普: "未计算；不从盘中样本推断年化表现",
-                        }}
+                      <Descriptions
+                        bordered
+                        size="small"
+                        column={{ xs: 1, sm: 1, md: 2 }}
+                        items={[
+                          {
+                            label: "评价身份",
+                            children: (
+                              <Identity
+                                value={result.evaluation.plan.plan_id}
+                              />
+                            ),
+                          },
+                          { label: "输入窗口", children: "整个固定快照" },
+                          {
+                            label: "行情开始（UTC）",
+                            children: result.evaluation.plan.event_start || "—",
+                          },
+                          {
+                            label: "行情结束（UTC）",
+                            children: result.evaluation.plan.event_end || "—",
+                          },
+                          {
+                            label: "计划记录数",
+                            children:
+                              result.evaluation.plan.expected_bars ?? "—",
+                          },
+                          {
+                            label: "已观察记录数",
+                            children: result.evaluation.observed_bars,
+                          },
+                          {
+                            label: "窗口状态",
+                            children:
+                              result.evaluation.status === "COMPLETE_WINDOW"
+                                ? "已完成固定输入窗口"
+                                : result.evaluation.status ===
+                                    "INCOMPLETE_WINDOW"
+                                  ? "输入窗口尚未完成"
+                                  : "未验证来源",
+                          },
+                          {
+                            label: "比较基准",
+                            children: "不交易、无利息的初始现金",
+                          },
+                          {
+                            label: "基准期末权益",
+                            children: result.evaluation.benchmark_ending_equity,
+                          },
+                          {
+                            label: "相对基准收益率",
+                            children: result.evaluation.excess_return,
+                          },
+                          {
+                            label: "年化与夏普",
+                            children: "未计算；不从盘中样本推断年化表现",
+                            span: 2,
+                          },
+                        ]}
                       />
                     </>
                   ),
@@ -123,7 +162,7 @@ export function Report() {
                       <Alert
                         type="info"
                         showIcon
-                        title="按观察价格计算名义敞口；总敞口保留多空双边持仓。扣除保证金后资金未扣未决委托预占。"
+                        title="保证金按多空双边持仓计算。未成交订单另行预占手续费、开仓保证金或平仓手数；预占是预算，不是已发生费用或柜台冻结事实。"
                       />
                       <Records
                         rowKey="observation_id"
@@ -136,6 +175,19 @@ export function Report() {
                           { title: "总名义敞口", dataIndex: "gross_exposure" },
                           { title: "条款保证金", dataIndex: "margin_used" },
                           { title: "扣除保证金后资金", dataIndex: "available" },
+                          { title: "手续费预占", dataIndex: "reserved_fee" },
+                          {
+                            title: "开仓保证金预占",
+                            dataIndex: "reserved_margin",
+                          },
+                          {
+                            title: "平仓预占手数",
+                            dataIndex: "reserved_close_lots",
+                          },
+                          {
+                            title: "扣除全部预占后资金",
+                            dataIndex: "available_after_reservations",
+                          },
                         ]}
                       />
                     </>

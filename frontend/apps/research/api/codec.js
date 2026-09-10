@@ -6391,6 +6391,10 @@ export const northstar = $root.northstar = (() => {
              * @property {string|null} [terms_id] EquityPoint terms_id
              * @property {string|null} [margin_used] EquityPoint margin_used
              * @property {string|null} [available] EquityPoint available
+             * @property {string|null} [reserved_fee] EquityPoint reserved_fee
+             * @property {string|null} [reserved_margin] EquityPoint reserved_margin
+             * @property {number|Long|null} [reserved_close_lots] EquityPoint reserved_close_lots
+             * @property {string|null} [available_after_reservations] EquityPoint available_after_reservations
              * @property {Array.<string>|null} [null_fields] EquityPoint null_fields
              * @property {"at"} [_at] EquityPoint _at
              * @property {"equity"} [_equity] EquityPoint _equity
@@ -6412,6 +6416,10 @@ export const northstar = $root.northstar = (() => {
              * @property {"terms_id"} [_terms_id] EquityPoint _terms_id
              * @property {"margin_used"} [_margin_used] EquityPoint _margin_used
              * @property {"available"} [_available] EquityPoint _available
+             * @property {"reserved_fee"} [_reserved_fee] EquityPoint _reserved_fee
+             * @property {"reserved_margin"} [_reserved_margin] EquityPoint _reserved_margin
+             * @property {"reserved_close_lots"} [_reserved_close_lots] EquityPoint _reserved_close_lots
+             * @property {"available_after_reservations"} [_available_after_reservations] EquityPoint _available_after_reservations
              * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
              */
 
@@ -6447,6 +6455,10 @@ export const northstar = $root.northstar = (() => {
              *   terms_id?: string|null;
              *   margin_used?: string|null;
              *   available?: string|null;
+             *   reserved_fee?: string|null;
+             *   reserved_margin?: string|null;
+             *   reserved_close_lots?: number|Long|null;
+             *   available_after_reservations?: string|null;
              *   null_fields?: Array.<string>|null;
              *   $unknowns?: Array.<Uint8Array>;
              * } & (
@@ -6489,6 +6501,14 @@ export const northstar = $root.northstar = (() => {
              *   ({ _margin_used?: undefined; margin_used?: null }|{ _margin_used?: "margin_used"; margin_used: string })
              * ) & (
              *   ({ _available?: undefined; available?: null }|{ _available?: "available"; available: string })
+             * ) & (
+             *   ({ _reserved_fee?: undefined; reserved_fee?: null }|{ _reserved_fee?: "reserved_fee"; reserved_fee: string })
+             * ) & (
+             *   ({ _reserved_margin?: undefined; reserved_margin?: null }|{ _reserved_margin?: "reserved_margin"; reserved_margin: string })
+             * ) & (
+             *   ({ _reserved_close_lots?: undefined; reserved_close_lots?: null }|{ _reserved_close_lots?: "reserved_close_lots"; reserved_close_lots: number|Long })
+             * ) & (
+             *   ({ _available_after_reservations?: undefined; available_after_reservations?: null }|{ _available_after_reservations?: "available_after_reservations"; available_after_reservations: string })
              * )} northstar.research.EquityPoint.$Shape
              */
 
@@ -6676,6 +6696,38 @@ export const northstar = $root.northstar = (() => {
              * @instance
              */
             EquityPoint.prototype.available = null;
+
+            /**
+             * EquityPoint reserved_fee.
+             * @member {string|null|undefined} reserved_fee
+             * @memberof northstar.research.EquityPoint
+             * @instance
+             */
+            EquityPoint.prototype.reserved_fee = null;
+
+            /**
+             * EquityPoint reserved_margin.
+             * @member {string|null|undefined} reserved_margin
+             * @memberof northstar.research.EquityPoint
+             * @instance
+             */
+            EquityPoint.prototype.reserved_margin = null;
+
+            /**
+             * EquityPoint reserved_close_lots.
+             * @member {number|Long|null|undefined} reserved_close_lots
+             * @memberof northstar.research.EquityPoint
+             * @instance
+             */
+            EquityPoint.prototype.reserved_close_lots = null;
+
+            /**
+             * EquityPoint available_after_reservations.
+             * @member {string|null|undefined} available_after_reservations
+             * @memberof northstar.research.EquityPoint
+             * @instance
+             */
+            EquityPoint.prototype.available_after_reservations = null;
 
             /**
              * EquityPoint null_fields.
@@ -6909,6 +6961,50 @@ export const northstar = $root.northstar = (() => {
             });
 
             /**
+             * EquityPoint _reserved_fee.
+             * @member {"reserved_fee"|undefined} _reserved_fee
+             * @memberof northstar.research.EquityPoint
+             * @instance
+             */
+            $Object.defineProperty(EquityPoint.prototype, "_reserved_fee", {
+                get: $util.oneOfGetter($oneOfFields = ["reserved_fee"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * EquityPoint _reserved_margin.
+             * @member {"reserved_margin"|undefined} _reserved_margin
+             * @memberof northstar.research.EquityPoint
+             * @instance
+             */
+            $Object.defineProperty(EquityPoint.prototype, "_reserved_margin", {
+                get: $util.oneOfGetter($oneOfFields = ["reserved_margin"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * EquityPoint _reserved_close_lots.
+             * @member {"reserved_close_lots"|undefined} _reserved_close_lots
+             * @memberof northstar.research.EquityPoint
+             * @instance
+             */
+            $Object.defineProperty(EquityPoint.prototype, "_reserved_close_lots", {
+                get: $util.oneOfGetter($oneOfFields = ["reserved_close_lots"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * EquityPoint _available_after_reservations.
+             * @member {"available_after_reservations"|undefined} _available_after_reservations
+             * @memberof northstar.research.EquityPoint
+             * @instance
+             */
+            $Object.defineProperty(EquityPoint.prototype, "_available_after_reservations", {
+                get: $util.oneOfGetter($oneOfFields = ["available_after_reservations"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
              * Creates a new EquityPoint instance using the specified properties.
              * @function create
              * @memberof northstar.research.EquityPoint
@@ -6980,6 +7076,14 @@ export const northstar = $root.northstar = (() => {
                     writer.uint32(/* id 19, wireType 2 =*/154).string(message.margin_used);
                 if (message.available != null && $Object.hasOwnProperty.call(message, "available"))
                     writer.uint32(/* id 20, wireType 2 =*/162).string(message.available);
+                if (message.reserved_fee != null && $Object.hasOwnProperty.call(message, "reserved_fee"))
+                    writer.uint32(/* id 21, wireType 2 =*/170).string(message.reserved_fee);
+                if (message.reserved_margin != null && $Object.hasOwnProperty.call(message, "reserved_margin"))
+                    writer.uint32(/* id 22, wireType 2 =*/178).string(message.reserved_margin);
+                if (message.reserved_close_lots != null && $Object.hasOwnProperty.call(message, "reserved_close_lots"))
+                    writer.uint32(/* id 23, wireType 0 =*/184).int64(message.reserved_close_lots);
+                if (message.available_after_reservations != null && $Object.hasOwnProperty.call(message, "available_after_reservations"))
+                    writer.uint32(/* id 24, wireType 2 =*/194).string(message.available_after_reservations);
                 if (message.evidence_fields != null && $Object.hasOwnProperty.call(message, "evidence_fields"))
                     for (let keys = $Object.keys(message.evidence_fields), i = 0; i < keys.length; ++i) {
                         writer.uint32(/* id 1000, wireType 2 =*/8002).fork().uint32(/* id 1, wireType 2 =*/10).string(keys[i]);
@@ -7208,6 +7312,34 @@ export const northstar = $root.northstar = (() => {
                             message._available = "available";
                             continue;
                         }
+                    case 21: {
+                            if (wireType !== 2)
+                                break;
+                            message.reserved_fee = reader.stringVerify();
+                            message._reserved_fee = "reserved_fee";
+                            continue;
+                        }
+                    case 22: {
+                            if (wireType !== 2)
+                                break;
+                            message.reserved_margin = reader.stringVerify();
+                            message._reserved_margin = "reserved_margin";
+                            continue;
+                        }
+                    case 23: {
+                            if (wireType !== 0)
+                                break;
+                            message.reserved_close_lots = reader.int64();
+                            message._reserved_close_lots = "reserved_close_lots";
+                            continue;
+                        }
+                    case 24: {
+                            if (wireType !== 2)
+                                break;
+                            message.available_after_reservations = reader.stringVerify();
+                            message._available_after_reservations = "available_after_reservations";
+                            continue;
+                        }
                     case 2046: {
                             if (wireType !== 2)
                                 break;
@@ -7359,6 +7491,26 @@ export const northstar = $root.northstar = (() => {
                     if (!$util.isString(message.available))
                         return "available: string expected";
                 }
+                if (message.reserved_fee != null && $Object.hasOwnProperty.call(message, "reserved_fee")) {
+                    properties._reserved_fee = 1;
+                    if (!$util.isString(message.reserved_fee))
+                        return "reserved_fee: string expected";
+                }
+                if (message.reserved_margin != null && $Object.hasOwnProperty.call(message, "reserved_margin")) {
+                    properties._reserved_margin = 1;
+                    if (!$util.isString(message.reserved_margin))
+                        return "reserved_margin: string expected";
+                }
+                if (message.reserved_close_lots != null && $Object.hasOwnProperty.call(message, "reserved_close_lots")) {
+                    properties._reserved_close_lots = 1;
+                    if (!$util.isInteger(message.reserved_close_lots) && !(message.reserved_close_lots && $util.isInteger(message.reserved_close_lots.low) && $util.isInteger(message.reserved_close_lots.high)))
+                        return "reserved_close_lots: integer|Long expected";
+                }
+                if (message.available_after_reservations != null && $Object.hasOwnProperty.call(message, "available_after_reservations")) {
+                    properties._available_after_reservations = 1;
+                    if (!$util.isString(message.available_after_reservations))
+                        return "available_after_reservations: string expected";
+                }
                 if (message.null_fields != null && $Object.hasOwnProperty.call(message, "null_fields")) {
                     if (!$Array.isArray(message.null_fields))
                         return "null_fields: array expected";
@@ -7460,6 +7612,21 @@ export const northstar = $root.northstar = (() => {
                     message.margin_used = $String(object.margin_used);
                 if (object.available != null)
                     message.available = $String(object.available);
+                if (object.reserved_fee != null)
+                    message.reserved_fee = $String(object.reserved_fee);
+                if (object.reserved_margin != null)
+                    message.reserved_margin = $String(object.reserved_margin);
+                if (object.reserved_close_lots != null)
+                    if ($util.Long)
+                        message.reserved_close_lots = $util.Long.fromValue(object.reserved_close_lots, false);
+                    else if (typeof object.reserved_close_lots === "string")
+                        message.reserved_close_lots = $parseInt(object.reserved_close_lots, 10);
+                    else if (typeof object.reserved_close_lots === "number")
+                        message.reserved_close_lots = object.reserved_close_lots;
+                    else if (typeof object.reserved_close_lots === "object")
+                        message.reserved_close_lots = new $util.LongBits(object.reserved_close_lots.low >>> 0, object.reserved_close_lots.high >>> 0).toNumber();
+                if (object.available_after_reservations != null)
+                    message.available_after_reservations = $String(object.available_after_reservations);
                 if (object.null_fields) {
                     if (!$Array.isArray(object.null_fields))
                         throw $TypeError(".northstar.research.EquityPoint.null_fields: array expected");
@@ -7605,6 +7772,31 @@ export const northstar = $root.northstar = (() => {
                     object.available = message.available;
                     if (options.oneofs)
                         object._available = "available";
+                }
+                if (message.reserved_fee != null && $Object.hasOwnProperty.call(message, "reserved_fee")) {
+                    object.reserved_fee = message.reserved_fee;
+                    if (options.oneofs)
+                        object._reserved_fee = "reserved_fee";
+                }
+                if (message.reserved_margin != null && $Object.hasOwnProperty.call(message, "reserved_margin")) {
+                    object.reserved_margin = message.reserved_margin;
+                    if (options.oneofs)
+                        object._reserved_margin = "reserved_margin";
+                }
+                if (message.reserved_close_lots != null && $Object.hasOwnProperty.call(message, "reserved_close_lots")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.reserved_close_lots = typeof message.reserved_close_lots === "number" ? $BigInt(message.reserved_close_lots) : $util.Long.fromBits(message.reserved_close_lots.low >>> 0, message.reserved_close_lots.high >>> 0, false).toBigInt();
+                    else if (typeof message.reserved_close_lots === "number")
+                        object.reserved_close_lots = options.longs === $String ? $String(message.reserved_close_lots) : message.reserved_close_lots;
+                    else
+                        object.reserved_close_lots = options.longs === $String ? $util.Long.prototype.toString.call(message.reserved_close_lots) : options.longs === $Number ? new $util.LongBits(message.reserved_close_lots.low >>> 0, message.reserved_close_lots.high >>> 0).toNumber() : message.reserved_close_lots;
+                    if (options.oneofs)
+                        object._reserved_close_lots = "reserved_close_lots";
+                }
+                if (message.available_after_reservations != null && $Object.hasOwnProperty.call(message, "available_after_reservations")) {
+                    object.available_after_reservations = message.available_after_reservations;
+                    if (options.oneofs)
+                        object._available_after_reservations = "available_after_reservations";
                 }
                 let keys2;
                 if (message.evidence_fields && (keys2 = $Object.keys(message.evidence_fields)).length) {

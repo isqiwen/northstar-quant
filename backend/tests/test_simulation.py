@@ -28,6 +28,8 @@ def test_fill_enforces_actual_slipped_price_and_fifo_cost_conservation() -> None
         2,
         Decimal(100),
         Decimal(102),
+        fee_budget_per_lot=Decimal(2),
+        margin_budget_per_lot=Decimal(102),
     )
     bar = MarketBar(
         UUID(int=11),
@@ -71,6 +73,8 @@ def test_fill_enforces_actual_slipped_price_and_fifo_cost_conservation() -> None
         2,
         Decimal(100),
         Decimal(110),
+        fee_budget_per_lot=Decimal(2),
+        margin_budget_per_lot=Decimal(0),
     )
     later = MarketBar(
         UUID(int=12),
@@ -274,6 +278,8 @@ def test_participation_uses_only_post_order_volume_and_explains_each_rejection()
         5,
         Decimal(90),
         Decimal(110),
+        fee_budget_per_lot=Decimal(2),
+        margin_budget_per_lot=Decimal(110),
     )
     bar = MarketBar(
         UUID(int=11),

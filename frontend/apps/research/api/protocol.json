@@ -657,6 +657,34 @@
           "required": false,
           "nullable": true
         },
+        "reserved_fee": {
+          "id": 21,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "reserved_margin": {
+          "id": 22,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "reserved_close_lots": {
+          "id": 23,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "available_after_reservations": {
+          "id": 24,
+          "presence": true,
+          "type": "string",
+          "required": false,
+          "nullable": true
+        },
         "null_fields": {
           "id": 2046,
           "presence": false,

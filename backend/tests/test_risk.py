@@ -142,6 +142,30 @@ def test_fixed_term_envelope_covers_both_margin_sides_and_individually_rounded_f
                 )
 
 
+def test_fixed_order_budget_covers_partial_fees_and_never_spends_close_margin_release():
+    from northstar_quant.execution.orders import Offset
+    from northstar_quant.risk.terms import order_budget
+    from tests.accounting.test_terms import terms
+
+    fixed = replace(terms(), contract_id=MARKET.contract_id)
+    for side in Side:
+        for offset in Offset:
+            fee, margin = order_budget(
+                POLICY,
+                MARKET,
+                side=side,
+                offset=offset,
+                maximum_fill_price=fixed.upper_limit,
+                terms=fixed,
+            )
+            for price in (fixed.lower_limit, Decimal(101), fixed.upper_limit):
+                assert fixed.fee(offset, price, MARKET.multiplier, 1) * 7 <= fee * 7
+                if offset is Offset.OPEN:
+                    assert fixed.margin(side, price, MARKET.multiplier, 7) <= margin * 7
+                else:
+                    assert margin == 0
+
+
 def test_opening_budget_uses_actual_available_and_sell_daily_upper_bound() -> None:
     account, terms, limits, candidate = opening_inputs()
     account = replace(account, available=Decimal(200))

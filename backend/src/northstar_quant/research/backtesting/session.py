@@ -23,6 +23,7 @@ from northstar_quant.execution.orders import (
     OrderUpdate,
     PendingOrder,
     order_slice,
+    reservation,
 )
 from northstar_quant.market_data import Market, MarketBar
 from northstar_quant.messaging import Endpoint, Topic
@@ -30,7 +31,7 @@ from northstar_quant.research.configuration import ResearchConfig
 from northstar_quant.research.evaluation import EvaluationPlan
 from northstar_quant.risk import evaluate_risk
 from northstar_quant.risk.sizing import Outcome
-from northstar_quant.risk.terms import policy_for_terms
+from northstar_quant.risk.terms import order_budget, policy_for_terms
 from northstar_quant.simulation import simulate_fill
 from northstar_quant.strategies.runtime import StrategyRuntime
 from northstar_quant.trading.environment import Environment
@@ -156,7 +157,7 @@ class TradingSession:
     """
 
     # Bump for changed Strategy/Risk/Simulation/Accounting rules or checkpoint format.
-    REVISION = "12"
+    REVISION = "13"
 
     def __init__(
         self,
@@ -463,17 +464,25 @@ class TradingSession:
                     orders.append(
                         self.pending.observe(at=bar.available_at, reason="AUTHORIZATION_RETAINED")
                     )
-                    return TradingStep(
-                        point, decision, fill, self.pending, settlements, tuple(orders)
+                else:
+                    orders.append(
+                        self.pending.cancel(at=bar.available_at, reason="TARGET_REPLACED")
                     )
-                orders.append(self.pending.cancel(at=bar.available_at, reason="TARGET_REPLACED"))
-                self.pending = None
-            if plan is not None:
+                    self.pending = None
+            if plan is not None and self.pending is None:
                 assert risk.side is not None
                 assert risk.minimum_fill_price is not None and risk.maximum_fill_price is not None
                 offset, quantity = plan
                 decision["order_quantity_lots"] = quantity
                 decision["order_offset"] = offset.value
+                fee_budget, margin_budget = order_budget(
+                    self._policy,
+                    self.market,
+                    side=risk.side,
+                    offset=offset,
+                    maximum_fill_price=risk.maximum_fill_price,
+                    terms=terms,
+                )
                 self.pending = PendingOrder(
                     intent.intent_id,
                     bar.observation_id,
@@ -484,8 +493,18 @@ class TradingSession:
                     quantity,
                     risk.minimum_fill_price,
                     risk.maximum_fill_price,
+                    fee_budget_per_lot=fee_budget,
+                    margin_budget_per_lot=margin_budget,
                 )
                 orders.append(self.pending.observe(at=bar.available_at, reason="RISK_AUTHORIZED"))
+        point.update(reservation(self.pending))
+        if valuation.margin_used is not None:
+            point["available_after_reservations"] = decimal_text(
+                equity
+                - valuation.margin_used
+                - Decimal(str(point["reserved_fee"]))
+                - Decimal(str(point["reserved_margin"]))
+            )
         return TradingStep(point, decision, fill, self.pending, settlements, tuple(orders))
 
     def summary(self) -> dict[str, object]:

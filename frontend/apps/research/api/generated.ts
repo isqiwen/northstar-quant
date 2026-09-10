@@ -104,6 +104,10 @@ export type EquityPoint = {
   terms_id?: string | null;
   margin_used?: string | null;
   available?: string | null;
+  reserved_fee: string;
+  reserved_margin: string;
+  reserved_close_lots: number;
+  available_after_reservations?: string | null;
 };
 export type FactorBinding = {
   code_revision: string;

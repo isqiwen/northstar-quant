@@ -35,8 +35,13 @@ class LiveOwner:
         self.ledger = BrokerLedger(engine)
         self.funds = BrokerFunds(engine)
         self.orders = OrderReviews(engine)
-        self.streams = LiveStreams(engine, library)
+        self.streams = LiveStreams(engine, library, check_ownership=self.check_ownership)
         self.opening_budgets = BrokerOpeningBudgets(engine, library)
+
+    def check_ownership(self) -> None:
+        if self.binding is None:
+            raise ValueError("Broker reception requires an active Live account owner")
+        self.binding.status()
 
     def status(self) -> dict[str, Any]:
         return {

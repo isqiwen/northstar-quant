@@ -407,6 +407,9 @@ def main() -> None:
                     screenshot("evaluation")
                     page.get_by_role("tab", name="敞口与保证金", exact=True).click()
                     expect(
+                        page.get_by_role("columnheader", name="手续费预占", exact=True)
+                    ).to_be_visible()
+                    expect(
                         page.get_by_role("columnheader", name="总名义敞口", exact=True)
                     ).to_be_visible()
                     expect(

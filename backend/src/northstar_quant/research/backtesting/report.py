@@ -15,6 +15,8 @@ from northstar_quant.accounting.amounts import decimal_text
 from northstar_quant.accounting.fifo import Account
 from northstar_quant.accounting.portfolio import value_account
 from northstar_quant.execution.history import OrderHistory
+from northstar_quant.execution.orders import reservation
+from northstar_quant.risk.terms import order_budget
 
 if TYPE_CHECKING:
     from .session import TradingSession, TradingStep
@@ -58,16 +60,41 @@ def _verify_valuations(session: TradingSession, steps: Sequence[TradingStep]) ->
                     raise ValueError("report fill differs from its account facts")
             if step.fill is not None:
                 orders.accept_fill(step.fill.fact)
+            active_terms = terms[str(point["terms_id"])] if terms else None
             for update in step.orders:
                 orders.observe(update, at=at)
+                if update.at == update.order.submitted_at:
+                    expected_budget = order_budget(
+                        session._policy,
+                        session.market,
+                        side=update.order.side,
+                        offset=update.order.offset,
+                        maximum_fill_price=update.order.maximum_fill_price,
+                        terms=active_terms,
+                    )
+                    if expected_budget != (
+                        update.order.fee_budget_per_lot,
+                        update.order.margin_budget_per_lot,
+                    ):
+                        raise ValueError(
+                            "report order reservation differs from its fixed risk budget"
+                        )
             orders.require_pending(step.new_order)
-            active_terms = terms[str(point["terms_id"])] if terms else None
             valuation = value_account(
                 account, Decimal(str(point["close"])), at=at, terms=active_terms
             )
             expected = valuation.to_dict()
+            expected.update(reservation(step.new_order))
+            if valuation.margin_used is not None:
+                expected["available_after_reservations"] = decimal_text(
+                    valuation.equity
+                    - valuation.margin_used
+                    - Decimal(str(expected["reserved_fee"]))
+                    - Decimal(str(expected["reserved_margin"]))
+                )
             if not terms and any(
-                name in point for name in ("terms_id", "margin_used", "available")
+                name in point
+                for name in ("terms_id", "margin_used", "available", "available_after_reservations")
             ):
                 raise ValueError("report margin lacks fixed effective terms")
             peak = max(peak, valuation.equity)
@@ -147,7 +174,8 @@ def build_result(session: TradingSession, steps: Sequence[TradingStep]) -> Resea
                 "retain remaining lots; target replacement explicitly cancels the remainder.",
                 "Fees follow the fixed offset-specific terms and explicit rounding. Risk budgets "
                 "the worst fee and directional margin over the fixed daily price interval. "
-                "Reported available funds exclude pending-order holds and spread offsets."
+                "Account available excludes holds; available_after_reservations deducts the "
+                "remaining order's fixed fee and new-margin budgets without spread offsets."
                 if session._terms
                 else "Per-lot fees and mark-to-close slippage are included in Risk budgets.",
                 "Open terminal positions are marked to the final observed close, "

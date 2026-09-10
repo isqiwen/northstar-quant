@@ -78,6 +78,67 @@ def test_writer_is_exclusive_and_failed_transaction_rolls_back(tmp_path):
     reopened.close()
 
 
+@pytest.mark.parametrize("lost", ["receiver", "instance", "account", "account_directory"])
+def test_receiver_stops_on_lost_local_ownership_without_browser(tmp_path, monkeypatch, lost):
+    import time
+
+    from northstar_quant.live import account_ownership
+    from northstar_quant.live.instances import Instance, InstanceBinding
+    from northstar_quant.live.owner import LiveOwner
+    from northstar_quant.live.storage import initialize
+    from tests.live.test_streams import logins, prepare, start
+
+    accounts = tmp_path / "accounts"
+    accounts.mkdir(mode=0o700)
+    monkeypatch.setattr(account_ownership, "ACCOUNT_DIRECTORY", accounts)
+    database = tmp_path / "receiver.sqlite"
+    engine = open_store(database)
+    initialize(engine)
+    library, source, configuration, calls = prepare(engine, tmp_path, monkeypatch)
+    owner = LiveOwner(engine, library)
+    owner.binding = InstanceBinding(engine, Instance("sim", "simnow_dev"), "9999", "123456")
+    identifier = uuid4()
+    try:
+        start(owner.streams, source, configuration, identifier)
+        assert calls["ready"].wait(3)
+        logins(calls["accept"])
+        path = (
+            tmp_path / "receiver.sqlite.728401929.owner"
+            if lost == "receiver"
+            else tmp_path / "receiver.sqlite.owner"
+            if lost == "instance"
+            else next(accounts.glob("*.owner"))
+            if lost == "account"
+            else accounts
+        )
+        path.rename(tmp_path / "displaced")
+        if lost == "account_directory":
+            path.mkdir(mode=0o700)
+        else:
+            path.touch(mode=0o600)
+        # No status/read request reaches LiveOwner. Its receiver must notice
+        # independently and must not recreate a lock or restart the connection.
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            report = owner.streams.get(identifier)
+            if report["status"] == "FAILED" and report["connection"] == "NOT_ATTACHED":
+                break
+            time.sleep(0.01)
+        assert report["status"] == "FAILED"
+        assert report["reason"] == "RECEPTION_OR_PERSISTENCE_FAILED"
+        assert report["paused"] and report["connection"] == "NOT_ATTACHED"
+        assert report["received"] == report["cursor"] == 2
+        assert len(owner.streams.events(identifier)) == 2
+        assert start(owner.streams, source, configuration, identifier)["status"] == "FAILED"
+        assert calls["count"] == 1
+        if lost != "receiver":
+            with pytest.raises((ValueError, FileNotFoundError)):
+                start(owner.streams, source, configuration, uuid4())
+    finally:
+        owner.close()
+        engine.dispose()
+
+
 def test_sqlite_broker_query_and_account_baseline(tmp_path, monkeypatch):
     from northstar_quant.accounting.baselines import BrokerBaselines, initialize_broker_baselines
     from northstar_quant.broker.records import initialize_broker_records
