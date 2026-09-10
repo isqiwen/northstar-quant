@@ -27,7 +27,7 @@ _PROCESSING_LOCK = 0x4E535150524F43
 
 @contextmanager
 def processing_claim(library: DataLibrary) -> Iterator[None]:
-    with library_write(library._engine), library._engine.begin() as connection:
+    with library._engine.begin() as connection:
         if connection.dialect.name == "postgresql":
             connection.execute(text("SET LOCAL lock_timeout = '5s'"))
             connection.execute(
@@ -59,7 +59,7 @@ def process_attempt(
     library: DataLibrary, attempt_id: UUID | None = None
 ) -> dict[str, object] | None:
     """Execute a fixed attempt, or the oldest pending admission; never blindly retry."""
-    with processing_claim(library):
+    with library_write(library._engine), processing_claim(library):
         # Repair the committed publication outbox before accepting further work.
         # Readers only see the final atomic file; an interrupted export is retried.
         with library._engine.connect() as connection:

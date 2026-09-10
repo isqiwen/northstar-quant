@@ -31,6 +31,7 @@ from sqlalchemy import (
     String,
     Table,
     Text,
+    Uuid,
     delete,
     select,
     text,
@@ -808,9 +809,10 @@ class DataLibrary:
                         "JOIN import_run i ON i.id = p.import_run_id "
                         "WHERE a.status = 'PUBLISHED' AND (a.source_id IN "
                         "(SELECT source_id FROM descendants) "
-                        "OR i.mapping -> 'archive' ->> 'source_id' IN "
-                        "(SELECT CAST(source_id AS TEXT) FROM descendants)) LIMIT 200"
-                    ),
+                        "OR replace(i.mapping -> 'archive' ->> 'source_id', '-', '') IN "
+                        "(SELECT replace(CAST(source_id AS TEXT), '-', '') "
+                        "FROM descendants)) LIMIT 200"
+                    ).columns(snapshot_id=Uuid),
                     {"source_id": source_id},
                 )
                 .scalars()

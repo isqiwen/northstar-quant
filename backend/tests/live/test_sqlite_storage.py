@@ -184,7 +184,14 @@ def test_sqlite_saved_broker_facts(tmp_path, monkeypatch, module_name, test_name
             try:
                 restore(restored, tmp_path / "restored-sources", snapshot)
                 library = DataLibrary(restored, SourceFiles(tmp_path / "restored-sources"))
-                assert library.list_datasets()
+                datasets = library.list_datasets()
+                assert datasets
+                for source in library.list_sources():
+                    detail = library.source(UUID(source["source_id"]))
+                    assert all(
+                        str(UUID(p["snapshot_id"])) == p["snapshot_id"] for p in detail["products"]
+                    )
+                assert library.reconcile()["sources"]
                 assert LiveStreams(restored, library).verify_all() > 0
                 with pytest.raises(ValueError, match="empty|overwrites"):
                     restore(restored, tmp_path / "second-sources", snapshot)
