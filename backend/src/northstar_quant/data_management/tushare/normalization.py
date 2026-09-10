@@ -53,9 +53,11 @@ def decimal_text(value: Any) -> str:
     sign, digits, exponent = number.as_tuple()
     assert isinstance(exponent, int)
     # Trailing zeros do not change precision or economic identity.
-    while digits and digits[-1] == 0:
-        digits = digits[:-1]
-        exponent += 1
+    end = len(digits)
+    while end and digits[end - 1] == 0:
+        end -= 1
+    exponent += len(digits) - end
+    digits = digits[:end]
     if exponent < -SCALE or len(digits) + exponent > PRECISION - SCALE:
         raise ValueError("数值超过 Decimal(38,12) 精确范围；拒绝舍入")
     return format(Decimal((sign, digits, exponent)), "f")

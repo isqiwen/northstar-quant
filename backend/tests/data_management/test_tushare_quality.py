@@ -146,7 +146,7 @@ def test_equivalent_number_spellings_deduplicate_without_decimal_context_roundin
     row, job = market_response("daily")
     row.update(
         open="100",
-        high="100.000",
+        high="100." + "0" * 50000,
         low="1e2",
         close="100.0",
         vol="2.000",
