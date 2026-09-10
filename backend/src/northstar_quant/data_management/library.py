@@ -19,12 +19,12 @@ from typing import NoReturn, cast
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
+    JSON,
     BigInteger,
     Boolean,
     CheckConstraint,
     Column,
     Connection,
-    DateTime,
     Engine,
     ForeignKey,
     MetaData,
@@ -41,6 +41,7 @@ from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.engine import RowMapping
 
 from northstar_quant import code_revision
+from northstar_quant.broker.records import EvidenceTimestamp
 from northstar_quant.data_management.catalog.models import DatasetSnapshotManifest
 from northstar_quant.data_management.files import SourceFiles
 from northstar_quant.data_management.maintenance import library_write
@@ -70,7 +71,7 @@ _sources = Table(
     Column("upstream_evidence_hash", String(64)),
     Column("content_hash", String(64), nullable=False),
     Column("byte_count", BigInteger, nullable=False),
-    Column("received_at", DateTime(timezone=True), nullable=False),
+    Column("received_at", EvidenceTimestamp(), nullable=False),
     Column("evidence_hash", String(64), nullable=False),
     CheckConstraint("allow_retention AND byte_count > 0 AND byte_count <= 5242880"),
     CheckConstraint(
@@ -88,16 +89,16 @@ _attempts = Table(
     Column("request_hash", String(64), nullable=False),
     Column("processing_hash", String(64), nullable=False, index=True),
     Column("code_revision", String(64), nullable=False),
-    Column("parameters", JSONB, nullable=False),
+    Column("parameters", JSON().with_variant(JSONB, "postgresql"), nullable=False),
     Column("status", String(16), nullable=False),
     Column("stage", String(24), nullable=False),
     Column("error", Text),
-    Column("quality", JSONB, nullable=False),
+    Column("quality", JSON().with_variant(JSONB, "postgresql"), nullable=False),
     Column("retry_of", PGUUID(as_uuid=True), ForeignKey("data_processing_attempts.attempt_id")),
     Column("snapshot_id", PGUUID(as_uuid=True), ForeignKey(DatasetSnapshotManifest.id)),
     Column("reused_product", Boolean, nullable=False),
-    Column("created_at", DateTime(timezone=True), nullable=False),
-    Column("updated_at", DateTime(timezone=True), nullable=False),
+    Column("created_at", EvidenceTimestamp(), nullable=False),
+    Column("updated_at", EvidenceTimestamp(), nullable=False),
     CheckConstraint("status IN ('PENDING', 'RUNNING', 'FAILED', 'PUBLISHED')"),
     CheckConstraint(
         "(status = 'PUBLISHED' AND snapshot_id IS NOT NULL AND error IS NULL) "
@@ -109,7 +110,7 @@ _rejections = Table(
     _metadata,
     Column("rejection_id", PGUUID(as_uuid=True), primary_key=True),
     Column("request_id", String(36)),
-    Column("created_at", DateTime(timezone=True), nullable=False),
+    Column("created_at", EvidenceTimestamp(), nullable=False),
     Column("reason", String(512), nullable=False),
 )
 _ADMISSION_LOCK = 0x4E535141444D49
@@ -128,6 +129,34 @@ def initialize_library(connection: Connection) -> None:
     """Create library metadata as part of the current atomic PostgreSQL baseline."""
 
     _metadata.create_all(connection)
+    if connection.dialect.name == "sqlite":
+        for action in ("UPDATE", "DELETE"):
+            connection.exec_driver_sql(
+                f"CREATE TRIGGER IF NOT EXISTS source_{action} BEFORE {action} ON data_sources "
+                "BEGIN SELECT RAISE(ABORT, 'Source archive declarations are immutable'); END"
+            )
+        fields = (
+            "attempt_id",
+            "source_id",
+            "request_id",
+            "request_hash",
+            "processing_hash",
+            "code_revision",
+            "parameters",
+            "retry_of",
+            "created_at",
+        )
+        changed = " OR ".join(f"OLD.{field} IS NOT NEW.{field}" for field in fields)
+        connection.exec_driver_sql(
+            "CREATE TRIGGER IF NOT EXISTS attempt_update BEFORE UPDATE ON data_processing_attempts "
+            f"WHEN OLD.status IN ('FAILED','PUBLISHED') OR {changed} "
+            "BEGIN SELECT RAISE(ABORT, 'Processing identity is immutable'); END"
+        )
+        connection.exec_driver_sql(
+            "CREATE TRIGGER IF NOT EXISTS attempt_delete BEFORE DELETE ON data_processing_attempts "
+            "BEGIN SELECT RAISE(ABORT, 'Processing attempts are immutable'); END"
+        )
+        return
     # Replace the current constraint without rewriting retained source evidence.
     connection.exec_driver_sql("""
         ALTER TABLE data_sources DROP CONSTRAINT IF EXISTS data_sources_input_kind_check;
@@ -184,6 +213,8 @@ def manifest(connection: Connection) -> list[dict[str, object]]:
             )
         ).mappings()
     ]
+    if connection.dialect.name == "sqlite":
+        return references
     from .tushare.retention import references as sync_references
 
     return sorted(references + sync_references(connection), key=lambda r: str(r["source_id"]))
@@ -200,8 +231,6 @@ class DataLibrary:
         usages: Callable[[Sequence[UUID]], list[dict[str, object]]] | None = None,
     ) -> None:
         self._read_usages = usages
-        if engine.dialect.name != "postgresql":
-            raise ValueError("data library requires PostgreSQL")
         from .publications import PublishedDatasets
 
         self.publications = (
@@ -221,8 +250,11 @@ class DataLibrary:
         # One bounded local processing operation at a time. Besides avoiding
         # catalog races this lets a new owner identify crashed, incomplete work.
         with library_write(self._engine), self._engine.begin() as connection:
-            connection.execute(text("SET LOCAL lock_timeout = '5s'"))
-            connection.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": _ADMISSION_LOCK})
+            if connection.dialect.name == "postgresql":
+                connection.execute(text("SET LOCAL lock_timeout = '5s'"))
+                connection.execute(
+                    text("SELECT pg_advisory_xact_lock(:key)"), {"key": _ADMISSION_LOCK}
+                )
             yield
 
     def receive(
@@ -776,8 +808,8 @@ class DataLibrary:
                         "JOIN import_run i ON i.id = p.import_run_id "
                         "WHERE a.status = 'PUBLISHED' AND (a.source_id IN "
                         "(SELECT source_id FROM descendants) "
-                        "OR i.mapping::jsonb -> 'archive' ->> 'source_id' IN "
-                        "(SELECT source_id::text FROM descendants)) LIMIT 200"
+                        "OR i.mapping -> 'archive' ->> 'source_id' IN "
+                        "(SELECT CAST(source_id AS TEXT) FROM descendants)) LIMIT 200"
                     ),
                     {"source_id": source_id},
                 )
@@ -814,7 +846,7 @@ class DataLibrary:
                     .join(_sources, _attempts.c.source_id == _sources.c.source_id)
                     .where(
                         _sources.c.input_kind == "CTP_CALLBACK_SEGMENT",
-                        _attempts.c.parameters["stream_id"].astext == str(stream_id),
+                        _attempts.c.parameters["stream_id"].as_string() == str(stream_id),
                     )
                     .order_by(_attempts.c.created_at.desc(), _attempts.c.attempt_id.desc())
                     .limit(50)

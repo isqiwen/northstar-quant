@@ -4,6 +4,15 @@ import "google/protobuf/struct.proto";
 import "api_options.proto";
 import "common.proto";
 
+message InstanceRecord {
+  optional string instance_id = 1 [json_name = "instance_id", (northstar.web.required_field) = true];
+  optional string environment = 2 [json_name = "environment", (northstar.web.required_field) = true];
+}
+message InstanceCatalog {
+  repeated InstanceRecord instances = 1 [json_name = "instances", (northstar.web.required_field) = true];
+  optional bool production_available = 2 [json_name = "production_available"];
+}
+
 message AccountCatchupRequest {
   optional string baseline_id = 1 [json_name = "baseline_id", (northstar.web.required_field) = true];
   optional string request_id = 2 [json_name = "request_id", (northstar.web.required_field) = true];
@@ -276,6 +285,9 @@ message Readiness {
 }
 
 message RuntimeStatus {
+  optional string instance_id = 11 [json_name = "instance_id", (northstar.web.nullable) = true];
+  optional string environment = 12 [json_name = "environment", (northstar.web.nullable) = true];
+  repeated string null_fields = 2046;
   optional bool cancel_sending = 1 [json_name = "cancel_sending", (northstar.web.required_field) = true];
   optional bool control_available = 2 [json_name = "control_available"];
   optional string observed_at = 3 [json_name = "observed_at", (northstar.web.required_field) = true];
@@ -412,6 +424,10 @@ message GetApiStreamsStreamIdEventsResponse {
 }
 
 service BrowserApi {
+  rpc GetApiLiveInstances (northstar.web.Empty) returns (InstanceCatalog) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/live/instances";
+  }
   rpc GetApiAttemptsAttemptId (northstar.web.Empty) returns (ArchiveAttempt) {
     option (northstar.web.http_method) = "GET";
     option (northstar.web.http_path) = "/api/attempts/{attempt_id}";

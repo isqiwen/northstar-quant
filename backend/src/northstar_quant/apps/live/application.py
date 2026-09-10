@@ -4,16 +4,16 @@ from fastapi import FastAPI
 from starlette.concurrency import run_in_threadpool
 
 from northstar_quant.apps.logging import logged_application
-from northstar_quant.live import LiveClient
 from northstar_quant.web.host import create_host
 from northstar_quant.web.protobuf import bind
 
 from . import archive_api, broker_api, diagnostics_api, stream_api
+from .instances import Instances
 
 
-def create_app(*, live: LiveClient) -> FastAPI:
+def create_app(*, instances: Instances) -> FastAPI:
     async def close() -> None:
-        await run_in_threadpool(live.close)
+        await run_in_threadpool(instances.close)
 
     app = create_host(
         "Northstar Live · 实盘交易系统",
@@ -27,15 +27,16 @@ def create_app(*, live: LiveClient) -> FastAPI:
         allowed_hosts=("live.wangqiwen.me",),
         allow_ip_hosts=True,
     )
-    app.state.live = live
-    broker_api.register(app, app.state.workspace_access, live)
-    stream_api.register(app, app.state.workspace_access, live)
-    diagnostics_api.register(app, app.state.workspace_access, live)
-    archive_api.register(app, app.state.workspace_access, live)
+    app.state.instances = instances
+    instances.register(app, app.state.workspace_access)
+    broker_api.register(app, app.state.workspace_access, instances)
+    stream_api.register(app, app.state.workspace_access, instances)
+    diagnostics_api.register(app, app.state.workspace_access, instances)
+    archive_api.register(app, app.state.workspace_access, instances)
     bind(app, "live")
     return app
 
 
 @logged_application("live", "api")
 def application() -> FastAPI:
-    return create_app(live=LiveClient.from_environment())
+    return create_app(instances=Instances.from_environment())

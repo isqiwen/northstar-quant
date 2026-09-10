@@ -15,6 +15,7 @@ from sqlalchemy import func, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
+from northstar_quant.broker.records import EvidenceTimestamp
 from northstar_quant.data_management.catalog.models import (
     CanonicalBar,
     DataSeries,
@@ -314,7 +315,8 @@ class DatasetSnapshotPublicationService:
             raise
 
     def _begin_consistent_snapshot(self) -> None:
-        self._session.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ"))
+        if self._session.get_bind().dialect.name == "postgresql":
+            self._session.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ"))
 
     def _prepare_partitions(
         self, command: PublishDatasetSnapshotCommand
@@ -787,7 +789,10 @@ class DatasetSnapshotPublicationService:
 
     def _begin_consistent_read_view(self) -> None:
         _require_clean_idle_session(self._session)
-        self._session.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"))
+        if self._session.get_bind().dialect.name == "postgresql":
+            self._session.execute(
+                text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
+            )
 
 
 class DatasetSnapshotResolutionService:
@@ -981,7 +986,7 @@ def _require_clean_idle_session(session: Session) -> None:
 
 
 def _assert_cutoff_is_not_after_snapshot(available_at_cutoff: datetime, session: Session) -> None:
-    snapshot_now = session.scalar(select(func.current_timestamp()))
+    snapshot_now = session.scalar(select(func.current_timestamp(type_=EvidenceTimestamp())))
     if not isinstance(snapshot_now, datetime):  # pragma: no cover - database result guard
         raise DatasetSnapshotPublicationError(
             "SNAPSHOT_AUTHORITY_TIME_UNAVAILABLE",

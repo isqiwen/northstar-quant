@@ -1,5 +1,13 @@
 // Generated from live.proto. Do not edit.
 export type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
+export type InstanceRecord = {
+  instance_id: string;
+  environment: string;
+};
+export type InstanceCatalog = {
+  instances: (InstanceRecord)[];
+  production_available?: boolean;
+};
 export type AccountCatchupRequest = {
   baseline_id: string;
   request_id: string;
@@ -213,6 +221,8 @@ export type Readiness = {
   status: "ready";
 };
 export type RuntimeStatus = {
+  instance_id?: string | null;
+  environment?: string | null;
   cancel_sending: boolean;
   control_available?: boolean;
   observed_at: string;

@@ -1,5 +1,7 @@
 name: northstar-live
 
+x-instances: ${NORTHSTAR_LIVE_INSTANCES:-sim:simnow_trading}
+
 x-runtime: &runtime
   image: ${NORTHSTAR_LIVE_IMAGE:-northstar-quant:local}
   build:
@@ -15,37 +17,22 @@ x-runtime: &runtime
       max-size: "10m"
       max-file: "3"
 
-x-database: &database
-  NORTHSTAR_DATABASE_URL: postgresql+psycopg://northstar:${NORTHSTAR_LIVE_DATABASE_PASSWORD:-northstar_local}@postgres:5432/northstar_quant
+x-storage: &storage
+  NORTHSTAR_DATABASE_OWNER: live
+  NORTHSTAR_LIVE_STATE_DIR: /var/lib/northstar/state
   NORTHSTAR_DATA_DIR: /var/lib/northstar/sources
 
 services:
-  postgres:
-    image: postgres:17-alpine
-    restart: unless-stopped
-    logging: *logging
-    environment:
-      POSTGRES_DB: northstar_quant
-      POSTGRES_USER: northstar
-      POSTGRES_PASSWORD: ${NORTHSTAR_LIVE_DATABASE_PASSWORD:-northstar_local}
+  initialize:
+    <<: *runtime
+    environment: *storage
     volumes:
       - type: bind
-        source: /opt/northstar/state/live/postgresql
-        target: /var/lib/postgresql/data
+        source: /opt/northstar/state/live/database
+        target: /var/lib/northstar/state
         read_only: false
         bind:
           create_host_path: false
-    networks: [storage]
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U northstar -d northstar_quant"]
-      interval: 2s
-      timeout: 3s
-      retries: 30
-
-  initialize:
-    <<: *runtime
-    environment: *database
-    volumes:
       - type: bind
         source: /opt/northstar/state/live/sources
         target: /var/lib/northstar/sources
@@ -58,10 +45,7 @@ services:
         read_only: false
         bind:
           create_host_path: false
-    networks: [storage]
-    depends_on:
-      postgres:
-        condition: service_healthy
+    networks: [management]
     command: ["sh", "-c", "northstar maintenance init-db && northstar maintenance init-auth /var/lib/northstar/auth && python -c 'from northstar_quant.data_management.files import SourceFiles; SourceFiles.from_environment()'"]
 
   live:
@@ -69,9 +53,9 @@ services:
     restart: unless-stopped
     stop_grace_period: 30s
     environment:
-      <<: *database
+      <<: *storage
       NORTHSTAR_LOG_DIR: /var/log/northstar
-      NORTHSTAR_LIVE_ENVIRONMENT: ${NORTHSTAR_LIVE_ENVIRONMENT:-simnow_trading}
+      NORTHSTAR_LIVE_ENVIRONMENT: simnow_trading
       NORTHSTAR_SIMNOW_USER_ID: ${NORTHSTAR_SIMNOW_USER_ID:-}
       NORTHSTAR_SIMNOW_APP_ID: ${NORTHSTAR_SIMNOW_APP_ID:-}
       NORTHSTAR_SIMNOW_AUTH_CODE: ${NORTHSTAR_SIMNOW_AUTH_CODE:-}
@@ -82,6 +66,12 @@ services:
       - type: bind
         source: /opt/northstar/logs/live
         target: /var/log/northstar/live
+        read_only: false
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /opt/northstar/state/live/database
+        target: /var/lib/northstar/state
         read_only: false
         bind:
           create_host_path: false
@@ -97,7 +87,7 @@ services:
         read_only: true
         bind:
           create_host_path: false
-    networks: [storage, management, egress]
+    networks: [management, egress]
     depends_on:
       initialize:
         condition: service_completed_successfully
@@ -165,8 +155,6 @@ services:
       start_period: 20s
 
 networks:
-  storage:
-    internal: true
   management:
     internal: true
   frontend:

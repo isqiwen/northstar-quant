@@ -28,8 +28,11 @@ _PROCESSING_LOCK = 0x4E535150524F43
 @contextmanager
 def processing_claim(library: DataLibrary) -> Iterator[None]:
     with library_write(library._engine), library._engine.begin() as connection:
-        connection.execute(text("SET LOCAL lock_timeout = '5s'"))
-        connection.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": _PROCESSING_LOCK})
+        if connection.dialect.name == "postgresql":
+            connection.execute(text("SET LOCAL lock_timeout = '5s'"))
+            connection.execute(
+                text("SELECT pg_advisory_xact_lock(:key)"), {"key": _PROCESSING_LOCK}
+            )
         with library._engine.begin() as writer:
             writer.execute(
                 update(_attempts)

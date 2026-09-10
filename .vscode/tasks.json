@@ -64,7 +64,7 @@
         "postgres",
         "sh",
         "-ec",
-        "for database in northstar_data_hub_vscode northstar_live_vscode northstar_quant_test; do existing=\"$(psql -U northstar -d postgres -tAc \"SELECT 1 FROM pg_database WHERE datname = '$database'\")\"; if [ \"$existing\" != \"1\" ]; then createdb -U northstar \"$database\"; fi; done"
+        "for database in northstar_data_hub_vscode northstar_quant_test; do existing=\"$(psql -U northstar -d postgres -tAc \"SELECT 1 FROM pg_database WHERE datname = '$database'\")\"; if [ \"$existing\" != \"1\" ]; then createdb -U northstar \"$database\"; fi; done"
       ],
       "options": {
         "cwd": "${workspaceFolder}"
@@ -104,7 +104,7 @@
         "--locked",
         "python",
         "-c",
-        "from pathlib import Path; from northstar_quant.data_management.storage_identity import initialize; import os; root=Path(os.environ['VSCODE_DATA_ROOT']); root.mkdir(parents=True,exist_ok=True); [(Path(os.environ['NORTHSTAR_'+n+'_DIR']).mkdir(parents=True,exist_ok=True), initialize(Path(os.environ['NORTHSTAR_'+n+'_DIR']),os.environ['NORTHSTAR_'+n+'_STORAGE_ID'])) for n in ('SOURCE','MARKET','RESEARCH')]"
+        "from pathlib import Path; from northstar_quant.data_management.storage_identity import initialize; import os; root=Path(os.environ['VSCODE_DATA_ROOT']); root.mkdir(parents=True,exist_ok=True); [(Path(os.environ['NORTHSTAR_'+n+'_DIR']).mkdir(parents=True,exist_ok=True), initialize(Path(os.environ['NORTHSTAR_'+n+'_DIR']),os.environ['NORTHSTAR_'+n+'_STORAGE_ID'])) for n in ('SOURCE','MARKET','RESEARCH')]; (root/'live'/'state').mkdir(parents=True,exist_ok=True)"
       ],
       "options": {
         "cwd": "${workspaceFolder}",
@@ -223,8 +223,8 @@
       "options": {
         "cwd": "${workspaceFolder}",
         "env": {
-          "NORTHSTAR_DATABASE_URL": "postgresql+psycopg://northstar:northstar_local@127.0.0.1:15432/northstar_live_vscode",
           "NORTHSTAR_DATABASE_OWNER": "live",
+          "NORTHSTAR_LIVE_STATE_DIR": "${workspaceFolder}/.northstar/vscode/live/state",
           "NORTHSTAR_DATA_DIR": "${workspaceFolder}/.northstar/vscode/live-sources",
           "NORTHSTAR_LIVE_ENVIRONMENT": "simnow_trading",
           "NORTHSTAR_SIMNOW_USER_ID": "",
@@ -238,8 +238,7 @@
       },
       "problemMatcher": [],
       "dependsOn": [
-        "Northstar: 准备调试目录",
-        "Northstar: 准备调试数据库"
+        "Northstar: 准备调试目录"
       ],
       "dependsOrder": "sequence"
     },

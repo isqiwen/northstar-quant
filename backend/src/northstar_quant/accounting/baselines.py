@@ -15,9 +15,9 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy import (
+    JSON,
     Column,
     Connection,
-    DateTime,
     Engine,
     ForeignKey,
     MetaData,
@@ -26,13 +26,16 @@ from sqlalchemy import (
     UniqueConstraint,
     select,
 )
-from sqlalchemy.dialects.postgresql import JSONB, insert
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
 from northstar_quant import code_revision
 from northstar_quant.accounting.amounts import decimal_text
 from northstar_quant.broker.account_reports import account_baseline
-from northstar_quant.broker.records import BrokerRecords
+from northstar_quant.broker.records import BrokerRecords, EvidenceTimestamp
+from northstar_quant.live.storage import write_transaction
 
 _FLAT_ZERO = ("CurrMargin", "FrozenMargin", "FrozenCash", "FrozenCommission", "PositionProfit")
 _ACTIVITY = ("positions", "orders", "trades")
@@ -45,8 +48,8 @@ _baselines = Table(
     Column("profile_name", String(32), nullable=False),
     Column("account_id", String(12), nullable=False),
     Column("source_batch_id", PGUUID(as_uuid=True), nullable=False, unique=True),
-    Column("created_at", DateTime(timezone=True), nullable=False),
-    Column("document", JSONB, nullable=False),
+    Column("created_at", EvidenceTimestamp(), nullable=False),
+    Column("document", JSON().with_variant(JSONB, "postgresql"), nullable=False),
     Column("sha256", String(64), nullable=False),
     UniqueConstraint("profile_name", "account_id"),
 )
@@ -58,8 +61,8 @@ _checks = Table(
         "baseline_id", PGUUID(as_uuid=True), ForeignKey(_baselines.c.baseline_id), nullable=False
     ),
     Column("query_batch_id", PGUUID(as_uuid=True), nullable=False),
-    Column("created_at", DateTime(timezone=True), nullable=False),
-    Column("document", JSONB, nullable=False),
+    Column("created_at", EvidenceTimestamp(), nullable=False),
+    Column("document", JSON().with_variant(JSONB, "postgresql"), nullable=False),
     Column("sha256", String(64), nullable=False),
     UniqueConstraint("baseline_id", "query_batch_id"),
 )
@@ -67,9 +70,16 @@ _checks = Table(
 
 def initialize_broker_baselines(connection: Connection) -> None:
     """Add this Module's immutable records without replacing any account facts."""
-    if connection.dialect.name != "postgresql":
-        raise ValueError("broker baselines require PostgreSQL")
     _metadata.create_all(connection)
+    if connection.dialect.name == "sqlite":
+        for table_name in ("broker_account_baselines", "broker_baseline_checks"):
+            for action in ("UPDATE", "DELETE"):
+                connection.exec_driver_sql(
+                    f"CREATE TRIGGER IF NOT EXISTS immutable_{table_name}_{action} "
+                    f"BEFORE {action} ON {table_name} "
+                    "BEGIN SELECT RAISE(ABORT, 'Confirmed facts are immutable'); END"
+                )
+        return
     connection.exec_driver_sql("""
         CREATE OR REPLACE FUNCTION broker_protect_baseline() RETURNS trigger AS $$
         BEGIN
@@ -113,8 +123,6 @@ class BrokerBaselines:
     """Immutable observation and comparison, with no network or rebase operation."""
 
     def __init__(self, engine: Engine) -> None:
-        if engine.dialect.name != "postgresql":
-            raise ValueError("broker baselines require PostgreSQL")
         self._engine = engine
         self._records = BrokerRecords(engine)
 
@@ -203,9 +211,9 @@ class BrokerBaselines:
             "scope": "FLAT_CNY_OBSERVATION",
             "execution": dict(_EXECUTION),
         }
-        with self._engine.begin() as connection:
+        with write_transaction(self._engine) as connection:
             connection.execute(
-                insert(_baselines)
+                (sqlite_insert if connection.dialect.name == "sqlite" else pg_insert)(_baselines)
                 .values(
                     baseline_id=request_id,
                     profile_name=batch["profile"]["name"],
@@ -304,9 +312,9 @@ class BrokerBaselines:
             ],
             "execution": dict(_EXECUTION),
         }
-        with self._engine.begin() as connection:
+        with write_transaction(self._engine) as connection:
             connection.execute(
-                insert(_checks)
+                (sqlite_insert if connection.dialect.name == "sqlite" else pg_insert)(_checks)
                 .values(
                     check_id=request_id,
                     baseline_id=baseline_id,

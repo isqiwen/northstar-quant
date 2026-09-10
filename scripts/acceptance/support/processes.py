@@ -26,7 +26,7 @@ class InstalledApplication:
 
     def __init__(self, executable: str, directory: Path, environment: dict[str, str]) -> None:
         self.executable = executable
-        self.directory = directory
+        self.directory = directory.resolve()
         self.environment = dict(
             environment,
             NORTHSTAR_LOG_DIR=str(directory / "logs"),
@@ -40,6 +40,37 @@ class InstalledApplication:
         self.protocols: dict[str, dict] = {}
         self.api_processes: dict[str, subprocess.Popen[str]] = {}
         self.log_paths: list[Path] = []
+
+    @property
+    def live_environment(self) -> dict[str, str]:
+        state = Path(
+            self.environment.get("NORTHSTAR_LIVE_STATE_DIR", str(self.directory / "live-state"))
+        )
+        state = state.resolve()
+        state.mkdir(parents=True, exist_ok=True)
+        return dict(
+            self.environment,
+            NORTHSTAR_DATABASE_OWNER="live",
+            NORTHSTAR_LIVE_STATE_DIR=str(state),
+            NORTHSTAR_DATA_DIR=self.environment.get(
+                "NORTHSTAR_LIVE_SOURCE_DIR", str(self.directory / "live-sources")
+            ),
+        )
+
+    def live_command(self, *arguments: str) -> Any:
+        completed = subprocess.run(
+            [self.executable, *arguments],
+            cwd=self.directory,
+            env=self.live_environment,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        if completed.returncode:
+            raise RuntimeError(
+                "Live maintenance failed: " + redact(completed.stderr, self.live_environment)
+            )
+        return json.loads(completed.stdout)
 
     def command(self, *arguments: str) -> Any:
         if arguments[0] == "research" and arguments[1] in {"run", "replay", "paper"}:
@@ -55,6 +86,9 @@ class InstalledApplication:
                 capture_output=True,
                 timeout=60,
             )
+            self.live_command(*arguments)
+        if arguments[:2] == ("maintenance", "backup"):
+            self.live_command("maintenance", "backup", str(self.directory / "live-backup"))
         return result
 
     def _command(self, *arguments: str) -> Any:
@@ -247,7 +281,9 @@ run()
     @contextmanager
     def live(self) -> Iterator[subprocess.Popen[str]]:
         auth = Path(self.environment["NORTHSTAR_LIVE_AUTH"])
-        environment = dict(self.environment, NORTHSTAR_LIVE_AUTH=str(auth.with_name("live.toml")))
+        environment = dict(
+            self.live_environment, NORTHSTAR_LIVE_AUTH=str(auth.with_name("live.toml"))
+        )
         with self._running("live-kernel", environment) as (_, process):
             yield process
 

@@ -362,6 +362,37 @@ def main() -> None:
                         page.goto(url)
                         expect(page.get_by_text("AVAILABLE", exact=True)).to_be_visible()
                         screenshot("live")
+                        # Exercise selection using synthetic browser transport.
+                        page.route(
+                            "**/api/live/instances",
+                            lambda route: fulfill(
+                                route,
+                                "/api/live/instances",
+                                {
+                                    "instances": [
+                                        {"instance_id": "sim", "environment": "simnow_dev"},
+                                        {"instance_id": "other", "environment": "simnow_trading"},
+                                    ],
+                                    "production_available": False,
+                                },
+                            ),
+                        )
+                        selected = []
+
+                        def selected_status(route):
+                            selected.append(route.request.headers.get("x-live-instance-id"))
+                            fulfill(route, "/api/live/status", original)
+
+                        page.route("**/api/live/status", selected_status)
+                        page.reload()
+                        choose("运行实例", "other")
+                        expect(page.get_by_text("AVAILABLE", exact=True)).to_be_visible()
+                        assert "other" in selected
+                        choose("运行实例", "sim")
+                        expect(page.get_by_text("AVAILABLE", exact=True)).to_be_visible()
+                        page.unroute("**/api/live/status")
+                        page.unroute("**/api/live/instances")
+
                         # Synthetic browser transport: never forwarded to any broker/kernel command.
                         observed = original["runtime_id"]
                         stream = {

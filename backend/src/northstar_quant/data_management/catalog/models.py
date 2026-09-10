@@ -10,6 +10,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import ExcludeConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from northstar_quant.broker.records import EvidenceTimestamp
 from northstar_quant.data_management.db.base import Base
 
 Uuid = sa.Uuid(as_uuid=True)
@@ -112,7 +113,7 @@ class CreatedAtMixin:
     """Durable creation evidence for records that form operational history."""
 
     created_at: Mapped[datetime] = mapped_column(
-        sa.DateTime(timezone=True),
+        sa.DateTime(timezone=True).with_variant(EvidenceTimestamp(), "sqlite"),
         nullable=False,
         server_default=sa.func.now(),
     )
@@ -276,7 +277,7 @@ class TradingSession(CreatedAtMixin, Base):
             ("calendar_id", "="),
             (sa.text("tstzrange(opens_at, closes_at, '[)')"), "&&"),
             name="session_no_overlap",
-        ),
+        ).ddl_if(dialect="postgresql"),
         sa.Index("ix_trading_session_calendar_id_trading_day", "calendar_id", "trading_day"),
     )
 
@@ -285,8 +286,12 @@ class TradingSession(CreatedAtMixin, Base):
     trading_day: Mapped[date] = mapped_column(sa.Date(), nullable=False)
     sequence: Mapped[int] = mapped_column(sa.Integer(), nullable=False)
     kind: Mapped[str] = mapped_column(sa.String(16), nullable=False)
-    opens_at: Mapped[datetime] = mapped_column(sa.DateTime(timezone=True), nullable=False)
-    closes_at: Mapped[datetime] = mapped_column(sa.DateTime(timezone=True), nullable=False)
+    opens_at: Mapped[datetime] = mapped_column(
+        sa.DateTime(timezone=True).with_variant(EvidenceTimestamp(), "sqlite"), nullable=False
+    )
+    closes_at: Mapped[datetime] = mapped_column(
+        sa.DateTime(timezone=True).with_variant(EvidenceTimestamp(), "sqlite"), nullable=False
+    )
 
     trading_day_record: Mapped[CalendarTradingDay] = relationship(back_populates="sessions")
 
@@ -491,11 +496,17 @@ class CanonicalBar(CreatedAtMixin, Base):
         nullable=True,
         index=True,
     )
-    event_time: Mapped[datetime] = mapped_column(sa.DateTime(timezone=True), nullable=False)
+    event_time: Mapped[datetime] = mapped_column(
+        sa.DateTime(timezone=True).with_variant(EvidenceTimestamp(), "sqlite"), nullable=False
+    )
     trading_day: Mapped[date] = mapped_column(sa.Date(), nullable=False)
-    available_at: Mapped[datetime] = mapped_column(sa.DateTime(timezone=True), nullable=False)
+    available_at: Mapped[datetime] = mapped_column(
+        sa.DateTime(timezone=True).with_variant(EvidenceTimestamp(), "sqlite"), nullable=False
+    )
     ingested_at: Mapped[datetime] = mapped_column(
-        sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        sa.DateTime(timezone=True).with_variant(EvidenceTimestamp(), "sqlite"),
+        nullable=False,
+        server_default=sa.func.now(),
     )
     source_timezone_name: Mapped[str] = mapped_column(sa.String(64), nullable=False)
     source_name: Mapped[str] = mapped_column(sa.String(128), nullable=False)
@@ -553,8 +564,12 @@ class JobRun(CreatedAtMixin, Base):
     correlation_id: Mapped[str] = mapped_column(sa.String(128), nullable=False)
     causation_id: Mapped[str | None] = mapped_column(sa.String(128), nullable=True)
     status: Mapped[str] = mapped_column(sa.String(16), nullable=False, server_default="QUEUED")
-    started_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
-    finished_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
+    started_at: Mapped[datetime | None] = mapped_column(
+        sa.DateTime(timezone=True).with_variant(EvidenceTimestamp(), "sqlite")
+    )
+    finished_at: Mapped[datetime | None] = mapped_column(
+        sa.DateTime(timezone=True).with_variant(EvidenceTimestamp(), "sqlite")
+    )
     error_code: Mapped[str | None] = mapped_column(sa.String(64), nullable=True)
 
     import_run: Mapped[ImportRun | None] = relationship(back_populates="job_run")
@@ -619,7 +634,9 @@ class SourceReceipt(CreatedAtMixin, Base):
         server_default=SOURCE_RECEIPT_DEFAULT_REDISTRIBUTION_POLICY,
     )
     received_at: Mapped[datetime] = mapped_column(
-        sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        sa.DateTime(timezone=True).with_variant(EvidenceTimestamp(), "sqlite"),
+        nullable=False,
+        server_default=sa.func.now(),
     )
 
     import_runs: Mapped[list[ImportRun]] = relationship(back_populates="source_receipt")
@@ -700,14 +717,26 @@ class ImportRun(CreatedAtMixin, Base):
         sa.Integer(), nullable=False, server_default="0"
     )
     rows_conflicted: Mapped[int] = mapped_column(sa.Integer(), nullable=False, server_default="0")
-    event_time_from: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
-    event_time_to: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
+    event_time_from: Mapped[datetime | None] = mapped_column(
+        sa.DateTime(timezone=True).with_variant(EvidenceTimestamp(), "sqlite")
+    )
+    event_time_to: Mapped[datetime | None] = mapped_column(
+        sa.DateTime(timezone=True).with_variant(EvidenceTimestamp(), "sqlite")
+    )
     trading_day_from: Mapped[date | None] = mapped_column(sa.Date())
     trading_day_to: Mapped[date | None] = mapped_column(sa.Date())
-    available_at_from: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
-    available_at_to: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
-    started_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
-    finished_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
+    available_at_from: Mapped[datetime | None] = mapped_column(
+        sa.DateTime(timezone=True).with_variant(EvidenceTimestamp(), "sqlite")
+    )
+    available_at_to: Mapped[datetime | None] = mapped_column(
+        sa.DateTime(timezone=True).with_variant(EvidenceTimestamp(), "sqlite")
+    )
+    started_at: Mapped[datetime | None] = mapped_column(
+        sa.DateTime(timezone=True).with_variant(EvidenceTimestamp(), "sqlite")
+    )
+    finished_at: Mapped[datetime | None] = mapped_column(
+        sa.DateTime(timezone=True).with_variant(EvidenceTimestamp(), "sqlite")
+    )
     error_code: Mapped[str | None] = mapped_column(sa.String(64), nullable=True)
     error_detail: Mapped[str | None] = mapped_column(sa.String(1024), nullable=True)
     replayed_import_run_id: Mapped[uuid.UUID | None] = mapped_column(
@@ -855,8 +884,12 @@ class ProviderRetrieval(CreatedAtMixin, Base):
     response_etag: Mapped[str | None] = mapped_column(sa.String(512), nullable=True)
     response_last_modified: Mapped[str | None] = mapped_column(sa.String(128), nullable=True)
     provider_request_id: Mapped[str | None] = mapped_column(sa.String(256), nullable=True)
-    started_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True), nullable=True)
-    finished_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True), nullable=True)
+    started_at: Mapped[datetime | None] = mapped_column(
+        sa.DateTime(timezone=True).with_variant(EvidenceTimestamp(), "sqlite"), nullable=True
+    )
+    finished_at: Mapped[datetime | None] = mapped_column(
+        sa.DateTime(timezone=True).with_variant(EvidenceTimestamp(), "sqlite"), nullable=True
+    )
     error_code: Mapped[str | None] = mapped_column(sa.String(64), nullable=True)
     error_detail: Mapped[str | None] = mapped_column(sa.String(1024), nullable=True)
     error_retryable: Mapped[bool | None] = mapped_column(sa.Boolean(), nullable=True)
@@ -952,8 +985,12 @@ class ProviderRetrievalRecovery(CreatedAtMixin, Base):
     action: Mapped[str] = mapped_column(sa.String(32), nullable=False)
     prior_status: Mapped[str] = mapped_column(sa.String(16), nullable=False)
     prior_attempt_count: Mapped[int] = mapped_column(sa.Integer(), nullable=False)
-    prior_started_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
-    prior_finished_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
+    prior_started_at: Mapped[datetime | None] = mapped_column(
+        sa.DateTime(timezone=True).with_variant(EvidenceTimestamp(), "sqlite")
+    )
+    prior_finished_at: Mapped[datetime | None] = mapped_column(
+        sa.DateTime(timezone=True).with_variant(EvidenceTimestamp(), "sqlite")
+    )
     prior_response_http_status: Mapped[int | None] = mapped_column(sa.SmallInteger())
     prior_error_code: Mapped[str | None] = mapped_column(sa.String(64))
     prior_error_detail: Mapped[str | None] = mapped_column(sa.String(1024))
@@ -1113,7 +1150,9 @@ class ShfeDailySourceAdmissionReview(CreatedAtMixin, Base):
     evidence_ref: Mapped[str] = mapped_column(sa.String(128), nullable=False)
     evidence_sha256: Mapped[str] = mapped_column(sa.String(64), nullable=False)
     reviewer_id: Mapped[str] = mapped_column(sa.String(128), nullable=False)
-    valid_until: Mapped[datetime] = mapped_column(sa.DateTime(timezone=True), nullable=False)
+    valid_until: Mapped[datetime] = mapped_column(
+        sa.DateTime(timezone=True).with_variant(EvidenceTimestamp(), "sqlite"), nullable=False
+    )
     idempotency_key: Mapped[str] = mapped_column(sa.String(128), nullable=False)
     correlation_id: Mapped[str] = mapped_column(sa.String(128), nullable=False)
     causation_id: Mapped[str | None] = mapped_column(sa.String(128), nullable=True)
@@ -1206,7 +1245,9 @@ class ImportRecord(CreatedAtMixin, Base):
     source_row_number: Mapped[int] = mapped_column(sa.Integer(), nullable=False)
     source_record_id: Mapped[str] = mapped_column(sa.String(256), nullable=False)
     normalized_payload_hash: Mapped[str] = mapped_column(sa.String(64), nullable=False)
-    event_time: Mapped[datetime] = mapped_column(sa.DateTime(timezone=True), nullable=False)
+    event_time: Mapped[datetime] = mapped_column(
+        sa.DateTime(timezone=True).with_variant(EvidenceTimestamp(), "sqlite"), nullable=False
+    )
     disposition: Mapped[str] = mapped_column(sa.String(32), nullable=False)
     canonical_bar_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid,
@@ -1418,7 +1459,7 @@ class DatasetSnapshotManifest(CreatedAtMixin, Base):
         sa.String(32), nullable=False, server_default="canonical_ohlcv/1.0.0"
     )
     available_at_cutoff: Mapped[datetime] = mapped_column(
-        sa.DateTime(timezone=True), nullable=False
+        sa.DateTime(timezone=True).with_variant(EvidenceTimestamp(), "sqlite"), nullable=False
     )
     request_fingerprint: Mapped[str] = mapped_column(sa.String(64), nullable=False)
     content_hash: Mapped[str] = mapped_column(sa.String(64), nullable=False)
@@ -1559,8 +1600,12 @@ class DatasetSnapshotPartition(CreatedAtMixin, Base):
     turnover_currency: Mapped[str] = mapped_column(sa.String(3), nullable=False)
     trading_day_from: Mapped[date] = mapped_column(sa.Date(), nullable=False)
     trading_day_to: Mapped[date] = mapped_column(sa.Date(), nullable=False)
-    event_time_from: Mapped[datetime] = mapped_column(sa.DateTime(timezone=True), nullable=False)
-    event_time_to: Mapped[datetime] = mapped_column(sa.DateTime(timezone=True), nullable=False)
+    event_time_from: Mapped[datetime] = mapped_column(
+        sa.DateTime(timezone=True).with_variant(EvidenceTimestamp(), "sqlite"), nullable=False
+    )
+    event_time_to: Mapped[datetime] = mapped_column(
+        sa.DateTime(timezone=True).with_variant(EvidenceTimestamp(), "sqlite"), nullable=False
+    )
     row_count: Mapped[int] = mapped_column(sa.Integer(), nullable=False)
     membership_hash: Mapped[str] = mapped_column(sa.String(64), nullable=False)
     content_hash: Mapped[str] = mapped_column(sa.String(64), nullable=False)
@@ -1601,9 +1646,13 @@ class DatasetSnapshotMember(CreatedAtMixin, Base):
         nullable=False,
     )
     ordinal: Mapped[int] = mapped_column(sa.Integer(), nullable=False)
-    event_time: Mapped[datetime] = mapped_column(sa.DateTime(timezone=True), nullable=False)
+    event_time: Mapped[datetime] = mapped_column(
+        sa.DateTime(timezone=True).with_variant(EvidenceTimestamp(), "sqlite"), nullable=False
+    )
     trading_day: Mapped[date] = mapped_column(sa.Date(), nullable=False)
-    available_at: Mapped[datetime] = mapped_column(sa.DateTime(timezone=True), nullable=False)
+    available_at: Mapped[datetime] = mapped_column(
+        sa.DateTime(timezone=True).with_variant(EvidenceTimestamp(), "sqlite"), nullable=False
+    )
     canonical_bar_fingerprint: Mapped[str] = mapped_column(sa.String(64), nullable=False)
 
     partition: Mapped[DatasetSnapshotPartition] = relationship(back_populates="members")
@@ -1717,7 +1766,9 @@ class DatasetSnapshotSeriesQualityPin(CreatedAtMixin, Base):
     rule_set_version: Mapped[str] = mapped_column(sa.String(16), nullable=False)
     trading_day_from: Mapped[date] = mapped_column(sa.Date(), nullable=False)
     trading_day_to: Mapped[date] = mapped_column(sa.Date(), nullable=False)
-    as_of: Mapped[datetime] = mapped_column(sa.DateTime(timezone=True), nullable=False)
+    as_of: Mapped[datetime] = mapped_column(
+        sa.DateTime(timezone=True).with_variant(EvidenceTimestamp(), "sqlite"), nullable=False
+    )
     input_fingerprint: Mapped[str] = mapped_column(sa.String(64), nullable=False)
     outcome: Mapped[str] = mapped_column(sa.String(16), nullable=False)
     delivery_gate: Mapped[str] = mapped_column(sa.String(16), nullable=False)
@@ -1833,7 +1884,9 @@ class QualityEvaluation(CreatedAtMixin, Base):
     )
     trading_day_from: Mapped[date] = mapped_column(sa.Date(), nullable=False)
     trading_day_to: Mapped[date] = mapped_column(sa.Date(), nullable=False)
-    as_of: Mapped[datetime] = mapped_column(sa.DateTime(timezone=True), nullable=False)
+    as_of: Mapped[datetime] = mapped_column(
+        sa.DateTime(timezone=True).with_variant(EvidenceTimestamp(), "sqlite"), nullable=False
+    )
     input_fingerprint: Mapped[str] = mapped_column(sa.String(64), nullable=False)
     outcome: Mapped[str] = mapped_column(sa.String(16), nullable=False)
     delivery_gate: Mapped[str] = mapped_column(sa.String(16), nullable=False)

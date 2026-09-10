@@ -10,14 +10,15 @@ from __future__ import annotations
 
 import hashlib
 import json
+from contextlib import nullcontext
 from datetime import UTC, date, datetime
 from typing import Any, cast
 from uuid import UUID
 
 from sqlalchemy import (
+    JSON,
     Column,
     Connection,
-    DateTime,
     Engine,
     Integer,
     MetaData,
@@ -39,8 +40,9 @@ from northstar_quant.broker.account_reports import (
     query_trades,
     stream_trades,
 )
-from northstar_quant.broker.records import BrokerRecords
+from northstar_quant.broker.records import BrokerRecords, EvidenceTimestamp
 from northstar_quant.data_management.broker import resolve_broker_contract, verify_broker_contract
+from northstar_quant.live.storage import write_transaction
 
 _metadata = MetaData()
 _entries = Table(
@@ -50,8 +52,8 @@ _entries = Table(
     Column("baseline_id", PGUUID(as_uuid=True), nullable=False),
     Column("source_batch_id", PGUUID(as_uuid=True), nullable=False),
     Column("ordinal", Integer, nullable=False),
-    Column("recorded_at", DateTime(timezone=True), nullable=False),
-    Column("document", JSONB, nullable=False),
+    Column("recorded_at", EvidenceTimestamp(), nullable=False),
+    Column("document", JSON().with_variant(JSONB, "postgresql"), nullable=False),
     Column("sha256", String(64), nullable=False),
     UniqueConstraint("baseline_id", "ordinal"),
 )
@@ -61,8 +63,8 @@ _checks = Table(
     Column("check_id", PGUUID(as_uuid=True), primary_key=True),
     Column("entry_id", PGUUID(as_uuid=True), nullable=False),
     Column("query_batch_id", PGUUID(as_uuid=True), nullable=False),
-    Column("recorded_at", DateTime(timezone=True), nullable=False),
-    Column("document", JSONB, nullable=False),
+    Column("recorded_at", EvidenceTimestamp(), nullable=False),
+    Column("document", JSON().with_variant(JSONB, "postgresql"), nullable=False),
     Column("sha256", String(64), nullable=False),
     UniqueConstraint("entry_id", "query_batch_id"),
 )
@@ -72,9 +74,28 @@ _MAX_FILLS = 10000
 
 
 def initialize_broker_ledger(connection: Connection) -> None:
-    if connection.dialect.name != "postgresql":
-        raise ValueError("broker position ledger requires PostgreSQL")
     _metadata.create_all(connection)
+    if connection.dialect.name == "sqlite":
+        for table_name in ("broker_position_entries", "broker_position_checks"):
+            for action in ("UPDATE", "DELETE"):
+                connection.exec_driver_sql(
+                    f"CREATE TRIGGER IF NOT EXISTS immutable_{table_name}_{action} "
+                    f"BEFORE {action} ON {table_name} "
+                    "BEGIN SELECT RAISE(ABORT, 'Confirmed facts are immutable'); END"
+                )
+        connection.exec_driver_sql(
+            "CREATE UNIQUE INDEX IF NOT EXISTS broker_position_query_source "
+            "ON broker_position_entries(baseline_id, source_batch_id) "
+            "WHERE json_type(document, '$.source_stream') IS NULL"
+        )
+        connection.exec_driver_sql(
+            "CREATE UNIQUE INDEX IF NOT EXISTS broker_position_stream_source "
+            "ON broker_position_entries(baseline_id, "
+            "json_extract(document, '$.source_stream.stream_id'), "
+            "json_extract(document, '$.source_stream.through_sequence')) "
+            "WHERE json_type(document, '$.source_stream') IS NOT NULL"
+        )
+        return
     # Queries and copied stream prefixes are distinct current source kinds. This
     # changes uniqueness only; retained documents, amounts and hashes stay intact.
     connection.exec_driver_sql("""
@@ -174,8 +195,6 @@ class BrokerLedger:
     """A same-day append-only position book, never a cash or execution authority."""
 
     def __init__(self, engine: Engine) -> None:
-        if engine.dialect.name != "postgresql":
-            raise ValueError("broker position ledger requires PostgreSQL")
         self._engine = engine
         self._records = BrokerRecords(engine)
         self._baselines = BrokerBaselines(engine)
@@ -355,13 +374,17 @@ class BrokerLedger:
         stream_id: UUID | None = None,
         through_sequence: int | None = None,
         account_after_sequence: int | None = None,
+        transaction: Connection | None = None,
     ) -> dict[str, Any]:
         # Serialize both the deduplication set and its resulting projection.
         lock_key = int.from_bytes(
             hashlib.sha256(baseline_id.bytes + b"positions").digest()[:8], "big", signed=True
         )
-        with self._engine.begin() as connection:
-            connection.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": lock_key})
+        with (
+            nullcontext(transaction) if transaction is not None else write_transaction(self._engine)
+        ) as connection:
+            if connection.dialect.name == "postgresql":
+                connection.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": lock_key})
             try:
                 saved = self.get(request_id)
             except LookupError:
@@ -642,7 +665,7 @@ class BrokerLedger:
                     sha256=_hash(document),
                 )
             )
-        return self.get(request_id)
+        return document if transaction is not None else self.get(request_id)
 
     def compare(self, entry_id: UUID, query_batch_id: UUID, *, request_id: UUID) -> dict[str, Any]:
         if not all(isinstance(value, UUID) for value in (entry_id, query_batch_id, request_id)):
@@ -722,11 +745,12 @@ class BrokerLedger:
                 "NO_CONTINUOUS_EVENT_COVERAGE_OR_CURRENT_SAFETY_CLAIM",
             ],
         }
-        from sqlalchemy.dialects.postgresql import insert
+        from sqlalchemy.dialects.postgresql import insert as pg_insert
+        from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
-        with self._engine.begin() as connection:
+        with write_transaction(self._engine) as connection:
             connection.execute(
-                insert(_checks)
+                (sqlite_insert if connection.dialect.name == "sqlite" else pg_insert)(_checks)
                 .values(
                     check_id=request_id,
                     entry_id=entry_id,

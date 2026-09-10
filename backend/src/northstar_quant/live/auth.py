@@ -32,6 +32,12 @@ class LiveAuth:
         filename = os.environ.get("NORTHSTAR_LIVE_AUTH", "")
         if not filename or not Path(filename).is_absolute():
             raise ValueError("NORTHSTAR_LIVE_AUTH must name an absolute owner-only TOML file")
+        return cls.from_file(Path(filename), require_control=require_control)
+
+    @classmethod
+    def from_file(cls, filename: Path, *, require_control: bool = False) -> LiveAuth:
+        if not filename.is_absolute():
+            raise ValueError("Live authentication requires an absolute file")
         descriptor: int | None = None
         try:
             descriptor = os.open(filename, os.O_RDONLY | os.O_NOFOLLOW)

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
@@ -19,12 +20,13 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from northstar_quant.apps.logging import logged_application
 from northstar_quant.apps.storage import open_database, require_current_database
-from northstar_quant.broker.settings import require_supported_environment
+from northstar_quant.broker.settings import load_credentials, require_supported_environment
 from northstar_quant.data_management.files import SourceFiles
 from northstar_quant.data_management.library import DataLibrary
 from northstar_quant.live import diagnostics
 from northstar_quant.live.auth import LiveAuth
 from northstar_quant.live.client import PROTOCOL_VERSION
+from northstar_quant.live.instances import Instance, InstanceBinding
 from northstar_quant.live.owner import LiveOwner
 from northstar_quant.logging_ import status as log_status
 
@@ -72,11 +74,22 @@ def create_app(engine: Engine, library: DataLibrary, auth: LiveAuth) -> FastAPI:
 
     @app.middleware("http")
     async def access(request: Request, call_next: RequestResponseEndpoint) -> Response:
+        try:
+            if owner.binding:
+                owner.binding.status()
+        except (OSError, ValueError):
+            return JSONResponse({"detail": "Live local storage is unavailable"}, status_code=503)
         if request.url.path != "/health/ready":
             try:
                 auth.authorize(
                     request.headers.get("authorization", ""), control=request.method != "GET"
                 )
+                if (
+                    owner.binding
+                    and request.headers.get("x-live-instance-id", owner.binding.instance.identifier)
+                    != owner.binding.instance.identifier
+                ):
+                    raise HTTPException(409, "Command belongs to a different Live instance")
                 if request.headers.get("x-northstar-protocol") != PROTOCOL_VERSION:
                     raise HTTPException(409, "Live and Live Web must use the same current protocol")
                 if request.method not in {"GET", "POST"}:
@@ -87,6 +100,8 @@ def create_app(engine: Engine, library: DataLibrary, auth: LiveAuth) -> FastAPI:
                 return JSONResponse({"detail": error.detail}, status_code=error.status_code)
         response = await call_next(request)
         response.headers["Cache-Control"] = "no-store"
+        if owner.binding:
+            response.headers["X-Live-Instance-ID"] = owner.binding.instance.identifier
         response.headers["X-Northstar-Protocol"] = PROTOCOL_VERSION
         response.headers["X-Live-Runtime-ID"] = str(owner.identifier)
         response.headers["X-Live-Observed-At"] = owner.status()["observed_at"]
@@ -153,4 +168,15 @@ def application() -> FastAPI:
     auth = LiveAuth.from_environment(require_control=True)
     engine = open_database()
     require_current_database(engine)
-    return create_app(engine, DataLibrary(engine, SourceFiles.from_environment()), auth)
+    instance = Instance.from_environment()
+    account = os.environ.get("NORTHSTAR_SIMNOW_USER_ID", "")
+    if account:
+        load_credentials()
+    binding = InstanceBinding(engine, instance, "9999", account)
+    try:
+        app = create_app(engine, DataLibrary(engine, SourceFiles.from_environment()), auth)
+        app.state.owner.binding = binding
+        return app
+    except BaseException:
+        binding.close()
+        raise

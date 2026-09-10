@@ -21,10 +21,12 @@ from northstar_quant.live.opening_budgets import BrokerOpeningBudgets
 from northstar_quant.live.streams import LiveStreams
 
 from .commands import Commands
+from .instances import InstanceBinding
 
 
 class LiveOwner:
     def __init__(self, engine: Engine, library: DataLibrary) -> None:
+        self.binding: InstanceBinding | None = None
         self.identifier = uuid4()
         self.started_at = datetime.now(UTC).isoformat()
         self.commands = Commands(engine, self.identifier)
@@ -38,6 +40,7 @@ class LiveOwner:
 
     def status(self) -> dict[str, Any]:
         return {
+            **(self.binding.status() if self.binding else {}),
             "runtime_id": str(self.identifier),
             "pid": os.getpid(),
             "started_at": self.started_at,
@@ -53,4 +56,8 @@ class LiveOwner:
         return {**value, "live_runtime": self.status()}
 
     def close(self) -> None:
-        self.streams.close()
+        try:
+            self.streams.close()
+        finally:
+            if self.binding:
+                self.binding.close()

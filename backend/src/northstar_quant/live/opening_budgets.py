@@ -15,9 +15,9 @@ from typing import Any, cast
 from uuid import UUID
 
 from sqlalchemy import (
+    JSON,
     Column,
     Connection,
-    DateTime,
     Engine,
     Integer,
     MetaData,
@@ -25,17 +25,20 @@ from sqlalchemy import (
     Table,
     select,
 )
-from sqlalchemy.dialects.postgresql import JSONB, insert
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
 from northstar_quant import code_revision
 from northstar_quant.accounting.amounts import decimal_text
 from northstar_quant.accounting.ledger import BrokerLedger
 from northstar_quant.broker.market import ctp_day_quote_time
-from northstar_quant.broker.records import BrokerRecords
+from northstar_quant.broker.records import BrokerRecords, EvidenceTimestamp
 from northstar_quant.data_management.broker import verify_broker_contract
 from northstar_quant.data_management.library import DataLibrary
 from northstar_quant.execution.reviews import OrderReviews
+from northstar_quant.live.storage import write_transaction
 from northstar_quant.live.streams import LiveStreams
 from northstar_quant.risk import (
     OpeningAccount,
@@ -54,14 +57,23 @@ _budgets = Table(
     Column("stream_id", PGUUID(as_uuid=True), nullable=False),
     Column("sequence", Integer, nullable=False),
     Column("order_check_id", PGUUID(as_uuid=True), nullable=False),
-    Column("recorded_at", DateTime(timezone=True), nullable=False),
-    Column("document", JSONB, nullable=False),
+    Column("recorded_at", EvidenceTimestamp(), nullable=False),
+    Column("document", JSON().with_variant(JSONB, "postgresql"), nullable=False),
     Column("sha256", String(64), nullable=False),
 )
 
 
 def initialize_opening_budgets(connection: Connection) -> None:
     _metadata.create_all(connection)
+    if connection.dialect.name == "sqlite":
+        for table in ("broker_opening_budgets",):
+            for action in ("UPDATE", "DELETE"):
+                connection.exec_driver_sql(
+                    f"CREATE TRIGGER IF NOT EXISTS immutable_{table}_{action} "
+                    f"BEFORE {action} ON {table} "
+                    "BEGIN SELECT RAISE(ABORT, 'Confirmed facts are immutable'); END"
+                )
+        return
     connection.exec_driver_sql("""
         CREATE OR REPLACE FUNCTION broker_protect_opening_budget() RETURNS trigger AS $$
         BEGIN
@@ -412,9 +424,9 @@ class BrokerOpeningBudgets:
                 "SIMULATION_INITIAL_CASH_MARGIN_FEE_AND_SLIPPAGE_ARE_NOT_BROKER_FACTS",
             ],
         }
-        with self._engine.begin() as connection:
+        with write_transaction(self._engine) as connection:
             connection.execute(
-                insert(_budgets)
+                (sqlite_insert if connection.dialect.name == "sqlite" else pg_insert)(_budgets)
                 .values(
                     budget_id=request_id,
                     stream_id=stream_id,

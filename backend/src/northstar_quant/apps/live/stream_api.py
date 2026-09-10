@@ -8,7 +8,6 @@ from fastapi import Depends, FastAPI, Request
 from pydantic import JsonValue
 from starlette.concurrency import run_in_threadpool
 
-from northstar_quant.live import LiveClient
 from northstar_quant.web.access import (
     WorkspaceAccess,
 )
@@ -22,6 +21,7 @@ from northstar_quant.web.requests import (
 
 from .broker_api import CheckRecord
 from .commands import _runtime_header
+from .instances import Instances
 
 
 class OpeningBudgetRequest(ApiModel):
@@ -131,8 +131,7 @@ class LiveConfiguration(EvidenceRecord):
     config: dict[str, JsonValue]
 
 
-def register(app: FastAPI, access: WorkspaceAccess, live: LiveClient) -> None:
-    streams, opening_budgets = live.streams, live.opening_budgets
+def register(app: FastAPI, access: WorkspaceAccess, instances: Instances) -> None:
 
     @app.post(
         "/api/streams/{stream_id}/opening-budgets",
@@ -146,6 +145,7 @@ def register(app: FastAPI, access: WorkspaceAccess, live: LiveClient) -> None:
         runtime: Annotated[UUID, Depends(_runtime_header)],
     ) -> dict[str, object]:
         access.protect(request)
+        live = instances.for_request(request)
         command_live = live.for_runtime(runtime)
         payload = document.model_dump(mode="json", exclude_unset=True)
         try:
@@ -168,7 +168,8 @@ def register(app: FastAPI, access: WorkspaceAccess, live: LiveClient) -> None:
     )
     async def opening_budget_get(request: Request, budget_id: UUID) -> dict[str, object]:
         access.require_request(request)
-        return await run_in_threadpool(opening_budgets.get, budget_id)
+        live = instances.for_request(request)
+        return await run_in_threadpool(live.opening_budgets.get, budget_id)
 
     @app.post(
         "/api/streams",
@@ -182,6 +183,7 @@ def register(app: FastAPI, access: WorkspaceAccess, live: LiveClient) -> None:
         runtime: Annotated[UUID, Depends(_runtime_header)],
     ) -> dict[str, object]:
         access.protect(request)
+        live = instances.for_request(request)
         command_live = live.for_runtime(runtime)
         payload = document.model_dump(mode="json", exclude_unset=True)
         return await run_in_threadpool(
@@ -199,7 +201,8 @@ def register(app: FastAPI, access: WorkspaceAccess, live: LiveClient) -> None:
     )
     async def stream_state(request: Request, stream_id: UUID) -> dict[str, object]:
         access.require_request(request)
-        return await run_in_threadpool(streams.get, stream_id)
+        live = instances.for_request(request)
+        return await run_in_threadpool(live.streams.get, stream_id)
 
     @app.get(
         "/api/streams/{stream_id}/events",
@@ -210,7 +213,8 @@ def register(app: FastAPI, access: WorkspaceAccess, live: LiveClient) -> None:
         request: Request, stream_id: UUID, after: int = 0
     ) -> list[dict[str, object]]:
         access.require_request(request)
-        return await run_in_threadpool(streams.events, stream_id, after=after)
+        live = instances.for_request(request)
+        return await run_in_threadpool(live.streams.events, stream_id, after=after)
 
     @app.post(
         "/api/streams/{stream_id}/control",
@@ -224,6 +228,7 @@ def register(app: FastAPI, access: WorkspaceAccess, live: LiveClient) -> None:
         runtime: Annotated[UUID, Depends(_runtime_header)],
     ) -> dict[str, object]:
         access.protect(request)
+        live = instances.for_request(request)
         command_live = live.for_runtime(runtime)
         payload = document.model_dump(mode="json", exclude_unset=True)
         return await run_in_threadpool(
@@ -245,6 +250,7 @@ def register(app: FastAPI, access: WorkspaceAccess, live: LiveClient) -> None:
         runtime: Annotated[UUID, Depends(_runtime_header)],
     ) -> dict[str, object]:
         access.protect(request)
+        live = instances.for_request(request)
         command_live = live.for_runtime(runtime)
         payload = document.model_dump(mode="json", exclude_unset=True)
         return await run_in_threadpool(
@@ -260,7 +266,8 @@ def register(app: FastAPI, access: WorkspaceAccess, live: LiveClient) -> None:
     @app.get("/api/streams", response_model=list[StreamSummary], response_model_exclude_unset=True)
     async def list_streams(request: Request) -> list[dict[str, object]]:
         access.require_request(request)
-        return await run_in_threadpool(streams.list)
+        live = instances.for_request(request)
+        return await run_in_threadpool(live.streams.list)
 
     @app.get(
         "/api/configurations",
@@ -269,6 +276,7 @@ def register(app: FastAPI, access: WorkspaceAccess, live: LiveClient) -> None:
     )
     async def configurations(request: Request) -> list[dict[str, object]]:
         access.require_request(request)
+        live = instances.for_request(request)
         return await run_in_threadpool(live.read_list, "/configurations")
 
     @app.get(
@@ -278,7 +286,8 @@ def register(app: FastAPI, access: WorkspaceAccess, live: LiveClient) -> None:
     )
     async def budgets(request: Request, stream_id: UUID) -> dict[str, object]:
         access.require_request(request)
-        return await run_in_threadpool(opening_budgets.context, stream_id)
+        live = instances.for_request(request)
+        return await run_in_threadpool(live.opening_budgets.context, stream_id)
 
     @app.get(
         "/api/streams/{stream_id}/decisions/{sequence}",
@@ -287,4 +296,5 @@ def register(app: FastAPI, access: WorkspaceAccess, live: LiveClient) -> None:
     )
     async def decision(request: Request, stream_id: UUID, sequence: int) -> dict[str, object]:
         access.require_request(request)
-        return await run_in_threadpool(streams.decision, stream_id, sequence)
+        live = instances.for_request(request)
+        return await run_in_threadpool(live.streams.decision, stream_id, sequence)

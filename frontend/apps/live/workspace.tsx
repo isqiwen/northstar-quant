@@ -12,6 +12,7 @@ import {
 import { Providers, Shell } from "../../shared/shell";
 import { DatasetDetail } from "../../shared/datasets";
 import { Heading } from "../../shared/ui";
+import { InstanceProvider } from "./instances";
 import { RuntimeProvider } from "./runtime";
 import { Overview, Diagnostics, Materials, LiveRecord } from "./overview";
 import { Broker, BrokerDetail } from "./broker";
@@ -41,7 +42,9 @@ export default function Workspace({ children }: { children: ReactNode }) {
           },
         ]}
       >
-        <RuntimeProvider>{children}</RuntimeProvider>
+        <InstanceProvider>
+          <RuntimeProvider>{children}</RuntimeProvider>
+        </InstanceProvider>
       </Shell>
     </Providers>
   );

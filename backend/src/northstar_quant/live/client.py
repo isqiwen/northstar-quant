@@ -39,6 +39,7 @@ class LiveClient:
         transport: httpx.BaseTransport | None = None,
         client: httpx.Client | None = None,
         expected_runtime_id: UUID | None = None,
+        expected_instance_id: str | None = None,
     ) -> None:
         parsed = urlsplit(base_url)
         if (
@@ -63,6 +64,7 @@ class LiveClient:
         self._auth = auth
         self._base_url = base_url
         self._expected_runtime_id = expected_runtime_id
+        self._expected_instance_id = expected_instance_id
         self._owns_http = True
         self._http = client or httpx.Client(
             base_url=base_url,
@@ -101,6 +103,8 @@ class LiveClient:
         if token is None:
             raise ValueError("This Live Web has read permission only")
         headers = {"Authorization": "Bearer " + token, "X-Northstar-Protocol": PROTOCOL_VERSION}
+        if self._expected_instance_id:
+            headers["X-Live-Instance-ID"] = self._expected_instance_id
         headers.update(command_headers or {})
         try:
             response = self._http.request(method, path, headers=headers, json=body)
@@ -114,6 +118,11 @@ class LiveClient:
             raise ValueError("Live rejected permission, current protocol, target or command input")
         if response.status_code != 200:
             raise RuntimeUnavailable("Live did not confirm the operation")
+        if (
+            self._expected_instance_id
+            and response.headers.get("x-live-instance-id") != self._expected_instance_id
+        ):
+            raise RuntimeUnavailable("Live endpoint belongs to a different instance")
         if response.headers.get("x-northstar-protocol") != PROTOCOL_VERSION:
             raise RuntimeUnavailable("Live does not match the current protocol")
         try:
@@ -157,7 +166,11 @@ class LiveClient:
         if not isinstance(runtime_id, UUID):
             raise ValueError("A Live page must bind a runtime UUID")
         bound = LiveClient(
-            self._base_url, self._auth, client=self._http, expected_runtime_id=runtime_id
+            self._base_url,
+            self._auth,
+            client=self._http,
+            expected_runtime_id=runtime_id,
+            expected_instance_id=self._expected_instance_id,
         )
         bound._owns_http = False
         return bound

@@ -13,18 +13,64 @@ from datetime import UTC
 from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID, uuid5
 
-from sqlalchemy import Connection, text
+from sqlalchemy import JSON, Connection, Uuid
+from sqlalchemy import text as sql_text
+from sqlalchemy.sql.selectable import TextualSelect
 
 from northstar_quant import code_revision
 from northstar_quant.accounting.ledger import _hash, _time
-from northstar_quant.broker.records import BrokerEvent
+from northstar_quant.broker.records import BrokerEvent, EvidenceTimestamp
 from northstar_quant.broker.stream_records import read_stream_source
+from northstar_quant.live.storage import write_transaction
 
 if TYPE_CHECKING:
     from northstar_quant.accounting.ledger import BrokerLedger
 
 
+def text(statement: str) -> TextualSelect:
+    """Describe the persisted receipt values returned by this module's SQL."""
+    return sql_text(statement).columns(
+        binding=JSON,
+        state=JSON,
+        event=JSON,
+        result=JSON,
+        checkpoint=JSON,
+        stream_id=Uuid,
+        query_batch_id=Uuid,
+        baseline_id=Uuid,
+        account_entry_id=Uuid,
+        request_id=Uuid,
+        entry_id=Uuid,
+        created_at=EvidenceTimestamp(),
+        updated_at=EvidenceTimestamp(),
+        committed_at=EvidenceTimestamp(),
+    )
+
+
 def initialize_stream_accounts(connection: Connection) -> None:
+    if connection.dialect.name == "sqlite":
+        connection.exec_driver_sql("""
+            CREATE TABLE IF NOT EXISTS broker_stream_accounts (
+                stream_id CHAR(32) PRIMARY KEY REFERENCES broker_streams(stream_id),
+                baseline_id CHAR(32) NOT NULL REFERENCES broker_account_baselines(baseline_id),
+                binding JSON NOT NULL, binding_hash varchar(64) NOT NULL,
+                checkpoint JSON NOT NULL, checkpoint_hash varchar(64) NOT NULL,
+                updated_at TEXT NOT NULL DEFAULT (clock_timestamp())
+            )
+        """)
+        connection.exec_driver_sql(
+            "CREATE TRIGGER IF NOT EXISTS stream_account_delete BEFORE DELETE ON "
+            "broker_stream_accounts "
+            "BEGIN SELECT RAISE(ABORT, 'Stream account binding is immutable'); END"
+        )
+        connection.exec_driver_sql(
+            "CREATE TRIGGER IF NOT EXISTS stream_account_update BEFORE UPDATE ON "
+            "broker_stream_accounts "
+            "WHEN OLD.stream_id IS NOT NEW.stream_id OR OLD.baseline_id IS NOT NEW.baseline_id "
+            "OR OLD.binding IS NOT NEW.binding OR OLD.binding_hash IS NOT NEW.binding_hash "
+            "BEGIN SELECT RAISE(ABORT, 'Stream account binding is immutable'); END"
+        )
+        return
     connection.exec_driver_sql("""
         CREATE TABLE IF NOT EXISTS broker_stream_accounts (
             stream_id uuid PRIMARY KEY REFERENCES broker_streams(stream_id),
@@ -151,6 +197,8 @@ class _StreamAccount:
             "big",
             signed=True,
         )
+        if connection.dialect.name == "sqlite":
+            return
         connection.exec_driver_sql("SET LOCAL lock_timeout = '2s'")
         connection.exec_driver_sql("SET LOCAL statement_timeout = '5s'")
         connection.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": key})
@@ -164,16 +212,15 @@ class _StreamAccount:
                 text("""
                 SELECT
                        a.baseline_id, a.binding, a.binding_hash, a.checkpoint, a.checkpoint_hash,
-                       b.sha256 AS baseline_hash, latest.entry_id AS account_entry_id,
-                       latest.status AS account_status
-                FROM (SELECT CAST(:id AS uuid) AS stream_id) selected
+                       b.sha256 AS baseline_hash, (SELECT entry_id FROM broker_position_entries
+                        WHERE baseline_id=a.baseline_id
+                        ORDER BY ordinal DESC LIMIT 1) AS account_entry_id,
+                       (SELECT document->>'status' FROM broker_position_entries
+                        WHERE baseline_id=a.baseline_id
+                        ORDER BY ordinal DESC LIMIT 1) AS account_status
+                FROM (SELECT :id AS stream_id) selected
                 LEFT JOIN broker_stream_accounts a USING (stream_id)
                 LEFT JOIN broker_account_baselines b ON b.baseline_id=a.baseline_id
-                LEFT JOIN LATERAL (
-                    SELECT entry_id, document->>'status' AS status
-                    FROM broker_position_entries WHERE baseline_id=a.baseline_id
-                    ORDER BY ordinal DESC LIMIT 1
-                ) latest ON true
                 WHERE selected.stream_id=:id
             """),
                 {"id": stream_id},
@@ -248,7 +295,7 @@ class _StreamAccount:
     def bind(self, baseline_id: UUID, stream_id: UUID) -> dict[str, Any]:
         if not isinstance(baseline_id, UUID) or not isinstance(stream_id, UUID):
             raise ValueError("stream account binding requires UUIDs")
-        with self.engine.begin() as connection:
+        with write_transaction(self.engine) as connection:
             self._lock(connection, stream_id)
             row = self._read(connection, stream_id)
             if row["baseline_id"] is not None:
@@ -279,8 +326,8 @@ class _StreamAccount:
                 text("""
                     INSERT INTO broker_stream_accounts
                         (stream_id, baseline_id, binding, binding_hash, checkpoint, checkpoint_hash)
-                    VALUES (:id,:baseline,CAST(:binding AS jsonb),:binding_hash,
-                            CAST(:checkpoint AS jsonb),:checkpoint_hash)
+                    VALUES (:id,:baseline,:binding,:binding_hash,
+                            :checkpoint,:checkpoint_hash)
                 """),
                 {
                     "id": stream_id,
@@ -306,7 +353,7 @@ class _StreamAccount:
     def advance(self, stream_id: UUID, through_sequence: int) -> dict[str, Any]:
         if type(through_sequence) is not int or not 0 <= through_sequence <= 100000:
             raise ValueError("account catchup requires a bounded saved sequence")
-        with self.engine.begin() as connection:
+        with write_transaction(self.engine) as connection:
             self._lock(connection, stream_id)
             row = self._read(connection, stream_id)
             if row["baseline_id"] is None:
@@ -334,8 +381,10 @@ class _StreamAccount:
                         SELECT entry_id FROM broker_position_entries
                         WHERE baseline_id=:baseline
                           AND document->'source_stream'->>'stream_id'=:stream
-                          AND (document->'source_stream'->>'through_sequence')::integer>=:through
-                          AND (document->'source_stream'->>'through_sequence')::integer<=:target
+
+                AND CAST(document->'source_stream'->>'through_sequence' AS INTEGER)>=:through
+
+                AND CAST(document->'source_stream'->>'through_sequence' AS INTEGER)<=:target
                         ORDER BY ordinal DESC LIMIT 1
                     """),
                     {
@@ -355,6 +404,7 @@ class _StreamAccount:
                         through_sequence=through,
                         request_id=command,
                         account_after_sequence=first_material - 1,
+                        transaction=connection,
                     )
                 )
                 checkpoint.update(entry_id=entry["entry_id"], entry_hash=_hash(entry))
@@ -362,7 +412,7 @@ class _StreamAccount:
                     checkpoint.update(status="UNKNOWN", reason="ACCOUNT_LEDGER_UNKNOWN")
             connection.execute(
                 text("""
-                    UPDATE broker_stream_accounts SET checkpoint=CAST(:checkpoint AS jsonb),
+                    UPDATE broker_stream_accounts SET checkpoint=:checkpoint,
                         checkpoint_hash=:hash, updated_at=clock_timestamp() WHERE stream_id=:id
                 """),
                 {"id": stream_id, "checkpoint": json.dumps(checkpoint), "hash": _hash(checkpoint)},

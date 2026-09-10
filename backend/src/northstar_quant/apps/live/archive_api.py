@@ -10,12 +10,12 @@ from fastapi.responses import Response
 from pydantic import JsonValue
 from starlette.concurrency import run_in_threadpool
 
-from northstar_quant.live import LiveClient
 from northstar_quant.web.access import WorkspaceAccess
 from northstar_quant.web.datasets import DatasetDetails
 from northstar_quant.web.requests import ApiModel, EvidenceRecord, UUIDText, _object, _uuid_field
 
 from .commands import _runtime_header
+from .instances import Instances
 
 
 class ArchiveReprocessRequest(ApiModel):
@@ -51,7 +51,7 @@ class StrategyMaterial(EvidenceRecord):
     candidate_id: str
 
 
-def register(app: FastAPI, access: WorkspaceAccess, live: LiveClient) -> None:
+def register(app: FastAPI, access: WorkspaceAccess, instances: Instances) -> None:
 
     @app.post(
         "/api/sources/{source_id}/reprocess",
@@ -65,6 +65,7 @@ def register(app: FastAPI, access: WorkspaceAccess, live: LiveClient) -> None:
         runtime: Annotated[UUID, Depends(_runtime_header)],
     ) -> dict[str, object]:
         access.protect(request)
+        live = instances.for_request(request)
         command_live = live.for_runtime(runtime)
         payload = document.model_dump(mode="json", exclude_unset=True)
         return await run_in_threadpool(
@@ -77,6 +78,7 @@ def register(app: FastAPI, access: WorkspaceAccess, live: LiveClient) -> None:
     @app.get("/api/sources/{source_id}/download")
     async def download(request: Request, source_id: UUID) -> Response:
         access.require_request(request)
+        live = instances.for_request(request)
         payload = await run_in_threadpool(live.read, f"/sources/{source_id}/download")
         return Response(
             base64.b64decode(payload["content_base64"], validate=True),
@@ -92,6 +94,7 @@ def register(app: FastAPI, access: WorkspaceAccess, live: LiveClient) -> None:
     )
     async def source(request: Request, source_id: UUID) -> dict[str, object]:
         access.require_request(request)
+        live = instances.for_request(request)
         return await run_in_threadpool(live.read, f"/sources/{source_id}")
 
     @app.get(
@@ -101,6 +104,7 @@ def register(app: FastAPI, access: WorkspaceAccess, live: LiveClient) -> None:
     )
     async def attempt(request: Request, attempt_id: UUID) -> dict[str, object]:
         access.require_request(request)
+        live = instances.for_request(request)
         return await run_in_threadpool(live.read, f"/attempts/{attempt_id}")
 
     @app.get(
@@ -110,6 +114,7 @@ def register(app: FastAPI, access: WorkspaceAccess, live: LiveClient) -> None:
     )
     async def dataset(request: Request, snapshot_id: UUID) -> dict[str, object]:
         access.require_request(request)
+        live = instances.for_request(request)
         return await run_in_threadpool(live.read, f"/datasets/{snapshot_id}")
 
     @app.get(
@@ -119,6 +124,7 @@ def register(app: FastAPI, access: WorkspaceAccess, live: LiveClient) -> None:
     )
     async def materials(request: Request) -> list[dict[str, object]]:
         access.require_request(request)
+        live = instances.for_request(request)
         return await run_in_threadpool(live.read_list, "/strategy-materials")
 
     @app.post(
@@ -132,6 +138,7 @@ def register(app: FastAPI, access: WorkspaceAccess, live: LiveClient) -> None:
         runtime: Annotated[UUID, Depends(_runtime_header)],
     ) -> dict[str, object]:
         access.protect(request)
+        live = instances.for_request(request)
         body = document.model_dump(mode="json", exclude_unset=True)
         command_live = live.for_runtime(runtime)
         return await run_in_threadpool(

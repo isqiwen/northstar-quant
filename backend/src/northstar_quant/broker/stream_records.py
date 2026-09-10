@@ -8,12 +8,34 @@ from datetime import UTC
 from typing import cast
 from uuid import UUID
 
-from sqlalchemy import Connection, Engine, text
+from sqlalchemy import JSON, Connection, Engine, Uuid
+from sqlalchemy import text as sql_text
+from sqlalchemy.sql.selectable import TextualSelect
 
-from northstar_quant.broker.records import BrokerEvent, BrokerRecords
+from northstar_quant.broker.records import BrokerEvent, BrokerRecords, EvidenceTimestamp
 from northstar_quant.data_management.broker import verify_broker_contract
 
 _ARCHIVE_BYTES = 5 * 1024 * 1024
+
+
+def text(statement: str) -> TextualSelect:
+    """Describe the persisted receipt values returned by this module's SQL."""
+    return sql_text(statement).columns(
+        binding=JSON,
+        state=JSON,
+        event=JSON,
+        result=JSON,
+        checkpoint=JSON,
+        stream_id=Uuid,
+        query_batch_id=Uuid,
+        baseline_id=Uuid,
+        account_entry_id=Uuid,
+        request_id=Uuid,
+        entry_id=Uuid,
+        created_at=EvidenceTimestamp(),
+        updated_at=EvidenceTimestamp(),
+        committed_at=EvidenceTimestamp(),
+    )
 
 
 def read_stream_source(connection: Connection, identifier: UUID) -> dict[str, object]:
@@ -60,7 +82,7 @@ def append_stream_event(
     connection.execute(
         text("""
         INSERT INTO broker_stream_events(stream_id, sequence, event, event_hash)
-        VALUES (:id, :seq, CAST(:event AS jsonb), :hash)
+        VALUES (:id, :seq, :event, :hash)
     """),
         {"id": identifier, "seq": event.sequence, "event": _json(encoded), "hash": _hash(encoded)},
     )

@@ -9,12 +9,18 @@ KEYS = {
     "data-hub": {PASSWORD},
     "research": {"NORTHSTAR_DATA_HUB_URL"},
     "live": {
-        "NORTHSTAR_LIVE_ENVIRONMENT",
-        "NORTHSTAR_LIVE_DATABASE_PASSWORD",
+        "NORTHSTAR_LIVE_INSTANCES",
         "NORTHSTAR_SIMNOW_USER_ID",
         "NORTHSTAR_SIMNOW_APP_ID",
         "NORTHSTAR_SIMNOW_AUTH_CODE",
         "NORTHSTAR_SIMNOW_PASSWORD",
+        "NORTHSTAR_CTP_BROKER_ID",
+        "NORTHSTAR_CTP_TRADE_FRONT",
+        "NORTHSTAR_CTP_MD_FRONT",
+        "NORTHSTAR_CTP_USER_ID",
+        "NORTHSTAR_CTP_PASSWORD",
+        "NORTHSTAR_CTP_APP_ID",
+        "NORTHSTAR_CTP_AUTH_CODE",
     },
 }
 
@@ -53,7 +59,9 @@ def validate(app: str, content: bytes) -> None:
     missing = KEYS[app] - values.keys()
     if missing:
         raise ValueError("缺少配置参数：" + ", ".join(sorted(missing)))
-    required = KEYS[app] - {k for k in KEYS[app] if k.startswith("NORTHSTAR_SIMNOW_")}
+    required = KEYS[app] - {
+        k for k in KEYS[app] if k.startswith(("NORTHSTAR_SIMNOW_", "NORTHSTAR_CTP_"))
+    }
     if any(not values[k] for k in required):
         raise ValueError("必填连接或数据库配置为空")
     if app == "research":
@@ -73,8 +81,13 @@ def validate(app: str, content: bytes) -> None:
         ):
             raise ValueError("Data Hub 地址必须是无凭据的 HTTP(S) 服务地址")
     if app == "live":
-        if values["NORTHSTAR_LIVE_ENVIRONMENT"] not in ("simnow_trading", "simnow_dev"):
-            raise ValueError("当前 Live 仅接受 simnow_trading 或 simnow_dev")
+        import sys
+        from pathlib import Path
+
+        sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "backend/src"))
+        from northstar_quant.live.instances import configured_instances
+
+        configured_instances(values["NORTHSTAR_LIVE_INSTANCES"])
         credentials = [values[k] for k in KEYS[app] if k.startswith("NORTHSTAR_SIMNOW_")]
         if any(credentials) and not all(credentials):
             raise ValueError("SimNow 凭据必须全部填写或全部留空")

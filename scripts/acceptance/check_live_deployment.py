@@ -36,9 +36,8 @@ class Deployment:
         }
         self.environment.update(
             NORTHSTAR_LIVE_IMAGE=image,
-            NORTHSTAR_LIVE_ENVIRONMENT="simnow_dev",
+            NORTHSTAR_LIVE_INSTANCES="sim:simnow_dev,other:simnow_trading",
             NORTHSTAR_LIVE_FRONTEND_IMAGE=frontend_image,
-            NORTHSTAR_LIVE_DATABASE_PASSWORD=self.password,
         )
         self.files = tempfile.TemporaryDirectory(prefix="northstar-live-files-")
         self.root = Path(self.files.name)
@@ -107,16 +106,18 @@ class Deployment:
     def exercise(self) -> None:
         self.run("up", "-d", "--no-build", "--wait", "--wait-timeout", "120")
         base = f"http://127.0.0.1:{self.port}"
-        with httpx.Client(base_url=base, headers={"Origin": base}, timeout=4) as client:
+        with httpx.Client(
+            base_url=base, headers={"Origin": base, "X-Live-Instance-ID": "sim"}, timeout=4
+        ) as client:
             page = self.wait_http(client, "/")
             assert "NORTHSTAR" in page.text
             self.wait_http(client, "/api/browser-session")
             before = self.wait_http(client, "/api/live/status").json()
             identity = before["runtime_id"]
-            kernel = self.run("ps", "-q", "live").strip()
+            kernel = self.run("ps", "-q", "sim-live").strip()
             assert (
                 json.loads(
-                    self.run("exec", "-T", "live", "northstar", "advanced", "stream", "list")
+                    self.run("exec", "-T", "sim-live", "northstar", "advanced", "stream", "list")
                 )
                 == []
             )
@@ -126,12 +127,11 @@ class Deployment:
                 "live-api",
                 "python",
                 "-c",
-                "import os,socket\n"
+                "import os,pathlib\n"
                 "assert not any(k in os.environ for k in "
                 "('NORTHSTAR_DATABASE_URL','NORTHSTAR_DATA_DIR','NORTHSTAR_SIMNOW_PASSWORD'))\n"
-                "try: socket.create_connection(('postgres',5432),timeout=2)\n"
-                "except OSError: print('Web cannot reach storage')\n"
-                "else: raise RuntimeError('Web unexpectedly reached storage')",
+                "assert not pathlib.Path('/var/lib/northstar/state/live.sqlite').exists()\n"
+                "print('Management cannot read kernel storage')",
             )
             self.run("restart", "live-api", "live-web")
             self.wait_http(client, "/health/ready")
@@ -139,11 +139,11 @@ class Deployment:
             self.wait_http(client, "/api/browser-session")
             after = self.wait_http(client, "/api/live/status").json()
             assert after["runtime_id"] == identity
-            assert self.run("ps", "-q", "live").strip() == kernel
+            assert self.run("ps", "-q", "sim-live").strip() == kernel
             print("Live management restart: same independent kernel", flush=True)
 
             self.run("stop", "live-api", "live-web")
-            assert self.run("ps", "-q", "live").strip() == kernel
+            assert self.run("ps", "-q", "sim-live").strip() == kernel
             self.run("start", "live-api", "live-web")
             self.wait_http(client, "/api/browser-session")
             assert self.wait_http(client, "/api/live/status").json()["runtime_id"] == identity
@@ -152,32 +152,50 @@ class Deployment:
             self.run("stop", "live-api")
             self.wait_http(client, "/health/ready")
             self.wait_http(client, "/api/live/status", 503)
-            assert self.run("ps", "-q", "live").strip() == kernel
+            assert self.run("ps", "-q", "sim-live").strip() == kernel
             self.run("start", "live-api")
             self.wait_http(client, "/api/browser-session")
             self.wait_http(client, "/api/live/status")
 
-            self.run("stop", "postgres")
-            self.wait_http(client, "/api/live/status", 503)
-            self.wait_http(client, "/health/ready")
-            self.run("start", "postgres")
+            state = self.root / "state/live/instances/sim/database"
+            database = state / "live.sqlite"
+            hidden = state / "live.sqlite.unavailable"
+            database.rename(hidden)
+            try:
+                self.wait_http(client, "/api/live/status", 503)
+                self.wait_http(client, "/health/ready")
+                assert (
+                    client.get(
+                        "/api/live/status", headers={"X-Live-Instance-ID": "other"}
+                    ).status_code
+                    == 200
+                )
+            finally:
+                hidden.rename(database)
+            self.run("restart", "sim-live")
             recovered = self.wait_http(client, "/api/live/status").json()
-            assert recovered["runtime_id"] == identity
+            assert recovered["runtime_id"] != identity
+            identity = recovered["runtime_id"]
             print(
-                "Database outage: Web remains available, runtime fails closed then recovers",
-                flush=True,
+                "Local storage failure: management and other instance remain available", flush=True
             )
 
-            self.run("stop", "live")
+            other = client.get("/api/live/status", headers={"X-Live-Instance-ID": "other"})
+            assert other.status_code == 200
+            self.run("stop", "sim-live")
+            assert (
+                client.get("/api/live/status", headers={"X-Live-Instance-ID": "other"}).status_code
+                == 200
+            )
             self.wait_http(client, "/api/live/status", 503)
             self.wait_http(client, "/health/ready")
-            assert not self.run("ps", "-q", "live").strip()
-            self.run("start", "live")
+            assert not self.run("ps", "-q", "sim-live").strip()
+            self.run("start", "sim-live")
             restarted = self.wait_http(client, "/api/live/status").json()
             assert restarted["runtime_id"] != identity
             assert (
                 json.loads(
-                    self.run("exec", "-T", "live", "northstar", "advanced", "stream", "list")
+                    self.run("exec", "-T", "sim-live", "northstar", "advanced", "stream", "list")
                 )
                 == []
             )
@@ -196,7 +214,9 @@ class Deployment:
                 assert self.wait_http(client, "/api/live/status").json()["runtime_id"] != previous
                 assert (
                     json.loads(
-                        self.run("exec", "-T", "live", "northstar", "advanced", "stream", "list")
+                        self.run(
+                            "exec", "-T", "sim-live", "northstar", "advanced", "stream", "list"
+                        )
                     )
                     == []
                 )
@@ -208,7 +228,7 @@ class Deployment:
             self.run(
                 "exec",
                 "-T",
-                "live",
+                "sim-live",
                 "python",
                 "-c",
                 "import json,pathlib,time; time.sleep(0.2); "
@@ -216,16 +236,14 @@ class Deployment:
                 "rows={name:[json.loads(x) "
                 "for p in root.glob('northstar-live-'+name+'-????-??-??.log*') "
                 "for x in p.read_text().splitlines()] "
-                "for name in ('api','kernel')}; "
+                "for name in ('kernel',)}; "
                 "assert all(len({r['session'] for r in records if 'session' in r})>=2 "
                 "for records in rows.values()); "
                 "assert all(all(r['component']==name and r['application']=='live' "
                 "for r in records) "
                 "for name,records in rows.items())",
             )
-            print(
-                "Live file logs: separate API/kernel files survived container restarts", flush=True
-            )
+            print("Live instance kernel logs survived container restarts", flush=True)
             print(json.dumps({"project": self.name, "status": "passed", "broker_connected": False}))
 
 

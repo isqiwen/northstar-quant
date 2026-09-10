@@ -31,6 +31,26 @@ beforeEach(async () => {
   (await import("../../shared/api")).registerProtocol(protocol, codec);
 });
 describe("fixed Protobuf commands", () => {
+  it("retains the instance of an unknown command and refuses cross-account switching", async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(response("session"))
+      .mockRejectedValueOnce(new TypeError("lost"));
+    vi.stubGlobal("fetch", fetch);
+    const api = await import("../../shared/api");
+    api.selectLiveInstance("sim");
+    await expect(
+      api.mutate(
+        "/api/streams/s/control",
+        { request_id: "fixed", action: "STOP" },
+        "runtime",
+      ),
+    ).rejects.toThrow("未知");
+    expect(fetch.mock.calls[1][1].headers["X-Live-Instance-Id"]).toBe("sim");
+    expect(api.pendingCommand()?.instance).toBe("sim");
+    expect(() => api.selectLiveInstance("other")).toThrow("未确认");
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
   it("preserves exact money and runtime identity without duplicate sends", async () => {
     let release: (r: Response) => void = () => {};
     const fetch = vi

@@ -7,11 +7,13 @@ import pytest
 from sqlalchemy import Engine, create_engine
 
 from northstar_quant.apps.live import create_app as live_web_app
+from northstar_quant.apps.live.instances import Instances
 from northstar_quant.apps.live.kernel import create_app
 from northstar_quant.cli import main
 from northstar_quant.data_management.files import SourceFiles
 from northstar_quant.data_management.library import DataLibrary
 from northstar_quant.live import LiveAuth, LiveClient
+from northstar_quant.live.instances import Instance
 from tests.apps.browser import ProtocolClient as TestClient
 
 
@@ -36,7 +38,10 @@ def test_readonly_diagnostics_report_capacity_and_missing_storage(
         root.rename(tmp_path / "retained")
         assert client.diagnostics()["source_filesystem"]["status"] == "UNAVAILABLE"
         assert not root.exists()  # Observation must not repair or recreate missing storage.
-        with TestClient(live_web_app(live=borrowed), base_url="http://localhost") as console:
+        with TestClient(
+            live_web_app(instances=Instances({"sim": borrowed}, [Instance("sim", "simnow_dev")])),
+            base_url="http://localhost",
+        ) as console:
             page = console.get("/api/browser-session")
             assert page.status_code == 200
             observation = console.get("/api/live/diagnostics").json()

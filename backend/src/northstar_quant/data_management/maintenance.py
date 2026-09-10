@@ -3,10 +3,13 @@
 import hashlib
 import json
 from collections.abc import Iterator
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
+from pathlib import Path
 from typing import Any
 
 from sqlalchemy import Connection, Engine, text
+
+from northstar_quant.live.storage import KernelLock
 
 _LIBRARY_LOCK = 0x4E535144415441
 
@@ -15,6 +18,10 @@ _LIBRARY_LOCK = 0x4E535144415441
 def library_write(engine: Engine) -> Iterator[None]:
     """Hold shared admission until the complete bounded ingestion operation ends."""
 
+    if engine.dialect.name == "sqlite":
+        with closing(KernelLock(Path(str(engine.url.database) + ".archive"))):
+            yield
+        return
     with engine.begin() as connection:
         connection.execute(text("SET LOCAL lock_timeout = '5s'"))
         connection.execute(

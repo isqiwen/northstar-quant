@@ -558,7 +558,11 @@ def _import_market(
                     "CTP observed-minute series cannot mix different sampling semantics "
                     "or fixed sources"
                 )
-    with Session(engine, autoflush=False, expire_on_commit=False) as session:
+    with Session(
+        engine.execution_options(live_write=True) if engine.dialect.name == "sqlite" else engine,
+        autoflush=False,
+        expire_on_commit=False,
+    ) as session:
         imported = OhlcvImportService(session, adapter=adapter).import_file(
             OhlcvImportCommand(
                 # The ingestion adapter already owns the exact archived bytes;
@@ -603,7 +607,13 @@ def _import_market(
     stage("QUALITY", {"import_run_id": str(imported.import_run_id)})
     pins: list[SnapshotImportQualityPinSelection] = []
     for import_id in import_ids:
-        with Session(engine, autoflush=False, expire_on_commit=False) as session:
+        with Session(
+            engine.execution_options(live_write=True)
+            if engine.dialect.name == "sqlite"
+            else engine,
+            autoflush=False,
+            expire_on_commit=False,
+        ) as session:
             quality = ImportQualityEvaluationService(session).evaluate(
                 ImportQualityEvaluationCommand(
                     import_run_id=import_id,
@@ -616,7 +626,11 @@ def _import_market(
             pins.append(
                 SnapshotImportQualityPinSelection(import_id, quality.import_quality_evaluation_id)
             )
-    with Session(engine, autoflush=False, expire_on_commit=False) as session:
+    with Session(
+        engine.execution_options(live_write=True) if engine.dialect.name == "sqlite" else engine,
+        autoflush=False,
+        expire_on_commit=False,
+    ) as session:
         coverage = MinuteQualityEvaluationService(session).evaluate(
             MinuteQualityEvaluationCommand(
                 series_id=series_id,
@@ -633,7 +647,11 @@ def _import_market(
                 f"{coverage.missing_observation_count} missing bars"
             )
     stage("PUBLISHING", {"minute_evaluation_id": str(coverage.quality_evaluation_id)})
-    with Session(engine, autoflush=False, expire_on_commit=False) as session:
+    with Session(
+        engine.execution_options(live_write=True) if engine.dialect.name == "sqlite" else engine,
+        autoflush=False,
+        expire_on_commit=False,
+    ) as session:
         published = DatasetSnapshotPublicationService(session).publish(
             PublishDatasetSnapshotCommand(
                 available_at_cutoff=cutoff,
@@ -656,8 +674,13 @@ def _import_market(
 def _load_dataset(engine: Engine, snapshot_id: UUID) -> ResearchDataset:
     """Verify observations and their original source evidence in one read transaction."""
 
-    with Session(engine, autoflush=False, expire_on_commit=False) as session:
-        session.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"))
+    with Session(
+        engine.execution_options(live_write=True) if engine.dialect.name == "sqlite" else engine,
+        autoflush=False,
+        expire_on_commit=False,
+    ) as session:
+        if session.get_bind().dialect.name == "postgresql":
+            session.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"))
         dataset, _details = _read_dataset(session, snapshot_id)
         return dataset
 
@@ -784,13 +807,14 @@ def _read_dataset(session: Session, snapshot_id: UUID) -> tuple[ResearchDataset,
             or current.delivery_gate != pin.delivery_gate
         ):
             raise ValueError("snapshot original source evidence no longer matches its quality pin")
+        from .library import _sources
+
         archive = mapping.get("archive")
         if not isinstance(archive, dict):
             raise ValueError("snapshot original source archive identity is missing")
         source = (
             session.execute(
-                text("SELECT * FROM data_sources WHERE source_id = :source_id"),
-                {"source_id": UUID(str(archive.get("source_id")))},
+                select(_sources).where(_sources.c.source_id == UUID(str(archive.get("source_id")))),
             )
             .mappings()
             .one_or_none()
@@ -908,10 +932,15 @@ def _read_dataset(session: Session, snapshot_id: UUID) -> tuple[ResearchDataset,
 
 def _catalog(engine: Engine, spec: ImportSpec) -> UUID:
     commands = CatalogCommands()
-    with Session(engine, autoflush=False, expire_on_commit=False) as session:
+    with Session(
+        engine.execution_options(live_write=True) if engine.dialect.name == "sqlite" else engine,
+        autoflush=False,
+        expire_on_commit=False,
+    ) as session:
         # Catalog registration is rare and local; one transaction-scoped lock
         # prevents concurrent first-run duplicate identities without retry layers.
-        session.execute(text("SELECT pg_advisory_xact_lock(728401927)")).scalar_one()
+        if engine.dialect.name == "postgresql":
+            session.execute(text("SELECT pg_advisory_xact_lock(728401927)")).scalar_one()
         exchange = session.scalar(select(Exchange).where(Exchange.code == spec.exchange))
         if exchange is None:
             exchange = commands.register_exchange(

@@ -28,7 +28,7 @@ def check_broker_access(
         ],
         input=json.dumps(configuration),
         text=True,
-        env=application.environment,
+        env=application.live_environment,
         check=True,
         capture_output=True,
         timeout=30,

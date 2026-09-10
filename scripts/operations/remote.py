@@ -248,6 +248,7 @@ def execute(request: dict) -> None:
                     "scripts/operations/compose.py",
                     "status",
                     app,
+                    *(["--instance", request["instance"]] if request.get("instance") else []),
                     cwd=release,
                 )
             elif action == "logs":
@@ -257,6 +258,7 @@ def execute(request: dict) -> None:
                     "scripts/operations/compose.py",
                     "logs",
                     app,
+                    *(["--instance", request["instance"]] if request.get("instance") else []),
                     *(["--follow"] if request["follow"] else []),
                     cwd=release,
                 )
@@ -290,6 +292,7 @@ def execute(request: dict) -> None:
                     "scripts/operations/compose.py",
                     action,
                     app,
+                    *(["--instance", request["instance"]] if request.get("instance") else []),
                     cwd=release,
                 )
 

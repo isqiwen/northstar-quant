@@ -1,5 +1,46 @@
 {
   "messages": {
+    "northstar.live.InstanceRecord": {
+      "fields": {
+        "instance_id": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "environment": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.live.InstanceCatalog": {
+      "fields": {
+        "instances": {
+          "id": 1,
+          "presence": false,
+          "type": "northstar.live.InstanceRecord",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "production_available": {
+          "id": 2,
+          "presence": true,
+          "type": "bool",
+          "required": false,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
     "northstar.live.AccountCatchupRequest": {
       "fields": {
         "baseline_id": {
@@ -1272,6 +1313,28 @@
     },
     "northstar.live.RuntimeStatus": {
       "fields": {
+        "instance_id": {
+          "id": 11,
+          "presence": true,
+          "type": "string",
+          "required": false,
+          "nullable": true
+        },
+        "environment": {
+          "id": 12,
+          "presence": true,
+          "type": "string",
+          "required": false,
+          "nullable": true
+        },
+        "null_fields": {
+          "id": 2046,
+          "presence": false,
+          "type": "string",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        },
         "cancel_sending": {
           "id": 1,
           "presence": true,
@@ -1891,6 +1954,13 @@
     }
   },
   "methods": [
+    {
+      "method": "GET",
+      "path": "/api/live/instances",
+      "input": "northstar.web.Empty",
+      "output": "northstar.live.InstanceCatalog",
+      "runtime": false
+    },
     {
       "method": "GET",
       "path": "/api/attempts/{attempt_id}",

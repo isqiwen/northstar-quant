@@ -1,4 +1,4 @@
-"""One PostgreSQL configuration and explicit current-baseline initialization."""
+"""Owned Data Hub PostgreSQL and local Research/Live SQLite initialization."""
 
 from __future__ import annotations
 
@@ -14,6 +14,13 @@ from sqlalchemy.engine import make_url
 
 
 def open_database() -> Engine:
+    if os.environ.get("NORTHSTAR_DATABASE_OWNER") == "live":
+        from pathlib import Path
+
+        from northstar_quant.live.storage import open_store as open_live_store
+
+        root = Path(os.environ.get("NORTHSTAR_LIVE_STATE_DIR", "/var/lib/northstar/state"))
+        return open_live_store(root / "live.sqlite")
     if os.environ.get("NORTHSTAR_DATABASE_OWNER") == "research":
         from northstar_quant.research.storage import open_store
 
@@ -55,10 +62,14 @@ def initialize_database(engine: Engine, *, owner: str | None = None) -> None:
     if owner not in {"all", "data_hub", "research", "live"}:
         raise ValueError("unknown database owner")
     if engine.dialect.name == "sqlite":
-        from northstar_quant.research.storage import initialize
-
+        if owner == "live":
+            from northstar_quant.live.storage import initialize
+        else:
+            from northstar_quant.research.storage import initialize
         initialize(engine)
         return
+    if owner == "live":
+        raise ValueError("Live requires local SQLite")
     configuration = Config()
     configuration.set_main_option(
         "script_location", str(files("northstar_quant.data_management").joinpath("migrations"))
@@ -104,10 +115,10 @@ def initialize_database(engine: Engine, *, owner: str | None = None) -> None:
             initialize_run_store(connection)
             initialize_configuration_store(connection)
             initialize_paper_store(connection)
-        if owner == "live":
-            from northstar_quant.live.archive import initialize_archive
+        if owner in {"all", "live"}:
+            from northstar_quant.live.instances import initialize as initialize_instances
 
-            initialize_archive(connection)
+            initialize_instances(connection)
         if owner == "all":
             initialize_materials(connection)
             initialize_broker_records(connection)
@@ -125,8 +136,12 @@ def require_current_database(engine: Engine) -> None:
     """Reject missing or retired database shapes without performing a write."""
 
     if engine.dialect.name == "sqlite":
-        from northstar_quant.research.storage import require_current
-
+        with engine.connect() as connection:
+            recorded = connection.exec_driver_sql("SELECT owner FROM northstar_store").scalar_one()
+        if recorded == "live":
+            from northstar_quant.live.storage import require_current
+        else:
+            from northstar_quant.research.storage import require_current
         require_current(engine)
         return
     configuration = Config()
@@ -184,8 +199,8 @@ def require_current_database(engine: Engine) -> None:
         "live_commands",
     }
     if owner == "live":
-        required = {"live_archive_records"}
-    elif owner != "all":
+        raise ValueError("Live requires local SQLite")
+    if owner != "all":
         prefixes = {
             "data_hub": ("data_",),
             "research": ("research_", "paper_", "factor_", "strategy_"),

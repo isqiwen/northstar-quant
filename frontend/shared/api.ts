@@ -2,6 +2,16 @@ import { decodeResponse, encodeRequest } from "./protobuf";
 export { registerProtocol } from "./protobuf";
 /** Browser access and fixed commands. A lost acknowledgement is never retried. */
 export type RecordValue = Record<string, unknown>;
+let instance: string | undefined;
+export function selectLiveInstance(value: string) {
+  const pending = pendingCommand();
+  if (pending && pending.instance !== value)
+    throw new Error("请先核查当前实例的未确认操作。");
+  instance = value;
+}
+function instanceHeaders(value: string | undefined): Record<string, string> {
+  return value ? { "X-Live-Instance-Id": value } : {};
+}
 let session: Promise<string> | undefined;
 export function sessionToken(): Promise<string> {
   return (session ??= fetch("/api/browser-session", {
@@ -40,9 +50,11 @@ export async function read<T = unknown>(
   path: string,
   signal?: AbortSignal,
 ): Promise<T> {
+  const target = instance;
   await sessionToken();
   const response = await fetch(path, {
     credentials: "same-origin",
+    headers: instanceHeaders(target),
     cache: "no-store",
     signal: signal
       ? AbortSignal.any([signal, AbortSignal.timeout(15_000)])
@@ -64,6 +76,7 @@ export type Pending = {
   path: string;
   body: RecordValue;
   runtime?: string;
+  instance?: string;
   id: string;
   status: "SENDING" | "UNKNOWN";
 };
@@ -110,12 +123,20 @@ export async function mutate<T = unknown>(
   runtime?: string,
 ): Promise<T> {
   if (pendingCommand()) throw new Error("仍有未确认的操作，请先核查其结果。");
+  const target = instance;
   const token = await sessionToken();
   if (pendingCommand()) throw new Error("已有操作提交中。");
   const id =
     typeof body.request_id === "string" ? body.request_id : requestId();
   const encoded = new Uint8Array(encodeRequest("POST", path, body));
-  const command: Pending = { path, body, runtime, id, status: "SENDING" };
+  const command: Pending = {
+    path,
+    body,
+    runtime,
+    instance: target,
+    id,
+    status: "SENDING",
+  };
   retain(command);
   let response: Response;
   try {
@@ -124,6 +145,7 @@ export async function mutate<T = unknown>(
       signal: AbortSignal.timeout(30_000),
       credentials: "same-origin",
       headers: {
+        ...instanceHeaders(target),
         "Content-Type": "application/protobuf",
         "X-Northstar-CSRF": token,
         ...(runtime ? { "X-Live-Runtime-Id": runtime } : {}),

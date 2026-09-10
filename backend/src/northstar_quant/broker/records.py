@@ -12,10 +12,11 @@ import json
 import re
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import cast
+from typing import Any, cast
 from uuid import UUID
 
 from sqlalchemy import (
+    JSON,
     CheckConstraint,
     Column,
     Connection,
@@ -27,11 +28,37 @@ from sqlalchemy import (
     select,
     update,
 )
-from sqlalchemy.dialects.postgresql import JSONB, insert
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+from sqlalchemy.types import TypeDecorator
 
 from northstar_quant import code_revision
 from northstar_quant.broker.settings import get_profile, validate_instrument
+from northstar_quant.live.storage import write_transaction
+
+
+class EvidenceTimestamp(TypeDecorator[datetime]):
+    """Broker evidence clocks are UTC even when the local DB stores no timezone."""
+
+    impl = DateTime(timezone=True)
+    cache_ok = True
+
+    def process_bind_param(self, value: datetime | None, dialect: Any) -> datetime | None:
+        if value is None:
+            return None
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise ValueError("Evidence timestamps must be timezone-aware")
+        return value.astimezone(UTC)
+
+    def process_result_value(self, value: datetime | None, dialect: Any) -> datetime | None:
+        return (
+            (value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC))
+            if value is not None
+            else None
+        )
+
 
 MAX_EVENTS = 10000
 MAX_CAPTURE_BYTES = 8 * 1024 * 1024
@@ -338,16 +365,16 @@ _batches = Table(
     _metadata,
     Column("batch_id", PGUUID(as_uuid=True), primary_key=True),
     Column("profile_name", String(32), nullable=False),
-    Column("profile", JSONB, nullable=False),
+    Column("profile", JSON().with_variant(JSONB, "postgresql"), nullable=False),
     Column("account_id", String(12), nullable=False),
     Column("instrument", String(32), nullable=False),
-    Column("query_scope", JSONB, nullable=False),
-    Column("created_at", DateTime(timezone=True), nullable=False),
+    Column("query_scope", JSON().with_variant(JSONB, "postgresql"), nullable=False),
+    Column("created_at", EvidenceTimestamp(), nullable=False),
     Column("code_revision", String(64), nullable=False),
     Column("request_hash", String(64), nullable=False),
     Column("binding_hash", String(64), nullable=False),
     Column("status", String(16), nullable=False),
-    Column("result", JSONB),
+    Column("result", JSON().with_variant(JSONB, "postgresql")),
     Column("result_hash", String(64)),
     CheckConstraint("status IN ('PENDING', 'FAILED', 'INCOMPLETE', 'COMPLETE')"),
     CheckConstraint(
@@ -360,9 +387,33 @@ _batches = Table(
 def initialize_broker_records(connection: Connection) -> None:
     """Install the current read-only evidence table during atomic initialization."""
 
-    if connection.dialect.name != "postgresql":
-        raise ValueError("broker query evidence requires PostgreSQL")
     _metadata.create_all(connection)
+    if connection.dialect.name == "sqlite":
+        connection.exec_driver_sql(
+            "CREATE TRIGGER IF NOT EXISTS immutable_query_delete "
+            "BEFORE DELETE ON broker_query_batches "
+            "BEGIN SELECT RAISE(ABORT, 'Query evidence is immutable'); END"
+        )
+        fields = (
+            "batch_id",
+            "profile_name",
+            "profile",
+            "account_id",
+            "instrument",
+            "query_scope",
+            "created_at",
+            "code_revision",
+            "request_hash",
+            "binding_hash",
+        )
+        changed = " OR ".join(f"OLD.{field} IS NOT NEW.{field}" for field in fields)
+        connection.exec_driver_sql(
+            "CREATE TRIGGER IF NOT EXISTS immutable_query_update "
+            "BEFORE UPDATE ON broker_query_batches "
+            f"WHEN OLD.status <> 'PENDING' OR {changed} "
+            "BEGIN SELECT RAISE(ABORT, 'Query identity and terminal evidence are immutable'); END"
+        )
+        return
     connection.exec_driver_sql("""
         CREATE OR REPLACE FUNCTION broker_protect_query_evidence() RETURNS trigger AS $$
         BEGIN
@@ -393,8 +444,6 @@ class BrokerRecords:
     """Durable, environment-bound observations; never authority to send an order."""
 
     def __init__(self, engine: Engine) -> None:
-        if engine.dialect.name != "postgresql":
-            raise ValueError("broker query evidence requires PostgreSQL")
         self._engine = engine
 
     def begin(
@@ -436,9 +485,9 @@ class BrokerRecords:
             "code_revision": code_revision(),
         }
         request_hash = _hash(request)
-        with self._engine.begin() as connection:
+        with write_transaction(self._engine) as connection:
             connection.execute(
-                insert(_batches)
+                (sqlite_insert if connection.dialect.name == "sqlite" else pg_insert)(_batches)
                 .values(
                     batch_id=request_id,
                     profile_name=profile["name"],
@@ -472,7 +521,7 @@ class BrokerRecords:
             raise ValueError("broker completion requires a batch UUID and QueryCapture")
         # Re-copy nested field dictionaries through the same safe Interface.
         capture = QueryCapture.from_dict(capture.to_dict())
-        with self._engine.begin() as connection:
+        with write_transaction(self._engine) as connection:
             row = (
                 connection.execute(
                     select(_batches).where(_batches.c.batch_id == batch_id).with_for_update()

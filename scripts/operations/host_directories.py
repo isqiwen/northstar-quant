@@ -46,9 +46,7 @@ def prepare(request: dict) -> None:
         directories[f"credentials/{app}"] = 0o700
     if app == "research":
         directories["work/research"] = 0o700
-    if app == "live":
-        directories["state/live/sources"] = 0o700
-    if app in {"database", "live"}:
+    if app == "database":
         directories[f"state/{owner}/postgresql"] = 0o700
 
     receipt = ROOT / "apps" / app / "prepared-directories.json"

@@ -102,6 +102,25 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             print(json.dumps(result, ensure_ascii=False))
             return 0
+        if (
+            arguments.scope == "maintenance"
+            and os.environ.get("NORTHSTAR_DATABASE_OWNER") == "live"
+            and arguments.operation in {"backup", "restore"}
+        ):
+            from northstar_quant.apps.live import maintenance as live_maintenance
+            from northstar_quant.data_management.files import SourceFiles
+
+            result = (
+                live_maintenance.backup(
+                    engine, SourceFiles.from_environment(), arguments.destination.resolve()
+                )
+                if arguments.operation == "backup"
+                else live_maintenance.restore(
+                    engine, Path(os.environ["NORTHSTAR_DATA_DIR"]), arguments.backup.resolve()
+                )
+            )
+            print(json.dumps(result, ensure_ascii=False))
+            return 0
         if arguments.operation == "restore":
             from northstar_quant.apps.maintenance import restore
 

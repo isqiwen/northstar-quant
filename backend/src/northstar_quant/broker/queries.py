@@ -8,7 +8,9 @@ no order/cancel operation and never start from GET, application startup or resto
 from __future__ import annotations
 
 import hashlib
+from contextlib import ExitStack, closing
 from datetime import UTC, datetime
+from pathlib import Path
 from uuid import UUID
 
 from sqlalchemy import Engine, text
@@ -22,6 +24,7 @@ from northstar_quant.broker.settings import (
     profiles,
     validate_instrument,
 )
+from northstar_quant.live.storage import KernelLock
 
 
 class BrokerQueries:
@@ -61,10 +64,19 @@ class BrokerQueries:
         credentials = load_credentials()
         scope = f"northstar-simnow-query:{profile.name}:{credentials.user_id}"
         lock_key = int.from_bytes(hashlib.sha256(scope.encode()).digest()[:8], "big", signed=True)
-        with self._engine.begin() as connection:
-            admitted = connection.execute(
-                text("SELECT pg_try_advisory_xact_lock(:key)"), {"key": lock_key}
-            ).scalar_one()
+        with self._engine.begin() as connection, ExitStack() as locks:
+            if connection.dialect.name == "sqlite":
+                try:
+                    locks.enter_context(
+                        closing(KernelLock(Path(str(self._engine.url.database) + f".{lock_key}")))
+                    )
+                except BlockingIOError:
+                    raise ValueError("a query or receiver already owns this account") from None
+                admitted = True
+            else:
+                admitted = connection.execute(
+                    text("SELECT pg_try_advisory_xact_lock(:key)"), {"key": lock_key}
+                ).scalar_one()
             if not admitted:
                 raise ValueError("a query for this SimNow environment/account is already running")
             try:

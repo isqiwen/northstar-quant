@@ -10,72 +10,18 @@ from collections.abc import Sequence
 from alembic import context, op
 
 from northstar_quant.data_management.catalog import models as _models  # noqa: F401
+from northstar_quant.data_management.catalog.integrity import (
+    CAPACITY_RULES as _CAPACITY_RULES,
+)
+from northstar_quant.data_management.catalog.integrity import (
+    IMMUTABLE_TABLES as _IMMUTABLE_TABLES,
+)
 from northstar_quant.data_management.db.base import Base
 
 revision: str = "20260905_05"
 down_revision: str | Sequence[str] | None = None
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
-
-_IMMUTABLE_TABLES = (
-    "canonical_bar",
-    "quality_evaluation",
-    "quality_finding",
-    "import_quality_evaluation",
-    "import_quality_finding",
-    "dataset_snapshot_manifest",
-    "dataset_snapshot_partition",
-    "dataset_snapshot_member",
-    "dataset_snapshot_import_quality_pin",
-    "dataset_snapshot_series_quality_pin",
-)
-
-_CAPACITY_RULES = (
-    (
-        "quality_finding",
-        "quality_evaluation",
-        "NEW.quality_evaluation_id",
-        "quality_evaluation_id = NEW.quality_evaluation_id",
-        "finding_count",
-    ),
-    (
-        "import_quality_finding",
-        "import_quality_evaluation",
-        "NEW.import_quality_evaluation_id",
-        "import_quality_evaluation_id = NEW.import_quality_evaluation_id",
-        "finding_count",
-    ),
-    (
-        "dataset_snapshot_partition",
-        "dataset_snapshot_manifest",
-        "NEW.manifest_id",
-        "manifest_id = NEW.manifest_id",
-        "partition_count",
-    ),
-    (
-        "dataset_snapshot_import_quality_pin",
-        "dataset_snapshot_manifest",
-        "NEW.manifest_id",
-        "manifest_id = NEW.manifest_id",
-        "import_quality_pin_count",
-    ),
-    (
-        "dataset_snapshot_member",
-        "dataset_snapshot_manifest",
-        "(SELECT manifest_id FROM dataset_snapshot_partition WHERE id = NEW.partition_id)",
-        "partition_id IN (SELECT id FROM dataset_snapshot_partition WHERE manifest_id = "
-        "(SELECT manifest_id FROM dataset_snapshot_partition WHERE id = NEW.partition_id))",
-        "member_count",
-    ),
-    (
-        "dataset_snapshot_series_quality_pin",
-        "dataset_snapshot_manifest",
-        "(SELECT manifest_id FROM dataset_snapshot_partition WHERE id = NEW.partition_id)",
-        "partition_id IN (SELECT id FROM dataset_snapshot_partition WHERE manifest_id = "
-        "(SELECT manifest_id FROM dataset_snapshot_partition WHERE id = NEW.partition_id))",
-        "series_quality_pin_count",
-    ),
-)
 
 
 def upgrade() -> None:

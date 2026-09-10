@@ -70,4 +70,3 @@ def test_credentials_are_private_without_changing_existing_content(host):
     assert private.read_text() == "private-content"
     assert private.stat().st_mode & 0o777 == 0o600
     assert (root / "credentials/live").stat().st_mode & 0o777 == 0o700
-    assert (root / "state/live/sources").is_dir()

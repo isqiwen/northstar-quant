@@ -1082,6 +1082,633 @@ export const northstar = $root.northstar = (() => {
          */
         const live = {};
 
+        live.InstanceRecord = (function() {
+
+            /**
+             * Properties of an InstanceRecord.
+             * @typedef {Object} northstar.live.InstanceRecord.$Properties
+             * @property {string|null} [instance_id] InstanceRecord instance_id
+             * @property {string|null} [environment] InstanceRecord environment
+             * @property {"instance_id"} [_instance_id] InstanceRecord _instance_id
+             * @property {"environment"} [_environment] InstanceRecord _environment
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of an InstanceRecord.
+             * @memberof northstar.live
+             * @interface IInstanceRecord
+             * @augments northstar.live.InstanceRecord.$Properties
+             * @deprecated Use northstar.live.InstanceRecord.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of an InstanceRecord.
+             * @typedef {{
+             *   instance_id?: string|null;
+             *   environment?: string|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _instance_id?: undefined; instance_id?: null }|{ _instance_id?: "instance_id"; instance_id: string })
+             * ) & (
+             *   ({ _environment?: undefined; environment?: null }|{ _environment?: "environment"; environment: string })
+             * )} northstar.live.InstanceRecord.$Shape
+             */
+
+            /**
+             * Constructs a new InstanceRecord.
+             * @memberof northstar.live
+             * @classdesc Represents an InstanceRecord.
+             * @constructor
+             * @param {northstar.live.InstanceRecord.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const InstanceRecord = function (properties) {
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * InstanceRecord instance_id.
+             * @member {string|null|undefined} instance_id
+             * @memberof northstar.live.InstanceRecord
+             * @instance
+             */
+            InstanceRecord.prototype.instance_id = null;
+
+            /**
+             * InstanceRecord environment.
+             * @member {string|null|undefined} environment
+             * @memberof northstar.live.InstanceRecord
+             * @instance
+             */
+            InstanceRecord.prototype.environment = null;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * InstanceRecord _instance_id.
+             * @member {"instance_id"|undefined} _instance_id
+             * @memberof northstar.live.InstanceRecord
+             * @instance
+             */
+            $Object.defineProperty(InstanceRecord.prototype, "_instance_id", {
+                get: $util.oneOfGetter($oneOfFields = ["instance_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * InstanceRecord _environment.
+             * @member {"environment"|undefined} _environment
+             * @memberof northstar.live.InstanceRecord
+             * @instance
+             */
+            $Object.defineProperty(InstanceRecord.prototype, "_environment", {
+                get: $util.oneOfGetter($oneOfFields = ["environment"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new InstanceRecord instance using the specified properties.
+             * @function create
+             * @memberof northstar.live.InstanceRecord
+             * @static
+             * @param {northstar.live.InstanceRecord.$Properties=} [properties] Properties to set
+             * @returns {northstar.live.InstanceRecord} InstanceRecord instance
+             * @type {{
+             *   (properties: northstar.live.InstanceRecord.$Shape): northstar.live.InstanceRecord & northstar.live.InstanceRecord.$Shape;
+             *   (properties?: northstar.live.InstanceRecord.$Properties): northstar.live.InstanceRecord;
+             * }}
+             */
+            InstanceRecord.create = function(properties) {
+                return new InstanceRecord(properties);
+            };
+
+            /**
+             * Encodes the specified InstanceRecord message. Does not implicitly {@link northstar.live.InstanceRecord.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.live.InstanceRecord
+             * @static
+             * @param {northstar.live.InstanceRecord.$Properties} message InstanceRecord message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            InstanceRecord.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.instance_id != null && $Object.hasOwnProperty.call(message, "instance_id"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.instance_id);
+                if (message.environment != null && $Object.hasOwnProperty.call(message, "environment"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.environment);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes an InstanceRecord message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.live.InstanceRecord
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.live.InstanceRecord & northstar.live.InstanceRecord.$Shape} InstanceRecord
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            InstanceRecord.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.live.InstanceRecord();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.instance_id = reader.stringVerify();
+                            message._instance_id = "instance_id";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.environment = reader.stringVerify();
+                            message._environment = "environment";
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies an InstanceRecord message.
+             * @function verify
+             * @memberof northstar.live.InstanceRecord
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            InstanceRecord.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.instance_id != null && $Object.hasOwnProperty.call(message, "instance_id")) {
+                    properties._instance_id = 1;
+                    if (!$util.isString(message.instance_id))
+                        return "instance_id: string expected";
+                }
+                if (message.environment != null && $Object.hasOwnProperty.call(message, "environment")) {
+                    properties._environment = 1;
+                    if (!$util.isString(message.environment))
+                        return "environment: string expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates an InstanceRecord message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.live.InstanceRecord
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.live.InstanceRecord} InstanceRecord
+             */
+            InstanceRecord.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.live.InstanceRecord)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.live.InstanceRecord: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.live.InstanceRecord();
+                if (object.instance_id != null)
+                    message.instance_id = $String(object.instance_id);
+                if (object.environment != null)
+                    message.environment = $String(object.environment);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from an InstanceRecord message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.live.InstanceRecord
+             * @static
+             * @param {northstar.live.InstanceRecord} message InstanceRecord
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            InstanceRecord.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (message.instance_id != null && $Object.hasOwnProperty.call(message, "instance_id")) {
+                    object.instance_id = message.instance_id;
+                    if (options.oneofs)
+                        object._instance_id = "instance_id";
+                }
+                if (message.environment != null && $Object.hasOwnProperty.call(message, "environment")) {
+                    object.environment = message.environment;
+                    if (options.oneofs)
+                        object._environment = "environment";
+                }
+                return object;
+            };
+
+            /**
+             * Converts this InstanceRecord to JSON.
+             * @function toJSON
+             * @memberof northstar.live.InstanceRecord
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            InstanceRecord.prototype.toJSON = function() {
+                return InstanceRecord.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for InstanceRecord
+             * @function getTypeUrl
+             * @memberof northstar.live.InstanceRecord
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            InstanceRecord.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.live.InstanceRecord";
+            };
+
+            return InstanceRecord;
+        })();
+
+        live.InstanceCatalog = (function() {
+
+            /**
+             * Properties of an InstanceCatalog.
+             * @typedef {Object} northstar.live.InstanceCatalog.$Properties
+             * @property {Array.<northstar.live.InstanceRecord.$Properties>|null} [instances] InstanceCatalog instances
+             * @property {boolean|null} [production_available] InstanceCatalog production_available
+             * @property {"production_available"} [_production_available] InstanceCatalog _production_available
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of an InstanceCatalog.
+             * @memberof northstar.live
+             * @interface IInstanceCatalog
+             * @augments northstar.live.InstanceCatalog.$Properties
+             * @deprecated Use northstar.live.InstanceCatalog.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of an InstanceCatalog.
+             * @typedef {{
+             *   instances?: Array.<northstar.live.InstanceRecord.$Shape>|null;
+             *   production_available?: boolean|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _production_available?: undefined; production_available?: null }|{ _production_available?: "production_available"; production_available: boolean })
+             * )} northstar.live.InstanceCatalog.$Shape
+             */
+
+            /**
+             * Constructs a new InstanceCatalog.
+             * @memberof northstar.live
+             * @classdesc Represents an InstanceCatalog.
+             * @constructor
+             * @param {northstar.live.InstanceCatalog.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const InstanceCatalog = function (properties) {
+                this.instances = [];
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * InstanceCatalog instances.
+             * @member {Array.<northstar.live.InstanceRecord.$Properties>} instances
+             * @memberof northstar.live.InstanceCatalog
+             * @instance
+             */
+            InstanceCatalog.prototype.instances = $util.emptyArray;
+
+            /**
+             * InstanceCatalog production_available.
+             * @member {boolean|null|undefined} production_available
+             * @memberof northstar.live.InstanceCatalog
+             * @instance
+             */
+            InstanceCatalog.prototype.production_available = null;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * InstanceCatalog _production_available.
+             * @member {"production_available"|undefined} _production_available
+             * @memberof northstar.live.InstanceCatalog
+             * @instance
+             */
+            $Object.defineProperty(InstanceCatalog.prototype, "_production_available", {
+                get: $util.oneOfGetter($oneOfFields = ["production_available"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new InstanceCatalog instance using the specified properties.
+             * @function create
+             * @memberof northstar.live.InstanceCatalog
+             * @static
+             * @param {northstar.live.InstanceCatalog.$Properties=} [properties] Properties to set
+             * @returns {northstar.live.InstanceCatalog} InstanceCatalog instance
+             * @type {{
+             *   (properties: northstar.live.InstanceCatalog.$Shape): northstar.live.InstanceCatalog & northstar.live.InstanceCatalog.$Shape;
+             *   (properties?: northstar.live.InstanceCatalog.$Properties): northstar.live.InstanceCatalog;
+             * }}
+             */
+            InstanceCatalog.create = function(properties) {
+                return new InstanceCatalog(properties);
+            };
+
+            /**
+             * Encodes the specified InstanceCatalog message. Does not implicitly {@link northstar.live.InstanceCatalog.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.live.InstanceCatalog
+             * @static
+             * @param {northstar.live.InstanceCatalog.$Properties} message InstanceCatalog message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            InstanceCatalog.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.instances != null && message.instances.length)
+                    for (let i = 0; i < message.instances.length; ++i)
+                        $root.northstar.live.InstanceRecord.encode(message.instances[i], writer.uint32(/* id 1, wireType 2 =*/10).fork(), _depth + 1).ldelim();
+                if (message.production_available != null && $Object.hasOwnProperty.call(message, "production_available"))
+                    writer.uint32(/* id 2, wireType 0 =*/16).bool(message.production_available);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes an InstanceCatalog message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.live.InstanceCatalog
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.live.InstanceCatalog & northstar.live.InstanceCatalog.$Shape} InstanceCatalog
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            InstanceCatalog.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.live.InstanceCatalog();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.instances && message.instances.length))
+                                message.instances = [];
+                            message.instances.push($root.northstar.live.InstanceRecord.decode(reader, reader.uint32(), $undefined, _depth + 1));
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 0)
+                                break;
+                            message.production_available = reader.bool();
+                            message._production_available = "production_available";
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies an InstanceCatalog message.
+             * @function verify
+             * @memberof northstar.live.InstanceCatalog
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            InstanceCatalog.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.instances != null && $Object.hasOwnProperty.call(message, "instances")) {
+                    if (!$Array.isArray(message.instances))
+                        return "instances: array expected";
+                    for (let i = 0; i < message.instances.length; ++i) {
+                        let error = $root.northstar.live.InstanceRecord.verify(message.instances[i], _depth + 1);
+                        if (error)
+                            return "instances." + error;
+                    }
+                }
+                if (message.production_available != null && $Object.hasOwnProperty.call(message, "production_available")) {
+                    properties._production_available = 1;
+                    if (typeof message.production_available !== "boolean")
+                        return "production_available: boolean expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates an InstanceCatalog message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.live.InstanceCatalog
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.live.InstanceCatalog} InstanceCatalog
+             */
+            InstanceCatalog.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.live.InstanceCatalog)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.live.InstanceCatalog: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.live.InstanceCatalog();
+                if (object.instances) {
+                    if (!$Array.isArray(object.instances))
+                        throw $TypeError(".northstar.live.InstanceCatalog.instances: array expected");
+                    message.instances = $Array(object.instances.length);
+                    for (let i = 0; i < object.instances.length; ++i) {
+                        if (!$util.isObject(object.instances[i]))
+                            throw $TypeError(".northstar.live.InstanceCatalog.instances: object expected");
+                        message.instances[i] = $root.northstar.live.InstanceRecord.fromObject(object.instances[i], _depth + 1);
+                    }
+                }
+                if (object.production_available != null)
+                    message.production_available = $Boolean(object.production_available);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from an InstanceCatalog message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.live.InstanceCatalog
+             * @static
+             * @param {northstar.live.InstanceCatalog} message InstanceCatalog
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            InstanceCatalog.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.arrays || options.defaults)
+                    object.instances = [];
+                if (message.instances && message.instances.length) {
+                    object.instances = $Array(message.instances.length);
+                    for (let j = 0; j < message.instances.length; ++j)
+                        object.instances[j] = $root.northstar.live.InstanceRecord.toObject(message.instances[j], options, _depth + 1);
+                }
+                if (message.production_available != null && $Object.hasOwnProperty.call(message, "production_available")) {
+                    object.production_available = message.production_available;
+                    if (options.oneofs)
+                        object._production_available = "production_available";
+                }
+                return object;
+            };
+
+            /**
+             * Converts this InstanceCatalog to JSON.
+             * @function toJSON
+             * @memberof northstar.live.InstanceCatalog
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            InstanceCatalog.prototype.toJSON = function() {
+                return InstanceCatalog.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for InstanceCatalog
+             * @function getTypeUrl
+             * @memberof northstar.live.InstanceCatalog
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            InstanceCatalog.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.live.InstanceCatalog";
+            };
+
+            return InstanceCatalog;
+        })();
+
         live.AccountCatchupRequest = (function() {
 
             /**
@@ -16518,6 +17145,9 @@ export const northstar = $root.northstar = (() => {
             /**
              * Properties of a RuntimeStatus.
              * @typedef {Object} northstar.live.RuntimeStatus.$Properties
+             * @property {string|null} [instance_id] RuntimeStatus instance_id
+             * @property {string|null} [environment] RuntimeStatus environment
+             * @property {Array.<string>|null} [null_fields] RuntimeStatus null_fields
              * @property {boolean|null} [cancel_sending] RuntimeStatus cancel_sending
              * @property {boolean|null} [control_available] RuntimeStatus control_available
              * @property {string|null} [observed_at] RuntimeStatus observed_at
@@ -16528,6 +17158,8 @@ export const northstar = $root.northstar = (() => {
              * @property {string|null} [runtime_id] RuntimeStatus runtime_id
              * @property {string|null} [started_at] RuntimeStatus started_at
              * @property {string|null} [status] RuntimeStatus status
+             * @property {"instance_id"} [_instance_id] RuntimeStatus _instance_id
+             * @property {"environment"} [_environment] RuntimeStatus _environment
              * @property {"cancel_sending"} [_cancel_sending] RuntimeStatus _cancel_sending
              * @property {"control_available"} [_control_available] RuntimeStatus _control_available
              * @property {"observed_at"} [_observed_at] RuntimeStatus _observed_at
@@ -16552,6 +17184,9 @@ export const northstar = $root.northstar = (() => {
             /**
              * Narrowed shape of a RuntimeStatus.
              * @typedef {{
+             *   instance_id?: string|null;
+             *   environment?: string|null;
+             *   null_fields?: Array.<string>|null;
              *   cancel_sending?: boolean|null;
              *   control_available?: boolean|null;
              *   observed_at?: string|null;
@@ -16564,6 +17199,10 @@ export const northstar = $root.northstar = (() => {
              *   status?: string|null;
              *   $unknowns?: Array.<Uint8Array>;
              * } & (
+             *   ({ _instance_id?: undefined; instance_id?: null }|{ _instance_id?: "instance_id"; instance_id: string })
+             * ) & (
+             *   ({ _environment?: undefined; environment?: null }|{ _environment?: "environment"; environment: string })
+             * ) & (
              *   ({ _cancel_sending?: undefined; cancel_sending?: null }|{ _cancel_sending?: "cancel_sending"; cancel_sending: boolean })
              * ) & (
              *   ({ _control_available?: undefined; control_available?: null }|{ _control_available?: "control_available"; control_available: boolean })
@@ -16595,11 +17234,36 @@ export const northstar = $root.northstar = (() => {
              * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
              */
             const RuntimeStatus = function (properties) {
+                this.null_fields = [];
                 if (properties)
                     for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
                         if (properties[keys[i]] != null && keys[i] !== "__proto__")
                             this[keys[i]] = properties[keys[i]];
             };
+
+            /**
+             * RuntimeStatus instance_id.
+             * @member {string|null|undefined} instance_id
+             * @memberof northstar.live.RuntimeStatus
+             * @instance
+             */
+            RuntimeStatus.prototype.instance_id = null;
+
+            /**
+             * RuntimeStatus environment.
+             * @member {string|null|undefined} environment
+             * @memberof northstar.live.RuntimeStatus
+             * @instance
+             */
+            RuntimeStatus.prototype.environment = null;
+
+            /**
+             * RuntimeStatus null_fields.
+             * @member {Array.<string>} null_fields
+             * @memberof northstar.live.RuntimeStatus
+             * @instance
+             */
+            RuntimeStatus.prototype.null_fields = $util.emptyArray;
 
             /**
              * RuntimeStatus cancel_sending.
@@ -16683,6 +17347,28 @@ export const northstar = $root.northstar = (() => {
 
             // OneOf field names bound to virtual getters and setters
             let $oneOfFields;
+
+            /**
+             * RuntimeStatus _instance_id.
+             * @member {"instance_id"|undefined} _instance_id
+             * @memberof northstar.live.RuntimeStatus
+             * @instance
+             */
+            $Object.defineProperty(RuntimeStatus.prototype, "_instance_id", {
+                get: $util.oneOfGetter($oneOfFields = ["instance_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * RuntimeStatus _environment.
+             * @member {"environment"|undefined} _environment
+             * @memberof northstar.live.RuntimeStatus
+             * @instance
+             */
+            $Object.defineProperty(RuntimeStatus.prototype, "_environment", {
+                get: $util.oneOfGetter($oneOfFields = ["environment"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
 
             /**
              * RuntimeStatus _cancel_sending.
@@ -16846,6 +17532,13 @@ export const northstar = $root.northstar = (() => {
                     writer.uint32(/* id 9, wireType 2 =*/74).string(message.started_at);
                 if (message.status != null && $Object.hasOwnProperty.call(message, "status"))
                     writer.uint32(/* id 10, wireType 2 =*/82).string(message.status);
+                if (message.instance_id != null && $Object.hasOwnProperty.call(message, "instance_id"))
+                    writer.uint32(/* id 11, wireType 2 =*/90).string(message.instance_id);
+                if (message.environment != null && $Object.hasOwnProperty.call(message, "environment"))
+                    writer.uint32(/* id 12, wireType 2 =*/98).string(message.environment);
+                if (message.null_fields != null && message.null_fields.length)
+                    for (let i = 0; i < message.null_fields.length; ++i)
+                        writer.uint32(/* id 2046, wireType 2 =*/16370).string(message.null_fields[i]);
                 if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
                     for (let i = 0; i < message.$unknowns.length; ++i)
                         writer.raw(message.$unknowns[i]);
@@ -16890,6 +17583,28 @@ export const northstar = $root.northstar = (() => {
                     }
                     let wireType = tag & 7;
                     switch (tag >>>= 3) {
+                    case 11: {
+                            if (wireType !== 2)
+                                break;
+                            message.instance_id = reader.stringVerify();
+                            message._instance_id = "instance_id";
+                            continue;
+                        }
+                    case 12: {
+                            if (wireType !== 2)
+                                break;
+                            message.environment = reader.stringVerify();
+                            message._environment = "environment";
+                            continue;
+                        }
+                    case 2046: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.null_fields && message.null_fields.length))
+                                message.null_fields = [];
+                            message.null_fields.push(reader.stringVerify());
+                            continue;
+                        }
                     case 1: {
                             if (wireType !== 0)
                                 break;
@@ -16993,6 +17708,23 @@ export const northstar = $root.northstar = (() => {
                 if (_depth > $util.recursionLimit)
                     return "max depth exceeded";
                 let properties = {};
+                if (message.instance_id != null && $Object.hasOwnProperty.call(message, "instance_id")) {
+                    properties._instance_id = 1;
+                    if (!$util.isString(message.instance_id))
+                        return "instance_id: string expected";
+                }
+                if (message.environment != null && $Object.hasOwnProperty.call(message, "environment")) {
+                    properties._environment = 1;
+                    if (!$util.isString(message.environment))
+                        return "environment: string expected";
+                }
+                if (message.null_fields != null && $Object.hasOwnProperty.call(message, "null_fields")) {
+                    if (!$Array.isArray(message.null_fields))
+                        return "null_fields: array expected";
+                    for (let i = 0; i < message.null_fields.length; ++i)
+                        if (!$util.isString(message.null_fields[i]))
+                            return "null_fields: string[] expected";
+                }
                 if (message.cancel_sending != null && $Object.hasOwnProperty.call(message, "cancel_sending")) {
                     properties._cancel_sending = 1;
                     if (typeof message.cancel_sending !== "boolean")
@@ -17064,6 +17796,17 @@ export const northstar = $root.northstar = (() => {
                 if (_depth > $util.recursionLimit)
                     throw $Error("max depth exceeded");
                 let message = new $root.northstar.live.RuntimeStatus();
+                if (object.instance_id != null)
+                    message.instance_id = $String(object.instance_id);
+                if (object.environment != null)
+                    message.environment = $String(object.environment);
+                if (object.null_fields) {
+                    if (!$Array.isArray(object.null_fields))
+                        throw $TypeError(".northstar.live.RuntimeStatus.null_fields: array expected");
+                    message.null_fields = $Array(object.null_fields.length);
+                    for (let i = 0; i < object.null_fields.length; ++i)
+                        message.null_fields[i] = $String(object.null_fields[i]);
+                }
                 if (object.cancel_sending != null)
                     message.cancel_sending = $Boolean(object.cancel_sending);
                 if (object.control_available != null)
@@ -17111,6 +17854,8 @@ export const northstar = $root.northstar = (() => {
                 if (_depth > $util.recursionLimit)
                     throw $Error("max depth exceeded");
                 let object = {};
+                if (options.arrays || options.defaults)
+                    object.null_fields = [];
                 if (message.cancel_sending != null && $Object.hasOwnProperty.call(message, "cancel_sending")) {
                     object.cancel_sending = message.cancel_sending;
                     if (options.oneofs)
@@ -17165,6 +17910,21 @@ export const northstar = $root.northstar = (() => {
                     object.status = message.status;
                     if (options.oneofs)
                         object._status = "status";
+                }
+                if (message.instance_id != null && $Object.hasOwnProperty.call(message, "instance_id")) {
+                    object.instance_id = message.instance_id;
+                    if (options.oneofs)
+                        object._instance_id = "instance_id";
+                }
+                if (message.environment != null && $Object.hasOwnProperty.call(message, "environment")) {
+                    object.environment = message.environment;
+                    if (options.oneofs)
+                        object._environment = "environment";
+                }
+                if (message.null_fields && message.null_fields.length) {
+                    object.null_fields = $Array(message.null_fields.length);
+                    for (let j = 0; j < message.null_fields.length; ++j)
+                        object.null_fields[j] = message.null_fields[j];
                 }
                 return object;
             };

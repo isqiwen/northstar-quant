@@ -54,6 +54,13 @@ def isolated_compose(
         check=True,
     )
     config = json.loads(result.stdout)
+    if source.parent.name == "live":
+        import sys
+
+        sys.path.insert(0, str(source.parents[2] / "scripts/operations"))
+        from live_instances import expand
+
+        config = expand(config)
     prefix = "northstar-check-" + hashlib.sha256(str(root.resolve()).encode()).hexdigest()[:12]
     # `compose config` expands default network names before the caller's -p.
     # Rebind every name, retaining equal names only for intentionally shared

@@ -119,18 +119,19 @@ def test_entry_commit_before_progress_failure_retries_without_duplicate_fills(
         assert pending["through_sequence"] == 1 and pending["pending"] == 1
         assert pending["entry_id"] is None
         with postgres_engine.connect() as connection:
-            saved_id = connection.execute(
-                text("SELECT entry_id FROM broker_position_entries")
-            ).scalar_one()
-        fixed = ledger.get(saved_id)
+            assert (
+                connection.execute(
+                    text("SELECT count(*) FROM broker_position_entries")
+                ).scalar_one()
+                == 0
+            )
         later = ledger_query(postgres_engine, trades=(trade(),))
         with pytest.raises(ValueError, match="local catchup"):
             ledger.ingest(baseline_id, later, request_id=uuid4())
         with ThreadPoolExecutor(max_workers=2) as pool:
             retries = list(pool.map(lambda _: ledger.advance_stream(stream_id, 2), range(2)))
         assert retries[0] == retries[1]
-        assert retries[0]["entry_id"] == str(saved_id) and retries[0]["pending"] == 0
-        assert ledger.get(saved_id) == fixed
+        assert retries[0]["entry_id"] is not None and retries[0]["pending"] == 0
         queried = ledger.ingest(baseline_id, later, request_id=uuid4())
         assert queried["new_fill_count"] == 0 and queried["duplicate_count"] == 1
         assert ledger.verify_all()["position_entries_count"] == 2

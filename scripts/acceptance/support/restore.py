@@ -49,6 +49,8 @@ def check_restore(
 
     application = InstalledApplication(executable, runtime, restored)
     application.environment["NORTHSTAR_LOG_DIR"] = str(runtime / "restored-logs")
+    application.environment["NORTHSTAR_LIVE_STATE_DIR"] = str(runtime / "restored-live-state")
+    application.environment["NORTHSTAR_LIVE_SOURCE_DIR"] = str(runtime / "restored-live-sources")
     command = application.command
 
     try:
@@ -99,7 +101,8 @@ def check_restore(
                 "order_checks_count": 0,
                 "streams_count": 0,
             }
-        # Remote broker reads must target this restored database, not the original Live.
+        application.live_command("maintenance", "restore", str(runtime / "live-backup"))
+        # Read the independently restored local Live facts.
         with application.live():
             assert command("advanced", "broker", "list") == saved_queries
             assert [

@@ -7,7 +7,6 @@ from fastapi import Depends, FastAPI, Request
 from pydantic import JsonValue
 from starlette.concurrency import run_in_threadpool
 
-from northstar_quant.live import LiveClient
 from northstar_quant.web.access import (
     WorkspaceAccess,
 )
@@ -20,6 +19,7 @@ from northstar_quant.web.requests import (
 )
 
 from .commands import _runtime_header
+from .instances import Instances
 
 
 class BaselineRequest(ApiModel):
@@ -74,6 +74,8 @@ class QueryRequest(ApiModel):
 
 
 class RuntimeStatus(ApiModel):
+    instance_id: str | None = None
+    environment: str | None = None
     runtime_id: str
     pid: int
     started_at: str
@@ -140,12 +142,12 @@ class AccountProgress(EvidenceRecord):
     status: str
 
 
-def register(app: FastAPI, access: WorkspaceAccess, live: LiveClient) -> None:
-    broker = live.broker
+def register(app: FastAPI, access: WorkspaceAccess, instances: Instances) -> None:
 
     @app.get("/api/live/status", response_model=RuntimeStatus, response_model_exclude_unset=True)
     async def live_status(request: Request) -> dict[str, object]:
         access.require_request(request)
+        live = instances.for_request(request)
         return await run_in_threadpool(live.status)
 
     @app.get(
@@ -155,19 +157,22 @@ def register(app: FastAPI, access: WorkspaceAccess, live: LiveClient) -> None:
     )
     async def live_command(request: Request, request_id: UUID) -> dict[str, object]:
         access.require_request(request)
+        live = instances.for_request(request)
         return await run_in_threadpool(live.command, request_id)
 
     @app.get("/api/broker/status", response_model=BrokerStatus, response_model_exclude_unset=True)
     async def broker_status(request: Request) -> dict[str, object]:
         access.require_request(request)
-        return await run_in_threadpool(broker.status)
+        live = instances.for_request(request)
+        return await run_in_threadpool(live.broker.status)
 
     @app.get(
         "/api/broker/queries", response_model=list[QueryRecord], response_model_exclude_unset=True
     )
     async def broker_queries(request: Request, limit: int = 50) -> list[dict[str, object]]:
         access.require_request(request)
-        return await run_in_threadpool(broker.list, limit=limit)
+        live = instances.for_request(request)
+        return await run_in_threadpool(live.broker.list, limit=limit)
 
     @app.get(
         "/api/broker/queries/{batch_id}",
@@ -176,7 +181,8 @@ def register(app: FastAPI, access: WorkspaceAccess, live: LiveClient) -> None:
     )
     async def broker_query_detail(request: Request, batch_id: UUID) -> dict[str, object]:
         access.require_request(request)
-        return await run_in_threadpool(broker.get, batch_id)
+        live = instances.for_request(request)
+        return await run_in_threadpool(live.broker.get, batch_id)
 
     @app.get(
         "/api/broker/queries/{batch_id}/baseline-context",
@@ -185,7 +191,8 @@ def register(app: FastAPI, access: WorkspaceAccess, live: LiveClient) -> None:
     )
     async def broker_baseline_context(request: Request, batch_id: UUID) -> dict[str, object]:
         access.require_request(request)
-        return await run_in_threadpool(broker.baseline_context, batch_id)
+        live = instances.for_request(request)
+        return await run_in_threadpool(live.broker.baseline_context, batch_id)
 
     @app.post(
         "/api/broker/baselines", response_model=BaselineRecord, response_model_exclude_unset=True
@@ -196,6 +203,7 @@ def register(app: FastAPI, access: WorkspaceAccess, live: LiveClient) -> None:
         runtime: Annotated[UUID, Depends(_runtime_header)],
     ) -> dict[str, object]:
         access.protect(request)
+        live = instances.for_request(request)
         command_live = live.for_runtime(runtime)
         payload = document.model_dump(mode="json", exclude_unset=True)
         return await run_in_threadpool(
@@ -213,6 +221,7 @@ def register(app: FastAPI, access: WorkspaceAccess, live: LiveClient) -> None:
         runtime: Annotated[UUID, Depends(_runtime_header)],
     ) -> dict[str, object]:
         access.protect(request)
+        live = instances.for_request(request)
         command_live = live.for_runtime(runtime)
         payload = document.model_dump(mode="json", exclude_unset=True)
         return await run_in_threadpool(
@@ -229,7 +238,8 @@ def register(app: FastAPI, access: WorkspaceAccess, live: LiveClient) -> None:
     )
     async def broker_baseline_check(request: Request, check_id: UUID) -> dict[str, object]:
         access.require_request(request)
-        return await run_in_threadpool(broker.get_baseline_check, check_id)
+        live = instances.for_request(request)
+        return await run_in_threadpool(live.broker.get_baseline_check, check_id)
 
     @app.get(
         "/api/broker/queries/{batch_id}/ledger-context",
@@ -238,7 +248,8 @@ def register(app: FastAPI, access: WorkspaceAccess, live: LiveClient) -> None:
     )
     async def broker_ledger_context(request: Request, batch_id: UUID) -> dict[str, object]:
         access.require_request(request)
-        return await run_in_threadpool(broker.ledger_context, batch_id)
+        live = instances.for_request(request)
+        return await run_in_threadpool(live.broker.ledger_context, batch_id)
 
     @app.post(
         "/api/broker/position-entries",
@@ -251,6 +262,7 @@ def register(app: FastAPI, access: WorkspaceAccess, live: LiveClient) -> None:
         runtime: Annotated[UUID, Depends(_runtime_header)],
     ) -> dict[str, object]:
         access.protect(request)
+        live = instances.for_request(request)
         command_live = live.for_runtime(runtime)
         payload = document.model_dump(mode="json", exclude_unset=True)
         return await run_in_threadpool(
@@ -267,7 +279,8 @@ def register(app: FastAPI, access: WorkspaceAccess, live: LiveClient) -> None:
     )
     async def broker_position_entry(request: Request, entry_id: UUID) -> dict[str, object]:
         access.require_request(request)
-        return await run_in_threadpool(broker.get_position_entry, entry_id)
+        live = instances.for_request(request)
+        return await run_in_threadpool(live.broker.get_position_entry, entry_id)
 
     @app.post(
         "/api/broker/funds-entries", response_model=FundsEntry, response_model_exclude_unset=True
@@ -278,6 +291,7 @@ def register(app: FastAPI, access: WorkspaceAccess, live: LiveClient) -> None:
         runtime: Annotated[UUID, Depends(_runtime_header)],
     ) -> dict[str, object]:
         access.protect(request)
+        live = instances.for_request(request)
         command_live = live.for_runtime(runtime)
         payload = document.model_dump(mode="json", exclude_unset=True)
         return await run_in_threadpool(
@@ -294,7 +308,8 @@ def register(app: FastAPI, access: WorkspaceAccess, live: LiveClient) -> None:
     )
     async def broker_funds_entry(request: Request, entry_id: UUID) -> dict[str, object]:
         access.require_request(request)
-        return await run_in_threadpool(broker.get_funds_entry, entry_id)
+        live = instances.for_request(request)
+        return await run_in_threadpool(live.broker.get_funds_entry, entry_id)
 
     @app.post(
         "/api/streams/{stream_id}/account-catchup",
@@ -308,6 +323,7 @@ def register(app: FastAPI, access: WorkspaceAccess, live: LiveClient) -> None:
         runtime: Annotated[UUID, Depends(_runtime_header)],
     ) -> dict[str, object]:
         access.protect(request)
+        live = instances.for_request(request)
         command_live = live.for_runtime(runtime)
         payload = document.model_dump(mode="json", exclude_unset=True)
         return await run_in_threadpool(
@@ -330,6 +346,7 @@ def register(app: FastAPI, access: WorkspaceAccess, live: LiveClient) -> None:
         runtime: Annotated[UUID, Depends(_runtime_header)],
     ) -> dict[str, object]:
         access.protect(request)
+        live = instances.for_request(request)
         command_live = live.for_runtime(runtime)
         payload = document.model_dump(mode="json", exclude_unset=True)
         return await run_in_threadpool(
@@ -349,6 +366,7 @@ def register(app: FastAPI, access: WorkspaceAccess, live: LiveClient) -> None:
         runtime: Annotated[UUID, Depends(_runtime_header)],
     ) -> dict[str, object]:
         access.protect(request)
+        live = instances.for_request(request)
         command_live = live.for_runtime(runtime)
         payload = document.model_dump(mode="json", exclude_unset=True)
         return await run_in_threadpool(
@@ -365,7 +383,8 @@ def register(app: FastAPI, access: WorkspaceAccess, live: LiveClient) -> None:
     )
     async def broker_position_check(request: Request, check_id: UUID) -> dict[str, object]:
         access.require_request(request)
-        return await run_in_threadpool(broker.get_position_check, check_id)
+        live = instances.for_request(request)
+        return await run_in_threadpool(live.broker.get_position_check, check_id)
 
     @app.post(
         "/api/broker/order-checks", response_model=CheckRecord, response_model_exclude_unset=True
@@ -376,6 +395,7 @@ def register(app: FastAPI, access: WorkspaceAccess, live: LiveClient) -> None:
         runtime: Annotated[UUID, Depends(_runtime_header)],
     ) -> dict[str, object]:
         access.protect(request)
+        live = instances.for_request(request)
         command_live = live.for_runtime(runtime)
         payload = document.model_dump(mode="json", exclude_unset=True)
         return await run_in_threadpool(
@@ -391,13 +411,15 @@ def register(app: FastAPI, access: WorkspaceAccess, live: LiveClient) -> None:
     )
     async def broker_order_check(request: Request, check_id: UUID) -> dict[str, object]:
         access.require_request(request)
-        return await run_in_threadpool(broker.get_order_check, check_id)
+        live = instances.for_request(request)
+        return await run_in_threadpool(live.broker.get_order_check, check_id)
 
     @app.post("/api/broker/queries", response_model=QueryRecord, response_model_exclude_unset=True)
     async def broker_query(
         request: Request, document: QueryRequest, runtime: Annotated[UUID, Depends(_runtime_header)]
     ) -> dict[str, object]:
         access.protect(request)
+        live = instances.for_request(request)
         command_live = live.for_runtime(runtime)
         payload = document.model_dump(mode="json", exclude_unset=True)
         return await run_in_threadpool(
@@ -413,4 +435,5 @@ def register(app: FastAPI, access: WorkspaceAccess, live: LiveClient) -> None:
     )
     async def broker_funds_context(request: Request, batch_id: UUID) -> dict[str, object]:
         access.require_request(request)
-        return await run_in_threadpool(broker.funds_context, batch_id)
+        live = instances.for_request(request)
+        return await run_in_threadpool(live.broker.funds_context, batch_id)

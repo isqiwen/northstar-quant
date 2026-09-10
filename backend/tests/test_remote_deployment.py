@@ -20,13 +20,25 @@ def configuration_text(app, value):
     keys = {
         "database": ["NORTHSTAR_DATABASE_ADMIN_PASSWORD", "NORTHSTAR_DATA_HUB_DATABASE_PASSWORD"],
         "data-hub": ["NORTHSTAR_DATA_HUB_DATABASE_PASSWORD"],
-        "live": ["NORTHSTAR_LIVE_DATABASE_PASSWORD"],
+        "live": [],
     }
     result = "".join(f"{key}='{value}'\n" for key in keys[app])
     if app == "live":
-        result += "NORTHSTAR_LIVE_ENVIRONMENT=simnow_dev\n"
+        result += "NORTHSTAR_LIVE_INSTANCES=sim:simnow_dev\n"
         result += "".join(
             f"NORTHSTAR_SIMNOW_{key}=\n" for key in ("USER_ID", "APP_ID", "AUTH_CODE", "PASSWORD")
+        )
+        result += "".join(
+            f"NORTHSTAR_CTP_{key}=\n"
+            for key in (
+                "BROKER_ID",
+                "TRADE_FRONT",
+                "MD_FRONT",
+                "USER_ID",
+                "PASSWORD",
+                "APP_ID",
+                "AUTH_CODE",
+            )
         )
     return result
 
@@ -54,6 +66,10 @@ def deployment(tmp_path: Path) -> tuple[Path, Path, dict]:
     package = repo / "backend/src/northstar_quant"
     package.mkdir(parents=True)
     shutil.copyfile(ROOT / "backend/src/northstar_quant/__init__.py", package / "__init__.py")
+    (package / "live").mkdir()
+    shutil.copyfile(
+        ROOT / "backend/src/northstar_quant/live/instances.py", package / "live/instances.py"
+    )
     # Storage behavior is covered separately; this transport double must not install dependencies.
     (repo / "scripts/operations/check_storage.py").write_text(
         "import os, sys\nprint('{}')\nsys.exit(int(os.environ.get('MOUNT_RESULT', '0')))\n"
@@ -129,7 +145,14 @@ if name == 'docker' and sys.argv[1:] == ['info']:
 if name == 'docker' and 'config' in sys.argv and '--format' in sys.argv:
     ports = [('data-hub',18082),('research',18084),('live-web',18080)]
     services = {{app: {{'ports': [{{'published': port}}]}} for app, port in ports}}
-    print(json.dumps({{'services': services}}))
+    config = {{'services': services}}
+    if any('/deploy/live/' in arg for arg in sys.argv):
+        config = {{'name': 'northstar-live', 'x-instances': 'sim:simnow_dev',
+                  'networks': {{'frontend': {{}}, 'ingress': {{}}}},
+                  'services': {{name: {{'environment': {{}}, 'volumes': [],
+                                       'networks': {{'management': {{}}}}}}
+                               for name in ('initialize', 'live', 'live-api', 'live-web')}}}}
+    print(json.dumps(config))
     sys.exit(0)
 if name == 'docker' and 'info' in sys.argv and '--format' in sys.argv:
     config = json.loads(Path({str(tmp_path / "daemon.json")!r}).read_text())

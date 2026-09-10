@@ -171,7 +171,12 @@ def main() -> int:
     )
     parser.add_argument("--dry-run", action="store_true", help="仅显示目标，不连接 SSH")
     parser.add_argument("--follow", action="store_true", help="持续查看日志（仅 logs）")
+    parser.add_argument("--instance", help="仅管理指定 Live 实例的启停、状态和日志")
     args = parser.parse_args()
+    if args.instance and (
+        args.app != "live" or args.action not in {"start", "restart", "stop", "status", "logs"}
+    ):
+        parser.error("--instance 仅用于 Live 实例启停、状态和日志")
     if args.app == "nfs" and args.env_file is not None:
         parser.error("NFS 使用 hosts.toml，不使用 .env")
     if args.env_file is not None and args.action != "deploy":
@@ -247,6 +252,7 @@ def main() -> int:
             "revision": revision,
             "follow": args.follow,
             "replace_configuration": args.env_file is not None,
+            "instance": args.instance,
         }
         print(
             f"{args.action} {args.app} → {config['user']}@{config['host']}:{config['port']} "

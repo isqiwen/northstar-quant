@@ -59,7 +59,7 @@ def lifecycle(
     )
 
 
-def manage(app: str, action: str, *, follow: bool = False) -> None:
+def manage(app: str, action: str, *, follow: bool = False, instance: str | None = None) -> None:
     from contextlib import nullcontext
 
     from publication_network import publication_hosts
@@ -73,6 +73,33 @@ def manage(app: str, action: str, *, follow: bool = False) -> None:
         "-f",
         str(ROOT / "deploy" / folder / "compose.yaml"),
     ]
+    if app == "live":
+        from live_instances import prepare, topology
+
+        config = json.loads(run(*base, "config", "--format", "json", capture=True))
+        with topology(config) as (files, rendered):
+            if action in {"deploy", "start", "restart"}:
+                prepare(rendered)
+            if instance is not None:
+                if f"{instance}-live" not in rendered["services"]:
+                    raise ValueError("Unknown configured Live instance")
+                command = base[:-2] + files
+                services = [f"{instance}-live"]
+                if action == "status":
+                    run(*command, "ps", "--all", *services)
+                elif action == "logs":
+                    run(
+                        *command, "logs", "--tail=100", *(["--follow"] if follow else []), *services
+                    )
+                elif action == "stop":
+                    run(*command, "stop", *services)
+                else:
+                    if action == "restart":
+                        run(*command, "stop", *services)
+                    run(*command, "up", "--no-build", "--pull", "never", "-d", "--wait", *services)
+                return
+            _manage(app, action, follow=follow, overrides=files)
+        return
     context = nullcontext([])
     if app == "research" and action in {"deploy", "start", "restart", "backup"}:
         config = json.loads(run(*base, "config", "--format", "json", capture=True))
@@ -92,7 +119,10 @@ def _manage(app: str, action: str, *, follow: bool, overrides: list[str]) -> Non
         "-f",
         str(ROOT / "deploy" / folder / "compose.yaml"),
     ]
-    compose.extend(overrides)
+    if app == "live" and overrides:
+        compose = compose[:-2] + overrides
+    else:
+        compose.extend(overrides)
     if project := os.environ.get("COMPOSE_PROJECT_NAME"):
         compose[2:2] = ["-p", project]
     if app in {"data-hub", "research", "live"} and action in {
@@ -144,7 +174,16 @@ def _manage(app: str, action: str, *, follow: bool, overrides: list[str]) -> Non
             run(*compose, "build", api, app)
             run(*compose, "up", "--no-build", "-d", "--wait", "--wait-timeout", "180")
         else:
-            run(*compose, "up", "--build", "-d", "--wait", "--wait-timeout", "180")
+            run(
+                *compose,
+                "up",
+                "--build",
+                "--remove-orphans",
+                "-d",
+                "--wait",
+                "--wait-timeout",
+                "180",
+            )
     elif action in ("start", "restart", "stop"):
         if action != "stop" and app in ("data-hub", "research"):
             run(*compose, "run", "--rm", "--no-deps", "--pull", "never", "storage-check")
@@ -178,13 +217,16 @@ def main() -> int:
     )
     parser.add_argument("app", choices=FOLDERS)
     parser.add_argument("--follow", action="store_true")
+    parser.add_argument("--instance", help="Only manage this configured Live instance")
     args = parser.parse_args()
+    if args.instance and (args.app != "live" or args.action in {"deploy", "backup"}):
+        parser.error("--instance only supports Live start/restart/stop/status/logs")
     if args.follow and args.action != "logs":
         parser.error("--follow 仅用于 logs")
     if args.action == "backup" and args.app not in ("database", "research"):
         parser.error("backup 仅用于 database 或 research")
     try:
-        manage(args.app, args.action, follow=args.follow)
+        manage(args.app, args.action, follow=args.follow, instance=args.instance)
     except (OSError, ValueError, subprocess.CalledProcessError):
         print("本机操作失败，请检查上述错误与目标配置。", file=sys.stderr)
         return 1

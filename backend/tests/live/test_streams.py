@@ -107,7 +107,7 @@ def logins(accept: Any, *, at: datetime = OPEN, trading_day: str | None = None) 
         )
 
 
-def test_stream_commits_inputs_before_shadow_decisions_and_preserves_pause_retry_restart(
+def test_stream_durable_inputs_pause_retry_restart(
     postgres_engine: Engine,
     clean_database: None,
     tmp_path: Path,

@@ -98,7 +98,7 @@ Research 的 SQLite、计算临时目录、研究产物和备份目录仍在本�
 ├── files/{source,market,research,backup}/
 ├── state/data-hub/postgresql/
 ├── state/research/                        # SQLite
-├── state/live/{postgresql,sources}/       # Live 本地数据库与持久材料
+├── state/live/instances/<id>/{database,sources}/       # Live 本地数据库与持久材料
 ├── credentials/{data-hub,live}/
 ├── logs/{data-hub,research,live}/
 └── work/research/

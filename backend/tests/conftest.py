@@ -13,8 +13,10 @@ from sqlalchemy import Engine, create_engine, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session, sessionmaker
 
+from northstar_quant.apps.live.instances import Instances
 from northstar_quant.apps.storage import initialize_database
 from northstar_quant.data_management.library import DataLibrary
+from northstar_quant.live.instances import Instance
 
 
 def _reset(engine: Engine) -> None:
@@ -60,6 +62,7 @@ def clean_database(postgres_engine: Engine) -> None:
         f'"{name}"'
         for name in (
             "live_strategy_materials",
+            "live_instance_binding",
             "factor_revisions",
             "factor_annotations",
             "factor_runs",
@@ -149,6 +152,10 @@ def live_web_app(live_client: Callable[[Engine, DataLibrary], object]) -> Callab
     from northstar_quant.apps.live import create_app
 
     def compose(engine: Engine, library: DataLibrary) -> FastAPI:
-        return create_app(live=live_client(engine, library))
+        return create_app(
+            instances=Instances(
+                {"sim": live_client(engine, library)}, [Instance("sim", "simnow_trading")]
+            )
+        )
 
     return compose

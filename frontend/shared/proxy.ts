@@ -48,6 +48,7 @@ export async function forward(
     "cookie",
     "x-northstar-csrf",
     "x-live-runtime-id",
+    "x-live-instance-id",
     "accept",
   ]) {
     const value = request.headers.get(key);

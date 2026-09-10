@@ -658,7 +658,8 @@ class ImportQualityEvaluationService:
             )
 
     def _begin_consistent_snapshot(self) -> None:
-        self._session.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ"))
+        if self._session.get_bind().dialect.name == "postgresql":
+            self._session.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ"))
 
     def _replay_or_reject(
         self,

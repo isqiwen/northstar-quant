@@ -71,8 +71,6 @@ def verify_broker_contract(
 def _contract(
     engine: Engine, instrument: dict[str, object], *, expected_id: UUID | None
 ) -> BrokerContract:
-    if engine.dialect.name != "postgresql":
-        raise ValueError("broker contract resolution requires PostgreSQL")
     if not isinstance(instrument, dict):
         raise ValueError("broker instrument must be a saved query row")
     if instrument.get("ExchangeID") != "SHFE" or instrument.get("ProductClass") != "1":
@@ -113,10 +111,19 @@ def _contract(
     if type(multiplier) is not int or not 1 <= multiplier <= 1_000_000_000:
         raise ValueError("broker instrument VolumeMultiple must be a positive integer")
 
-    with Session(engine, expire_on_commit=False) as session, session.begin():
+    with (
+        Session(
+            engine.execution_options(live_write=True)
+            if engine.dialect.name == "sqlite" and expected_id is None
+            else engine,
+            expire_on_commit=False,
+        ) as session,
+        session.begin(),
+    ):
         if expected_id is None:
             # The research importer uses this same Data-catalog registration lock.
-            session.execute(text("SELECT pg_advisory_xact_lock(728401927)"))
+            if engine.dialect.name == "postgresql":
+                session.execute(text("SELECT pg_advisory_xact_lock(728401927)"))
         exchange = session.scalar(select(Exchange).where(Exchange.code == "SHFE"))
         if exchange is None:
             raise ValueError("broker contract requires a registered SHFE exchange and product")

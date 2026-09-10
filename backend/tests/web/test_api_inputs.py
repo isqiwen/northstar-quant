@@ -6,8 +6,10 @@ import httpx2 as httpx
 from fastapi.testclient import TestClient
 
 from northstar_quant.apps.live import api_pb2, create_app
+from northstar_quant.apps.live.instances import Instances
 from northstar_quant.live.auth import LiveAuth
 from northstar_quant.live.client import LiveClient
+from northstar_quant.live.instances import Instance
 from northstar_quant.web.protobuf import decode
 
 
@@ -23,7 +25,7 @@ def test_protobuf_commands_reject_unscoped_or_malformed_requests_before_owner() 
         LiveAuth("read-only-api-test-" * 3),
         transport=httpx.MockTransport(owner),
     )
-    app = create_app(live=live)
+    app = create_app(instances=Instances({"sim": live}, [Instance("sim", "simnow_trading")]))
     with TestClient(app, base_url="http://127.0.0.1") as client:
         path = f"/api/streams/{uuid4()}/control"
         valid = api_pb2.ControlRequest(action="STOP", request_id=str(uuid4())).SerializeToString()

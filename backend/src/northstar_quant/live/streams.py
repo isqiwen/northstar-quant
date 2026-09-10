@@ -14,26 +14,50 @@ import threading
 import time
 from datetime import UTC, datetime
 from decimal import Decimal
+from pathlib import Path
 from typing import cast
 from uuid import UUID
 
-from sqlalchemy import Connection, Engine, text
+from sqlalchemy import JSON, Connection, Engine, Uuid
+from sqlalchemy import text as sql_text
+from sqlalchemy.sql.selectable import TextualSelect
 
 from northstar_quant import code_revision
 from northstar_quant.accounting.baselines import BrokerBaselines
 from northstar_quant.accounting.ledger import BrokerLedger
 from northstar_quant.broker import ctp
-from northstar_quant.broker.records import BrokerEvent, BrokerRecords
+from northstar_quant.broker.records import BrokerEvent, BrokerRecords, EvidenceTimestamp
 from northstar_quant.broker.settings import configured_profile, load_credentials
 from northstar_quant.broker.stream_records import append_stream_event, read_stream_archive
 from northstar_quant.data_management.broker import resolve_broker_contract, verify_broker_contract
 from northstar_quant.data_management.library import DataLibrary
 from northstar_quant.live.market import advance_market, idle_reason
+from northstar_quant.live.storage import KernelLock, write_transaction
 from northstar_quant.research.configuration import ResearchConfig
 from northstar_quant.research.configurations import ConfigurationStore
 
 _STREAM_LOCK = 728401929
 _ACTIVE = {"STARTING", "RECEIVING", "STOP_REQUESTED"}
+
+
+def text(statement: str) -> TextualSelect:
+    """Describe the persisted receipt values returned by this module's SQL."""
+    return sql_text(statement).columns(
+        binding=JSON,
+        state=JSON,
+        event=JSON,
+        result=JSON,
+        checkpoint=JSON,
+        stream_id=Uuid,
+        query_batch_id=Uuid,
+        baseline_id=Uuid,
+        account_entry_id=Uuid,
+        request_id=Uuid,
+        entry_id=Uuid,
+        created_at=EvidenceTimestamp(),
+        updated_at=EvidenceTimestamp(),
+        committed_at=EvidenceTimestamp(),
+    )
 
 
 def _hash(value: object) -> str:
@@ -53,6 +77,66 @@ def _object(value: object) -> dict[str, object]:
 
 
 def initialize_streams(connection: Connection) -> None:
+    if connection.dialect.name == "sqlite":
+        for statement in """
+        CREATE TABLE IF NOT EXISTS broker_streams (
+            stream_id CHAR(32) PRIMARY KEY,
+            query_batch_id CHAR(32) NOT NULL REFERENCES broker_query_batches(batch_id),
+            configuration_id varchar(64) NOT NULL REFERENCES paper_configurations(configuration_id),
+            binding JSON NOT NULL, binding_hash varchar(64) NOT NULL,
+            status varchar(24) NOT NULL, paused boolean NOT NULL,
+            reason varchar(96) NOT NULL, received integer NOT NULL DEFAULT 0,
+            cursor integer NOT NULL DEFAULT 0, byte_count bigint NOT NULL DEFAULT 0,
+            state JSON NOT NULL, state_hash varchar(64) NOT NULL,
+            created_at TEXT NOT NULL DEFAULT (clock_timestamp()),
+            updated_at TEXT NOT NULL DEFAULT (clock_timestamp()),
+            CHECK (cursor >= 0 AND cursor <= received AND received <= 100000)
+        );
+        CREATE TABLE IF NOT EXISTS broker_stream_events (
+            stream_id CHAR(32) REFERENCES broker_streams(stream_id), sequence integer,
+            event JSON NOT NULL, event_hash varchar(64) NOT NULL,
+            committed_at TEXT NOT NULL DEFAULT (clock_timestamp()),
+            PRIMARY KEY (stream_id, sequence)
+        );
+        CREATE TABLE IF NOT EXISTS broker_stream_steps (
+            stream_id CHAR(32) REFERENCES broker_streams(stream_id), sequence integer,
+            result JSON NOT NULL, result_hash varchar(64) NOT NULL,
+            committed_at TEXT NOT NULL DEFAULT (clock_timestamp()),
+            PRIMARY KEY (stream_id, sequence),
+            FOREIGN KEY (stream_id, sequence) REFERENCES broker_stream_events(stream_id, sequence)
+        );
+        CREATE TABLE IF NOT EXISTS broker_stream_commands (
+            request_id CHAR(32) PRIMARY KEY,
+            stream_id CHAR(32) NOT NULL REFERENCES broker_streams(stream_id),
+            action varchar(12) NOT NULL, result JSON NOT NULL,
+            committed_at TEXT NOT NULL DEFAULT (clock_timestamp())
+        );
+""".split(";"):
+            if statement.strip():
+                connection.exec_driver_sql(statement)
+        changed = " OR ".join(
+            f"OLD.{field} IS NOT NEW.{field}"
+            for field in (
+                "stream_id",
+                "query_batch_id",
+                "configuration_id",
+                "binding",
+                "binding_hash",
+                "created_at",
+            )
+        )
+        connection.exec_driver_sql(
+            "CREATE TRIGGER IF NOT EXISTS stream_binding_update BEFORE UPDATE ON broker_streams "
+            f"WHEN {changed} BEGIN SELECT RAISE(ABORT, 'Stream binding is immutable'); END"
+        )
+        for table in ("broker_stream_events", "broker_stream_steps", "broker_stream_commands"):
+            for action in ("UPDATE", "DELETE"):
+                connection.exec_driver_sql(
+                    f"CREATE TRIGGER IF NOT EXISTS immutable_{table}_{action} "
+                    f"BEFORE {action} ON {table} "
+                    "BEGIN SELECT RAISE(ABORT, 'Stream facts are immutable'); END"
+                )
+        return
     connection.exec_driver_sql("""
         CREATE TABLE IF NOT EXISTS broker_streams (
             stream_id uuid PRIMARY KEY,
@@ -200,19 +284,29 @@ class LiveStreams:
             created = False
             try:
                 for key in (_STREAM_LOCK, account_key):
+                    if owner.dialect.name == "sqlite":
+                        path = Path(str(self._engine.url.database) + f".{key}")
+                        try:
+                            lock = KernelLock(path)
+                        except BlockingIOError as exc:
+                            raise ValueError(
+                                "a SimNow receiver or account query is already running"
+                            ) from exc
+                        owner.info.setdefault("live_locks", []).append(lock)
+                        continue
                     if not owner.execute(
                         text("SELECT pg_try_advisory_lock(:key)"), {"key": key}
                     ).scalar_one():
                         raise ValueError("a SimNow receiver or account query is already running")
                     locked.append(key)
-                with self._engine.begin() as connection:
+                with write_transaction(self._engine) as connection:
                     connection.execute(
                         text("""
                         INSERT INTO broker_streams
                         (stream_id, query_batch_id, configuration_id, binding, binding_hash,
                          status, paused, reason, state, state_hash)
-                        VALUES (:id, :query, :config, CAST(:binding AS jsonb), :hash,
-                                'STARTING', false, 'CONNECTING', '{}'::jsonb, :state_hash)
+                        VALUES (:id, :query, :config, :binding, :hash,
+                                'STARTING', false, 'CONNECTING', '{}', :state_hash)
                     """),
                         {
                             "id": request_id,
@@ -251,6 +345,8 @@ class LiveStreams:
     @staticmethod
     def _unlock(owner: Connection, keys: list[int]) -> None:
         try:
+            for held in owner.info.pop("live_locks", []):
+                held.close()
             for key in reversed(keys):
                 owner.execute(text("SELECT pg_advisory_unlock(:key)"), {"key": key})
         except Exception:
@@ -271,7 +367,12 @@ class LiveStreams:
 
         failure: str | None = None
         try:
-            owner_pid = owner.execute(text("SELECT pg_backend_pid()")).scalar_one()
+            pid_query = "SELECT 1" if owner.dialect.name == "sqlite" else "SELECT pg_backend_pid()"
+            owner_pid = owner.execute(text(pid_query)).scalar_one()
+            database_path = (
+                Path(str(self._engine.url.database)) if owner.dialect.name == "sqlite" else None
+            )
+            database_identity = database_path.stat() if database_path else None
             last_check = 0.0
 
             def should_stop() -> bool:
@@ -280,15 +381,19 @@ class LiveStreams:
                     return True
                 if time.monotonic() - last_check < 0.5:
                     return False
-                if (
-                    owner.invalidated
-                    or owner.execute(text("SELECT pg_backend_pid()")).scalar_one() != owner_pid
-                ):
+                if database_path is not None and database_identity is not None:
+                    observed = database_path.stat()
+                    if (observed.st_dev, observed.st_ino) != (
+                        database_identity.st_dev,
+                        database_identity.st_ino,
+                    ):
+                        raise ValueError("receiver database file was replaced")
+                if owner.invalidated or owner.execute(text(pid_query)).scalar_one() != owner_pid:
                     raise ValueError("receiver ownership connection was lost")
                 last_check = time.monotonic()
                 return self._poll(identifier, stopped)
 
-            with self._engine.begin() as connection:
+            with write_transaction(self._engine) as connection:
                 connection.execute(
                     text("""
                     UPDATE broker_streams SET status='RECEIVING', updated_at=clock_timestamp()
@@ -324,7 +429,7 @@ class LiveStreams:
                 self._unlock(owner, locks)
 
     def _terminal(self, identifier: UUID, status: str, reason: str, *, paused: bool) -> None:
-        with self._engine.begin() as connection:
+        with write_transaction(self._engine) as connection:
             connection.execute(
                 text("""
                 UPDATE broker_streams SET status=:status, reason=:reason, paused=:paused,
@@ -336,7 +441,7 @@ class LiveStreams:
     def _poll(self, identifier: UUID, stopped: threading.Event) -> bool:
         if stopped.is_set():
             return True
-        with self._engine.begin() as connection:
+        with write_transaction(self._engine) as connection:
             self._timeouts(connection)
             row = self._row(connection, identifier, lock=True)
             if row["status"] == "STOP_REQUESTED":
@@ -351,7 +456,7 @@ class LiveStreams:
                     connection.execute(
                         text("""
                         UPDATE broker_streams SET paused=:paused, reason=:reason,
-                        state=CAST(:state AS jsonb), state_hash=:hash,
+                        state=:state, state_hash=:hash,
                         updated_at=clock_timestamp() WHERE stream_id=:id
                     """),
                         {
@@ -366,6 +471,8 @@ class LiveStreams:
 
     @staticmethod
     def _timeouts(connection: Connection) -> None:
+        if connection.dialect.name == "sqlite":
+            return
         connection.exec_driver_sql("SET LOCAL statement_timeout = '2s'")
         connection.exec_driver_sql("SET LOCAL lock_timeout = '500ms'")
 
@@ -375,7 +482,7 @@ class LiveStreams:
             connection.execute(
                 text(
                     "SELECT * FROM broker_streams WHERE stream_id=:id"
-                    + (" FOR UPDATE" if lock else "")
+                    + (" FOR UPDATE" if lock and connection.dialect.name == "postgresql" else "")
                 ),
                 {"id": identifier},
             )
@@ -395,7 +502,7 @@ class LiveStreams:
     def accept(self, identifier: UUID, event: BrokerEvent) -> None:
         """Persist actual copied content before processing; retries never advance twice."""
         encoded = event.to_dict()
-        with self._engine.begin() as connection:
+        with write_transaction(self._engine) as connection:
             self._timeouts(connection)
             row = self._row(connection, identifier, lock=True)
             append_stream_event(
@@ -408,7 +515,7 @@ class LiveStreams:
         # distinct commits. A failed application leaves the source for explicit
         # local catch-up. Pausing shadow never prevents booking actual fills.
         progress = self._ledger.advance_stream(identifier, event.sequence)
-        with self._engine.begin() as connection:
+        with write_transaction(self._engine) as connection:
             self._timeouts(connection)
             row = self._row(connection, identifier, lock=True)
             if event.sequence <= cast(int, row["cursor"]):
@@ -495,7 +602,7 @@ class LiveStreams:
             connection.execute(
                 text("""
                 INSERT INTO broker_stream_steps(stream_id, sequence, result, result_hash)
-                VALUES (:id, :seq, CAST(:result AS jsonb), :hash)
+                VALUES (:id, :seq, :result, :hash)
             """),
                 {
                     "id": identifier,
@@ -506,7 +613,7 @@ class LiveStreams:
             )
             connection.execute(
                 text("""
-                UPDATE broker_streams SET cursor=:seq, state=CAST(:state AS jsonb),
+                UPDATE broker_streams SET cursor=:seq, state=:state,
                     state_hash=:hash,
                     paused=:paused, reason=:reason, updated_at=clock_timestamp() WHERE stream_id=:id
             """),
@@ -530,7 +637,7 @@ class LiveStreams:
     def control(self, identifier: UUID, action: str, *, request_id: UUID) -> dict[str, object]:
         if action not in {"PAUSE", "RESUME", "STOP"}:
             raise ValueError("stream control must be PAUSE, RESUME or STOP")
-        with self._engine.begin() as connection:
+        with write_transaction(self._engine) as connection:
             self._timeouts(connection)
             row = self._row(connection, identifier, lock=True)
             previous = (
@@ -577,7 +684,7 @@ class LiveStreams:
             connection.execute(
                 text("""
                 UPDATE broker_streams SET status=:status, paused=:paused, reason=:reason,
-                    state=CAST(:state AS jsonb), state_hash=:hash, updated_at=clock_timestamp()
+                    state=:state, state_hash=:hash, updated_at=clock_timestamp()
                 WHERE stream_id=:id
             """),
                 {
@@ -592,7 +699,7 @@ class LiveStreams:
             connection.execute(
                 text("""
                 INSERT INTO broker_stream_commands(request_id, stream_id, action, result)
-                VALUES (:request, :id, :action, CAST(:result AS jsonb))
+                VALUES (:request, :id, :action, :result)
             """),
                 {
                     "request": request_id,
@@ -658,7 +765,7 @@ class LiveStreams:
                     text("""
                 SELECT sequence, result, result_hash, committed_at FROM broker_stream_steps
                 WHERE stream_id=:id AND sequence<=:cursor AND
-                    (result->'intent' <> 'null'::jsonb OR result->'bar' <> 'null'::jsonb)
+                    (result->'intent' <> 'null' OR result->'bar' <> 'null')
                 ORDER BY sequence DESC LIMIT 20
             """),
                     {"id": identifier, "cursor": row["cursor"]},

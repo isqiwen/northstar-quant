@@ -21,6 +21,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.sql.elements import ColumnElement
 
+from northstar_quant.broker.records import EvidenceTimestamp
 from northstar_quant.data_management.catalog.models import (
     CalendarTradingDay,
     CanonicalBar,
@@ -256,7 +257,8 @@ class MinuteQualityEvaluationService:
     def _begin_consistent_snapshot(self) -> None:
         """Use one repeatable PostgreSQL view without requiring a write lock."""
 
-        self._session.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ"))
+        if self._session.get_bind().dialect.name == "postgresql":
+            self._session.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ"))
 
     def _load_minute_series(self, series_id: UUID) -> DataSeries:
         series = self._session.scalar(
@@ -1041,7 +1043,7 @@ def _inclusive_days(from_trading_day: date, to_trading_day: date) -> Iterable[da
 def _assert_cutoff_is_not_after_snapshot(as_of: datetime, db_session: Session) -> None:
     """Reject an unverifiable future cutoff using the authority database clock."""
 
-    snapshot_now = db_session.scalar(select(func.current_timestamp()))
+    snapshot_now = db_session.scalar(select(func.current_timestamp(type_=EvidenceTimestamp())))
     if not isinstance(snapshot_now, datetime):  # pragma: no cover
         raise MinuteQualityEvaluationError(
             "MINUTE_QUALITY_AUTHORITY_TIME_UNAVAILABLE",

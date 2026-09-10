@@ -154,8 +154,8 @@
       "cwd": "${workspaceFolder}",
       "envFile": "${workspaceFolder}/.vscode/test.env",
       "env": {
-        "NORTHSTAR_DATABASE_URL": "postgresql+psycopg://northstar:northstar_local@127.0.0.1:15432/northstar_live_vscode",
         "NORTHSTAR_DATABASE_OWNER": "live",
+        "NORTHSTAR_LIVE_STATE_DIR": "${workspaceFolder}/.northstar/vscode/live/state",
         "NORTHSTAR_DATA_DIR": "${workspaceFolder}/.northstar/vscode/live-sources",
         "NORTHSTAR_LIVE_ENVIRONMENT": "simnow_trading",
         "NORTHSTAR_SIMNOW_USER_ID": "",

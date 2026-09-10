@@ -14,9 +14,9 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy import (
+    JSON,
     Column,
     Connection,
-    DateTime,
     Engine,
     Integer,
     MetaData,
@@ -26,15 +26,18 @@ from sqlalchemy import (
     select,
     text,
 )
-from sqlalchemy.dialects.postgresql import JSONB, insert
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
 from northstar_quant import code_revision
 from northstar_quant.accounting.baselines import BrokerBaselines
 from northstar_quant.accounting.ledger import BrokerLedger
 from northstar_quant.accounting.observations import compare_account_amounts
 from northstar_quant.broker.account_reports import account_observation
-from northstar_quant.broker.records import BrokerRecords
+from northstar_quant.broker.records import BrokerRecords, EvidenceTimestamp
+from northstar_quant.live.storage import write_transaction
 
 _metadata = MetaData()
 _entries = Table(
@@ -44,8 +47,8 @@ _entries = Table(
     Column("baseline_id", PGUUID(as_uuid=True), nullable=False),
     Column("source_batch_id", PGUUID(as_uuid=True), nullable=False),
     Column("ordinal", Integer, nullable=False),
-    Column("recorded_at", DateTime(timezone=True), nullable=False),
-    Column("document", JSONB, nullable=False),
+    Column("recorded_at", EvidenceTimestamp(), nullable=False),
+    Column("document", JSON().with_variant(JSONB, "postgresql"), nullable=False),
     Column("sha256", String(64), nullable=False),
     UniqueConstraint("baseline_id", "ordinal"),
     UniqueConstraint("baseline_id", "source_batch_id"),
@@ -54,6 +57,15 @@ _entries = Table(
 
 def initialize_broker_funds(connection: Connection) -> None:
     _metadata.create_all(connection)
+    if connection.dialect.name == "sqlite":
+        for table in ("broker_funds_entries",):
+            for action in ("UPDATE", "DELETE"):
+                connection.exec_driver_sql(
+                    f"CREATE TRIGGER IF NOT EXISTS immutable_{table}_{action} "
+                    f"BEFORE {action} ON {table} "
+                    "BEGIN SELECT RAISE(ABORT, 'Confirmed facts are immutable'); END"
+                )
+        return
     connection.exec_driver_sql("""
         CREATE OR REPLACE FUNCTION broker_protect_funds() RETURNS trigger AS $$
         BEGIN
@@ -85,8 +97,6 @@ class BrokerFunds:
     """One bounded account book of cumulative observations and signed intervals."""
 
     def __init__(self, engine: Engine) -> None:
-        if engine.dialect.name != "postgresql":
-            raise ValueError("broker money book requires PostgreSQL")
         self._engine = engine
         self._records = BrokerRecords(engine)
         self._baselines = BrokerBaselines(engine)
@@ -156,8 +166,9 @@ class BrokerFunds:
         key = int.from_bytes(
             hashlib.sha256(baseline_id.bytes + b"money").digest()[:8], "big", signed=True
         )
-        with self._engine.begin() as connection:
-            connection.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": key})
+        with write_transaction(self._engine) as connection:
+            if connection.dialect.name == "postgresql":
+                connection.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": key})
             try:
                 saved = self.get(request_id)
             except LookupError:
@@ -253,7 +264,7 @@ class BrokerFunds:
                 ],
             }
             connection.execute(
-                insert(_entries)
+                (sqlite_insert if connection.dialect.name == "sqlite" else pg_insert)(_entries)
                 .values(
                     entry_id=request_id,
                     baseline_id=baseline_id,
