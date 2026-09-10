@@ -31,6 +31,7 @@ def test_paper_commands_require_browser_session_and_preserve_fixed_state(
         "price_tick": "1",
         "multiplier": "10",
         "trading_day": "2026-01-07",
+        "session_kind": "DAY",
         "session_open": "2026-01-07T01:00:00Z",
         "session_close": "2026-01-07T01:04:00Z",
         "source_name": "paper-http-check",

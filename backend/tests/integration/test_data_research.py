@@ -42,6 +42,7 @@ def test_import_research_and_reopen_preserve_complete_result(
         "price_tick": "1",
         "multiplier": "10",
         "trading_day": "2026-01-07",
+        "session_kind": "DAY",
         "session_open": "2026-01-07T01:00:00Z",
         "session_close": "2026-01-07T01:08:00Z",
         "source_name": "research-http-check",

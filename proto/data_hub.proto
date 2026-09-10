@@ -70,6 +70,7 @@ message HttpError {
 
 
 message ImportSpecification {
+  optional string session_kind = 16 [json_name = "session_kind", (northstar.web.required_field) = true, (northstar.web.allowed_values) = "[\"DAY\",\"NIGHT\"]"];
   optional string availability_basis = 1 [json_name = "availability_basis", (northstar.web.required_field) = true];
   optional string availability_note = 2 [json_name = "availability_note", (northstar.web.required_field) = true];
   optional string currency = 3 [json_name = "currency", (northstar.web.required_field) = true];

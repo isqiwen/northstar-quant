@@ -11,7 +11,7 @@
 |---|---|---|
 | 1 | [#46 响应规范化与质量版本](https://github.com/isqiwen/northstar-quant/issues/46) | 缺字段/坏量价不发布，原文、规则、问题和新旧版本可追溯；本轮正在交付第一步 |
 | 并行核实 | [#41 Tushare真实来源验收](https://github.com/isqiwen/northstar-quant/issues/41) | 全量同步/补缺正确，明确接口权限与真实样本；不要求全市场已下载完 |
-| 2 | [#18 合约、时段与信息时钟](https://github.com/isqiwen/northstar-quant/issues/18) | 夜盘/跨日固定研究清单、有效条款引用与修订语义 |
+| 2 | [#18 合约、时段与信息时钟](https://github.com/isqiwen/northstar-quant/issues/18) | 已接通显式单夜盘发布/重读；待真实日历、跨日清单、有效条款与修订语义 |
 | 3 | [#19 统一期货账户](https://github.com/isqiwen/northstar-quant/issues/19) | 多空今昨仓、费用、结算、保证金和权益逐项勾稽 |
 | 4 | [#20 事件原子性与受约束成交](https://github.com/isqiwen/northstar-quant/issues/20) | 失败不留半状态，成交遵守量价/时段，部分成交与残量可解释 |
 | 5 | [#21 可核对报告与固定评价](https://github.com/isqiwen/northstar-quant/issues/21) | 同一账本报告、固定窗口/基准和明确样本外边界 |

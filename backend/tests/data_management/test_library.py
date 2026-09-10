@@ -15,7 +15,8 @@ import northstar_quant.data_management.library as library_module
 import northstar_quant.data_management.processing as processing_module
 from northstar_quant.data_management.files import SourceFiles
 from northstar_quant.data_management.library import AdmissionRejected, DataLibrary, manifest
-from northstar_quant.data_management.research import ImportSpec, ResearchDataset
+from northstar_quant.data_management.research import ResearchDataset
+from northstar_quant.data_management.research_input import ImportSpec
 from northstar_quant.research.artifacts import ResearchUsages
 from northstar_quant.research.backtesting import run_research
 from northstar_quant.research.configuration import ResearchConfig

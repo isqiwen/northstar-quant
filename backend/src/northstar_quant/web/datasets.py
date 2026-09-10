@@ -1,5 +1,6 @@
 """Read-only fixed dataset presentation shared by Data Hub and Research."""
 
+from typing import Literal
 from uuid import UUID
 
 from fastapi import FastAPI
@@ -11,6 +12,7 @@ from northstar_quant.web.requests import ApiModel
 
 
 class ImportSpecification(ApiModel):
+    session_kind: Literal["DAY", "NIGHT"]
     exchange: str
     symbol: str
     product: str

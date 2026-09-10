@@ -40,6 +40,18 @@ export function SourceFields() {
         ))}
       </div>
       <Form.Item
+        name={["spec", "session_kind"]}
+        label="交易时段"
+        rules={[{ required: true }]}
+      >
+        <Select
+          options={[
+            { value: "DAY", label: "日盘" },
+            { value: "NIGHT", label: "夜盘（显式指定所属交易日）" },
+          ]}
+        />
+      </Form.Item>
+      <Form.Item
         name={["spec", "availability_basis"]}
         label="可得时间依据"
         rules={[{ required: true }]}

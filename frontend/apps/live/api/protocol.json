@@ -884,6 +884,13 @@
     },
     "northstar.live.ImportSpecification": {
       "fields": {
+        "session_kind": {
+          "id": 16,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
         "availability_basis": {
           "id": 1,
           "presence": true,

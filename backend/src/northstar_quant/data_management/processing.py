@@ -20,7 +20,8 @@ from northstar_quant import code_revision
 
 from .library import DataLibrary, _attempts
 from .maintenance import library_write
-from .research import ImportSpec, _import_csv, _import_stream
+from .research import _import_csv, _import_stream
+from .research_input import ImportSpec
 
 _PROCESSING_LOCK = 0x4E535150524F43
 

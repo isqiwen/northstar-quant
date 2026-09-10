@@ -20,7 +20,8 @@ from northstar_quant.data_management.catalog.models import (
 )
 from northstar_quant.data_management.files import SourceFiles
 from northstar_quant.data_management.library import DataLibrary
-from northstar_quant.data_management.research import ImportSpec, ResearchDataset
+from northstar_quant.data_management.research import ResearchDataset
+from northstar_quant.data_management.research_input import ImportSpec
 
 
 def _receive(library: DataLibrary, path: Path, spec: ImportSpec) -> ResearchDataset:
@@ -51,6 +52,7 @@ def _spec() -> ImportSpec:
             "price_tick": "1",
             "multiplier": "10",
             "trading_day": "2026-01-07",
+            "session_kind": "DAY",
             "session_open": "2026-01-07T01:00:00Z",
             "session_close": "2026-01-07T01:03:00Z",
             "source_name": "SYNTHETIC",
@@ -299,3 +301,72 @@ def test_source_evidence_drift_blocks_both_opening_and_research_loading(
         library.describe_dataset(dataset.snapshot_id)
     with pytest.raises(ValueError, match="source"):
         library.load_dataset(dataset.snapshot_id)
+
+
+@pytest.mark.parametrize(
+    ("opened", "trading_day"),
+    [("2026-01-06T15:59:00Z", "2026-01-07"), ("2026-01-09T15:59:00Z", "2026-01-12")],
+)
+def test_night_publication_preserves_declared_day_across_midnight_and_weekend(
+    postgres_engine: Engine,
+    clean_database: None,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    opened: str,
+    trading_day: str,
+) -> None:
+    from datetime import datetime
+
+    from northstar_quant.data_management.publications import PublishedDatasets
+    from northstar_quant.research.backtesting.session import TradingSession
+    from northstar_quant.research.configuration import ResearchConfig
+
+    del clean_database
+    monkeypatch.setattr("northstar_quant.data_management.library.code_revision", lambda: "a" * 40)
+    monkeypatch.setattr(
+        "northstar_quant.data_management.processing.code_revision", lambda: "a" * 40
+    )
+    start = datetime.fromisoformat(opened)
+    raw = _spec().to_mapping() | {
+        "session_kind": "NIGHT",
+        "trading_day": trading_day,
+        "session_open": opened,
+        "session_close": (start + timedelta(minutes=3)).isoformat().replace("+00:00", "Z"),
+    }
+    spec = ImportSpec.from_mapping(raw)
+    path = tmp_path / "night.csv"
+    lines = ["event_time,available_at,source_record_id,open,high,low,close,volume"]
+    for index in range(3):
+        event = (start + timedelta(minutes=index)).isoformat().replace("+00:00", "Z")
+        available = (
+            (start + timedelta(minutes=index + 1, seconds=2)).isoformat().replace("+00:00", "Z")
+        )
+        lines.append(f"{event},{available},night-{index},100,100,100,100,10")
+    path.write_text("\n".join(lines) + "\n")
+    library = DataLibrary(postgres_engine, SourceFiles(tmp_path / "archive"))
+    dataset = _receive(library, path, spec)
+    # Research's Parquet reader has no Data Hub database or source-file access.
+    reopened = PublishedDatasets(library.publications.root).load_dataset(dataset.snapshot_id)
+    assert dataset == reopened
+    assert reopened.details is not None
+    assert reopened.details.import_spec == spec
+    assert {bar.trading_day.isoformat() for bar in reopened.bars} == {trading_day}
+    assert all(bar.available_at == bar.completed_at + timedelta(seconds=2) for bar in reopened.bars)
+    checkpoints = []
+    for fixed in (dataset, reopened):
+        runtime = TradingSession(
+            fixed.market,
+            ResearchConfig(),
+            snapshot_id=fixed.snapshot_id,
+            content_hash=fixed.content_hash,
+            data_details=fixed.details,
+        )
+        for bar in fixed.bars:
+            runtime.advance(bar)
+        checkpoints.append(runtime.checkpoint())
+    assert checkpoints[0] == checkpoints[1]
+    assert checkpoints[0]["trading_day"] == trading_day
+    with pytest.raises(ValueError, match="DAY session"):
+        ImportSpec.from_mapping(raw | {"session_kind": "DAY"})
+    with pytest.raises(ValueError, match="NIGHT session"):
+        ImportSpec.from_mapping(raw | {"trading_day": "2026-01-06"})

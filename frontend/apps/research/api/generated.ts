@@ -174,6 +174,7 @@ export type HttpError = {
   url?: string | null;
 };
 export type ImportSpecification = {
+  session_kind: "DAY" | "NIGHT";
   availability_basis: string;
   availability_note: string;
   currency: string;

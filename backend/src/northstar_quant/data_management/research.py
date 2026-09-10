@@ -2,8 +2,8 @@
 
 Callers supply market/session facts once. This Module owns catalog identity,
 source receipts, publication and verified immutable reads; no ORM row crosses
-its Interface. The current input is a complete one-minute DAY session whose
-local calendar date is the declared trading day.
+its Interface. The current input is one complete one-minute DAY or NIGHT session
+with an explicitly declared trading day; calendar holidays are not inferred.
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import TYPE_CHECKING
 from uuid import UUID
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import Engine, select, text
 from sqlalchemy.orm import Session
@@ -58,6 +58,7 @@ from northstar_quant.data_management.quality.import_service import (
     current_import_quality_state,
 )
 from northstar_quant.data_management.quality.minute_service import MinuteQualityEvaluationService
+from northstar_quant.data_management.research_input import ImportSpec
 from northstar_quant.data_management.snapshots.publication import (
     PublishDatasetSnapshotCommand,
     SnapshotImportQualityPinSelection,
@@ -71,159 +72,6 @@ from northstar_quant.market_data import Market, MarketBar
 
 if TYPE_CHECKING:
     from northstar_quant.data_management.stream import StreamMinutes
-
-
-@dataclass(frozen=True, slots=True)
-class ImportSpec:
-    exchange: str
-    symbol: str
-    product: str
-    timezone: str
-    currency: str
-    quantity_unit: str
-    price_tick: Decimal
-    multiplier: Decimal
-    trading_day: date
-    session_open: datetime
-    session_close: datetime
-    source_name: str
-    source_reference: str
-    availability_basis: str
-    availability_note: str
-
-    def __post_init__(self) -> None:
-        for name in ("exchange", "symbol", "product", "quantity_unit"):
-            value = getattr(self, name)
-            if (
-                not isinstance(value, str)
-                or re.fullmatch(r"[A-Z0-9][A-Z0-9._-]{0,31}", value) is None
-            ):
-                raise ValueError(
-                    f"data.{name} must be an uppercase identifier of at most 32 characters"
-                )
-        if (
-            not isinstance(self.source_name, str)
-            or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}", self.source_name) is None
-        ):
-            raise ValueError(
-                "data.source_name must be a source identifier of at most 64 characters"
-            )
-        for name in ("source_reference", "availability_note"):
-            value = getattr(self, name)
-            if (
-                not isinstance(value, str)
-                or not value.strip()
-                or len(value) > 1024
-                or any(ord(character) < 32 or ord(character) == 127 for character in value)
-            ):
-                raise ValueError(f"data.{name} must be nonempty text of at most 1024 characters")
-        if not isinstance(self.availability_basis, str) or self.availability_basis not in {
-            "SOURCE_DECLARED",
-            "FINAL_REVISED",
-            "SYNTHETIC",
-            "LOCAL_CAPTURE_RECONSTRUCTED",
-        }:
-            raise ValueError(
-                "data.availability_basis is not a supported current information-clock basis"
-            )
-        if not isinstance(self.currency, str) or re.fullmatch(r"[A-Z]{3}", self.currency) is None:
-            raise ValueError("data.currency must be a three-letter uppercase currency")
-        try:
-            timezone = ZoneInfo(self.timezone)
-        except (TypeError, ValueError, ZoneInfoNotFoundError) as error:
-            raise ValueError("data.timezone must name an IANA timezone") from error
-        for name in ("price_tick", "multiplier"):
-            value = getattr(self, name)
-            if (
-                not isinstance(value, Decimal)
-                or not value.is_finite()
-                or not Decimal(0) < value < Decimal("1000000000000")
-                or int(value.as_tuple().exponent) < -12
-            ):
-                raise ValueError(f"data.{name} must be positive with at most 12 decimal places")
-        if type(self.trading_day) is not date:
-            raise ValueError("data.trading_day must be a date")
-        for name in ("session_open", "session_close"):
-            at = getattr(self, name)
-            if (
-                not isinstance(at, datetime)
-                or at.utcoffset() != timedelta(0)
-                or at.second != 0
-                or at.microsecond != 0
-                or at.astimezone(timezone).date() != self.trading_day
-            ):
-                raise ValueError(f"data.{name} must be UTC minute-aligned on the local trading day")
-        if self.session_open >= self.session_close:
-            raise ValueError("data.session_open must precede session_close")
-
-    @classmethod
-    def from_mapping(cls, value: dict[str, object]) -> ImportSpec:
-        expected = {
-            "exchange",
-            "symbol",
-            "product",
-            "timezone",
-            "currency",
-            "quantity_unit",
-            "price_tick",
-            "multiplier",
-            "trading_day",
-            "session_open",
-            "session_close",
-            "source_name",
-            "source_reference",
-            "availability_basis",
-            "availability_note",
-        }
-        if not isinstance(value, dict) or set(value) != expected:
-            raise ValueError("data input must contain exactly the current market/session fields")
-        strings: dict[str, str] = {}
-        for key, item in value.items():
-            maximum = 1024 if key in {"source_reference", "availability_note"} else 128
-            if not isinstance(item, str) or not item or len(item) > maximum:
-                raise ValueError(f"data.{key} must be a bounded nonempty string")
-            strings[key] = item
-        for key in ("price_tick", "multiplier"):
-            if re.fullmatch(r"(?:0|[1-9][0-9]{0,11})(?:\.[0-9]{1,12})?", strings[key]) is None:
-                raise ValueError(f"data.{key} must be a plain positive decimal string")
-        if re.fullmatch(r"\d{4}-\d{2}-\d{2}", strings["trading_day"]) is None:
-            raise ValueError("data.trading_day must use YYYY-MM-DD")
-        return cls(
-            exchange=strings["exchange"],
-            symbol=strings["symbol"],
-            product=strings["product"],
-            timezone=strings["timezone"],
-            currency=strings["currency"],
-            quantity_unit=strings["quantity_unit"],
-            price_tick=Decimal(strings["price_tick"]),
-            multiplier=Decimal(strings["multiplier"]),
-            trading_day=date.fromisoformat(strings["trading_day"]),
-            session_open=_utc(strings["session_open"]),
-            session_close=_utc(strings["session_close"]),
-            source_name=strings["source_name"],
-            source_reference=strings["source_reference"],
-            availability_basis=strings["availability_basis"],
-            availability_note=strings["availability_note"],
-        )
-
-    def to_mapping(self) -> dict[str, object]:
-        return {
-            "exchange": self.exchange,
-            "symbol": self.symbol,
-            "product": self.product,
-            "timezone": self.timezone,
-            "currency": self.currency,
-            "quantity_unit": self.quantity_unit,
-            "price_tick": format(self.price_tick.normalize(), "f"),
-            "multiplier": format(self.multiplier.normalize(), "f"),
-            "trading_day": self.trading_day.isoformat(),
-            "session_open": self.session_open.isoformat().replace("+00:00", "Z"),
-            "session_close": self.session_close.isoformat().replace("+00:00", "Z"),
-            "source_name": self.source_name,
-            "source_reference": self.source_reference,
-            "availability_basis": self.availability_basis,
-            "availability_note": self.availability_note,
-        }
 
 
 @dataclass(frozen=True, slots=True)
@@ -380,8 +228,9 @@ class DatasetDetails:
             "A converted CSV is not an upstream provider response; only declared, linked "
             "upstream files constitute retained upstream evidence.",
             "Receipt received_at is local ingestion metadata, not historical publication time.",
-            "Research currently supports one contract and one continuous DAY session on one "
-            "local trading day; it does not replay revisions or perform daily settlement.",
+            "Research currently supports one contract and one continuous DAY or NIGHT session "
+            "with a declared trading day; calendar/holiday attribution is source-declared, "
+            "not independently verified. It does not perform daily settlement.",
         )
 
     def to_dict(self) -> dict[str, object]:
@@ -467,6 +316,7 @@ def _import_stream(
             price_tick=product.price_tick,
             multiplier=product.contract_multiplier,
             trading_day=reconstructed.session_open.astimezone(ZoneInfo("Asia/Shanghai")).date(),
+            session_kind="DAY",
             session_open=reconstructed.session_open,
             session_close=reconstructed.session_close,
             source_name="SIMNOW_CTP",
@@ -971,6 +821,7 @@ def _catalog(engine: Engine, spec: ImportSpec) -> UUID:
                 {
                     "timezone": spec.timezone,
                     "day": spec.trading_day.isoformat(),
+                    "kind": spec.session_kind,
                     "open": spec.session_open.isoformat(),
                     "close": spec.session_close.isoformat(),
                 }
@@ -999,7 +850,7 @@ def _catalog(engine: Engine, spec: ImportSpec) -> UUID:
                 calendar_id=calendar.id,
                 trading_day=spec.trading_day,
                 sequence=0,
-                kind="DAY",
+                kind=spec.session_kind,
                 opens_at=spec.session_open,
                 closes_at=spec.session_close,
             )
@@ -1033,7 +884,7 @@ class _ResearchCsv:
     """The current eight-column research source; market facts belong to ImportSpec."""
 
     media_type = "text/csv"
-    mapping_version = "research-session-csv/1"
+    mapping_version = "research-session-csv/2"
     job_kind = "RESEARCH_CSV_IMPORT"
     input_kind = "OPERATOR_FILE"
     retention_policy = "CONTROLLED"
@@ -1174,7 +1025,7 @@ class _CtpSegment(_ResearchCsv):
     """Actual JSON input and sampled minute output share the canonical import behavior."""
 
     media_type = "application/json"
-    mapping_version = "ctp-callback-minute/1"
+    mapping_version = "ctp-callback-minute/2"
     job_kind = "CTP_MINUTE_IMPORT"
     input_kind = "CTP_CALLBACK_SEGMENT"
 

@@ -370,8 +370,16 @@ def main() -> None:
                                 "/api/live/instances",
                                 {
                                     "instances": [
-                                        {"instance_id": "sim", "environment": "simnow_dev"},
-                                        {"instance_id": "other", "environment": "simnow_trading"},
+                                        {
+                                            "instance_id": "sim",
+                                            "environment": "SANDBOX",
+                                            "broker_profile": "simnow_dev",
+                                        },
+                                        {
+                                            "instance_id": "other",
+                                            "environment": "SANDBOX",
+                                            "broker_profile": "simnow_trading",
+                                        },
                                     ],
                                     "production_available": False,
                                 },
