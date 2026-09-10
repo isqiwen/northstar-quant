@@ -199,6 +199,7 @@ export type ExplorerRows = {
   fields: (Record<string, JsonValue>)[];
   versions: (Record<string, JsonValue>)[];
   note: string;
+  scan: Record<string, JsonValue>;
 };
 export type RevisionRequest = {
   before_id: string;

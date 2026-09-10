@@ -78,6 +78,17 @@ export function DataPanel({
           {result.export_allowed ? "" : "来源当前未开放导出权限。"}
         </p>
       </Card>
+      <details>
+        <summary>查询读取统计</summary>
+        <p className="muted">
+          涉及 {Number(result.scan.files)} 个文件；解码{" "}
+          {Number(result.scan.rows_decoded).toLocaleString()} 条记录， 读取{" "}
+          {Number(result.scan.row_groups_read)} /{" "}
+          {Number(result.scan.row_groups_total)} 个行组。 文件身份仍完整核验{" "}
+          {Number(result.scan.verified_bytes).toLocaleString()}{" "}
+          字节，行组裁剪减少解码， 不表示减少了文件哈希核验的读取量。
+        </p>
+      </details>
       {!result.rows.length ? (
         <Card>
           <Empty description="所选范围暂无已发布记录；请查看覆盖与质量" />

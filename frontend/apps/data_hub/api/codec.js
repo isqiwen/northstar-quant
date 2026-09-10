@@ -13840,6 +13840,7 @@ export const northstar = $root.northstar = (() => {
              * @property {Array.<google.protobuf.Struct.$Properties>|null} [fields] ExplorerRows fields
              * @property {Array.<google.protobuf.Struct.$Properties>|null} [versions] ExplorerRows versions
              * @property {string|null} [note] ExplorerRows note
+             * @property {google.protobuf.Struct.$Properties|null} [scan] ExplorerRows scan
              * @property {"export_allowed"} [_export_allowed] ExplorerRows _export_allowed
              * @property {"dataset"} [_dataset] ExplorerRows _dataset
              * @property {"scope"} [_scope] ExplorerRows _scope
@@ -13850,6 +13851,7 @@ export const northstar = $root.northstar = (() => {
              * @property {"offset"} [_offset] ExplorerRows _offset
              * @property {"limit"} [_limit] ExplorerRows _limit
              * @property {"note"} [_note] ExplorerRows _note
+             * @property {"scan"} [_scan] ExplorerRows _scan
              * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
              */
 
@@ -13879,6 +13881,7 @@ export const northstar = $root.northstar = (() => {
              *   fields?: Array.<google.protobuf.Struct.$Shape>|null;
              *   versions?: Array.<google.protobuf.Struct.$Shape>|null;
              *   note?: string|null;
+             *   scan?: google.protobuf.Struct.$Shape|null;
              *   $unknowns?: Array.<Uint8Array>;
              * } & (
              *   ({ _export_allowed?: undefined; export_allowed?: null }|{ _export_allowed?: "export_allowed"; export_allowed: boolean })
@@ -13900,6 +13903,8 @@ export const northstar = $root.northstar = (() => {
              *   ({ _limit?: undefined; limit?: null }|{ _limit?: "limit"; limit: number|Long })
              * ) & (
              *   ({ _note?: undefined; note?: null }|{ _note?: "note"; note: string })
+             * ) & (
+             *   ({ _scan?: undefined; scan?: null }|{ _scan?: "scan"; scan: google.protobuf.Struct.$Shape })
              * )} northstar.data_hub.ExplorerRows.$Shape
              */
 
@@ -14043,6 +14048,14 @@ export const northstar = $root.northstar = (() => {
              */
             ExplorerRows.prototype.note = null;
 
+            /**
+             * ExplorerRows scan.
+             * @member {google.protobuf.Struct.$Properties|null|undefined} scan
+             * @memberof northstar.data_hub.ExplorerRows
+             * @instance
+             */
+            ExplorerRows.prototype.scan = null;
+
             // OneOf field names bound to virtual getters and setters
             let $oneOfFields;
 
@@ -14157,6 +14170,17 @@ export const northstar = $root.northstar = (() => {
             });
 
             /**
+             * ExplorerRows _scan.
+             * @member {"scan"|undefined} _scan
+             * @memberof northstar.data_hub.ExplorerRows
+             * @instance
+             */
+            $Object.defineProperty(ExplorerRows.prototype, "_scan", {
+                get: $util.oneOfGetter($oneOfFields = ["scan"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
              * Creates a new ExplorerRows instance using the specified properties.
              * @function create
              * @memberof northstar.data_hub.ExplorerRows
@@ -14223,6 +14247,8 @@ export const northstar = $root.northstar = (() => {
                         $root.google.protobuf.Struct.encode(message.sources[i], writer.uint32(/* id 14, wireType 2 =*/114).fork(), _depth + 1).ldelim();
                 if (message.export_allowed != null && $Object.hasOwnProperty.call(message, "export_allowed"))
                     writer.uint32(/* id 15, wireType 0 =*/120).bool(message.export_allowed);
+                if (message.scan != null && $Object.hasOwnProperty.call(message, "scan"))
+                    $root.google.protobuf.Struct.encode(message.scan, writer.uint32(/* id 17, wireType 2 =*/138).fork(), _depth + 1).ldelim();
                 if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
                     for (let i = 0; i < message.$unknowns.length; ++i)
                         writer.raw(message.$unknowns[i]);
@@ -14377,6 +14403,13 @@ export const northstar = $root.northstar = (() => {
                             message._note = "note";
                             continue;
                         }
+                    case 17: {
+                            if (wireType !== 2)
+                                break;
+                            message.scan = $root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1, message.scan);
+                            message._scan = "scan";
+                            continue;
+                        }
                     }
                     reader.skipType(wireType, _depth, tag);
                     if (!reader.discardUnknown) {
@@ -14503,6 +14536,14 @@ export const northstar = $root.northstar = (() => {
                     if (!$util.isString(message.note))
                         return "note: string expected";
                 }
+                if (message.scan != null && $Object.hasOwnProperty.call(message, "scan")) {
+                    properties._scan = 1;
+                    {
+                        let error = $root.google.protobuf.Struct.verify(message.scan, _depth + 1);
+                        if (error)
+                            return "scan." + error;
+                    }
+                }
                 return null;
             };
 
@@ -14612,6 +14653,11 @@ export const northstar = $root.northstar = (() => {
                 }
                 if (object.note != null)
                     message.note = $String(object.note);
+                if (object.scan != null) {
+                    if (!$util.isObject(object.scan))
+                        throw $TypeError(".northstar.data_hub.ExplorerRows.scan: object expected");
+                    message.scan = $root.google.protobuf.Struct.fromObject(object.scan, _depth + 1);
+                }
                 return message;
             };
 
@@ -14728,6 +14774,11 @@ export const northstar = $root.northstar = (() => {
                     object.export_allowed = message.export_allowed;
                     if (options.oneofs)
                         object._export_allowed = "export_allowed";
+                }
+                if (message.scan != null && $Object.hasOwnProperty.call(message, "scan")) {
+                    object.scan = $root.google.protobuf.Struct.toObject(message.scan, options, _depth + 1);
+                    if (options.oneofs)
+                        object._scan = "scan";
                 }
                 return object;
             };

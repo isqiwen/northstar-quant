@@ -1,9 +1,7 @@
 """Exact, pinned range reads with bounded Parquet batches and explicit conflicts."""
 
 import hashlib
-import io
 import json
-from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from threading import BoundedSemaphore
 from typing import Any
@@ -15,6 +13,7 @@ from ..tushare import normalization, publication
 from ..tushare.catalog import BY_KEY
 from ..tushare.store import serial
 from .catalog import pinned
+from .parquet import ResponseScan
 
 _READERS = BoundedSemaphore(2)
 _FIELDS = {
@@ -61,8 +60,6 @@ def _read(
     offset: int,
     limit: int,
 ) -> dict[str, Any]:
-    import pyarrow.parquet as pq  # type: ignore[import-untyped]
-
     versions = pinned(engine, dataset, scope, start, end, receipt_ids)
     if sum(r["parquet_bytes"] for r in versions) > 32 * 1024 * 1024:
         raise ValueError("所选分片超过 32 MiB，请缩小范围")
@@ -86,6 +83,13 @@ def _read(
     selected: dict[tuple[str, ...], dict[str, Any]] = {}
     origins: dict[tuple[str, ...], list[str]] = {}
     identity = BY_KEY[dataset].identity
+    cost = {
+        "verified_bytes": 0,
+        "row_groups_total": 0,
+        "row_groups_read": 0,
+        "rows_decoded": 0,
+        "selected_compressed_bytes": 0,
+    }
     for version in versions:
         manifest = json.loads(files.read(version["manifest_hash"], version["manifest_bytes"]))
         if (
@@ -97,41 +101,21 @@ def _read(
         ):
             raise ValueError("发布清单与固定版本不一致")
         raw = files.read(version["parquet_hash"], version["parquet_bytes"])
-        parquet = pq.ParquetFile(io.BytesIO(raw))
-        if parquet.metadata.num_rows != version["row_count"] or parquet.metadata.num_rows > 10000:
-            raise ValueError("Parquet 行数与固定版本不一致或超过单分片上限")
-        if len(parquet.schema.names) > 64:
-            raise ValueError("发布字段超过浏览上限")
-        for batch in parquet.iter_batches(batch_size=256):
-            for raw_row in batch.to_pylist():
-                row = normalization.response_row(raw_row)
-                if row.get("ts_code") != scope:
-                    raise ValueError("发布记录不属于所选合约")
-                clock = (
-                    row.get("end_date")
-                    if dataset in ("week", "month")
-                    else row.get("trade_time", row.get("trade_date"))
-                )
-                if not isinstance(clock, str):
-                    raise ValueError("发布记录缺少供应商时间标签")
-                day = (
-                    datetime.strptime(clock[:10], "%Y-%m-%d").date()
-                    if "-" in clock
-                    else datetime.strptime(clock, "%Y%m%d").date()
-                )
-                if not start <= day.isoformat() <= end:
-                    continue
-                if len(json.dumps(row)) > 8192:
-                    raise ValueError("单条记录超过浏览上限")
-                key = tuple(str(row[field]) for field in identity)
-                if key in selected and selected[key] != row:
-                    raise ValueError(
-                        "所选发布版本在同一记录身份上存在冲突，请到版本页核查；未自动覆盖"
-                    )
-                selected[key] = row
-                origins.setdefault(key, []).append(str(version["receipt_id"]))
-                if len(selected) > 20000:
-                    raise ValueError("所选范围超过 20000 行，请缩小日期范围")
+        scan = ResponseScan(
+            raw, row_count=version["row_count"], dataset=dataset, scope=scope, start=start, end=end
+        )
+        for row in scan.rows():
+            if len(json.dumps(row)) > 8192:
+                raise ValueError("单条记录超过浏览上限")
+            key = tuple(str(row[field]) for field in identity)
+            if key in selected and selected[key] != row:
+                raise ValueError("所选发布版本在同一记录身份上存在冲突，请到版本页核查；未自动覆盖")
+            selected[key] = row
+            origins.setdefault(key, []).append(str(version["receipt_id"]))
+            if len(selected) > 20000:
+                raise ValueError("所选范围超过 20000 行，请缩小日期范围")
+        for metric, value in scan.cost.items():
+            cost[metric] += value
     ordered = sorted(selected)
     fields = []
     for name in sorted({f for row in selected.values() for f in row}):
@@ -174,6 +158,7 @@ def _read(
         "sources": sources,
         "export_allowed": export_allowed,
         "versions": [serial(r) for r in versions],
+        "scan": {"files": len(versions), **cost},
         "note": (
             "供应商修订后历史，非首次可得行情。图表仅显示当前页固定版本记录；"
             "字段统计针对当前固定查询范围。"

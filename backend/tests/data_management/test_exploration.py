@@ -235,3 +235,35 @@ def test_rule_only_revision_has_no_row_changes(published, monkeypatch):
         revisions.compare(library._engine, before_id=after, after_id=after)
     with pytest.raises(LookupError):
         revisions.compare(library._engine, before_id=UUID(int=1), after_id=after)
+
+
+def test_published_range_scan_reports_pruning_without_changing_values(published):
+    library, response = published
+    template = response["data"]["items"][0]
+    response["data"]["items"] = [
+        [template[0], f"2026-09-0{day} {minute // 60:02d}:{minute % 60:02d}:00", *template[2:]]
+        for day in (1, 3)
+        for minute in range(512)
+    ]
+    with library._engine.begin() as c:
+        c.execute(text("UPDATE data_sync_jobs SET status='PENDING'"))
+        c.execute(text("UPDATE data_sync_settings SET next_request_at=now()"))
+    assert jobs.process_next(library)["status"] == "VALIDATED"
+    whole = rows.read(
+        library._engine, "1min", "RB2610.SHF", "2026-09-01", "2026-09-03", [], limit=1000
+    )
+    narrow = rows.read(
+        library._engine,
+        "1min",
+        "RB2610.SHF",
+        "2026-09-01",
+        "2026-09-01",
+        [UUID(v) for v in whole["receipt_ids"]],
+        limit=1000,
+    )
+    assert narrow["rows"] == whole["rows"][:512]
+    assert narrow["scan"]["verified_bytes"] == whole["scan"]["verified_bytes"]
+    assert narrow["scan"]["rows_decoded"] == 512
+    assert whole["scan"]["rows_decoded"] == 1024
+    assert narrow["scan"]["row_groups_read"] == 1
+    assert whole["scan"]["row_groups_read"] == 2

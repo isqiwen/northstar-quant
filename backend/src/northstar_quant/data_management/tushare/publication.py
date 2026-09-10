@@ -54,7 +54,7 @@ def publish(
         }
     )
     stream = io.BytesIO()
-    pq.write_table(table, stream, compression="zstd")
+    pq.write_table(table, stream, compression="zstd", row_group_size=512)
     files = storage()
     parquet = archive.store(stream.getvalue())
     files.store(stream.getvalue())

@@ -119,6 +119,7 @@ def main() -> None:
                     has_text=text
                 ).first.click()
                 page.keyboard.press("Escape")
+                expect(page.locator(".ant-select-dropdown:visible")).to_have_count(0)
 
             def screenshot(name):
                 if name != "failure":

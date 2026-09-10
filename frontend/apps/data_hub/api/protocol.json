@@ -1294,6 +1294,13 @@
           "type": "string",
           "required": true,
           "nullable": false
+        },
+        "scan": {
+          "id": 17,
+          "presence": true,
+          "type": "google.protobuf.Struct",
+          "required": true,
+          "nullable": false
         }
       },
       "array": false,
