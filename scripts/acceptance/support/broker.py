@@ -55,7 +55,7 @@ def check_broker_access(
         f"/api/streams/{missing_query}",
         f"/api/streams/{missing_query}/events",
     ):
-        for browser, expected_status in ((anonymous, 403), (opener, 404)):
+        for browser, expected_status in ((anonymous, 401), (opener, 404)):
             try:
                 with browser.open(f"{base_url}{path}", timeout=15):
                     pass
@@ -153,12 +153,12 @@ def check_broker_access(
             data=json.dumps(payload).encode(),
             headers={"Content-Type": "application/json"},
         )
-        for browser in (anonymous, opener):
+        for browser, expected_status in ((anonymous, 401), (opener, 403)):
             try:
                 with browser.open(unprotected, timeout=15):
                     pass
             except HTTPError as error:
-                assert error.code == 403
+                assert error.code == expected_status
             else:
                 raise AssertionError("broker mutation requires a session and CSRF")
     assert command("advanced", "broker", "list") == saved_queries
