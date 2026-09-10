@@ -34,6 +34,10 @@ def isolated_compose(
     )
     config = json.loads(result.stdout)
     for service in config["services"].values():
+        # Production ports are fixed; disposable concurrent runs need Docker to
+        # allocate host ports, including APIs no longer controlled by env vars.
+        for port in service.get("ports", []):
+            port["published"] = "0"
         for volume in service.get("volumes", []):
             if volume.get("type") != "bind":
                 continue

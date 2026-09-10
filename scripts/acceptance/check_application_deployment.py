@@ -51,10 +51,6 @@ class Deployment:
             NORTHSTAR_RESEARCH_FRONTEND_IMAGE=research_image,
             NORTHSTAR_DATABASE_ADMIN_PASSWORD=self.password,
             NORTHSTAR_DATA_HUB_DATABASE_PASSWORD=secrets.token_urlsafe(32),
-            NORTHSTAR_DATA_API_PORT="0",
-            NORTHSTAR_DATA_WEB_PORT="0",
-            NORTHSTAR_RESEARCH_API_PORT="0",
-            NORTHSTAR_RESEARCH_WEB_PORT="0",
         )
 
         self.bindings = {
@@ -78,10 +74,6 @@ class Deployment:
         if app in {"database", "data_hub"}:
             # Isolate acceptance from the fixed deployment network.
             config["networks"]["storage"]["name"] = self.projects["database"] + "-storage"
-        if app == "data_hub":
-            # Only the disposable acceptance copy uses a dynamically allocated host port.
-            for port in config["services"]["publications"]["ports"]:
-                port["published"] = "0"
         try:
             identities, _ = binder(config, app, registry)
         except ValueError as error:
