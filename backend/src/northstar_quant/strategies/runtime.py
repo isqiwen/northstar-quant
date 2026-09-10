@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime
 from uuid import UUID
 
 from northstar_quant.factors.definition import Bar, Inputs
 from northstar_quant.market_data import MarketBar
+from northstar_quant.market_data.window import MarketWindow
 
 from .configuration import StrategyConfig
 from .definition import Step
@@ -42,47 +43,26 @@ class StrategyRuntime:
         self.contract_id = contract_id
         self.interval_seconds = interval_seconds
         self.source_scope = source_scope
-        self._history: tuple[MarketBar, ...] = ()
+        self._market = MarketWindow(config.history_bars, interval_seconds, history)
         self._state = state
         resolve(config.strategy_id).validate_state(state)
-        if len(history) > config.history_bars:
-            raise ValueError("strategy checkpoint exceeds its bounded warmup")
-        for bar in history:
-            if not self.accepts(bar):
-                raise ValueError("strategy checkpoint repeats an observation")
-            self._history += (bar,)
 
     @property
     def history(self) -> tuple[MarketBar, ...]:
-        return self._history
+        return self._market.bars
 
     @property
     def state(self) -> tuple[tuple[str, str | int], ...]:
         return self._state
 
     def accepts(self, bar: MarketBar) -> bool:
-        bar.validate(interval_seconds=self.interval_seconds)
-        for previous in self._history:
-            if bar.observation_id == previous.observation_id:
-                if previous != bar:
-                    raise ValueError("observation identity was reused with different facts")
-                return False
-        if self._history and (
-            bar.event_time <= self._history[-1].event_time
-            or bar.available_at < self._history[-1].available_at
-        ):
-            raise ValueError("strategy runtime rejects late or revised bars")
-        return True
+        return self._market.accepts(bar)
 
     def advance(self, bar: MarketBar, *, at: datetime | None = None) -> Step | None:
         if not self.accepts(bar):
             return None
-        history = (*self._history, bar)[-self.config.history_bars :]
         observed_at = bar.available_at if at is None else at
-        if not isinstance(observed_at, datetime) or observed_at.utcoffset() != timedelta(0):
-            raise ValueError("strategy clock must be aware UTC")
-        if observed_at < bar.available_at:
-            raise ValueError("strategy clock precedes input availability")
+        market = self._market.append(bar, at=observed_at)
         result = step(
             self.config,
             Inputs(
@@ -94,7 +74,7 @@ class StrategyRuntime:
                         item.available_at,
                         item.close,
                     )
-                    for item in history
+                    for item in market.bars
                 ),
                 observed_at,
                 self.contract_id,
@@ -103,5 +83,5 @@ class StrategyRuntime:
             ),
             self._state,
         )
-        self._history, self._state = history, result.decision.state
+        self._market, self._state = market, result.decision.state
         return result

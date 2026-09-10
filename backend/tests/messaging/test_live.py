@@ -1,5 +1,6 @@
 """Real SQLite and a synthetic SDK producer exercise the routed core failure path."""
 
+from dataclasses import replace
 from uuid import uuid4
 
 from northstar_quant.broker.events import BrokerEvent
@@ -19,6 +20,7 @@ def test_routed_receiver_stops_on_projection_failure_and_keeps_raw_fact(tmp_path
     streams = LiveStreams(engine, library)
     identifier = uuid4()
     delivered = []
+    outcomes = []
 
     def receive(*args, **kwargs):
         event = BrokerEvent(
@@ -33,8 +35,14 @@ def test_routed_receiver_stops_on_projection_failure_and_keeps_raw_fact(tmp_path
         )
         delivered.append(event)
         calls["ready"].set()
-        kwargs["on_event"](event)
-        raise AssertionError("failed durable projection must stop the receiver")
+        for item in (event, replace(event, sequence=2)):
+            try:
+                kwargs["on_event"](item)
+            except Exception as error:
+                outcomes.append(error)
+            else:
+                outcomes.append(None)
+        return None  # A swallowed callback failure must still mark reception FAILED.
 
     monkeypatch.setattr(module.ctp, "stream_account", receive)
     with engine.begin() as connection:
@@ -49,6 +57,8 @@ def test_routed_receiver_stops_on_projection_failure_and_keeps_raw_fact(tmp_path
         streams.close()
         state = streams.get(identifier)
         assert len(delivered) == 1
+        assert len(outcomes) == 2 and outcomes[0] is not None
+        assert isinstance(outcomes[1], RuntimeError) and "faulted" in str(outcomes[1])
         assert state["status"] == "FAILED"
         assert state["reason"] == "RECEPTION_OR_PERSISTENCE_FAILED"
         events = streams.events(identifier)

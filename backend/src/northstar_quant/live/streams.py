@@ -34,9 +34,10 @@ from northstar_quant.data_management.broker import resolve_broker_contract, veri
 from northstar_quant.data_management.library import DataLibrary
 from northstar_quant.live.market import advance_market, idle_reason
 from northstar_quant.live.storage import KernelLock, write_transaction
-from northstar_quant.messaging import Endpoint, MessageBus
+from northstar_quant.messaging import Endpoint
 from northstar_quant.research.configuration import ResearchConfig
 from northstar_quant.research.configurations import ConfigurationStore
+from northstar_quant.trading import KernelState, TradingKernel
 
 ACCEPT_BROKER_EVENT: Endpoint[BrokerEvent, None] = Endpoint("live.broker.receive", BrokerEvent)
 
@@ -370,8 +371,9 @@ class LiveStreams:
         from northstar_quant.broker.settings import Credentials
 
         failure: str | None = None
-        bus = MessageBus()  # Created on the receiver/core thread, never the SDK thread.
-        bus.register(ACCEPT_BROKER_EVENT, lambda event: self.accept(identifier, event))
+        # The SDK channel enters one owner thread; faults require local recovery.
+        kernel = TradingKernel(ACCEPT_BROKER_EVENT, lambda event: self.accept(identifier, event))
+        kernel.start()
         try:
             pid_query = "SELECT 1" if owner.dialect.name == "sqlite" else "SELECT pg_backend_pid()"
             owner_pid = owner.execute(text(pid_query)).scalar_one()
@@ -383,6 +385,8 @@ class LiveStreams:
 
             def should_stop() -> bool:
                 nonlocal last_check
+                if kernel.status.state == KernelState.FAULTED:
+                    raise RuntimeError("receiver kernel faulted")
                 if stopped.is_set():
                     return True
                 if time.monotonic() - last_check < 0.5:
@@ -413,14 +417,16 @@ class LiveStreams:
                 configured_profile(str(_object(binding["profile"])["name"])),
                 cast(Credentials, credentials),
                 str(binding["instrument"]),
-                on_event=lambda event: bus.request(ACCEPT_BROKER_EVENT, event),
+                on_event=kernel.advance,
                 should_stop=should_stop,
                 duration_seconds=cast(int, _object(binding["request"])["duration_seconds"]),
             )
         except Exception:
             failure = "RECEPTION_OR_PERSISTENCE_FAILED"
         finally:
-            bus.close()
+            if kernel.status.state == KernelState.FAULTED:
+                failure = "RECEPTION_OR_PERSISTENCE_FAILED"
+            kernel.close()
             try:
                 self._terminal(
                     identifier,

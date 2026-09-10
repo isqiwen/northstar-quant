@@ -31,7 +31,7 @@ def run_research(
         data_details=dataset.details,
     )
     steps: list[TradingStep] = []
-    session.bus.subscribe(STEP_COMPLETED, steps.append)
+    session.kernel.subscribe(STEP_COMPLETED, steps.append)
     try:
         for index, bar in enumerate(
             sorted(

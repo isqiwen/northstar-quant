@@ -163,11 +163,19 @@ def test_stream_durable_inputs_pause_retry_restart(
         # Same original input returns the committed effect, without a new bar/signal.
         calls["accept"](event)
         assert streams.get(identifier)["steps"] == report["steps"]
-        with pytest.raises(ValueError, match="conflicts"):
-            calls["accept"](replace(event, data={**event.data, "LastPrice": "3200"}))
+        # A healthy core still runs the independent freshness/ownership monitor.
+        Clock.at += timedelta(seconds=6)
+        for _ in range(100):
+            if streams.get(identifier)["reason"] == "QUOTE_STALE":
+                break
+            time.sleep(0.01)
+        assert streams.get(identifier)["paused"]
+        assert streams.get(identifier)["reason"] == "QUOTE_STALE"
+        with pytest.raises(ValueError, match="already running"):
+            start(LiveStreams(postgres_engine, library), source, configuration, uuid4())
         pause = uuid4()
         paused = streams.control(identifier, "PAUSE", request_id=pause)
-        next_event = tick(event.sequence + 1, OPEN + timedelta(seconds=184), volume=1000)
+        next_event = tick(event.sequence + 1, OPEN + timedelta(seconds=188), volume=1000)
         Clock.at = datetime.fromisoformat(next_event.received_at)
         calls["accept"](next_event)
         assert streams.get(identifier)["received"] == next_event.sequence
@@ -184,13 +192,15 @@ def test_stream_durable_inputs_pause_retry_restart(
             )
         assert streams.events(identifier)[-1]["event"] == next_event.to_dict()
         assert streams.verify_all() == 1
+        with pytest.raises(ValueError, match="conflicts"):
+            calls["accept"](replace(event, data={**event.data, "LastPrice": "3200"}))
     finally:
         streams.close()
-    assert streams.get(identifier)["status"] == "STOPPED"
+    assert streams.get(identifier)["status"] == "FAILED"
     monkeypatch.setattr(module, "load_credentials", lambda: pytest.fail("retry loaded credentials"))
     restored = LiveStreams(postgres_engine, library)
     assert restored.get(identifier)["paused"]
-    assert start(restored, source, configuration, identifier)["status"] == "STOPPED"
+    assert start(restored, source, configuration, identifier)["status"] == "FAILED"
     assert calls["count"] == 1
     with pytest.raises(ValueError, match="resume needs"):
         restored.control(identifier, "RESUME", request_id=uuid4())
@@ -230,22 +240,23 @@ def test_stream_retains_unprocessed_source_and_retries_only_the_missing_projecti
             streams.verify_all() == 1
         )  # An unprocessed durable tail is valid interrupted evidence.
         monkeypatch.setattr(module, "advance_market", original)
-        calls["accept"](event)
-        assert streams.get(identifier)["cursor"] == 3
-        Clock.at += timedelta(seconds=6)
-        for _ in range(100):
-            if streams.get(identifier)["reason"] == "QUOTE_STALE":
-                break
-            time.sleep(0.01)
-        assert streams.get(identifier)["paused"]
-        assert streams.get(identifier)["reason"] == "QUOTE_STALE"
-        assert streams.get(identifier)["state"]["last_pause_reason"] == "QUOTE_STALE"
-        with pytest.raises(ValueError, match="already running"):
-            start(LiveStreams(postgres_engine, library), source, configuration, uuid4())
+        streams.close()
+        assert streams.get(identifier)["status"] == "FAILED"
+        # Explicit local replay of the retained receipt on a disposed receiver.
+        # Pausing is durable, so catch-up cannot revive shadow or reconnect.
+        restored = LiveStreams(postgres_engine, library)
+        restored.accept(identifier, event)
+        assert restored.get(identifier)["cursor"] == 3
+        assert restored.get(identifier)["paused"]
+        assert restored.get(identifier)["steps"] == []
+        before = restored.get(identifier)["steps"]
+        restored.accept(identifier, event)
+        assert restored.get(identifier)["steps"] == before
+        assert calls["count"] == 1
+        with pytest.raises(ValueError, match="resume needs"):
+            restored.control(identifier, "RESUME", request_id=uuid4())
     finally:
         streams.close()
-
-    assert streams.get(identifier)["state"]["last_pause_reason"] == "QUOTE_STALE"
 
 
 def test_account_failure_keeps_source_and_local_catchup_never_replays_shadow(

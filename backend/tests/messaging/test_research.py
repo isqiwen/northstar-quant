@@ -26,7 +26,7 @@ def test_failed_event_rolls_back_fill_strategy_orders_metrics_then_retries(monke
     data = dataset(("100", "110", "111", "112"))
     clean, actual = session(data), session(data)
     seen = []
-    actual.bus.subscribe(STEP_COMPLETED, seen.append)
+    actual.kernel.subscribe(STEP_COMPLETED, seen.append)
     accepted = []
     for bar in data.bars[:2]:
         clean.advance(bar)
@@ -79,8 +79,8 @@ def test_subscriber_cannot_change_report_and_post_commit_failure_does_not_undo_f
         point["cash"] = "0"
         point["strategy"]["kind"] = "WRONG"
 
-    actual.bus.subscribe(STEP_COMPLETED, malicious)
-    actual.bus.subscribe(STEP_COMPLETED, seen.append)
+    actual.kernel.subscribe(STEP_COMPLETED, malicious)
+    actual.kernel.subscribe(STEP_COMPLETED, seen.append)
     for bar in data.bars[:2]:
         actual.advance(bar)
     assert seen[-1].point["cash"] != "0"
@@ -89,7 +89,7 @@ def test_subscriber_cannot_change_report_and_post_commit_failure_does_not_undo_f
     def fail(step):
         raise ValueError("observer failed after commit")
 
-    actual.bus.subscribe(STEP_COMPLETED, fail)
+    actual.kernel.subscribe(STEP_COMPLETED, fail)
     with pytest.raises(DispatchFailed):
         actual.advance(data.bars[2])
     assert actual.account.fill_count == 1

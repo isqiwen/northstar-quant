@@ -16,11 +16,12 @@ from northstar_quant.accounting.portfolio import PortfolioState
 from northstar_quant.data_management.research import DatasetDetails
 from northstar_quant.execution.orders import PendingOrder
 from northstar_quant.market_data import Market, MarketBar
-from northstar_quant.messaging import Endpoint, MessageBus, Topic
+from northstar_quant.messaging import Endpoint, Topic
 from northstar_quant.research.configuration import ResearchConfig
 from northstar_quant.risk import evaluate_risk
 from northstar_quant.simulation import simulate_fill
 from northstar_quant.strategies.runtime import StrategyRuntime
+from northstar_quant.trading import FailurePolicy, TradingKernel
 
 
 @dataclass(frozen=True, slots=True, init=False)
@@ -172,14 +173,19 @@ class TradingSession:
         self._peak = config.simulation.initial_cash
         self._maximum_drawdown = Decimal(0)
         self._maximum_drawdown_fraction = Decimal(0)
-        self.bus = MessageBus()
-        self.bus.register(ADVANCE_BAR, self._process)
+        self.kernel = TradingKernel(
+            ADVANCE_BAR,
+            self._process,
+            failure_policy=FailurePolicy.ROLLBACK,
+            completed=STEP_COMPLETED,
+        )
+        self.kernel.start()
 
     def advance(self, bar: MarketBar) -> TradingStep | None:
-        return self.bus.request(ADVANCE_BAR, bar)
+        return self.kernel.advance(bar)
 
     def close(self) -> None:
-        self.bus.close()
+        self.kernel.close()
 
     def _process(self, bar: MarketBar) -> TradingStep | None:
         self._validate_bar(bar)
@@ -202,7 +208,6 @@ class TradingSession:
             self.__dict__.update(candidate.__dict__)
         # This is an in-memory completed research step, not a durable DB receipt.
         # Paper commits it with its checkpoint in its owning transaction.
-        self.bus.publish(STEP_COMPLETED, result)
         return result
 
     def _advance(self, bar: MarketBar) -> TradingStep:

@@ -12,6 +12,7 @@ from sqlalchemy import Engine, text
 from northstar_quant.accounting.baselines import BrokerBaselines
 from northstar_quant.accounting.ledger import BrokerLedger
 from northstar_quant.broker.events import BrokerEvent
+from northstar_quant.broker.stream_records import append_stream_event
 from northstar_quant.live.streams import LiveStreams
 from tests.accounting.test_baselines import saved_query
 from tests.accounting.test_ledger import ledger_query, trade
@@ -157,15 +158,26 @@ def test_bounded_catchup_batches_only_requested_saved_material_and_preserves_lat
         start(streams, source, configuration, stream_id)
         assert calls["ready"].wait(3)
         login(calls)
-        with monkeypatch.context() as fail:
-
-            def unavailable(*args: Any, **kwargs: Any) -> Any:
-                raise RuntimeError("synthetic account writer unavailable")
-
-            fail.setattr(BrokerLedger, "_ingest", unavailable)
-            for sequence in (2, 3, 4):
-                with pytest.raises(RuntimeError, match="account writer unavailable"):
-                    accept(calls, sequence, "OnRtnTrade", trade(f"T{sequence}"))
+        # Stage a retained backlog through the actual receipt writer. A running
+        # kernel now halts on its first account error, so do not pretend its SDK
+        # can keep delivering after failure to manufacture this recovery case.
+        for sequence in (2, 3, 4):
+            with postgres_engine.begin() as connection:
+                append_stream_event(
+                    connection,
+                    stream_id,
+                    BrokerEvent(
+                        sequence,
+                        "TD",
+                        "OnRtnTrade",
+                        None,
+                        None,
+                        Clock.at.isoformat().replace("+00:00", "Z"),
+                        0,
+                        trade(f"T{sequence}"),
+                    ),
+                    receiving=True,
+                )
         first = ledger.advance_stream(stream_id, 3)
         assert first["through_sequence"] == 3 and first["pending"] == 1
         entry = ledger.get(UUID(first["entry_id"]))

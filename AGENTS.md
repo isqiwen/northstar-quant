@@ -94,6 +94,12 @@ merely to incorporate a reference.
   against measured memory, disk and management responsiveness, not arbitrary core
   counts or fixed resource percentages. Protect cancellation and host access.
   Size production Live from measured needs; constrain noncritical management work.
+- Research/Paper and Live use the shared `trading.TradingKernel` for single-threaded
+  ingress, messaging and failure lifecycle. Environment processors retain their
+  transaction ownership: Research may retry only after full rollback; Live faults
+  preserve committed facts and require recovery. `market_data.MarketWindow` owns
+  bounded causal inputs; portfolio/cache remain derived projections. SimNow uses
+  the external broker path, never internal Sandbox fills.
 - Keep Strategy, Risk and Accounting as shared Python Modules. Cross-process
   callers use the owner's small Interface, not its tables or in-memory workers.
   Live owns realtime inputs, execution authority and durable account facts without
