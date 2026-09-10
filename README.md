@@ -28,6 +28,7 @@ Tushare 定时增量/分片补数、15 分钟到日线完整研究输入、持�
 
 ```sh
 ./scripts/northstarctl.py init-host
+./scripts/northstarctl.py deploy nfs
 ./scripts/northstarctl.py deploy database
 ./scripts/northstarctl.py deploy data-hub
 ./scripts/northstarctl.py deploy research
@@ -39,6 +40,8 @@ Tushare 定时增量/分片补数、15 分钟到日线完整研究输入、持�
 保留其他 Docker 设置，校验后热加载并确认生效，不重启容器。
 主机上的存储检查和版本读取直接使用 Python，不安装后端业务依赖；业务依赖在镜像中安装。
 中断部署或 SSH 连接关闭后，远程部署会清理本次子进程并释放锁；已启动容器保留，重试 `deploy` 继续部署。
+管理对象为 `database`、`nfs`、`data-hub`、`research`、`live`；NFS 使用主机服务和 journalctl 日志，不使用 `.env` 或 Docker 镜像。
+
 `hosts.toml` 填写各主机 host/user/port，`[nfs]` 同样填写服务端 host/user/port（默认 research.local），自动判断共享角色；user 仅供 `init-host` 登录和提权，创建 northstar 用户、配置 SSH 公钥及免密码 sudo。
 之后部署固定使用 northstar，首次运行配置自动上传，默认保留已有配置；目标先具备 SSH、Python 3.11+。
 脚本部署当前已提交版本；可用 `deploy data-hub --env-file /本地路径/data-hub.env` 指定应用配置并更新远程运行副本。

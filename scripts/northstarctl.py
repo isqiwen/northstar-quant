@@ -16,7 +16,7 @@ import tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-APPLICATIONS = ("database", "data-hub", "research", "live")
+APPLICATIONS = ("database", "nfs", "data-hub", "research", "live")
 
 
 def configuration(path: Path, app: str) -> dict:
@@ -79,12 +79,7 @@ def initialize_hosts(args: argparse.Namespace) -> int:
         if args.app
         else [app for app in APPLICATIONS if settings.get(app.replace("-", "_"), {}).get("host")]
     )
-    nfs = (
-        runpy.run_path(str(ROOT / "scripts/operations/nfs.py"))["topology"](settings)
-        if args.app != "live"
-        else None
-    )
-    if nfs and (args.app is None or args.app in {"database", "data-hub", "research"}):
+    if args.app in {"database", "data-hub", "research"} and settings.get("nfs"):
         apps = [*apps, "nfs"]
     targets = {}
     for app in apps:
@@ -153,12 +148,12 @@ def git(*args: str) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="通过 SSH 管理 Northstar 数据库和应用的部署、启停、状态及日志"
+        description="通过 SSH 管理 Northstar 数据库、NFS 和应用的部署、启停、状态及日志"
     )
     parser.add_argument(
         "action",
         choices=("init-host", "deploy", "start", "restart", "status", "logs", "stop"),
-        help="首次主机初始化、部署（自动准备主机依赖）、启动、重启、状态、容器日志、停止（保留数据）",
+        help="首次主机初始化、部署（自动准备主机依赖）、启动、重启、状态、日志、停止（保留数据）",
     )
     parser.add_argument(
         "app", nargs="?", choices=APPLICATIONS, help="init-host 省略时初始化所有已配置主机"
@@ -175,8 +170,10 @@ def main() -> int:
         help="deploy 使用的本地 .env；指定时更新远程配置，默认仅首次安装仓库配置",
     )
     parser.add_argument("--dry-run", action="store_true", help="仅显示目标，不连接 SSH")
-    parser.add_argument("--follow", action="store_true", help="持续查看容器标准输出（仅 logs）")
+    parser.add_argument("--follow", action="store_true", help="持续查看日志（仅 logs）")
     args = parser.parse_args()
+    if args.app == "nfs" and args.env_file is not None:
+        parser.error("NFS 使用 hosts.toml，不使用 .env")
     if args.env_file is not None and args.action != "deploy":
         parser.error("--env-file 仅用于 deploy；其他命令使用已部署的运行配置")
     if args.follow and args.action != "logs":
@@ -188,6 +185,37 @@ def main() -> int:
             return initialize_hosts(args)
         config = configuration(args.config, args.app)
         settings = tomllib.loads(args.config.read_text())
+        if args.app == "nfs":
+            plan = {}
+            if args.action == "deploy":
+                plan = runpy.run_path(str(ROOT / "scripts/operations/nfs.py"))["topology"](settings)
+                assert plan is not None
+                for key in ("data-hub", "research"):
+                    configuration(args.config, key)
+            print(f"{args.action} nfs → northstar@{config['host']}:{config['port']}", flush=True)
+            if args.dry_run:
+                return 0
+            program = (ROOT / "scripts/operations/nfs.py").read_text()
+            elevated = (
+                "import subprocess,sys; sys.exit(subprocess.call(['sudo','-n','--',"
+                "'python3','-c'," + repr(program) + ",sys.argv[1]]))"
+            )
+            return subprocess.run(
+                ssh(
+                    config,
+                    elevated,
+                    json.dumps(
+                        plan
+                        | {
+                            "host": config["host"],
+                            "action": args.action,
+                            "follow": args.follow,
+                        }
+                    ),
+                ),
+                stdin=subprocess.DEVNULL,
+                check=False,
+            ).returncode
         nfs = None
         server_config = None
         if args.app in {"database", "data-hub", "research"}:

@@ -4,6 +4,11 @@ host = "core.local"
 user = "qiwen"
 port = 22
 
+[nfs]
+host = "research.local"
+user = "qiwen"
+port = 22
+
 [data_hub]
 host = "core.local"
 user = "qiwen"
@@ -16,10 +21,5 @@ port = 22
 
 [live]
 host = "quant.wangqiwen.me"
-user = "qiwen"
-port = 22
-
-[nfs]
-host = "research.local"
 user = "qiwen"
 port = 22

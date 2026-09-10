@@ -563,3 +563,32 @@ def test_failed_same_revision_configuration_blocks_start_and_records_last_succes
     assert invoke(deployment, "deploy", "research").returncode == 0
     assert json.loads(state.read_text())["phase"] == "complete"
     assert invoke(deployment, "start", "research").returncode == 0
+
+
+@pytest.mark.parametrize("action", ["deploy", "start", "restart", "stop", "status", "logs"])
+def test_nfs_target_uses_service_transport_without_env_bundle_or_docker(deployment, action):
+    repo, config, env = deployment
+    config.write_text(
+        config.read_text() + '\n[nfs]\nhost="storage.invalid"\nuser="root"\nport=22\n'
+    )
+    program = repo / "scripts/operations/nfs.py"
+    program.write_text(
+        "import json,sys\ndef topology(settings): return {'server': settings['nfs']['host']}\n"
+        "if __name__ == '__main__':\n"
+        " request=json.loads(sys.argv[1])\n"
+        " print('service-action=' + request['action']); sys.exit(3)\n"
+    )
+    command = [
+        sys.executable,
+        str(repo / "scripts/northstarctl.py"),
+        action,
+        "nfs",
+        "--config",
+        str(config),
+    ]
+    result = subprocess.run(command, env=env, capture_output=True, text=True)
+    assert result.returncode == 3, result.stderr
+    assert f"service-action={action}" in result.stdout
+    calls = [json.loads(line) for line in Path(env["RECORD"]).read_text().splitlines()]
+    assert not any(call[0] in {"docker", "uv", "make"} for call in calls)
+    assert len([call for call in calls if call[0] == "ssh"]) == 1

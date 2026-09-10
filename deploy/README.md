@@ -32,6 +32,21 @@ port = 22
 再准备当前应用挂载和依赖。Research 自己的 `deploy research` 同样自动安装 Docker、Compose、Buildx 和 uv。
 服务端只需 NFS，不因仅提供文件共享而安装 Docker。
 
+NFS 与 database、data-hub、research、live 是同级管理对象，可以单独执行：
+
+```sh
+./scripts/northstarctl.py init-host nfs
+./scripts/northstarctl.py deploy nfs
+./scripts/northstarctl.py status nfs
+./scripts/northstarctl.py logs nfs --follow
+./scripts/northstarctl.py restart nfs
+```
+
+也支持 `start nfs`、`stop nfs`。NFS 使用 `hosts.toml`，不接受 `--env-file`，不构建 Docker 镜像；
+部署只准备服务端，应用部署仍负责各自客户端挂载。启停管理的是主机 `nfs-server.service`，
+日志来自 journalctl；停止/重启会影响该主机的 NFS 共享访问，但不会删除数据、卸载客户端或启停应用。
+首次使用先 `deploy nfs`；后续 `start/restart` 复用已部署配置并检查存储身份，不重新初始化文件。
+
 唯一共享路径为 `/opt/northstar/files/market`，NFSv4、TCP 2049。服务端按解析后的客户端 IPv4 地址
 导出：core 可写、Research 只读；启用 UFW 时自动放行对应客户端的 2049/TCP。
 其他防火墙需允许这些客户端访问该端口。主机地址应稳定，地址变化后重新部署刷新规则。

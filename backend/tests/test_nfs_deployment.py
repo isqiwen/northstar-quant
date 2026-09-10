@@ -184,3 +184,50 @@ def test_server_exports_only_selected_clients_and_retains_existing_identity(nfs,
     nfs.prepare_server(request)
     assert nfs.EXPORTS.read_text() == first
     assert not any("restart" in call for call in calls)
+
+
+@pytest.mark.parametrize("action", ["start", "restart", "stop"])
+def test_service_lifecycle_preserves_files_and_only_controls_nfs(nfs, monkeypatch, action):
+    from types import SimpleNamespace
+
+    nfs.MARKET.mkdir()
+    nfs.STATE.mkdir()
+    value = str(uuid4())
+    (nfs.MARKET / ".northstar-storage-id").write_text(value + "\n")
+    (nfs.STATE / "server-storage-id").write_text(value + "\n")
+    nfs.EXPORTS.write_text("retained exports\n")
+    evidence = nfs.MARKET / "fixed.parquet"
+    evidence.write_bytes(b"unchanged")
+    monkeypatch.setattr(nfs.os, "geteuid", lambda: 0)
+    calls = []
+    monkeypatch.setattr(
+        nfs.subprocess,
+        "run",
+        lambda args, **kw: calls.append(args) or SimpleNamespace(returncode=0),
+    )
+    assert nfs.manage({"action": action}) == 0
+    assert calls == [["systemctl", action, "nfs-server.service"]]
+    assert evidence.read_bytes() == b"unchanged"
+    if action != "stop":
+        (nfs.MARKET / ".northstar-storage-id").write_text(str(uuid4()) + "\n")
+        calls.clear()
+        with pytest.raises(ValueError, match="UUID"):
+            nfs.manage({"action": action})
+        assert calls == []
+
+
+def test_status_and_follow_logs_propagate_service_exit_code(nfs, monkeypatch):
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(nfs.os, "geteuid", lambda: 0)
+    calls = []
+    monkeypatch.setattr(
+        nfs.subprocess,
+        "run",
+        lambda args, **kw: calls.append(args) or SimpleNamespace(returncode=3),
+    )
+    assert nfs.manage({"action": "status"}) == 3
+    assert nfs.manage({"action": "logs", "follow": True}) == 3
+    assert calls[0] == ["systemctl", "status", "--no-pager", "nfs-server.service"]
+    assert calls[1][0] == "journalctl" and "--follow" in calls[1]
+    assert not nfs.STATE.exists()

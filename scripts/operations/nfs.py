@@ -287,8 +287,49 @@ def prepare(request: dict) -> None:
             prepare_client(request)
 
 
+def manage(request: dict) -> int:
+    """Manage the host NFS service; never stop applications or remove market files."""
+    action = request.get("action", "deploy")
+    if action == "deploy":
+        prepare(request)
+        return 0
+    if os.geteuid() != 0:
+        raise ValueError("NFS 服务管理需要 root 权限")
+    service = "nfs-server.service"
+    if action == "logs":
+        return subprocess.run(
+            [
+                "journalctl",
+                "--unit",
+                service,
+                "--no-pager",
+                "--lines",
+                "100",
+                *(["--follow"] if request.get("follow") else []),
+            ],
+            check=False,
+        ).returncode
+    if action == "status":
+        return subprocess.run(
+            ["systemctl", "status", "--no-pager", service], check=False
+        ).returncode
+    if action not in {"start", "restart", "stop"}:
+        raise ValueError("不支持的 NFS 管理操作")
+    if not STATE.is_dir():
+        raise ValueError("NFS 尚未部署，请先执行 deploy nfs")
+    with (STATE / "prepare.lock").open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        if action in {"start", "restart"}:
+            saved = STATE / "server-storage-id"
+            if not saved.is_file() or not EXPORTS.is_file():
+                raise ValueError("NFS 尚未部署，请先执行 deploy nfs")
+            if saved.read_text().strip() != identity():
+                raise ValueError("服务端存储 UUID 改变，请恢复原数据与身份")
+        return subprocess.run(["systemctl", action, service], check=False).returncode
+
+
 if __name__ == "__main__":
     try:
-        prepare(json.loads(sys.argv[1]))
+        sys.exit(manage(json.loads(sys.argv[1])))
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
         sys.exit(f"NFS 准备失败：{error}")
