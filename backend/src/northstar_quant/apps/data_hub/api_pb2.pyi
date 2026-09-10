@@ -462,3 +462,39 @@ class ExplorerRows(_message.Message):
     versions: _containers.RepeatedCompositeFieldContainer[_struct_pb2.Struct]
     note: str
     def __init__(self, sources: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., export_allowed: _Optional[bool] = ..., dataset: _Optional[str] = ..., scope: _Optional[str] = ..., start: _Optional[str] = ..., end: _Optional[str] = ..., receipt_ids: _Optional[_Iterable[str]] = ..., view_id: _Optional[str] = ..., rows: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., total: _Optional[int] = ..., offset: _Optional[int] = ..., limit: _Optional[int] = ..., fields: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., versions: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., note: _Optional[str] = ...) -> None: ...
+
+class RevisionRequest(_message.Message):
+    __slots__ = ("before_id", "after_id", "offset")
+    BEFORE_ID_FIELD_NUMBER: _ClassVar[int]
+    AFTER_ID_FIELD_NUMBER: _ClassVar[int]
+    OFFSET_FIELD_NUMBER: _ClassVar[int]
+    before_id: str
+    after_id: str
+    offset: int
+    def __init__(self, before_id: _Optional[str] = ..., after_id: _Optional[str] = ..., offset: _Optional[int] = ...) -> None: ...
+
+class RevisionComparison(_message.Message):
+    __slots__ = ("comparison_id", "rule", "before", "after", "source_changed", "rules_changed", "counts", "changes", "total", "offset", "note")
+    COMPARISON_ID_FIELD_NUMBER: _ClassVar[int]
+    RULE_FIELD_NUMBER: _ClassVar[int]
+    BEFORE_FIELD_NUMBER: _ClassVar[int]
+    AFTER_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_CHANGED_FIELD_NUMBER: _ClassVar[int]
+    RULES_CHANGED_FIELD_NUMBER: _ClassVar[int]
+    COUNTS_FIELD_NUMBER: _ClassVar[int]
+    CHANGES_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_FIELD_NUMBER: _ClassVar[int]
+    OFFSET_FIELD_NUMBER: _ClassVar[int]
+    NOTE_FIELD_NUMBER: _ClassVar[int]
+    comparison_id: str
+    rule: str
+    before: _struct_pb2.Struct
+    after: _struct_pb2.Struct
+    source_changed: bool
+    rules_changed: bool
+    counts: _struct_pb2.Struct
+    changes: _containers.RepeatedCompositeFieldContainer[_struct_pb2.Struct]
+    total: int
+    offset: int
+    note: str
+    def __init__(self, comparison_id: _Optional[str] = ..., rule: _Optional[str] = ..., before: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., after: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., source_changed: _Optional[bool] = ..., rules_changed: _Optional[bool] = ..., counts: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., changes: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., total: _Optional[int] = ..., offset: _Optional[int] = ..., note: _Optional[str] = ...) -> None: ...

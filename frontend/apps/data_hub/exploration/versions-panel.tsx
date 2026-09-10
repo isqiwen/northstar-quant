@@ -1,6 +1,8 @@
 "use client";
 import { Card, Space, Table, Typography } from "antd";
 import Link from "next/link";
+import { useState } from "react";
+import { RevisionCompare } from "./revision-comparison";
 import type { ExplorerRange } from "../api/generated";
 import { scopeUrl } from "./states";
 type Row = Record<string, unknown>;
@@ -17,10 +19,22 @@ export function VersionsPanel({
   versionTotal: number;
   onPage: (offset: number) => void;
 }) {
+  const [selected, setSelected] = useState<string[]>([]);
   return (
     <Card title="已发布的不可变版本">
+      <RevisionCompare selected={selected} />
       <Table<Row>
         rowKey="receipt_id"
+        rowSelection={{
+          selectedRowKeys: selected,
+          hideSelectAll: true,
+          preserveSelectedRowKeys: true,
+          onChange: (keys) => setSelected(keys.map(String)),
+          getCheckboxProps: (r) => ({
+            disabled:
+              selected.length >= 2 && !selected.includes(String(r.receipt_id)),
+          }),
+        }}
         dataSource={versions}
         scroll={{ x: 950, y: 500 }}
         pagination={{

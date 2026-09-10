@@ -185,7 +185,7 @@ def process_next(library: DataLibrary) -> dict[str, Any] | None:
         except acquisition.DownloadError as error:
             _fail(engine, selected, str(error), retry=error.retry)
         except InvalidResponse as error:
-            _fail(engine, selected, f"{error}；原文已留存", retry=False)
+            _fail(engine, selected, f"{error}；原文已留存", retry=False, quality=error.report)
         except (ValueError, OSError, LookupError):
             reason = {
                 "source": "已留存原文缺失或损坏；重处理已停止，不重新下载替代原文",
@@ -234,13 +234,27 @@ def _finish(
 
 
 def _fail(
-    engine: Engine, selected: dict[str, Any], reason: str, *, retry: bool, waiting: bool = False
+    engine: Engine,
+    selected: dict[str, Any],
+    reason: str,
+    *,
+    retry: bool,
+    waiting: bool = False,
+    quality: dict[str, Any] | None = None,
 ) -> None:
     allowed = retry and (waiting or selected["attempts"] < 6)
     delay = timedelta(
         seconds=max(3600 if waiting else 30, min(21600, 30 * 2 ** min(selected["attempts"], 10)))
     )
     with engine.begin() as connection:
+        if quality is not None:
+            connection.execute(
+                text(
+                    "UPDATE data_sync_attempts SET quality=CAST(:quality AS jsonb) "
+                    "WHERE generation=:g"
+                ),
+                {"quality": json.dumps(quality), "g": selected["generation"]},
+            )
         _finish(connection, selected, "WAITING" if allowed else "BLOCKED", reason, delay)
 
 

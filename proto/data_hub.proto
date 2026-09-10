@@ -251,7 +251,30 @@ message ExplorerRows {
   optional string note = 13 [(northstar.web.required_field) = true];
 }
 
+message RevisionRequest {
+  optional string before_id = 1 [(northstar.web.required_field) = true];
+  optional string after_id = 2 [(northstar.web.required_field) = true];
+  optional int64 offset = 3 [(northstar.web.required_field) = true];
+}
+message RevisionComparison {
+  optional string comparison_id = 1 [(northstar.web.required_field) = true];
+  optional string rule = 2 [(northstar.web.required_field) = true];
+  optional google.protobuf.Struct before = 3 [(northstar.web.required_field) = true];
+  optional google.protobuf.Struct after = 4 [(northstar.web.required_field) = true];
+  optional bool source_changed = 5 [(northstar.web.required_field) = true];
+  optional bool rules_changed = 6 [(northstar.web.required_field) = true];
+  optional google.protobuf.Struct counts = 7 [(northstar.web.required_field) = true];
+  repeated google.protobuf.Struct changes = 8;
+  optional int64 total = 9 [(northstar.web.required_field) = true];
+  optional int64 offset = 10 [(northstar.web.required_field) = true];
+  optional string note = 11 [(northstar.web.required_field) = true];
+}
+
 service BrowserApi {
+  rpc CompareRevisions (RevisionRequest) returns (RevisionComparison) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/explorer/compare";
+  }
   rpc ExportRows(ExplorerQuery) returns (ExplorerRows) { option (northstar.web.http_method) = "POST"; option (northstar.web.http_path) = "/api/explorer/export"; }
   rpc QueryRows(ExplorerQuery) returns (ExplorerRows) { option (northstar.web.http_method) = "POST"; option (northstar.web.http_path) = "/api/explorer/query"; }
   rpc QueryVersions(ExplorerRange) returns (ExplorerList) { option (northstar.web.http_method) = "POST"; option (northstar.web.http_path) = "/api/explorer/versions"; }

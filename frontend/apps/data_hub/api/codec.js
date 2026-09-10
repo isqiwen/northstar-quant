@@ -14942,6 +14942,1137 @@ export const northstar = $root.northstar = (() => {
             return ExplorerRows;
         })();
 
+        data_hub.RevisionRequest = (function() {
+
+            /**
+             * Properties of a RevisionRequest.
+             * @typedef {Object} northstar.data_hub.RevisionRequest.$Properties
+             * @property {string|null} [before_id] RevisionRequest before_id
+             * @property {string|null} [after_id] RevisionRequest after_id
+             * @property {number|Long|null} [offset] RevisionRequest offset
+             * @property {"before_id"} [_before_id] RevisionRequest _before_id
+             * @property {"after_id"} [_after_id] RevisionRequest _after_id
+             * @property {"offset"} [_offset] RevisionRequest _offset
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a RevisionRequest.
+             * @memberof northstar.data_hub
+             * @interface IRevisionRequest
+             * @augments northstar.data_hub.RevisionRequest.$Properties
+             * @deprecated Use northstar.data_hub.RevisionRequest.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a RevisionRequest.
+             * @typedef {{
+             *   before_id?: string|null;
+             *   after_id?: string|null;
+             *   offset?: number|Long|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _before_id?: undefined; before_id?: null }|{ _before_id?: "before_id"; before_id: string })
+             * ) & (
+             *   ({ _after_id?: undefined; after_id?: null }|{ _after_id?: "after_id"; after_id: string })
+             * ) & (
+             *   ({ _offset?: undefined; offset?: null }|{ _offset?: "offset"; offset: number|Long })
+             * )} northstar.data_hub.RevisionRequest.$Shape
+             */
+
+            /**
+             * Constructs a new RevisionRequest.
+             * @memberof northstar.data_hub
+             * @classdesc Represents a RevisionRequest.
+             * @constructor
+             * @param {northstar.data_hub.RevisionRequest.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const RevisionRequest = function (properties) {
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * RevisionRequest before_id.
+             * @member {string|null|undefined} before_id
+             * @memberof northstar.data_hub.RevisionRequest
+             * @instance
+             */
+            RevisionRequest.prototype.before_id = null;
+
+            /**
+             * RevisionRequest after_id.
+             * @member {string|null|undefined} after_id
+             * @memberof northstar.data_hub.RevisionRequest
+             * @instance
+             */
+            RevisionRequest.prototype.after_id = null;
+
+            /**
+             * RevisionRequest offset.
+             * @member {number|Long|null|undefined} offset
+             * @memberof northstar.data_hub.RevisionRequest
+             * @instance
+             */
+            RevisionRequest.prototype.offset = null;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * RevisionRequest _before_id.
+             * @member {"before_id"|undefined} _before_id
+             * @memberof northstar.data_hub.RevisionRequest
+             * @instance
+             */
+            $Object.defineProperty(RevisionRequest.prototype, "_before_id", {
+                get: $util.oneOfGetter($oneOfFields = ["before_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * RevisionRequest _after_id.
+             * @member {"after_id"|undefined} _after_id
+             * @memberof northstar.data_hub.RevisionRequest
+             * @instance
+             */
+            $Object.defineProperty(RevisionRequest.prototype, "_after_id", {
+                get: $util.oneOfGetter($oneOfFields = ["after_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * RevisionRequest _offset.
+             * @member {"offset"|undefined} _offset
+             * @memberof northstar.data_hub.RevisionRequest
+             * @instance
+             */
+            $Object.defineProperty(RevisionRequest.prototype, "_offset", {
+                get: $util.oneOfGetter($oneOfFields = ["offset"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new RevisionRequest instance using the specified properties.
+             * @function create
+             * @memberof northstar.data_hub.RevisionRequest
+             * @static
+             * @param {northstar.data_hub.RevisionRequest.$Properties=} [properties] Properties to set
+             * @returns {northstar.data_hub.RevisionRequest} RevisionRequest instance
+             * @type {{
+             *   (properties: northstar.data_hub.RevisionRequest.$Shape): northstar.data_hub.RevisionRequest & northstar.data_hub.RevisionRequest.$Shape;
+             *   (properties?: northstar.data_hub.RevisionRequest.$Properties): northstar.data_hub.RevisionRequest;
+             * }}
+             */
+            RevisionRequest.create = function(properties) {
+                return new RevisionRequest(properties);
+            };
+
+            /**
+             * Encodes the specified RevisionRequest message. Does not implicitly {@link northstar.data_hub.RevisionRequest.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.data_hub.RevisionRequest
+             * @static
+             * @param {northstar.data_hub.RevisionRequest.$Properties} message RevisionRequest message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            RevisionRequest.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.before_id != null && $Object.hasOwnProperty.call(message, "before_id"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.before_id);
+                if (message.after_id != null && $Object.hasOwnProperty.call(message, "after_id"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.after_id);
+                if (message.offset != null && $Object.hasOwnProperty.call(message, "offset"))
+                    writer.uint32(/* id 3, wireType 0 =*/24).int64(message.offset);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a RevisionRequest message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.data_hub.RevisionRequest
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.data_hub.RevisionRequest & northstar.data_hub.RevisionRequest.$Shape} RevisionRequest
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            RevisionRequest.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.data_hub.RevisionRequest();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.before_id = reader.stringVerify();
+                            message._before_id = "before_id";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.after_id = reader.stringVerify();
+                            message._after_id = "after_id";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 0)
+                                break;
+                            message.offset = reader.int64();
+                            message._offset = "offset";
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a RevisionRequest message.
+             * @function verify
+             * @memberof northstar.data_hub.RevisionRequest
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            RevisionRequest.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.before_id != null && $Object.hasOwnProperty.call(message, "before_id")) {
+                    properties._before_id = 1;
+                    if (!$util.isString(message.before_id))
+                        return "before_id: string expected";
+                }
+                if (message.after_id != null && $Object.hasOwnProperty.call(message, "after_id")) {
+                    properties._after_id = 1;
+                    if (!$util.isString(message.after_id))
+                        return "after_id: string expected";
+                }
+                if (message.offset != null && $Object.hasOwnProperty.call(message, "offset")) {
+                    properties._offset = 1;
+                    if (!$util.isInteger(message.offset) && !(message.offset && $util.isInteger(message.offset.low) && $util.isInteger(message.offset.high)))
+                        return "offset: integer|Long expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a RevisionRequest message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.data_hub.RevisionRequest
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.data_hub.RevisionRequest} RevisionRequest
+             */
+            RevisionRequest.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.data_hub.RevisionRequest)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.data_hub.RevisionRequest: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.data_hub.RevisionRequest();
+                if (object.before_id != null)
+                    message.before_id = $String(object.before_id);
+                if (object.after_id != null)
+                    message.after_id = $String(object.after_id);
+                if (object.offset != null)
+                    if ($util.Long)
+                        message.offset = $util.Long.fromValue(object.offset, false);
+                    else if (typeof object.offset === "string")
+                        message.offset = $parseInt(object.offset, 10);
+                    else if (typeof object.offset === "number")
+                        message.offset = object.offset;
+                    else if (typeof object.offset === "object")
+                        message.offset = new $util.LongBits(object.offset.low >>> 0, object.offset.high >>> 0).toNumber();
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a RevisionRequest message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.data_hub.RevisionRequest
+             * @static
+             * @param {northstar.data_hub.RevisionRequest} message RevisionRequest
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            RevisionRequest.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (message.before_id != null && $Object.hasOwnProperty.call(message, "before_id")) {
+                    object.before_id = message.before_id;
+                    if (options.oneofs)
+                        object._before_id = "before_id";
+                }
+                if (message.after_id != null && $Object.hasOwnProperty.call(message, "after_id")) {
+                    object.after_id = message.after_id;
+                    if (options.oneofs)
+                        object._after_id = "after_id";
+                }
+                if (message.offset != null && $Object.hasOwnProperty.call(message, "offset")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.offset = typeof message.offset === "number" ? $BigInt(message.offset) : $util.Long.fromBits(message.offset.low >>> 0, message.offset.high >>> 0, false).toBigInt();
+                    else if (typeof message.offset === "number")
+                        object.offset = options.longs === $String ? $String(message.offset) : message.offset;
+                    else
+                        object.offset = options.longs === $String ? $util.Long.prototype.toString.call(message.offset) : options.longs === $Number ? new $util.LongBits(message.offset.low >>> 0, message.offset.high >>> 0).toNumber() : message.offset;
+                    if (options.oneofs)
+                        object._offset = "offset";
+                }
+                return object;
+            };
+
+            /**
+             * Converts this RevisionRequest to JSON.
+             * @function toJSON
+             * @memberof northstar.data_hub.RevisionRequest
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            RevisionRequest.prototype.toJSON = function() {
+                return RevisionRequest.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for RevisionRequest
+             * @function getTypeUrl
+             * @memberof northstar.data_hub.RevisionRequest
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            RevisionRequest.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.data_hub.RevisionRequest";
+            };
+
+            return RevisionRequest;
+        })();
+
+        data_hub.RevisionComparison = (function() {
+
+            /**
+             * Properties of a RevisionComparison.
+             * @typedef {Object} northstar.data_hub.RevisionComparison.$Properties
+             * @property {string|null} [comparison_id] RevisionComparison comparison_id
+             * @property {string|null} [rule] RevisionComparison rule
+             * @property {google.protobuf.Struct.$Properties|null} [before] RevisionComparison before
+             * @property {google.protobuf.Struct.$Properties|null} [after] RevisionComparison after
+             * @property {boolean|null} [source_changed] RevisionComparison source_changed
+             * @property {boolean|null} [rules_changed] RevisionComparison rules_changed
+             * @property {google.protobuf.Struct.$Properties|null} [counts] RevisionComparison counts
+             * @property {Array.<google.protobuf.Struct.$Properties>|null} [changes] RevisionComparison changes
+             * @property {number|Long|null} [total] RevisionComparison total
+             * @property {number|Long|null} [offset] RevisionComparison offset
+             * @property {string|null} [note] RevisionComparison note
+             * @property {"comparison_id"} [_comparison_id] RevisionComparison _comparison_id
+             * @property {"rule"} [_rule] RevisionComparison _rule
+             * @property {"before"} [_before] RevisionComparison _before
+             * @property {"after"} [_after] RevisionComparison _after
+             * @property {"source_changed"} [_source_changed] RevisionComparison _source_changed
+             * @property {"rules_changed"} [_rules_changed] RevisionComparison _rules_changed
+             * @property {"counts"} [_counts] RevisionComparison _counts
+             * @property {"total"} [_total] RevisionComparison _total
+             * @property {"offset"} [_offset] RevisionComparison _offset
+             * @property {"note"} [_note] RevisionComparison _note
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a RevisionComparison.
+             * @memberof northstar.data_hub
+             * @interface IRevisionComparison
+             * @augments northstar.data_hub.RevisionComparison.$Properties
+             * @deprecated Use northstar.data_hub.RevisionComparison.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a RevisionComparison.
+             * @typedef {{
+             *   comparison_id?: string|null;
+             *   rule?: string|null;
+             *   before?: google.protobuf.Struct.$Shape|null;
+             *   after?: google.protobuf.Struct.$Shape|null;
+             *   source_changed?: boolean|null;
+             *   rules_changed?: boolean|null;
+             *   counts?: google.protobuf.Struct.$Shape|null;
+             *   changes?: Array.<google.protobuf.Struct.$Shape>|null;
+             *   total?: number|Long|null;
+             *   offset?: number|Long|null;
+             *   note?: string|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _comparison_id?: undefined; comparison_id?: null }|{ _comparison_id?: "comparison_id"; comparison_id: string })
+             * ) & (
+             *   ({ _rule?: undefined; rule?: null }|{ _rule?: "rule"; rule: string })
+             * ) & (
+             *   ({ _before?: undefined; before?: null }|{ _before?: "before"; before: google.protobuf.Struct.$Shape })
+             * ) & (
+             *   ({ _after?: undefined; after?: null }|{ _after?: "after"; after: google.protobuf.Struct.$Shape })
+             * ) & (
+             *   ({ _source_changed?: undefined; source_changed?: null }|{ _source_changed?: "source_changed"; source_changed: boolean })
+             * ) & (
+             *   ({ _rules_changed?: undefined; rules_changed?: null }|{ _rules_changed?: "rules_changed"; rules_changed: boolean })
+             * ) & (
+             *   ({ _counts?: undefined; counts?: null }|{ _counts?: "counts"; counts: google.protobuf.Struct.$Shape })
+             * ) & (
+             *   ({ _total?: undefined; total?: null }|{ _total?: "total"; total: number|Long })
+             * ) & (
+             *   ({ _offset?: undefined; offset?: null }|{ _offset?: "offset"; offset: number|Long })
+             * ) & (
+             *   ({ _note?: undefined; note?: null }|{ _note?: "note"; note: string })
+             * )} northstar.data_hub.RevisionComparison.$Shape
+             */
+
+            /**
+             * Constructs a new RevisionComparison.
+             * @memberof northstar.data_hub
+             * @classdesc Represents a RevisionComparison.
+             * @constructor
+             * @param {northstar.data_hub.RevisionComparison.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const RevisionComparison = function (properties) {
+                this.changes = [];
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * RevisionComparison comparison_id.
+             * @member {string|null|undefined} comparison_id
+             * @memberof northstar.data_hub.RevisionComparison
+             * @instance
+             */
+            RevisionComparison.prototype.comparison_id = null;
+
+            /**
+             * RevisionComparison rule.
+             * @member {string|null|undefined} rule
+             * @memberof northstar.data_hub.RevisionComparison
+             * @instance
+             */
+            RevisionComparison.prototype.rule = null;
+
+            /**
+             * RevisionComparison before.
+             * @member {google.protobuf.Struct.$Properties|null|undefined} before
+             * @memberof northstar.data_hub.RevisionComparison
+             * @instance
+             */
+            RevisionComparison.prototype.before = null;
+
+            /**
+             * RevisionComparison after.
+             * @member {google.protobuf.Struct.$Properties|null|undefined} after
+             * @memberof northstar.data_hub.RevisionComparison
+             * @instance
+             */
+            RevisionComparison.prototype.after = null;
+
+            /**
+             * RevisionComparison source_changed.
+             * @member {boolean|null|undefined} source_changed
+             * @memberof northstar.data_hub.RevisionComparison
+             * @instance
+             */
+            RevisionComparison.prototype.source_changed = null;
+
+            /**
+             * RevisionComparison rules_changed.
+             * @member {boolean|null|undefined} rules_changed
+             * @memberof northstar.data_hub.RevisionComparison
+             * @instance
+             */
+            RevisionComparison.prototype.rules_changed = null;
+
+            /**
+             * RevisionComparison counts.
+             * @member {google.protobuf.Struct.$Properties|null|undefined} counts
+             * @memberof northstar.data_hub.RevisionComparison
+             * @instance
+             */
+            RevisionComparison.prototype.counts = null;
+
+            /**
+             * RevisionComparison changes.
+             * @member {Array.<google.protobuf.Struct.$Properties>} changes
+             * @memberof northstar.data_hub.RevisionComparison
+             * @instance
+             */
+            RevisionComparison.prototype.changes = $util.emptyArray;
+
+            /**
+             * RevisionComparison total.
+             * @member {number|Long|null|undefined} total
+             * @memberof northstar.data_hub.RevisionComparison
+             * @instance
+             */
+            RevisionComparison.prototype.total = null;
+
+            /**
+             * RevisionComparison offset.
+             * @member {number|Long|null|undefined} offset
+             * @memberof northstar.data_hub.RevisionComparison
+             * @instance
+             */
+            RevisionComparison.prototype.offset = null;
+
+            /**
+             * RevisionComparison note.
+             * @member {string|null|undefined} note
+             * @memberof northstar.data_hub.RevisionComparison
+             * @instance
+             */
+            RevisionComparison.prototype.note = null;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * RevisionComparison _comparison_id.
+             * @member {"comparison_id"|undefined} _comparison_id
+             * @memberof northstar.data_hub.RevisionComparison
+             * @instance
+             */
+            $Object.defineProperty(RevisionComparison.prototype, "_comparison_id", {
+                get: $util.oneOfGetter($oneOfFields = ["comparison_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * RevisionComparison _rule.
+             * @member {"rule"|undefined} _rule
+             * @memberof northstar.data_hub.RevisionComparison
+             * @instance
+             */
+            $Object.defineProperty(RevisionComparison.prototype, "_rule", {
+                get: $util.oneOfGetter($oneOfFields = ["rule"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * RevisionComparison _before.
+             * @member {"before"|undefined} _before
+             * @memberof northstar.data_hub.RevisionComparison
+             * @instance
+             */
+            $Object.defineProperty(RevisionComparison.prototype, "_before", {
+                get: $util.oneOfGetter($oneOfFields = ["before"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * RevisionComparison _after.
+             * @member {"after"|undefined} _after
+             * @memberof northstar.data_hub.RevisionComparison
+             * @instance
+             */
+            $Object.defineProperty(RevisionComparison.prototype, "_after", {
+                get: $util.oneOfGetter($oneOfFields = ["after"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * RevisionComparison _source_changed.
+             * @member {"source_changed"|undefined} _source_changed
+             * @memberof northstar.data_hub.RevisionComparison
+             * @instance
+             */
+            $Object.defineProperty(RevisionComparison.prototype, "_source_changed", {
+                get: $util.oneOfGetter($oneOfFields = ["source_changed"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * RevisionComparison _rules_changed.
+             * @member {"rules_changed"|undefined} _rules_changed
+             * @memberof northstar.data_hub.RevisionComparison
+             * @instance
+             */
+            $Object.defineProperty(RevisionComparison.prototype, "_rules_changed", {
+                get: $util.oneOfGetter($oneOfFields = ["rules_changed"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * RevisionComparison _counts.
+             * @member {"counts"|undefined} _counts
+             * @memberof northstar.data_hub.RevisionComparison
+             * @instance
+             */
+            $Object.defineProperty(RevisionComparison.prototype, "_counts", {
+                get: $util.oneOfGetter($oneOfFields = ["counts"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * RevisionComparison _total.
+             * @member {"total"|undefined} _total
+             * @memberof northstar.data_hub.RevisionComparison
+             * @instance
+             */
+            $Object.defineProperty(RevisionComparison.prototype, "_total", {
+                get: $util.oneOfGetter($oneOfFields = ["total"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * RevisionComparison _offset.
+             * @member {"offset"|undefined} _offset
+             * @memberof northstar.data_hub.RevisionComparison
+             * @instance
+             */
+            $Object.defineProperty(RevisionComparison.prototype, "_offset", {
+                get: $util.oneOfGetter($oneOfFields = ["offset"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * RevisionComparison _note.
+             * @member {"note"|undefined} _note
+             * @memberof northstar.data_hub.RevisionComparison
+             * @instance
+             */
+            $Object.defineProperty(RevisionComparison.prototype, "_note", {
+                get: $util.oneOfGetter($oneOfFields = ["note"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new RevisionComparison instance using the specified properties.
+             * @function create
+             * @memberof northstar.data_hub.RevisionComparison
+             * @static
+             * @param {northstar.data_hub.RevisionComparison.$Properties=} [properties] Properties to set
+             * @returns {northstar.data_hub.RevisionComparison} RevisionComparison instance
+             * @type {{
+             *   (properties: northstar.data_hub.RevisionComparison.$Shape): northstar.data_hub.RevisionComparison & northstar.data_hub.RevisionComparison.$Shape;
+             *   (properties?: northstar.data_hub.RevisionComparison.$Properties): northstar.data_hub.RevisionComparison;
+             * }}
+             */
+            RevisionComparison.create = function(properties) {
+                return new RevisionComparison(properties);
+            };
+
+            /**
+             * Encodes the specified RevisionComparison message. Does not implicitly {@link northstar.data_hub.RevisionComparison.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.data_hub.RevisionComparison
+             * @static
+             * @param {northstar.data_hub.RevisionComparison.$Properties} message RevisionComparison message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            RevisionComparison.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.comparison_id != null && $Object.hasOwnProperty.call(message, "comparison_id"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.comparison_id);
+                if (message.rule != null && $Object.hasOwnProperty.call(message, "rule"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.rule);
+                if (message.before != null && $Object.hasOwnProperty.call(message, "before"))
+                    $root.google.protobuf.Struct.encode(message.before, writer.uint32(/* id 3, wireType 2 =*/26).fork(), _depth + 1).ldelim();
+                if (message.after != null && $Object.hasOwnProperty.call(message, "after"))
+                    $root.google.protobuf.Struct.encode(message.after, writer.uint32(/* id 4, wireType 2 =*/34).fork(), _depth + 1).ldelim();
+                if (message.source_changed != null && $Object.hasOwnProperty.call(message, "source_changed"))
+                    writer.uint32(/* id 5, wireType 0 =*/40).bool(message.source_changed);
+                if (message.rules_changed != null && $Object.hasOwnProperty.call(message, "rules_changed"))
+                    writer.uint32(/* id 6, wireType 0 =*/48).bool(message.rules_changed);
+                if (message.counts != null && $Object.hasOwnProperty.call(message, "counts"))
+                    $root.google.protobuf.Struct.encode(message.counts, writer.uint32(/* id 7, wireType 2 =*/58).fork(), _depth + 1).ldelim();
+                if (message.changes != null && message.changes.length)
+                    for (let i = 0; i < message.changes.length; ++i)
+                        $root.google.protobuf.Struct.encode(message.changes[i], writer.uint32(/* id 8, wireType 2 =*/66).fork(), _depth + 1).ldelim();
+                if (message.total != null && $Object.hasOwnProperty.call(message, "total"))
+                    writer.uint32(/* id 9, wireType 0 =*/72).int64(message.total);
+                if (message.offset != null && $Object.hasOwnProperty.call(message, "offset"))
+                    writer.uint32(/* id 10, wireType 0 =*/80).int64(message.offset);
+                if (message.note != null && $Object.hasOwnProperty.call(message, "note"))
+                    writer.uint32(/* id 11, wireType 2 =*/90).string(message.note);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a RevisionComparison message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.data_hub.RevisionComparison
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.data_hub.RevisionComparison & northstar.data_hub.RevisionComparison.$Shape} RevisionComparison
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            RevisionComparison.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.data_hub.RevisionComparison();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.comparison_id = reader.stringVerify();
+                            message._comparison_id = "comparison_id";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.rule = reader.stringVerify();
+                            message._rule = "rule";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 2)
+                                break;
+                            message.before = $root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1, message.before);
+                            message._before = "before";
+                            continue;
+                        }
+                    case 4: {
+                            if (wireType !== 2)
+                                break;
+                            message.after = $root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1, message.after);
+                            message._after = "after";
+                            continue;
+                        }
+                    case 5: {
+                            if (wireType !== 0)
+                                break;
+                            message.source_changed = reader.bool();
+                            message._source_changed = "source_changed";
+                            continue;
+                        }
+                    case 6: {
+                            if (wireType !== 0)
+                                break;
+                            message.rules_changed = reader.bool();
+                            message._rules_changed = "rules_changed";
+                            continue;
+                        }
+                    case 7: {
+                            if (wireType !== 2)
+                                break;
+                            message.counts = $root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1, message.counts);
+                            message._counts = "counts";
+                            continue;
+                        }
+                    case 8: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.changes && message.changes.length))
+                                message.changes = [];
+                            message.changes.push($root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1));
+                            continue;
+                        }
+                    case 9: {
+                            if (wireType !== 0)
+                                break;
+                            message.total = reader.int64();
+                            message._total = "total";
+                            continue;
+                        }
+                    case 10: {
+                            if (wireType !== 0)
+                                break;
+                            message.offset = reader.int64();
+                            message._offset = "offset";
+                            continue;
+                        }
+                    case 11: {
+                            if (wireType !== 2)
+                                break;
+                            message.note = reader.stringVerify();
+                            message._note = "note";
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a RevisionComparison message.
+             * @function verify
+             * @memberof northstar.data_hub.RevisionComparison
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            RevisionComparison.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.comparison_id != null && $Object.hasOwnProperty.call(message, "comparison_id")) {
+                    properties._comparison_id = 1;
+                    if (!$util.isString(message.comparison_id))
+                        return "comparison_id: string expected";
+                }
+                if (message.rule != null && $Object.hasOwnProperty.call(message, "rule")) {
+                    properties._rule = 1;
+                    if (!$util.isString(message.rule))
+                        return "rule: string expected";
+                }
+                if (message.before != null && $Object.hasOwnProperty.call(message, "before")) {
+                    properties._before = 1;
+                    {
+                        let error = $root.google.protobuf.Struct.verify(message.before, _depth + 1);
+                        if (error)
+                            return "before." + error;
+                    }
+                }
+                if (message.after != null && $Object.hasOwnProperty.call(message, "after")) {
+                    properties._after = 1;
+                    {
+                        let error = $root.google.protobuf.Struct.verify(message.after, _depth + 1);
+                        if (error)
+                            return "after." + error;
+                    }
+                }
+                if (message.source_changed != null && $Object.hasOwnProperty.call(message, "source_changed")) {
+                    properties._source_changed = 1;
+                    if (typeof message.source_changed !== "boolean")
+                        return "source_changed: boolean expected";
+                }
+                if (message.rules_changed != null && $Object.hasOwnProperty.call(message, "rules_changed")) {
+                    properties._rules_changed = 1;
+                    if (typeof message.rules_changed !== "boolean")
+                        return "rules_changed: boolean expected";
+                }
+                if (message.counts != null && $Object.hasOwnProperty.call(message, "counts")) {
+                    properties._counts = 1;
+                    {
+                        let error = $root.google.protobuf.Struct.verify(message.counts, _depth + 1);
+                        if (error)
+                            return "counts." + error;
+                    }
+                }
+                if (message.changes != null && $Object.hasOwnProperty.call(message, "changes")) {
+                    if (!$Array.isArray(message.changes))
+                        return "changes: array expected";
+                    for (let i = 0; i < message.changes.length; ++i) {
+                        let error = $root.google.protobuf.Struct.verify(message.changes[i], _depth + 1);
+                        if (error)
+                            return "changes." + error;
+                    }
+                }
+                if (message.total != null && $Object.hasOwnProperty.call(message, "total")) {
+                    properties._total = 1;
+                    if (!$util.isInteger(message.total) && !(message.total && $util.isInteger(message.total.low) && $util.isInteger(message.total.high)))
+                        return "total: integer|Long expected";
+                }
+                if (message.offset != null && $Object.hasOwnProperty.call(message, "offset")) {
+                    properties._offset = 1;
+                    if (!$util.isInteger(message.offset) && !(message.offset && $util.isInteger(message.offset.low) && $util.isInteger(message.offset.high)))
+                        return "offset: integer|Long expected";
+                }
+                if (message.note != null && $Object.hasOwnProperty.call(message, "note")) {
+                    properties._note = 1;
+                    if (!$util.isString(message.note))
+                        return "note: string expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a RevisionComparison message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.data_hub.RevisionComparison
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.data_hub.RevisionComparison} RevisionComparison
+             */
+            RevisionComparison.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.data_hub.RevisionComparison)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.data_hub.RevisionComparison: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.data_hub.RevisionComparison();
+                if (object.comparison_id != null)
+                    message.comparison_id = $String(object.comparison_id);
+                if (object.rule != null)
+                    message.rule = $String(object.rule);
+                if (object.before != null) {
+                    if (!$util.isObject(object.before))
+                        throw $TypeError(".northstar.data_hub.RevisionComparison.before: object expected");
+                    message.before = $root.google.protobuf.Struct.fromObject(object.before, _depth + 1);
+                }
+                if (object.after != null) {
+                    if (!$util.isObject(object.after))
+                        throw $TypeError(".northstar.data_hub.RevisionComparison.after: object expected");
+                    message.after = $root.google.protobuf.Struct.fromObject(object.after, _depth + 1);
+                }
+                if (object.source_changed != null)
+                    message.source_changed = $Boolean(object.source_changed);
+                if (object.rules_changed != null)
+                    message.rules_changed = $Boolean(object.rules_changed);
+                if (object.counts != null) {
+                    if (!$util.isObject(object.counts))
+                        throw $TypeError(".northstar.data_hub.RevisionComparison.counts: object expected");
+                    message.counts = $root.google.protobuf.Struct.fromObject(object.counts, _depth + 1);
+                }
+                if (object.changes) {
+                    if (!$Array.isArray(object.changes))
+                        throw $TypeError(".northstar.data_hub.RevisionComparison.changes: array expected");
+                    message.changes = $Array(object.changes.length);
+                    for (let i = 0; i < object.changes.length; ++i) {
+                        if (!$util.isObject(object.changes[i]))
+                            throw $TypeError(".northstar.data_hub.RevisionComparison.changes: object expected");
+                        message.changes[i] = $root.google.protobuf.Struct.fromObject(object.changes[i], _depth + 1);
+                    }
+                }
+                if (object.total != null)
+                    if ($util.Long)
+                        message.total = $util.Long.fromValue(object.total, false);
+                    else if (typeof object.total === "string")
+                        message.total = $parseInt(object.total, 10);
+                    else if (typeof object.total === "number")
+                        message.total = object.total;
+                    else if (typeof object.total === "object")
+                        message.total = new $util.LongBits(object.total.low >>> 0, object.total.high >>> 0).toNumber();
+                if (object.offset != null)
+                    if ($util.Long)
+                        message.offset = $util.Long.fromValue(object.offset, false);
+                    else if (typeof object.offset === "string")
+                        message.offset = $parseInt(object.offset, 10);
+                    else if (typeof object.offset === "number")
+                        message.offset = object.offset;
+                    else if (typeof object.offset === "object")
+                        message.offset = new $util.LongBits(object.offset.low >>> 0, object.offset.high >>> 0).toNumber();
+                if (object.note != null)
+                    message.note = $String(object.note);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a RevisionComparison message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.data_hub.RevisionComparison
+             * @static
+             * @param {northstar.data_hub.RevisionComparison} message RevisionComparison
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            RevisionComparison.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.arrays || options.defaults)
+                    object.changes = [];
+                if (message.comparison_id != null && $Object.hasOwnProperty.call(message, "comparison_id")) {
+                    object.comparison_id = message.comparison_id;
+                    if (options.oneofs)
+                        object._comparison_id = "comparison_id";
+                }
+                if (message.rule != null && $Object.hasOwnProperty.call(message, "rule")) {
+                    object.rule = message.rule;
+                    if (options.oneofs)
+                        object._rule = "rule";
+                }
+                if (message.before != null && $Object.hasOwnProperty.call(message, "before")) {
+                    object.before = $root.google.protobuf.Struct.toObject(message.before, options, _depth + 1);
+                    if (options.oneofs)
+                        object._before = "before";
+                }
+                if (message.after != null && $Object.hasOwnProperty.call(message, "after")) {
+                    object.after = $root.google.protobuf.Struct.toObject(message.after, options, _depth + 1);
+                    if (options.oneofs)
+                        object._after = "after";
+                }
+                if (message.source_changed != null && $Object.hasOwnProperty.call(message, "source_changed")) {
+                    object.source_changed = message.source_changed;
+                    if (options.oneofs)
+                        object._source_changed = "source_changed";
+                }
+                if (message.rules_changed != null && $Object.hasOwnProperty.call(message, "rules_changed")) {
+                    object.rules_changed = message.rules_changed;
+                    if (options.oneofs)
+                        object._rules_changed = "rules_changed";
+                }
+                if (message.counts != null && $Object.hasOwnProperty.call(message, "counts")) {
+                    object.counts = $root.google.protobuf.Struct.toObject(message.counts, options, _depth + 1);
+                    if (options.oneofs)
+                        object._counts = "counts";
+                }
+                if (message.changes && message.changes.length) {
+                    object.changes = $Array(message.changes.length);
+                    for (let j = 0; j < message.changes.length; ++j)
+                        object.changes[j] = $root.google.protobuf.Struct.toObject(message.changes[j], options, _depth + 1);
+                }
+                if (message.total != null && $Object.hasOwnProperty.call(message, "total")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.total = typeof message.total === "number" ? $BigInt(message.total) : $util.Long.fromBits(message.total.low >>> 0, message.total.high >>> 0, false).toBigInt();
+                    else if (typeof message.total === "number")
+                        object.total = options.longs === $String ? $String(message.total) : message.total;
+                    else
+                        object.total = options.longs === $String ? $util.Long.prototype.toString.call(message.total) : options.longs === $Number ? new $util.LongBits(message.total.low >>> 0, message.total.high >>> 0).toNumber() : message.total;
+                    if (options.oneofs)
+                        object._total = "total";
+                }
+                if (message.offset != null && $Object.hasOwnProperty.call(message, "offset")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.offset = typeof message.offset === "number" ? $BigInt(message.offset) : $util.Long.fromBits(message.offset.low >>> 0, message.offset.high >>> 0, false).toBigInt();
+                    else if (typeof message.offset === "number")
+                        object.offset = options.longs === $String ? $String(message.offset) : message.offset;
+                    else
+                        object.offset = options.longs === $String ? $util.Long.prototype.toString.call(message.offset) : options.longs === $Number ? new $util.LongBits(message.offset.low >>> 0, message.offset.high >>> 0).toNumber() : message.offset;
+                    if (options.oneofs)
+                        object._offset = "offset";
+                }
+                if (message.note != null && $Object.hasOwnProperty.call(message, "note")) {
+                    object.note = message.note;
+                    if (options.oneofs)
+                        object._note = "note";
+                }
+                return object;
+            };
+
+            /**
+             * Converts this RevisionComparison to JSON.
+             * @function toJSON
+             * @memberof northstar.data_hub.RevisionComparison
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            RevisionComparison.prototype.toJSON = function() {
+                return RevisionComparison.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for RevisionComparison
+             * @function getTypeUrl
+             * @memberof northstar.data_hub.RevisionComparison
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            RevisionComparison.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.data_hub.RevisionComparison";
+            };
+
+            return RevisionComparison;
+        })();
+
         return data_hub;
     })();
 

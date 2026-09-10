@@ -150,3 +150,87 @@ def test_protocol_range_export_and_corruption_refusal(published):
         path.write_bytes(b"corrupt")
         refused = client.post("/api/explorer/query", json=selection)
         assert refused.status_code == 422, refused.text
+
+
+def test_revision_comparison_pins_both_versions_and_distinguishes_null(published):
+    from northstar_quant.data_management.exploration import revisions
+
+    library, content = published
+    engine = library._engine
+    with engine.connect() as c:
+        before = c.scalar(text("SELECT receipt_id FROM data_sync_receipts"))
+    content["data"]["items"][0][2] = "3100.20"
+    content["data"]["items"][0][-1] = "0"
+    content["data"]["items"].pop()
+    added = list(content["data"]["items"][-1])
+    added[1] = "2026-09-03 09:04:00"
+    content["data"]["items"].append(added)
+    with engine.begin() as c:
+        c.execute(text("UPDATE data_sync_jobs SET status='PENDING'"))
+        c.execute(text("UPDATE data_sync_settings SET next_request_at=now()"))
+    after = UUID(jobs.process_next(library)["receipt_id"])
+    report = revisions.compare(engine, before_id=before, after_id=after)
+    assert report["counts"] == dict(added=1, removed=1, changed=1, unchanged=4)
+    assert report["source_changed"] and not report["rules_changed"]
+    changed = [r for r in report["changes"] if r["kind"] == "changed"]
+    assert next(r for r in changed if r["field"] == "open")["before"] == "3100.1"
+    oi = next(r for r in changed if r["field"] == "oi")
+    assert oi["before_present"] and oi["before"] is None and oi["after"] == "0"
+    # New publication cannot alter the explicitly pinned comparison.
+    content["data"]["items"][0][2] = "3100.30"
+    with engine.begin() as c:
+        c.execute(text("UPDATE data_sync_jobs SET status='PENDING'"))
+        c.execute(text("UPDATE data_sync_settings SET next_request_at=now()"))
+    jobs.process_next(library)
+    assert revisions.compare(engine, before_id=before, after_id=after) == report
+    reverse = revisions.compare(engine, before_id=after, after_id=before)
+    assert reverse["comparison_id"] != report["comparison_id"]
+    assert (
+        next(r for r in reverse["changes"] if r["field"] == "open" and r["kind"] == "changed")[
+            "after"
+        ]
+        == "3100.1"
+    )
+    from tests.apps.browser import ProtocolClient
+
+    with ProtocolClient(create_app(engine, library), base_url="http://127.0.0.1") as client:
+        csrf = client.get("/api/browser-session").json()["csrf"]
+        client.headers.update({"x-northstar-csrf": csrf, "origin": "http://127.0.0.1"})
+        response = client.post(
+            "/api/explorer/compare",
+            json={"before_id": str(before), "after_id": str(after), "offset": 0},
+        )
+        assert response.status_code == 200, response.text
+        assert response.json()["comparison_id"] == report["comparison_id"]
+    with engine.connect() as c:
+        receipt = (
+            c.execute(text("SELECT * FROM data_sync_receipts WHERE receipt_id=:id"), {"id": before})
+            .mappings()
+            .one()
+        )
+    from northstar_quant.data_management.tushare import publication
+
+    publication.storage()._path(receipt["parquet_hash"]).write_bytes(b"corrupt")
+    with pytest.raises(ValueError):
+        revisions.compare(engine, before_id=before, after_id=after)
+
+
+def test_rule_only_revision_has_no_row_changes(published, monkeypatch):
+    from northstar_quant.data_management.exploration import revisions
+    from northstar_quant.data_management.tushare import quality as validation
+    from northstar_quant.data_management.tushare import reprocessing
+
+    library, _ = published
+    with library._engine.connect() as c:
+        first = c.execute(text("SELECT * FROM data_sync_receipts")).mappings().one()
+        source = c.scalar(text("SELECT generation FROM data_sync_attempts"))
+    monkeypatch.setattr(validation, "RULE", "test-different-quality-rule")
+    reprocessing.enqueue(library._engine, request_id=first["request_id"], source_generation=source)
+    after = UUID(jobs.process_next(library)["receipt_id"])
+    report = revisions.compare(library._engine, before_id=first["receipt_id"], after_id=after)
+    assert report["rules_changed"] and not report["source_changed"]
+    assert report["total"] == 0 and report["counts"]["unchanged"] == 6
+    with pytest.raises(ValueError):
+        revisions.compare(library._engine, before_id=after, after_id=after)
+    with pytest.raises(LookupError):
+        revisions.compare(library._engine, before_id=UUID(int=1), after_id=after)

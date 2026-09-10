@@ -185,3 +185,36 @@ def test_amount_unit_overflow_cannot_be_silently_rounded():
     row["amount"] = "99999999999999999999999999"
     with pytest.raises(InvalidResponse, match="精确范围"):
         normalize(encoded(row), job)
+
+
+def test_row_diagnostics_are_bounded_and_do_not_echo_supplier_values():
+    row, job = market_response("1min")
+    rows = []
+    for i in range(103):
+        value = dict(row, vol="private-invalid-value")
+        rows.append(list(value.values()))
+    content = json.dumps({"code": 0, "data": {"fields": list(row), "items": rows}}).encode()
+    with pytest.raises(InvalidResponse) as caught:
+        normalize(content, job)
+    report = caught.value.report
+    assert report["issue_count"] == 103
+    assert report["truncated"] and len(report["issues"]) == 100
+    assert [i["row_number"] for i in report["issues"]] == list(range(1, 101))
+    assert report["issues"][0]["fields"] == ["vol"]
+    assert "private-invalid-value" not in json.dumps(report)
+
+
+def test_conflicting_rows_report_both_raw_positions():
+    row, job = market_response("1min")
+    changed = dict(row, vol=3)
+    content = json.dumps(
+        {
+            "code": 0,
+            "data": {"fields": list(row), "items": [list(row.values()), list(changed.values())]},
+        }
+    ).encode()
+    with pytest.raises(InvalidResponse) as caught:
+        normalize(content, job)
+    issue = caught.value.report["issues"][0]
+    assert issue["row_number"] == 2
+    assert issue["related_row_number"] == 1

@@ -432,6 +432,9 @@ def test_missing_price_is_retained_then_corrected_response_can_publish(automatic
     failed = jobs.process_next(automatic)
     assert failed["status"] == "BLOCKED"
     assert "high" in failed["error"]
+    report = failed["attempts_detail"][0]["quality"]
+    assert report["issues"][0]["fields"] == ["high"]
+    assert report["issues"][0]["row_number"] is None
     with automatic._engine.connect() as connection:
         attempt = connection.execute(text("SELECT * FROM data_sync_attempts")).mappings().one()
         assert connection.scalar(text("SELECT count(*) FROM data_sync_coverage")) == 0
@@ -457,6 +460,14 @@ def test_missing_price_is_retained_then_corrected_response_can_publish(automatic
         == "3100.1"
     )
     assert automatic._files.read(attempt["source_hash"], attempt["source_bytes"]) == incomplete
+    with automatic._engine.connect() as c:
+        assert (
+            c.scalar(
+                text("SELECT quality FROM data_sync_attempts WHERE generation=:g"),
+                {"g": attempt["generation"]},
+            )
+            == report
+        )
 
 
 def test_new_quality_rule_keeps_old_receipt_and_reuses_unchanged_parquet(automatic, monkeypatch):

@@ -198,6 +198,12 @@ def main() -> None:
                         .get_by_text(market["request_id"], exact=False)
                         .first
                     ).to_be_visible()
+                    expect(
+                        page.get_by_role("dialog").get_by_role(
+                            "cell", name="成交量、持仓量或金额无效", exact=True
+                        )
+                    ).to_be_visible()
+                    screenshot("quality-issues")
                     page.get_by_role("button", name="重处理已留存响应", exact=True).click()
                     expect(page.get_by_text("已排队重处理留存响应", exact=True)).to_be_visible()
                     page.reload()
@@ -227,7 +233,17 @@ def main() -> None:
                         + "/versions?dataset=1min&scope=RB2610.SHF&start=2026-09-01&end=2026-09-03"
                     )
                     page.get_by_role("button", name="查询数据", exact=True).click()
-                    page.get_by_role("link", name="浏览此版本", exact=True).click()
+                    page.locator(".ant-table-tbody input[type=checkbox]").nth(0).check()
+                    page.locator(".ant-table-tbody input[type=checkbox]").nth(1).check()
+                    page.get_by_role("button", name="比较所选版本", exact=True).click()
+                    expect(
+                        page.get_by_role("dialog").get_by_text(
+                            "新增 0 行，删除 0 行，修改 1 行，未变 439 行", exact=True
+                        )
+                    ).to_be_visible()
+                    screenshot("revision-diff")
+                    page.get_by_role("dialog").locator(".ant-modal-close").click()
+                    page.get_by_role("link", name="浏览此版本", exact=True).first.click()
                     page.get_by_role("button", name="查询数据", exact=True).click()
                     expect(page.get_by_text("440 条记录", exact=True)).to_be_visible()
                     page.reload()

@@ -201,6 +201,24 @@ export type ExplorerRows = {
   versions: (Record<string, JsonValue>)[];
   note: string;
 };
+export type RevisionRequest = {
+  before_id: string;
+  after_id: string;
+  offset: number;
+};
+export type RevisionComparison = {
+  comparison_id: string;
+  rule: string;
+  before: Record<string, JsonValue>;
+  after: Record<string, JsonValue>;
+  source_changed: boolean;
+  rules_changed: boolean;
+  counts: Record<string, JsonValue>;
+  changes?: (Record<string, JsonValue>)[];
+  total: number;
+  offset: number;
+  note: string;
+};
 export type Empty = {
 };
 export type Error = {

@@ -18,6 +18,8 @@ import { query, mutate } from "./api/client";
 import { useData, fetchQuery } from "../../shared/data";
 import { Evidence, Failure, Heading } from "../../shared/ui";
 
+import { QualityIssues } from "./quality-issues";
+
 type Row = Record<string, unknown>;
 const labels: Record<string, string> = {
   PENDING: "待同步",
@@ -362,6 +364,7 @@ export function TushareSync() {
                 </Button>
               </Space>
             )}
+            <QualityIssues attempts={(detail.attempts_detail ?? []) as Row[]} />
             <Evidence value={detail} />
           </>
         )}

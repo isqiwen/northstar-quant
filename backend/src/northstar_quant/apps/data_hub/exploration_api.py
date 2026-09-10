@@ -7,8 +7,28 @@ from fastapi import FastAPI, HTTPException
 from pydantic import Field, JsonValue
 from sqlalchemy import Engine
 
-from northstar_quant.data_management.exploration import catalog, quality, rows
+from northstar_quant.data_management.exploration import catalog, quality, revisions, rows
 from northstar_quant.web.requests import ApiModel
+
+
+class RevisionRequest(ApiModel):
+    before_id: str
+    after_id: str
+    offset: int = Field(ge=0, le=1000000)
+
+
+class RevisionComparison(ApiModel):
+    comparison_id: str
+    rule: str
+    before: dict[str, JsonValue]
+    after: dict[str, JsonValue]
+    source_changed: bool
+    rules_changed: bool
+    counts: dict[str, JsonValue]
+    changes: list[dict[str, JsonValue]]
+    total: int
+    offset: int
+    note: str
 
 
 class ExplorerCatalog(ApiModel):
@@ -67,6 +87,15 @@ class ExplorerRows(ApiModel):
 
 
 def register(app: FastAPI, engine: Engine) -> None:
+    @app.post("/api/explorer/compare", response_model=RevisionComparison)
+    def compare(document: RevisionRequest) -> dict[str, Any]:
+        return revisions.compare(
+            engine,
+            before_id=UUID(document.before_id),
+            after_id=UUID(document.after_id),
+            offset=document.offset,
+        )
+
     @app.get("/api/explorer", response_model=ExplorerCatalog)
     def overview() -> dict[str, Any]:
         return catalog.overview(engine)

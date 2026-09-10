@@ -94,7 +94,8 @@ def initialize(connection: Connection) -> None:
             source_bytes bigint,
             parent_generation uuid REFERENCES data_sync_attempts(generation),
             receipt_id uuid REFERENCES data_sync_receipts,
-            code_revision text
+            code_revision text,
+            quality jsonb
         );
         ALTER TABLE data_sync_jobs ADD COLUMN IF NOT EXISTS source_generation uuid;
         ALTER TABLE data_sync_attempts ADD COLUMN IF NOT EXISTS parent_generation uuid
@@ -102,6 +103,7 @@ def initialize(connection: Connection) -> None:
         ALTER TABLE data_sync_attempts ADD COLUMN IF NOT EXISTS receipt_id uuid
             REFERENCES data_sync_receipts;
         ALTER TABLE data_sync_attempts ADD COLUMN IF NOT EXISTS code_revision text;
+        ALTER TABLE data_sync_attempts ADD COLUMN IF NOT EXISTS quality jsonb;
         CREATE OR REPLACE FUNCTION data_sync_immutable_receipt() RETURNS trigger AS $$
         BEGIN RAISE EXCEPTION 'Downloaded revisions are immutable'; END;
         $$ LANGUAGE plpgsql;

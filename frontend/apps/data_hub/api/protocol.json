@@ -1293,6 +1293,117 @@
       "array": false,
       "evidence": false
     },
+    "northstar.data_hub.RevisionRequest": {
+      "fields": {
+        "before_id": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "after_id": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "offset": {
+          "id": 3,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.data_hub.RevisionComparison": {
+      "fields": {
+        "comparison_id": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "rule": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "before": {
+          "id": 3,
+          "presence": true,
+          "type": "google.protobuf.Struct",
+          "required": true,
+          "nullable": false
+        },
+        "after": {
+          "id": 4,
+          "presence": true,
+          "type": "google.protobuf.Struct",
+          "required": true,
+          "nullable": false
+        },
+        "source_changed": {
+          "id": 5,
+          "presence": true,
+          "type": "bool",
+          "required": true,
+          "nullable": false
+        },
+        "rules_changed": {
+          "id": 6,
+          "presence": true,
+          "type": "bool",
+          "required": true,
+          "nullable": false
+        },
+        "counts": {
+          "id": 7,
+          "presence": true,
+          "type": "google.protobuf.Struct",
+          "required": true,
+          "nullable": false
+        },
+        "changes": {
+          "id": 8,
+          "presence": false,
+          "type": "google.protobuf.Struct",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "total": {
+          "id": 9,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "offset": {
+          "id": 10,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "note": {
+          "id": 11,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
     "northstar.web.Empty": {
       "fields": {},
       "array": false,
@@ -1348,6 +1459,13 @@
     }
   },
   "methods": [
+    {
+      "method": "POST",
+      "path": "/api/explorer/compare",
+      "input": "northstar.data_hub.RevisionRequest",
+      "output": "northstar.data_hub.RevisionComparison",
+      "runtime": false
+    },
     {
       "method": "POST",
       "path": "/api/explorer/export",

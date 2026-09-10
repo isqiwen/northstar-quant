@@ -76,6 +76,7 @@ Data Hub 连接 core 独立数据库；Research 使用本机 SQLite。启动检�
 Data API 持久排队，独立 worker 下载与加工；关闭 Data Web/API 不停止已提交任务。
 Data Hub 只通过 Tushare 自动同步全部期货历史数据，不提供文件导入、Tick、品种或周期选择。
 打开 Data Hub → **历史同步**，保存 token 后点击 **开始同步全部数据**；可查看分片进度、等待原因与固定数据。
+分片 **记录** 展示质量问题的原文行号、字段和原因；**版本与来源** 可选择同一分片的两个固定版本，比较新增、删除及字段变化。
 在分片的 **记录** 中可点击 **重处理已留存响应**，使用当前规则重新校验最新原文，不重新下载；同步暂停时保留排队，失败不覆盖旧版本。
 凭据保存在 core 本地 `/opt/northstar/credentials/data-hub/`，API 不回显 token；前端/API 停止不影响独立 worker。
 本地开发需为 API 和 worker 设置同一个绝对路径 `NORTHSTAR_DATA_SECRET_DIR`（私有目录权限 0700）。
