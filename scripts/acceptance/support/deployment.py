@@ -1,5 +1,6 @@
 """Render production Compose into a private disposable filesystem for acceptance only."""
 
+import hashlib
 import ipaddress
 import json
 import os
@@ -53,6 +54,13 @@ def isolated_compose(
         check=True,
     )
     config = json.loads(result.stdout)
+    prefix = "northstar-check-" + hashlib.sha256(str(root.resolve()).encode()).hexdigest()[:12]
+    # `compose config` expands default network names before the caller's -p.
+    # Rebind every name, retaining equal names only for intentionally shared
+    # networks (for example the database/Data Hub storage network).
+    for name, network in config.get("networks", {}).items():
+        original = network.get("name", name)
+        network["name"] = prefix + "-" + hashlib.sha256(original.encode()).hexdigest()[:12]
     for service in config["services"].values():
         if "extra_hosts" in service:
             service["extra_hosts"] = [

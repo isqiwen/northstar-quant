@@ -71,9 +71,6 @@ class Deployment:
         owner = "research" if app == "research" else "data-hub"
         registry = self.root / "state" / owner / "bindings/storage.json"
         config = json.loads(compose.read_text())
-        if app in {"database", "data_hub"}:
-            # Isolate acceptance from the fixed deployment network.
-            config["networks"]["storage"]["name"] = self.projects["database"] + "-storage"
         try:
             identities, _ = binder(config, app, registry)
         except ValueError as error:
