@@ -46,6 +46,19 @@ Domestic futures calendars, settlement, fees, margin and CTP semantics still
 require their own verified rules. Preserve Northstar's three independent apps,
 local Live SQLite, account ownership and explicit execution authorization.
 
+## Module-specific reference projects
+
+Read [the reference catalog](docs/REFERENCES.md) when designing or changing a
+related module. It preserves the user's selected projects and their intended
+Northstar roles; NautilusTrader remains the primary overall architecture reference.
+Consult only the relevant candidates. Before reusing code or adding a dependency,
+verify its current official implementation, license, maintenance and applicable
+market semantics; record the version/date, decision and limitations in
+`docs/ARCHITECTURE.md`. Inclusion in the catalog is not dependency approval or
+evidence of implemented functionality. Preserve existing ownership, persistence,
+reproducibility and Live safety rules; do not create competing engines or stores
+merely to incorporate a reference.
+
 ## Permanent engineering rules
 
 - Python implementation, tests, dependencies and build live in `backend/`; Next.js lives

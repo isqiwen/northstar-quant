@@ -89,7 +89,7 @@ def decode(content: bytes) -> dict[str, Any]:
         fields, items = data["fields"], data["items"]
         if (
             not isinstance(fields, list)
-            or not fields
+            or (not fields and items != [])
             or len(fields) != len(set(fields))
             or not all(isinstance(f, str) for f in fields)
             or not isinstance(items, list)

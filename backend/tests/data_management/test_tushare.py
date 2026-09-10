@@ -406,3 +406,129 @@ def test_bad_numeric_is_retained_and_does_not_kill_sync(automatic, monkeypatch, 
     )
     ready(automatic)
     assert jobs.process_next(automatic)["status"] == "VALIDATED"
+
+
+def test_missing_price_is_retained_then_corrected_response_can_publish(automatic, monkeypatch):
+    pending(automatic)
+    raw = json.loads(response())
+    index = raw["data"]["fields"].index("high")
+    raw["data"]["fields"].pop(index)
+    raw["data"]["items"][0].pop(index)
+    incomplete = json.dumps(raw).encode()
+    monkeypatch.setattr(acquisition, "fetch", lambda *_: incomplete)
+    failed = jobs.process_next(automatic)
+    assert failed["status"] == "BLOCKED"
+    assert "high" in failed["error"]
+    with automatic._engine.connect() as connection:
+        attempt = connection.execute(text("SELECT * FROM data_sync_attempts")).mappings().one()
+        assert connection.scalar(text("SELECT count(*) FROM data_sync_coverage")) == 0
+        assert connection.scalar(text("SELECT count(*) FROM data_sync_receipts")) == 0
+    assert automatic._files.read(attempt["source_hash"], attempt["source_bytes"]) == incomplete
+    assert publication.storage().inventory() == []
+    # The existing UI retry operation requeues the failed job; no alternate import path.
+    monkeypatch.setattr(planning, "plan", lambda *_: None)
+    monkeypatch.setattr(planning, "refresh", lambda *_: None)
+    config = settings.status(automatic._engine)["settings"]
+    settings.configure(automatic._engine, revision=config["revision"], enabled=True)
+    monkeypatch.setattr(acquisition, "fetch", lambda *_: response())
+    ready(automatic)
+    assert jobs.process_next(automatic)["status"] == "VALIDATED"
+    with automatic._engine.connect() as connection:
+        receipt = connection.execute(text("SELECT * FROM data_sync_receipts")).mappings().one()
+        assert connection.scalar(text("SELECT count(*) FROM data_sync_attempts")) == 2
+        assert connection.scalar(text("SELECT count(*) FROM data_sync_coverage")) == 1
+    assert (
+        publication.read_snapshot(receipt["manifest_hash"], receipt["manifest_bytes"])["rows"][0][
+            "high"
+        ]
+        == "3100.1"
+    )
+    assert automatic._files.read(attempt["source_hash"], attempt["source_bytes"]) == incomplete
+
+
+def test_new_quality_rule_keeps_old_receipt_and_reuses_unchanged_parquet(automatic, monkeypatch):
+    from northstar_quant.data_management.tushare import quality
+
+    pending(automatic)
+    monkeypatch.setattr(acquisition, "fetch", lambda *_: response())
+    assert jobs.process_next(automatic)["status"] == "VALIDATED"
+    with automatic._engine.connect() as connection:
+        before = connection.execute(text("SELECT * FROM data_sync_receipts")).mappings().one()
+    original = publication.read_snapshot(before["manifest_hash"], before["manifest_bytes"])
+    monkeypatch.setattr(quality, "RULE", "test-quality-revision")
+    for _ in range(2):
+        with automatic._engine.begin() as connection:
+            connection.execute(text("UPDATE data_sync_jobs SET status='PENDING'"))
+        ready(automatic)
+        assert jobs.process_next(automatic)["status"] == "VALIDATED"
+    with automatic._engine.connect() as connection:
+        receipts = (
+            connection.execute(text("SELECT * FROM data_sync_receipts ORDER BY created_at"))
+            .mappings()
+            .all()
+        )
+        current = connection.scalar(text("SELECT receipt_id FROM data_sync_coverage"))
+    assert len(receipts) == 2
+    assert current == receipts[1]["receipt_id"]
+    assert receipts[0]["source_hash"] == receipts[1]["source_hash"]
+    assert receipts[0]["parquet_hash"] == receipts[1]["parquet_hash"]
+    assert receipts[0]["content_hash"] != receipts[1]["content_hash"]
+    assert receipts[0]["quality"]["rule"] != receipts[1]["quality"]["rule"]
+    assert publication.read_snapshot(before["manifest_hash"], before["manifest_bytes"]) == original
+
+
+def test_permission_failure_cannot_claim_any_data_coverage(automatic, monkeypatch):
+    pending(automatic)
+
+    def denied(*_):
+        acquisition.decode(json.dumps({"code": 2002, "msg": TOKEN}).encode())
+
+    monkeypatch.setattr(acquisition, "fetch", denied)
+    failed = jobs.process_next(automatic)
+    assert failed["status"] == "BLOCKED"
+    assert "权限" in failed["error"]
+    assert TOKEN not in json.dumps(failed)
+    with automatic._engine.connect() as connection:
+        assert connection.scalar(text("SELECT count(*) FROM data_sync_receipts")) == 0
+        assert connection.scalar(text("SELECT count(*) FROM data_sync_coverage")) == 0
+        assert connection.scalar(text("SELECT enabled FROM data_sync_settings"))
+
+
+def test_invalid_refresh_keeps_last_published_files_and_coverage(automatic, monkeypatch):
+    pending(automatic)
+    monkeypatch.setattr(acquisition, "fetch", lambda *_: response())
+    assert jobs.process_next(automatic)["status"] == "VALIDATED"
+    with automatic._engine.connect() as connection:
+        original = connection.execute(text("SELECT * FROM data_sync_receipts")).mappings().one()
+        coverage = connection.execute(text("SELECT * FROM data_sync_coverage")).mappings().one()
+    snapshot = publication.read_snapshot(original["manifest_hash"], original["manifest_bytes"])
+    raw = json.loads(response())
+    field = raw["data"]["fields"].index("close")
+    raw["data"]["fields"].pop(field)
+    raw["data"]["items"][0].pop(field)
+    incomplete = json.dumps(raw).encode()
+    with automatic._engine.begin() as connection:
+        connection.execute(text("UPDATE data_sync_jobs SET status='PENDING'"))
+    monkeypatch.setattr(acquisition, "fetch", lambda *_: incomplete)
+    ready(automatic)
+    failed = jobs.process_next(automatic)
+    assert failed["status"] == "BLOCKED"
+    assert failed["receipt_id"] == str(original["receipt_id"])
+    with automatic._engine.connect() as connection:
+        assert (
+            connection.execute(text("SELECT * FROM data_sync_coverage")).mappings().one()
+            == coverage
+        )
+        assert (
+            connection.execute(text("SELECT * FROM data_sync_receipts")).mappings().one()
+            == original
+        )
+        attempt = (
+            connection.execute(text("SELECT * FROM data_sync_attempts WHERE outcome='BLOCKED'"))
+            .mappings()
+            .one()
+        )
+    assert automatic._files.read(attempt["source_hash"], attempt["source_bytes"]) == incomplete
+    assert (
+        publication.read_snapshot(original["manifest_hash"], original["manifest_bytes"]) == snapshot
+    )

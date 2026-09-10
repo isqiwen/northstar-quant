@@ -13,7 +13,7 @@ from ..library import DataLibrary
 from ..maintenance import library_write
 from . import acquisition, coverage, credentials, planning, publication
 from .catalog import BY_KEY
-from .quality import Empty, Truncated, normalize
+from .quality import Empty, InvalidResponse, Truncated, closed_interval_evidence, normalize
 from .store import initialize, job, serial, settings
 
 __all__ = ["initialize", "process_next"]
@@ -98,22 +98,7 @@ def process_next(library: DataLibrary) -> dict[str, Any] | None:
             except Empty:
                 if not coverage.confirmed_empty(engine, selected):
                     raise
-                import hashlib
-
-                rows, quality = (
-                    [],
-                    {
-                        "rule": "tushare-response/1",
-                        "unique_rows": 0,
-                        "duplicate_rows": 0,
-                        "content_hash": hashlib.sha256(
-                            b"tushare-response/1:confirmed-closed"
-                        ).hexdigest(),
-                        "coverage_basis": "CALENDAR_NON_TRADING",
-                        "availability_basis": "FINAL_REVISED",
-                        "note": "已核对完整交易日历；该区间没有交易日，未填造行情。",
-                    },
-                )
+                rows, quality = [], closed_interval_evidence()
             coverage.verify(engine, selected, rows, quality)
             stage = "storage"
             artifact = publication.publish(rows, quality, selected, library._files)
@@ -151,6 +136,8 @@ def process_next(library: DataLibrary) -> dict[str, Any] | None:
             _fail(engine, selected, str(error), retry=True, waiting=recent)
         except acquisition.DownloadError as error:
             _fail(engine, selected, str(error), retry=error.retry)
+        except InvalidResponse as error:
+            _fail(engine, selected, f"{error}；原文已留存", retry=False)
         except (ValueError, OSError, LookupError):
             reason = {
                 "download": "凭据配置不可用，请在界面重新保存 token",
