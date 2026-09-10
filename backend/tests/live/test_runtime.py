@@ -43,6 +43,7 @@ def test_live_auth_expiry_and_target_rejection_have_no_account_effect(
         headers = {
             "Authorization": "Bearer " + auth.read_token,
             "X-Northstar-Protocol": PROTOCOL_VERSION,
+            "X-Northstar-Operator": "maintenance",
             "X-Live-Command-ID": str(uuid4()),
             "X-Live-Runtime-ID": status["runtime_id"],
             "X-Live-Expires-At": (datetime.now(UTC) + timedelta(seconds=30)).isoformat(),
@@ -53,6 +54,16 @@ def test_live_auth_expiry_and_target_rejection_have_no_account_effect(
         with pytest.raises(ValueError, match="read permission only"):
             readonly.broker.establish_baseline(source, request_id=uuid4())
         headers["Authorization"] = "Bearer " + str(auth.control_token)
+        missing_operator = {
+            key: value for key, value in headers.items() if key != "X-Northstar-Operator"
+        }
+        assert http.post(path, json=body, headers=missing_operator).status_code == 400
+        assert (
+            http.post(
+                path, json=body, headers=headers | {"X-Northstar-Operator": "arbitrary"}
+            ).status_code
+            == 409
+        )
         for expiry, owner in (
             (datetime.now(UTC) - timedelta(seconds=1), status["runtime_id"]),
             (datetime.now(UTC) + timedelta(seconds=90), status["runtime_id"]),
@@ -86,6 +97,7 @@ def test_stale_or_future_runtime_observation_cannot_authorize_commands(offset: i
             json={"status": "AVAILABLE", "runtime_id": str(uuid4())},
             headers={
                 "X-Northstar-Protocol": PROTOCOL_VERSION,
+                "X-Northstar-Operator": "maintenance",
                 "X-Live-Runtime-ID": str(uuid4()),
                 "X-Live-Observed-At": (datetime.now(UTC) + timedelta(seconds=offset)).isoformat(),
             },

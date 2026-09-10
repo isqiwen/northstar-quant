@@ -16,6 +16,7 @@ from sqlalchemy import (
     MetaData,
     String,
     Table,
+    inspect,
     update,
 )
 from sqlalchemy.dialects.postgresql import insert as postgres_insert
@@ -30,6 +31,7 @@ _commands = Table(
     Column("command_id", String(36), primary_key=True),
     Column("runtime_id", String(36), nullable=False),
     Column("path", String, nullable=False),
+    Column("operator", String),
     Column("input", JSON, nullable=False),
     Column("expires_at", String, nullable=False),
     Column("status", String, nullable=False),
@@ -43,6 +45,11 @@ _commands = Table(
 
 def initialize_live_commands(connection: Connection) -> None:
     _metadata.create_all(connection)
+    if "operator" not in {
+        column["name"] for column in inspect(connection).get_columns("live_commands")
+    }:
+        # Historical commands retain unknown attribution; never invent an operator for old facts.
+        connection.exec_driver_sql("ALTER TABLE live_commands ADD COLUMN operator VARCHAR")
 
 
 class CommandConflict(ValueError):
@@ -70,6 +77,7 @@ class Commands:
             result[key] = None if result[key] is None else str(result[key])
         if result["status"] == "RUNNING" and row["runtime_id"] != str(self.runtime_id):
             result["status"] = "UNKNOWN"
+        result["request_id"] = result.pop("command_id")
         return result
 
     def execute(
@@ -80,7 +88,11 @@ class Commands:
         path: str,
         body: dict[str, Any],
         effect: Callable[[], dict[str, Any]],
+        *,
+        operator: str,
     ) -> dict[str, Any]:
+        if operator not in {"owner", "maintenance"}:
+            raise CommandConflict("Live command requires a trusted operator")
         # Identity lookup precedes liveness/expiry: a completed acknowledgement is
         # still readable after restart, but it cannot become permission to repeat.
         try:
@@ -93,6 +105,7 @@ class Commands:
                 or datetime.fromisoformat(saved["expires_at"]) != expires_at
                 or saved["path"] != path
                 or saved["input"] != body
+                or saved["operator"] != operator
             ):
                 raise CommandConflict("Live command identity is bound to different input")
             return saved
@@ -109,6 +122,7 @@ class Commands:
                     command_id=str(command_id),
                     runtime_id=str(runtime_id),
                     path=path,
+                    operator=operator,
                     input=body,
                     expires_at=expires_at.isoformat(),
                     status="RUNNING",
@@ -119,7 +133,9 @@ class Commands:
             ).scalar_one_or_none()
         if admitted is None:
             # Another request won admission; run the same comparison, never its effect.
-            return self.execute(command_id, runtime_id, expires_at, path, body, effect)
+            return self.execute(
+                command_id, runtime_id, expires_at, path, body, effect, operator=operator
+            )
         status = "UNKNOWN"
         result: dict[str, Any] | None = None
         error_code: str | None = "COMMAND_OUTCOME_UNKNOWN"

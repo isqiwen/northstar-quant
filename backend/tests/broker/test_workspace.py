@@ -252,11 +252,20 @@ def test_browser_baseline_commands_are_private_local_and_preserve_original_queri
                 client.post("/api/broker/baselines", json=baseline_payload | extra).status_code
                 == 422
             )
-        response = client.post("/api/broker/baselines", json=baseline_payload)
+        response = client.post(
+            "/api/broker/baselines",
+            json=baseline_payload,
+            headers={"X-Northstar-Operator": "forged-browser-identity"},
+        )
         assert response.status_code == 200, response.text
         baseline = response.json()
         assert baseline["baseline_id"] == str(baseline_id)
         assert baseline["status"] == "BASELINE_RECORDED"
+        receipt = client.get(f"/api/live/commands/{baseline_id}")
+        assert receipt.status_code == 200, receipt.text
+        assert receipt.json()["request_id"] == str(baseline_id)
+        assert receipt.json()["operator"] == "owner"
+        assert receipt.json()["status"] == "COMPLETED"
         assert client.post("/api/broker/baselines", json=baseline_payload).json() == baseline
         check_payload = {
             "baseline_id": str(baseline_id),

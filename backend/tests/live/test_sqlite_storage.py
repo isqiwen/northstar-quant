@@ -5,7 +5,7 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from northstar_quant.live.commands import Commands, initialize_live_commands
+from northstar_quant.live.commands import CommandConflict, Commands, initialize_live_commands
 from northstar_quant.live.storage import KernelLock, open_store, write_transaction
 
 
@@ -25,15 +25,34 @@ def test_command_acknowledgement_and_unknown_survive_reopen(tmp_path):
         "/test",
         {"value": "1.01"},
         lambda: calls.append(1) or {"amount": "1.01"},
+        operator="owner",
     )
     assert result["status"] == "COMPLETED"
     engine.dispose()
     engine = open_store(path)
     commands = Commands(engine, uuid4())
     repeated = commands.execute(
-        request, runtime, deadline, "/test", {"value": "1.01"}, lambda: calls.append(2) or {}
+        request,
+        runtime,
+        deadline,
+        "/test",
+        {"value": "1.01"},
+        lambda: calls.append(2) or {},
+        operator="owner",
     )
     assert repeated["result"] == {"amount": "1.01"}
+    assert repeated["request_id"] == str(request)
+    assert repeated["operator"] == "owner"
+    with pytest.raises(CommandConflict, match="different input"):
+        commands.execute(
+            request,
+            runtime,
+            deadline,
+            "/test",
+            {"value": "1.01"},
+            lambda: calls.append(3) or {},
+            operator="maintenance",
+        )
     assert calls == [1]
     unknown = uuid4()
     with write_transaction(engine) as connection:

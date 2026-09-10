@@ -24,6 +24,7 @@ def execute_command(
     except PermissionError as error:
         raise HTTPException(403, str(error)) from error
     try:
+        operator = request.headers["x-northstar-operator"]
         command_id = UUID(request.headers["x-live-command-id"])
         runtime_id = UUID(request.headers["x-live-runtime-id"])
         expires_at = datetime.fromisoformat(request.headers["x-live-expires-at"])
@@ -33,7 +34,13 @@ def execute_command(
         ) from error
     try:
         return owner.commands.execute(
-            command_id, runtime_id, expires_at, request.url.path, body, lambda: effect(command_id)
+            command_id,
+            runtime_id,
+            expires_at,
+            request.url.path,
+            body,
+            lambda: effect(command_id),
+            operator=operator,
         )
     except CommandConflict as error:
         raise HTTPException(409, str(error)) from error

@@ -177,7 +177,13 @@ def test_management_routes_explicitly_and_never_falls_back():
     try:
         for name in clients:
             request = Request({"type": "http", "headers": [(b"x-live-instance-id", name.encode())]})
-            assert registry.for_request(request) is clients[name]
+            with pytest.raises(HTTPException) as denied:
+                registry.for_request(request)
+            assert denied.value.status_code == 401
+            request.state.operator = "owner"
+            bound = registry.for_request(request)
+            assert bound is not clients[name]
+            bound.close()  # A request must not close the application's connection pool.
         for name in (b"missing", b"http://other"):
             with pytest.raises(HTTPException):
                 registry.for_request(
@@ -198,7 +204,7 @@ def test_wrong_endpoint_identity_cannot_receive_a_command():
             200,
             json={},
             headers={
-                "x-northstar-protocol": "2",
+                "x-northstar-protocol": "3",
                 "x-live-instance-id": "wrong",
                 "x-live-runtime-id": str(uuid4()),
                 "x-live-observed-at": datetime.now(UTC).isoformat(),
