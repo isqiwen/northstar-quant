@@ -6,9 +6,9 @@ import os
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import Connection, Engine, create_engine, event, inspect
+from sqlalchemy import Connection, Engine, event, inspect
 
-from northstar_quant.persistence.sql import write_transaction
+from northstar_quant.persistence.sql import sqlite_engine, write_transaction
 
 
 def open_store(path: Path | None = None) -> Engine:
@@ -42,7 +42,7 @@ def open_store(path: Path | None = None) -> Engine:
             os.fsync(directory)
         finally:
             os.close(directory)
-    engine = create_engine("sqlite+pysqlite:///" + str(path), connect_args={"timeout": 5})
+    engine = sqlite_engine(path, timeout=5)
 
     @event.listens_for(engine, "connect")
     def connect(dbapi: Any, _record: Any) -> None:
@@ -51,16 +51,6 @@ def open_store(path: Path | None = None) -> Engine:
         dbapi.execute("PRAGMA journal_mode=WAL")
         dbapi.execute("PRAGMA synchronous=FULL")
         dbapi.execute("PRAGMA busy_timeout=5000")
-
-    @event.listens_for(engine, "begin")
-    def begin(connection: Connection) -> None:
-        # Readers retain a snapshot without reserving SQLite's sole writer.
-        statement = (
-            "BEGIN IMMEDIATE"
-            if connection.get_execution_options().get("northstar_write")
-            else "BEGIN"
-        )
-        connection.exec_driver_sql(statement)
 
     return engine
 

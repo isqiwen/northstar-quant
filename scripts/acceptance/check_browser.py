@@ -475,6 +475,13 @@ def main() -> None:
                         visit(url)
                         expect(page.get_by_text("AVAILABLE", exact=True)).to_be_visible()
                         screenshot("live")
+                        visit(url + "/diagnostics")
+                        expect(page.get_by_text("数据库盘空闲字节", exact=True)).to_be_visible()
+                        expect(
+                            page.locator(".facts").get_by_text("OBSERVED", exact=True)
+                        ).to_be_visible()
+                        screenshot("diagnostics")
+                        visit(url)
                         # Exercise selection using synthetic browser transport.
                         page.route(
                             "**/api/live/instances",

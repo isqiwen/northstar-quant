@@ -70,3 +70,34 @@ def test_database_failure_keeps_diagnostics_readable_without_leaking_credentials
             assert "never-expose" not in str(result) and "private-user" not in str(result)
     finally:
         engine.dispose()
+
+
+def test_sqlite_diagnostics_measure_its_volume_and_preserve_missing_file(tmp_path):
+    from northstar_quant.live.diagnostics import observe
+    from northstar_quant.live.storage import open_store
+    from northstar_quant.persistence.sql import write_transaction
+
+    path = tmp_path / "live.sqlite"
+    engine = open_store(path)
+    library = DataLibrary(engine, SourceFiles(tmp_path / "archive", min_free_bytes=0))
+    try:
+        with write_transaction(engine) as connection:
+            connection.exec_driver_sql("CREATE TABLE evidence (value TEXT)")
+            connection.exec_driver_sql("INSERT INTO evidence VALUES ('confirmed')")
+        result = observe(engine, library)
+        assert result["status"] == "OK"
+        database = result["database"]
+        assert database["disk_capacity"] == "OBSERVED"
+        assert database["database_bytes"] == path.stat().st_size
+        assert database["wal_bytes"] == Path(str(path) + "-wal").stat().st_size
+        assert database["free_bytes"] > 0
+        assert str(tmp_path) not in str(result)
+        engine.dispose()  # Force the next observation to open a new pool connection.
+        path.rename(tmp_path / "retained.sqlite")
+        unavailable = observe(engine, library)
+        assert unavailable["status"] == "DEGRADED"
+        assert unavailable["database"]["status"] == "UNAVAILABLE"
+        assert unavailable["database"]["disk_capacity"] == "UNAVAILABLE"
+        assert not path.exists()
+    finally:
+        engine.dispose()

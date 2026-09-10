@@ -10,9 +10,9 @@ from pathlib import Path
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import Connection, Engine, create_engine, event, inspect
+from sqlalchemy import Engine, event, inspect
 
-from northstar_quant.persistence.sql import write_transaction
+from northstar_quant.persistence.sql import sqlite_engine, write_transaction
 
 
 def require_local_path(path: Path) -> None:
@@ -49,9 +49,8 @@ def open_store(path: Path) -> Engine:
         os.fsync(parent)
     finally:
         os.close(parent)
-    file_identity = (path.stat().st_dev, path.stat().st_ino)
     sqlite3.register_adapter(UUID, lambda value: value.hex)
-    engine = create_engine("sqlite+pysqlite:///" + str(path), connect_args={"timeout": 2})
+    engine = sqlite_engine(path, timeout=2)
 
     @event.listens_for(engine, "connect")
     def connect(dbapi: Any, _: Any) -> None:
@@ -61,17 +60,6 @@ def open_store(path: Path) -> Engine:
         dbapi.execute("PRAGMA journal_mode=WAL")
         dbapi.execute("PRAGMA synchronous=FULL")
         dbapi.execute("PRAGMA busy_timeout=2000")
-
-    @event.listens_for(engine, "begin")
-    def begin(connection: Connection) -> None:
-        info = path.stat()
-        if (info.st_dev, info.st_ino) != file_identity:
-            raise ValueError("Live database file changed; restart and reconcile required")
-        connection.exec_driver_sql(
-            "BEGIN IMMEDIATE"
-            if connection.get_execution_options().get("northstar_write")
-            else "BEGIN"
-        )
 
     return engine
 

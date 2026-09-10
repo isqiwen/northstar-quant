@@ -3,9 +3,10 @@
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
-from sqlalchemy import Connection, DateTime, Engine
+from sqlalchemy import Connection, DateTime, Engine, create_engine, event
 from sqlalchemy.types import TypeDecorator
 
 
@@ -40,3 +41,43 @@ def write_transaction(engine: Engine) -> Iterator[Connection]:
     with engine.connect().execution_options(northstar_write=True) as connection:
         with connection.begin():
             yield connection
+
+
+def sqlite_engine(path: Path, *, timeout: int) -> Engine:
+    """Connect only to the file already admitted by its application owner.
+
+    New pool connections must not create an empty database after file loss.
+    The filename stays in Engine.url for owned backup and diagnostic operations.
+    """
+    info = path.stat()
+    identity = info.st_dev, info.st_ino
+    engine = create_engine("sqlite+pysqlite:///" + str(path), connect_args={"timeout": timeout})
+
+    def check_identity() -> None:
+        current = path.stat()
+        if (current.st_dev, current.st_ino) != identity:
+            raise ValueError("SQLite database file changed; restart and reconcile required")
+
+    @event.listens_for(engine, "do_connect")
+    def existing_file(
+        _dialect: Any, _record: Any, arguments: list[Any], options: dict[str, Any]
+    ) -> None:
+        check_identity()
+        arguments[0] = path.as_uri() + "?mode=rw"
+        options["uri"] = True
+
+    @event.listens_for(engine, "connect")
+    def connected(_connection: Any, _record: Any) -> None:
+        # Check again before application-specific connection pragmas can write.
+        check_identity()
+
+    @event.listens_for(engine, "begin")
+    def begin(connection: Connection) -> None:
+        check_identity()
+        connection.exec_driver_sql(
+            "BEGIN IMMEDIATE"
+            if connection.get_execution_options().get("northstar_write")
+            else "BEGIN"
+        )
+
+    return engine

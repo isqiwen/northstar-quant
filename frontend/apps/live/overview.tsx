@@ -84,8 +84,12 @@ export function Diagnostics() {
               value={{
                 检查状态: q.data.status,
                 数据库: q.data.database?.status,
+                数据库盘: q.data.database?.disk_capacity,
+                数据库盘空闲字节: q.data.database?.free_bytes,
+                数据库字节: q.data.database?.database_bytes,
+                WAL字节: q.data.database?.wal_bytes,
                 来源盘: q.data.source_filesystem?.status,
-                空闲字节: q.data.source_filesystem?.free_bytes,
+                来源盘空闲字节: q.data.source_filesystem?.free_bytes,
                 检查时间: q.data.observed_at,
               }}
             />
