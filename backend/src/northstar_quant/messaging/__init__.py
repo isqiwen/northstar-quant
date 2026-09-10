@@ -12,9 +12,13 @@ M = TypeVar("M")
 R = TypeVar("R")
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, eq=False)
 class Endpoint[M, R]:
-    """A command/query delivered to exactly one owner, returning its result."""
+    """A canonical command/query handle delivered to exactly one owner.
+
+    Import the owner's definition: an independently constructed same-name handle
+    cannot change the declared result type of an already registered endpoint.
+    """
 
     name: str
     message_type: type[M]

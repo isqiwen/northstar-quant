@@ -37,6 +37,9 @@ def test_single_owner_exact_types_and_instance_isolation():
         first.request(COMMAND, Other(1))
     with pytest.raises(ValueError, match="matching owner"):
         first.request(Endpoint("test.command", Other), Other(1))
+    wrong_result: Endpoint[Value, str] = Endpoint("test.command", Value)
+    with pytest.raises(ValueError, match="matching owner"):
+        first.request(wrong_result, Value(1))
     first.unregister(COMMAND)
     with pytest.raises(ValueError, match="owner"):
         first.request(COMMAND, Value(1))
