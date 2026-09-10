@@ -33,6 +33,7 @@ def run_research(
     steps: list[TradingStep] = []
     session.kernel.subscribe(STEP_COMPLETED, steps.append)
     try:
+        session.validate_inputs(dataset.bars)
         for index, bar in enumerate(
             sorted(
                 dataset.bars,

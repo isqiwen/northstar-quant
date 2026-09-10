@@ -119,7 +119,7 @@ export function NewExperiment() {
         </Form>
         <p className="muted">
           没有 worker
-          时任务保留在队列。当前计算支持已发布的单交易日快照；跨日结算仍待实现。
+          时任务保留在队列。跨日计算要求快照绑定结算价、交易日和可得时间；缺失依据会拒绝执行。
         </p>
       </Card>
     </>

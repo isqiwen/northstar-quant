@@ -4055,6 +4055,7 @@ export const northstar = $root.northstar = (() => {
              * @property {string|null} [symbol] DatasetDetails symbol
              * @property {Array.<string>|null} [trading_days] DatasetDetails trading_days
              * @property {Array.<string>|null} [null_fields] DatasetDetails null_fields
+             * @property {Array.<google.protobuf.Struct.$Properties>|null} [settlements] DatasetDetails settlements
              * @property {"availability_basis"} [_availability_basis] DatasetDetails _availability_basis
              * @property {"availability_note"} [_availability_note] DatasetDetails _availability_note
              * @property {"bar_count"} [_bar_count] DatasetDetails _bar_count
@@ -4104,6 +4105,7 @@ export const northstar = $root.northstar = (() => {
              *   symbol?: string|null;
              *   trading_days?: Array.<string>|null;
              *   null_fields?: Array.<string>|null;
+             *   settlements?: Array.<google.protobuf.Struct.$Shape>|null;
              *   $unknowns?: Array.<Uint8Array>;
              * } & (
              *   ({ _availability_basis?: undefined; availability_basis?: null }|{ _availability_basis?: "availability_basis"; availability_basis: string })
@@ -4152,6 +4154,7 @@ export const northstar = $root.northstar = (() => {
                 this.sources = [];
                 this.trading_days = [];
                 this.null_fields = [];
+                this.settlements = [];
                 if (properties)
                     for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
                         if (properties[keys[i]] != null && keys[i] !== "__proto__")
@@ -4317,6 +4320,14 @@ export const northstar = $root.northstar = (() => {
              * @instance
              */
             DatasetDetails.prototype.null_fields = $util.emptyArray;
+
+            /**
+             * DatasetDetails settlements.
+             * @member {Array.<google.protobuf.Struct.$Properties>} settlements
+             * @memberof northstar.research.DatasetDetails
+             * @instance
+             */
+            DatasetDetails.prototype.settlements = $util.emptyArray;
 
             // OneOf field names bound to virtual getters and setters
             let $oneOfFields;
@@ -4560,6 +4571,9 @@ export const northstar = $root.northstar = (() => {
                 if (message.trading_days != null && message.trading_days.length)
                     for (let i = 0; i < message.trading_days.length; ++i)
                         writer.uint32(/* id 19, wireType 2 =*/154).string(message.trading_days[i]);
+                if (message.settlements != null && message.settlements.length)
+                    for (let i = 0; i < message.settlements.length; ++i)
+                        $root.google.protobuf.Struct.encode(message.settlements[i], writer.uint32(/* id 20, wireType 2 =*/162).fork(), _depth + 1).ldelim();
                 if (message.null_fields != null && message.null_fields.length)
                     for (let i = 0; i < message.null_fields.length; ++i)
                         writer.uint32(/* id 2046, wireType 2 =*/16370).string(message.null_fields[i]);
@@ -4752,6 +4766,14 @@ export const northstar = $root.northstar = (() => {
                             message.null_fields.push(reader.stringVerify());
                             continue;
                         }
+                    case 20: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.settlements && message.settlements.length))
+                                message.settlements = [];
+                            message.settlements.push($root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1));
+                            continue;
+                        }
                     }
                     reader.skipType(wireType, _depth, tag);
                     if (!reader.discardUnknown) {
@@ -4908,6 +4930,15 @@ export const northstar = $root.northstar = (() => {
                         if (!$util.isString(message.null_fields[i]))
                             return "null_fields: string[] expected";
                 }
+                if (message.settlements != null && $Object.hasOwnProperty.call(message, "settlements")) {
+                    if (!$Array.isArray(message.settlements))
+                        return "settlements: array expected";
+                    for (let i = 0; i < message.settlements.length; ++i) {
+                        let error = $root.google.protobuf.Struct.verify(message.settlements[i], _depth + 1);
+                        if (error)
+                            return "settlements." + error;
+                    }
+                }
                 return null;
             };
 
@@ -5016,6 +5047,16 @@ export const northstar = $root.northstar = (() => {
                     for (let i = 0; i < object.null_fields.length; ++i)
                         message.null_fields[i] = $String(object.null_fields[i]);
                 }
+                if (object.settlements) {
+                    if (!$Array.isArray(object.settlements))
+                        throw $TypeError(".northstar.research.DatasetDetails.settlements: array expected");
+                    message.settlements = $Array(object.settlements.length);
+                    for (let i = 0; i < object.settlements.length; ++i) {
+                        if (!$util.isObject(object.settlements[i]))
+                            throw $TypeError(".northstar.research.DatasetDetails.settlements: object expected");
+                        message.settlements[i] = $root.google.protobuf.Struct.fromObject(object.settlements[i], _depth + 1);
+                    }
+                }
                 return message;
             };
 
@@ -5041,6 +5082,7 @@ export const northstar = $root.northstar = (() => {
                     object.limitations = [];
                     object.sources = [];
                     object.trading_days = [];
+                    object.settlements = [];
                     object.null_fields = [];
                 }
                 if (message.availability_basis != null && $Object.hasOwnProperty.call(message, "availability_basis")) {
@@ -5142,6 +5184,11 @@ export const northstar = $root.northstar = (() => {
                     object.trading_days = $Array(message.trading_days.length);
                     for (let j = 0; j < message.trading_days.length; ++j)
                         object.trading_days[j] = message.trading_days[j];
+                }
+                if (message.settlements && message.settlements.length) {
+                    object.settlements = $Array(message.settlements.length);
+                    for (let j = 0; j < message.settlements.length; ++j)
+                        object.settlements[j] = $root.google.protobuf.Struct.toObject(message.settlements[j], options, _depth + 1);
                 }
                 if (message.null_fields && message.null_fields.length) {
                     object.null_fields = $Array(message.null_fields.length);
@@ -17367,6 +17414,7 @@ export const northstar = $root.northstar = (() => {
             /**
              * Properties of a ResearchResultDocument.
              * @typedef {Object} northstar.research.ResearchResultDocument.$Properties
+             * @property {Array.<google.protobuf.Struct.$Properties>|null} [orders] ResearchResultDocument orders
              * @property {google.protobuf.Struct.$Properties|null} [data] ResearchResultDocument data
              * @property {Array.<google.protobuf.Struct.$Properties>|null} [decisions] ResearchResultDocument decisions
              * @property {Array.<northstar.research.EquityPoint.$Properties>|null} [equity_curve] ResearchResultDocument equity_curve
@@ -17374,6 +17422,7 @@ export const northstar = $root.northstar = (() => {
              * @property {northstar.research.ResearchSummary.$Properties|null} [summary] ResearchResultDocument summary
              * @property {Object.<string,google.protobuf.Value.$Properties>|null} [evidence_fields] ResearchResultDocument evidence_fields
              * @property {Array.<string>|null} [null_fields] ResearchResultDocument null_fields
+             * @property {Array.<google.protobuf.Struct.$Properties>|null} [settlements] ResearchResultDocument settlements
              * @property {"data"} [_data] ResearchResultDocument _data
              * @property {"summary"} [_summary] ResearchResultDocument _summary
              * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
@@ -17390,6 +17439,7 @@ export const northstar = $root.northstar = (() => {
             /**
              * Narrowed shape of a ResearchResultDocument.
              * @typedef {{
+             *   orders?: Array.<google.protobuf.Struct.$Shape>|null;
              *   data?: google.protobuf.Struct.$Shape|null;
              *   decisions?: Array.<google.protobuf.Struct.$Shape>|null;
              *   equity_curve?: Array.<northstar.research.EquityPoint.$Shape>|null;
@@ -17397,6 +17447,7 @@ export const northstar = $root.northstar = (() => {
              *   summary?: northstar.research.ResearchSummary.$Shape|null;
              *   evidence_fields?: Object.<string,google.protobuf.Value.$Shape>|null;
              *   null_fields?: Array.<string>|null;
+             *   settlements?: Array.<google.protobuf.Struct.$Shape>|null;
              *   $unknowns?: Array.<Uint8Array>;
              * } & (
              *   ({ _data?: undefined; data?: null }|{ _data?: "data"; data: google.protobuf.Struct.$Shape })
@@ -17414,16 +17465,26 @@ export const northstar = $root.northstar = (() => {
              * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
              */
             const ResearchResultDocument = function (properties) {
+                this.orders = [];
                 this.decisions = [];
                 this.equity_curve = [];
                 this.fills = [];
                 this.evidence_fields = {};
                 this.null_fields = [];
+                this.settlements = [];
                 if (properties)
                     for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
                         if (properties[keys[i]] != null && keys[i] !== "__proto__")
                             this[keys[i]] = properties[keys[i]];
             };
+
+            /**
+             * ResearchResultDocument orders.
+             * @member {Array.<google.protobuf.Struct.$Properties>} orders
+             * @memberof northstar.research.ResearchResultDocument
+             * @instance
+             */
+            ResearchResultDocument.prototype.orders = $util.emptyArray;
 
             /**
              * ResearchResultDocument data.
@@ -17480,6 +17541,14 @@ export const northstar = $root.northstar = (() => {
              * @instance
              */
             ResearchResultDocument.prototype.null_fields = $util.emptyArray;
+
+            /**
+             * ResearchResultDocument settlements.
+             * @member {Array.<google.protobuf.Struct.$Properties>} settlements
+             * @memberof northstar.research.ResearchResultDocument
+             * @instance
+             */
+            ResearchResultDocument.prototype.settlements = $util.emptyArray;
 
             // OneOf field names bound to virtual getters and setters
             let $oneOfFields;
@@ -17551,6 +17620,12 @@ export const northstar = $root.northstar = (() => {
                         $root.google.protobuf.Struct.encode(message.fills[i], writer.uint32(/* id 4, wireType 2 =*/34).fork(), _depth + 1).ldelim();
                 if (message.summary != null && $Object.hasOwnProperty.call(message, "summary"))
                     $root.northstar.research.ResearchSummary.encode(message.summary, writer.uint32(/* id 5, wireType 2 =*/42).fork(), _depth + 1).ldelim();
+                if (message.settlements != null && message.settlements.length)
+                    for (let i = 0; i < message.settlements.length; ++i)
+                        $root.google.protobuf.Struct.encode(message.settlements[i], writer.uint32(/* id 6, wireType 2 =*/50).fork(), _depth + 1).ldelim();
+                if (message.orders != null && message.orders.length)
+                    for (let i = 0; i < message.orders.length; ++i)
+                        $root.google.protobuf.Struct.encode(message.orders[i], writer.uint32(/* id 7, wireType 2 =*/58).fork(), _depth + 1).ldelim();
                 if (message.evidence_fields != null && $Object.hasOwnProperty.call(message, "evidence_fields"))
                     for (let keys = $Object.keys(message.evidence_fields), i = 0; i < keys.length; ++i) {
                         writer.uint32(/* id 1000, wireType 2 =*/8002).fork().uint32(/* id 1, wireType 2 =*/10).string(keys[i]);
@@ -17603,6 +17678,14 @@ export const northstar = $root.northstar = (() => {
                     }
                     let wireType = tag & 7;
                     switch (tag >>>= 3) {
+                    case 7: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.orders && message.orders.length))
+                                message.orders = [];
+                            message.orders.push($root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1));
+                            continue;
+                        }
                     case 1: {
                             if (wireType !== 2)
                                 break;
@@ -17685,6 +17768,14 @@ export const northstar = $root.northstar = (() => {
                             message.null_fields.push(reader.stringVerify());
                             continue;
                         }
+                    case 6: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.settlements && message.settlements.length))
+                                message.settlements = [];
+                            message.settlements.push($root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1));
+                            continue;
+                        }
                     }
                     reader.skipType(wireType, _depth, tag);
                     if (!reader.discardUnknown) {
@@ -17718,6 +17809,15 @@ export const northstar = $root.northstar = (() => {
                 if (_depth > $util.recursionLimit)
                     return "max depth exceeded";
                 let properties = {};
+                if (message.orders != null && $Object.hasOwnProperty.call(message, "orders")) {
+                    if (!$Array.isArray(message.orders))
+                        return "orders: array expected";
+                    for (let i = 0; i < message.orders.length; ++i) {
+                        let error = $root.google.protobuf.Struct.verify(message.orders[i], _depth + 1);
+                        if (error)
+                            return "orders." + error;
+                    }
+                }
                 if (message.data != null && $Object.hasOwnProperty.call(message, "data")) {
                     properties._data = 1;
                     {
@@ -17778,6 +17878,15 @@ export const northstar = $root.northstar = (() => {
                         if (!$util.isString(message.null_fields[i]))
                             return "null_fields: string[] expected";
                 }
+                if (message.settlements != null && $Object.hasOwnProperty.call(message, "settlements")) {
+                    if (!$Array.isArray(message.settlements))
+                        return "settlements: array expected";
+                    for (let i = 0; i < message.settlements.length; ++i) {
+                        let error = $root.google.protobuf.Struct.verify(message.settlements[i], _depth + 1);
+                        if (error)
+                            return "settlements." + error;
+                    }
+                }
                 return null;
             };
 
@@ -17799,6 +17908,16 @@ export const northstar = $root.northstar = (() => {
                 if (_depth > $util.recursionLimit)
                     throw $Error("max depth exceeded");
                 let message = new $root.northstar.research.ResearchResultDocument();
+                if (object.orders) {
+                    if (!$Array.isArray(object.orders))
+                        throw $TypeError(".northstar.research.ResearchResultDocument.orders: array expected");
+                    message.orders = $Array(object.orders.length);
+                    for (let i = 0; i < object.orders.length; ++i) {
+                        if (!$util.isObject(object.orders[i]))
+                            throw $TypeError(".northstar.research.ResearchResultDocument.orders: object expected");
+                        message.orders[i] = $root.google.protobuf.Struct.fromObject(object.orders[i], _depth + 1);
+                    }
+                }
                 if (object.data != null) {
                     if (!$util.isObject(object.data))
                         throw $TypeError(".northstar.research.ResearchResultDocument.data: object expected");
@@ -17858,6 +17977,16 @@ export const northstar = $root.northstar = (() => {
                     for (let i = 0; i < object.null_fields.length; ++i)
                         message.null_fields[i] = $String(object.null_fields[i]);
                 }
+                if (object.settlements) {
+                    if (!$Array.isArray(object.settlements))
+                        throw $TypeError(".northstar.research.ResearchResultDocument.settlements: array expected");
+                    message.settlements = $Array(object.settlements.length);
+                    for (let i = 0; i < object.settlements.length; ++i) {
+                        if (!$util.isObject(object.settlements[i]))
+                            throw $TypeError(".northstar.research.ResearchResultDocument.settlements: object expected");
+                        message.settlements[i] = $root.google.protobuf.Struct.fromObject(object.settlements[i], _depth + 1);
+                    }
+                }
                 return message;
             };
 
@@ -17882,6 +18011,8 @@ export const northstar = $root.northstar = (() => {
                     object.decisions = [];
                     object.equity_curve = [];
                     object.fills = [];
+                    object.settlements = [];
+                    object.orders = [];
                     object.null_fields = [];
                 }
                 if (options.objects || options.defaults)
@@ -17910,6 +18041,16 @@ export const northstar = $root.northstar = (() => {
                     object.summary = $root.northstar.research.ResearchSummary.toObject(message.summary, options, _depth + 1);
                     if (options.oneofs)
                         object._summary = "summary";
+                }
+                if (message.settlements && message.settlements.length) {
+                    object.settlements = $Array(message.settlements.length);
+                    for (let j = 0; j < message.settlements.length; ++j)
+                        object.settlements[j] = $root.google.protobuf.Struct.toObject(message.settlements[j], options, _depth + 1);
+                }
+                if (message.orders && message.orders.length) {
+                    object.orders = $Array(message.orders.length);
+                    for (let j = 0; j < message.orders.length; ++j)
+                        object.orders[j] = $root.google.protobuf.Struct.toObject(message.orders[j], options, _depth + 1);
                 }
                 let keys2;
                 if (message.evidence_fields && (keys2 = $Object.keys(message.evidence_fields)).length) {
@@ -21371,9 +21512,11 @@ export const northstar = $root.northstar = (() => {
             /**
              * Properties of a SimulationInput.
              * @typedef {Object} northstar.research.SimulationInput.$Properties
+             * @property {string|null} [max_volume_participation] SimulationInput max_volume_participation
              * @property {string|null} [fee_per_lot] SimulationInput fee_per_lot
              * @property {string|null} [initial_cash] SimulationInput initial_cash
              * @property {number|Long|null} [slippage_ticks] SimulationInput slippage_ticks
+             * @property {"max_volume_participation"} [_max_volume_participation] SimulationInput _max_volume_participation
              * @property {"fee_per_lot"} [_fee_per_lot] SimulationInput _fee_per_lot
              * @property {"initial_cash"} [_initial_cash] SimulationInput _initial_cash
              * @property {"slippage_ticks"} [_slippage_ticks] SimulationInput _slippage_ticks
@@ -21391,11 +21534,14 @@ export const northstar = $root.northstar = (() => {
             /**
              * Narrowed shape of a SimulationInput.
              * @typedef {{
+             *   max_volume_participation?: string|null;
              *   fee_per_lot?: string|null;
              *   initial_cash?: string|null;
              *   slippage_ticks?: number|Long|null;
              *   $unknowns?: Array.<Uint8Array>;
              * } & (
+             *   ({ _max_volume_participation?: undefined; max_volume_participation?: null }|{ _max_volume_participation?: "max_volume_participation"; max_volume_participation: string })
+             * ) & (
              *   ({ _fee_per_lot?: undefined; fee_per_lot?: null }|{ _fee_per_lot?: "fee_per_lot"; fee_per_lot: string })
              * ) & (
              *   ({ _initial_cash?: undefined; initial_cash?: null }|{ _initial_cash?: "initial_cash"; initial_cash: string })
@@ -21418,6 +21564,14 @@ export const northstar = $root.northstar = (() => {
                         if (properties[keys[i]] != null && keys[i] !== "__proto__")
                             this[keys[i]] = properties[keys[i]];
             };
+
+            /**
+             * SimulationInput max_volume_participation.
+             * @member {string|null|undefined} max_volume_participation
+             * @memberof northstar.research.SimulationInput
+             * @instance
+             */
+            SimulationInput.prototype.max_volume_participation = null;
 
             /**
              * SimulationInput fee_per_lot.
@@ -21445,6 +21599,17 @@ export const northstar = $root.northstar = (() => {
 
             // OneOf field names bound to virtual getters and setters
             let $oneOfFields;
+
+            /**
+             * SimulationInput _max_volume_participation.
+             * @member {"max_volume_participation"|undefined} _max_volume_participation
+             * @memberof northstar.research.SimulationInput
+             * @instance
+             */
+            $Object.defineProperty(SimulationInput.prototype, "_max_volume_participation", {
+                get: $util.oneOfGetter($oneOfFields = ["max_volume_participation"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
 
             /**
              * SimulationInput _fee_per_lot.
@@ -21517,6 +21682,8 @@ export const northstar = $root.northstar = (() => {
                     writer.uint32(/* id 2, wireType 2 =*/18).string(message.initial_cash);
                 if (message.slippage_ticks != null && $Object.hasOwnProperty.call(message, "slippage_ticks"))
                     writer.uint32(/* id 3, wireType 0 =*/24).int64(message.slippage_ticks);
+                if (message.max_volume_participation != null && $Object.hasOwnProperty.call(message, "max_volume_participation"))
+                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.max_volume_participation);
                 if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
                     for (let i = 0; i < message.$unknowns.length; ++i)
                         writer.raw(message.$unknowns[i]);
@@ -21561,6 +21728,13 @@ export const northstar = $root.northstar = (() => {
                     }
                     let wireType = tag & 7;
                     switch (tag >>>= 3) {
+                    case 4: {
+                            if (wireType !== 2)
+                                break;
+                            message.max_volume_participation = reader.stringVerify();
+                            message._max_volume_participation = "max_volume_participation";
+                            continue;
+                        }
                     case 1: {
                             if (wireType !== 2)
                                 break;
@@ -21615,6 +21789,11 @@ export const northstar = $root.northstar = (() => {
                 if (_depth > $util.recursionLimit)
                     return "max depth exceeded";
                 let properties = {};
+                if (message.max_volume_participation != null && $Object.hasOwnProperty.call(message, "max_volume_participation")) {
+                    properties._max_volume_participation = 1;
+                    if (!$util.isString(message.max_volume_participation))
+                        return "max_volume_participation: string expected";
+                }
                 if (message.fee_per_lot != null && $Object.hasOwnProperty.call(message, "fee_per_lot")) {
                     properties._fee_per_lot = 1;
                     if (!$util.isString(message.fee_per_lot))
@@ -21651,6 +21830,8 @@ export const northstar = $root.northstar = (() => {
                 if (_depth > $util.recursionLimit)
                     throw $Error("max depth exceeded");
                 let message = new $root.northstar.research.SimulationInput();
+                if (object.max_volume_participation != null)
+                    message.max_volume_participation = $String(object.max_volume_participation);
                 if (object.fee_per_lot != null)
                     message.fee_per_lot = $String(object.fee_per_lot);
                 if (object.initial_cash != null)
@@ -21703,6 +21884,11 @@ export const northstar = $root.northstar = (() => {
                         object.slippage_ticks = options.longs === $String ? $util.Long.prototype.toString.call(message.slippage_ticks) : options.longs === $Number ? new $util.LongBits(message.slippage_ticks.low >>> 0, message.slippage_ticks.high >>> 0).toNumber() : message.slippage_ticks;
                     if (options.oneofs)
                         object._slippage_ticks = "slippage_ticks";
+                }
+                if (message.max_volume_participation != null && $Object.hasOwnProperty.call(message, "max_volume_participation")) {
+                    object.max_volume_participation = message.max_volume_participation;
+                    if (options.oneofs)
+                        object._max_volume_participation = "max_volume_participation";
                 }
                 return object;
             };

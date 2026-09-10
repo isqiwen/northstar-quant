@@ -31,7 +31,7 @@ def dataset(prices: tuple[str, ...]) -> ResearchDataset:
                 UUID(int=index + 1),
                 AT + timedelta(minutes=index),
                 AT + timedelta(minutes=index + 1),
-                AT + timedelta(minutes=index + 1, seconds=1),
+                AT + timedelta(minutes=index + 1),
                 date(2026, 1, 5),
                 Decimal(price),
                 Decimal(100),
@@ -252,3 +252,28 @@ def test_overlapping_market_interval_cannot_fill_a_pending_order() -> None:
     step = session.advance(data.bars[2])
     assert step is not None and step.fill is not None
     session.close()
+
+
+def test_partial_execution_and_target_replacement_preserve_order_quantities_and_reasons() -> None:
+    data = dataset(("100", "110", "120", "120", "100"))
+    data = replace(data, bars=tuple(replace(bar, volume=Decimal(10)) for bar in data.bars))
+    config = ResearchConfig(
+        risk=RiskConfig(max_lots=100), simulation=SimulationConfig(slippage_ticks=0)
+    )
+    report = run_research(data, config).to_dict()
+    assert report["fills"]
+    assert all(item["quantity_lots"] == 1 for item in report["fills"])
+    partial = [item for item in report["orders"] if item["status"] == "PARTIALLY_FILLED"]
+    canceled = [item for item in report["orders"] if item["status"] == "CANCELED"]
+    assert partial and canceled
+    assert {item["order_id"] for item in canceled} <= {item["order_id"] for item in partial}
+    assert any(item["reason"] == "AUTHORIZATION_RETAINED" for item in report["orders"])
+    for update in report["orders"]:
+        assert update["filled_lots"] + update["remaining_lots"] == update["quantity_lots"]
+    assert all(item["reason"] == "TARGET_REPLACED" for item in canceled)
+    empty = replace(data, bars=tuple(replace(bar, volume=Decimal(0)) for bar in data.bars))
+    unfilled = run_research(empty, config).to_dict()
+    assert unfilled["fills"] == []
+    assert any(item["reason"] == "NO_EXECUTABLE_VOLUME" for item in unfilled["orders"])
+    assert unfilled["summary"]["total_fees"] == "0"
+    assert unfilled["summary"]["ending_equity"] == "100000"

@@ -7,6 +7,7 @@ from uuid import UUID
 from sqlalchemy import Engine, select, text
 from sqlalchemy.orm import Session
 
+from northstar_quant.accounting.settlement import SettlementFact
 from northstar_quant.market_data import Market, MarketBar
 
 from .catalog.models import (
@@ -107,6 +108,7 @@ def _read_dataset(session: Session, snapshot_id: UUID) -> tuple[ResearchDataset,
         raise ValueError("research snapshot requires monotonic availability across sessions")
     details = replace(
         first_details,
+        settlements=tuple(SettlementFact.from_dict(item) for item in resolved.manifest.settlements),
         summary=replace(
             first_details.summary,
             trading_days=tuple(dict.fromkeys(bar.trading_day for bar in bars)),

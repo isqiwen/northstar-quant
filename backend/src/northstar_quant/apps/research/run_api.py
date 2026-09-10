@@ -62,6 +62,8 @@ class ResearchResultDocument(EvidenceRecord):
     equity_curve: list[EquityPoint]
     decisions: list[dict[str, JsonValue]]
     fills: list[dict[str, JsonValue]]
+    settlements: list[dict[str, JsonValue]]
+    orders: list[dict[str, JsonValue]]
     data: dict[str, JsonValue] | None
 
 

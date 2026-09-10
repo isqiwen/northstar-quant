@@ -43,7 +43,7 @@ from northstar_quant.accounting.fifo import Account, FillFact
 from northstar_quant.data_management.publications import DatasetReader
 from northstar_quant.data_management.research import ResearchDataset
 from northstar_quant.market_data import MarketBar
-from northstar_quant.research.backtesting.session import TradingSession
+from northstar_quant.research.backtesting.session import TradingSession, TradingStep
 from northstar_quant.research.configuration import ResearchConfig
 from northstar_quant.research.configurations import read_configuration, read_configurations
 from northstar_quant.research.storage import UTCDateTime, write_transaction
@@ -140,6 +140,12 @@ def _object(value: object) -> dict[str, object]:
     return cast(dict[str, object], value)
 
 
+def _trading_step(value: dict[str, object]) -> TradingStep:
+    facts = dict(value)
+    facts.pop("code_revision")
+    return TradingStep.from_dict(facts)
+
+
 def _bar_hash(bar: MarketBar) -> str:
     return _hash(
         {
@@ -167,13 +173,11 @@ class PaperStore:
         _uuid(snapshot_id)
         _uuid(request_id)
         dataset = self._library.load_dataset(snapshot_id)
-        if dataset.details is None or not 1 <= len(dataset.bars) <= 1440:
-            raise ValueError("Paper requires a verified single DAY snapshot of at most 1440 bars")
+        if dataset.details is None or not 1 <= len(dataset.bars) <= 100000:
+            raise ValueError("Paper requires a verified fixed snapshot of at most 100000 bars")
         bars = _ordered_bars(dataset)
-        if len({bar.trading_day for bar in bars}) != 1 or dataset.market.interval_seconds != 60:
-            raise ValueError(
-                "Paper currently supports one trading day of minute bars; no settlement"
-            )
+        if dataset.market.interval_seconds != 60:
+            raise ValueError("Paper requires fixed minute bars")
         implementation = code_revision()
         with write_transaction(self._engine) as connection:
             saved_config = read_configuration(connection, configuration_id)
@@ -187,6 +191,7 @@ class PaperStore:
                 content_hash=dataset.content_hash,
                 data_details=dataset.details,
             )
+            session.validate_inputs(bars)
             market = {
                 key: decimal_text(value)
                 if isinstance(value, Decimal)
@@ -332,6 +337,16 @@ class PaperStore:
                         for step in steps
                         if _object(step["step"])["fill"] is not None
                     ],
+                    "settlements": [
+                        fact.to_dict()
+                        for item in steps
+                        for fact in _trading_step(_object(item["step"])).settlements
+                    ],
+                    "orders": [
+                        update.to_dict()
+                        for item in steps
+                        for update in _trading_step(_object(item["step"])).orders
+                    ],
                     "can_advance": same_implementation and not completed,
                     "blocked_reason": None
                     if same_implementation
@@ -339,7 +354,7 @@ class PaperStore:
                     "limitations": [
                         "内部 Paper · 已接受文件逐条回放，不是实时行情、柜台仿真或实盘。",
                         "每次明确操作先核对账本，再推进一条输入；操作后暂停，重启不自动推进。",
-                        "一个独立模拟账户、单合约、单交易日内的一个连续时段；没有结算、部分撮合或外部委托。",
+                        "单合约模拟账户；跨日必须绑定明确结算事实；模拟量参与和剩余委托独立记录；不是外部委托。",
                         "输入耗尽不代表空仓；残余仓位与待成交授权继续显示。",
                         "策略、费用、滑点和保证金均为固定模拟假设，不证明盈利或授予交易权限。",
                         *cast(list[str], _object(row["data"])["limitations"]),
@@ -392,7 +407,18 @@ class PaperStore:
             saved_config = read_configuration(connection, str(row["configuration_id"]))
             config = ResearchConfig.from_mapping(_object(saved_config["config"]))
             account = Account(config.simulation.initial_cash, dataset.market)
+            if dataset.details is None:
+                raise ValueError("Paper requires its fixed source evidence")
+            fixed_settlements = {fact.settlement_id: fact for fact in dataset.details.settlements}
             for committed in steps:
+                restored_step = _trading_step(_object(committed["step"]))
+                for settlement in restored_step.settlements:
+                    fact = settlement.fact
+                    if fixed_settlements.get(fact.settlement_id) != fact:
+                        raise ValueError("Paper settlement differs from its fixed input")
+                    applied_settlement = account.settle(fact, at=fact.available_at)
+                    if applied_settlement != settlement:
+                        raise ValueError("Paper settlement does not reproduce its account facts")
                 fill = _object(committed["step"])["fill"]
                 if fill is not None:
                     applied = account.apply(FillFact.from_dict(_object(fill)))

@@ -25,6 +25,7 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import Engine, select, text
 from sqlalchemy.orm import Session
 
+from northstar_quant.accounting.settlement import SettlementFact
 from northstar_quant.data_management.broker import verify_broker_contract
 from northstar_quant.data_management.catalog.models import (
     CanonicalBar,
@@ -190,6 +191,7 @@ class DatasetDetails:
     adjustment: str
     timestamp_convention: str
     processing_provenance: dict[str, object] | None = None
+    settlements: tuple[SettlementFact, ...] = ()
 
     @property
     def limitations(self) -> tuple[str, ...]:
@@ -225,7 +227,8 @@ class DatasetDetails:
             "Receipt received_at is local ingestion metadata, not historical publication time.",
             "This snapshot contains one contract and explicitly declared DAY/NIGHT sessions "
             "with their own trading days; calendar/holiday attribution is source-declared, "
-            "not independently verified. It does not perform daily settlement.",
+            "not independently verified. Settlement facts, when present, retain their explicit "
+            "source reference and availability; prices are never inferred from bar close.",
         )
 
     def to_dict(self) -> dict[str, object]:
@@ -233,6 +236,7 @@ class DatasetDetails:
         return {
             **self.summary.to_dict(),
             "import_specs": [item.to_mapping() for item in self.import_specs],
+            "settlements": [item.to_dict() for item in self.settlements],
             "sources": [source.to_dict() for source in self.sources],
             "quality": {
                 "imports": [quality.to_dict() for quality in self.import_quality],

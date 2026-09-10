@@ -2,8 +2,8 @@
 
 The caller supplies confirmed facts in its accepted ledger order. Accounting
 does not infer fills from bars, require an order to fill all at once, or reject
-a fill because a strategy would now reject it. This slice has no daily
-settlement or broker opening-balance reconciliation yet.
+a fill because a strategy would now reject it. Settlement is an identified
+account fact; broker opening-balance reconciliation belongs to the adapter.
 """
 
 from __future__ import annotations
@@ -17,6 +17,7 @@ from uuid import UUID
 
 from northstar_quant.accounting.amounts import decimal_text
 from northstar_quant.accounting.positions import Position, PositionChange
+from northstar_quant.accounting.settlement import AppliedSettlement, SettlementFact
 from northstar_quant.execution.orders import Offset, Side
 from northstar_quant.market_data import Market
 
@@ -145,6 +146,7 @@ class _Lot:
     direction: int
     quantity: int
     entry_price: Decimal
+    opened_on: date
 
 
 class Account:
@@ -184,6 +186,9 @@ class Account:
         self.total_fees = Decimal(0)
         self._fills: dict[str, AppliedFill] = {}
         self._lots: list[_Lot] = []
+        self._settlements: dict[str, AppliedSettlement] = {}
+        self._last_fact_at: datetime | None = None
+        self.settlement_pnl = Decimal(0)
         self._position = Position()
         self._trading_day: date | None = None
 
@@ -227,6 +232,8 @@ class Account:
             if previous.fact != fact:
                 raise ValueError("fill identity was reused with different facts")
             return previous
+        if self._last_fact_at is not None and fact.filled_at < self._last_fact_at:
+            raise ValueError("account facts must follow accepted event order")
         if self._trading_day is not None and fact.trading_day != self._trading_day:
             raise ValueError("account requires settlement before a new trading day")
         position = self._position.apply(
@@ -249,10 +256,12 @@ class Account:
             realized = Decimal(0)
             lots = [replace(lot) for lot in self._lots]
             if fact.offset is Offset.OPEN:
-                lots.append(_Lot(direction, quantity, fact.price))
+                lots.append(_Lot(direction, quantity, fact.price, fact.trading_day))
             else:
                 for lot in lots:
-                    if lot.direction == direction:
+                    if lot.direction == direction or (
+                        (lot.opened_on == fact.trading_day) != (fact.offset is Offset.CLOSE_TODAY)
+                    ):
                         continue
                     closed = min(quantity, lot.quantity)
                     realized += (
@@ -272,15 +281,55 @@ class Account:
             realized_pnl = self.realized_pnl + realized
             cash = self.cash + realized - fact.fee
             if (
-                sum(lot.quantity for lot in lots if lot.direction == 1) != position.long_today
-                or sum(lot.quantity for lot in lots if lot.direction == -1) != position.short_today
+                sum(lot.quantity for lot in lots if lot.direction == 1)
+                != position.long_today + position.long_yesterday
+                or sum(lot.quantity for lot in lots if lot.direction == -1)
+                != position.short_today + position.short_yesterday
                 or cash != self.initial_cash + realized_pnl - total_fees
             ):
                 raise RuntimeError("account ledger conservation failed")
             applied = AppliedFill(fact, realized, position.net_lots, cash, total_fees, position)
             self._lots, self._position, self._trading_day = lots, position, fact.trading_day
             self.total_fees, self.realized_pnl, self.cash = total_fees, realized_pnl, cash
+            self._last_fact_at = fact.filled_at
             self._fills[fact.fill_id] = applied
+            return applied
+
+    def settle(self, fact: SettlementFact, *, at: datetime) -> AppliedSettlement:
+        """Realize daily variation and roll quantity age, preserving open positions."""
+        if not isinstance(fact, SettlementFact) or fact.contract_id != self.market.contract_id:
+            raise ValueError("settlement belongs to a different contract")
+        if not isinstance(at, datetime) or at.utcoffset() != timedelta(0) or at < fact.available_at:
+            raise ValueError("settlement is not yet available to this account clock")
+        previous = self._settlements.get(fact.settlement_id)
+        if previous is not None:
+            if previous.fact != fact:
+                raise ValueError("settlement identity was reused with different facts")
+            return previous
+        if self._trading_day is not None and fact.trading_day != self._trading_day:
+            raise ValueError("settlement does not match the current account trading day")
+        if self._last_fact_at is not None and fact.settled_at < self._last_fact_at:
+            raise ValueError("settlement precedes accepted account facts")
+        with localcontext() as context:
+            context.prec = 96
+            context.rounding = ROUND_HALF_EVEN
+            variation = self.unrealized_pnl(fact.price)
+            cash = self.cash + variation
+            realized = self.realized_pnl + variation
+            if cash != self.initial_cash + realized - self.total_fees:
+                raise RuntimeError("settlement ledger conservation failed")
+            position = Position(
+                long_yesterday=self._position.long_today + self._position.long_yesterday,
+                short_yesterday=self._position.short_today + self._position.short_yesterday,
+            )
+            lots = [replace(lot, entry_price=fact.price) for lot in self._lots]
+            applied = AppliedSettlement(fact, variation, cash)
+            self.cash, self.realized_pnl = cash, realized
+            self.settlement_pnl += variation
+            self._position, self._lots = position, lots
+            self._trading_day = fact.next_trading_day
+            self._last_fact_at = fact.available_at
+            self._settlements[fact.settlement_id] = applied
             return applied
 
     @contextmanager
@@ -296,18 +345,29 @@ class Account:
             self.total_fees,
             self._position,
             self._trading_day,
+            self._last_fact_at,
+            self.settlement_pnl,
         )
         lots = [replace(lot) for lot in self._lots]
         count = len(self._fills)
+        settlement_count = len(self._settlements)
         try:
             yield
         except BaseException:
-            self.cash, self.realized_pnl, self.total_fees, self._position, self._trading_day = (
-                projection
-            )
+            (
+                self.cash,
+                self.realized_pnl,
+                self.total_fees,
+                self._position,
+                self._trading_day,
+                self._last_fact_at,
+                self.settlement_pnl,
+            ) = projection
             self._lots = lots
             while len(self._fills) > count:
                 self._fills.popitem()
+            while len(self._settlements) > settlement_count:
+                self._settlements.popitem()
             raise
 
     def checkpoint(self) -> dict[str, object]:
@@ -321,6 +381,9 @@ class Account:
             "total_fees": decimal_text(self.total_fees),
             "position_lots": self.position_lots,
             "fill_count": self.fill_count,
+            "settlement_count": len(self._settlements),
+            "settlement_pnl": decimal_text(self.settlement_pnl),
+            "last_fact_at": None if self._last_fact_at is None else self._last_fact_at.isoformat(),
             "gross_position": self._position.to_dict(),
             "trading_day": None if self._trading_day is None else self._trading_day.isoformat(),
             "lots": [
@@ -328,6 +391,7 @@ class Account:
                     "direction": lot.direction,
                     "quantity_lots": lot.quantity,
                     "entry_price": decimal_text(lot.entry_price),
+                    "opened_on": lot.opened_on.isoformat(),
                 }
                 for lot in self._lots
             ],

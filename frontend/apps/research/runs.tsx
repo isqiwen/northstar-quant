@@ -21,7 +21,7 @@ export function Report() {
     <>
       <Heading
         title="研究报告"
-        description="单交易日历史模拟 · 金额明细保留精确值 · 不代表柜台成交或执行许可。"
+        description="固定输入历史模拟 · 金额明细保留精确值 · 不代表柜台成交或执行许可。"
       />
       <Failure error={q.error} />
       {q.loading ? (
@@ -117,6 +117,51 @@ export function Report() {
                         { title: "价格", dataIndex: "price" },
                         { title: "数量", dataIndex: "quantity_lots" },
                         { title: "费用", dataIndex: "fee" },
+                      ]}
+                    />
+                  ),
+                },
+                {
+                  key: "orders",
+                  label: "订单过程",
+                  children: (
+                    <Records
+                      rowKey="update_key"
+                      rows={result.orders.map((row, index) => ({
+                        ...row,
+                        update_key: String(index),
+                      }))}
+                      columns={[
+                        { title: "时间", dataIndex: "at" },
+                        {
+                          title: "订单",
+                          dataIndex: "order_id",
+                          render: (v) => <Identity value={v} />,
+                        },
+                        { title: "状态", dataIndex: "status" },
+                        { title: "原因", dataIndex: "reason" },
+                        { title: "委托手数", dataIndex: "quantity_lots" },
+                        { title: "已成交", dataIndex: "filled_lots" },
+                        { title: "剩余", dataIndex: "remaining_lots" },
+                      ]}
+                    />
+                  ),
+                },
+                {
+                  key: "settlements",
+                  label: "跨日结算",
+                  children: (
+                    <Records
+                      rowKey="settlement_id"
+                      rows={result.settlements}
+                      columns={[
+                        { title: "交易日", dataIndex: "trading_day" },
+                        { title: "下一交易日", dataIndex: "next_trading_day" },
+                        { title: "结算价", dataIndex: "price" },
+                        { title: "盯市盈亏", dataIndex: "variation_pnl" },
+                        { title: "结算后资金", dataIndex: "cash" },
+                        { title: "可得时间", dataIndex: "available_at" },
+                        { title: "依据", dataIndex: "source_reference" },
                       ]}
                     />
                   ),

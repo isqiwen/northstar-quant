@@ -58,17 +58,20 @@ def build_result(session: TradingSession, steps: Sequence[TradingStep]) -> Resea
             "config": session.config.to_dict(),
             "summary": session.summary(),
             "fills": [step.fill.to_dict() for step in steps if step.fill is not None],
+            "settlements": [fact.to_dict() for step in steps for fact in step.settlements],
+            "orders": [item.to_dict() for step in steps for item in step.orders],
             "equity_curve": [step.point for step in steps],
             "decisions": [step.decision for step in steps if step.decision is not None],
             "pending_order": None if session.pending is None else session.pending.to_dict(),
             "assumptions": [
-                "Single-contract, single-trading-day linear futures; no settlement or funding.",
-                "Orders explicitly open or close today; reversal first closes the existing "
-                "position and requires a later decision to open the opposite side.",
+                "Single-contract linear futures; cross-day variation uses fixed settlement facts. "
+                "No funding flows.",
+                "Orders explicitly open or close yesterday/today inventory. Reversal closes the "
+                "position before a later decision can open the opposite side.",
                 "A decision uses completed bars available then; fills use a strictly later "
                 "completed bar's close plus adverse tick slippage.",
-                "Orders fill completely without liquidity or volume modeling "
-                "and are replaced at each new decision.",
+                "Simulated participation uses only complete post-order bar volume. Partial fills "
+                "retain remaining lots; target replacement explicitly cancels the remainder.",
                 "Fees are charged per filled lot; Risk reserves fees and mark-to-close slippage.",
                 "Open terminal positions are marked to the final observed close, "
                 "not forcibly liquidated.",

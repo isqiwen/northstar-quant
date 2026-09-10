@@ -15,6 +15,7 @@ from sqlalchemy import func, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
+from northstar_quant.accounting.settlement import SettlementFact
 from northstar_quant.broker.records import EvidenceTimestamp
 from northstar_quant.data_management.catalog.models import (
     CanonicalBar,
@@ -270,13 +271,27 @@ class DatasetSnapshotPublicationService:
                 command.import_quality_pins,
                 prepared_partitions,
             )
+            for fact in command.settlements:
+                if not any(
+                    part.metadata.contract_id == fact.contract_id
+                    and part.selection.from_trading_day
+                    <= fact.trading_day
+                    <= part.selection.to_trading_day
+                    for part in prepared_partitions
+                ):
+                    raise DatasetSnapshotPublicationError(
+                        "SNAPSHOT_SETTLEMENT_SCOPE_INVALID",
+                        "settlement contract/day must belong to the selected observations",
+                    )
             content_hash = _manifest_content_hash(
                 available_at_cutoff=command.available_at_cutoff,
                 partitions=prepared_partitions,
                 import_pins=prepared_import_pins,
+                settlements=command.settlements,
             )
             manifest = DatasetSnapshotManifest(
                 manifest_schema_version=SNAPSHOT_MANIFEST_SCHEMA_VERSION,
+                settlements=[item.to_dict() for item in command.settlements],
                 dataset_kind=SNAPSHOT_DATASET_KIND,
                 canonical_schema_version=SNAPSHOT_CANONICAL_SCHEMA_VERSION,
                 available_at_cutoff=command.available_at_cutoff,
@@ -1057,7 +1072,8 @@ def _import_quality_state_matches_evaluation(
 def _request_fingerprint(command: PublishDatasetSnapshotCommand) -> str:
     return _hash_payload(
         {
-            "protocol": "dataset_snapshot_publication_request/1.0.0",
+            "protocol": "dataset_snapshot_publication_request/2.0.0",
+            "settlements": [item.to_dict() for item in command.settlements],
             "available_at_cutoff": _render_timestamp(command.available_at_cutoff),
             "partitions": [
                 {
@@ -1395,6 +1411,7 @@ def _manifest_content_hash(
     available_at_cutoff: datetime,
     partitions: Sequence[_PreparedPartition],
     import_pins: Sequence[_PreparedImportPin],
+    settlements: Sequence[SettlementFact],
 ) -> str:
     partition_payloads = [
         _prepared_manifest_partition_payload(partition)
@@ -1403,6 +1420,7 @@ def _manifest_content_hash(
     return _hash_payload(
         {
             "protocol": f"dataset_snapshot_manifest/{SNAPSHOT_MANIFEST_SCHEMA_VERSION}",
+            "settlements": [item.to_dict() for item in settlements],
             "manifest_schema_version": SNAPSHOT_MANIFEST_SCHEMA_VERSION,
             "dataset_kind": SNAPSHOT_DATASET_KIND,
             "canonical_schema_version": SNAPSHOT_CANONICAL_SCHEMA_VERSION,
@@ -1540,10 +1558,17 @@ def _assert_persisted_hashes(
                 evaluation=import_evaluation,
             )
         )
+    try:
+        settlements = tuple(SettlementFact.from_dict(item) for item in manifest.settlements)
+    except (ValueError, TypeError) as error:
+        raise DatasetSnapshotResolutionError(
+            "SNAPSHOT_SETTLEMENT_INVALID", "stored settlement facts are invalid"
+        ) from error
     rebuilt_manifest_hash = _manifest_content_hash(
         available_at_cutoff=_as_utc(manifest.available_at_cutoff),
         partitions=rebuilt,
         import_pins=prepared_import_pins,
+        settlements=settlements,
     )
     if rebuilt_manifest_hash != manifest.content_hash:
         raise DatasetSnapshotResolutionError(

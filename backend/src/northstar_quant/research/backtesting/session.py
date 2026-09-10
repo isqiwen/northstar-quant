@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Sequence
 from copy import copy
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import date, datetime, timedelta
 from decimal import ROUND_HALF_EVEN, Decimal, localcontext
 from uuid import UUID
@@ -14,8 +15,9 @@ from northstar_quant.accounting.amounts import decimal_text
 from northstar_quant.accounting.fifo import Account, AppliedFill, FillFact
 from northstar_quant.accounting.portfolio import PortfolioState
 from northstar_quant.accounting.positions import Position
+from northstar_quant.accounting.settlement import AppliedSettlement, SettlementFact
 from northstar_quant.data_management.research import DatasetDetails
-from northstar_quant.execution.orders import PendingOrder, intraday_offset
+from northstar_quant.execution.orders import OrderStatus, OrderUpdate, PendingOrder, order_slice
 from northstar_quant.market_data import Market, MarketBar
 from northstar_quant.messaging import Endpoint, Topic
 from northstar_quant.research.configuration import ResearchConfig
@@ -34,6 +36,8 @@ class TradingStep:
     _decision: str | None
     fill: AppliedFill | None
     new_order: PendingOrder | None
+    settlements: tuple[AppliedSettlement, ...]
+    orders: tuple[OrderUpdate, ...]
 
     def __init__(
         self,
@@ -41,6 +45,8 @@ class TradingStep:
         decision: dict[str, object] | None,
         fill: AppliedFill | None,
         new_order: PendingOrder | None,
+        settlements: tuple[AppliedSettlement, ...] = (),
+        orders: tuple[OrderUpdate, ...] = (),
     ) -> None:
         # Like ResearchResult, canonical bytes protect nested factor/metric values.
         object.__setattr__(self, "_point", json.dumps(point, sort_keys=True, allow_nan=False))
@@ -51,6 +57,8 @@ class TradingStep:
         )
         object.__setattr__(self, "fill", fill)
         object.__setattr__(self, "new_order", new_order)
+        object.__setattr__(self, "settlements", settlements)
+        object.__setattr__(self, "orders", orders)
 
     @property
     def point(self) -> dict[str, object]:
@@ -66,6 +74,8 @@ class TradingStep:
 
     def to_dict(self) -> dict[str, object]:
         return {
+            "settlements": [item.to_dict() for item in self.settlements],
+            "orders": [item.to_dict() for item in self.orders],
             "point": dict(self.point),
             "decision": None if self.decision is None else dict(self.decision),
             "fill": None if self.fill is None else self.fill.to_dict(),
@@ -75,8 +85,8 @@ class TradingStep:
     @classmethod
     def from_dict(cls, value: dict[str, object]) -> TradingStep:
         try:
-            if set(value) != {"point", "decision", "fill", "new_order"}:
-                raise ValueError("trading step must contain its four fact fields")
+            if set(value) != {"point", "decision", "fill", "new_order", "settlements", "orders"}:
+                raise ValueError("trading step must contain all of its fact fields")
             raw_fill = value["fill"]
             fill = None
             if raw_fill is not None:
@@ -92,6 +102,21 @@ class TradingStep:
                     _money(item["total_fees"]),
                     Position.from_dict(_object(item["gross_position"])),
                 )
+            raw_orders = value["orders"]
+            if not isinstance(raw_orders, list):
+                raise ValueError("order updates must be an ordered list")
+            orders = tuple(OrderUpdate.from_dict(_object(item)) for item in raw_orders)
+            raw_settlements = value["settlements"]
+            if not isinstance(raw_settlements, list):
+                raise ValueError("settlements must be an ordered list of facts")
+            settlements = tuple(
+                AppliedSettlement(
+                    SettlementFact.from_dict(_object(item)),
+                    _money(_object(item)["variation_pnl"]),
+                    _money(_object(item)["cash"]),
+                )
+                for item in raw_settlements
+            )
             return cls(
                 dict(_object(value["point"])),
                 None if value["decision"] is None else dict(_object(value["decision"])),
@@ -99,6 +124,8 @@ class TradingStep:
                 None
                 if value["new_order"] is None
                 else PendingOrder.from_dict(_object(value["new_order"])),
+                settlements,
+                orders,
             )
         except (KeyError, TypeError, ArithmeticError) as error:
             raise ValueError("invalid persisted trading step") from error
@@ -111,8 +138,8 @@ STEP_COMPLETED: Topic[TradingStep] = Topic("research.step.completed", TradingSte
 class TradingSession:
     """Bounded shared research/Paper core: simulate, account, strategy, then Risk.
 
-    There is at most one pending target. A new decision replaces an unfilled
-    prior target, so two decisions never spend the same account capacity.
+    There is at most one pending target. Compatible decisions retain its fixed
+    authorization; changes explicitly cancel its remainder before a new request.
     Recent identical observations are no-ops; older retries are owned by the
     caller's persistent input identity. Changed or time-regressing facts fail
     before mutation. History is bounded by lookback, not the number of steps.
@@ -120,7 +147,7 @@ class TradingSession:
     """
 
     # Bump for changed Strategy/Risk/Simulation/Accounting rules or checkpoint format.
-    REVISION = "6"
+    REVISION = "8"
 
     def __init__(
         self,
@@ -161,7 +188,16 @@ class TradingSession:
             or data_details.summary.content_hash != content_hash
         ):
             raise ValueError("source evidence does not belong to this research snapshot")
+        if data_details is not None and data_details.volume_unit != "LOT":
+            raise ValueError("simulation requires explicitly declared per-bar volume in lots")
         self._data_details = data_details
+        self._settlements = () if data_details is None else data_details.settlements
+        if any(fact.contract_id != market.contract_id for fact in self._settlements) or len(
+            {fact.trading_day for fact in self._settlements}
+        ) != len(self._settlements):
+            raise ValueError(
+                "research settlement facts must belong uniquely to the fixed contract/day"
+            )
         self.account = Account(config.simulation.initial_cash, market)
         self.pending: PendingOrder | None = None
         self._policy = config.risk_policy()
@@ -188,6 +224,27 @@ class TradingSession:
     def advance(self, bar: MarketBar) -> TradingStep | None:
         return self.kernel.advance(bar)
 
+    def validate_inputs(self, bars: Sequence[MarketBar]) -> None:
+        """Reject missing cross-day evidence before creating a durable run."""
+        for before, after in zip(bars, bars[1:]):
+            if before.trading_day != after.trading_day:
+                self._settlement_between(before, after)
+
+    def _settlement_between(self, before: MarketBar, after: MarketBar) -> SettlementFact:
+        matches = tuple(
+            fact for fact in self._settlements if fact.trading_day == before.trading_day
+        )
+        if (
+            len(matches) != 1
+            or matches[0].next_trading_day != after.trading_day
+            or not before.completed_at
+            <= matches[0].settled_at
+            <= matches[0].available_at
+            <= after.event_time
+        ):
+            raise ValueError("trading-day transition requires a fixed, causal settlement fact")
+        return matches[0]
+
     def close(self) -> None:
         self.kernel.close()
 
@@ -195,10 +252,6 @@ class TradingSession:
         self._validate_bar(bar)
         if not self._trader.accepts(bar):
             return None
-        if self._trading_day is not None and self._trading_day != bar.trading_day:
-            raise ValueError(
-                "research currently supports one trading day; settlement is not modeled"
-            )
 
         with localcontext() as context:
             context.prec = 96
@@ -215,21 +268,60 @@ class TradingSession:
         return result
 
     def _advance(self, bar: MarketBar) -> TradingStep:
+        settlements: tuple[AppliedSettlement, ...] = ()
+        orders: list[OrderUpdate] = []
+        if self._trading_day is not None and self._trading_day != bar.trading_day:
+            assert self._last is not None
+            settlement = self._settlement_between(self._last, bar)
+            if self.pending is not None:
+                if self.pending.expires_at > settlement.settled_at:
+                    raise ValueError("unexpired simulated order cannot cross settlement")
+                orders.append(
+                    OrderUpdate(
+                        self.pending,
+                        OrderStatus.EXPIRED,
+                        settlement.settled_at,
+                        "EXPIRED_BEFORE_SETTLEMENT",
+                    )
+                )
+                self.pending = None
+            settlements = (self.account.settle(settlement, at=bar.event_time),)
         self._trading_day = bar.trading_day
         fill = None
         if self.pending is not None:
-            fact = simulate_fill(
+            attempt = simulate_fill(
                 self.pending,
                 bar,
                 self.market,
                 fee_per_lot=self.config.simulation.fee_per_lot,
                 slippage_ticks=self.config.simulation.slippage_ticks,
+                max_volume_participation=self.config.simulation.max_volume_participation,
             )
-            if fact is not None:
-                fill = self.account.apply(fact)
+            if attempt.fill is not None:
+                fill = self.account.apply(attempt.fill)
+                self.pending = replace(
+                    self.pending, filled_lots=self.pending.filled_lots + attempt.fill.quantity_lots
+                )
+                status = (
+                    OrderStatus.FILLED
+                    if self.pending.remaining_lots == 0
+                    else OrderStatus.PARTIALLY_FILLED
+                )
+                orders.append(OrderUpdate(self.pending, status, bar.available_at, attempt.reason))
+                if self.pending.remaining_lots == 0:
+                    self.pending = None
+            elif attempt.reason == "EXPIRED":
+                orders.append(
+                    OrderUpdate(self.pending, OrderStatus.EXPIRED, bar.available_at, attempt.reason)
+                )
                 self.pending = None
-            elif bar.available_at > self.pending.expires_at:
-                self.pending = None
+            else:
+                status = (
+                    OrderStatus.PARTIALLY_FILLED
+                    if self.pending.filled_lots
+                    else OrderStatus.SUBMITTED
+                )
+                orders.append(OrderUpdate(self.pending, status, bar.available_at, attempt.reason))
         self._bar_count += 1
         self._last = bar
         equity = self.account.equity(bar.close)
@@ -262,7 +354,6 @@ class TradingSession:
         intent = signal.intent
         if intent is not None:
             self._last_decision = (intent.observation_id, intent.generated_at)
-            self.pending = None  # A new explicit target replaces the prior simulated target.
             risk = evaluate_risk(
                 intent,
                 PortfolioState(bar.available_at, equity, self.account.position_lots, bar.close),
@@ -291,21 +382,66 @@ class TradingSession:
                 "expires_at": risk.expires_at.isoformat(),
             }
             self._decision_count += 1
+            plan = None
             if risk.quantity_lots:
                 assert risk.side is not None
                 assert risk.minimum_fill_price is not None and risk.maximum_fill_price is not None
+                plan = order_slice(self.account.position, risk.side, risk.quantity_lots)
+            if self.pending is not None:
+                keep = (
+                    plan is not None
+                    and risk.minimum_fill_price is not None
+                    and risk.maximum_fill_price is not None
+                    and self.pending.side is risk.side
+                    and self.pending.offset is plan[0]
+                    and self.pending.remaining_lots <= plan[1]
+                    and risk.minimum_fill_price <= self.pending.minimum_fill_price
+                    and self.pending.maximum_fill_price <= risk.maximum_fill_price
+                )
+                if keep:
+                    decision["retained_order_id"] = self.pending.order_id
+                    status = (
+                        OrderStatus.PARTIALLY_FILLED
+                        if self.pending.filled_lots
+                        else OrderStatus.SUBMITTED
+                    )
+                    orders.append(
+                        OrderUpdate(
+                            self.pending, status, bar.available_at, "AUTHORIZATION_RETAINED"
+                        )
+                    )
+                    return TradingStep(
+                        point, decision, fill, self.pending, settlements, tuple(orders)
+                    )
+                orders.append(
+                    OrderUpdate(
+                        self.pending, OrderStatus.CANCELED, bar.available_at, "TARGET_REPLACED"
+                    )
+                )
+                self.pending = None
+            if plan is not None:
+                assert risk.side is not None
+                assert risk.minimum_fill_price is not None and risk.maximum_fill_price is not None
+                offset, quantity = plan
+                decision["order_quantity_lots"] = quantity
+                decision["order_offset"] = offset.value
                 self.pending = PendingOrder(
                     intent.intent_id,
                     bar.observation_id,
                     bar.available_at,
                     risk.expires_at,
                     risk.side,
-                    intraday_offset(self.account.position_lots, risk.side, risk.quantity_lots),
-                    risk.quantity_lots,
+                    offset,
+                    quantity,
                     risk.minimum_fill_price,
                     risk.maximum_fill_price,
                 )
-        return TradingStep(point, decision, fill, self.pending)
+                orders.append(
+                    OrderUpdate(
+                        self.pending, OrderStatus.SUBMITTED, bar.available_at, "RISK_AUTHORIZED"
+                    )
+                )
+        return TradingStep(point, decision, fill, self.pending, settlements, tuple(orders))
 
     def summary(self) -> dict[str, object]:
         """Current metrics, including a genuinely empty initialized account."""
@@ -418,7 +554,7 @@ class TradingSession:
             or not 0 <= count <= 100000
             or type(decisions) is not int
             or not 0 <= decisions <= count
-            or account.fill_count > max(0, decisions - 1)
+            or account.fill_count > max(0, count - 1)
         ):
             raise ValueError("checkpoint counters differ from the trading sequence")
         history = checkpoint["history"]
@@ -438,12 +574,20 @@ class TradingSession:
             if previous is not None and (
                 bar.event_time <= previous.event_time
                 or bar.available_at < previous.available_at
-                or bar.trading_day != previous.trading_day
+                or bar.trading_day < previous.trading_day
                 or bar.observation_id == previous.observation_id
             ):
-                raise ValueError("checkpoint history is not one ordered trading day")
+                raise ValueError("checkpoint history is not causally ordered")
             accepted_history.append(bar)
             previous = bar
+        for before, after in zip(accepted_history, accepted_history[1:]):
+            if before.trading_day != after.trading_day and not any(
+                fact.trading_day == before.trading_day
+                and fact.next_trading_day == after.trading_day
+                and before.completed_at <= fact.settled_at <= fact.available_at <= after.event_time
+                for fact in session._settlements
+            ):
+                raise ValueError("checkpoint day transition lacks fixed settlement evidence")
         session._last = previous
         session._trading_day = None if previous is None else previous.trading_day
         if checkpoint["last"] != (None if previous is None else _bar_dict(previous)) or checkpoint[
@@ -470,13 +614,14 @@ class TradingSession:
         if session.pending is not None and (
             previous is None
             or not decisions
-            or session._last_decision
-            != (session.pending.observation_id, session.pending.submitted_at)
+            or session._last_decision is None
+            or session.pending.submitted_at > session._last_decision[1]
+            or session.pending.remaining_lots == 0
             or session.pending.quantity_lots > config.risk.max_lots
             or session.pending.offset
-            is not intraday_offset(
-                account.position_lots, session.pending.side, session.pending.quantity_lots
-            )
+            is not order_slice(
+                account.position, session.pending.side, session.pending.remaining_lots
+            )[0]
         ):
             raise ValueError("checkpoint pending order differs from its last decision")
         session.account = account

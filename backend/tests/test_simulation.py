@@ -6,7 +6,8 @@ from uuid import UUID
 import pytest
 
 from northstar_quant.accounting.fifo import Account, FillFact
-from northstar_quant.execution.orders import Offset, PendingOrder, Side, intraday_offset
+from northstar_quant.accounting.positions import Position
+from northstar_quant.execution.orders import Offset, PendingOrder, Side, order_slice
 from northstar_quant.market_data import Market, MarketBar
 from northstar_quant.simulation import simulate_fill
 
@@ -37,8 +38,25 @@ def test_fill_enforces_actual_slipped_price_and_fifo_cost_conservation() -> None
         Decimal(102),
         Decimal(100),
     )
-    assert simulate_fill(order, bar, market, fee_per_lot=Decimal(2), slippage_ticks=1) is None
-    fact = simulate_fill(order, bar, market, fee_per_lot=Decimal(2), slippage_ticks=0)
+    assert (
+        simulate_fill(
+            order,
+            bar,
+            market,
+            fee_per_lot=Decimal(2),
+            slippage_ticks=1,
+            max_volume_participation=Decimal("0.1"),
+        ).fill
+        is None
+    )
+    fact = simulate_fill(
+        order,
+        bar,
+        market,
+        fee_per_lot=Decimal(2),
+        slippage_ticks=0,
+        max_volume_participation=Decimal("0.1"),
+    ).fill
     assert fact is not None and fact.price == Decimal(102)
     assert account.position_lots == 0
     fill = account.apply(fact)
@@ -56,14 +74,21 @@ def test_fill_enforces_actual_slipped_price_and_fifo_cost_conservation() -> None
     )
     later = MarketBar(
         UUID(int=12),
-        at + timedelta(minutes=1),
         at + timedelta(minutes=2),
-        at + timedelta(minutes=2, seconds=1),
+        at + timedelta(minutes=3),
+        at + timedelta(minutes=3, seconds=1),
         date(2026, 1, 5),
         Decimal(105),
         Decimal(100),
     )
-    closing_fact = simulate_fill(closing, later, market, fee_per_lot=Decimal(2), slippage_ticks=1)
+    closing_fact = simulate_fill(
+        closing,
+        later,
+        market,
+        fee_per_lot=Decimal(2),
+        slippage_ticks=1,
+        max_volume_participation=Decimal("0.1"),
+    ).fill
     assert closing_fact is not None
     account.apply(closing_fact)
     assert account.realized_pnl == Decimal(40)
@@ -199,9 +224,9 @@ def test_gross_opens_explicit_closes_and_broker_projection_share_quantities() ->
             account.apply(replace(close, fill_id="rollback-close"))
             raise RuntimeError("rollback")
     assert account.checkpoint() == before
-    assert intraday_offset(1, Side.SELL, 1) is Offset.CLOSE_TODAY
+    assert order_slice(Position(long_today=1), Side.SELL, 1) == (Offset.CLOSE_TODAY, 1)
     with pytest.raises(ValueError, match="cross through zero"):
-        intraday_offset(1, Side.SELL, 2)
+        order_slice(Position(long_today=1), Side.SELL, 2)
 
 
 def test_broker_timestamp_group_preserves_unknown_fill_order_and_position_age() -> None:
@@ -222,3 +247,61 @@ def test_broker_timestamp_group_preserves_unknown_fill_order_and_position_age() 
     established = Position(long_today=2, long_yesterday=3)
     result = established.apply((replace(closing, offset="CLOSE_YESTERDAY"),))
     assert result.long_today == 2 and result.long_yesterday == 2
+
+
+def test_participation_uses_only_post_order_volume_and_explains_each_rejection() -> None:
+    at = datetime(2026, 1, 5, 1, tzinfo=UTC)
+    market = Market(
+        UUID(int=1), "RB2605", "Asia/Shanghai", "CNY", "TON", Decimal(1), Decimal(10), 60
+    )
+    order = PendingOrder(
+        "partial",
+        UUID(int=10),
+        at,
+        at + timedelta(minutes=10),
+        Side.BUY,
+        Offset.OPEN,
+        5,
+        Decimal(90),
+        Decimal(110),
+    )
+    bar = MarketBar(
+        UUID(int=11),
+        at,
+        at + timedelta(minutes=1),
+        at + timedelta(minutes=1),
+        at.date(),
+        Decimal(100),
+        Decimal(19),
+    )
+
+    def attempt(request=order, observation=bar):
+        return simulate_fill(
+            request,
+            observation,
+            market,
+            fee_per_lot=Decimal(2),
+            slippage_ticks=0,
+            max_volume_participation=Decimal("0.1"),
+        )
+
+    result = attempt()
+    assert result.reason == "PARTIALLY_FILLED"
+    assert result.fill.quantity_lots == 1
+    assert result.fill.fee == Decimal(2)
+    remaining = replace(order, filled_lots=1)
+    second = attempt(remaining, replace(bar, observation_id=UUID(int=12), volume=Decimal(100)))
+    assert second.fill.quantity_lots == 4
+    assert second.reason == "FILLED"
+    assert result.fill.fill_id != second.fill.fill_id
+    assert attempt(observation=replace(bar, volume=Decimal(0))).reason == "NO_EXECUTABLE_VOLUME"
+    assert (
+        attempt(request=replace(order, submitted_at=at + timedelta(seconds=1))).reason
+        == "NO_POST_ORDER_VOLUME"
+    )
+    assert (
+        attempt(observation=replace(bar, close=Decimal(111))).reason
+        == "PRICE_OUTSIDE_AUTHORIZATION"
+    )
+    assert attempt(request=replace(order, expires_at=bar.available_at)).reason == "EXPIRED"
+    assert attempt(request=replace(order, filled_lots=5)).reason == "ALREADY_FILLED"

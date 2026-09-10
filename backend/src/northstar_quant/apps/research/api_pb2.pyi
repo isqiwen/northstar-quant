@@ -92,7 +92,7 @@ class ConfigurationRequest(_message.Message):
     def __init__(self, config: _Optional[_Union[ResearchConfigurationInput, _Mapping]] = ..., name: _Optional[str] = ...) -> None: ...
 
 class DatasetDetails(_message.Message):
-    __slots__ = ("availability_basis", "availability_note", "bar_count", "content_hash", "exchange", "import_specs", "limitations", "processing_provenance", "product", "published_at", "quality", "semantics", "session_close", "session_open", "snapshot_id", "source_reference", "sources", "symbol", "trading_days", "null_fields")
+    __slots__ = ("availability_basis", "availability_note", "bar_count", "content_hash", "exchange", "import_specs", "limitations", "processing_provenance", "product", "published_at", "quality", "semantics", "session_close", "session_open", "snapshot_id", "source_reference", "sources", "symbol", "trading_days", "null_fields", "settlements")
     AVAILABILITY_BASIS_FIELD_NUMBER: _ClassVar[int]
     AVAILABILITY_NOTE_FIELD_NUMBER: _ClassVar[int]
     BAR_COUNT_FIELD_NUMBER: _ClassVar[int]
@@ -113,6 +113,7 @@ class DatasetDetails(_message.Message):
     SYMBOL_FIELD_NUMBER: _ClassVar[int]
     TRADING_DAYS_FIELD_NUMBER: _ClassVar[int]
     NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    SETTLEMENTS_FIELD_NUMBER: _ClassVar[int]
     availability_basis: str
     availability_note: str
     bar_count: int
@@ -133,7 +134,8 @@ class DatasetDetails(_message.Message):
     symbol: str
     trading_days: _containers.RepeatedScalarFieldContainer[str]
     null_fields: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, availability_basis: _Optional[str] = ..., availability_note: _Optional[str] = ..., bar_count: _Optional[int] = ..., content_hash: _Optional[str] = ..., exchange: _Optional[str] = ..., import_specs: _Optional[_Iterable[_Union[ImportSpecification, _Mapping]]] = ..., limitations: _Optional[_Iterable[str]] = ..., processing_provenance: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., product: _Optional[str] = ..., published_at: _Optional[str] = ..., quality: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., semantics: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., session_close: _Optional[str] = ..., session_open: _Optional[str] = ..., snapshot_id: _Optional[str] = ..., source_reference: _Optional[str] = ..., sources: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., symbol: _Optional[str] = ..., trading_days: _Optional[_Iterable[str]] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+    settlements: _containers.RepeatedCompositeFieldContainer[_struct_pb2.Struct]
+    def __init__(self, availability_basis: _Optional[str] = ..., availability_note: _Optional[str] = ..., bar_count: _Optional[int] = ..., content_hash: _Optional[str] = ..., exchange: _Optional[str] = ..., import_specs: _Optional[_Iterable[_Union[ImportSpecification, _Mapping]]] = ..., limitations: _Optional[_Iterable[str]] = ..., processing_provenance: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., product: _Optional[str] = ..., published_at: _Optional[str] = ..., quality: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., semantics: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., session_close: _Optional[str] = ..., session_open: _Optional[str] = ..., snapshot_id: _Optional[str] = ..., source_reference: _Optional[str] = ..., sources: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., symbol: _Optional[str] = ..., trading_days: _Optional[_Iterable[str]] = ..., null_fields: _Optional[_Iterable[str]] = ..., settlements: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ...) -> None: ...
 
 class DatasetLineage(_message.Message):
     __slots__ = ("attempts", "snapshot_id", "sources", "usages")
@@ -555,7 +557,7 @@ class ResearchConfigurationInput(_message.Message):
     def __init__(self, risk: _Optional[_Union[RiskInput, _Mapping]] = ..., simulation: _Optional[_Union[SimulationInput, _Mapping]] = ..., strategy: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ResearchResultDocument(_message.Message):
-    __slots__ = ("data", "decisions", "equity_curve", "fills", "summary", "evidence_fields", "null_fields")
+    __slots__ = ("orders", "data", "decisions", "equity_curve", "fills", "summary", "evidence_fields", "null_fields", "settlements")
     class EvidenceFieldsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -563,6 +565,7 @@ class ResearchResultDocument(_message.Message):
         key: str
         value: _struct_pb2.Value
         def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
+    ORDERS_FIELD_NUMBER: _ClassVar[int]
     DATA_FIELD_NUMBER: _ClassVar[int]
     DECISIONS_FIELD_NUMBER: _ClassVar[int]
     EQUITY_CURVE_FIELD_NUMBER: _ClassVar[int]
@@ -570,6 +573,8 @@ class ResearchResultDocument(_message.Message):
     SUMMARY_FIELD_NUMBER: _ClassVar[int]
     EVIDENCE_FIELDS_FIELD_NUMBER: _ClassVar[int]
     NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    SETTLEMENTS_FIELD_NUMBER: _ClassVar[int]
+    orders: _containers.RepeatedCompositeFieldContainer[_struct_pb2.Struct]
     data: _struct_pb2.Struct
     decisions: _containers.RepeatedCompositeFieldContainer[_struct_pb2.Struct]
     equity_curve: _containers.RepeatedCompositeFieldContainer[EquityPoint]
@@ -577,7 +582,8 @@ class ResearchResultDocument(_message.Message):
     summary: ResearchSummary
     evidence_fields: _containers.MessageMap[str, _struct_pb2.Value]
     null_fields: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, data: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., decisions: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., equity_curve: _Optional[_Iterable[_Union[EquityPoint, _Mapping]]] = ..., fills: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., summary: _Optional[_Union[ResearchSummary, _Mapping]] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+    settlements: _containers.RepeatedCompositeFieldContainer[_struct_pb2.Struct]
+    def __init__(self, orders: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., data: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., decisions: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., equity_curve: _Optional[_Iterable[_Union[EquityPoint, _Mapping]]] = ..., fills: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., summary: _Optional[_Union[ResearchSummary, _Mapping]] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., null_fields: _Optional[_Iterable[str]] = ..., settlements: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ...) -> None: ...
 
 class ResearchSummary(_message.Message):
     __slots__ = ("bar_count", "decision_count", "ending_cash", "ending_equity", "ending_position_lots", "fill_count", "initial_cash", "max_drawdown", "max_drawdown_fraction", "realized_pnl", "total_fees", "total_return", "unrealized_pnl")
@@ -702,14 +708,16 @@ class SavedConfiguration(_message.Message):
     def __init__(self, config: _Optional[_Union[ResearchConfiguration, _Mapping]] = ..., configuration_id: _Optional[str] = ..., created_at: _Optional[str] = ..., name: _Optional[str] = ..., risk_hash: _Optional[str] = ..., strategy_hash: _Optional[str] = ...) -> None: ...
 
 class SimulationInput(_message.Message):
-    __slots__ = ("fee_per_lot", "initial_cash", "slippage_ticks")
+    __slots__ = ("max_volume_participation", "fee_per_lot", "initial_cash", "slippage_ticks")
+    MAX_VOLUME_PARTICIPATION_FIELD_NUMBER: _ClassVar[int]
     FEE_PER_LOT_FIELD_NUMBER: _ClassVar[int]
     INITIAL_CASH_FIELD_NUMBER: _ClassVar[int]
     SLIPPAGE_TICKS_FIELD_NUMBER: _ClassVar[int]
+    max_volume_participation: str
     fee_per_lot: str
     initial_cash: str
     slippage_ticks: int
-    def __init__(self, fee_per_lot: _Optional[str] = ..., initial_cash: _Optional[str] = ..., slippage_ticks: _Optional[int] = ...) -> None: ...
+    def __init__(self, max_volume_participation: _Optional[str] = ..., fee_per_lot: _Optional[str] = ..., initial_cash: _Optional[str] = ..., slippage_ticks: _Optional[int] = ...) -> None: ...
 
 class SnapshotReference(_message.Message):
     __slots__ = ("content_hash", "id", "evidence_fields")

@@ -33,7 +33,7 @@ from northstar_quant.web.protobuf import decode
 from tests.data_management.test_research import _csv, _receive, _spec
 
 
-def _publish(engine, datasets):
+def _publish(engine, datasets, *, settlements=()):
     """Publish through the canonical owner, rechecking session quality at the common cutoff."""
     ids = [item.snapshot_id for item in datasets]
     with Session(engine) as session:
@@ -79,6 +79,7 @@ def _publish(engine, datasets):
                         bar.available_at for item in datasets for bar in item.bars
                     ),
                     partitions=tuple(selections),
+                    settlements=settlements,
                     import_quality_pins=pins,
                     idempotency_key=str(uuid4()),
                     correlation_id=str(uuid4()),
@@ -220,3 +221,164 @@ def test_a_later_session_cannot_move_the_declared_trading_day_backwards(
     identifier = _publish(postgres_engine, [night, day])
     with pytest.raises(ValueError, match="decreasing trading days"):
         library.load_dataset(identifier)
+
+
+def test_cross_day_settlement_is_fixed_offline_replayable_and_survives_every_restart(
+    postgres_engine,
+    clean_database,
+    tmp_path,
+):
+    from decimal import Decimal
+
+    from sqlalchemy import create_engine, event
+
+    from northstar_quant.accounting.settlement import SettlementFact
+    from northstar_quant.research.backtesting import run_research
+    from northstar_quant.research.configuration import ResearchConfig
+    from northstar_quant.research.configurations import ConfigurationStore
+    from northstar_quant.research.paper import PaperStore
+    from northstar_quant.research.storage import initialize
+    from northstar_quant.strategies.configuration import StrategyConfig
+
+    library = DataLibrary(postgres_engine, SourceFiles(tmp_path / "sources"))
+    first = _receive(library, _csv(tmp_path / "first.csv"), _spec())
+    following = _shift(library, tmp_path / "next.csv", offset=timedelta(days=1))
+    fact = SettlementFact(
+        "synthetic-settlement-20260107",
+        first.market.contract_id,
+        first.bars[0].trading_day,
+        following.bars[0].trading_day,
+        first.bars[-1].completed_at + timedelta(hours=6),
+        first.bars[-1].available_at + timedelta(hours=6, minutes=1),
+        Decimal(105),
+        "SYNTHETIC test fixture; not historical exchange terms",
+    )
+    identifier = _publish(postgres_engine, [first, following], settlements=(fact,))
+    fixed = load_dataset(postgres_engine, identifier)
+    library.publications.publish(fixed)
+    offline = PublishedDatasets(library.publications.root)
+    assert offline.load_dataset(identifier) == fixed
+    assert fixed.details.settlements == (fact,)
+    config = ResearchConfig(strategy=StrategyConfig.create(supplied={"threshold": "0.001"}))
+    batch = run_research(fixed, config).to_dict()
+    assert batch == run_research(offline.load_dataset(identifier), config).to_dict()
+    assert len(batch["settlements"]) == 1
+    assert batch["settlements"][0]["price"] == "105"
+    assert any(item["offset"] == "CLOSE_YESTERDAY" for item in batch["fills"])
+    # The actual Research state owner is local SQLite, independent of Data Hub/PostgreSQL.
+    engine = create_engine(f"sqlite:///{tmp_path / 'research.db'}")
+    initialize(engine)
+    saved = ConfigurationStore(engine).save_configuration("cross-day engineering", config)
+    session_id = uuid4()
+    PaperStore(engine, offline).create(identifier, saved["configuration_id"], request_id=session_id)
+    engine.dispose()
+    for index, _ in enumerate(fixed.bars):
+        engine = create_engine(f"sqlite:///{tmp_path / 'research.db'}")
+        store = PaperStore(engine, offline)
+        command = uuid4()
+        if index == len(first.bars):
+            before = store.get(session_id)
+
+            def fail_commit(_conn, _cursor, statement, _parameters, _context, _many):
+                if statement.startswith("UPDATE paper_sessions"):
+                    raise RuntimeError("settlement checkpoint interrupted")
+
+            event.listen(engine, "before_cursor_execute", fail_commit)
+            try:
+                with pytest.raises(RuntimeError, match="settlement checkpoint interrupted"):
+                    store.advance(session_id, request_id=command)
+            finally:
+                event.remove(engine, "before_cursor_execute", fail_commit)
+            assert store.get(session_id) == before
+        result = store.advance(session_id, request_id=command)
+        assert store.advance(session_id, request_id=command) == result
+        engine.dispose()
+    engine = create_engine(f"sqlite:///{tmp_path / 'research.db'}")
+    try:
+        result = PaperStore(engine, offline).get(session_id)
+        for name in (
+            "summary",
+            "fills",
+            "settlements",
+            "equity_curve",
+            "decisions",
+            "pending_order",
+        ):
+            assert result[name] == batch[name]
+    finally:
+        engine.dispose()
+
+
+def test_day_transition_without_available_fixed_settlement_rejects_without_changing_account(
+    postgres_engine,
+    clean_database,
+    tmp_path,
+):
+    from northstar_quant.research.backtesting.session import TradingSession
+    from northstar_quant.research.configuration import ResearchConfig
+
+    library = DataLibrary(postgres_engine, SourceFiles(tmp_path / "sources"))
+    first = _receive(library, _csv(tmp_path / "first.csv"), _spec())
+    following = _shift(library, tmp_path / "next.csv", offset=timedelta(days=1))
+    fixed = load_dataset(postgres_engine, _publish(postgres_engine, [first, following]))
+    session = TradingSession(
+        fixed.market,
+        ResearchConfig(),
+        snapshot_id=fixed.snapshot_id,
+        content_hash=fixed.content_hash,
+        data_details=fixed.details,
+    )
+    try:
+        for bar in first.bars:
+            session.advance(bar)
+        before = session.checkpoint()
+        with pytest.raises(ValueError, match="fixed, causal settlement"):
+            session.advance(following.bars[0])
+        assert session.checkpoint() == before
+    finally:
+        session.close()
+
+
+def test_settlement_price_changes_publication_identity_and_invalid_scope_cannot_publish(
+    postgres_engine,
+    clean_database,
+    tmp_path,
+):
+    from decimal import Decimal
+
+    from northstar_quant.accounting.settlement import SettlementFact
+    from northstar_quant.data_management.snapshots.publication import (
+        DatasetSnapshotPublicationError,
+    )
+
+    library = DataLibrary(postgres_engine, SourceFiles(tmp_path / "sources"))
+    first = _receive(library, _csv(tmp_path / "first.csv"), _spec())
+    following = _shift(library, tmp_path / "next.csv", offset=timedelta(days=1))
+    fact = SettlementFact(
+        "synthetic-settlement",
+        first.market.contract_id,
+        first.bars[0].trading_day,
+        following.bars[0].trading_day,
+        first.bars[-1].completed_at + timedelta(hours=6),
+        first.bars[-1].available_at + timedelta(hours=6, minutes=1),
+        Decimal(105),
+        "synthetic accounting input",
+    )
+    original = load_dataset(
+        postgres_engine, _publish(postgres_engine, [first, following], settlements=(fact,))
+    )
+    revised = load_dataset(
+        postgres_engine,
+        _publish(
+            postgres_engine, [first, following], settlements=(replace(fact, price=Decimal(106)),)
+        ),
+    )
+    assert original.content_hash != revised.content_hash
+    assert load_dataset(postgres_engine, original.snapshot_id) == original
+    for invalid in (
+        (replace(fact, contract_id=uuid4()),),
+        (replace(fact, available_at=following.bars[-1].available_at + timedelta(seconds=1)),),
+        (fact, replace(fact, settlement_id="conflicting-same-day")),
+    ):
+        with pytest.raises(DatasetSnapshotPublicationError, match="settlement"):
+            _publish(postgres_engine, [first, following], settlements=invalid)

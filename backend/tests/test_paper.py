@@ -218,6 +218,6 @@ def test_unsupported_cross_day_input_never_creates_a_paper_account(
     monkeypatch.setattr(library, "load_dataset", lambda _snapshot: unsupported)
     store = PaperStore(postgres_engine, library)
     saved = ConfigurationStore(postgres_engine).save_configuration("no overnight", config)
-    with pytest.raises(ValueError, match="one trading day"):
+    with pytest.raises(ValueError, match="fixed, causal settlement"):
         store.create(dataset.snapshot_id, str(saved["configuration_id"]), request_id=uuid4())
     assert store.list() == []

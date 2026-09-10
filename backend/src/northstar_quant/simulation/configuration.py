@@ -18,6 +18,14 @@ _DEFINITIONS = (
     ),
     Parameter("fee_per_lot", "每手费用", "2", "0", "999999999999999999", "currency/lot"),
     Parameter("slippage_ticks", "滑点", 1, 0, 10000, "ticks"),
+    Parameter(
+        "max_volume_participation",
+        "最大成交量参与率",
+        "0.1",
+        "0.000000000000000001",
+        "1",
+        "fraction",
+    ),
 )
 
 
@@ -26,6 +34,7 @@ class SimulationConfig:
     initial_cash: Decimal = Decimal("100000")
     fee_per_lot: Decimal = Decimal("2")
     slippage_ticks: int = 1
+    max_volume_participation: Decimal = Decimal("0.1")
 
     def __post_init__(self) -> None:
         parameters(_DEFINITIONS, self.to_dict())

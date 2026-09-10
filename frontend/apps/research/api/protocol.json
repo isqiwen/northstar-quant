@@ -372,6 +372,14 @@
           "required": false,
           "nullable": false,
           "rule": "repeated"
+        },
+        "settlements": {
+          "id": 20,
+          "presence": false,
+          "type": "google.protobuf.Struct",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
         }
       },
       "array": false,
@@ -1486,6 +1494,14 @@
     },
     "northstar.research.ResearchResultDocument": {
       "fields": {
+        "orders": {
+          "id": 7,
+          "presence": false,
+          "type": "google.protobuf.Struct",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
+        },
         "data": {
           "id": 1,
           "presence": true,
@@ -1537,6 +1553,14 @@
           "presence": false,
           "type": "string",
           "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "settlements": {
+          "id": 6,
+          "presence": false,
+          "type": "google.protobuf.Struct",
+          "required": true,
           "nullable": false,
           "rule": "repeated"
         }
@@ -1878,6 +1902,13 @@
     },
     "northstar.research.SimulationInput": {
       "fields": {
+        "max_volume_participation": {
+          "id": 4,
+          "presence": true,
+          "type": "string",
+          "required": false,
+          "nullable": false
+        },
         "fee_per_lot": {
           "id": 1,
           "presence": true,

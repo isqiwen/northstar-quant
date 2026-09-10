@@ -74,6 +74,7 @@ message DatasetDetails {
   optional string symbol = 18 [json_name = "symbol", (northstar.web.required_field) = true];
   repeated string trading_days = 19 [json_name = "trading_days", (northstar.web.required_field) = true];
   repeated string null_fields = 2046;
+  repeated google.protobuf.Struct settlements = 20 [json_name = "settlements", (northstar.web.required_field) = true];
 }
 
 message DatasetLineage {
@@ -294,6 +295,7 @@ message ResearchConfigurationInput {
 }
 
 message ResearchResultDocument {
+  repeated google.protobuf.Struct orders = 7 [json_name = "orders", (northstar.web.required_field) = true];
   option (northstar.web.evidence) = true;
   optional google.protobuf.Struct data = 1 [json_name = "data", (northstar.web.required_field) = true, (northstar.web.nullable) = true];
   repeated google.protobuf.Struct decisions = 2 [json_name = "decisions", (northstar.web.required_field) = true];
@@ -302,6 +304,7 @@ message ResearchResultDocument {
   optional ResearchSummary summary = 5 [json_name = "summary", (northstar.web.required_field) = true];
   map<string, google.protobuf.Value> evidence_fields = 1000;
   repeated string null_fields = 2046;
+  repeated google.protobuf.Struct settlements = 6 [json_name = "settlements", (northstar.web.required_field) = true];
 }
 
 message ResearchSummary {
@@ -369,6 +372,7 @@ message SavedConfiguration {
 }
 
 message SimulationInput {
+  optional string max_volume_participation = 4 [json_name = "max_volume_participation"];
   optional string fee_per_lot = 1 [json_name = "fee_per_lot"];
   optional string initial_cash = 2 [json_name = "initial_cash"];
   optional int64 slippage_ticks = 3 [json_name = "slippage_ticks"];

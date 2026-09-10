@@ -233,3 +233,16 @@ local success, a successful push and a superseded run are not that evidence.
 Avoid repetitive unchanged CI progress messages and tight polling; report failures,
 meaningful milestones or required user input. A superseded redundant run may be
 cancelled after its replacement is confirmed, but cancellation is not a pass.
+
+### Current local refactoring batch (2026-09-11)
+
+The user requests completion of the agreed system refactoring before a combined
+GitHub push. Work locally and keep reviewable local commits; do not push this
+batch or mark remote Issues/Project items delivered until the complete agreed
+batch is ready. This overrides the routine per-slice push workflow above.
+Scope: fixed research inputs/time/effective terms, shared futures accounting,
+order lifecycle and constrained simulation, reconciled reports, and Live Sim
+authorization/execution/recovery. Portfolio/roll/ML and real-money admission are
+still later stages. Track implementation, checks and remaining external
+acceptance in docs/ROADMAP.md. Do not claim external broker or host acceptance
+from synthetic tests; missing external evidence does not block independent code.

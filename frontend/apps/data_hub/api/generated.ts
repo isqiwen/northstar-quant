@@ -28,6 +28,7 @@ export type DatasetDetails = {
   sources: (Record<string, JsonValue>)[];
   symbol: string;
   trading_days: (string)[];
+  settlements: (Record<string, JsonValue>)[];
 };
 export type DatasetLineage = {
   attempts: (Record<string, JsonValue>)[];

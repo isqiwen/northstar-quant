@@ -61,6 +61,7 @@ export type DatasetDetails = {
   sources: (Record<string, JsonValue>)[];
   symbol: string;
   trading_days: (string)[];
+  settlements: (Record<string, JsonValue>)[];
 };
 export type DatasetLineage = {
   attempts: (Record<string, JsonValue>)[];
@@ -243,12 +244,14 @@ export type ResearchConfigurationInput = {
   strategy?: JsonValue | null;
 };
 export type ResearchResultDocument = {
+  orders: (Record<string, JsonValue>)[];
   data: Record<string, JsonValue> | null;
   decisions: (Record<string, JsonValue>)[];
   equity_curve: (EquityPoint)[];
   fills: (Record<string, JsonValue>)[];
   summary: ResearchSummary;
   [key: string]: unknown;
+  settlements: (Record<string, JsonValue>)[];
 };
 export type ResearchSummary = {
   bar_count: number;
@@ -305,6 +308,7 @@ export type SavedConfiguration = {
   strategy_hash: string;
 };
 export type SimulationInput = {
+  max_volume_participation?: string;
   fee_per_lot?: string;
   initial_cash?: string;
   slippage_ticks?: number;
