@@ -143,11 +143,17 @@ def main() -> None:
                 summary = saved["result"]["summary"]
                 assert summary["bar_count"] == 12, summary
                 assert summary["decision_count"] == 11, summary
-                # Two round trips: 3241→3169 and 3201→3159, five lots × multiplier 10.
-                # Four fills × five lots × fee 2; later targets cannot use prior bar volume.
-                assert summary["fill_count"] == 4, summary
-                assert Decimal(summary["total_fees"]) == Decimal(40), summary
-                assert Decimal(summary["ending_equity"]) == Decimal(94260), summary
+                # Short 3169→3221: -2600; terminal short 3159 marked at 3160: -50.
+                # Three fills × five lots × fee 2. Terminal inventory is not invented flat.
+                assert summary["fill_count"] == 3, summary
+                assert Decimal(summary["total_fees"]) == Decimal(30), summary
+                assert Decimal(summary["ending_equity"]) == Decimal(97320), summary
+                assert summary["ending_position_lots"] == -5, summary
+                assert [(item["side"], item["price"]) for item in saved["result"]["fills"]] == [
+                    ("SELL", "3169"),
+                    ("BUY", "3221"),
+                    ("SELL", "3159"),
+                ]
                 assert Decimal(summary["ending_equity"]) == (
                     Decimal(summary["initial_cash"])
                     + Decimal(summary["realized_pnl"])
