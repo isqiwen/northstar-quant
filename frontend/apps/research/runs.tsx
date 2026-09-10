@@ -1,6 +1,6 @@
 "use client";
 import { query } from "./api/client";
-import { Card, Spin, Tabs } from "antd";
+import { Alert, Card, Spin, Tabs } from "antd";
 import { useParams } from "next/navigation";
 import { useData } from "../../shared/data";
 import {
@@ -172,38 +172,47 @@ export function Report() {
                   key: "terms",
                   label: "费用与保证金条款",
                   children: (
-                    <Records
-                      rowKey="terms_id"
-                      rows={result.data?.terms || []}
-                      columns={[
-                        { title: "版本", dataIndex: "terms_id" },
-                        { title: "生效", dataIndex: "effective_from" },
-                        { title: "失效", dataIndex: "effective_until" },
-                        { title: "可得时间", dataIndex: "available_at" },
-                        { title: "下限", dataIndex: "lower_limit" },
-                        { title: "上限", dataIndex: "upper_limit" },
-                        ...(
-                          [
-                            ["开仓费用", "open_fee"],
-                            ["平今费用", "close_today_fee"],
-                            ["平昨费用", "close_yesterday_fee"],
-                            ["多头保证金", "long_margin"],
-                            ["空头保证金", "short_margin"],
-                          ] as const
-                        ).map(([title, dataIndex]) => ({
-                          title,
-                          dataIndex,
-                          render: (value: {
-                            by_money: string;
-                            by_volume: string;
-                          }) =>
-                            `金额 × ${value.by_money} + 手数 × ${value.by_volume}`,
-                        })),
-                        { title: "金额精度", dataIndex: "money_quantum" },
-                        { title: "费用舍入", dataIndex: "fee_rounding" },
-                        { title: "依据", dataIndex: "source_reference" },
-                      ]}
-                    />
+                    <>
+                      {!result.data?.terms.length && (
+                        <Alert
+                          type="info"
+                          showIcon
+                          title="该研究使用配置中的模拟费用和保证金假设，未绑定历史条款。"
+                        />
+                      )}
+                      <Records
+                        rowKey="terms_id"
+                        rows={result.data?.terms || []}
+                        columns={[
+                          { title: "版本", dataIndex: "terms_id" },
+                          { title: "生效", dataIndex: "effective_from" },
+                          { title: "失效", dataIndex: "effective_until" },
+                          { title: "可得时间", dataIndex: "available_at" },
+                          { title: "下限", dataIndex: "lower_limit" },
+                          { title: "上限", dataIndex: "upper_limit" },
+                          ...(
+                            [
+                              ["开仓费用", "open_fee"],
+                              ["平今费用", "close_today_fee"],
+                              ["平昨费用", "close_yesterday_fee"],
+                              ["多头保证金", "long_margin"],
+                              ["空头保证金", "short_margin"],
+                            ] as const
+                          ).map(([title, dataIndex]) => ({
+                            title,
+                            dataIndex,
+                            render: (value: {
+                              by_money: string;
+                              by_volume: string;
+                            }) =>
+                              `金额 × ${value.by_money} + 手数 × ${value.by_volume}`,
+                          })),
+                          { title: "金额精度", dataIndex: "money_quantum" },
+                          { title: "费用舍入", dataIndex: "fee_rounding" },
+                          { title: "依据", dataIndex: "source_reference" },
+                        ]}
+                      />
+                    </>
                   ),
                 },
                 {

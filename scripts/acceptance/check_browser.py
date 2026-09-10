@@ -414,6 +414,11 @@ def main() -> None:
                         page.get_by_role("columnheader", name="盯市盈亏", exact=True)
                     ).to_be_visible()
                     screenshot("settlements")
+                    page.get_by_role("tab", name="费用与保证金条款", exact=True).click()
+                    page.get_by_text(
+                        "该研究使用配置中的模拟费用和保证金假设，未绑定历史条款。", exact=True
+                    ).wait_for(state="visible")
+                    screenshot("terms")
                 print(
                     "Research browser: queued task completed with frontend/API/Data Hub stopped",
                     flush=True,
