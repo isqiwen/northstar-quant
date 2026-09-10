@@ -147,9 +147,7 @@ def _manage(app: str, action: str, *, follow: bool, overrides: list[str]) -> Non
             run(*compose, "up", "--build", "-d", "--wait", "--wait-timeout", "180")
     elif action in ("start", "restart", "stop"):
         if action != "stop" and app in ("data-hub", "research"):
-            run(
-                *compose, "run", "--rm", "--no-deps", "--pull", "never", "storage-check"
-            )
+            run(*compose, "run", "--rm", "--no-deps", "--pull", "never", "storage-check")
         lifecycle(compose, app, action)
     elif action == "status":
         run(*compose, "ps", "--all")
