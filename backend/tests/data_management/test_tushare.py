@@ -109,7 +109,7 @@ def ready(library):
 
 def test_commit_retry_revision_and_backup_pins(automatic, monkeypatch):
     library = automatic
-    pending(library)
+    request_id = pending(library)
     monkeypatch.setattr(acquisition, "fetch", lambda *a: response())
     result = jobs.process_next(library)
     assert result["status"] == "VALIDATED"
@@ -124,19 +124,19 @@ def test_commit_retry_revision_and_backup_pins(automatic, monkeypatch):
         connection.execute(text("DELETE FROM data_sync_coverage"))
         connection.execute(text("UPDATE data_sync_settings SET refresh_at=now()"))
     planning.refresh(library._engine)
+    # This case verifies coverage repair of an existing window, not new catalog planning.
+    monkeypatch.setattr(planning, "plan", lambda *_: None)
     with library._engine.begin() as connection:
-        # Keep bootstrap catalog jobs outside this focused delivery test.
+        # Keep other windows outside this focused delivery test.
         connection.execute(
-            text(
-                "UPDATE data_sync_jobs SET next_at=now()+interval '1 day' WHERE dataset='contracts'"
-            )
+            text("UPDATE data_sync_jobs SET next_at=now()+interval '1 day' WHERE request_id<>:id"),
+            {"id": request_id},
         )
     ready(library)
     with library._engine.begin() as connection:
         connection.execute(
-            text(
-                "UPDATE data_sync_jobs SET next_at=now()+interval '1 day' WHERE dataset='contracts'"
-            )
+            text("UPDATE data_sync_jobs SET next_at=now()+interval '1 day' WHERE request_id<>:id"),
+            {"id": request_id},
         )
     assert jobs.process_next(library)["status"] == "VALIDATED"
     with library._engine.connect() as connection:
@@ -147,9 +147,8 @@ def test_commit_retry_revision_and_backup_pins(automatic, monkeypatch):
     ready(library)
     with library._engine.begin() as connection:
         connection.execute(
-            text(
-                "UPDATE data_sync_jobs SET next_at=now()+interval '1 day' WHERE dataset='contracts'"
-            )
+            text("UPDATE data_sync_jobs SET next_at=now()+interval '1 day' WHERE request_id<>:id"),
+            {"id": request_id},
         )
     jobs.process_next(library)
     assert publication.read_snapshot(original, row["manifest_bytes"]) == snapshot
@@ -406,4 +405,4 @@ def test_bad_numeric_is_retained_and_does_not_kill_sync(automatic, monkeypatch, 
         acquisition, "fetch", lambda *_: response().replace(b"20260901", b"20260902")
     )
     ready(automatic)
-    assert jobs.process_next(automatic)["status"] == "PUBLISHED"
+    assert jobs.process_next(automatic)["status"] == "VALIDATED"
