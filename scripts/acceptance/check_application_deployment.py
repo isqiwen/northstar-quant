@@ -71,6 +71,11 @@ class Deployment:
         owner = "research" if app == "research" else "data-hub"
         registry = self.root / "state" / owner / "bindings/storage.json"
         config = json.loads(compose.read_text())
+        # These APIs are reached through their frontend or container exec. Extra
+        # anonymous host ports can collide during concurrent Docker recreation.
+        for service_name in ("data-api", "research-api"):
+            if service_name in config["services"]:
+                config["services"][service_name].pop("ports", None)
         try:
             identities, _ = binder(config, app, registry)
         except ValueError as error:
