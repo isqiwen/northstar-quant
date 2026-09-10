@@ -33,7 +33,7 @@ from northstar_quant.web.protobuf import decode
 from tests.data_management.test_research import _csv, _receive, _spec
 
 
-def _publish(engine, datasets, *, settlements=()):
+def _publish(engine, datasets, *, settlements=(), terms=()):
     """Publish through the canonical owner, rechecking session quality at the common cutoff."""
     ids = [item.snapshot_id for item in datasets]
     with Session(engine) as session:
@@ -80,6 +80,7 @@ def _publish(engine, datasets, *, settlements=()):
                     ),
                     partitions=tuple(selections),
                     settlements=settlements,
+                    terms=terms,
                     import_quality_pins=pins,
                     idempotency_key=str(uuid4()),
                     correlation_id=str(uuid4()),
@@ -233,6 +234,7 @@ def test_cross_day_settlement_is_fixed_offline_replayable_and_survives_every_res
     from sqlalchemy import create_engine, event
 
     from northstar_quant.accounting.settlement import SettlementFact
+    from northstar_quant.accounting.terms import ChargeRate, FuturesTerms
     from northstar_quant.research.backtesting import run_research
     from northstar_quant.research.configuration import ResearchConfig
     from northstar_quant.research.configurations import ConfigurationStore
@@ -253,19 +255,71 @@ def test_cross_day_settlement_is_fixed_offline_replayable_and_survives_every_res
         Decimal(105),
         "SYNTHETIC test fixture; not historical exchange terms",
     )
-    identifier = _publish(postgres_engine, [first, following], settlements=(fact,))
+    first_terms = FuturesTerms(
+        "synthetic-day-one",
+        first.market.contract_id,
+        first.bars[0].event_time,
+        following.bars[0].event_time,
+        first.bars[0].event_time,
+        "synthetic terms, not historical exchange evidence",
+        ChargeRate(Decimal(0), Decimal(2)),
+        ChargeRate(Decimal(0), Decimal(4)),
+        ChargeRate(Decimal(0), Decimal(9)),
+        ChargeRate(Decimal("0.1"), Decimal(0)),
+        ChargeRate(Decimal("0.12"), Decimal(0)),
+        Decimal(50),
+        Decimal(200),
+        Decimal("0.01"),
+        "ROUND_HALF_UP",
+    )
+    next_terms = replace(
+        first_terms,
+        terms_id="synthetic-day-two",
+        effective_from=following.bars[0].event_time,
+        effective_until=following.bars[-1].available_at + timedelta(hours=1),
+        open_fee=ChargeRate(Decimal(0), Decimal(3)),
+    )
+    identifier = _publish(
+        postgres_engine, [first, following], settlements=(fact,), terms=(first_terms, next_terms)
+    )
     fixed = load_dataset(postgres_engine, identifier)
     library.publications.publish(fixed)
     offline = PublishedDatasets(library.publications.root)
     assert offline.load_dataset(identifier) == fixed
     assert fixed.details.settlements == (fact,)
+    assert fixed.details.terms == (first_terms, next_terms)
+    revised = load_dataset(
+        postgres_engine,
+        _publish(
+            postgres_engine,
+            [first, following],
+            settlements=(fact,),
+            terms=(first_terms, replace(next_terms, open_fee=ChargeRate(Decimal(0), Decimal(7)))),
+        ),
+    )
+    assert revised.content_hash != fixed.content_hash
+    assert offline.load_dataset(identifier) == fixed
     config = ResearchConfig(strategy=StrategyConfig.create(supplied={"threshold": "0.001"}))
+    uncovered = load_dataset(
+        postgres_engine,
+        _publish(postgres_engine, [first, following], settlements=(fact,), terms=(first_terms,)),
+    )
+    with pytest.raises(ValueError, match="available and effective"):
+        run_research(uncovered, config)
     batch = run_research(fixed, config).to_dict()
     assert batch == run_research(offline.load_dataset(identifier), config).to_dict()
     assert batch == run_research(replace(fixed, bars=tuple(reversed(fixed.bars))), config).to_dict()
     assert len(batch["settlements"]) == 1
     assert batch["settlements"][0]["price"] == "105"
     assert any(item["offset"] == "CLOSE_YESTERDAY" for item in batch["fills"])
+    assert all("margin_used" in point and "available" in point for point in batch["equity_curve"])
+    assert {point["terms_id"] for point in batch["equity_curve"]} == {
+        first_terms.terms_id,
+        next_terms.terms_id,
+    }
+    for fill in batch["fills"]:
+        if fill["offset"] == "CLOSE_YESTERDAY":
+            assert Decimal(fill["fee"]) == Decimal(9) * fill["quantity_lots"]
     from northstar_quant.research.backtesting.report import build_result
     from northstar_quant.research.backtesting.session import TradingSession, TradingStep
 

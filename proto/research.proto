@@ -75,6 +75,7 @@ message DatasetDetails {
   repeated string trading_days = 19 [json_name = "trading_days", (northstar.web.required_field) = true];
   repeated string null_fields = 2046;
   repeated google.protobuf.Struct settlements = 20 [json_name = "settlements", (northstar.web.required_field) = true];
+  repeated google.protobuf.Struct terms = 21 [json_name = "terms", (northstar.web.required_field) = true];
 }
 
 message DatasetLineage {
@@ -297,7 +298,7 @@ message ResearchConfigurationInput {
 message ResearchResultDocument {
   repeated google.protobuf.Struct orders = 7 [json_name = "orders", (northstar.web.required_field) = true];
   option (northstar.web.evidence) = true;
-  optional google.protobuf.Struct data = 1 [json_name = "data", (northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  optional DatasetDetails data = 1 [json_name = "data", (northstar.web.required_field) = true, (northstar.web.nullable) = true];
   repeated google.protobuf.Struct decisions = 2 [json_name = "decisions", (northstar.web.required_field) = true];
   repeated EquityPoint equity_curve = 3 [json_name = "equity_curve", (northstar.web.required_field) = true];
   repeated google.protobuf.Struct fills = 4 [json_name = "fills", (northstar.web.required_field) = true];

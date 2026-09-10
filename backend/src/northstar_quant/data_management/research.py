@@ -26,6 +26,7 @@ from sqlalchemy import Engine, select, text
 from sqlalchemy.orm import Session
 
 from northstar_quant.accounting.settlement import SettlementFact
+from northstar_quant.accounting.terms import FuturesTerms
 from northstar_quant.data_management.broker import verify_broker_contract
 from northstar_quant.data_management.catalog.models import (
     CanonicalBar,
@@ -192,6 +193,7 @@ class DatasetDetails:
     timestamp_convention: str
     processing_provenance: dict[str, object] | None = None
     settlements: tuple[SettlementFact, ...] = ()
+    terms: tuple[FuturesTerms, ...] = ()
 
     @property
     def limitations(self) -> tuple[str, ...]:
@@ -237,6 +239,7 @@ class DatasetDetails:
             **self.summary.to_dict(),
             "import_specs": [item.to_mapping() for item in self.import_specs],
             "settlements": [item.to_dict() for item in self.settlements],
+            "terms": [item.to_dict() for item in self.terms],
             "sources": [source.to_dict() for source in self.sources],
             "quality": {
                 "imports": [quality.to_dict() for quality in self.import_quality],
@@ -261,11 +264,7 @@ class DatasetDetails:
             "availability_note": "; ".join(
                 dict.fromkeys(item.availability_note for item in self.import_specs)
             ),
-            **(
-                {"processing_provenance": self.processing_provenance}
-                if self.processing_provenance is not None
-                else {}
-            ),
+            "processing_provenance": self.processing_provenance,
             "limitations": list(self.limitations),
         }
 

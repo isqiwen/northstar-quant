@@ -75,12 +75,21 @@ def build_result(session: TradingSession, steps: Sequence[TradingStep]) -> Resea
                 "completed bar's close plus adverse tick slippage.",
                 "Simulated participation uses only complete post-order bar volume. Partial fills "
                 "retain remaining lots; target replacement explicitly cancels the remainder.",
-                "Fees are charged per filled lot; Risk reserves fees and mark-to-close slippage.",
+                "Fees follow the fixed offset-specific terms and explicit rounding. Risk budgets "
+                "the worst fee and directional margin over the fixed daily price interval. "
+                "Reported available funds exclude pending-order holds and spread offsets."
+                if session._terms
+                else "Per-lot fees and mark-to-close slippage are included in Risk budgets.",
                 "Open terminal positions are marked to the final observed close, "
                 "not forcibly liquidated.",
                 "Historical research is not live Paper or broker execution; "
                 "no annualized performance is inferred.",
-                "Fees, slippage and margin fractions are declared simulation assumptions, "
+                "Fee/margin/limit revisions are fixed inputs with declared source references; "
+                "their independent historical verification must be established separately. "
+                "Margin is marked at observed close without portfolio offsets; actual broker "
+                "charges and frozen funds remain independent facts."
+                if session._terms
+                else "Fees, slippage and margin fractions are declared simulation assumptions, "
                 "not independently verified historical broker or exchange terms.",
                 *(
                     ("Calculation input has no verified source evidence.",)

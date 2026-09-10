@@ -48,6 +48,7 @@ export type ArchiveDataset = {
   symbol: string;
   trading_days: (string)[];
   settlements: (Record<string, JsonValue>)[];
+  terms: (Record<string, JsonValue>)[];
 };
 export type ArchiveReprocessRequest = {
   request_id: string;

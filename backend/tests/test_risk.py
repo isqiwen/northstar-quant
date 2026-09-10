@@ -124,6 +124,24 @@ def opening_inputs() -> tuple[OpeningAccount, OpeningTerms, OpeningLimits, Openi
     )
 
 
+def test_fixed_term_envelope_covers_both_margin_sides_and_individually_rounded_fees() -> None:
+    from northstar_quant.execution.orders import Offset
+    from northstar_quant.risk.terms import policy_for_terms
+    from tests.accounting.test_terms import terms
+
+    fixed = replace(terms(), contract_id=MARKET.contract_id)
+    policy = policy_for_terms(POLICY, fixed, MARKET)
+    for price in (fixed.lower_limit, Decimal(101), fixed.upper_limit):
+        for lots in (1, 2, 17):
+            for offset in Offset:
+                individual_fees = fixed.fee(offset, price, MARKET.multiplier, 1) * lots
+                assert individual_fees <= policy.fee_per_lot * lots
+            for side in Side:
+                assert fixed.margin(side, price, MARKET.multiplier, lots) <= (
+                    price * MARKET.multiplier * lots * policy.initial_margin_fraction
+                )
+
+
 def test_opening_budget_uses_actual_available_and_sell_daily_upper_bound() -> None:
     account, terms, limits, candidate = opening_inputs()
     account = replace(account, available=Decimal(200))

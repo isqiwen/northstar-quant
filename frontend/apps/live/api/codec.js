@@ -3083,6 +3083,7 @@ export const northstar = $root.northstar = (() => {
              * @property {Array.<string>|null} [trading_days] ArchiveDataset trading_days
              * @property {Array.<string>|null} [null_fields] ArchiveDataset null_fields
              * @property {Array.<google.protobuf.Struct.$Properties>|null} [settlements] ArchiveDataset settlements
+             * @property {Array.<google.protobuf.Struct.$Properties>|null} [terms] ArchiveDataset terms
              * @property {"availability_basis"} [_availability_basis] ArchiveDataset _availability_basis
              * @property {"availability_note"} [_availability_note] ArchiveDataset _availability_note
              * @property {"bar_count"} [_bar_count] ArchiveDataset _bar_count
@@ -3135,6 +3136,7 @@ export const northstar = $root.northstar = (() => {
              *   trading_days?: Array.<string>|null;
              *   null_fields?: Array.<string>|null;
              *   settlements?: Array.<google.protobuf.Struct.$Shape>|null;
+             *   terms?: Array.<google.protobuf.Struct.$Shape>|null;
              *   $unknowns?: Array.<Uint8Array>;
              * } & (
              *   ({ _availability_basis?: undefined; availability_basis?: null }|{ _availability_basis?: "availability_basis"; availability_basis: string })
@@ -3186,6 +3188,7 @@ export const northstar = $root.northstar = (() => {
                 this.trading_days = [];
                 this.null_fields = [];
                 this.settlements = [];
+                this.terms = [];
                 if (properties)
                     for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
                         if (properties[keys[i]] != null && keys[i] !== "__proto__")
@@ -3367,6 +3370,14 @@ export const northstar = $root.northstar = (() => {
              * @instance
              */
             ArchiveDataset.prototype.settlements = $util.emptyArray;
+
+            /**
+             * ArchiveDataset terms.
+             * @member {Array.<google.protobuf.Struct.$Properties>} terms
+             * @memberof northstar.live.ArchiveDataset
+             * @instance
+             */
+            ArchiveDataset.prototype.terms = $util.emptyArray;
 
             // OneOf field names bound to virtual getters and setters
             let $oneOfFields;
@@ -3626,6 +3637,9 @@ export const northstar = $root.northstar = (() => {
                 if (message.settlements != null && message.settlements.length)
                     for (let i = 0; i < message.settlements.length; ++i)
                         $root.google.protobuf.Struct.encode(message.settlements[i], writer.uint32(/* id 21, wireType 2 =*/170).fork(), _depth + 1).ldelim();
+                if (message.terms != null && message.terms.length)
+                    for (let i = 0; i < message.terms.length; ++i)
+                        $root.google.protobuf.Struct.encode(message.terms[i], writer.uint32(/* id 22, wireType 2 =*/178).fork(), _depth + 1).ldelim();
                 if (message.null_fields != null && message.null_fields.length)
                     for (let i = 0; i < message.null_fields.length; ++i)
                         writer.uint32(/* id 2046, wireType 2 =*/16370).string(message.null_fields[i]);
@@ -3833,6 +3847,14 @@ export const northstar = $root.northstar = (() => {
                             message.settlements.push($root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1));
                             continue;
                         }
+                    case 22: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.terms && message.terms.length))
+                                message.terms = [];
+                            message.terms.push($root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1));
+                            continue;
+                        }
                     }
                     reader.skipType(wireType, _depth, tag);
                     if (!reader.discardUnknown) {
@@ -4006,6 +4028,15 @@ export const northstar = $root.northstar = (() => {
                             return "settlements." + error;
                     }
                 }
+                if (message.terms != null && $Object.hasOwnProperty.call(message, "terms")) {
+                    if (!$Array.isArray(message.terms))
+                        return "terms: array expected";
+                    for (let i = 0; i < message.terms.length; ++i) {
+                        let error = $root.google.protobuf.Struct.verify(message.terms[i], _depth + 1);
+                        if (error)
+                            return "terms." + error;
+                    }
+                }
                 return null;
             };
 
@@ -4129,6 +4160,16 @@ export const northstar = $root.northstar = (() => {
                         message.settlements[i] = $root.google.protobuf.Struct.fromObject(object.settlements[i], _depth + 1);
                     }
                 }
+                if (object.terms) {
+                    if (!$Array.isArray(object.terms))
+                        throw $TypeError(".northstar.live.ArchiveDataset.terms: array expected");
+                    message.terms = $Array(object.terms.length);
+                    for (let i = 0; i < object.terms.length; ++i) {
+                        if (!$util.isObject(object.terms[i]))
+                            throw $TypeError(".northstar.live.ArchiveDataset.terms: object expected");
+                        message.terms[i] = $root.google.protobuf.Struct.fromObject(object.terms[i], _depth + 1);
+                    }
+                }
                 return message;
             };
 
@@ -4155,6 +4196,7 @@ export const northstar = $root.northstar = (() => {
                     object.sources = [];
                     object.trading_days = [];
                     object.settlements = [];
+                    object.terms = [];
                     object.null_fields = [];
                 }
                 if (message.availability_basis != null && $Object.hasOwnProperty.call(message, "availability_basis")) {
@@ -4266,6 +4308,11 @@ export const northstar = $root.northstar = (() => {
                     object.settlements = $Array(message.settlements.length);
                     for (let j = 0; j < message.settlements.length; ++j)
                         object.settlements[j] = $root.google.protobuf.Struct.toObject(message.settlements[j], options, _depth + 1);
+                }
+                if (message.terms && message.terms.length) {
+                    object.terms = $Array(message.terms.length);
+                    for (let j = 0; j < message.terms.length; ++j)
+                        object.terms[j] = $root.google.protobuf.Struct.toObject(message.terms[j], options, _depth + 1);
                 }
                 if (message.null_fields && message.null_fields.length) {
                     object.null_fields = $Array(message.null_fields.length);

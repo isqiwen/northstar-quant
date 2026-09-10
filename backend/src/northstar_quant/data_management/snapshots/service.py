@@ -16,6 +16,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
 from northstar_quant.accounting.settlement import SettlementFact
+from northstar_quant.accounting.terms import FuturesTerms, ordered_terms
 from northstar_quant.broker.records import EvidenceTimestamp
 from northstar_quant.data_management.catalog.models import (
     CanonicalBar,
@@ -271,6 +272,13 @@ class DatasetSnapshotPublicationService:
                 command.import_quality_pins,
                 prepared_partitions,
             )
+            if any(
+                item.contract_id not in {part.metadata.contract_id for part in prepared_partitions}
+                for item in command.terms
+            ):
+                raise DatasetSnapshotPublicationError(
+                    "SNAPSHOT_TERMS_SCOPE_INVALID", "terms must belong to the selected contracts"
+                )
             for fact in command.settlements:
                 if not any(
                     part.metadata.contract_id == fact.contract_id
@@ -288,10 +296,12 @@ class DatasetSnapshotPublicationService:
                 partitions=prepared_partitions,
                 import_pins=prepared_import_pins,
                 settlements=command.settlements,
+                terms=command.terms,
             )
             manifest = DatasetSnapshotManifest(
                 manifest_schema_version=SNAPSHOT_MANIFEST_SCHEMA_VERSION,
                 settlements=[item.to_dict() for item in command.settlements],
+                terms=[item.to_dict() for item in command.terms],
                 dataset_kind=SNAPSHOT_DATASET_KIND,
                 canonical_schema_version=SNAPSHOT_CANONICAL_SCHEMA_VERSION,
                 available_at_cutoff=command.available_at_cutoff,
@@ -1074,6 +1084,7 @@ def _request_fingerprint(command: PublishDatasetSnapshotCommand) -> str:
         {
             "protocol": "dataset_snapshot_publication_request/2.0.0",
             "settlements": [item.to_dict() for item in command.settlements],
+            "terms": [item.to_dict() for item in command.terms],
             "available_at_cutoff": _render_timestamp(command.available_at_cutoff),
             "partitions": [
                 {
@@ -1412,6 +1423,7 @@ def _manifest_content_hash(
     partitions: Sequence[_PreparedPartition],
     import_pins: Sequence[_PreparedImportPin],
     settlements: Sequence[SettlementFact],
+    terms: Sequence[FuturesTerms],
 ) -> str:
     partition_payloads = [
         _prepared_manifest_partition_payload(partition)
@@ -1421,6 +1433,7 @@ def _manifest_content_hash(
         {
             "protocol": f"dataset_snapshot_manifest/{SNAPSHOT_MANIFEST_SCHEMA_VERSION}",
             "settlements": [item.to_dict() for item in settlements],
+            "terms": [item.to_dict() for item in terms],
             "manifest_schema_version": SNAPSHOT_MANIFEST_SCHEMA_VERSION,
             "dataset_kind": SNAPSHOT_DATASET_KIND,
             "canonical_schema_version": SNAPSHOT_CANONICAL_SCHEMA_VERSION,
@@ -1566,11 +1579,18 @@ def _assert_persisted_hashes(
         raise DatasetSnapshotResolutionError(
             "SNAPSHOT_SETTLEMENT_INVALID", "stored settlement facts are invalid"
         ) from error
+    try:
+        terms = ordered_terms(tuple(FuturesTerms.from_dict(item) for item in manifest.terms))
+        if [item.to_dict() for item in terms] != manifest.terms:
+            raise ValueError("terms do not match canonical content")
+    except (ValueError, TypeError) as error:
+        raise DatasetSnapshotResolutionError("SNAPSHOT_TERMS_INVALID", str(error)) from error
     rebuilt_manifest_hash = _manifest_content_hash(
         available_at_cutoff=_as_utc(manifest.available_at_cutoff),
         partitions=rebuilt,
         import_pins=prepared_import_pins,
         settlements=settlements,
+        terms=terms,
     )
     if rebuilt_manifest_hash != manifest.content_hash:
         raise DatasetSnapshotResolutionError(

@@ -1,6 +1,6 @@
 """Create the only current Data Hub authority-store shape.
 
-Revision ID: 20260911_01
+Revision ID: 20260911_02
 Revises: none
 Create Date: 2026-09-11
 """
@@ -18,7 +18,7 @@ from northstar_quant.data_management.catalog.integrity import (
 )
 from northstar_quant.data_management.db.base import Base
 
-revision: str = "20260911_01"
+revision: str = "20260911_02"
 down_revision: str | Sequence[str] | None = None
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None

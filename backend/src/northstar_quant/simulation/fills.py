@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from decimal import ROUND_FLOOR, ROUND_HALF_EVEN, Decimal, localcontext
 
 from northstar_quant.accounting.fifo import FillFact
+from northstar_quant.accounting.terms import FuturesTerms
 from northstar_quant.execution.orders import PendingOrder, Side
 from northstar_quant.market_data import Market, MarketBar
 
@@ -25,6 +26,7 @@ def simulate_fill(
     fee_per_lot: Decimal,
     slippage_ticks: int,
     max_volume_participation: Decimal,
+    terms: FuturesTerms | None = None,
 ) -> FillAttempt:
     """Use only a complete post-order bar's volume, bounded by fixed participation.
 
@@ -33,6 +35,10 @@ def simulate_fill(
     """
 
     bar.validate(interval_seconds=market.interval_seconds, price_tick=market.price_tick)
+    if terms is not None:
+        terms.require_available(bar.available_at, start=bar.event_time)
+        if terms.contract_id != market.contract_id:
+            raise ValueError("simulation terms belong to a different contract")
     if (
         not isinstance(max_volume_participation, Decimal)
         or not max_volume_participation.is_finite()
@@ -67,6 +73,8 @@ def simulate_fill(
         price = bar.close + direction * slippage_ticks * market.price_tick
         if price <= 0 or not order.minimum_fill_price <= price <= order.maximum_fill_price:
             return FillAttempt(None, "PRICE_OUTSIDE_AUTHORIZATION")
+        if terms is not None and not terms.lower_limit <= price <= terms.upper_limit:
+            return FillAttempt(None, "PRICE_OUTSIDE_DAILY_LIMITS")
         identity = hashlib.sha256(
             f"simulation:{order.order_id}:{bar.observation_id}".encode()
         ).hexdigest()
@@ -81,7 +89,9 @@ def simulate_fill(
             order.offset,
             quantity,
             price,
-            quantity * fee_per_lot,
+            quantity * fee_per_lot
+            if terms is None
+            else terms.fee(order.offset, price, market.multiplier, quantity),
         )
 
         return FillAttempt(

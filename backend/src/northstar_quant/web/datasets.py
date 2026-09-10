@@ -48,6 +48,7 @@ class DatasetDetails(DatasetSummary):
     availability_basis: str
     availability_note: str
     settlements: list[dict[str, JsonValue]]
+    terms: list[dict[str, JsonValue]]
     import_specs: list[ImportSpecification]
     sources: list[dict[str, JsonValue]]
     quality: dict[str, JsonValue]

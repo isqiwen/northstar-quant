@@ -380,6 +380,14 @@
           "required": true,
           "nullable": false,
           "rule": "repeated"
+        },
+        "terms": {
+          "id": 21,
+          "presence": false,
+          "type": "google.protobuf.Struct",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
         }
       },
       "array": false,
@@ -1505,7 +1513,7 @@
         "data": {
           "id": 1,
           "presence": true,
-          "type": "google.protobuf.Struct",
+          "type": "northstar.research.DatasetDetails",
           "required": true,
           "nullable": true
         },

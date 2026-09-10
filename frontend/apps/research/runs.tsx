@@ -70,6 +70,8 @@ export function Report() {
                         { title: "时间", dataIndex: "at" },
                         { title: "权益", dataIndex: "equity" },
                         { title: "资金", dataIndex: "cash" },
+                        { title: "条款保证金", dataIndex: "margin_used" },
+                        { title: "扣除保证金后资金", dataIndex: "available" },
                         { title: "持仓手数", dataIndex: "position_lots" },
                         { title: "已实现盈亏", dataIndex: "realized_pnl" },
                         { title: "浮动盈亏", dataIndex: "unrealized_pnl" },
@@ -161,6 +163,44 @@ export function Report() {
                         { title: "盯市盈亏", dataIndex: "variation_pnl" },
                         { title: "结算后资金", dataIndex: "cash" },
                         { title: "可得时间", dataIndex: "available_at" },
+                        { title: "依据", dataIndex: "source_reference" },
+                      ]}
+                    />
+                  ),
+                },
+                {
+                  key: "terms",
+                  label: "费用与保证金条款",
+                  children: (
+                    <Records
+                      rowKey="terms_id"
+                      rows={result.data?.terms || []}
+                      columns={[
+                        { title: "版本", dataIndex: "terms_id" },
+                        { title: "生效", dataIndex: "effective_from" },
+                        { title: "失效", dataIndex: "effective_until" },
+                        { title: "可得时间", dataIndex: "available_at" },
+                        { title: "下限", dataIndex: "lower_limit" },
+                        { title: "上限", dataIndex: "upper_limit" },
+                        ...(
+                          [
+                            ["开仓费用", "open_fee"],
+                            ["平今费用", "close_today_fee"],
+                            ["平昨费用", "close_yesterday_fee"],
+                            ["多头保证金", "long_margin"],
+                            ["空头保证金", "short_margin"],
+                          ] as const
+                        ).map(([title, dataIndex]) => ({
+                          title,
+                          dataIndex,
+                          render: (value: {
+                            by_money: string;
+                            by_volume: string;
+                          }) =>
+                            `金额 × ${value.by_money} + 手数 × ${value.by_volume}`,
+                        })),
+                        { title: "金额精度", dataIndex: "money_quantum" },
+                        { title: "费用舍入", dataIndex: "fee_rounding" },
                         { title: "依据", dataIndex: "source_reference" },
                       ]}
                     />

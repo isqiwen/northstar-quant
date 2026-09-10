@@ -62,6 +62,7 @@ export type DatasetDetails = {
   symbol: string;
   trading_days: (string)[];
   settlements: (Record<string, JsonValue>)[];
+  terms: (Record<string, JsonValue>)[];
 };
 export type DatasetLineage = {
   attempts: (Record<string, JsonValue>)[];
@@ -245,7 +246,7 @@ export type ResearchConfigurationInput = {
 };
 export type ResearchResultDocument = {
   orders: (Record<string, JsonValue>)[];
-  data: Record<string, JsonValue> | null;
+  data: DatasetDetails | null;
   decisions: (Record<string, JsonValue>)[];
   equity_curve: (EquityPoint)[];
   fills: (Record<string, JsonValue>)[];

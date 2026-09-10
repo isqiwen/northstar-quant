@@ -314,6 +314,14 @@
           "required": true,
           "nullable": false,
           "rule": "repeated"
+        },
+        "terms": {
+          "id": 22,
+          "presence": false,
+          "type": "google.protobuf.Struct",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
         }
       },
       "array": false,

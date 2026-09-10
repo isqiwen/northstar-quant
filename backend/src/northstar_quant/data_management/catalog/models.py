@@ -1422,7 +1422,7 @@ class DatasetSnapshotManifest(CreatedAtMixin, Base):
     __table_args__ = (
         sa.UniqueConstraint("idempotency_key", name="snapshot_manifest_idempotency"),
         sa.CheckConstraint(
-            "manifest_schema_version = '3.0.0'",
+            "manifest_schema_version = '4.0.0'",
             name="manifest_schema",
         ),
         sa.CheckConstraint("dataset_kind = 'FUTURES_OHLCV'", name="dataset_kind"),
@@ -1450,7 +1450,7 @@ class DatasetSnapshotManifest(CreatedAtMixin, Base):
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     manifest_schema_version: Mapped[str] = mapped_column(
-        sa.String(16), nullable=False, server_default="3.0.0"
+        sa.String(16), nullable=False, server_default="4.0.0"
     )
     dataset_kind: Mapped[str] = mapped_column(
         sa.String(32), nullable=False, server_default="FUTURES_OHLCV"
@@ -1460,6 +1460,9 @@ class DatasetSnapshotManifest(CreatedAtMixin, Base):
     )
     available_at_cutoff: Mapped[datetime] = mapped_column(
         sa.DateTime(timezone=True).with_variant(EvidenceTimestamp(), "sqlite"), nullable=False
+    )
+    terms: Mapped[list[dict[str, object]]] = mapped_column(
+        sa.JSON(), nullable=False, default=list, server_default="[]"
     )
     settlements: Mapped[list[dict[str, object]]] = mapped_column(
         sa.JSON(), nullable=False, default=list, server_default="[]"

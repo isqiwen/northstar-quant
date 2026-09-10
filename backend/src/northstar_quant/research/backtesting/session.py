@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+from bisect import bisect_right
 from collections.abc import Sequence
 from copy import copy
 from dataclasses import asdict, dataclass, replace
@@ -16,12 +17,21 @@ from northstar_quant.accounting.fifo import Account, AppliedFill, FillFact
 from northstar_quant.accounting.portfolio import PortfolioState
 from northstar_quant.accounting.positions import Position
 from northstar_quant.accounting.settlement import AppliedSettlement, SettlementFact
+from northstar_quant.accounting.terms import FuturesTerms, ordered_terms
 from northstar_quant.data_management.research import DatasetDetails
-from northstar_quant.execution.orders import OrderStatus, OrderUpdate, PendingOrder, order_slice
+from northstar_quant.execution.orders import (
+    OrderStatus,
+    OrderUpdate,
+    PendingOrder,
+    Side,
+    order_slice,
+)
 from northstar_quant.market_data import Market, MarketBar
 from northstar_quant.messaging import Endpoint, Topic
 from northstar_quant.research.configuration import ResearchConfig
 from northstar_quant.risk import evaluate_risk
+from northstar_quant.risk.sizing import Outcome
+from northstar_quant.risk.terms import policy_for_terms
 from northstar_quant.simulation import simulate_fill
 from northstar_quant.strategies.runtime import StrategyRuntime
 from northstar_quant.trading.environment import Environment
@@ -147,7 +157,7 @@ class TradingSession:
     """
 
     # Bump for changed Strategy/Risk/Simulation/Accounting rules or checkpoint format.
-    REVISION = "8"
+    REVISION = "9"
 
     def __init__(
         self,
@@ -191,6 +201,17 @@ class TradingSession:
         if data_details is not None and data_details.volume_unit != "LOT":
             raise ValueError("simulation requires explicitly declared per-bar volume in lots")
         self._data_details = data_details
+        self._terms = ordered_terms(() if data_details is None else data_details.terms)
+        self._term_starts = tuple(item.effective_from for item in self._terms)
+        with localcontext() as context:
+            context.prec = 192
+            if any(
+                item.contract_id != market.contract_id
+                or item.lower_limit % market.price_tick
+                or item.upper_limit % market.price_tick
+                for item in self._terms
+            ):
+                raise ValueError("fixed terms require the same contract and tick-aligned limits")
         self._settlements = () if data_details is None else data_details.settlements
         if any(fact.contract_id != market.contract_id for fact in self._settlements) or len(
             {fact.trading_day for fact in self._settlements}
@@ -201,6 +222,9 @@ class TradingSession:
         self.account = Account(config.simulation.initial_cash, market)
         self.pending: PendingOrder | None = None
         self._policy = config.risk_policy()
+        self._term_policies = {
+            item.terms_id: policy_for_terms(self._policy, item, market) for item in self._terms
+        }
         self._trader = StrategyRuntime(
             config.strategy, market.contract_id, market.interval_seconds, source_scope=content_hash
         )
@@ -226,9 +250,23 @@ class TradingSession:
 
     def validate_inputs(self, bars: Sequence[MarketBar]) -> None:
         """Reject missing cross-day evidence before creating a durable run."""
+        for bar in bars:
+            self._terms_for(bar)
         for before, after in zip(bars, bars[1:]):
             if before.trading_day != after.trading_day:
                 self._settlement_between(before, after)
+
+    def _terms_for(self, bar: MarketBar) -> FuturesTerms | None:
+        if not self._terms:
+            return None  # Explicit configuration assumptions for engineering/exploratory runs.
+        index = bisect_right(self._term_starts, bar.event_time) - 1
+        if index < 0:
+            raise ValueError("fixed terms do not cover this market event")
+        terms = self._terms[index]
+        terms.require_available(bar.available_at, start=bar.event_time)
+        if not terms.lower_limit <= bar.close <= terms.upper_limit:
+            raise ValueError("market event is outside fixed daily price limits")
+        return terms
 
     def _settlement_between(self, before: MarketBar, after: MarketBar) -> SettlementFact:
         matches = tuple(
@@ -268,6 +306,7 @@ class TradingSession:
         return result
 
     def _advance(self, bar: MarketBar) -> TradingStep:
+        terms = self._terms_for(bar)
         settlements: tuple[AppliedSettlement, ...] = ()
         orders: list[OrderUpdate] = []
         if self._trading_day is not None and self._trading_day != bar.trading_day:
@@ -296,6 +335,7 @@ class TradingSession:
                 fee_per_lot=self.config.simulation.fee_per_lot,
                 slippage_ticks=self.config.simulation.slippage_ticks,
                 max_volume_participation=self.config.simulation.max_volume_participation,
+                terms=terms,
             )
             if attempt.fill is not None:
                 fill = self.account.apply(attempt.fill)
@@ -343,6 +383,24 @@ class TradingSession:
             "drawdown": decimal_text(drawdown),
             "drawdown_fraction": decimal_text(drawdown_fraction),
         }
+        if terms is not None:
+            position = self.account.position
+            margin = terms.margin(
+                Side.BUY,
+                bar.close,
+                self.market.multiplier,
+                position.long_today + position.long_yesterday,
+            ) + terms.margin(
+                Side.SELL,
+                bar.close,
+                self.market.multiplier,
+                position.short_today + position.short_yesterday,
+            )
+            point.update(
+                terms_id=terms.terms_id,
+                margin_used=decimal_text(margin),
+                available=decimal_text(equity - margin),
+            )
         decision: dict[str, object] | None = None
         signal = self._trader.advance(bar)
         assert signal is not None
@@ -357,9 +415,36 @@ class TradingSession:
             risk = evaluate_risk(
                 intent,
                 PortfolioState(bar.available_at, equity, self.account.position_lots, bar.close),
-                self._policy,
+                self._policy if terms is None else self._term_policies[terms.terms_id],
                 self.market,
             )
+            if terms is not None:
+                minimum = (
+                    None
+                    if risk.minimum_fill_price is None
+                    else max(risk.minimum_fill_price, terms.lower_limit)
+                )
+                maximum = (
+                    None
+                    if risk.maximum_fill_price is None
+                    else min(risk.maximum_fill_price, terms.upper_limit)
+                )
+                if minimum is not None and maximum is not None and minimum > maximum:
+                    risk = replace(
+                        risk,
+                        outcome=Outcome.REJECT,
+                        reason="NO_PRICE_WITHIN_EFFECTIVE_TERMS",
+                        approved_position_lots=None,
+                        side=None,
+                        quantity_lots=0,
+                    )
+                    minimum, maximum = None, None
+                risk = replace(
+                    risk,
+                    minimum_fill_price=minimum,
+                    maximum_fill_price=maximum,
+                    expires_at=min(risk.expires_at, terms.effective_until),
+                )
             decision = {
                 "observation_id": str(bar.observation_id),
                 "at": bar.available_at.isoformat(),

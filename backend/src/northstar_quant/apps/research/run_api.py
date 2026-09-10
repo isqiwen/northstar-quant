@@ -10,6 +10,7 @@ from northstar_quant.research.runs import RunStore
 from northstar_quant.web.access import (
     WorkspaceAccess,
 )
+from northstar_quant.web.datasets import DatasetDetails
 from northstar_quant.web.requests import ApiModel, EvidenceRecord
 
 from .configuration_api import ResearchConfiguration
@@ -64,7 +65,7 @@ class ResearchResultDocument(EvidenceRecord):
     fills: list[dict[str, JsonValue]]
     settlements: list[dict[str, JsonValue]]
     orders: list[dict[str, JsonValue]]
-    data: dict[str, JsonValue] | None
+    data: DatasetDetails | None
 
 
 class RunDetail(EvidenceRecord):
