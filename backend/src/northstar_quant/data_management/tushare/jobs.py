@@ -98,10 +98,16 @@ def process_next(library: DataLibrary) -> dict[str, Any] | None:
             except Empty:
                 if not coverage.confirmed_empty(engine, selected):
                     raise
-                rows, quality = [], closed_interval_evidence()
+                rows, quality = [], closed_interval_evidence(selected["dataset"])
             coverage.verify(engine, selected, rows, quality)
             stage = "storage"
-            artifact = publication.publish(rows, quality, selected, library._files)
+            artifact = publication.publish(
+                rows,
+                quality,
+                selected,
+                library._files,
+                source={"content_hash": archived.content_hash, "byte_count": archived.byte_count},
+            )
             stage = "commit"
             _commit(
                 engine,

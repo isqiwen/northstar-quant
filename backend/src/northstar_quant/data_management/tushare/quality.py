@@ -7,14 +7,15 @@ from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
+from . import normalization
 from .acquisition import decode
 from .catalog import BY_KEY
 
-RULE = "tushare-response/2"
+RULE = "tushare-response/3"
 _OHLC = ("open", "high", "low", "close")
 # These APIs declare OHLC and volume; ancillary amount/oi may remain unknown.
 # Official Tushare doc_id: 313, 138, 337, 492, 468 (reviewed 2026-09-10).
-_BAR_APIS = {"ft_mins", "fut_daily", "fut_weekly_monthly", "fut_daily_adj", "fut_index_daily"}
+_BAR_APIS = normalization.BAR_APIS
 
 
 class InvalidResponse(ValueError):
@@ -97,11 +98,18 @@ def normalize(content: bytes, job: dict[str, Any]) -> tuple[list[dict[str, Any]]
                 day = cutoff
             if job["start_at"] and not job["start_at"] <= day.isoformat() <= job["end_at"]:
                 raise InvalidResponse("行情时间超出请求窗口")
+        try:
+            normalization.normalize(row, job["dataset"])
+        except ValueError as error:
+            raise InvalidResponse(str(error)) from error
         for name, value in list(row.items()):
             if isinstance(value, Decimal):
                 if not value.is_finite():
                     raise InvalidResponse("数值不是有限十进制值")
-                row[name] = format(value, "f")
+                try:
+                    row[name] = normalization.decimal_text(value)
+                except ValueError as error:
+                    raise InvalidResponse(f"{name}：{error}") from error
         if definition.api in _BAR_APIS or all(field in row for field in _OHLC):
             prices = [number(row[field]) for field in _OHLC]
             if any(not p.is_finite() or p < 0 for p in prices):
@@ -116,8 +124,6 @@ def normalize(content: bytes, job: dict[str, Any]) -> tuple[list[dict[str, Any]]
                 quantity = number(row[field])
                 if not quantity.is_finite() or quantity < 0:
                     raise InvalidResponse("成交量、持仓量或金额无效")
-        if row.get("amount") is not None:
-            row["amount_cny"] = format(number(row["amount"]) * definition.amount_multiplier, "f")
         if key in rows and rows[key] != row:
             raise InvalidResponse("同一记录身份返回冲突内容；隔离该区间")
         rows[key] = row
@@ -137,24 +143,32 @@ def normalize(content: bytes, job: dict[str, Any]) -> tuple[list[dict[str, Any]]
         ):
             raise InvalidResponse("交易日历开闭市标识无效")
     ordered = [rows[key] for key in sorted(rows)]
-    return ordered, _evidence(ordered, len(data["items"]))
+    return ordered, _evidence(ordered, len(data["items"]), job["dataset"])
 
 
-def closed_interval_evidence() -> dict[str, Any]:
+def closed_interval_evidence(dataset: str) -> dict[str, Any]:
     """Called only after the worker verifies a complete non-trading calendar interval."""
-    return _evidence([], 0, closed=True)
+    return _evidence([], 0, dataset, closed=True)
 
 
-def _evidence(rows: list[dict[str, Any]], total: int, *, closed: bool = False) -> dict[str, Any]:
+def _evidence(
+    rows: list[dict[str, Any]], total: int, dataset: str, *, closed: bool = False
+) -> dict[str, Any]:
     # A new rule must retain new evidence even when its accepted rows are unchanged.
     canonical = json.dumps(
-        {"rule": RULE, "rows": rows, "calendar_closed": closed},
+        {
+            "rule": RULE,
+            "normalization": normalization.evidence(dataset),
+            "rows": rows,
+            "calendar_closed": closed,
+        },
         sort_keys=True,
         separators=(",", ":"),
         ensure_ascii=False,
     ).encode()
     return {
         "rule": RULE,
+        "normalization": normalization.evidence(dataset),
         "unique_rows": len(rows),
         "duplicate_rows": total - len(rows),
         "content_hash": hashlib.sha256(canonical).hexdigest(),

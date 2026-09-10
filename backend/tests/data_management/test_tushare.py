@@ -116,7 +116,7 @@ def test_commit_retry_revision_and_backup_pins(automatic, monkeypatch):
     with library._engine.connect() as connection:
         row = connection.execute(text("SELECT * FROM data_sync_receipts")).mappings().one()
     snapshot = publication.read_snapshot(row["manifest_hash"], row["manifest_bytes"])
-    assert snapshot["rows"][0]["amount_cny"] == "12500.00"
+    assert snapshot["rows"][0]["amount_cny"] == "12500"
     assert snapshot["rows"][0]["close"] == "3100.1"
     original = row["manifest_hash"]
     # Missing coverage is discovered independently of maximum observed date.
@@ -212,7 +212,7 @@ def test_failed_storage_does_not_advance_coverage(automatic, monkeypatch):
     pending(automatic)
     monkeypatch.setattr(acquisition, "fetch", lambda *a: response())
     monkeypatch.setattr(
-        publication, "publish", lambda *a: (_ for _ in ()).throw(OSError("disk full"))
+        publication, "publish", lambda *a, **kw: (_ for _ in ()).throw(OSError("disk full"))
     )
     assert jobs.process_next(automatic)["status"] == "BLOCKED"
     with automatic._engine.connect() as connection:
@@ -389,7 +389,9 @@ def test_joint_restore_preserves_downloads_and_fixed_publication(automatic, monk
         )
 
 
-@pytest.mark.parametrize("field,value", [("open", None), ("close", "--"), ("vol", "invalid")])
+@pytest.mark.parametrize(
+    "field,value", [("open", None), ("close", "--"), ("vol", "invalid"), ("amount", "1e26")]
+)
 def test_bad_numeric_is_retained_and_does_not_kill_sync(automatic, monkeypatch, field, value):
     pending(automatic)
     raw = json.loads(response())
@@ -531,4 +533,75 @@ def test_invalid_refresh_keeps_last_published_files_and_coverage(automatic, monk
     assert automatic._files.read(attempt["source_hash"], attempt["source_bytes"]) == incomplete
     assert (
         publication.read_snapshot(original["manifest_hash"], original["manifest_bytes"]) == snapshot
+    )
+
+
+def test_normalized_decimal_publication_keeps_source_and_semantic_retry_identity(
+    automatic, monkeypatch
+):
+    import io
+    from decimal import Decimal, localcontext
+
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    from northstar_quant.data_management.exploration.rows import read
+
+    request_id = pending(automatic)
+    original = response("3100.1000")
+    monkeypatch.setattr(acquisition, "fetch", lambda *_: original)
+    with localcontext() as context:
+        context.prec = 5
+        assert jobs.process_next(automatic)["status"] == "VALIDATED"
+    with automatic._engine.connect() as connection:
+        receipt = dict(
+            connection.execute(text("SELECT * FROM data_sync_receipts")).mappings().one()
+        )
+    snapshot = publication.read_snapshot(receipt["manifest_hash"], receipt["manifest_bytes"])
+    assert snapshot["source"] == {
+        "content_hash": receipt["source_hash"],
+        "byte_count": receipt["source_bytes"],
+    }
+    assert automatic._files.read(receipt["source_hash"], receipt["source_bytes"]) == original
+    table = pq.read_table(
+        io.BytesIO(automatic._files.read(receipt["parquet_hash"], receipt["parquet_bytes"]))
+    )
+    assert table.schema.field("close").type == pa.decimal128(38, 12)
+    assert table["close"].to_pylist() == [Decimal("3100.1")]
+    assert table["amount_cny"].to_pylist() == [Decimal("12500")]
+    view = read(
+        automatic._engine,
+        "daily",
+        "RB2610.SHF",
+        "2026-09-01",
+        "2026-09-01",
+        [receipt["receipt_id"]],
+    )
+    assert view["rows"][0]["close"] == "3100.1"
+    # A supplier spelling-only revision retains both raw attempts but no second economic version.
+    changed = response("3.1001e3")
+    monkeypatch.setattr(acquisition, "fetch", lambda *_: changed)
+    with automatic._engine.begin() as connection:
+        connection.execute(
+            text("UPDATE data_sync_jobs SET status='PENDING' WHERE request_id=:id"),
+            {"id": request_id},
+        )
+    ready(automatic)
+    assert jobs.process_next(automatic)["status"] == "VALIDATED"
+    with automatic._engine.connect() as connection:
+        assert connection.scalar(text("SELECT count(*) FROM data_sync_receipts")) == 1
+        attempts = (
+            connection.execute(
+                text("SELECT source_hash, source_bytes FROM data_sync_attempts ORDER BY started_at")
+            )
+            .mappings()
+            .all()
+        )
+    assert len(attempts) == 2
+    assert {automatic._files.read(a["source_hash"], a["source_bytes"]) for a in attempts} == {
+        original,
+        changed,
+    }
+    assert (
+        publication.read_snapshot(receipt["manifest_hash"], receipt["manifest_bytes"]) == snapshot
     )

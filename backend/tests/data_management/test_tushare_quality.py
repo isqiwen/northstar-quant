@@ -51,7 +51,10 @@ def encoded(row):
 def test_missing_ohlcv_cannot_skip_market_validation(dataset):
     row, job = market_response(dataset)
     accepted, evidence = normalize(encoded(row), job)
-    assert accepted == [row]
+    assert accepted[0]["close"] == "3100.1"
+    assert accepted[0]["low"] == "3100"
+    assert accepted[0]["vol"] == "2"
+    assert accepted[0].get("oi") is None
     assert evidence["availability_basis"] == "FINAL_REVISED"
     for field in ("open", "high", "low", "close", "vol"):
         incomplete = {key: value for key, value in row.items() if key != field}
@@ -135,3 +138,50 @@ def test_rows_without_field_names_remain_invalid():
         content = json.dumps({"code": 0, "data": {"fields": [], "items": items}}).encode()
         with pytest.raises(DownloadError):
             decode(content)
+
+
+def test_equivalent_number_spellings_deduplicate_without_decimal_context_rounding():
+    from decimal import localcontext
+
+    row, job = market_response("daily")
+    row.update(
+        open="100",
+        high="100.000",
+        low="1e2",
+        close="100.0",
+        vol="2.000",
+        amount="123456789012345.123456789012",
+    )
+    other = row | {"open": 100, "high": "1E2", "vol": 2}
+    content = json.dumps(
+        {
+            "code": 0,
+            "data": {"fields": list(row), "items": [list(row.values()), list(other.values())]},
+        }
+    ).encode()
+    with localcontext() as context:
+        context.prec = 5
+        accepted, evidence = normalize(content, job)
+    single, single_evidence = normalize(encoded(other), job)
+    assert accepted == single
+    assert evidence["content_hash"] == single_evidence["content_hash"]
+    assert evidence["duplicate_rows"] == 1
+    assert accepted[0]["amount_cny"] == "1234567890123451234.56789012"
+    assert {accepted[0][name] for name in ("open", "high", "low", "close")} == {"100"}
+    assert accepted[0]["oi"] is None
+
+
+@pytest.mark.parametrize("value", ["1e-13", "1e1000000", "1e26"])
+def test_unrepresentable_price_is_rejected_before_formatting_or_rounding(value):
+    row, job = market_response("daily")
+    row.update({name: value for name in ("open", "high", "low", "close")})
+    for content in (encoded(row), encoded(row).replace(json.dumps(value).encode(), value.encode())):
+        with pytest.raises(InvalidResponse, match="精确范围"):
+            normalize(content, job)
+
+
+def test_amount_unit_overflow_cannot_be_silently_rounded():
+    row, job = market_response("daily")
+    row["amount"] = "99999999999999999999999999"
+    with pytest.raises(InvalidResponse, match="精确范围"):
+        normalize(encoded(row), job)

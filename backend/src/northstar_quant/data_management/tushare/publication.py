@@ -2,10 +2,12 @@
 
 import io
 import json
+from decimal import Decimal
 from typing import Any
 
 from ..files import SourceFiles
 from ..publications import PublishedDatasets
+from . import normalization
 
 
 def storage() -> SourceFiles:
@@ -14,20 +16,41 @@ def storage() -> SourceFiles:
 
 
 def publish(
-    rows: list[dict[str, Any]], quality: dict[str, Any], job: dict[str, Any], archive: SourceFiles
+    rows: list[dict[str, Any]],
+    quality: dict[str, Any],
+    job: dict[str, Any],
+    archive: SourceFiles,
+    *,
+    source: dict[str, Any],
 ) -> dict[str, Any]:
     import pyarrow as pa  # type: ignore[import-untyped]
     import pyarrow.parquet as pq  # type: ignore[import-untyped]
 
-    # Strings preserve exact supplier decimal values and heterogeneous metadata.
-    # The manifest declares normalized amount units and preserves supplier fields.
     columns = sorted({key for row in rows for key in row})
+    numeric = normalization.fields(job["dataset"])
     table = pa.table(
         {
             key: pa.array(
-                [None if row.get(key) is None else str(row[key]) for row in rows], type=pa.string()
+                [
+                    None
+                    if row.get(key) is None
+                    else Decimal(row[key])
+                    if key in numeric
+                    else str(row[key])
+                    for row in rows
+                ],
+                type=pa.decimal128(normalization.PRECISION, normalization.SCALE)
+                if key in numeric
+                else pa.string(),
             )
             for key in columns
+        }
+    )
+    table = table.replace_schema_metadata(
+        {
+            b"northstar.normalization": json.dumps(
+                quality["normalization"], sort_keys=True
+            ).encode(),
         }
     )
     stream = io.BytesIO()
@@ -36,6 +59,7 @@ def publish(
     parquet = archive.store(stream.getvalue())
     files.store(stream.getvalue())
     manifest = {
+        "source": source,
         "dataset": job["dataset"],
         "scope": job["scope"],
         "parameters": job["parameters"],
@@ -67,4 +91,8 @@ def read_snapshot(manifest_hash: str, byte_count: int, *, limit: int = 100) -> d
     parquet = manifest["parquet"]
     raw = files.read(parquet["content_hash"], parquet["byte_count"])
     table = pq.read_table(io.BytesIO(raw))
-    return {**manifest, "row_count": table.num_rows, "rows": table.slice(0, limit).to_pylist()}
+    return {
+        **manifest,
+        "row_count": table.num_rows,
+        "rows": [normalization.response_row(row) for row in table.slice(0, limit).to_pylist()],
+    }

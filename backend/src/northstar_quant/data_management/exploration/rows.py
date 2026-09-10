@@ -11,7 +11,7 @@ from uuid import UUID
 
 from sqlalchemy import Engine, text
 
-from ..tushare import publication
+from ..tushare import normalization, publication
 from ..tushare.catalog import BY_KEY
 from ..tushare.store import serial
 from .catalog import pinned
@@ -103,7 +103,8 @@ def _read(
         if len(parquet.schema.names) > 64:
             raise ValueError("发布字段超过浏览上限")
         for batch in parquet.iter_batches(batch_size=256):
-            for row in batch.to_pylist():
+            for raw_row in batch.to_pylist():
+                row = normalization.response_row(raw_row)
                 if row.get("ts_code") != scope:
                     raise ValueError("发布记录不属于所选合约")
                 clock = (
@@ -111,6 +112,8 @@ def _read(
                     if dataset in ("week", "month")
                     else row.get("trade_time", row.get("trade_date"))
                 )
+                if not isinstance(clock, str):
+                    raise ValueError("发布记录缺少供应商时间标签")
                 day = (
                     datetime.strptime(clock[:10], "%Y-%m-%d").date()
                     if "-" in clock
@@ -147,7 +150,7 @@ def _read(
                 "key": name,
                 "label": label,
                 "unit": unit,
-                "type": "精确文本",
+                "type": "精确十进制" if name in normalization.fields(dataset) else "精确文本",
                 "missing": len(values) - len(present),
                 "minimum": low,
                 "maximum": high,
@@ -172,7 +175,7 @@ def _read(
         "export_allowed": export_allowed,
         "versions": [serial(r) for r in versions],
         "note": (
-            "供应商修订后历史，非首次可得行情。图表仅显示当前页原始记录；"
+            "供应商修订后历史，非首次可得行情。图表仅显示当前页固定版本记录；"
             "字段统计针对当前固定查询范围。"
         ),
     }

@@ -76,7 +76,7 @@ def test_fixed_pages_and_revision_do_not_mix(published):
     first = rows.read(engine, **args, receipt_ids=[], limit=2)
     ids = [UUID(v) for v in first["receipt_ids"]]
     assert first["total"] == 6
-    assert first["rows"][0]["open"] == "3100.10"
+    assert first["rows"][0]["open"] == "3100.1"
     assert not first["export_allowed"]
     assert next(f for f in first["fields"] if f["key"] == "oi")["missing"] == 6
     response["data"]["items"][0][2] = "3100.20"
@@ -90,7 +90,7 @@ def test_fixed_pages_and_revision_do_not_mix(published):
     assert {p["view_id"] for p in pages} == {first["view_id"]}
     exact = [r for p in pages for r in p["rows"]]
     assert len({r["_key"] for r in exact}) == 6
-    assert exact[0]["open"] == "3100.10"
+    assert exact[0]["open"] == "3100.1"
     assert len(catalog.versions(engine, **args)["rows"]) == 2
     with pytest.raises(ValueError, match="冲突"):
         rows.read(engine, **args, receipt_ids=ids + [UUID(latest["receipt_ids"][0])])
