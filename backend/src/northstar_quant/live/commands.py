@@ -50,6 +50,49 @@ def initialize_live_commands(connection: Connection) -> None:
     }:
         # Historical commands retain unknown attribution; never invent an operator for old facts.
         connection.exec_driver_sql("ALTER TABLE live_commands ADD COLUMN operator VARCHAR")
+    if connection.dialect.name == "sqlite":
+        connection.exec_driver_sql("""
+            CREATE TRIGGER IF NOT EXISTS live_command_identity
+            BEFORE UPDATE ON live_commands
+            WHEN OLD.command_id IS NOT NEW.command_id
+              OR OLD.runtime_id IS NOT NEW.runtime_id
+              OR OLD.operator IS NOT NEW.operator
+              OR OLD.path IS NOT NEW.path OR OLD.input IS NOT NEW.input
+              OR OLD.expires_at IS NOT NEW.expires_at
+              OR OLD.created_at IS NOT NEW.created_at
+              OR OLD.status != 'RUNNING' OR NEW.status = 'RUNNING'
+              OR NEW.finished_at IS NULL
+            BEGIN SELECT RAISE(ABORT, 'Live command facts cannot be rewritten'); END
+        """)
+        connection.exec_driver_sql("""
+            CREATE TRIGGER IF NOT EXISTS live_command_retention
+            BEFORE DELETE ON live_commands
+            BEGIN SELECT RAISE(ABORT, 'Live command facts cannot be deleted'); END
+        """)
+    else:
+        connection.exec_driver_sql("""
+            CREATE OR REPLACE FUNCTION live_command_preserve() RETURNS trigger AS $$
+            BEGIN
+                IF TG_OP = 'DELETE' THEN
+                    RAISE EXCEPTION 'Live command facts cannot be deleted';
+                END IF;
+                IF OLD.command_id IS DISTINCT FROM NEW.command_id
+                   OR OLD.runtime_id IS DISTINCT FROM NEW.runtime_id
+                   OR OLD.operator IS DISTINCT FROM NEW.operator
+                   OR OLD.path IS DISTINCT FROM NEW.path
+                   OR OLD.input::text IS DISTINCT FROM NEW.input::text
+                   OR OLD.expires_at IS DISTINCT FROM NEW.expires_at
+                   OR OLD.created_at IS DISTINCT FROM NEW.created_at
+                   OR OLD.status != 'RUNNING' OR NEW.status = 'RUNNING'
+                   OR NEW.finished_at IS NULL THEN
+                    RAISE EXCEPTION 'Live command facts cannot be rewritten';
+                END IF;
+                RETURN NEW;
+            END; $$ LANGUAGE plpgsql;
+            DROP TRIGGER IF EXISTS live_command_identity ON live_commands;
+            CREATE TRIGGER live_command_identity BEFORE UPDATE OR DELETE ON live_commands
+                FOR EACH ROW EXECUTE FUNCTION live_command_preserve();
+        """)
 
 
 class CommandConflict(ValueError):

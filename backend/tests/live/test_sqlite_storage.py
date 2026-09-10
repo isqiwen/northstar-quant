@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
 import pytest
+from sqlalchemy.exc import DBAPIError
 
 from northstar_quant.live.commands import CommandConflict, Commands, initialize_live_commands
 from northstar_quant.live.storage import KernelLock, open_store, write_transaction
@@ -54,6 +55,16 @@ def test_command_acknowledgement_and_unknown_survive_reopen(tmp_path):
             operator="maintenance",
         )
     assert calls == [1]
+    for statement in (
+        "UPDATE live_commands SET operator='maintenance'",
+        "UPDATE live_commands SET status='RUNNING', finished_at=NULL",
+        "UPDATE live_commands SET result='{}'",
+        "DELETE FROM live_commands",
+    ):
+        with pytest.raises(DBAPIError, match="Live command facts"):
+            with write_transaction(engine) as connection:
+                connection.exec_driver_sql(statement)
+    assert commands.get(request) == repeated
     unknown = uuid4()
     with write_transaction(engine) as connection:
         connection.exec_driver_sql(
