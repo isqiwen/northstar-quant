@@ -79,6 +79,13 @@ def initialize_hosts(args: argparse.Namespace) -> int:
         if args.app
         else [app for app in APPLICATIONS if settings.get(app.replace("-", "_"), {}).get("host")]
     )
+    nfs = (
+        runpy.run_path(str(ROOT / "scripts/operations/nfs.py"))["topology"](settings)
+        if args.app != "live"
+        else None
+    )
+    if nfs and (args.app is None or args.app in {"database", "data-hub", "research"}):
+        apps = [*apps, nfs["server_key"].replace("_", "-")]
     targets = {}
     for app in apps:
         config = configuration(args.config, app)
@@ -180,6 +187,15 @@ def main() -> int:
         if args.action == "init-host":
             return initialize_hosts(args)
         config = configuration(args.config, args.app)
+        settings = tomllib.loads(args.config.read_text())
+        nfs = None
+        server_config = None
+        if args.app in {"database", "data-hub", "research"}:
+            nfs = runpy.run_path(str(ROOT / "scripts/operations/nfs.py"))["topology"](settings)
+            if nfs:
+                for key in ("data_hub", "research", nfs["server_key"]):
+                    configuration(args.config, key.replace("_", "-"))
+                server_config = configuration(args.config, nfs["server_key"].replace("_", "-"))
         revision = None
         custom_environment = None
         environment_path = args.env_file or ROOT / "deploy" / args.app.replace("-", "_") / ".env"
@@ -224,6 +240,8 @@ def main() -> int:
                 ),
                 flush=True,
             )
+        if args.action == "deploy" and nfs:
+            print(f"NFS：{nfs['server']} 提供行情；{nfs['writer']} 读写，{nfs['reader']} 只读消费")
         if args.dry_run:
             return 0
         command = ssh(
@@ -231,6 +249,29 @@ def main() -> int:
         )
         if args.action != "deploy":
             return subprocess.run(command, stdin=subprocess.DEVNULL, check=False).returncode
+        if nfs:
+            assert server_config is not None
+            program = (ROOT / "scripts/operations/nfs.py").read_text()
+            # Refuse hiding existing client data before changing the server at all.
+            subprocess.run(
+                ssh(config, program, json.dumps(nfs | {"host": config["host"], "preflight": True})),
+                stdin=subprocess.DEVNULL,
+                check=True,
+            )
+            targets = [server_config]
+            if config["host"] != server_config["host"]:
+                targets.append(config)
+            for target in targets:
+                # Managed hosts already have northstar's sudo authority from init-host.
+                elevated = (
+                    "import subprocess,sys; subprocess.run(['sudo','-n','--',"
+                    "'python3','-c'," + repr(program) + ",sys.argv[1]],check=True)"
+                )
+                subprocess.run(
+                    ssh(target, elevated, json.dumps(nfs | {"host": target["host"]})),
+                    stdin=subprocess.DEVNULL,
+                    check=True,
+                )
         bootstrap = command[:-1] + [
             shlex.join(
                 [

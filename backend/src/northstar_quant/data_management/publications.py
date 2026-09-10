@@ -94,6 +94,7 @@ class PublishedDatasets:
         descriptor, temporary = tempfile.mkstemp(prefix=".publication-", dir=self.root)
         try:
             with os.fdopen(descriptor, "wb") as stream:
+                os.fchmod(stream.fileno(), 0o644)
                 stream.write(envelope)
                 stream.flush()
                 os.fsync(stream.fileno())
@@ -191,6 +192,7 @@ def _write_publication(path: Path, content: bytes) -> None:
     descriptor, temporary = tempfile.mkstemp(prefix=".publication-", dir=path.parent)
     try:
         with os.fdopen(descriptor, "wb") as stream:
+            os.fchmod(stream.fileno(), 0o644)
             stream.write(content)
             stream.flush()
             os.fsync(stream.fileno())

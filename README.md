@@ -22,7 +22,7 @@ Tushare 定时增量/分片补数、15 分钟到日线完整研究输入、持�
 三个应用的前端、API、worker/内核分别运行在独立容器中。
 应用持久目录固定在 `/opt/northstar/`；本机磁盘或主机预先挂载的共享使用同一套配置。
 配置文件在 `deploy/{database,data_hub,research,live}/.env`，数据库密码默认为 `123456`，发布接口无需 token，实际凭据放私有运行副本。
-部署脚本自动准备存储目录、本机运行目录和权限；无挂载时使用本地磁盘。存储 UUID 自动生成并持久保存，详见[部署说明](deploy/README.md)。
+部署脚本自动准备 NFS、Docker、目录和权限；默认 Research 提供行情共享，core 读写、Research 容器只读。存储 UUID 自动生成并持久保存，详见[部署说明](deploy/README.md)。
 
 可使用统一远程入口（填写 `deploy/hosts.toml` 后提交代码，首次部署自动上传所属 `.env`）：
 
@@ -39,7 +39,7 @@ Tushare 定时增量/分片补数、15 分钟到日线完整研究输入、持�
 保留其他 Docker 设置，校验后热加载并确认生效，不重启容器。
 主机上的存储检查和版本读取直接使用 Python，不安装后端业务依赖；业务依赖在镜像中安装。
 中断部署或 SSH 连接关闭后，远程部署会清理本次子进程并释放锁；已启动容器保留，重试 `deploy` 继续部署。
-`hosts.toml` 填写 host/user/port；user 仅供 `init-host` 登录和提权，创建 northstar 用户、配置 SSH 公钥及免密码 sudo。
+`hosts.toml` 填写各主机 host/user/port，`[nfs].server` 选择 research（默认）、core 或 external；user 仅供 `init-host` 登录和提权，创建 northstar 用户、配置 SSH 公钥及免密码 sudo。
 之后部署固定使用 northstar，首次运行配置自动上传，默认保留已有配置；目标先具备 SSH、Python 3.11+。
 脚本部署当前已提交版本；可用 `deploy data-hub --env-file /本地路径/data-hub.env` 指定应用配置并更新远程运行副本。
 不指定时默认首次上传仓库中的 `.env`，后续保留远程配置；支持 `start`、`restart`、`stop`、`status`、`logs` 和 `--help`。

@@ -41,6 +41,7 @@ class SourceFiles:
         max_file_bytes: int = 5 * 1024 * 1024,
         max_total_bytes: int = 10 * 1024**3,
         min_free_bytes: int = 256 * 1024**2,
+        shared_read: bool = False,
     ) -> None:
         if not root.is_absolute():
             raise ValueError("source storage requires an absolute private directory")
@@ -53,13 +54,14 @@ class SourceFiles:
             or min_free_bytes < 0
         ):
             raise ValueError("invalid source file, archive or free-space limit")
+        self.shared_read = shared_read
         self.root = root.resolve()
         if self.root == Path(self.root.anchor) or self.root == Path.home():
             raise ValueError("source storage must be a dedicated private directory")
         self.max_file_bytes = max_file_bytes
         self.max_total_bytes = max_total_bytes
         self.min_free_bytes = min_free_bytes
-        self.root.mkdir(parents=True, exist_ok=True, mode=0o700)
+        self.root.mkdir(parents=True, exist_ok=True, mode=0o755 if shared_read else 0o700)
         for name in ("objects", "staging"):
             self._directory(self.root / name)
 
@@ -95,7 +97,9 @@ class SourceFiles:
         if path.is_symlink():
             raise ValueError("source archive directories must not be symbolic links")
         if not path.exists():
-            path.mkdir(mode=0o700, exist_ok=True)
+            path.mkdir(
+                mode=0o755 if self.shared_read and path.name != "staging" else 0o700, exist_ok=True
+            )
             self._sync(path.parent)
         if not path.is_dir():
             raise ValueError("source archive directory is not available")
@@ -142,6 +146,8 @@ class SourceFiles:
             path = Path(temporary)
             try:
                 with os.fdopen(descriptor, "wb") as stream:
+                    if self.shared_read:
+                        os.fchmod(stream.fileno(), 0o644)
                     stream.write(content)
                     stream.flush()
                     os.fsync(stream.fileno())

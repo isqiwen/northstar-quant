@@ -47,7 +47,7 @@ def test_prepared_host_does_not_install_or_restart_services(bootstrap, monkeypat
     assert calls[0][1:3] == ("-c", request["directory_program"])
 
 
-@pytest.mark.parametrize("app", ["data-hub", "live", "database"])
+@pytest.mark.parametrize("app", ["data-hub", "research", "live", "database"])
 @pytest.mark.parametrize("distro", ["ubuntu", "debian"])
 def test_fresh_host_installs_tools_and_verifies_them(bootstrap, monkeypatch, app, distro):
     module, request = bootstrap

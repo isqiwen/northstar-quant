@@ -18,3 +18,14 @@ port = 22
 host = "quant.wangqiwen.me"
 user = "qiwen"
 port = 22
+
+# 仅共享行情目录；core/research/external，默认 Research 提供 NFSv4。
+[nfs]
+server = "research"
+enabled = true
+
+# server = "external" 时填写可通过 SSH 管理的 Ubuntu/Debian 主机。
+# [nfs_server]
+# host = "storage.local"
+# user = "qiwen"
+# port = 22

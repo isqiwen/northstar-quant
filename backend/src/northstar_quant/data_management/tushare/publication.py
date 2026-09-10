@@ -10,7 +10,7 @@ from ..publications import PublishedDatasets
 
 def storage() -> SourceFiles:
     market = PublishedDatasets.from_environment()
-    return SourceFiles(market.root / "tushare", max_total_bytes=2**60)
+    return SourceFiles(market.root / "tushare", max_total_bytes=2**60, shared_read=True)
 
 
 def publish(

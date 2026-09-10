@@ -7,7 +7,48 @@
 | Live 独立主机 | 自己的前端、API、内核和本地存储 |
 
 应用只读写固定的目录，不感知存储设备、服务器、协议或挂载方式。
-部署脚本创建缺失的 `files/` 和本机运行目录；路径有挂载就使用挂载存储，没有挂载就使用本地磁盘。
+部署脚本按 `hosts.toml` 准备行情 NFS，其余缺失目录在本机创建。显式关闭 NFS 时可全部使用本地磁盘。
+
+## 行情共享
+
+默认配置：
+
+```toml
+[nfs]
+server = "research" # core / research / external
+enabled = true
+```
+
+| 服务端选择 | core | Research |
+|---|---|---|
+| `research`（默认） | NFS 读写挂载 | 本地提供共享，研究容器只读 |
+| `core` | 本地写入并提供共享 | NFS 只读挂载 |
+| `external` | NFS 读写挂载 | NFS 只读挂载 |
+
+选择 `external` 时增加 `[nfs_server]`，填写 `host`、`user`、`port`，格式与应用主机一致。
+自动管理的服务端和客户端要求 Ubuntu/Debian Linux；QNAP 等设备不能直接使用 Linux SSH 安装流程。
+`init-host` 会同时准备所需 NFS 服务端账号；`deploy database/data-hub/research` 先准备服务端，
+再准备当前应用挂载和依赖。Research 自己的 `deploy research` 同样自动安装 Docker、Compose、Buildx 和 uv。
+服务端只需 NFS，不因仅提供文件共享而安装 Docker。
+
+唯一共享路径为 `/opt/northstar/files/market`，NFSv4、TCP 2049。服务端按解析后的客户端 IPv4 地址
+导出：core 可写、Research 只读；启用 UFW 时自动放行对应客户端的 2049/TCP。
+其他防火墙需允许这些客户端访问该端口。主机地址应稳定，地址变化后重新部署刷新规则。
+共享账号 `northstar-market` 由脚本创建，写请求映射到这个无登录账号，独立 Research 客户端映射到匿名只读身份，不授予远程 root 身份。
+发布目录/文件使用 `755/644`，原始来源和凭据不共享；首次接管市场目录会调整其所有者和读取权限。
+
+客户端用 systemd 持久挂载，Docker 启动前要求挂载就绪，使用 `hard` 避免把网络故障当成成功写入。
+重复部署不会重复追加配置或重启 Docker。配置了 NFS 却挂载失败时停止部署，不能退回本地空目录。
+Research 的 SQLite、计算临时目录、研究产物和备份目录仍在本机；Live 不配置 NFS，也不依赖该服务端。
+默认方案下 Research 主机离线会影响 core 的行情写入，因此服务端应持续在线。
+
+**切换已有部署**：先停止 Data Hub 写入和 Research 使用，联合备份数据库与文件；把完整市场目录
+（包括 `.northstar-storage-id`）迁移到目标服务端并核对文件哈希。保留旧数据直至验证完成。
+卸载旧客户端挂载并移除对应 `opt-northstar-files-market.mount`、Docker 的
+`northstar-market.conf` 和 `state/nfs/client.json`；再修改 `server` 并重新部署受影响应用。
+旧服务端停止使用后移除其 `/etc/exports.d/northstar.exports` 并执行 `exportfs -ra`。
+脚本拒绝覆盖非空本地目录或替换不同挂载，不自动移动、删除业务数据。
+`enabled = false` 适用于本地部署；它也不会自动卸载已有共享或删除其配置。
 
 ## 主机与凭据
 
@@ -59,7 +100,7 @@
 | `files/backup` | 维护时使用 | 维护时使用 |
 
 无需手工创建存储目录。`northstarctl deploy` 自动准备所选应用需要的目录。
-`files/` 可以使用本地磁盘，也可以提前挂载其他存储；脚本不要求挂载存在。
+除已配置 NFS 的市场目录外，`files/` 默认使用本地磁盘。
 Live 不使用 Data Hub/Research 的文件目录。
 
 | 本机目录 | 所有者 | 权限 |
@@ -71,18 +112,18 @@ Live 不使用 Data Hub/Research 的文件目录。
 | 各应用 `.env` | 同上，保留内容 | `600` |
 | PostgreSQL 数据目录 | 新建时为部署用户，初始化后由 PostgreSQL 管理 | 新建 `700`，已有目录不改权限/所有者 |
 
-所有主机统一使用 northstar 部署用户。脚本只管理目录本身，不递归改动现有文件权限。
+所有主机统一使用 northstar 部署用户。普通应用目录只管理目录本身；NFS 首次接管市场目录时单独调整发布文件权限。
 Python 容器当前以 root 运行；Next.js 以 node 运行且不挂载业务数据和凭据，前端日志由 Docker 收集。
-已有文件目录保留原权限：部署用户需要读取身份标记，后端需要对应读写权限；不使用 777。
+原始来源、私有目录保留原权限：部署用户需要读取身份标记，后端需要对应读写权限；不使用 777。
 脚本记录已准备的持久目录；后续目录丢失时要求恢复，不创建空状态替代。日志和临时目录可以重建。
 本机 Make 不执行远程准备阶段，使用前须具备相同目录和权限。
 
-文件目录缺失时自动创建；路径须非符号链接、互不包含。已有绑定对应的空目录自动初始化为可写的本地存储。
+文件目录缺失时自动创建；路径须非符号链接、互不包含。本地模式中已有绑定对应的空目录自动初始化；已配置 NFS 时先验证实际挂载。
 PostgreSQL、SQLite、Live 状态和凭据在各自主机本地持久存储，Live 不挂载 Data Hub/Research 的文件目录。
 
 存储编号由程序自动管理，无需在 `.env` 填写 UUID。
-首次 `deploy database` 为四个空目录自动分配身份，数据库初始化将标记写入各目录。
-Data Hub 使用同一份绑定；Research 首次部署读取共享目录标记并保存自己的绑定，
+NFS 服务端为全新空市场目录初始化身份；已有市场保留身份。首次 `deploy database` 初始化其余空目录。
+Data Hub 使用同一份绑定；Research 首次部署读取市场标记，初始化本机产物/备份目录并保存自己的绑定，
 读取行情时还会与 Data Hub 的固定发布清单核对。
 
 绑定保存在 `/opt/northstar/state/{data-hub,research}/bindings/storage.json`，目录由远程部署脚本准备，
@@ -93,7 +134,7 @@ Data Hub 使用同一份绑定；Research 首次部署读取共享目录标记�
 容器另外验证实际文件读写、同步和身份；底层文件系统须支持应用使用的 POSIX 文件操作。
 
 跨主机 Research 必须看到相同发布文件和对应存储 UUID，路径固定相同，实际目录内容须一致。
-怎样把这些文件提供给两台主机、设置挂载与开机顺序，由主机管理负责。
+行情文件共享、挂载与开机顺序由上述部署配置管理。
 更换文件存储时先停止相关写入、备份数据库与文件，迁移完整内容和身份标记，再恢复运行；
 保持原路径和 UUID 时不需要修改应用配置。脚本不搬迁或覆盖现有数据。
 

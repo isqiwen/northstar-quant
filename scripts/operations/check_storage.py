@@ -84,6 +84,7 @@ def require_directory(root: Path) -> None:
 
 
 def main() -> None:
+    from nfs import verify_client
     from storage_bindings import bind
 
     parser = argparse.ArgumentParser(description=__doc__)
@@ -99,6 +100,8 @@ def main() -> None:
         ["-f", str(ROOT / "deploy" / args.app / "compose.yaml"), "config", "--format", "json"]
     )
     try:
+        if args.app != "live":
+            verify_client()
         result = subprocess.run(command, capture_output=True, text=True, check=True)
         config = json.loads(result.stdout)
         environment, pending = {}, False

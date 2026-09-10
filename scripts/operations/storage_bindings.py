@@ -82,7 +82,9 @@ def bind(
                     raise ValueError("Storage directory missing")
                 if (root / ".northstar-storage-id").exists():
                     identities[share] = read_identity(root)
-                elif app == "database" and not any(root.iterdir()):
+                elif (app == "database" or (app == "research" and share != "MARKET")) and not any(
+                    root.iterdir()
+                ):
                     identities[share] = str(uuid4())
                 else:
                     raise ValueError("Storage not initialized; prepare published storage first")
