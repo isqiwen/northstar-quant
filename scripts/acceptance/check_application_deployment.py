@@ -24,6 +24,7 @@ from uuid import uuid4
 import httpx2 as httpx
 from support.deployment import cleanup_files, isolated_compose
 
+from northstar_quant.data_management.storage_identity import initialize
 from northstar_quant.web.protobuf import decode, methods, pack
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -312,20 +313,22 @@ print(json.dumps(DataLibrary(open_database(),SourceFiles.from_environment()).sub
             backup = json.loads(self.run("database", "run", "--rm", "--no-deps", "backup"))
             assert backup["status"] == "complete"
             print("Core backup includes Data Hub database, roles and pinned files", flush=True)
-            # An existing directory is insufficient without the configured storage identity.
+            # A different initialized store cannot impersonate the bound source storage.
             self.run("data_hub", "down", "--timeout", "10")
-            wrong = self.root / "unmounted"
+            wrong = self.root / "different-source"
             wrong.mkdir(parents=True)
+            initialize(wrong, str(uuid4()))
+            original_identity = (wrong / ".northstar-storage-id").read_bytes()
             self.bindings["/opt/northstar/files/source"] = wrong
             try:
                 for app, service in (("data_hub", "storage-check"), ("database", "initialize")):
                     try:
                         self.run(app, "run", "--rm", "--no-deps", service)
                     except RuntimeError as error:
-                        assert "mount" in str(error), str(error)
+                        assert "identity" in str(error).lower(), str(error)
                     else:
-                        raise AssertionError("unidentified directory was accepted as storage")
-                    assert list(wrong.iterdir()) == []
+                        raise AssertionError("different storage identity was accepted")
+                    assert (wrong / ".northstar-storage-id").read_bytes() == original_identity
             finally:
                 self.bindings["/opt/northstar/files/source"] = self.root / "source"
             print(
