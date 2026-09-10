@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from decimal import Decimal
 from enum import StrEnum
@@ -65,6 +65,54 @@ class PendingOrder:
     @property
     def remaining_lots(self) -> int:
         return self.quantity_lots - self.filled_lots
+
+    def record_fill(self, quantity_lots: int, *, at: datetime, reason: str) -> OrderUpdate:
+        """Advance once for an individually accepted fill in the owner's transaction.
+
+        The fact ledger owns fill deduplication. A cumulative broker quantity is
+        not a fill, and this operation does not change account facts or release
+        a reservation. Confirmed facts can arrive after an authorization expires.
+        """
+        if type(quantity_lots) is not int or not 0 < quantity_lots <= self.remaining_lots:
+            raise ValueError("accepted fill exceeds the order's remaining quantity")
+        updated = replace(self, filled_lots=self.filled_lots + quantity_lots)
+        status = OrderStatus.FILLED if updated.remaining_lots == 0 else OrderStatus.PARTIALLY_FILLED
+        return OrderUpdate(updated, status, at, reason)
+
+    def observe(self, *, at: datetime, reason: str) -> OrderUpdate:
+        if self.remaining_lots == 0:
+            raise ValueError("a filled order is no longer working")
+        status = OrderStatus.PARTIALLY_FILLED if self.filled_lots else OrderStatus.SUBMITTED
+        return OrderUpdate(self, status, at, reason)
+
+    def cancel(self, *, at: datetime, reason: str) -> OrderUpdate:
+        """Record confirmed cancellation, never a request to cancel at a broker."""
+        return OrderUpdate(self, OrderStatus.CANCELED, at, reason)
+
+    def expire(self, *, at: datetime, reason: str) -> OrderUpdate:
+        """Record an execution environment's established expiry, not a lost connection."""
+        return OrderUpdate(self, OrderStatus.EXPIRED, at, reason)
+
+    def fits_authorization(
+        self,
+        *,
+        side: Side,
+        offset: Offset,
+        quantity_lots: int,
+        minimum_fill_price: Decimal,
+        maximum_fill_price: Decimal,
+        expires_at: datetime,
+    ) -> bool:
+        """Retain the exact old order only when every remaining bound still fits."""
+        return (
+            self.remaining_lots > 0
+            and self.side is side
+            and self.offset is offset
+            and self.remaining_lots <= quantity_lots
+            and minimum_fill_price <= self.minimum_fill_price
+            and self.maximum_fill_price <= maximum_fill_price
+            and self.expires_at <= expires_at
+        )
 
     def to_dict(self) -> dict[str, object]:
         return {

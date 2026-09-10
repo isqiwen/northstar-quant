@@ -301,3 +301,110 @@ def test_partial_execution_and_target_replacement_preserve_order_quantities_and_
     assert any(item["reason"] == "NO_EXECUTABLE_VOLUME" for item in unfilled["orders"])
     assert unfilled["summary"]["total_fees"] == "0"
     assert unfilled["summary"]["ending_equity"] == "100000"
+
+
+def test_a_shorter_risk_window_replaces_the_old_working_order(monkeypatch) -> None:
+    import northstar_quant.research.backtesting.session as loop
+
+    data = dataset(("100", "110", "120"))
+    data = replace(data, bars=tuple(replace(bar, volume=Decimal(0)) for bar in data.bars))
+    session = TradingSession(
+        data.market,
+        ResearchConfig(risk=RiskConfig(max_lots=100)),
+        snapshot_id=data.snapshot_id,
+        content_hash=data.content_hash,
+    )
+    session.advance(data.bars[0])
+    session.advance(data.bars[1])
+    original = session.pending
+    assert original is not None
+    new_expiry = data.bars[2].available_at + timedelta(seconds=1)
+    assert new_expiry < original.expires_at
+    evaluate = loop.evaluate_risk
+
+    def shortened(*args, **kwargs):
+        result = evaluate(*args, **kwargs)
+        return replace(
+            result,
+            side=original.side,
+            quantity_lots=original.remaining_lots,
+            minimum_fill_price=original.minimum_fill_price,
+            maximum_fill_price=original.maximum_fill_price,
+            expires_at=new_expiry,
+        )
+
+    monkeypatch.setattr(loop, "evaluate_risk", shortened)
+    step = session.advance(data.bars[2])
+    assert step is not None and step.fill is None
+    assert any(
+        update.order.order_id == original.order_id and update.status.value == "CANCELED"
+        for update in step.orders
+    )
+    assert session.pending is not None and session.pending.expires_at == new_expiry
+    assert session.pending.order_id != original.order_id
+    assert session.account.fill_count == 0
+    session.close()
+
+
+def test_report_rejects_changed_intermediate_valuation_with_unchanged_ledger() -> None:
+    data = dataset(("100", "110", "112", "112", "108", "106", "106"))
+    session = TradingSession(
+        data.market,
+        ResearchConfig(risk=RiskConfig(max_lots=2)),
+        snapshot_id=data.snapshot_id,
+        content_hash=data.content_hash,
+    )
+    steps = [session.advance(bar) for bar in data.bars]
+    assert all(step is not None for step in steps)
+    original = build_result(session, steps).to_dict()
+    for field, changed in (
+        ("cash", "100001"),
+        ("equity", "999999"),
+        ("total_fees", "999"),
+        ("position_lots", 9),
+        ("drawdown_fraction", "0.9"),
+        ("margin_used", "0"),
+    ):
+        document = steps[2].to_dict()
+        document["point"][field] = changed
+        corrupted = list(steps)
+        corrupted[2] = TradingStep.from_dict(document)
+        with pytest.raises(ValueError, match="report (valuation|margin)"):
+            build_result(session, corrupted)
+    assert build_result(session, steps).to_dict() == original
+    session.close()
+
+
+def test_report_rejects_missing_submission_and_repeated_terminal_order() -> None:
+    from northstar_quant.execution.orders import OrderStatus
+
+    data = dataset(("100", "110", "112", "112", "108"))
+    session = TradingSession(
+        data.market,
+        ResearchConfig(risk=RiskConfig(max_lots=2)),
+        snapshot_id=data.snapshot_id,
+        content_hash=data.content_hash,
+    )
+    steps = [session.advance(bar) for bar in data.bars]
+    original = build_result(session, steps)
+    submission = next(i for i, step in enumerate(steps) if step.orders)
+    corrupted = list(steps)
+    document = steps[submission].to_dict()
+    document["orders"] = []
+    corrupted[submission] = TradingStep.from_dict(document)
+    with pytest.raises(ValueError, match="execution history"):
+        build_result(session, corrupted)
+    terminal = next(
+        i
+        for i, step in enumerate(steps)
+        if any(update.status is OrderStatus.FILLED for update in step.orders)
+    )
+    corrupted = list(steps)
+    document = steps[terminal].to_dict()
+    final = next(update for update in document["orders"] if update["status"] == "FILLED")
+    document["orders"].append(final)
+    corrupted[terminal] = TradingStep.from_dict(document)
+    with pytest.raises(ValueError, match="terminal state"):
+        build_result(session, corrupted)
+    assert build_result(session, steps) == original
+    session.close()

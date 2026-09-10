@@ -18,12 +18,11 @@ from northstar_quant.accounting.portfolio import PortfolioState
 from northstar_quant.accounting.positions import Position
 from northstar_quant.accounting.settlement import AppliedSettlement, SettlementFact
 from northstar_quant.accounting.terms import FuturesTerms, ordered_terms
+from northstar_quant.accounting.valuation import value_account
 from northstar_quant.data_management.research import DatasetDetails
 from northstar_quant.execution.orders import (
-    OrderStatus,
     OrderUpdate,
     PendingOrder,
-    Side,
     order_slice,
 )
 from northstar_quant.market_data import Market, MarketBar
@@ -157,7 +156,7 @@ class TradingSession:
     """
 
     # Bump for changed Strategy/Risk/Simulation/Accounting rules or checkpoint format.
-    REVISION = "9"
+    REVISION = "10"
 
     def __init__(
         self,
@@ -316,11 +315,8 @@ class TradingSession:
                 if self.pending.expires_at > settlement.settled_at:
                     raise ValueError("unexpired simulated order cannot cross settlement")
                 orders.append(
-                    OrderUpdate(
-                        self.pending,
-                        OrderStatus.EXPIRED,
-                        settlement.settled_at,
-                        "EXPIRED_BEFORE_SETTLEMENT",
+                    self.pending.expire(
+                        at=settlement.settled_at, reason="EXPIRED_BEFORE_SETTLEMENT"
                     )
                 )
                 self.pending = None
@@ -339,32 +335,20 @@ class TradingSession:
             )
             if attempt.fill is not None:
                 fill = self.account.apply(attempt.fill)
-                self.pending = replace(
-                    self.pending, filled_lots=self.pending.filled_lots + attempt.fill.quantity_lots
+                update = self.pending.record_fill(
+                    attempt.fill.quantity_lots, at=bar.available_at, reason=attempt.reason
                 )
-                status = (
-                    OrderStatus.FILLED
-                    if self.pending.remaining_lots == 0
-                    else OrderStatus.PARTIALLY_FILLED
-                )
-                orders.append(OrderUpdate(self.pending, status, bar.available_at, attempt.reason))
-                if self.pending.remaining_lots == 0:
-                    self.pending = None
+                orders.append(update)
+                self.pending = update.order if update.order.remaining_lots else None
             elif attempt.reason == "EXPIRED":
-                orders.append(
-                    OrderUpdate(self.pending, OrderStatus.EXPIRED, bar.available_at, attempt.reason)
-                )
+                orders.append(self.pending.expire(at=bar.available_at, reason=attempt.reason))
                 self.pending = None
             else:
-                status = (
-                    OrderStatus.PARTIALLY_FILLED
-                    if self.pending.filled_lots
-                    else OrderStatus.SUBMITTED
-                )
-                orders.append(OrderUpdate(self.pending, status, bar.available_at, attempt.reason))
+                orders.append(self.pending.observe(at=bar.available_at, reason=attempt.reason))
         self._bar_count += 1
         self._last = bar
-        equity = self.account.equity(bar.close)
+        valuation = value_account(self.account, bar.close, at=bar.available_at, terms=terms)
+        equity = valuation.equity
         self._peak = max(self._peak, equity)
         drawdown = self._peak - equity
         drawdown_fraction = drawdown / self._peak
@@ -374,33 +358,10 @@ class TradingSession:
             "observation_id": str(bar.observation_id),
             "at": bar.available_at.isoformat(),
             "close": decimal_text(bar.close),
-            "cash": decimal_text(self.account.cash),
-            "position_lots": self.account.position_lots,
-            "realized_pnl": decimal_text(self.account.realized_pnl),
-            "unrealized_pnl": decimal_text(self.account.unrealized_pnl(bar.close)),
-            "total_fees": decimal_text(self.account.total_fees),
-            "equity": decimal_text(equity),
+            **valuation.to_dict(),
             "drawdown": decimal_text(drawdown),
             "drawdown_fraction": decimal_text(drawdown_fraction),
         }
-        if terms is not None:
-            position = self.account.position
-            margin = terms.margin(
-                Side.BUY,
-                bar.close,
-                self.market.multiplier,
-                position.long_today + position.long_yesterday,
-            ) + terms.margin(
-                Side.SELL,
-                bar.close,
-                self.market.multiplier,
-                position.short_today + position.short_yesterday,
-            )
-            point.update(
-                terms_id=terms.terms_id,
-                margin_used=decimal_text(margin),
-                available=decimal_text(equity - margin),
-            )
         decision: dict[str, object] | None = None
         signal = self._trader.advance(bar)
         assert signal is not None
@@ -477,32 +438,25 @@ class TradingSession:
                     plan is not None
                     and risk.minimum_fill_price is not None
                     and risk.maximum_fill_price is not None
-                    and self.pending.side is risk.side
-                    and self.pending.offset is plan[0]
-                    and self.pending.remaining_lots <= plan[1]
-                    and risk.minimum_fill_price <= self.pending.minimum_fill_price
-                    and self.pending.maximum_fill_price <= risk.maximum_fill_price
+                    and risk.side is not None
+                    and self.pending.fits_authorization(
+                        side=risk.side,
+                        offset=plan[0],
+                        quantity_lots=plan[1],
+                        minimum_fill_price=risk.minimum_fill_price,
+                        maximum_fill_price=risk.maximum_fill_price,
+                        expires_at=risk.expires_at,
+                    )
                 )
                 if keep:
                     decision["retained_order_id"] = self.pending.order_id
-                    status = (
-                        OrderStatus.PARTIALLY_FILLED
-                        if self.pending.filled_lots
-                        else OrderStatus.SUBMITTED
-                    )
                     orders.append(
-                        OrderUpdate(
-                            self.pending, status, bar.available_at, "AUTHORIZATION_RETAINED"
-                        )
+                        self.pending.observe(at=bar.available_at, reason="AUTHORIZATION_RETAINED")
                     )
                     return TradingStep(
                         point, decision, fill, self.pending, settlements, tuple(orders)
                     )
-                orders.append(
-                    OrderUpdate(
-                        self.pending, OrderStatus.CANCELED, bar.available_at, "TARGET_REPLACED"
-                    )
-                )
+                orders.append(self.pending.cancel(at=bar.available_at, reason="TARGET_REPLACED"))
                 self.pending = None
             if plan is not None:
                 assert risk.side is not None
@@ -521,11 +475,7 @@ class TradingSession:
                     risk.minimum_fill_price,
                     risk.maximum_fill_price,
                 )
-                orders.append(
-                    OrderUpdate(
-                        self.pending, OrderStatus.SUBMITTED, bar.available_at, "RISK_AUTHORIZED"
-                    )
-                )
+                orders.append(self.pending.observe(at=bar.available_at, reason="RISK_AUTHORIZED"))
         return TradingStep(point, decision, fill, self.pending, settlements, tuple(orders))
 
     def summary(self) -> dict[str, object]:

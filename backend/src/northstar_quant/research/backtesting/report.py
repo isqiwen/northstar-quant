@@ -6,11 +6,15 @@ import hashlib
 import json
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta
 from decimal import ROUND_HALF_EVEN, Decimal, localcontext
 from typing import TYPE_CHECKING
 from uuid import UUID
 
 from northstar_quant.accounting.amounts import decimal_text
+from northstar_quant.accounting.fifo import Account
+from northstar_quant.accounting.valuation import value_account
+from northstar_quant.execution.history import OrderHistory
 
 if TYPE_CHECKING:
     from .session import TradingSession, TradingStep
@@ -25,6 +29,66 @@ class ResearchResult:
     def to_dict(self) -> dict[str, object]:
         result: dict[str, object] = json.loads(self._document)
         return result
+
+
+def _verify_valuations(session: TradingSession, steps: Sequence[TradingStep]) -> None:
+    """Derive every money row from the same identified facts before publishing it.
+
+    This is an on-demand report audit, not a second runtime account or a substitute
+    for the caller's immutable market-input and committed-step identity checks.
+    """
+    account = Account(session.account.initial_cash, session.market)
+    terms = {item.terms_id: item for item in session._terms}
+    peak = account.initial_cash
+    maximum = maximum_fraction = Decimal(0)
+    previous = None
+    orders = OrderHistory()
+    for step in steps:
+        point = step.point
+        try:
+            at = datetime.fromisoformat(str(point["at"]))
+            if at.utcoffset() != timedelta(0) or previous is not None and at < previous:
+                raise ValueError("report valuation times must be ordered UTC observations")
+            previous = at
+            for settlement in step.settlements:
+                if account.settle(settlement.fact, at=at) != settlement:
+                    raise ValueError("report settlement differs from its account facts")
+            if step.fill is not None:
+                if step.fill.fact.filled_at > at or account.apply(step.fill.fact) != step.fill:
+                    raise ValueError("report fill differs from its account facts")
+            if step.fill is not None:
+                orders.accept_fill(step.fill.fact)
+            for update in step.orders:
+                orders.observe(update, at=at)
+            orders.require_pending(step.new_order)
+            active_terms = terms[str(point["terms_id"])] if terms else None
+            valuation = value_account(
+                account, Decimal(str(point["close"])), at=at, terms=active_terms
+            )
+            expected = valuation.to_dict()
+            if not terms and any(
+                name in point for name in ("terms_id", "margin_used", "available")
+            ):
+                raise ValueError("report margin lacks fixed effective terms")
+            peak = max(peak, valuation.equity)
+            drawdown = peak - valuation.equity
+            fraction = drawdown / peak
+            maximum, maximum_fraction = max(maximum, drawdown), max(maximum_fraction, fraction)
+            expected.update(
+                drawdown=decimal_text(drawdown), drawdown_fraction=decimal_text(fraction)
+            )
+            if any(point.get(name) != value for name, value in expected.items()):
+                raise ValueError("report valuation differs from the identified account ledger")
+        except (KeyError, TypeError, ArithmeticError) as error:
+            raise ValueError("report valuation evidence is incomplete or invalid") from error
+    orders.require_pending(session.pending)
+    if (
+        account.checkpoint() != session.account.checkpoint()
+        or peak != session._peak
+        or maximum != session._maximum_drawdown
+        or maximum_fraction != session._maximum_drawdown_fraction
+    ):
+        raise ValueError("report valuation history differs from its final account and drawdown")
 
 
 def build_result(session: TradingSession, steps: Sequence[TradingStep]) -> ResearchResult:
@@ -45,6 +109,7 @@ def build_result(session: TradingSession, steps: Sequence[TradingStep]) -> Resea
     with localcontext() as context:
         context.prec = 96
         context.rounding = ROUND_HALF_EVEN
+        _verify_valuations(session, steps)
         payload: dict[str, object] = {
             "mode": "research",
             "environment": session.kernel.status.environment.value,

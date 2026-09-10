@@ -212,6 +212,11 @@ class Account:
     def position_lots(self) -> int:
         return self._position.net_lots
 
+    @property
+    def last_fact_at(self) -> datetime | None:
+        """Latest accepted account fact's availability in the owning ledger clock."""
+        return self._last_fact_at
+
     def unrealized_pnl(self, mark: Decimal) -> Decimal:
         if not isinstance(mark, Decimal) or not mark.is_finite() or mark <= 0:
             raise ValueError("account mark must be a positive exact price")
