@@ -125,6 +125,11 @@ def build_result(session: TradingSession, steps: Sequence[TradingStep]) -> Resea
             },
             "config": session.config.to_dict(),
             "summary": session.summary(),
+            "evaluation": session.evaluation.evaluate(
+                initial_cash=session.account.initial_cash,
+                ending_equity=Decimal(str(session.summary()["ending_equity"])),
+                observed_bars=session._bar_count,
+            ),
             "fills": [step.fill.to_dict() for step in steps if step.fill is not None],
             "settlements": [fact.to_dict() for step in steps for fact in step.settlements],
             "orders": [item.to_dict() for step in steps for item in step.orders],

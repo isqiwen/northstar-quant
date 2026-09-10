@@ -28,6 +28,7 @@ from northstar_quant.execution.orders import (
 from northstar_quant.market_data import Market, MarketBar
 from northstar_quant.messaging import Endpoint, Topic
 from northstar_quant.research.configuration import ResearchConfig
+from northstar_quant.research.evaluation import EvaluationPlan
 from northstar_quant.risk import evaluate_risk
 from northstar_quant.risk.sizing import Outcome
 from northstar_quant.risk.terms import policy_for_terms
@@ -156,7 +157,7 @@ class TradingSession:
     """
 
     # Bump for changed Strategy/Risk/Simulation/Accounting rules or checkpoint format.
-    REVISION = "11"
+    REVISION = "12"
 
     def __init__(
         self,
@@ -200,6 +201,7 @@ class TradingSession:
         if data_details is not None and data_details.volume_unit != "LOT":
             raise ValueError("simulation requires explicitly declared per-bar volume in lots")
         self._data_details = data_details
+        self.evaluation = EvaluationPlan.bind(snapshot_id, content_hash, data_details)
         self._terms = ordered_terms(() if data_details is None else data_details.terms)
         self._term_starts = tuple(item.effective_from for item in self._terms)
         with localcontext() as context:
@@ -249,7 +251,16 @@ class TradingSession:
 
     def validate_inputs(self, bars: Sequence[MarketBar]) -> None:
         """Reject missing cross-day evidence before creating a durable run."""
+        if self.evaluation.expected_bars is not None and len(bars) != self.evaluation.expected_bars:
+            raise ValueError("research inputs differ from the fixed evaluation window count")
         for bar in bars:
+            if (
+                self.evaluation.event_start is not None
+                and bar.event_time < self.evaluation.event_start
+                or self.evaluation.event_end is not None
+                and bar.completed_at > self.evaluation.event_end
+            ):
+                raise ValueError("research input lies outside the fixed evaluation window")
             self._terms_for(bar)
         for before, after in zip(bars, bars[1:]):
             if before.trading_day != after.trading_day:
@@ -514,6 +525,7 @@ class TradingSession:
 
         return {
             "engine_revision": self.REVISION,
+            "evaluation_plan": self.evaluation.to_dict(),
             "environment": self.kernel.status.environment.value,
             "strategy_state": dict(self._trader.state),
             "last_decision": None
@@ -574,7 +586,14 @@ class TradingSession:
         initial = session.checkpoint()
         if not isinstance(checkpoint, dict) or set(checkpoint) != set(initial):
             raise ValueError("checkpoint fields do not match the current trading implementation")
-        for name in ("engine_revision", "snapshot_id", "content_hash", "market", "config"):
+        for name in (
+            "engine_revision",
+            "evaluation_plan",
+            "snapshot_id",
+            "content_hash",
+            "market",
+            "config",
+        ):
             if checkpoint[name] != initial[name]:
                 raise ValueError("checkpoint differs from its fixed input or configuration")
         if (

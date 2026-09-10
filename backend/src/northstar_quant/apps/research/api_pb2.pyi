@@ -596,7 +596,7 @@ class ResearchConfigurationInput(_message.Message):
     def __init__(self, risk: _Optional[_Union[RiskInput, _Mapping]] = ..., simulation: _Optional[_Union[SimulationInput, _Mapping]] = ..., strategy: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ResearchResultDocument(_message.Message):
-    __slots__ = ("orders", "data", "decisions", "equity_curve", "fills", "summary", "evidence_fields", "null_fields", "settlements")
+    __slots__ = ("evaluation", "orders", "data", "decisions", "equity_curve", "fills", "summary", "evidence_fields", "null_fields", "settlements")
     class EvidenceFieldsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -604,6 +604,7 @@ class ResearchResultDocument(_message.Message):
         key: str
         value: _struct_pb2.Value
         def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
+    EVALUATION_FIELD_NUMBER: _ClassVar[int]
     ORDERS_FIELD_NUMBER: _ClassVar[int]
     DATA_FIELD_NUMBER: _ClassVar[int]
     DECISIONS_FIELD_NUMBER: _ClassVar[int]
@@ -613,6 +614,7 @@ class ResearchResultDocument(_message.Message):
     EVIDENCE_FIELDS_FIELD_NUMBER: _ClassVar[int]
     NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
     SETTLEMENTS_FIELD_NUMBER: _ClassVar[int]
+    evaluation: EvaluationResult
     orders: _containers.RepeatedCompositeFieldContainer[_struct_pb2.Struct]
     data: DatasetDetails
     decisions: _containers.RepeatedCompositeFieldContainer[_struct_pb2.Struct]
@@ -622,7 +624,7 @@ class ResearchResultDocument(_message.Message):
     evidence_fields: _containers.MessageMap[str, _struct_pb2.Value]
     null_fields: _containers.RepeatedScalarFieldContainer[str]
     settlements: _containers.RepeatedCompositeFieldContainer[_struct_pb2.Struct]
-    def __init__(self, orders: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., data: _Optional[_Union[DatasetDetails, _Mapping]] = ..., decisions: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., equity_curve: _Optional[_Iterable[_Union[EquityPoint, _Mapping]]] = ..., fills: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., summary: _Optional[_Union[ResearchSummary, _Mapping]] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., null_fields: _Optional[_Iterable[str]] = ..., settlements: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ...) -> None: ...
+    def __init__(self, evaluation: _Optional[_Union[EvaluationResult, _Mapping]] = ..., orders: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., data: _Optional[_Union[DatasetDetails, _Mapping]] = ..., decisions: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., equity_curve: _Optional[_Iterable[_Union[EquityPoint, _Mapping]]] = ..., fills: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., summary: _Optional[_Union[ResearchSummary, _Mapping]] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., null_fields: _Optional[_Iterable[str]] = ..., settlements: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ...) -> None: ...
 
 class ResearchSummary(_message.Message):
     __slots__ = ("bar_count", "decision_count", "ending_cash", "ending_equity", "ending_position_lots", "fill_count", "initial_cash", "max_drawdown", "max_drawdown_fraction", "realized_pnl", "total_fees", "total_return", "unrealized_pnl")
@@ -1005,3 +1007,57 @@ class TaskList(_message.Message):
     ITEMS_FIELD_NUMBER: _ClassVar[int]
     items: _containers.RepeatedCompositeFieldContainer[ResearchTask]
     def __init__(self, items: _Optional[_Iterable[_Union[ResearchTask, _Mapping]]] = ...) -> None: ...
+
+class EvaluationPlan(_message.Message):
+    __slots__ = ("plan_id", "revision", "snapshot_id", "content_hash", "window", "event_start", "event_end", "expected_bars", "benchmark", "annualization", "risk_free_rate", "sample_use", "null_fields")
+    PLAN_ID_FIELD_NUMBER: _ClassVar[int]
+    REVISION_FIELD_NUMBER: _ClassVar[int]
+    SNAPSHOT_ID_FIELD_NUMBER: _ClassVar[int]
+    CONTENT_HASH_FIELD_NUMBER: _ClassVar[int]
+    WINDOW_FIELD_NUMBER: _ClassVar[int]
+    EVENT_START_FIELD_NUMBER: _ClassVar[int]
+    EVENT_END_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_BARS_FIELD_NUMBER: _ClassVar[int]
+    BENCHMARK_FIELD_NUMBER: _ClassVar[int]
+    ANNUALIZATION_FIELD_NUMBER: _ClassVar[int]
+    RISK_FREE_RATE_FIELD_NUMBER: _ClassVar[int]
+    SAMPLE_USE_FIELD_NUMBER: _ClassVar[int]
+    NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    plan_id: str
+    revision: str
+    snapshot_id: str
+    content_hash: str
+    window: str
+    event_start: str
+    event_end: str
+    expected_bars: int
+    benchmark: str
+    annualization: str
+    risk_free_rate: str
+    sample_use: str
+    null_fields: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, plan_id: _Optional[str] = ..., revision: _Optional[str] = ..., snapshot_id: _Optional[str] = ..., content_hash: _Optional[str] = ..., window: _Optional[str] = ..., event_start: _Optional[str] = ..., event_end: _Optional[str] = ..., expected_bars: _Optional[int] = ..., benchmark: _Optional[str] = ..., annualization: _Optional[str] = ..., risk_free_rate: _Optional[str] = ..., sample_use: _Optional[str] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class EvaluationResult(_message.Message):
+    __slots__ = ("plan", "status", "observed_bars", "benchmark_ending_equity", "benchmark_return", "excess_return", "annualized_return", "sharpe", "limitations", "null_fields")
+    PLAN_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    OBSERVED_BARS_FIELD_NUMBER: _ClassVar[int]
+    BENCHMARK_ENDING_EQUITY_FIELD_NUMBER: _ClassVar[int]
+    BENCHMARK_RETURN_FIELD_NUMBER: _ClassVar[int]
+    EXCESS_RETURN_FIELD_NUMBER: _ClassVar[int]
+    ANNUALIZED_RETURN_FIELD_NUMBER: _ClassVar[int]
+    SHARPE_FIELD_NUMBER: _ClassVar[int]
+    LIMITATIONS_FIELD_NUMBER: _ClassVar[int]
+    NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    plan: EvaluationPlan
+    status: str
+    observed_bars: int
+    benchmark_ending_equity: str
+    benchmark_return: str
+    excess_return: str
+    annualized_return: str
+    sharpe: str
+    limitations: _containers.RepeatedScalarFieldContainer[str]
+    null_fields: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, plan: _Optional[_Union[EvaluationPlan, _Mapping]] = ..., status: _Optional[str] = ..., observed_bars: _Optional[int] = ..., benchmark_ending_equity: _Optional[str] = ..., benchmark_return: _Optional[str] = ..., excess_return: _Optional[str] = ..., annualized_return: _Optional[str] = ..., sharpe: _Optional[str] = ..., limitations: _Optional[_Iterable[str]] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...

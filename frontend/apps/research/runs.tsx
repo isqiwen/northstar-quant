@@ -82,6 +82,40 @@ export function Report() {
                   ),
                 },
                 {
+                  key: "evaluation",
+                  label: "评价条件",
+                  children: (
+                    <>
+                      <Alert
+                        type="info"
+                        showIcon
+                        title="探索性研究：重复选参或反复使用此区间，不构成未使用的样本外验证。"
+                      />
+                      <Fields
+                        value={{
+                          评价身份: result.evaluation.plan.plan_id,
+                          输入窗口: "整个固定快照",
+                          行情开始: result.evaluation.plan.event_start,
+                          行情结束: result.evaluation.plan.event_end,
+                          计划记录数: result.evaluation.plan.expected_bars,
+                          已观察记录数: result.evaluation.observed_bars,
+                          窗口状态:
+                            result.evaluation.status === "COMPLETE_WINDOW"
+                              ? "已完成固定输入窗口"
+                              : result.evaluation.status === "INCOMPLETE_WINDOW"
+                                ? "输入窗口尚未完成"
+                                : "未验证来源",
+                          比较基准: "不交易、无利息的初始现金",
+                          基准期末权益:
+                            result.evaluation.benchmark_ending_equity,
+                          相对基准收益率: result.evaluation.excess_return,
+                          年化与夏普: "未计算；不从盘中样本推断年化表现",
+                        }}
+                      />
+                    </>
+                  ),
+                },
+                {
                   key: "exposure",
                   label: "敞口与保证金",
                   children: (

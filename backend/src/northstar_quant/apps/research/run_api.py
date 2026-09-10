@@ -75,7 +75,35 @@ class EquityPoint(EvidenceRecord):
     available: str | None = None
 
 
+class EvaluationPlan(ApiModel):
+    plan_id: str
+    revision: str
+    snapshot_id: str
+    content_hash: str
+    window: str
+    event_start: str | None
+    event_end: str | None
+    expected_bars: int | None
+    benchmark: str
+    annualization: str
+    risk_free_rate: str
+    sample_use: str
+
+
+class EvaluationResult(ApiModel):
+    plan: EvaluationPlan
+    status: str
+    observed_bars: int
+    benchmark_ending_equity: str
+    benchmark_return: str
+    excess_return: str
+    annualized_return: str | None
+    sharpe: str | None
+    limitations: list[str]
+
+
 class ResearchResultDocument(EvidenceRecord):
+    evaluation: EvaluationResult
     summary: ResearchSummary
     equity_curve: list[EquityPoint]
     decisions: list[dict[str, JsonValue]]

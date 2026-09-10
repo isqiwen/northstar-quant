@@ -18305,6 +18305,7 @@ export const northstar = $root.northstar = (() => {
             /**
              * Properties of a ResearchResultDocument.
              * @typedef {Object} northstar.research.ResearchResultDocument.$Properties
+             * @property {northstar.research.EvaluationResult.$Properties|null} [evaluation] ResearchResultDocument evaluation
              * @property {Array.<google.protobuf.Struct.$Properties>|null} [orders] ResearchResultDocument orders
              * @property {northstar.research.DatasetDetails.$Properties|null} [data] ResearchResultDocument data
              * @property {Array.<google.protobuf.Struct.$Properties>|null} [decisions] ResearchResultDocument decisions
@@ -18314,6 +18315,7 @@ export const northstar = $root.northstar = (() => {
              * @property {Object.<string,google.protobuf.Value.$Properties>|null} [evidence_fields] ResearchResultDocument evidence_fields
              * @property {Array.<string>|null} [null_fields] ResearchResultDocument null_fields
              * @property {Array.<google.protobuf.Struct.$Properties>|null} [settlements] ResearchResultDocument settlements
+             * @property {"evaluation"} [_evaluation] ResearchResultDocument _evaluation
              * @property {"data"} [_data] ResearchResultDocument _data
              * @property {"summary"} [_summary] ResearchResultDocument _summary
              * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
@@ -18330,6 +18332,7 @@ export const northstar = $root.northstar = (() => {
             /**
              * Narrowed shape of a ResearchResultDocument.
              * @typedef {{
+             *   evaluation?: northstar.research.EvaluationResult.$Shape|null;
              *   orders?: Array.<google.protobuf.Struct.$Shape>|null;
              *   data?: northstar.research.DatasetDetails.$Shape|null;
              *   decisions?: Array.<google.protobuf.Struct.$Shape>|null;
@@ -18341,6 +18344,8 @@ export const northstar = $root.northstar = (() => {
              *   settlements?: Array.<google.protobuf.Struct.$Shape>|null;
              *   $unknowns?: Array.<Uint8Array>;
              * } & (
+             *   ({ _evaluation?: undefined; evaluation?: null }|{ _evaluation?: "evaluation"; evaluation: northstar.research.EvaluationResult.$Shape })
+             * ) & (
              *   ({ _data?: undefined; data?: null }|{ _data?: "data"; data: northstar.research.DatasetDetails.$Shape })
              * ) & (
              *   ({ _summary?: undefined; summary?: null }|{ _summary?: "summary"; summary: northstar.research.ResearchSummary.$Shape })
@@ -18368,6 +18373,14 @@ export const northstar = $root.northstar = (() => {
                         if (properties[keys[i]] != null && keys[i] !== "__proto__")
                             this[keys[i]] = properties[keys[i]];
             };
+
+            /**
+             * ResearchResultDocument evaluation.
+             * @member {northstar.research.EvaluationResult.$Properties|null|undefined} evaluation
+             * @memberof northstar.research.ResearchResultDocument
+             * @instance
+             */
+            ResearchResultDocument.prototype.evaluation = null;
 
             /**
              * ResearchResultDocument orders.
@@ -18445,6 +18458,17 @@ export const northstar = $root.northstar = (() => {
             let $oneOfFields;
 
             /**
+             * ResearchResultDocument _evaluation.
+             * @member {"evaluation"|undefined} _evaluation
+             * @memberof northstar.research.ResearchResultDocument
+             * @instance
+             */
+            $Object.defineProperty(ResearchResultDocument.prototype, "_evaluation", {
+                get: $util.oneOfGetter($oneOfFields = ["evaluation"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
              * ResearchResultDocument _data.
              * @member {"data"|undefined} _data
              * @memberof northstar.research.ResearchResultDocument
@@ -18517,6 +18541,8 @@ export const northstar = $root.northstar = (() => {
                 if (message.orders != null && message.orders.length)
                     for (let i = 0; i < message.orders.length; ++i)
                         $root.google.protobuf.Struct.encode(message.orders[i], writer.uint32(/* id 7, wireType 2 =*/58).fork(), _depth + 1).ldelim();
+                if (message.evaluation != null && $Object.hasOwnProperty.call(message, "evaluation"))
+                    $root.northstar.research.EvaluationResult.encode(message.evaluation, writer.uint32(/* id 8, wireType 2 =*/66).fork(), _depth + 1).ldelim();
                 if (message.evidence_fields != null && $Object.hasOwnProperty.call(message, "evidence_fields"))
                     for (let keys = $Object.keys(message.evidence_fields), i = 0; i < keys.length; ++i) {
                         writer.uint32(/* id 1000, wireType 2 =*/8002).fork().uint32(/* id 1, wireType 2 =*/10).string(keys[i]);
@@ -18569,6 +18595,13 @@ export const northstar = $root.northstar = (() => {
                     }
                     let wireType = tag & 7;
                     switch (tag >>>= 3) {
+                    case 8: {
+                            if (wireType !== 2)
+                                break;
+                            message.evaluation = $root.northstar.research.EvaluationResult.decode(reader, reader.uint32(), $undefined, _depth + 1, message.evaluation);
+                            message._evaluation = "evaluation";
+                            continue;
+                        }
                     case 7: {
                             if (wireType !== 2)
                                 break;
@@ -18700,6 +18733,14 @@ export const northstar = $root.northstar = (() => {
                 if (_depth > $util.recursionLimit)
                     return "max depth exceeded";
                 let properties = {};
+                if (message.evaluation != null && $Object.hasOwnProperty.call(message, "evaluation")) {
+                    properties._evaluation = 1;
+                    {
+                        let error = $root.northstar.research.EvaluationResult.verify(message.evaluation, _depth + 1);
+                        if (error)
+                            return "evaluation." + error;
+                    }
+                }
                 if (message.orders != null && $Object.hasOwnProperty.call(message, "orders")) {
                     if (!$Array.isArray(message.orders))
                         return "orders: array expected";
@@ -18799,6 +18840,11 @@ export const northstar = $root.northstar = (() => {
                 if (_depth > $util.recursionLimit)
                     throw $Error("max depth exceeded");
                 let message = new $root.northstar.research.ResearchResultDocument();
+                if (object.evaluation != null) {
+                    if (!$util.isObject(object.evaluation))
+                        throw $TypeError(".northstar.research.ResearchResultDocument.evaluation: object expected");
+                    message.evaluation = $root.northstar.research.EvaluationResult.fromObject(object.evaluation, _depth + 1);
+                }
                 if (object.orders) {
                     if (!$Array.isArray(object.orders))
                         throw $TypeError(".northstar.research.ResearchResultDocument.orders: array expected");
@@ -18942,6 +18988,11 @@ export const northstar = $root.northstar = (() => {
                     object.orders = $Array(message.orders.length);
                     for (let j = 0; j < message.orders.length; ++j)
                         object.orders[j] = $root.google.protobuf.Struct.toObject(message.orders[j], options, _depth + 1);
+                }
+                if (message.evaluation != null && $Object.hasOwnProperty.call(message, "evaluation")) {
+                    object.evaluation = $root.northstar.research.EvaluationResult.toObject(message.evaluation, options, _depth + 1);
+                    if (options.oneofs)
+                        object._evaluation = "evaluation";
                 }
                 let keys2;
                 if (message.evidence_fields && (keys2 = $Object.keys(message.evidence_fields)).length) {
@@ -31020,6 +31071,1509 @@ export const northstar = $root.northstar = (() => {
             };
 
             return TaskList;
+        })();
+
+        research.EvaluationPlan = (function() {
+
+            /**
+             * Properties of an EvaluationPlan.
+             * @typedef {Object} northstar.research.EvaluationPlan.$Properties
+             * @property {string|null} [plan_id] EvaluationPlan plan_id
+             * @property {string|null} [revision] EvaluationPlan revision
+             * @property {string|null} [snapshot_id] EvaluationPlan snapshot_id
+             * @property {string|null} [content_hash] EvaluationPlan content_hash
+             * @property {string|null} [window] EvaluationPlan window
+             * @property {string|null} [event_start] EvaluationPlan event_start
+             * @property {string|null} [event_end] EvaluationPlan event_end
+             * @property {number|Long|null} [expected_bars] EvaluationPlan expected_bars
+             * @property {string|null} [benchmark] EvaluationPlan benchmark
+             * @property {string|null} [annualization] EvaluationPlan annualization
+             * @property {string|null} [risk_free_rate] EvaluationPlan risk_free_rate
+             * @property {string|null} [sample_use] EvaluationPlan sample_use
+             * @property {Array.<string>|null} [null_fields] EvaluationPlan null_fields
+             * @property {"plan_id"} [_plan_id] EvaluationPlan _plan_id
+             * @property {"revision"} [_revision] EvaluationPlan _revision
+             * @property {"snapshot_id"} [_snapshot_id] EvaluationPlan _snapshot_id
+             * @property {"content_hash"} [_content_hash] EvaluationPlan _content_hash
+             * @property {"window"} [_window] EvaluationPlan _window
+             * @property {"event_start"} [_event_start] EvaluationPlan _event_start
+             * @property {"event_end"} [_event_end] EvaluationPlan _event_end
+             * @property {"expected_bars"} [_expected_bars] EvaluationPlan _expected_bars
+             * @property {"benchmark"} [_benchmark] EvaluationPlan _benchmark
+             * @property {"annualization"} [_annualization] EvaluationPlan _annualization
+             * @property {"risk_free_rate"} [_risk_free_rate] EvaluationPlan _risk_free_rate
+             * @property {"sample_use"} [_sample_use] EvaluationPlan _sample_use
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of an EvaluationPlan.
+             * @memberof northstar.research
+             * @interface IEvaluationPlan
+             * @augments northstar.research.EvaluationPlan.$Properties
+             * @deprecated Use northstar.research.EvaluationPlan.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of an EvaluationPlan.
+             * @typedef {{
+             *   plan_id?: string|null;
+             *   revision?: string|null;
+             *   snapshot_id?: string|null;
+             *   content_hash?: string|null;
+             *   window?: string|null;
+             *   event_start?: string|null;
+             *   event_end?: string|null;
+             *   expected_bars?: number|Long|null;
+             *   benchmark?: string|null;
+             *   annualization?: string|null;
+             *   risk_free_rate?: string|null;
+             *   sample_use?: string|null;
+             *   null_fields?: Array.<string>|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _plan_id?: undefined; plan_id?: null }|{ _plan_id?: "plan_id"; plan_id: string })
+             * ) & (
+             *   ({ _revision?: undefined; revision?: null }|{ _revision?: "revision"; revision: string })
+             * ) & (
+             *   ({ _snapshot_id?: undefined; snapshot_id?: null }|{ _snapshot_id?: "snapshot_id"; snapshot_id: string })
+             * ) & (
+             *   ({ _content_hash?: undefined; content_hash?: null }|{ _content_hash?: "content_hash"; content_hash: string })
+             * ) & (
+             *   ({ _window?: undefined; window?: null }|{ _window?: "window"; window: string })
+             * ) & (
+             *   ({ _event_start?: undefined; event_start?: null }|{ _event_start?: "event_start"; event_start: string })
+             * ) & (
+             *   ({ _event_end?: undefined; event_end?: null }|{ _event_end?: "event_end"; event_end: string })
+             * ) & (
+             *   ({ _expected_bars?: undefined; expected_bars?: null }|{ _expected_bars?: "expected_bars"; expected_bars: number|Long })
+             * ) & (
+             *   ({ _benchmark?: undefined; benchmark?: null }|{ _benchmark?: "benchmark"; benchmark: string })
+             * ) & (
+             *   ({ _annualization?: undefined; annualization?: null }|{ _annualization?: "annualization"; annualization: string })
+             * ) & (
+             *   ({ _risk_free_rate?: undefined; risk_free_rate?: null }|{ _risk_free_rate?: "risk_free_rate"; risk_free_rate: string })
+             * ) & (
+             *   ({ _sample_use?: undefined; sample_use?: null }|{ _sample_use?: "sample_use"; sample_use: string })
+             * )} northstar.research.EvaluationPlan.$Shape
+             */
+
+            /**
+             * Constructs a new EvaluationPlan.
+             * @memberof northstar.research
+             * @classdesc Represents an EvaluationPlan.
+             * @constructor
+             * @param {northstar.research.EvaluationPlan.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const EvaluationPlan = function (properties) {
+                this.null_fields = [];
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * EvaluationPlan plan_id.
+             * @member {string|null|undefined} plan_id
+             * @memberof northstar.research.EvaluationPlan
+             * @instance
+             */
+            EvaluationPlan.prototype.plan_id = null;
+
+            /**
+             * EvaluationPlan revision.
+             * @member {string|null|undefined} revision
+             * @memberof northstar.research.EvaluationPlan
+             * @instance
+             */
+            EvaluationPlan.prototype.revision = null;
+
+            /**
+             * EvaluationPlan snapshot_id.
+             * @member {string|null|undefined} snapshot_id
+             * @memberof northstar.research.EvaluationPlan
+             * @instance
+             */
+            EvaluationPlan.prototype.snapshot_id = null;
+
+            /**
+             * EvaluationPlan content_hash.
+             * @member {string|null|undefined} content_hash
+             * @memberof northstar.research.EvaluationPlan
+             * @instance
+             */
+            EvaluationPlan.prototype.content_hash = null;
+
+            /**
+             * EvaluationPlan window.
+             * @member {string|null|undefined} window
+             * @memberof northstar.research.EvaluationPlan
+             * @instance
+             */
+            EvaluationPlan.prototype.window = null;
+
+            /**
+             * EvaluationPlan event_start.
+             * @member {string|null|undefined} event_start
+             * @memberof northstar.research.EvaluationPlan
+             * @instance
+             */
+            EvaluationPlan.prototype.event_start = null;
+
+            /**
+             * EvaluationPlan event_end.
+             * @member {string|null|undefined} event_end
+             * @memberof northstar.research.EvaluationPlan
+             * @instance
+             */
+            EvaluationPlan.prototype.event_end = null;
+
+            /**
+             * EvaluationPlan expected_bars.
+             * @member {number|Long|null|undefined} expected_bars
+             * @memberof northstar.research.EvaluationPlan
+             * @instance
+             */
+            EvaluationPlan.prototype.expected_bars = null;
+
+            /**
+             * EvaluationPlan benchmark.
+             * @member {string|null|undefined} benchmark
+             * @memberof northstar.research.EvaluationPlan
+             * @instance
+             */
+            EvaluationPlan.prototype.benchmark = null;
+
+            /**
+             * EvaluationPlan annualization.
+             * @member {string|null|undefined} annualization
+             * @memberof northstar.research.EvaluationPlan
+             * @instance
+             */
+            EvaluationPlan.prototype.annualization = null;
+
+            /**
+             * EvaluationPlan risk_free_rate.
+             * @member {string|null|undefined} risk_free_rate
+             * @memberof northstar.research.EvaluationPlan
+             * @instance
+             */
+            EvaluationPlan.prototype.risk_free_rate = null;
+
+            /**
+             * EvaluationPlan sample_use.
+             * @member {string|null|undefined} sample_use
+             * @memberof northstar.research.EvaluationPlan
+             * @instance
+             */
+            EvaluationPlan.prototype.sample_use = null;
+
+            /**
+             * EvaluationPlan null_fields.
+             * @member {Array.<string>} null_fields
+             * @memberof northstar.research.EvaluationPlan
+             * @instance
+             */
+            EvaluationPlan.prototype.null_fields = $util.emptyArray;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * EvaluationPlan _plan_id.
+             * @member {"plan_id"|undefined} _plan_id
+             * @memberof northstar.research.EvaluationPlan
+             * @instance
+             */
+            $Object.defineProperty(EvaluationPlan.prototype, "_plan_id", {
+                get: $util.oneOfGetter($oneOfFields = ["plan_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * EvaluationPlan _revision.
+             * @member {"revision"|undefined} _revision
+             * @memberof northstar.research.EvaluationPlan
+             * @instance
+             */
+            $Object.defineProperty(EvaluationPlan.prototype, "_revision", {
+                get: $util.oneOfGetter($oneOfFields = ["revision"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * EvaluationPlan _snapshot_id.
+             * @member {"snapshot_id"|undefined} _snapshot_id
+             * @memberof northstar.research.EvaluationPlan
+             * @instance
+             */
+            $Object.defineProperty(EvaluationPlan.prototype, "_snapshot_id", {
+                get: $util.oneOfGetter($oneOfFields = ["snapshot_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * EvaluationPlan _content_hash.
+             * @member {"content_hash"|undefined} _content_hash
+             * @memberof northstar.research.EvaluationPlan
+             * @instance
+             */
+            $Object.defineProperty(EvaluationPlan.prototype, "_content_hash", {
+                get: $util.oneOfGetter($oneOfFields = ["content_hash"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * EvaluationPlan _window.
+             * @member {"window"|undefined} _window
+             * @memberof northstar.research.EvaluationPlan
+             * @instance
+             */
+            $Object.defineProperty(EvaluationPlan.prototype, "_window", {
+                get: $util.oneOfGetter($oneOfFields = ["window"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * EvaluationPlan _event_start.
+             * @member {"event_start"|undefined} _event_start
+             * @memberof northstar.research.EvaluationPlan
+             * @instance
+             */
+            $Object.defineProperty(EvaluationPlan.prototype, "_event_start", {
+                get: $util.oneOfGetter($oneOfFields = ["event_start"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * EvaluationPlan _event_end.
+             * @member {"event_end"|undefined} _event_end
+             * @memberof northstar.research.EvaluationPlan
+             * @instance
+             */
+            $Object.defineProperty(EvaluationPlan.prototype, "_event_end", {
+                get: $util.oneOfGetter($oneOfFields = ["event_end"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * EvaluationPlan _expected_bars.
+             * @member {"expected_bars"|undefined} _expected_bars
+             * @memberof northstar.research.EvaluationPlan
+             * @instance
+             */
+            $Object.defineProperty(EvaluationPlan.prototype, "_expected_bars", {
+                get: $util.oneOfGetter($oneOfFields = ["expected_bars"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * EvaluationPlan _benchmark.
+             * @member {"benchmark"|undefined} _benchmark
+             * @memberof northstar.research.EvaluationPlan
+             * @instance
+             */
+            $Object.defineProperty(EvaluationPlan.prototype, "_benchmark", {
+                get: $util.oneOfGetter($oneOfFields = ["benchmark"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * EvaluationPlan _annualization.
+             * @member {"annualization"|undefined} _annualization
+             * @memberof northstar.research.EvaluationPlan
+             * @instance
+             */
+            $Object.defineProperty(EvaluationPlan.prototype, "_annualization", {
+                get: $util.oneOfGetter($oneOfFields = ["annualization"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * EvaluationPlan _risk_free_rate.
+             * @member {"risk_free_rate"|undefined} _risk_free_rate
+             * @memberof northstar.research.EvaluationPlan
+             * @instance
+             */
+            $Object.defineProperty(EvaluationPlan.prototype, "_risk_free_rate", {
+                get: $util.oneOfGetter($oneOfFields = ["risk_free_rate"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * EvaluationPlan _sample_use.
+             * @member {"sample_use"|undefined} _sample_use
+             * @memberof northstar.research.EvaluationPlan
+             * @instance
+             */
+            $Object.defineProperty(EvaluationPlan.prototype, "_sample_use", {
+                get: $util.oneOfGetter($oneOfFields = ["sample_use"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new EvaluationPlan instance using the specified properties.
+             * @function create
+             * @memberof northstar.research.EvaluationPlan
+             * @static
+             * @param {northstar.research.EvaluationPlan.$Properties=} [properties] Properties to set
+             * @returns {northstar.research.EvaluationPlan} EvaluationPlan instance
+             * @type {{
+             *   (properties: northstar.research.EvaluationPlan.$Shape): northstar.research.EvaluationPlan & northstar.research.EvaluationPlan.$Shape;
+             *   (properties?: northstar.research.EvaluationPlan.$Properties): northstar.research.EvaluationPlan;
+             * }}
+             */
+            EvaluationPlan.create = function(properties) {
+                return new EvaluationPlan(properties);
+            };
+
+            /**
+             * Encodes the specified EvaluationPlan message. Does not implicitly {@link northstar.research.EvaluationPlan.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.research.EvaluationPlan
+             * @static
+             * @param {northstar.research.EvaluationPlan.$Properties} message EvaluationPlan message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            EvaluationPlan.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.plan_id != null && $Object.hasOwnProperty.call(message, "plan_id"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.plan_id);
+                if (message.revision != null && $Object.hasOwnProperty.call(message, "revision"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.revision);
+                if (message.snapshot_id != null && $Object.hasOwnProperty.call(message, "snapshot_id"))
+                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.snapshot_id);
+                if (message.content_hash != null && $Object.hasOwnProperty.call(message, "content_hash"))
+                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.content_hash);
+                if (message.window != null && $Object.hasOwnProperty.call(message, "window"))
+                    writer.uint32(/* id 5, wireType 2 =*/42).string(message.window);
+                if (message.event_start != null && $Object.hasOwnProperty.call(message, "event_start"))
+                    writer.uint32(/* id 6, wireType 2 =*/50).string(message.event_start);
+                if (message.event_end != null && $Object.hasOwnProperty.call(message, "event_end"))
+                    writer.uint32(/* id 7, wireType 2 =*/58).string(message.event_end);
+                if (message.expected_bars != null && $Object.hasOwnProperty.call(message, "expected_bars"))
+                    writer.uint32(/* id 8, wireType 0 =*/64).int64(message.expected_bars);
+                if (message.benchmark != null && $Object.hasOwnProperty.call(message, "benchmark"))
+                    writer.uint32(/* id 9, wireType 2 =*/74).string(message.benchmark);
+                if (message.annualization != null && $Object.hasOwnProperty.call(message, "annualization"))
+                    writer.uint32(/* id 10, wireType 2 =*/82).string(message.annualization);
+                if (message.risk_free_rate != null && $Object.hasOwnProperty.call(message, "risk_free_rate"))
+                    writer.uint32(/* id 11, wireType 2 =*/90).string(message.risk_free_rate);
+                if (message.sample_use != null && $Object.hasOwnProperty.call(message, "sample_use"))
+                    writer.uint32(/* id 12, wireType 2 =*/98).string(message.sample_use);
+                if (message.null_fields != null && message.null_fields.length)
+                    for (let i = 0; i < message.null_fields.length; ++i)
+                        writer.uint32(/* id 2046, wireType 2 =*/16370).string(message.null_fields[i]);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes an EvaluationPlan message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.research.EvaluationPlan
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.research.EvaluationPlan & northstar.research.EvaluationPlan.$Shape} EvaluationPlan
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            EvaluationPlan.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.research.EvaluationPlan();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.plan_id = reader.stringVerify();
+                            message._plan_id = "plan_id";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.revision = reader.stringVerify();
+                            message._revision = "revision";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 2)
+                                break;
+                            message.snapshot_id = reader.stringVerify();
+                            message._snapshot_id = "snapshot_id";
+                            continue;
+                        }
+                    case 4: {
+                            if (wireType !== 2)
+                                break;
+                            message.content_hash = reader.stringVerify();
+                            message._content_hash = "content_hash";
+                            continue;
+                        }
+                    case 5: {
+                            if (wireType !== 2)
+                                break;
+                            message.window = reader.stringVerify();
+                            message._window = "window";
+                            continue;
+                        }
+                    case 6: {
+                            if (wireType !== 2)
+                                break;
+                            message.event_start = reader.stringVerify();
+                            message._event_start = "event_start";
+                            continue;
+                        }
+                    case 7: {
+                            if (wireType !== 2)
+                                break;
+                            message.event_end = reader.stringVerify();
+                            message._event_end = "event_end";
+                            continue;
+                        }
+                    case 8: {
+                            if (wireType !== 0)
+                                break;
+                            message.expected_bars = reader.int64();
+                            message._expected_bars = "expected_bars";
+                            continue;
+                        }
+                    case 9: {
+                            if (wireType !== 2)
+                                break;
+                            message.benchmark = reader.stringVerify();
+                            message._benchmark = "benchmark";
+                            continue;
+                        }
+                    case 10: {
+                            if (wireType !== 2)
+                                break;
+                            message.annualization = reader.stringVerify();
+                            message._annualization = "annualization";
+                            continue;
+                        }
+                    case 11: {
+                            if (wireType !== 2)
+                                break;
+                            message.risk_free_rate = reader.stringVerify();
+                            message._risk_free_rate = "risk_free_rate";
+                            continue;
+                        }
+                    case 12: {
+                            if (wireType !== 2)
+                                break;
+                            message.sample_use = reader.stringVerify();
+                            message._sample_use = "sample_use";
+                            continue;
+                        }
+                    case 2046: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.null_fields && message.null_fields.length))
+                                message.null_fields = [];
+                            message.null_fields.push(reader.stringVerify());
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies an EvaluationPlan message.
+             * @function verify
+             * @memberof northstar.research.EvaluationPlan
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            EvaluationPlan.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.plan_id != null && $Object.hasOwnProperty.call(message, "plan_id")) {
+                    properties._plan_id = 1;
+                    if (!$util.isString(message.plan_id))
+                        return "plan_id: string expected";
+                }
+                if (message.revision != null && $Object.hasOwnProperty.call(message, "revision")) {
+                    properties._revision = 1;
+                    if (!$util.isString(message.revision))
+                        return "revision: string expected";
+                }
+                if (message.snapshot_id != null && $Object.hasOwnProperty.call(message, "snapshot_id")) {
+                    properties._snapshot_id = 1;
+                    if (!$util.isString(message.snapshot_id))
+                        return "snapshot_id: string expected";
+                }
+                if (message.content_hash != null && $Object.hasOwnProperty.call(message, "content_hash")) {
+                    properties._content_hash = 1;
+                    if (!$util.isString(message.content_hash))
+                        return "content_hash: string expected";
+                }
+                if (message.window != null && $Object.hasOwnProperty.call(message, "window")) {
+                    properties._window = 1;
+                    if (!$util.isString(message.window))
+                        return "window: string expected";
+                }
+                if (message.event_start != null && $Object.hasOwnProperty.call(message, "event_start")) {
+                    properties._event_start = 1;
+                    if (!$util.isString(message.event_start))
+                        return "event_start: string expected";
+                }
+                if (message.event_end != null && $Object.hasOwnProperty.call(message, "event_end")) {
+                    properties._event_end = 1;
+                    if (!$util.isString(message.event_end))
+                        return "event_end: string expected";
+                }
+                if (message.expected_bars != null && $Object.hasOwnProperty.call(message, "expected_bars")) {
+                    properties._expected_bars = 1;
+                    if (!$util.isInteger(message.expected_bars) && !(message.expected_bars && $util.isInteger(message.expected_bars.low) && $util.isInteger(message.expected_bars.high)))
+                        return "expected_bars: integer|Long expected";
+                }
+                if (message.benchmark != null && $Object.hasOwnProperty.call(message, "benchmark")) {
+                    properties._benchmark = 1;
+                    if (!$util.isString(message.benchmark))
+                        return "benchmark: string expected";
+                }
+                if (message.annualization != null && $Object.hasOwnProperty.call(message, "annualization")) {
+                    properties._annualization = 1;
+                    if (!$util.isString(message.annualization))
+                        return "annualization: string expected";
+                }
+                if (message.risk_free_rate != null && $Object.hasOwnProperty.call(message, "risk_free_rate")) {
+                    properties._risk_free_rate = 1;
+                    if (!$util.isString(message.risk_free_rate))
+                        return "risk_free_rate: string expected";
+                }
+                if (message.sample_use != null && $Object.hasOwnProperty.call(message, "sample_use")) {
+                    properties._sample_use = 1;
+                    if (!$util.isString(message.sample_use))
+                        return "sample_use: string expected";
+                }
+                if (message.null_fields != null && $Object.hasOwnProperty.call(message, "null_fields")) {
+                    if (!$Array.isArray(message.null_fields))
+                        return "null_fields: array expected";
+                    for (let i = 0; i < message.null_fields.length; ++i)
+                        if (!$util.isString(message.null_fields[i]))
+                            return "null_fields: string[] expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates an EvaluationPlan message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.research.EvaluationPlan
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.research.EvaluationPlan} EvaluationPlan
+             */
+            EvaluationPlan.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.research.EvaluationPlan)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.research.EvaluationPlan: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.research.EvaluationPlan();
+                if (object.plan_id != null)
+                    message.plan_id = $String(object.plan_id);
+                if (object.revision != null)
+                    message.revision = $String(object.revision);
+                if (object.snapshot_id != null)
+                    message.snapshot_id = $String(object.snapshot_id);
+                if (object.content_hash != null)
+                    message.content_hash = $String(object.content_hash);
+                if (object.window != null)
+                    message.window = $String(object.window);
+                if (object.event_start != null)
+                    message.event_start = $String(object.event_start);
+                if (object.event_end != null)
+                    message.event_end = $String(object.event_end);
+                if (object.expected_bars != null)
+                    if ($util.Long)
+                        message.expected_bars = $util.Long.fromValue(object.expected_bars, false);
+                    else if (typeof object.expected_bars === "string")
+                        message.expected_bars = $parseInt(object.expected_bars, 10);
+                    else if (typeof object.expected_bars === "number")
+                        message.expected_bars = object.expected_bars;
+                    else if (typeof object.expected_bars === "object")
+                        message.expected_bars = new $util.LongBits(object.expected_bars.low >>> 0, object.expected_bars.high >>> 0).toNumber();
+                if (object.benchmark != null)
+                    message.benchmark = $String(object.benchmark);
+                if (object.annualization != null)
+                    message.annualization = $String(object.annualization);
+                if (object.risk_free_rate != null)
+                    message.risk_free_rate = $String(object.risk_free_rate);
+                if (object.sample_use != null)
+                    message.sample_use = $String(object.sample_use);
+                if (object.null_fields) {
+                    if (!$Array.isArray(object.null_fields))
+                        throw $TypeError(".northstar.research.EvaluationPlan.null_fields: array expected");
+                    message.null_fields = $Array(object.null_fields.length);
+                    for (let i = 0; i < object.null_fields.length; ++i)
+                        message.null_fields[i] = $String(object.null_fields[i]);
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from an EvaluationPlan message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.research.EvaluationPlan
+             * @static
+             * @param {northstar.research.EvaluationPlan} message EvaluationPlan
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            EvaluationPlan.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.arrays || options.defaults)
+                    object.null_fields = [];
+                if (message.plan_id != null && $Object.hasOwnProperty.call(message, "plan_id")) {
+                    object.plan_id = message.plan_id;
+                    if (options.oneofs)
+                        object._plan_id = "plan_id";
+                }
+                if (message.revision != null && $Object.hasOwnProperty.call(message, "revision")) {
+                    object.revision = message.revision;
+                    if (options.oneofs)
+                        object._revision = "revision";
+                }
+                if (message.snapshot_id != null && $Object.hasOwnProperty.call(message, "snapshot_id")) {
+                    object.snapshot_id = message.snapshot_id;
+                    if (options.oneofs)
+                        object._snapshot_id = "snapshot_id";
+                }
+                if (message.content_hash != null && $Object.hasOwnProperty.call(message, "content_hash")) {
+                    object.content_hash = message.content_hash;
+                    if (options.oneofs)
+                        object._content_hash = "content_hash";
+                }
+                if (message.window != null && $Object.hasOwnProperty.call(message, "window")) {
+                    object.window = message.window;
+                    if (options.oneofs)
+                        object._window = "window";
+                }
+                if (message.event_start != null && $Object.hasOwnProperty.call(message, "event_start")) {
+                    object.event_start = message.event_start;
+                    if (options.oneofs)
+                        object._event_start = "event_start";
+                }
+                if (message.event_end != null && $Object.hasOwnProperty.call(message, "event_end")) {
+                    object.event_end = message.event_end;
+                    if (options.oneofs)
+                        object._event_end = "event_end";
+                }
+                if (message.expected_bars != null && $Object.hasOwnProperty.call(message, "expected_bars")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.expected_bars = typeof message.expected_bars === "number" ? $BigInt(message.expected_bars) : $util.Long.fromBits(message.expected_bars.low >>> 0, message.expected_bars.high >>> 0, false).toBigInt();
+                    else if (typeof message.expected_bars === "number")
+                        object.expected_bars = options.longs === $String ? $String(message.expected_bars) : message.expected_bars;
+                    else
+                        object.expected_bars = options.longs === $String ? $util.Long.prototype.toString.call(message.expected_bars) : options.longs === $Number ? new $util.LongBits(message.expected_bars.low >>> 0, message.expected_bars.high >>> 0).toNumber() : message.expected_bars;
+                    if (options.oneofs)
+                        object._expected_bars = "expected_bars";
+                }
+                if (message.benchmark != null && $Object.hasOwnProperty.call(message, "benchmark")) {
+                    object.benchmark = message.benchmark;
+                    if (options.oneofs)
+                        object._benchmark = "benchmark";
+                }
+                if (message.annualization != null && $Object.hasOwnProperty.call(message, "annualization")) {
+                    object.annualization = message.annualization;
+                    if (options.oneofs)
+                        object._annualization = "annualization";
+                }
+                if (message.risk_free_rate != null && $Object.hasOwnProperty.call(message, "risk_free_rate")) {
+                    object.risk_free_rate = message.risk_free_rate;
+                    if (options.oneofs)
+                        object._risk_free_rate = "risk_free_rate";
+                }
+                if (message.sample_use != null && $Object.hasOwnProperty.call(message, "sample_use")) {
+                    object.sample_use = message.sample_use;
+                    if (options.oneofs)
+                        object._sample_use = "sample_use";
+                }
+                if (message.null_fields && message.null_fields.length) {
+                    object.null_fields = $Array(message.null_fields.length);
+                    for (let j = 0; j < message.null_fields.length; ++j)
+                        object.null_fields[j] = message.null_fields[j];
+                }
+                return object;
+            };
+
+            /**
+             * Converts this EvaluationPlan to JSON.
+             * @function toJSON
+             * @memberof northstar.research.EvaluationPlan
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            EvaluationPlan.prototype.toJSON = function() {
+                return EvaluationPlan.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for EvaluationPlan
+             * @function getTypeUrl
+             * @memberof northstar.research.EvaluationPlan
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            EvaluationPlan.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.research.EvaluationPlan";
+            };
+
+            return EvaluationPlan;
+        })();
+
+        research.EvaluationResult = (function() {
+
+            /**
+             * Properties of an EvaluationResult.
+             * @typedef {Object} northstar.research.EvaluationResult.$Properties
+             * @property {northstar.research.EvaluationPlan.$Properties|null} [plan] EvaluationResult plan
+             * @property {string|null} [status] EvaluationResult status
+             * @property {number|Long|null} [observed_bars] EvaluationResult observed_bars
+             * @property {string|null} [benchmark_ending_equity] EvaluationResult benchmark_ending_equity
+             * @property {string|null} [benchmark_return] EvaluationResult benchmark_return
+             * @property {string|null} [excess_return] EvaluationResult excess_return
+             * @property {string|null} [annualized_return] EvaluationResult annualized_return
+             * @property {string|null} [sharpe] EvaluationResult sharpe
+             * @property {Array.<string>|null} [limitations] EvaluationResult limitations
+             * @property {Array.<string>|null} [null_fields] EvaluationResult null_fields
+             * @property {"plan"} [_plan] EvaluationResult _plan
+             * @property {"status"} [_status] EvaluationResult _status
+             * @property {"observed_bars"} [_observed_bars] EvaluationResult _observed_bars
+             * @property {"benchmark_ending_equity"} [_benchmark_ending_equity] EvaluationResult _benchmark_ending_equity
+             * @property {"benchmark_return"} [_benchmark_return] EvaluationResult _benchmark_return
+             * @property {"excess_return"} [_excess_return] EvaluationResult _excess_return
+             * @property {"annualized_return"} [_annualized_return] EvaluationResult _annualized_return
+             * @property {"sharpe"} [_sharpe] EvaluationResult _sharpe
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of an EvaluationResult.
+             * @memberof northstar.research
+             * @interface IEvaluationResult
+             * @augments northstar.research.EvaluationResult.$Properties
+             * @deprecated Use northstar.research.EvaluationResult.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of an EvaluationResult.
+             * @typedef {{
+             *   plan?: northstar.research.EvaluationPlan.$Shape|null;
+             *   status?: string|null;
+             *   observed_bars?: number|Long|null;
+             *   benchmark_ending_equity?: string|null;
+             *   benchmark_return?: string|null;
+             *   excess_return?: string|null;
+             *   annualized_return?: string|null;
+             *   sharpe?: string|null;
+             *   limitations?: Array.<string>|null;
+             *   null_fields?: Array.<string>|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _plan?: undefined; plan?: null }|{ _plan?: "plan"; plan: northstar.research.EvaluationPlan.$Shape })
+             * ) & (
+             *   ({ _status?: undefined; status?: null }|{ _status?: "status"; status: string })
+             * ) & (
+             *   ({ _observed_bars?: undefined; observed_bars?: null }|{ _observed_bars?: "observed_bars"; observed_bars: number|Long })
+             * ) & (
+             *   ({ _benchmark_ending_equity?: undefined; benchmark_ending_equity?: null }|{ _benchmark_ending_equity?: "benchmark_ending_equity"; benchmark_ending_equity: string })
+             * ) & (
+             *   ({ _benchmark_return?: undefined; benchmark_return?: null }|{ _benchmark_return?: "benchmark_return"; benchmark_return: string })
+             * ) & (
+             *   ({ _excess_return?: undefined; excess_return?: null }|{ _excess_return?: "excess_return"; excess_return: string })
+             * ) & (
+             *   ({ _annualized_return?: undefined; annualized_return?: null }|{ _annualized_return?: "annualized_return"; annualized_return: string })
+             * ) & (
+             *   ({ _sharpe?: undefined; sharpe?: null }|{ _sharpe?: "sharpe"; sharpe: string })
+             * )} northstar.research.EvaluationResult.$Shape
+             */
+
+            /**
+             * Constructs a new EvaluationResult.
+             * @memberof northstar.research
+             * @classdesc Represents an EvaluationResult.
+             * @constructor
+             * @param {northstar.research.EvaluationResult.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const EvaluationResult = function (properties) {
+                this.limitations = [];
+                this.null_fields = [];
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * EvaluationResult plan.
+             * @member {northstar.research.EvaluationPlan.$Properties|null|undefined} plan
+             * @memberof northstar.research.EvaluationResult
+             * @instance
+             */
+            EvaluationResult.prototype.plan = null;
+
+            /**
+             * EvaluationResult status.
+             * @member {string|null|undefined} status
+             * @memberof northstar.research.EvaluationResult
+             * @instance
+             */
+            EvaluationResult.prototype.status = null;
+
+            /**
+             * EvaluationResult observed_bars.
+             * @member {number|Long|null|undefined} observed_bars
+             * @memberof northstar.research.EvaluationResult
+             * @instance
+             */
+            EvaluationResult.prototype.observed_bars = null;
+
+            /**
+             * EvaluationResult benchmark_ending_equity.
+             * @member {string|null|undefined} benchmark_ending_equity
+             * @memberof northstar.research.EvaluationResult
+             * @instance
+             */
+            EvaluationResult.prototype.benchmark_ending_equity = null;
+
+            /**
+             * EvaluationResult benchmark_return.
+             * @member {string|null|undefined} benchmark_return
+             * @memberof northstar.research.EvaluationResult
+             * @instance
+             */
+            EvaluationResult.prototype.benchmark_return = null;
+
+            /**
+             * EvaluationResult excess_return.
+             * @member {string|null|undefined} excess_return
+             * @memberof northstar.research.EvaluationResult
+             * @instance
+             */
+            EvaluationResult.prototype.excess_return = null;
+
+            /**
+             * EvaluationResult annualized_return.
+             * @member {string|null|undefined} annualized_return
+             * @memberof northstar.research.EvaluationResult
+             * @instance
+             */
+            EvaluationResult.prototype.annualized_return = null;
+
+            /**
+             * EvaluationResult sharpe.
+             * @member {string|null|undefined} sharpe
+             * @memberof northstar.research.EvaluationResult
+             * @instance
+             */
+            EvaluationResult.prototype.sharpe = null;
+
+            /**
+             * EvaluationResult limitations.
+             * @member {Array.<string>} limitations
+             * @memberof northstar.research.EvaluationResult
+             * @instance
+             */
+            EvaluationResult.prototype.limitations = $util.emptyArray;
+
+            /**
+             * EvaluationResult null_fields.
+             * @member {Array.<string>} null_fields
+             * @memberof northstar.research.EvaluationResult
+             * @instance
+             */
+            EvaluationResult.prototype.null_fields = $util.emptyArray;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * EvaluationResult _plan.
+             * @member {"plan"|undefined} _plan
+             * @memberof northstar.research.EvaluationResult
+             * @instance
+             */
+            $Object.defineProperty(EvaluationResult.prototype, "_plan", {
+                get: $util.oneOfGetter($oneOfFields = ["plan"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * EvaluationResult _status.
+             * @member {"status"|undefined} _status
+             * @memberof northstar.research.EvaluationResult
+             * @instance
+             */
+            $Object.defineProperty(EvaluationResult.prototype, "_status", {
+                get: $util.oneOfGetter($oneOfFields = ["status"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * EvaluationResult _observed_bars.
+             * @member {"observed_bars"|undefined} _observed_bars
+             * @memberof northstar.research.EvaluationResult
+             * @instance
+             */
+            $Object.defineProperty(EvaluationResult.prototype, "_observed_bars", {
+                get: $util.oneOfGetter($oneOfFields = ["observed_bars"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * EvaluationResult _benchmark_ending_equity.
+             * @member {"benchmark_ending_equity"|undefined} _benchmark_ending_equity
+             * @memberof northstar.research.EvaluationResult
+             * @instance
+             */
+            $Object.defineProperty(EvaluationResult.prototype, "_benchmark_ending_equity", {
+                get: $util.oneOfGetter($oneOfFields = ["benchmark_ending_equity"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * EvaluationResult _benchmark_return.
+             * @member {"benchmark_return"|undefined} _benchmark_return
+             * @memberof northstar.research.EvaluationResult
+             * @instance
+             */
+            $Object.defineProperty(EvaluationResult.prototype, "_benchmark_return", {
+                get: $util.oneOfGetter($oneOfFields = ["benchmark_return"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * EvaluationResult _excess_return.
+             * @member {"excess_return"|undefined} _excess_return
+             * @memberof northstar.research.EvaluationResult
+             * @instance
+             */
+            $Object.defineProperty(EvaluationResult.prototype, "_excess_return", {
+                get: $util.oneOfGetter($oneOfFields = ["excess_return"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * EvaluationResult _annualized_return.
+             * @member {"annualized_return"|undefined} _annualized_return
+             * @memberof northstar.research.EvaluationResult
+             * @instance
+             */
+            $Object.defineProperty(EvaluationResult.prototype, "_annualized_return", {
+                get: $util.oneOfGetter($oneOfFields = ["annualized_return"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * EvaluationResult _sharpe.
+             * @member {"sharpe"|undefined} _sharpe
+             * @memberof northstar.research.EvaluationResult
+             * @instance
+             */
+            $Object.defineProperty(EvaluationResult.prototype, "_sharpe", {
+                get: $util.oneOfGetter($oneOfFields = ["sharpe"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new EvaluationResult instance using the specified properties.
+             * @function create
+             * @memberof northstar.research.EvaluationResult
+             * @static
+             * @param {northstar.research.EvaluationResult.$Properties=} [properties] Properties to set
+             * @returns {northstar.research.EvaluationResult} EvaluationResult instance
+             * @type {{
+             *   (properties: northstar.research.EvaluationResult.$Shape): northstar.research.EvaluationResult & northstar.research.EvaluationResult.$Shape;
+             *   (properties?: northstar.research.EvaluationResult.$Properties): northstar.research.EvaluationResult;
+             * }}
+             */
+            EvaluationResult.create = function(properties) {
+                return new EvaluationResult(properties);
+            };
+
+            /**
+             * Encodes the specified EvaluationResult message. Does not implicitly {@link northstar.research.EvaluationResult.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.research.EvaluationResult
+             * @static
+             * @param {northstar.research.EvaluationResult.$Properties} message EvaluationResult message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            EvaluationResult.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.plan != null && $Object.hasOwnProperty.call(message, "plan"))
+                    $root.northstar.research.EvaluationPlan.encode(message.plan, writer.uint32(/* id 1, wireType 2 =*/10).fork(), _depth + 1).ldelim();
+                if (message.status != null && $Object.hasOwnProperty.call(message, "status"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.status);
+                if (message.observed_bars != null && $Object.hasOwnProperty.call(message, "observed_bars"))
+                    writer.uint32(/* id 3, wireType 0 =*/24).int64(message.observed_bars);
+                if (message.benchmark_ending_equity != null && $Object.hasOwnProperty.call(message, "benchmark_ending_equity"))
+                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.benchmark_ending_equity);
+                if (message.benchmark_return != null && $Object.hasOwnProperty.call(message, "benchmark_return"))
+                    writer.uint32(/* id 5, wireType 2 =*/42).string(message.benchmark_return);
+                if (message.excess_return != null && $Object.hasOwnProperty.call(message, "excess_return"))
+                    writer.uint32(/* id 6, wireType 2 =*/50).string(message.excess_return);
+                if (message.annualized_return != null && $Object.hasOwnProperty.call(message, "annualized_return"))
+                    writer.uint32(/* id 7, wireType 2 =*/58).string(message.annualized_return);
+                if (message.sharpe != null && $Object.hasOwnProperty.call(message, "sharpe"))
+                    writer.uint32(/* id 8, wireType 2 =*/66).string(message.sharpe);
+                if (message.limitations != null && message.limitations.length)
+                    for (let i = 0; i < message.limitations.length; ++i)
+                        writer.uint32(/* id 9, wireType 2 =*/74).string(message.limitations[i]);
+                if (message.null_fields != null && message.null_fields.length)
+                    for (let i = 0; i < message.null_fields.length; ++i)
+                        writer.uint32(/* id 2046, wireType 2 =*/16370).string(message.null_fields[i]);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes an EvaluationResult message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.research.EvaluationResult
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.research.EvaluationResult & northstar.research.EvaluationResult.$Shape} EvaluationResult
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            EvaluationResult.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.research.EvaluationResult();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.plan = $root.northstar.research.EvaluationPlan.decode(reader, reader.uint32(), $undefined, _depth + 1, message.plan);
+                            message._plan = "plan";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.status = reader.stringVerify();
+                            message._status = "status";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 0)
+                                break;
+                            message.observed_bars = reader.int64();
+                            message._observed_bars = "observed_bars";
+                            continue;
+                        }
+                    case 4: {
+                            if (wireType !== 2)
+                                break;
+                            message.benchmark_ending_equity = reader.stringVerify();
+                            message._benchmark_ending_equity = "benchmark_ending_equity";
+                            continue;
+                        }
+                    case 5: {
+                            if (wireType !== 2)
+                                break;
+                            message.benchmark_return = reader.stringVerify();
+                            message._benchmark_return = "benchmark_return";
+                            continue;
+                        }
+                    case 6: {
+                            if (wireType !== 2)
+                                break;
+                            message.excess_return = reader.stringVerify();
+                            message._excess_return = "excess_return";
+                            continue;
+                        }
+                    case 7: {
+                            if (wireType !== 2)
+                                break;
+                            message.annualized_return = reader.stringVerify();
+                            message._annualized_return = "annualized_return";
+                            continue;
+                        }
+                    case 8: {
+                            if (wireType !== 2)
+                                break;
+                            message.sharpe = reader.stringVerify();
+                            message._sharpe = "sharpe";
+                            continue;
+                        }
+                    case 9: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.limitations && message.limitations.length))
+                                message.limitations = [];
+                            message.limitations.push(reader.stringVerify());
+                            continue;
+                        }
+                    case 2046: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.null_fields && message.null_fields.length))
+                                message.null_fields = [];
+                            message.null_fields.push(reader.stringVerify());
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies an EvaluationResult message.
+             * @function verify
+             * @memberof northstar.research.EvaluationResult
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            EvaluationResult.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.plan != null && $Object.hasOwnProperty.call(message, "plan")) {
+                    properties._plan = 1;
+                    {
+                        let error = $root.northstar.research.EvaluationPlan.verify(message.plan, _depth + 1);
+                        if (error)
+                            return "plan." + error;
+                    }
+                }
+                if (message.status != null && $Object.hasOwnProperty.call(message, "status")) {
+                    properties._status = 1;
+                    if (!$util.isString(message.status))
+                        return "status: string expected";
+                }
+                if (message.observed_bars != null && $Object.hasOwnProperty.call(message, "observed_bars")) {
+                    properties._observed_bars = 1;
+                    if (!$util.isInteger(message.observed_bars) && !(message.observed_bars && $util.isInteger(message.observed_bars.low) && $util.isInteger(message.observed_bars.high)))
+                        return "observed_bars: integer|Long expected";
+                }
+                if (message.benchmark_ending_equity != null && $Object.hasOwnProperty.call(message, "benchmark_ending_equity")) {
+                    properties._benchmark_ending_equity = 1;
+                    if (!$util.isString(message.benchmark_ending_equity))
+                        return "benchmark_ending_equity: string expected";
+                }
+                if (message.benchmark_return != null && $Object.hasOwnProperty.call(message, "benchmark_return")) {
+                    properties._benchmark_return = 1;
+                    if (!$util.isString(message.benchmark_return))
+                        return "benchmark_return: string expected";
+                }
+                if (message.excess_return != null && $Object.hasOwnProperty.call(message, "excess_return")) {
+                    properties._excess_return = 1;
+                    if (!$util.isString(message.excess_return))
+                        return "excess_return: string expected";
+                }
+                if (message.annualized_return != null && $Object.hasOwnProperty.call(message, "annualized_return")) {
+                    properties._annualized_return = 1;
+                    if (!$util.isString(message.annualized_return))
+                        return "annualized_return: string expected";
+                }
+                if (message.sharpe != null && $Object.hasOwnProperty.call(message, "sharpe")) {
+                    properties._sharpe = 1;
+                    if (!$util.isString(message.sharpe))
+                        return "sharpe: string expected";
+                }
+                if (message.limitations != null && $Object.hasOwnProperty.call(message, "limitations")) {
+                    if (!$Array.isArray(message.limitations))
+                        return "limitations: array expected";
+                    for (let i = 0; i < message.limitations.length; ++i)
+                        if (!$util.isString(message.limitations[i]))
+                            return "limitations: string[] expected";
+                }
+                if (message.null_fields != null && $Object.hasOwnProperty.call(message, "null_fields")) {
+                    if (!$Array.isArray(message.null_fields))
+                        return "null_fields: array expected";
+                    for (let i = 0; i < message.null_fields.length; ++i)
+                        if (!$util.isString(message.null_fields[i]))
+                            return "null_fields: string[] expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates an EvaluationResult message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.research.EvaluationResult
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.research.EvaluationResult} EvaluationResult
+             */
+            EvaluationResult.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.research.EvaluationResult)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.research.EvaluationResult: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.research.EvaluationResult();
+                if (object.plan != null) {
+                    if (!$util.isObject(object.plan))
+                        throw $TypeError(".northstar.research.EvaluationResult.plan: object expected");
+                    message.plan = $root.northstar.research.EvaluationPlan.fromObject(object.plan, _depth + 1);
+                }
+                if (object.status != null)
+                    message.status = $String(object.status);
+                if (object.observed_bars != null)
+                    if ($util.Long)
+                        message.observed_bars = $util.Long.fromValue(object.observed_bars, false);
+                    else if (typeof object.observed_bars === "string")
+                        message.observed_bars = $parseInt(object.observed_bars, 10);
+                    else if (typeof object.observed_bars === "number")
+                        message.observed_bars = object.observed_bars;
+                    else if (typeof object.observed_bars === "object")
+                        message.observed_bars = new $util.LongBits(object.observed_bars.low >>> 0, object.observed_bars.high >>> 0).toNumber();
+                if (object.benchmark_ending_equity != null)
+                    message.benchmark_ending_equity = $String(object.benchmark_ending_equity);
+                if (object.benchmark_return != null)
+                    message.benchmark_return = $String(object.benchmark_return);
+                if (object.excess_return != null)
+                    message.excess_return = $String(object.excess_return);
+                if (object.annualized_return != null)
+                    message.annualized_return = $String(object.annualized_return);
+                if (object.sharpe != null)
+                    message.sharpe = $String(object.sharpe);
+                if (object.limitations) {
+                    if (!$Array.isArray(object.limitations))
+                        throw $TypeError(".northstar.research.EvaluationResult.limitations: array expected");
+                    message.limitations = $Array(object.limitations.length);
+                    for (let i = 0; i < object.limitations.length; ++i)
+                        message.limitations[i] = $String(object.limitations[i]);
+                }
+                if (object.null_fields) {
+                    if (!$Array.isArray(object.null_fields))
+                        throw $TypeError(".northstar.research.EvaluationResult.null_fields: array expected");
+                    message.null_fields = $Array(object.null_fields.length);
+                    for (let i = 0; i < object.null_fields.length; ++i)
+                        message.null_fields[i] = $String(object.null_fields[i]);
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from an EvaluationResult message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.research.EvaluationResult
+             * @static
+             * @param {northstar.research.EvaluationResult} message EvaluationResult
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            EvaluationResult.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.arrays || options.defaults) {
+                    object.limitations = [];
+                    object.null_fields = [];
+                }
+                if (message.plan != null && $Object.hasOwnProperty.call(message, "plan")) {
+                    object.plan = $root.northstar.research.EvaluationPlan.toObject(message.plan, options, _depth + 1);
+                    if (options.oneofs)
+                        object._plan = "plan";
+                }
+                if (message.status != null && $Object.hasOwnProperty.call(message, "status")) {
+                    object.status = message.status;
+                    if (options.oneofs)
+                        object._status = "status";
+                }
+                if (message.observed_bars != null && $Object.hasOwnProperty.call(message, "observed_bars")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.observed_bars = typeof message.observed_bars === "number" ? $BigInt(message.observed_bars) : $util.Long.fromBits(message.observed_bars.low >>> 0, message.observed_bars.high >>> 0, false).toBigInt();
+                    else if (typeof message.observed_bars === "number")
+                        object.observed_bars = options.longs === $String ? $String(message.observed_bars) : message.observed_bars;
+                    else
+                        object.observed_bars = options.longs === $String ? $util.Long.prototype.toString.call(message.observed_bars) : options.longs === $Number ? new $util.LongBits(message.observed_bars.low >>> 0, message.observed_bars.high >>> 0).toNumber() : message.observed_bars;
+                    if (options.oneofs)
+                        object._observed_bars = "observed_bars";
+                }
+                if (message.benchmark_ending_equity != null && $Object.hasOwnProperty.call(message, "benchmark_ending_equity")) {
+                    object.benchmark_ending_equity = message.benchmark_ending_equity;
+                    if (options.oneofs)
+                        object._benchmark_ending_equity = "benchmark_ending_equity";
+                }
+                if (message.benchmark_return != null && $Object.hasOwnProperty.call(message, "benchmark_return")) {
+                    object.benchmark_return = message.benchmark_return;
+                    if (options.oneofs)
+                        object._benchmark_return = "benchmark_return";
+                }
+                if (message.excess_return != null && $Object.hasOwnProperty.call(message, "excess_return")) {
+                    object.excess_return = message.excess_return;
+                    if (options.oneofs)
+                        object._excess_return = "excess_return";
+                }
+                if (message.annualized_return != null && $Object.hasOwnProperty.call(message, "annualized_return")) {
+                    object.annualized_return = message.annualized_return;
+                    if (options.oneofs)
+                        object._annualized_return = "annualized_return";
+                }
+                if (message.sharpe != null && $Object.hasOwnProperty.call(message, "sharpe")) {
+                    object.sharpe = message.sharpe;
+                    if (options.oneofs)
+                        object._sharpe = "sharpe";
+                }
+                if (message.limitations && message.limitations.length) {
+                    object.limitations = $Array(message.limitations.length);
+                    for (let j = 0; j < message.limitations.length; ++j)
+                        object.limitations[j] = message.limitations[j];
+                }
+                if (message.null_fields && message.null_fields.length) {
+                    object.null_fields = $Array(message.null_fields.length);
+                    for (let j = 0; j < message.null_fields.length; ++j)
+                        object.null_fields[j] = message.null_fields[j];
+                }
+                return object;
+            };
+
+            /**
+             * Converts this EvaluationResult to JSON.
+             * @function toJSON
+             * @memberof northstar.research.EvaluationResult
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            EvaluationResult.prototype.toJSON = function() {
+                return EvaluationResult.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for EvaluationResult
+             * @function getTypeUrl
+             * @memberof northstar.research.EvaluationResult
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            EvaluationResult.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.research.EvaluationResult";
+            };
+
+            return EvaluationResult;
         })();
 
         return research;

@@ -401,6 +401,10 @@ def main() -> None:
                     page.get_by_role("button", name="查看研究报告", exact=True).click()
                     expect(page.get_by_role("img", name="账户回撤")).to_be_visible()
                     screenshot("report")
+                    page.get_by_role("tab", name="评价条件", exact=True).click()
+                    expect(page.get_by_text("已完成固定输入窗口", exact=True)).to_be_visible()
+                    expect(page.get_by_text("不交易、无利息的初始现金", exact=True)).to_be_visible()
+                    screenshot("evaluation")
                     page.get_by_role("tab", name="敞口与保证金", exact=True).click()
                     expect(
                         page.get_by_role("columnheader", name="总名义敞口", exact=True)

@@ -262,6 +262,7 @@ export type ResearchConfigurationInput = {
   strategy?: JsonValue | null;
 };
 export type ResearchResultDocument = {
+  evaluation: EvaluationResult;
   orders: (Record<string, JsonValue>)[];
   data: DatasetDetails | null;
   decisions: (Record<string, JsonValue>)[];
@@ -417,6 +418,31 @@ export type TaskControl = {
   action: string;
 };
 export type TaskList = (ResearchTask)[];
+export type EvaluationPlan = {
+  plan_id: string;
+  revision: string;
+  snapshot_id: string;
+  content_hash: string;
+  window: string;
+  event_start: string | null;
+  event_end: string | null;
+  expected_bars: number | null;
+  benchmark: string;
+  annualization: string;
+  risk_free_rate: string;
+  sample_use: string;
+};
+export type EvaluationResult = {
+  plan: EvaluationPlan;
+  status: string;
+  observed_bars: number;
+  benchmark_ending_equity: string;
+  benchmark_return: string;
+  excess_return: string;
+  annualized_return: string | null;
+  sharpe: string | null;
+  limitations: (string)[];
+};
 export type Empty = {
 };
 export type Error = {

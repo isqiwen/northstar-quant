@@ -315,6 +315,7 @@ message ResearchConfigurationInput {
 }
 
 message ResearchResultDocument {
+  optional EvaluationResult evaluation = 8 [(northstar.web.required_field) = true];
   repeated google.protobuf.Struct orders = 7 [json_name = "orders", (northstar.web.required_field) = true];
   option (northstar.web.evidence) = true;
   optional DatasetDetails data = 1 [json_name = "data", (northstar.web.required_field) = true, (northstar.web.nullable) = true];
@@ -676,4 +677,33 @@ message TaskControl { optional string action = 1 [(northstar.web.required_field)
 message TaskList {
  option (northstar.web.root_array) = true;
  repeated ResearchTask items = 1;
+}
+
+message EvaluationPlan {
+  optional string plan_id = 1 [(northstar.web.required_field) = true];
+  optional string revision = 2 [(northstar.web.required_field) = true];
+  optional string snapshot_id = 3 [(northstar.web.required_field) = true];
+  optional string content_hash = 4 [(northstar.web.required_field) = true];
+  optional string window = 5 [(northstar.web.required_field) = true];
+  optional string event_start = 6 [(northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  optional string event_end = 7 [(northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  optional int64 expected_bars = 8 [(northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  optional string benchmark = 9 [(northstar.web.required_field) = true];
+  optional string annualization = 10 [(northstar.web.required_field) = true];
+  optional string risk_free_rate = 11 [(northstar.web.required_field) = true];
+  optional string sample_use = 12 [(northstar.web.required_field) = true];
+  repeated string null_fields = 2046;
+}
+
+message EvaluationResult {
+  optional EvaluationPlan plan = 1 [(northstar.web.required_field) = true];
+  optional string status = 2 [(northstar.web.required_field) = true];
+  optional int64 observed_bars = 3 [(northstar.web.required_field) = true];
+  optional string benchmark_ending_equity = 4 [(northstar.web.required_field) = true];
+  optional string benchmark_return = 5 [(northstar.web.required_field) = true];
+  optional string excess_return = 6 [(northstar.web.required_field) = true];
+  optional string annualized_return = 7 [(northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  optional string sharpe = 8 [(northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  repeated string limitations = 9 [(northstar.web.required_field) = true];
+  repeated string null_fields = 2046;
 }

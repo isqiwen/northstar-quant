@@ -318,6 +318,19 @@ def test_cross_day_settlement_is_fixed_offline_replayable_and_survives_every_res
     assert len(batch["settlements"]) == 1
     assert batch["settlements"][0]["price"] == "105"
     assert any(item["offset"] == "CLOSE_YESTERDAY" for item in batch["fills"])
+    evaluation = batch["evaluation"]
+    assert evaluation["status"] == "COMPLETE_WINDOW"
+    assert evaluation["plan"]["expected_bars"] == len(fixed.bars)
+    assert evaluation["plan"]["sample_use"] == "EXPLORATORY_NOT_OUT_OF_SAMPLE"
+    assert evaluation["annualized_return"] is None and evaluation["sharpe"] is None
+    assert evaluation["excess_return"] == batch["summary"]["total_return"]
+    with pytest.raises(ValueError, match="fixed evaluation window count"):
+        run_research(replace(fixed, bars=fixed.bars[:-1]), config)
+    for point in batch["equity_curve"]:
+        assert Decimal(point["trade_realized_pnl"]) + Decimal(point["settlement_pnl"]) == Decimal(
+            point["realized_pnl"]
+        )
+        assert Decimal(point["gross_exposure"]) >= abs(Decimal(point["net_exposure"]))
     assert all("margin_used" in point and "available" in point for point in batch["equity_curve"])
     assert {point["terms_id"] for point in batch["equity_curve"]} == {
         first_terms.terms_id,

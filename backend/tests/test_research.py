@@ -244,6 +244,19 @@ def test_checkpoint_recovery_preserves_pending_fifo_warmup_and_complete_result()
             checkpoint=checkpoint,
             account=rebuilt,
         )
+    changed_plan = {
+        **checkpoint,
+        "evaluation_plan": {**checkpoint["evaluation_plan"], "sample_use": "OUT_OF_SAMPLE"},
+    }
+    with pytest.raises(ValueError, match="fixed input or configuration"):
+        TradingSession.from_checkpoint(
+            data.market,
+            config,
+            snapshot_id=data.snapshot_id,
+            content_hash=data.content_hash,
+            checkpoint=changed_plan,
+            account=rebuilt,
+        )
     with pytest.raises(ValueError, match="fixed input or configuration"):
         TradingSession.from_checkpoint(
             data.market,
