@@ -475,7 +475,7 @@ def main() -> None:
                         visit(url)
                         expect(page.get_by_text("AVAILABLE", exact=True)).to_be_visible()
                         screenshot("live")
-                        visit(url + "/diagnostics")
+                        page.get_by_role("link", name="运行诊断", exact=True).click()
                         expect(page.get_by_text("数据库盘空闲字节", exact=True)).to_be_visible()
                         expect(
                             page.locator(".facts").get_by_text("OBSERVED", exact=True)
