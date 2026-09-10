@@ -15942,6 +15942,1690 @@ export const northstar = $root.northstar = (() => {
             return RevisionComparison;
         })();
 
+        data_hub.CompactionRequest = (function() {
+
+            /**
+             * Properties of a CompactionRequest.
+             * @typedef {Object} northstar.data_hub.CompactionRequest.$Properties
+             * @property {string|null} [request_id] CompactionRequest request_id
+             * @property {string|null} [dataset] CompactionRequest dataset
+             * @property {string|null} [scope] CompactionRequest scope
+             * @property {string|null} [start] CompactionRequest start
+             * @property {string|null} [end] CompactionRequest end
+             * @property {Array.<string>|null} [receipt_ids] CompactionRequest receipt_ids
+             * @property {"request_id"} [_request_id] CompactionRequest _request_id
+             * @property {"dataset"} [_dataset] CompactionRequest _dataset
+             * @property {"scope"} [_scope] CompactionRequest _scope
+             * @property {"start"} [_start] CompactionRequest _start
+             * @property {"end"} [_end] CompactionRequest _end
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a CompactionRequest.
+             * @memberof northstar.data_hub
+             * @interface ICompactionRequest
+             * @augments northstar.data_hub.CompactionRequest.$Properties
+             * @deprecated Use northstar.data_hub.CompactionRequest.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a CompactionRequest.
+             * @typedef {{
+             *   request_id?: string|null;
+             *   dataset?: string|null;
+             *   scope?: string|null;
+             *   start?: string|null;
+             *   end?: string|null;
+             *   receipt_ids?: Array.<string>|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _request_id?: undefined; request_id?: null }|{ _request_id?: "request_id"; request_id: string })
+             * ) & (
+             *   ({ _dataset?: undefined; dataset?: null }|{ _dataset?: "dataset"; dataset: string })
+             * ) & (
+             *   ({ _scope?: undefined; scope?: null }|{ _scope?: "scope"; scope: string })
+             * ) & (
+             *   ({ _start?: undefined; start?: null }|{ _start?: "start"; start: string })
+             * ) & (
+             *   ({ _end?: undefined; end?: null }|{ _end?: "end"; end: string })
+             * )} northstar.data_hub.CompactionRequest.$Shape
+             */
+
+            /**
+             * Constructs a new CompactionRequest.
+             * @memberof northstar.data_hub
+             * @classdesc Represents a CompactionRequest.
+             * @constructor
+             * @param {northstar.data_hub.CompactionRequest.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const CompactionRequest = function (properties) {
+                this.receipt_ids = [];
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * CompactionRequest request_id.
+             * @member {string|null|undefined} request_id
+             * @memberof northstar.data_hub.CompactionRequest
+             * @instance
+             */
+            CompactionRequest.prototype.request_id = null;
+
+            /**
+             * CompactionRequest dataset.
+             * @member {string|null|undefined} dataset
+             * @memberof northstar.data_hub.CompactionRequest
+             * @instance
+             */
+            CompactionRequest.prototype.dataset = null;
+
+            /**
+             * CompactionRequest scope.
+             * @member {string|null|undefined} scope
+             * @memberof northstar.data_hub.CompactionRequest
+             * @instance
+             */
+            CompactionRequest.prototype.scope = null;
+
+            /**
+             * CompactionRequest start.
+             * @member {string|null|undefined} start
+             * @memberof northstar.data_hub.CompactionRequest
+             * @instance
+             */
+            CompactionRequest.prototype.start = null;
+
+            /**
+             * CompactionRequest end.
+             * @member {string|null|undefined} end
+             * @memberof northstar.data_hub.CompactionRequest
+             * @instance
+             */
+            CompactionRequest.prototype.end = null;
+
+            /**
+             * CompactionRequest receipt_ids.
+             * @member {Array.<string>} receipt_ids
+             * @memberof northstar.data_hub.CompactionRequest
+             * @instance
+             */
+            CompactionRequest.prototype.receipt_ids = $util.emptyArray;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * CompactionRequest _request_id.
+             * @member {"request_id"|undefined} _request_id
+             * @memberof northstar.data_hub.CompactionRequest
+             * @instance
+             */
+            $Object.defineProperty(CompactionRequest.prototype, "_request_id", {
+                get: $util.oneOfGetter($oneOfFields = ["request_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * CompactionRequest _dataset.
+             * @member {"dataset"|undefined} _dataset
+             * @memberof northstar.data_hub.CompactionRequest
+             * @instance
+             */
+            $Object.defineProperty(CompactionRequest.prototype, "_dataset", {
+                get: $util.oneOfGetter($oneOfFields = ["dataset"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * CompactionRequest _scope.
+             * @member {"scope"|undefined} _scope
+             * @memberof northstar.data_hub.CompactionRequest
+             * @instance
+             */
+            $Object.defineProperty(CompactionRequest.prototype, "_scope", {
+                get: $util.oneOfGetter($oneOfFields = ["scope"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * CompactionRequest _start.
+             * @member {"start"|undefined} _start
+             * @memberof northstar.data_hub.CompactionRequest
+             * @instance
+             */
+            $Object.defineProperty(CompactionRequest.prototype, "_start", {
+                get: $util.oneOfGetter($oneOfFields = ["start"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * CompactionRequest _end.
+             * @member {"end"|undefined} _end
+             * @memberof northstar.data_hub.CompactionRequest
+             * @instance
+             */
+            $Object.defineProperty(CompactionRequest.prototype, "_end", {
+                get: $util.oneOfGetter($oneOfFields = ["end"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new CompactionRequest instance using the specified properties.
+             * @function create
+             * @memberof northstar.data_hub.CompactionRequest
+             * @static
+             * @param {northstar.data_hub.CompactionRequest.$Properties=} [properties] Properties to set
+             * @returns {northstar.data_hub.CompactionRequest} CompactionRequest instance
+             * @type {{
+             *   (properties: northstar.data_hub.CompactionRequest.$Shape): northstar.data_hub.CompactionRequest & northstar.data_hub.CompactionRequest.$Shape;
+             *   (properties?: northstar.data_hub.CompactionRequest.$Properties): northstar.data_hub.CompactionRequest;
+             * }}
+             */
+            CompactionRequest.create = function(properties) {
+                return new CompactionRequest(properties);
+            };
+
+            /**
+             * Encodes the specified CompactionRequest message. Does not implicitly {@link northstar.data_hub.CompactionRequest.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.data_hub.CompactionRequest
+             * @static
+             * @param {northstar.data_hub.CompactionRequest.$Properties} message CompactionRequest message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            CompactionRequest.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.request_id);
+                if (message.dataset != null && $Object.hasOwnProperty.call(message, "dataset"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.dataset);
+                if (message.scope != null && $Object.hasOwnProperty.call(message, "scope"))
+                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.scope);
+                if (message.start != null && $Object.hasOwnProperty.call(message, "start"))
+                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.start);
+                if (message.end != null && $Object.hasOwnProperty.call(message, "end"))
+                    writer.uint32(/* id 5, wireType 2 =*/42).string(message.end);
+                if (message.receipt_ids != null && message.receipt_ids.length)
+                    for (let i = 0; i < message.receipt_ids.length; ++i)
+                        writer.uint32(/* id 6, wireType 2 =*/50).string(message.receipt_ids[i]);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a CompactionRequest message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.data_hub.CompactionRequest
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.data_hub.CompactionRequest & northstar.data_hub.CompactionRequest.$Shape} CompactionRequest
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            CompactionRequest.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.data_hub.CompactionRequest();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.request_id = reader.stringVerify();
+                            message._request_id = "request_id";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.dataset = reader.stringVerify();
+                            message._dataset = "dataset";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 2)
+                                break;
+                            message.scope = reader.stringVerify();
+                            message._scope = "scope";
+                            continue;
+                        }
+                    case 4: {
+                            if (wireType !== 2)
+                                break;
+                            message.start = reader.stringVerify();
+                            message._start = "start";
+                            continue;
+                        }
+                    case 5: {
+                            if (wireType !== 2)
+                                break;
+                            message.end = reader.stringVerify();
+                            message._end = "end";
+                            continue;
+                        }
+                    case 6: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.receipt_ids && message.receipt_ids.length))
+                                message.receipt_ids = [];
+                            message.receipt_ids.push(reader.stringVerify());
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a CompactionRequest message.
+             * @function verify
+             * @memberof northstar.data_hub.CompactionRequest
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            CompactionRequest.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id")) {
+                    properties._request_id = 1;
+                    if (!$util.isString(message.request_id))
+                        return "request_id: string expected";
+                }
+                if (message.dataset != null && $Object.hasOwnProperty.call(message, "dataset")) {
+                    properties._dataset = 1;
+                    if (!$util.isString(message.dataset))
+                        return "dataset: string expected";
+                }
+                if (message.scope != null && $Object.hasOwnProperty.call(message, "scope")) {
+                    properties._scope = 1;
+                    if (!$util.isString(message.scope))
+                        return "scope: string expected";
+                }
+                if (message.start != null && $Object.hasOwnProperty.call(message, "start")) {
+                    properties._start = 1;
+                    if (!$util.isString(message.start))
+                        return "start: string expected";
+                }
+                if (message.end != null && $Object.hasOwnProperty.call(message, "end")) {
+                    properties._end = 1;
+                    if (!$util.isString(message.end))
+                        return "end: string expected";
+                }
+                if (message.receipt_ids != null && $Object.hasOwnProperty.call(message, "receipt_ids")) {
+                    if (!$Array.isArray(message.receipt_ids))
+                        return "receipt_ids: array expected";
+                    for (let i = 0; i < message.receipt_ids.length; ++i)
+                        if (!$util.isString(message.receipt_ids[i]))
+                            return "receipt_ids: string[] expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a CompactionRequest message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.data_hub.CompactionRequest
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.data_hub.CompactionRequest} CompactionRequest
+             */
+            CompactionRequest.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.data_hub.CompactionRequest)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.data_hub.CompactionRequest: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.data_hub.CompactionRequest();
+                if (object.request_id != null)
+                    message.request_id = $String(object.request_id);
+                if (object.dataset != null)
+                    message.dataset = $String(object.dataset);
+                if (object.scope != null)
+                    message.scope = $String(object.scope);
+                if (object.start != null)
+                    message.start = $String(object.start);
+                if (object.end != null)
+                    message.end = $String(object.end);
+                if (object.receipt_ids) {
+                    if (!$Array.isArray(object.receipt_ids))
+                        throw $TypeError(".northstar.data_hub.CompactionRequest.receipt_ids: array expected");
+                    message.receipt_ids = $Array(object.receipt_ids.length);
+                    for (let i = 0; i < object.receipt_ids.length; ++i)
+                        message.receipt_ids[i] = $String(object.receipt_ids[i]);
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a CompactionRequest message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.data_hub.CompactionRequest
+             * @static
+             * @param {northstar.data_hub.CompactionRequest} message CompactionRequest
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            CompactionRequest.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.arrays || options.defaults)
+                    object.receipt_ids = [];
+                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id")) {
+                    object.request_id = message.request_id;
+                    if (options.oneofs)
+                        object._request_id = "request_id";
+                }
+                if (message.dataset != null && $Object.hasOwnProperty.call(message, "dataset")) {
+                    object.dataset = message.dataset;
+                    if (options.oneofs)
+                        object._dataset = "dataset";
+                }
+                if (message.scope != null && $Object.hasOwnProperty.call(message, "scope")) {
+                    object.scope = message.scope;
+                    if (options.oneofs)
+                        object._scope = "scope";
+                }
+                if (message.start != null && $Object.hasOwnProperty.call(message, "start")) {
+                    object.start = message.start;
+                    if (options.oneofs)
+                        object._start = "start";
+                }
+                if (message.end != null && $Object.hasOwnProperty.call(message, "end")) {
+                    object.end = message.end;
+                    if (options.oneofs)
+                        object._end = "end";
+                }
+                if (message.receipt_ids && message.receipt_ids.length) {
+                    object.receipt_ids = $Array(message.receipt_ids.length);
+                    for (let j = 0; j < message.receipt_ids.length; ++j)
+                        object.receipt_ids[j] = message.receipt_ids[j];
+                }
+                return object;
+            };
+
+            /**
+             * Converts this CompactionRequest to JSON.
+             * @function toJSON
+             * @memberof northstar.data_hub.CompactionRequest
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            CompactionRequest.prototype.toJSON = function() {
+                return CompactionRequest.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for CompactionRequest
+             * @function getTypeUrl
+             * @memberof northstar.data_hub.CompactionRequest
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            CompactionRequest.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.data_hub.CompactionRequest";
+            };
+
+            return CompactionRequest;
+        })();
+
+        data_hub.Compaction = (function() {
+
+            /**
+             * Properties of a Compaction.
+             * @typedef {Object} northstar.data_hub.Compaction.$Properties
+             * @property {string|null} [compaction_id] Compaction compaction_id
+             * @property {string|null} [plan_id] Compaction plan_id
+             * @property {google.protobuf.Struct.$Properties|null} [plan] Compaction plan
+             * @property {string|null} [created_at] Compaction created_at
+             * @property {string|null} [status] Compaction status
+             * @property {google.protobuf.Struct.$Properties|null} [result] Compaction result
+             * @property {string|null} [error] Compaction error
+             * @property {Array.<string>|null} [null_fields] Compaction null_fields
+             * @property {"compaction_id"} [_compaction_id] Compaction _compaction_id
+             * @property {"plan_id"} [_plan_id] Compaction _plan_id
+             * @property {"plan"} [_plan] Compaction _plan
+             * @property {"created_at"} [_created_at] Compaction _created_at
+             * @property {"status"} [_status] Compaction _status
+             * @property {"result"} [_result] Compaction _result
+             * @property {"error"} [_error] Compaction _error
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a Compaction.
+             * @memberof northstar.data_hub
+             * @interface ICompaction
+             * @augments northstar.data_hub.Compaction.$Properties
+             * @deprecated Use northstar.data_hub.Compaction.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a Compaction.
+             * @typedef {{
+             *   compaction_id?: string|null;
+             *   plan_id?: string|null;
+             *   plan?: google.protobuf.Struct.$Shape|null;
+             *   created_at?: string|null;
+             *   status?: string|null;
+             *   result?: google.protobuf.Struct.$Shape|null;
+             *   error?: string|null;
+             *   null_fields?: Array.<string>|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _compaction_id?: undefined; compaction_id?: null }|{ _compaction_id?: "compaction_id"; compaction_id: string })
+             * ) & (
+             *   ({ _plan_id?: undefined; plan_id?: null }|{ _plan_id?: "plan_id"; plan_id: string })
+             * ) & (
+             *   ({ _plan?: undefined; plan?: null }|{ _plan?: "plan"; plan: google.protobuf.Struct.$Shape })
+             * ) & (
+             *   ({ _created_at?: undefined; created_at?: null }|{ _created_at?: "created_at"; created_at: string })
+             * ) & (
+             *   ({ _status?: undefined; status?: null }|{ _status?: "status"; status: string })
+             * ) & (
+             *   ({ _result?: undefined; result?: null }|{ _result?: "result"; result: google.protobuf.Struct.$Shape })
+             * ) & (
+             *   ({ _error?: undefined; error?: null }|{ _error?: "error"; error: string })
+             * )} northstar.data_hub.Compaction.$Shape
+             */
+
+            /**
+             * Constructs a new Compaction.
+             * @memberof northstar.data_hub
+             * @classdesc Represents a Compaction.
+             * @constructor
+             * @param {northstar.data_hub.Compaction.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const Compaction = function (properties) {
+                this.null_fields = [];
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * Compaction compaction_id.
+             * @member {string|null|undefined} compaction_id
+             * @memberof northstar.data_hub.Compaction
+             * @instance
+             */
+            Compaction.prototype.compaction_id = null;
+
+            /**
+             * Compaction plan_id.
+             * @member {string|null|undefined} plan_id
+             * @memberof northstar.data_hub.Compaction
+             * @instance
+             */
+            Compaction.prototype.plan_id = null;
+
+            /**
+             * Compaction plan.
+             * @member {google.protobuf.Struct.$Properties|null|undefined} plan
+             * @memberof northstar.data_hub.Compaction
+             * @instance
+             */
+            Compaction.prototype.plan = null;
+
+            /**
+             * Compaction created_at.
+             * @member {string|null|undefined} created_at
+             * @memberof northstar.data_hub.Compaction
+             * @instance
+             */
+            Compaction.prototype.created_at = null;
+
+            /**
+             * Compaction status.
+             * @member {string|null|undefined} status
+             * @memberof northstar.data_hub.Compaction
+             * @instance
+             */
+            Compaction.prototype.status = null;
+
+            /**
+             * Compaction result.
+             * @member {google.protobuf.Struct.$Properties|null|undefined} result
+             * @memberof northstar.data_hub.Compaction
+             * @instance
+             */
+            Compaction.prototype.result = null;
+
+            /**
+             * Compaction error.
+             * @member {string|null|undefined} error
+             * @memberof northstar.data_hub.Compaction
+             * @instance
+             */
+            Compaction.prototype.error = null;
+
+            /**
+             * Compaction null_fields.
+             * @member {Array.<string>} null_fields
+             * @memberof northstar.data_hub.Compaction
+             * @instance
+             */
+            Compaction.prototype.null_fields = $util.emptyArray;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * Compaction _compaction_id.
+             * @member {"compaction_id"|undefined} _compaction_id
+             * @memberof northstar.data_hub.Compaction
+             * @instance
+             */
+            $Object.defineProperty(Compaction.prototype, "_compaction_id", {
+                get: $util.oneOfGetter($oneOfFields = ["compaction_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Compaction _plan_id.
+             * @member {"plan_id"|undefined} _plan_id
+             * @memberof northstar.data_hub.Compaction
+             * @instance
+             */
+            $Object.defineProperty(Compaction.prototype, "_plan_id", {
+                get: $util.oneOfGetter($oneOfFields = ["plan_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Compaction _plan.
+             * @member {"plan"|undefined} _plan
+             * @memberof northstar.data_hub.Compaction
+             * @instance
+             */
+            $Object.defineProperty(Compaction.prototype, "_plan", {
+                get: $util.oneOfGetter($oneOfFields = ["plan"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Compaction _created_at.
+             * @member {"created_at"|undefined} _created_at
+             * @memberof northstar.data_hub.Compaction
+             * @instance
+             */
+            $Object.defineProperty(Compaction.prototype, "_created_at", {
+                get: $util.oneOfGetter($oneOfFields = ["created_at"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Compaction _status.
+             * @member {"status"|undefined} _status
+             * @memberof northstar.data_hub.Compaction
+             * @instance
+             */
+            $Object.defineProperty(Compaction.prototype, "_status", {
+                get: $util.oneOfGetter($oneOfFields = ["status"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Compaction _result.
+             * @member {"result"|undefined} _result
+             * @memberof northstar.data_hub.Compaction
+             * @instance
+             */
+            $Object.defineProperty(Compaction.prototype, "_result", {
+                get: $util.oneOfGetter($oneOfFields = ["result"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Compaction _error.
+             * @member {"error"|undefined} _error
+             * @memberof northstar.data_hub.Compaction
+             * @instance
+             */
+            $Object.defineProperty(Compaction.prototype, "_error", {
+                get: $util.oneOfGetter($oneOfFields = ["error"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new Compaction instance using the specified properties.
+             * @function create
+             * @memberof northstar.data_hub.Compaction
+             * @static
+             * @param {northstar.data_hub.Compaction.$Properties=} [properties] Properties to set
+             * @returns {northstar.data_hub.Compaction} Compaction instance
+             * @type {{
+             *   (properties: northstar.data_hub.Compaction.$Shape): northstar.data_hub.Compaction & northstar.data_hub.Compaction.$Shape;
+             *   (properties?: northstar.data_hub.Compaction.$Properties): northstar.data_hub.Compaction;
+             * }}
+             */
+            Compaction.create = function(properties) {
+                return new Compaction(properties);
+            };
+
+            /**
+             * Encodes the specified Compaction message. Does not implicitly {@link northstar.data_hub.Compaction.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.data_hub.Compaction
+             * @static
+             * @param {northstar.data_hub.Compaction.$Properties} message Compaction message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            Compaction.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.compaction_id != null && $Object.hasOwnProperty.call(message, "compaction_id"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.compaction_id);
+                if (message.plan_id != null && $Object.hasOwnProperty.call(message, "plan_id"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.plan_id);
+                if (message.plan != null && $Object.hasOwnProperty.call(message, "plan"))
+                    $root.google.protobuf.Struct.encode(message.plan, writer.uint32(/* id 3, wireType 2 =*/26).fork(), _depth + 1).ldelim();
+                if (message.created_at != null && $Object.hasOwnProperty.call(message, "created_at"))
+                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.created_at);
+                if (message.status != null && $Object.hasOwnProperty.call(message, "status"))
+                    writer.uint32(/* id 5, wireType 2 =*/42).string(message.status);
+                if (message.result != null && $Object.hasOwnProperty.call(message, "result"))
+                    $root.google.protobuf.Struct.encode(message.result, writer.uint32(/* id 6, wireType 2 =*/50).fork(), _depth + 1).ldelim();
+                if (message.error != null && $Object.hasOwnProperty.call(message, "error"))
+                    writer.uint32(/* id 7, wireType 2 =*/58).string(message.error);
+                if (message.null_fields != null && message.null_fields.length)
+                    for (let i = 0; i < message.null_fields.length; ++i)
+                        writer.uint32(/* id 2046, wireType 2 =*/16370).string(message.null_fields[i]);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a Compaction message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.data_hub.Compaction
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.data_hub.Compaction & northstar.data_hub.Compaction.$Shape} Compaction
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            Compaction.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.data_hub.Compaction();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.compaction_id = reader.stringVerify();
+                            message._compaction_id = "compaction_id";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.plan_id = reader.stringVerify();
+                            message._plan_id = "plan_id";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 2)
+                                break;
+                            message.plan = $root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1, message.plan);
+                            message._plan = "plan";
+                            continue;
+                        }
+                    case 4: {
+                            if (wireType !== 2)
+                                break;
+                            message.created_at = reader.stringVerify();
+                            message._created_at = "created_at";
+                            continue;
+                        }
+                    case 5: {
+                            if (wireType !== 2)
+                                break;
+                            message.status = reader.stringVerify();
+                            message._status = "status";
+                            continue;
+                        }
+                    case 6: {
+                            if (wireType !== 2)
+                                break;
+                            message.result = $root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1, message.result);
+                            message._result = "result";
+                            continue;
+                        }
+                    case 7: {
+                            if (wireType !== 2)
+                                break;
+                            message.error = reader.stringVerify();
+                            message._error = "error";
+                            continue;
+                        }
+                    case 2046: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.null_fields && message.null_fields.length))
+                                message.null_fields = [];
+                            message.null_fields.push(reader.stringVerify());
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a Compaction message.
+             * @function verify
+             * @memberof northstar.data_hub.Compaction
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            Compaction.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.compaction_id != null && $Object.hasOwnProperty.call(message, "compaction_id")) {
+                    properties._compaction_id = 1;
+                    if (!$util.isString(message.compaction_id))
+                        return "compaction_id: string expected";
+                }
+                if (message.plan_id != null && $Object.hasOwnProperty.call(message, "plan_id")) {
+                    properties._plan_id = 1;
+                    if (!$util.isString(message.plan_id))
+                        return "plan_id: string expected";
+                }
+                if (message.plan != null && $Object.hasOwnProperty.call(message, "plan")) {
+                    properties._plan = 1;
+                    {
+                        let error = $root.google.protobuf.Struct.verify(message.plan, _depth + 1);
+                        if (error)
+                            return "plan." + error;
+                    }
+                }
+                if (message.created_at != null && $Object.hasOwnProperty.call(message, "created_at")) {
+                    properties._created_at = 1;
+                    if (!$util.isString(message.created_at))
+                        return "created_at: string expected";
+                }
+                if (message.status != null && $Object.hasOwnProperty.call(message, "status")) {
+                    properties._status = 1;
+                    if (!$util.isString(message.status))
+                        return "status: string expected";
+                }
+                if (message.result != null && $Object.hasOwnProperty.call(message, "result")) {
+                    properties._result = 1;
+                    {
+                        let error = $root.google.protobuf.Struct.verify(message.result, _depth + 1);
+                        if (error)
+                            return "result." + error;
+                    }
+                }
+                if (message.error != null && $Object.hasOwnProperty.call(message, "error")) {
+                    properties._error = 1;
+                    if (!$util.isString(message.error))
+                        return "error: string expected";
+                }
+                if (message.null_fields != null && $Object.hasOwnProperty.call(message, "null_fields")) {
+                    if (!$Array.isArray(message.null_fields))
+                        return "null_fields: array expected";
+                    for (let i = 0; i < message.null_fields.length; ++i)
+                        if (!$util.isString(message.null_fields[i]))
+                            return "null_fields: string[] expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a Compaction message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.data_hub.Compaction
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.data_hub.Compaction} Compaction
+             */
+            Compaction.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.data_hub.Compaction)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.data_hub.Compaction: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.data_hub.Compaction();
+                if (object.compaction_id != null)
+                    message.compaction_id = $String(object.compaction_id);
+                if (object.plan_id != null)
+                    message.plan_id = $String(object.plan_id);
+                if (object.plan != null) {
+                    if (!$util.isObject(object.plan))
+                        throw $TypeError(".northstar.data_hub.Compaction.plan: object expected");
+                    message.plan = $root.google.protobuf.Struct.fromObject(object.plan, _depth + 1);
+                }
+                if (object.created_at != null)
+                    message.created_at = $String(object.created_at);
+                if (object.status != null)
+                    message.status = $String(object.status);
+                if (object.result != null) {
+                    if (!$util.isObject(object.result))
+                        throw $TypeError(".northstar.data_hub.Compaction.result: object expected");
+                    message.result = $root.google.protobuf.Struct.fromObject(object.result, _depth + 1);
+                }
+                if (object.error != null)
+                    message.error = $String(object.error);
+                if (object.null_fields) {
+                    if (!$Array.isArray(object.null_fields))
+                        throw $TypeError(".northstar.data_hub.Compaction.null_fields: array expected");
+                    message.null_fields = $Array(object.null_fields.length);
+                    for (let i = 0; i < object.null_fields.length; ++i)
+                        message.null_fields[i] = $String(object.null_fields[i]);
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a Compaction message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.data_hub.Compaction
+             * @static
+             * @param {northstar.data_hub.Compaction} message Compaction
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            Compaction.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.arrays || options.defaults)
+                    object.null_fields = [];
+                if (message.compaction_id != null && $Object.hasOwnProperty.call(message, "compaction_id")) {
+                    object.compaction_id = message.compaction_id;
+                    if (options.oneofs)
+                        object._compaction_id = "compaction_id";
+                }
+                if (message.plan_id != null && $Object.hasOwnProperty.call(message, "plan_id")) {
+                    object.plan_id = message.plan_id;
+                    if (options.oneofs)
+                        object._plan_id = "plan_id";
+                }
+                if (message.plan != null && $Object.hasOwnProperty.call(message, "plan")) {
+                    object.plan = $root.google.protobuf.Struct.toObject(message.plan, options, _depth + 1);
+                    if (options.oneofs)
+                        object._plan = "plan";
+                }
+                if (message.created_at != null && $Object.hasOwnProperty.call(message, "created_at")) {
+                    object.created_at = message.created_at;
+                    if (options.oneofs)
+                        object._created_at = "created_at";
+                }
+                if (message.status != null && $Object.hasOwnProperty.call(message, "status")) {
+                    object.status = message.status;
+                    if (options.oneofs)
+                        object._status = "status";
+                }
+                if (message.result != null && $Object.hasOwnProperty.call(message, "result")) {
+                    object.result = $root.google.protobuf.Struct.toObject(message.result, options, _depth + 1);
+                    if (options.oneofs)
+                        object._result = "result";
+                }
+                if (message.error != null && $Object.hasOwnProperty.call(message, "error")) {
+                    object.error = message.error;
+                    if (options.oneofs)
+                        object._error = "error";
+                }
+                if (message.null_fields && message.null_fields.length) {
+                    object.null_fields = $Array(message.null_fields.length);
+                    for (let j = 0; j < message.null_fields.length; ++j)
+                        object.null_fields[j] = message.null_fields[j];
+                }
+                return object;
+            };
+
+            /**
+             * Converts this Compaction to JSON.
+             * @function toJSON
+             * @memberof northstar.data_hub.Compaction
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            Compaction.prototype.toJSON = function() {
+                return Compaction.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for Compaction
+             * @function getTypeUrl
+             * @memberof northstar.data_hub.Compaction
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            Compaction.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.data_hub.Compaction";
+            };
+
+            return Compaction;
+        })();
+
+        data_hub.CompactionPage = (function() {
+
+            /**
+             * Properties of a CompactionPage.
+             * @typedef {Object} northstar.data_hub.CompactionPage.$Properties
+             * @property {number|Long|null} [offset] CompactionPage offset
+             * @property {number|Long|null} [limit] CompactionPage limit
+             * @property {"offset"} [_offset] CompactionPage _offset
+             * @property {"limit"} [_limit] CompactionPage _limit
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a CompactionPage.
+             * @memberof northstar.data_hub
+             * @interface ICompactionPage
+             * @augments northstar.data_hub.CompactionPage.$Properties
+             * @deprecated Use northstar.data_hub.CompactionPage.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a CompactionPage.
+             * @typedef {{
+             *   offset?: number|Long|null;
+             *   limit?: number|Long|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _offset?: undefined; offset?: null }|{ _offset?: "offset"; offset: number|Long })
+             * ) & (
+             *   ({ _limit?: undefined; limit?: null }|{ _limit?: "limit"; limit: number|Long })
+             * )} northstar.data_hub.CompactionPage.$Shape
+             */
+
+            /**
+             * Constructs a new CompactionPage.
+             * @memberof northstar.data_hub
+             * @classdesc Represents a CompactionPage.
+             * @constructor
+             * @param {northstar.data_hub.CompactionPage.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const CompactionPage = function (properties) {
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * CompactionPage offset.
+             * @member {number|Long|null|undefined} offset
+             * @memberof northstar.data_hub.CompactionPage
+             * @instance
+             */
+            CompactionPage.prototype.offset = null;
+
+            /**
+             * CompactionPage limit.
+             * @member {number|Long|null|undefined} limit
+             * @memberof northstar.data_hub.CompactionPage
+             * @instance
+             */
+            CompactionPage.prototype.limit = null;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * CompactionPage _offset.
+             * @member {"offset"|undefined} _offset
+             * @memberof northstar.data_hub.CompactionPage
+             * @instance
+             */
+            $Object.defineProperty(CompactionPage.prototype, "_offset", {
+                get: $util.oneOfGetter($oneOfFields = ["offset"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * CompactionPage _limit.
+             * @member {"limit"|undefined} _limit
+             * @memberof northstar.data_hub.CompactionPage
+             * @instance
+             */
+            $Object.defineProperty(CompactionPage.prototype, "_limit", {
+                get: $util.oneOfGetter($oneOfFields = ["limit"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new CompactionPage instance using the specified properties.
+             * @function create
+             * @memberof northstar.data_hub.CompactionPage
+             * @static
+             * @param {northstar.data_hub.CompactionPage.$Properties=} [properties] Properties to set
+             * @returns {northstar.data_hub.CompactionPage} CompactionPage instance
+             * @type {{
+             *   (properties: northstar.data_hub.CompactionPage.$Shape): northstar.data_hub.CompactionPage & northstar.data_hub.CompactionPage.$Shape;
+             *   (properties?: northstar.data_hub.CompactionPage.$Properties): northstar.data_hub.CompactionPage;
+             * }}
+             */
+            CompactionPage.create = function(properties) {
+                return new CompactionPage(properties);
+            };
+
+            /**
+             * Encodes the specified CompactionPage message. Does not implicitly {@link northstar.data_hub.CompactionPage.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.data_hub.CompactionPage
+             * @static
+             * @param {northstar.data_hub.CompactionPage.$Properties} message CompactionPage message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            CompactionPage.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.offset != null && $Object.hasOwnProperty.call(message, "offset"))
+                    writer.uint32(/* id 1, wireType 0 =*/8).int64(message.offset);
+                if (message.limit != null && $Object.hasOwnProperty.call(message, "limit"))
+                    writer.uint32(/* id 2, wireType 0 =*/16).int64(message.limit);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a CompactionPage message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.data_hub.CompactionPage
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.data_hub.CompactionPage & northstar.data_hub.CompactionPage.$Shape} CompactionPage
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            CompactionPage.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.data_hub.CompactionPage();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 0)
+                                break;
+                            message.offset = reader.int64();
+                            message._offset = "offset";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 0)
+                                break;
+                            message.limit = reader.int64();
+                            message._limit = "limit";
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a CompactionPage message.
+             * @function verify
+             * @memberof northstar.data_hub.CompactionPage
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            CompactionPage.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.offset != null && $Object.hasOwnProperty.call(message, "offset")) {
+                    properties._offset = 1;
+                    if (!$util.isInteger(message.offset) && !(message.offset && $util.isInteger(message.offset.low) && $util.isInteger(message.offset.high)))
+                        return "offset: integer|Long expected";
+                }
+                if (message.limit != null && $Object.hasOwnProperty.call(message, "limit")) {
+                    properties._limit = 1;
+                    if (!$util.isInteger(message.limit) && !(message.limit && $util.isInteger(message.limit.low) && $util.isInteger(message.limit.high)))
+                        return "limit: integer|Long expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a CompactionPage message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.data_hub.CompactionPage
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.data_hub.CompactionPage} CompactionPage
+             */
+            CompactionPage.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.data_hub.CompactionPage)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.data_hub.CompactionPage: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.data_hub.CompactionPage();
+                if (object.offset != null)
+                    if ($util.Long)
+                        message.offset = $util.Long.fromValue(object.offset, false);
+                    else if (typeof object.offset === "string")
+                        message.offset = $parseInt(object.offset, 10);
+                    else if (typeof object.offset === "number")
+                        message.offset = object.offset;
+                    else if (typeof object.offset === "object")
+                        message.offset = new $util.LongBits(object.offset.low >>> 0, object.offset.high >>> 0).toNumber();
+                if (object.limit != null)
+                    if ($util.Long)
+                        message.limit = $util.Long.fromValue(object.limit, false);
+                    else if (typeof object.limit === "string")
+                        message.limit = $parseInt(object.limit, 10);
+                    else if (typeof object.limit === "number")
+                        message.limit = object.limit;
+                    else if (typeof object.limit === "object")
+                        message.limit = new $util.LongBits(object.limit.low >>> 0, object.limit.high >>> 0).toNumber();
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a CompactionPage message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.data_hub.CompactionPage
+             * @static
+             * @param {northstar.data_hub.CompactionPage} message CompactionPage
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            CompactionPage.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (message.offset != null && $Object.hasOwnProperty.call(message, "offset")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.offset = typeof message.offset === "number" ? $BigInt(message.offset) : $util.Long.fromBits(message.offset.low >>> 0, message.offset.high >>> 0, false).toBigInt();
+                    else if (typeof message.offset === "number")
+                        object.offset = options.longs === $String ? $String(message.offset) : message.offset;
+                    else
+                        object.offset = options.longs === $String ? $util.Long.prototype.toString.call(message.offset) : options.longs === $Number ? new $util.LongBits(message.offset.low >>> 0, message.offset.high >>> 0).toNumber() : message.offset;
+                    if (options.oneofs)
+                        object._offset = "offset";
+                }
+                if (message.limit != null && $Object.hasOwnProperty.call(message, "limit")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.limit = typeof message.limit === "number" ? $BigInt(message.limit) : $util.Long.fromBits(message.limit.low >>> 0, message.limit.high >>> 0, false).toBigInt();
+                    else if (typeof message.limit === "number")
+                        object.limit = options.longs === $String ? $String(message.limit) : message.limit;
+                    else
+                        object.limit = options.longs === $String ? $util.Long.prototype.toString.call(message.limit) : options.longs === $Number ? new $util.LongBits(message.limit.low >>> 0, message.limit.high >>> 0).toNumber() : message.limit;
+                    if (options.oneofs)
+                        object._limit = "limit";
+                }
+                return object;
+            };
+
+            /**
+             * Converts this CompactionPage to JSON.
+             * @function toJSON
+             * @memberof northstar.data_hub.CompactionPage
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            CompactionPage.prototype.toJSON = function() {
+                return CompactionPage.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for CompactionPage
+             * @function getTypeUrl
+             * @memberof northstar.data_hub.CompactionPage
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            CompactionPage.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.data_hub.CompactionPage";
+            };
+
+            return CompactionPage;
+        })();
+
+        data_hub.CompactionList = (function() {
+
+            /**
+             * Properties of a CompactionList.
+             * @typedef {Object} northstar.data_hub.CompactionList.$Properties
+             * @property {Array.<northstar.data_hub.Compaction.$Properties>|null} [items] CompactionList items
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a CompactionList.
+             * @memberof northstar.data_hub
+             * @interface ICompactionList
+             * @augments northstar.data_hub.CompactionList.$Properties
+             * @deprecated Use northstar.data_hub.CompactionList.$Properties instead.
+             */
+
+            /**
+             * Shape of a CompactionList.
+             * @typedef {{
+             *   items?: Array.<northstar.data_hub.Compaction.$Shape>|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * }} northstar.data_hub.CompactionList.$Shape
+             */
+
+            /**
+             * Constructs a new CompactionList.
+             * @memberof northstar.data_hub
+             * @classdesc Represents a CompactionList.
+             * @constructor
+             * @param {northstar.data_hub.CompactionList.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const CompactionList = function (properties) {
+                this.items = [];
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * CompactionList items.
+             * @member {Array.<northstar.data_hub.Compaction.$Properties>} items
+             * @memberof northstar.data_hub.CompactionList
+             * @instance
+             */
+            CompactionList.prototype.items = $util.emptyArray;
+
+            /**
+             * Creates a new CompactionList instance using the specified properties.
+             * @function create
+             * @memberof northstar.data_hub.CompactionList
+             * @static
+             * @param {northstar.data_hub.CompactionList.$Properties=} [properties] Properties to set
+             * @returns {northstar.data_hub.CompactionList} CompactionList instance
+             * @type {{
+             *   (properties: northstar.data_hub.CompactionList.$Shape): northstar.data_hub.CompactionList & northstar.data_hub.CompactionList.$Shape;
+             *   (properties?: northstar.data_hub.CompactionList.$Properties): northstar.data_hub.CompactionList;
+             * }}
+             */
+            CompactionList.create = function(properties) {
+                return new CompactionList(properties);
+            };
+
+            /**
+             * Encodes the specified CompactionList message. Does not implicitly {@link northstar.data_hub.CompactionList.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.data_hub.CompactionList
+             * @static
+             * @param {northstar.data_hub.CompactionList.$Properties} message CompactionList message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            CompactionList.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.items != null && message.items.length)
+                    for (let i = 0; i < message.items.length; ++i)
+                        $root.northstar.data_hub.Compaction.encode(message.items[i], writer.uint32(/* id 1, wireType 2 =*/10).fork(), _depth + 1).ldelim();
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a CompactionList message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.data_hub.CompactionList
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.data_hub.CompactionList & northstar.data_hub.CompactionList.$Shape} CompactionList
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            CompactionList.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.data_hub.CompactionList();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.items && message.items.length))
+                                message.items = [];
+                            message.items.push($root.northstar.data_hub.Compaction.decode(reader, reader.uint32(), $undefined, _depth + 1));
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a CompactionList message.
+             * @function verify
+             * @memberof northstar.data_hub.CompactionList
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            CompactionList.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                if (message.items != null && $Object.hasOwnProperty.call(message, "items")) {
+                    if (!$Array.isArray(message.items))
+                        return "items: array expected";
+                    for (let i = 0; i < message.items.length; ++i) {
+                        let error = $root.northstar.data_hub.Compaction.verify(message.items[i], _depth + 1);
+                        if (error)
+                            return "items." + error;
+                    }
+                }
+                return null;
+            };
+
+            /**
+             * Creates a CompactionList message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.data_hub.CompactionList
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.data_hub.CompactionList} CompactionList
+             */
+            CompactionList.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.data_hub.CompactionList)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.data_hub.CompactionList: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.data_hub.CompactionList();
+                if (object.items) {
+                    if (!$Array.isArray(object.items))
+                        throw $TypeError(".northstar.data_hub.CompactionList.items: array expected");
+                    message.items = $Array(object.items.length);
+                    for (let i = 0; i < object.items.length; ++i) {
+                        if (!$util.isObject(object.items[i]))
+                            throw $TypeError(".northstar.data_hub.CompactionList.items: object expected");
+                        message.items[i] = $root.northstar.data_hub.Compaction.fromObject(object.items[i], _depth + 1);
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a CompactionList message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.data_hub.CompactionList
+             * @static
+             * @param {northstar.data_hub.CompactionList} message CompactionList
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            CompactionList.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.arrays || options.defaults)
+                    object.items = [];
+                if (message.items && message.items.length) {
+                    object.items = $Array(message.items.length);
+                    for (let j = 0; j < message.items.length; ++j)
+                        object.items[j] = $root.northstar.data_hub.Compaction.toObject(message.items[j], options, _depth + 1);
+                }
+                return object;
+            };
+
+            /**
+             * Converts this CompactionList to JSON.
+             * @function toJSON
+             * @memberof northstar.data_hub.CompactionList
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            CompactionList.prototype.toJSON = function() {
+                return CompactionList.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for CompactionList
+             * @function getTypeUrl
+             * @memberof northstar.data_hub.CompactionList
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            CompactionList.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.data_hub.CompactionList";
+            };
+
+            return CompactionList;
+        })();
+
         return data_hub;
     })();
 

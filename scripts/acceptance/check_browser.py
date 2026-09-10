@@ -207,6 +207,9 @@ def main() -> None:
                     expect(page.get_by_role("button", name="查询数据", exact=True)).to_be_enabled()
                     page.get_by_role("button", name="查询数据", exact=True).click()
                     expect(page.get_by_text("440 条记录", exact=True)).to_be_visible()
+                    page.locator("summary").filter(has_text="查询读取统计").click()
+                    expect(page.get_by_text("文件身份仍完整核验", exact=False)).to_be_visible()
+                    screenshot("range-cost")
                     expect(
                         page.get_by_role("img", name="固定数据 K 线、成交量与持仓量")
                     ).to_be_visible()
@@ -312,6 +315,33 @@ def main() -> None:
                     ).to_be_visible()
                     expect(page.get_by_text("后台自动同步已启用", exact=False)).to_be_visible()
                     screenshot("data")
+                    seed_market(app, compact=True)
+                    visit(
+                        data_url
+                        + "/browse?dataset=1min&scope=RB2610.SHF&start=2026-09-01&end=2026-09-03"
+                    )
+                    page.get_by_role("button", name="查询数据", exact=True).click()
+                    expect(page.get_by_text("固定 2 个分片", exact=True)).to_be_visible()
+                    page.get_by_role("button", name="合并固定版本", exact=True).click()
+                    expect(
+                        page.get_by_role("heading", name="固定版本合并", exact=True)
+                    ).to_be_visible()
+                    expect(page.get_by_text("PENDING", exact=True)).to_be_visible()
+                    fixed_url = page.url
+                    visit("about:blank")
+                with app.data_worker(synthetic_tushare=True):
+                    with app.web("data-api") as data_url:
+                        visit(data_url + urlsplit(fixed_url).path)
+                        expect(page.get_by_text("SUCCEEDED", exact=True)).to_be_visible(
+                            timeout=30000
+                        )
+                        expect(page.get_by_text("440 条记录", exact=True)).to_be_visible()
+                        expect(page.get_by_role("button", name="导出所选范围")).to_be_disabled()
+                        page.locator(".ant-pagination-item-2").first.click()
+                        expect(
+                            page.get_by_text("行情图 · 当前第 201–400 条", exact=True)
+                        ).to_be_visible()
+                        screenshot("compaction")
                 from datetime import date, timedelta
 
                 study_snapshots = [imported["snapshot_id"]]

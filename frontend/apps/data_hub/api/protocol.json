@@ -1417,6 +1417,152 @@
       "array": false,
       "evidence": false
     },
+    "northstar.data_hub.CompactionRequest": {
+      "fields": {
+        "request_id": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "dataset": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "scope": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "start": {
+          "id": 4,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "end": {
+          "id": 5,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "receipt_ids": {
+          "id": 6,
+          "presence": false,
+          "type": "string",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.data_hub.Compaction": {
+      "fields": {
+        "compaction_id": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "plan_id": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "plan": {
+          "id": 3,
+          "presence": true,
+          "type": "google.protobuf.Struct",
+          "required": true,
+          "nullable": false
+        },
+        "created_at": {
+          "id": 4,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "status": {
+          "id": 5,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "result": {
+          "id": 6,
+          "presence": true,
+          "type": "google.protobuf.Struct",
+          "required": true,
+          "nullable": true
+        },
+        "error": {
+          "id": 7,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": true
+        },
+        "null_fields": {
+          "id": 2046,
+          "presence": false,
+          "type": "string",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.data_hub.CompactionPage": {
+      "fields": {
+        "offset": {
+          "id": 1,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "limit": {
+          "id": 2,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.data_hub.CompactionList": {
+      "fields": {
+        "items": {
+          "id": 1,
+          "presence": false,
+          "type": "northstar.data_hub.Compaction",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        }
+      },
+      "array": true,
+      "evidence": false
+    },
     "northstar.web.Empty": {
       "fields": {},
       "array": false,
@@ -1720,6 +1866,41 @@
     }
   },
   "methods": [
+    {
+      "method": "POST",
+      "path": "/api/explorer/compactions",
+      "input": "northstar.data_hub.CompactionRequest",
+      "output": "northstar.data_hub.Compaction",
+      "runtime": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/explorer/compactions",
+      "input": "northstar.web.Empty",
+      "output": "northstar.data_hub.CompactionList",
+      "runtime": false
+    },
+    {
+      "method": "GET",
+      "path": "/api/explorer/compactions/{compaction_id}",
+      "input": "northstar.web.Empty",
+      "output": "northstar.data_hub.Compaction",
+      "runtime": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/explorer/compactions/{compaction_id}/query",
+      "input": "northstar.data_hub.CompactionPage",
+      "output": "northstar.data_hub.ExplorerRows",
+      "runtime": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/explorer/compactions/{compaction_id}/export",
+      "input": "northstar.data_hub.CompactionPage",
+      "output": "northstar.data_hub.ExplorerRows",
+      "runtime": false
+    },
     {
       "method": "POST",
       "path": "/api/login",

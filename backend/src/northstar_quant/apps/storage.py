@@ -109,6 +109,11 @@ def initialize_database(engine: Engine, *, owner: str | None = None) -> None:
 
             initialize_sync(connection)
             initialize_maintenance(connection)
+            from northstar_quant.data_management.compaction import (
+                initialize as initialize_compactions,
+            )
+
+            initialize_compactions(connection)
         if owner in {"all", "research"}:
             initialize_factor_catalog(connection)
             initialize_strategy_management(connection)
@@ -174,6 +179,7 @@ def require_current_database(engine: Engine) -> None:
         "paper_steps",
         "data_sources",
         "data_processing_attempts",
+        "data_compactions",
         "data_sync_jobs",
         "data_sync_settings",
         "data_sync_receipts",

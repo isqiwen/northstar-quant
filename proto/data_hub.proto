@@ -271,7 +271,37 @@ message RevisionComparison {
   optional string note = 11 [(northstar.web.required_field) = true];
 }
 
+message CompactionRequest {
+  optional string request_id = 1 [(northstar.web.required_field) = true];
+  optional string dataset = 2 [(northstar.web.required_field) = true];
+  optional string scope = 3 [(northstar.web.required_field) = true];
+  optional string start = 4 [(northstar.web.required_field) = true];
+  optional string end = 5 [(northstar.web.required_field) = true];
+  repeated string receipt_ids = 6 [(northstar.web.required_field) = true];
+}
+message Compaction {
+  optional string compaction_id = 1 [(northstar.web.required_field) = true];
+  optional string plan_id = 2 [(northstar.web.required_field) = true];
+  optional google.protobuf.Struct plan = 3 [(northstar.web.required_field) = true];
+  optional string created_at = 4 [(northstar.web.required_field) = true];
+  optional string status = 5 [(northstar.web.required_field) = true];
+  optional google.protobuf.Struct result = 6 [(northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  optional string error = 7 [(northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  repeated string null_fields = 2046;
+}
+message CompactionPage {
+  optional int64 offset = 1 [(northstar.web.required_field) = true];
+  optional int64 limit = 2 [(northstar.web.required_field) = true];
+}
+message CompactionList { option (northstar.web.root_array) = true; repeated Compaction items = 1; }
+
 service BrowserApi {
+  rpc SubmitCompaction(CompactionRequest) returns (Compaction) { option (northstar.web.http_method) = "POST"; option (northstar.web.http_path) = "/api/explorer/compactions"; }
+  rpc ListCompactions(northstar.web.Empty) returns (CompactionList) { option (northstar.web.http_method) = "GET"; option (northstar.web.http_path) = "/api/explorer/compactions"; }
+  rpc GetCompaction(northstar.web.Empty) returns (Compaction) { option (northstar.web.http_method) = "GET"; option (northstar.web.http_path) = "/api/explorer/compactions/{compaction_id}"; }
+  rpc ReadCompaction(CompactionPage) returns (ExplorerRows) { option (northstar.web.http_method) = "POST"; option (northstar.web.http_path) = "/api/explorer/compactions/{compaction_id}/query"; }
+  rpc ExportCompaction(CompactionPage) returns (ExplorerRows) { option (northstar.web.http_method) = "POST"; option (northstar.web.http_path) = "/api/explorer/compactions/{compaction_id}/export"; }
+
   rpc PostApiLogin (northstar.web.auth.LoginRequest) returns (northstar.web.auth.BrowserSession) {
     option (northstar.web.http_method) = "POST";
     option (northstar.web.http_path) = "/api/login";

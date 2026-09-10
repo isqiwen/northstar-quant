@@ -14,6 +14,7 @@ import {
 import Link from "next/link";
 import type { ExplorerRows } from "../api/generated";
 import { Evidence } from "../../../shared/ui";
+import { CompactButton } from "./compact-button";
 import { PriceChart } from "./price-chart";
 type Row = Record<string, unknown>;
 const fieldOrder = [
@@ -35,7 +36,9 @@ export function DataPanel({
   exporting,
   onExport,
   onPage,
+  compacted = false,
 }: {
+  compacted?: boolean;
   result: ExplorerRows;
   exporting: boolean;
   onExport: () => void;
@@ -65,6 +68,7 @@ export function DataPanel({
           <Tag>Asia/Shanghai</Tag>
           <Tag>固定 {result.receipt_ids.length} 个分片</Tag>
           <strong>{result.total.toLocaleString()} 条记录</strong>
+          {!compacted && <CompactButton result={result} />}
           <Button
             disabled={!result.export_allowed || !result.total}
             loading={exporting}

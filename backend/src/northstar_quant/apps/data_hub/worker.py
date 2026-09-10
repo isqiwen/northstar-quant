@@ -7,6 +7,7 @@ from threading import Event
 from sqlalchemy import text
 
 from northstar_quant.apps.storage import open_database, require_current_database
+from northstar_quant.data_management.compaction import process_next as compact_next
 from northstar_quant.data_management.files import SourceFiles
 from northstar_quant.data_management.library import DataLibrary
 from northstar_quant.data_management.processing import process_attempt
@@ -32,11 +33,16 @@ def run() -> None:
         while not stop.is_set():
             sync = process_next(library)
             result = process_attempt(library)
+            compacted = compact_next(engine, library._files)
             if sync is not None:
                 logging.getLogger(__name__).info(
                     "Data sync %s: %s", sync["request_id"], sync["status"]
                 )
-            if result is None and sync is None:
+            if compacted is not None:
+                logging.getLogger(__name__).info(
+                    "Data compaction %s: %s", compacted["compaction_id"], compacted["status"]
+                )
+            if result is None and sync is None and compacted is None:
                 stop.wait(1)
             elif result is not None:
                 logging.getLogger(__name__).info(

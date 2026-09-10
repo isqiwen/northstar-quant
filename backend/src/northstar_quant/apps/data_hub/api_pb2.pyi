@@ -500,3 +500,53 @@ class RevisionComparison(_message.Message):
     offset: int
     note: str
     def __init__(self, comparison_id: _Optional[str] = ..., rule: _Optional[str] = ..., before: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., after: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., source_changed: _Optional[bool] = ..., rules_changed: _Optional[bool] = ..., counts: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., changes: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., total: _Optional[int] = ..., offset: _Optional[int] = ..., note: _Optional[str] = ...) -> None: ...
+
+class CompactionRequest(_message.Message):
+    __slots__ = ("request_id", "dataset", "scope", "start", "end", "receipt_ids")
+    REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
+    DATASET_FIELD_NUMBER: _ClassVar[int]
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
+    START_FIELD_NUMBER: _ClassVar[int]
+    END_FIELD_NUMBER: _ClassVar[int]
+    RECEIPT_IDS_FIELD_NUMBER: _ClassVar[int]
+    request_id: str
+    dataset: str
+    scope: str
+    start: str
+    end: str
+    receipt_ids: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, request_id: _Optional[str] = ..., dataset: _Optional[str] = ..., scope: _Optional[str] = ..., start: _Optional[str] = ..., end: _Optional[str] = ..., receipt_ids: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class Compaction(_message.Message):
+    __slots__ = ("compaction_id", "plan_id", "plan", "created_at", "status", "result", "error", "null_fields")
+    COMPACTION_ID_FIELD_NUMBER: _ClassVar[int]
+    PLAN_ID_FIELD_NUMBER: _ClassVar[int]
+    PLAN_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    RESULT_FIELD_NUMBER: _ClassVar[int]
+    ERROR_FIELD_NUMBER: _ClassVar[int]
+    NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    compaction_id: str
+    plan_id: str
+    plan: _struct_pb2.Struct
+    created_at: str
+    status: str
+    result: _struct_pb2.Struct
+    error: str
+    null_fields: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, compaction_id: _Optional[str] = ..., plan_id: _Optional[str] = ..., plan: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., created_at: _Optional[str] = ..., status: _Optional[str] = ..., result: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., error: _Optional[str] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class CompactionPage(_message.Message):
+    __slots__ = ("offset", "limit")
+    OFFSET_FIELD_NUMBER: _ClassVar[int]
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    offset: int
+    limit: int
+    def __init__(self, offset: _Optional[int] = ..., limit: _Optional[int] = ...) -> None: ...
+
+class CompactionList(_message.Message):
+    __slots__ = ("items",)
+    ITEMS_FIELD_NUMBER: _ClassVar[int]
+    items: _containers.RepeatedCompositeFieldContainer[Compaction]
+    def __init__(self, items: _Optional[_Iterable[_Union[Compaction, _Mapping]]] = ...) -> None: ...

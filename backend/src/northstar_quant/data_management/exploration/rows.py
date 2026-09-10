@@ -50,19 +50,9 @@ def read(
         _READERS.release()
 
 
-def _read(
-    engine: Engine,
-    dataset: str,
-    scope: str,
-    start: str,
-    end: str,
-    receipt_ids: list[UUID],
-    offset: int,
-    limit: int,
-) -> dict[str, Any]:
-    versions = pinned(engine, dataset, scope, start, end, receipt_ids)
-    if sum(r["parquet_bytes"] for r in versions) > 32 * 1024 * 1024:
-        raise ValueError("所选分片超过 32 MiB，请缩小范围")
+def source_permissions(
+    engine: Engine, versions: list[dict[str, Any]]
+) -> tuple[list[dict[str, Any]], bool]:
     with engine.connect() as c:
         sources = [
             serial(r)
@@ -79,6 +69,23 @@ def _read(
         and all(any(s["content_hash"] == r["source_hash"] for s in sources) for r in versions)
         and all(s["allow_download"] for s in sources)
     )
+    return sources, export_allowed
+
+
+def _read(
+    engine: Engine,
+    dataset: str,
+    scope: str,
+    start: str,
+    end: str,
+    receipt_ids: list[UUID],
+    offset: int,
+    limit: int,
+) -> dict[str, Any]:
+    versions = pinned(engine, dataset, scope, start, end, receipt_ids)
+    if sum(r["parquet_bytes"] for r in versions) > 32 * 1024 * 1024:
+        raise ValueError("所选分片超过 32 MiB，请缩小范围")
+    sources, export_allowed = source_permissions(engine, versions)
     files = publication.storage()
     selected: dict[tuple[str, ...], dict[str, Any]] = {}
     origins: dict[tuple[str, ...], list[str]] = {}

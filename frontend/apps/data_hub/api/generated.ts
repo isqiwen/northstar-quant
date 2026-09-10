@@ -219,6 +219,28 @@ export type RevisionComparison = {
   offset: number;
   note: string;
 };
+export type CompactionRequest = {
+  request_id: string;
+  dataset: string;
+  scope: string;
+  start: string;
+  end: string;
+  receipt_ids: (string)[];
+};
+export type Compaction = {
+  compaction_id: string;
+  plan_id: string;
+  plan: Record<string, JsonValue>;
+  created_at: string;
+  status: string;
+  result: Record<string, JsonValue> | null;
+  error: string | null;
+};
+export type CompactionPage = {
+  offset: number;
+  limit: number;
+};
+export type CompactionList = (Compaction)[];
 export type Empty = {
 };
 export type Error = {
