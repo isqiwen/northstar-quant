@@ -4055,8 +4055,8 @@ export const northstar = $root.northstar = (() => {
              * @property {string|null} [symbol] DatasetDetails symbol
              * @property {Array.<string>|null} [trading_days] DatasetDetails trading_days
              * @property {Array.<string>|null} [null_fields] DatasetDetails null_fields
-             * @property {Array.<google.protobuf.Struct.$Properties>|null} [settlements] DatasetDetails settlements
-             * @property {Array.<google.protobuf.Struct.$Properties>|null} [terms] DatasetDetails terms
+             * @property {Array.<northstar.accounting.SettlementFact.$Properties>|null} [settlements] DatasetDetails settlements
+             * @property {Array.<northstar.accounting.FuturesTerms.$Properties>|null} [terms] DatasetDetails terms
              * @property {"availability_basis"} [_availability_basis] DatasetDetails _availability_basis
              * @property {"availability_note"} [_availability_note] DatasetDetails _availability_note
              * @property {"bar_count"} [_bar_count] DatasetDetails _bar_count
@@ -4106,8 +4106,8 @@ export const northstar = $root.northstar = (() => {
              *   symbol?: string|null;
              *   trading_days?: Array.<string>|null;
              *   null_fields?: Array.<string>|null;
-             *   settlements?: Array.<google.protobuf.Struct.$Shape>|null;
-             *   terms?: Array.<google.protobuf.Struct.$Shape>|null;
+             *   settlements?: Array.<northstar.accounting.SettlementFact.$Shape>|null;
+             *   terms?: Array.<northstar.accounting.FuturesTerms.$Shape>|null;
              *   $unknowns?: Array.<Uint8Array>;
              * } & (
              *   ({ _availability_basis?: undefined; availability_basis?: null }|{ _availability_basis?: "availability_basis"; availability_basis: string })
@@ -4326,7 +4326,7 @@ export const northstar = $root.northstar = (() => {
 
             /**
              * DatasetDetails settlements.
-             * @member {Array.<google.protobuf.Struct.$Properties>} settlements
+             * @member {Array.<northstar.accounting.SettlementFact.$Properties>} settlements
              * @memberof northstar.research.DatasetDetails
              * @instance
              */
@@ -4334,7 +4334,7 @@ export const northstar = $root.northstar = (() => {
 
             /**
              * DatasetDetails terms.
-             * @member {Array.<google.protobuf.Struct.$Properties>} terms
+             * @member {Array.<northstar.accounting.FuturesTerms.$Properties>} terms
              * @memberof northstar.research.DatasetDetails
              * @instance
              */
@@ -4584,10 +4584,10 @@ export const northstar = $root.northstar = (() => {
                         writer.uint32(/* id 19, wireType 2 =*/154).string(message.trading_days[i]);
                 if (message.settlements != null && message.settlements.length)
                     for (let i = 0; i < message.settlements.length; ++i)
-                        $root.google.protobuf.Struct.encode(message.settlements[i], writer.uint32(/* id 20, wireType 2 =*/162).fork(), _depth + 1).ldelim();
+                        $root.northstar.accounting.SettlementFact.encode(message.settlements[i], writer.uint32(/* id 20, wireType 2 =*/162).fork(), _depth + 1).ldelim();
                 if (message.terms != null && message.terms.length)
                     for (let i = 0; i < message.terms.length; ++i)
-                        $root.google.protobuf.Struct.encode(message.terms[i], writer.uint32(/* id 21, wireType 2 =*/170).fork(), _depth + 1).ldelim();
+                        $root.northstar.accounting.FuturesTerms.encode(message.terms[i], writer.uint32(/* id 21, wireType 2 =*/170).fork(), _depth + 1).ldelim();
                 if (message.null_fields != null && message.null_fields.length)
                     for (let i = 0; i < message.null_fields.length; ++i)
                         writer.uint32(/* id 2046, wireType 2 =*/16370).string(message.null_fields[i]);
@@ -4785,7 +4785,7 @@ export const northstar = $root.northstar = (() => {
                                 break;
                             if (!(message.settlements && message.settlements.length))
                                 message.settlements = [];
-                            message.settlements.push($root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1));
+                            message.settlements.push($root.northstar.accounting.SettlementFact.decode(reader, reader.uint32(), $undefined, _depth + 1));
                             continue;
                         }
                     case 21: {
@@ -4793,7 +4793,7 @@ export const northstar = $root.northstar = (() => {
                                 break;
                             if (!(message.terms && message.terms.length))
                                 message.terms = [];
-                            message.terms.push($root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1));
+                            message.terms.push($root.northstar.accounting.FuturesTerms.decode(reader, reader.uint32(), $undefined, _depth + 1));
                             continue;
                         }
                     }
@@ -4956,7 +4956,7 @@ export const northstar = $root.northstar = (() => {
                     if (!$Array.isArray(message.settlements))
                         return "settlements: array expected";
                     for (let i = 0; i < message.settlements.length; ++i) {
-                        let error = $root.google.protobuf.Struct.verify(message.settlements[i], _depth + 1);
+                        let error = $root.northstar.accounting.SettlementFact.verify(message.settlements[i], _depth + 1);
                         if (error)
                             return "settlements." + error;
                     }
@@ -4965,7 +4965,7 @@ export const northstar = $root.northstar = (() => {
                     if (!$Array.isArray(message.terms))
                         return "terms: array expected";
                     for (let i = 0; i < message.terms.length; ++i) {
-                        let error = $root.google.protobuf.Struct.verify(message.terms[i], _depth + 1);
+                        let error = $root.northstar.accounting.FuturesTerms.verify(message.terms[i], _depth + 1);
                         if (error)
                             return "terms." + error;
                     }
@@ -5085,7 +5085,7 @@ export const northstar = $root.northstar = (() => {
                     for (let i = 0; i < object.settlements.length; ++i) {
                         if (!$util.isObject(object.settlements[i]))
                             throw $TypeError(".northstar.research.DatasetDetails.settlements: object expected");
-                        message.settlements[i] = $root.google.protobuf.Struct.fromObject(object.settlements[i], _depth + 1);
+                        message.settlements[i] = $root.northstar.accounting.SettlementFact.fromObject(object.settlements[i], _depth + 1);
                     }
                 }
                 if (object.terms) {
@@ -5095,7 +5095,7 @@ export const northstar = $root.northstar = (() => {
                     for (let i = 0; i < object.terms.length; ++i) {
                         if (!$util.isObject(object.terms[i]))
                             throw $TypeError(".northstar.research.DatasetDetails.terms: object expected");
-                        message.terms[i] = $root.google.protobuf.Struct.fromObject(object.terms[i], _depth + 1);
+                        message.terms[i] = $root.northstar.accounting.FuturesTerms.fromObject(object.terms[i], _depth + 1);
                     }
                 }
                 return message;
@@ -5230,12 +5230,12 @@ export const northstar = $root.northstar = (() => {
                 if (message.settlements && message.settlements.length) {
                     object.settlements = $Array(message.settlements.length);
                     for (let j = 0; j < message.settlements.length; ++j)
-                        object.settlements[j] = $root.google.protobuf.Struct.toObject(message.settlements[j], options, _depth + 1);
+                        object.settlements[j] = $root.northstar.accounting.SettlementFact.toObject(message.settlements[j], options, _depth + 1);
                 }
                 if (message.terms && message.terms.length) {
                     object.terms = $Array(message.terms.length);
                     for (let j = 0; j < message.terms.length; ++j)
-                        object.terms[j] = $root.google.protobuf.Struct.toObject(message.terms[j], options, _depth + 1);
+                        object.terms[j] = $root.northstar.accounting.FuturesTerms.toObject(message.terms[j], options, _depth + 1);
                 }
                 if (message.null_fields && message.null_fields.length) {
                     object.null_fields = $Array(message.null_fields.length);
@@ -30888,6 +30888,1839 @@ export const northstar = $root.northstar = (() => {
         })();
 
         return web;
+    })();
+
+    northstar.accounting = (function() {
+
+        /**
+         * Namespace accounting.
+         * @memberof northstar
+         * @namespace
+         */
+        const accounting = {};
+
+        accounting.ChargeRate = (function() {
+
+            /**
+             * Properties of a ChargeRate.
+             * @typedef {Object} northstar.accounting.ChargeRate.$Properties
+             * @property {string|null} [by_money] ChargeRate by_money
+             * @property {string|null} [by_volume] ChargeRate by_volume
+             * @property {"by_money"} [_by_money] ChargeRate _by_money
+             * @property {"by_volume"} [_by_volume] ChargeRate _by_volume
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a ChargeRate.
+             * @memberof northstar.accounting
+             * @interface IChargeRate
+             * @augments northstar.accounting.ChargeRate.$Properties
+             * @deprecated Use northstar.accounting.ChargeRate.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a ChargeRate.
+             * @typedef {{
+             *   by_money?: string|null;
+             *   by_volume?: string|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _by_money?: undefined; by_money?: null }|{ _by_money?: "by_money"; by_money: string })
+             * ) & (
+             *   ({ _by_volume?: undefined; by_volume?: null }|{ _by_volume?: "by_volume"; by_volume: string })
+             * )} northstar.accounting.ChargeRate.$Shape
+             */
+
+            /**
+             * Constructs a new ChargeRate.
+             * @memberof northstar.accounting
+             * @classdesc Represents a ChargeRate.
+             * @constructor
+             * @param {northstar.accounting.ChargeRate.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const ChargeRate = function (properties) {
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * ChargeRate by_money.
+             * @member {string|null|undefined} by_money
+             * @memberof northstar.accounting.ChargeRate
+             * @instance
+             */
+            ChargeRate.prototype.by_money = null;
+
+            /**
+             * ChargeRate by_volume.
+             * @member {string|null|undefined} by_volume
+             * @memberof northstar.accounting.ChargeRate
+             * @instance
+             */
+            ChargeRate.prototype.by_volume = null;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * ChargeRate _by_money.
+             * @member {"by_money"|undefined} _by_money
+             * @memberof northstar.accounting.ChargeRate
+             * @instance
+             */
+            $Object.defineProperty(ChargeRate.prototype, "_by_money", {
+                get: $util.oneOfGetter($oneOfFields = ["by_money"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ChargeRate _by_volume.
+             * @member {"by_volume"|undefined} _by_volume
+             * @memberof northstar.accounting.ChargeRate
+             * @instance
+             */
+            $Object.defineProperty(ChargeRate.prototype, "_by_volume", {
+                get: $util.oneOfGetter($oneOfFields = ["by_volume"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new ChargeRate instance using the specified properties.
+             * @function create
+             * @memberof northstar.accounting.ChargeRate
+             * @static
+             * @param {northstar.accounting.ChargeRate.$Properties=} [properties] Properties to set
+             * @returns {northstar.accounting.ChargeRate} ChargeRate instance
+             * @type {{
+             *   (properties: northstar.accounting.ChargeRate.$Shape): northstar.accounting.ChargeRate & northstar.accounting.ChargeRate.$Shape;
+             *   (properties?: northstar.accounting.ChargeRate.$Properties): northstar.accounting.ChargeRate;
+             * }}
+             */
+            ChargeRate.create = function(properties) {
+                return new ChargeRate(properties);
+            };
+
+            /**
+             * Encodes the specified ChargeRate message. Does not implicitly {@link northstar.accounting.ChargeRate.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.accounting.ChargeRate
+             * @static
+             * @param {northstar.accounting.ChargeRate.$Properties} message ChargeRate message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            ChargeRate.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.by_money != null && $Object.hasOwnProperty.call(message, "by_money"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.by_money);
+                if (message.by_volume != null && $Object.hasOwnProperty.call(message, "by_volume"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.by_volume);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a ChargeRate message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.accounting.ChargeRate
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.accounting.ChargeRate & northstar.accounting.ChargeRate.$Shape} ChargeRate
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            ChargeRate.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.accounting.ChargeRate();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.by_money = reader.stringVerify();
+                            message._by_money = "by_money";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.by_volume = reader.stringVerify();
+                            message._by_volume = "by_volume";
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a ChargeRate message.
+             * @function verify
+             * @memberof northstar.accounting.ChargeRate
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            ChargeRate.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.by_money != null && $Object.hasOwnProperty.call(message, "by_money")) {
+                    properties._by_money = 1;
+                    if (!$util.isString(message.by_money))
+                        return "by_money: string expected";
+                }
+                if (message.by_volume != null && $Object.hasOwnProperty.call(message, "by_volume")) {
+                    properties._by_volume = 1;
+                    if (!$util.isString(message.by_volume))
+                        return "by_volume: string expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a ChargeRate message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.accounting.ChargeRate
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.accounting.ChargeRate} ChargeRate
+             */
+            ChargeRate.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.accounting.ChargeRate)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.accounting.ChargeRate: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.accounting.ChargeRate();
+                if (object.by_money != null)
+                    message.by_money = $String(object.by_money);
+                if (object.by_volume != null)
+                    message.by_volume = $String(object.by_volume);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a ChargeRate message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.accounting.ChargeRate
+             * @static
+             * @param {northstar.accounting.ChargeRate} message ChargeRate
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            ChargeRate.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (message.by_money != null && $Object.hasOwnProperty.call(message, "by_money")) {
+                    object.by_money = message.by_money;
+                    if (options.oneofs)
+                        object._by_money = "by_money";
+                }
+                if (message.by_volume != null && $Object.hasOwnProperty.call(message, "by_volume")) {
+                    object.by_volume = message.by_volume;
+                    if (options.oneofs)
+                        object._by_volume = "by_volume";
+                }
+                return object;
+            };
+
+            /**
+             * Converts this ChargeRate to JSON.
+             * @function toJSON
+             * @memberof northstar.accounting.ChargeRate
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            ChargeRate.prototype.toJSON = function() {
+                return ChargeRate.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for ChargeRate
+             * @function getTypeUrl
+             * @memberof northstar.accounting.ChargeRate
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            ChargeRate.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.accounting.ChargeRate";
+            };
+
+            return ChargeRate;
+        })();
+
+        accounting.FuturesTerms = (function() {
+
+            /**
+             * Properties of a FuturesTerms.
+             * @typedef {Object} northstar.accounting.FuturesTerms.$Properties
+             * @property {string|null} [terms_id] FuturesTerms terms_id
+             * @property {string|null} [contract_id] FuturesTerms contract_id
+             * @property {string|null} [effective_from] FuturesTerms effective_from
+             * @property {string|null} [effective_until] FuturesTerms effective_until
+             * @property {string|null} [available_at] FuturesTerms available_at
+             * @property {string|null} [source_reference] FuturesTerms source_reference
+             * @property {northstar.accounting.ChargeRate.$Properties|null} [open_fee] FuturesTerms open_fee
+             * @property {northstar.accounting.ChargeRate.$Properties|null} [close_today_fee] FuturesTerms close_today_fee
+             * @property {northstar.accounting.ChargeRate.$Properties|null} [close_yesterday_fee] FuturesTerms close_yesterday_fee
+             * @property {northstar.accounting.ChargeRate.$Properties|null} [long_margin] FuturesTerms long_margin
+             * @property {northstar.accounting.ChargeRate.$Properties|null} [short_margin] FuturesTerms short_margin
+             * @property {string|null} [lower_limit] FuturesTerms lower_limit
+             * @property {string|null} [upper_limit] FuturesTerms upper_limit
+             * @property {string|null} [money_quantum] FuturesTerms money_quantum
+             * @property {string|null} [fee_rounding] FuturesTerms fee_rounding
+             * @property {"terms_id"} [_terms_id] FuturesTerms _terms_id
+             * @property {"contract_id"} [_contract_id] FuturesTerms _contract_id
+             * @property {"effective_from"} [_effective_from] FuturesTerms _effective_from
+             * @property {"effective_until"} [_effective_until] FuturesTerms _effective_until
+             * @property {"available_at"} [_available_at] FuturesTerms _available_at
+             * @property {"source_reference"} [_source_reference] FuturesTerms _source_reference
+             * @property {"open_fee"} [_open_fee] FuturesTerms _open_fee
+             * @property {"close_today_fee"} [_close_today_fee] FuturesTerms _close_today_fee
+             * @property {"close_yesterday_fee"} [_close_yesterday_fee] FuturesTerms _close_yesterday_fee
+             * @property {"long_margin"} [_long_margin] FuturesTerms _long_margin
+             * @property {"short_margin"} [_short_margin] FuturesTerms _short_margin
+             * @property {"lower_limit"} [_lower_limit] FuturesTerms _lower_limit
+             * @property {"upper_limit"} [_upper_limit] FuturesTerms _upper_limit
+             * @property {"money_quantum"} [_money_quantum] FuturesTerms _money_quantum
+             * @property {"fee_rounding"} [_fee_rounding] FuturesTerms _fee_rounding
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a FuturesTerms.
+             * @memberof northstar.accounting
+             * @interface IFuturesTerms
+             * @augments northstar.accounting.FuturesTerms.$Properties
+             * @deprecated Use northstar.accounting.FuturesTerms.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a FuturesTerms.
+             * @typedef {{
+             *   terms_id?: string|null;
+             *   contract_id?: string|null;
+             *   effective_from?: string|null;
+             *   effective_until?: string|null;
+             *   available_at?: string|null;
+             *   source_reference?: string|null;
+             *   open_fee?: northstar.accounting.ChargeRate.$Shape|null;
+             *   close_today_fee?: northstar.accounting.ChargeRate.$Shape|null;
+             *   close_yesterday_fee?: northstar.accounting.ChargeRate.$Shape|null;
+             *   long_margin?: northstar.accounting.ChargeRate.$Shape|null;
+             *   short_margin?: northstar.accounting.ChargeRate.$Shape|null;
+             *   lower_limit?: string|null;
+             *   upper_limit?: string|null;
+             *   money_quantum?: string|null;
+             *   fee_rounding?: string|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _terms_id?: undefined; terms_id?: null }|{ _terms_id?: "terms_id"; terms_id: string })
+             * ) & (
+             *   ({ _contract_id?: undefined; contract_id?: null }|{ _contract_id?: "contract_id"; contract_id: string })
+             * ) & (
+             *   ({ _effective_from?: undefined; effective_from?: null }|{ _effective_from?: "effective_from"; effective_from: string })
+             * ) & (
+             *   ({ _effective_until?: undefined; effective_until?: null }|{ _effective_until?: "effective_until"; effective_until: string })
+             * ) & (
+             *   ({ _available_at?: undefined; available_at?: null }|{ _available_at?: "available_at"; available_at: string })
+             * ) & (
+             *   ({ _source_reference?: undefined; source_reference?: null }|{ _source_reference?: "source_reference"; source_reference: string })
+             * ) & (
+             *   ({ _open_fee?: undefined; open_fee?: null }|{ _open_fee?: "open_fee"; open_fee: northstar.accounting.ChargeRate.$Shape })
+             * ) & (
+             *   ({ _close_today_fee?: undefined; close_today_fee?: null }|{ _close_today_fee?: "close_today_fee"; close_today_fee: northstar.accounting.ChargeRate.$Shape })
+             * ) & (
+             *   ({ _close_yesterday_fee?: undefined; close_yesterday_fee?: null }|{ _close_yesterday_fee?: "close_yesterday_fee"; close_yesterday_fee: northstar.accounting.ChargeRate.$Shape })
+             * ) & (
+             *   ({ _long_margin?: undefined; long_margin?: null }|{ _long_margin?: "long_margin"; long_margin: northstar.accounting.ChargeRate.$Shape })
+             * ) & (
+             *   ({ _short_margin?: undefined; short_margin?: null }|{ _short_margin?: "short_margin"; short_margin: northstar.accounting.ChargeRate.$Shape })
+             * ) & (
+             *   ({ _lower_limit?: undefined; lower_limit?: null }|{ _lower_limit?: "lower_limit"; lower_limit: string })
+             * ) & (
+             *   ({ _upper_limit?: undefined; upper_limit?: null }|{ _upper_limit?: "upper_limit"; upper_limit: string })
+             * ) & (
+             *   ({ _money_quantum?: undefined; money_quantum?: null }|{ _money_quantum?: "money_quantum"; money_quantum: string })
+             * ) & (
+             *   ({ _fee_rounding?: undefined; fee_rounding?: null }|{ _fee_rounding?: "fee_rounding"; fee_rounding: string })
+             * )} northstar.accounting.FuturesTerms.$Shape
+             */
+
+            /**
+             * Constructs a new FuturesTerms.
+             * @memberof northstar.accounting
+             * @classdesc Represents a FuturesTerms.
+             * @constructor
+             * @param {northstar.accounting.FuturesTerms.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const FuturesTerms = function (properties) {
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * FuturesTerms terms_id.
+             * @member {string|null|undefined} terms_id
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            FuturesTerms.prototype.terms_id = null;
+
+            /**
+             * FuturesTerms contract_id.
+             * @member {string|null|undefined} contract_id
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            FuturesTerms.prototype.contract_id = null;
+
+            /**
+             * FuturesTerms effective_from.
+             * @member {string|null|undefined} effective_from
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            FuturesTerms.prototype.effective_from = null;
+
+            /**
+             * FuturesTerms effective_until.
+             * @member {string|null|undefined} effective_until
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            FuturesTerms.prototype.effective_until = null;
+
+            /**
+             * FuturesTerms available_at.
+             * @member {string|null|undefined} available_at
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            FuturesTerms.prototype.available_at = null;
+
+            /**
+             * FuturesTerms source_reference.
+             * @member {string|null|undefined} source_reference
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            FuturesTerms.prototype.source_reference = null;
+
+            /**
+             * FuturesTerms open_fee.
+             * @member {northstar.accounting.ChargeRate.$Properties|null|undefined} open_fee
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            FuturesTerms.prototype.open_fee = null;
+
+            /**
+             * FuturesTerms close_today_fee.
+             * @member {northstar.accounting.ChargeRate.$Properties|null|undefined} close_today_fee
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            FuturesTerms.prototype.close_today_fee = null;
+
+            /**
+             * FuturesTerms close_yesterday_fee.
+             * @member {northstar.accounting.ChargeRate.$Properties|null|undefined} close_yesterday_fee
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            FuturesTerms.prototype.close_yesterday_fee = null;
+
+            /**
+             * FuturesTerms long_margin.
+             * @member {northstar.accounting.ChargeRate.$Properties|null|undefined} long_margin
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            FuturesTerms.prototype.long_margin = null;
+
+            /**
+             * FuturesTerms short_margin.
+             * @member {northstar.accounting.ChargeRate.$Properties|null|undefined} short_margin
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            FuturesTerms.prototype.short_margin = null;
+
+            /**
+             * FuturesTerms lower_limit.
+             * @member {string|null|undefined} lower_limit
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            FuturesTerms.prototype.lower_limit = null;
+
+            /**
+             * FuturesTerms upper_limit.
+             * @member {string|null|undefined} upper_limit
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            FuturesTerms.prototype.upper_limit = null;
+
+            /**
+             * FuturesTerms money_quantum.
+             * @member {string|null|undefined} money_quantum
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            FuturesTerms.prototype.money_quantum = null;
+
+            /**
+             * FuturesTerms fee_rounding.
+             * @member {string|null|undefined} fee_rounding
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            FuturesTerms.prototype.fee_rounding = null;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * FuturesTerms _terms_id.
+             * @member {"terms_id"|undefined} _terms_id
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            $Object.defineProperty(FuturesTerms.prototype, "_terms_id", {
+                get: $util.oneOfGetter($oneOfFields = ["terms_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * FuturesTerms _contract_id.
+             * @member {"contract_id"|undefined} _contract_id
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            $Object.defineProperty(FuturesTerms.prototype, "_contract_id", {
+                get: $util.oneOfGetter($oneOfFields = ["contract_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * FuturesTerms _effective_from.
+             * @member {"effective_from"|undefined} _effective_from
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            $Object.defineProperty(FuturesTerms.prototype, "_effective_from", {
+                get: $util.oneOfGetter($oneOfFields = ["effective_from"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * FuturesTerms _effective_until.
+             * @member {"effective_until"|undefined} _effective_until
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            $Object.defineProperty(FuturesTerms.prototype, "_effective_until", {
+                get: $util.oneOfGetter($oneOfFields = ["effective_until"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * FuturesTerms _available_at.
+             * @member {"available_at"|undefined} _available_at
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            $Object.defineProperty(FuturesTerms.prototype, "_available_at", {
+                get: $util.oneOfGetter($oneOfFields = ["available_at"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * FuturesTerms _source_reference.
+             * @member {"source_reference"|undefined} _source_reference
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            $Object.defineProperty(FuturesTerms.prototype, "_source_reference", {
+                get: $util.oneOfGetter($oneOfFields = ["source_reference"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * FuturesTerms _open_fee.
+             * @member {"open_fee"|undefined} _open_fee
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            $Object.defineProperty(FuturesTerms.prototype, "_open_fee", {
+                get: $util.oneOfGetter($oneOfFields = ["open_fee"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * FuturesTerms _close_today_fee.
+             * @member {"close_today_fee"|undefined} _close_today_fee
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            $Object.defineProperty(FuturesTerms.prototype, "_close_today_fee", {
+                get: $util.oneOfGetter($oneOfFields = ["close_today_fee"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * FuturesTerms _close_yesterday_fee.
+             * @member {"close_yesterday_fee"|undefined} _close_yesterday_fee
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            $Object.defineProperty(FuturesTerms.prototype, "_close_yesterday_fee", {
+                get: $util.oneOfGetter($oneOfFields = ["close_yesterday_fee"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * FuturesTerms _long_margin.
+             * @member {"long_margin"|undefined} _long_margin
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            $Object.defineProperty(FuturesTerms.prototype, "_long_margin", {
+                get: $util.oneOfGetter($oneOfFields = ["long_margin"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * FuturesTerms _short_margin.
+             * @member {"short_margin"|undefined} _short_margin
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            $Object.defineProperty(FuturesTerms.prototype, "_short_margin", {
+                get: $util.oneOfGetter($oneOfFields = ["short_margin"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * FuturesTerms _lower_limit.
+             * @member {"lower_limit"|undefined} _lower_limit
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            $Object.defineProperty(FuturesTerms.prototype, "_lower_limit", {
+                get: $util.oneOfGetter($oneOfFields = ["lower_limit"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * FuturesTerms _upper_limit.
+             * @member {"upper_limit"|undefined} _upper_limit
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            $Object.defineProperty(FuturesTerms.prototype, "_upper_limit", {
+                get: $util.oneOfGetter($oneOfFields = ["upper_limit"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * FuturesTerms _money_quantum.
+             * @member {"money_quantum"|undefined} _money_quantum
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            $Object.defineProperty(FuturesTerms.prototype, "_money_quantum", {
+                get: $util.oneOfGetter($oneOfFields = ["money_quantum"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * FuturesTerms _fee_rounding.
+             * @member {"fee_rounding"|undefined} _fee_rounding
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             */
+            $Object.defineProperty(FuturesTerms.prototype, "_fee_rounding", {
+                get: $util.oneOfGetter($oneOfFields = ["fee_rounding"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new FuturesTerms instance using the specified properties.
+             * @function create
+             * @memberof northstar.accounting.FuturesTerms
+             * @static
+             * @param {northstar.accounting.FuturesTerms.$Properties=} [properties] Properties to set
+             * @returns {northstar.accounting.FuturesTerms} FuturesTerms instance
+             * @type {{
+             *   (properties: northstar.accounting.FuturesTerms.$Shape): northstar.accounting.FuturesTerms & northstar.accounting.FuturesTerms.$Shape;
+             *   (properties?: northstar.accounting.FuturesTerms.$Properties): northstar.accounting.FuturesTerms;
+             * }}
+             */
+            FuturesTerms.create = function(properties) {
+                return new FuturesTerms(properties);
+            };
+
+            /**
+             * Encodes the specified FuturesTerms message. Does not implicitly {@link northstar.accounting.FuturesTerms.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.accounting.FuturesTerms
+             * @static
+             * @param {northstar.accounting.FuturesTerms.$Properties} message FuturesTerms message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            FuturesTerms.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.terms_id != null && $Object.hasOwnProperty.call(message, "terms_id"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.terms_id);
+                if (message.contract_id != null && $Object.hasOwnProperty.call(message, "contract_id"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.contract_id);
+                if (message.effective_from != null && $Object.hasOwnProperty.call(message, "effective_from"))
+                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.effective_from);
+                if (message.effective_until != null && $Object.hasOwnProperty.call(message, "effective_until"))
+                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.effective_until);
+                if (message.available_at != null && $Object.hasOwnProperty.call(message, "available_at"))
+                    writer.uint32(/* id 5, wireType 2 =*/42).string(message.available_at);
+                if (message.source_reference != null && $Object.hasOwnProperty.call(message, "source_reference"))
+                    writer.uint32(/* id 6, wireType 2 =*/50).string(message.source_reference);
+                if (message.open_fee != null && $Object.hasOwnProperty.call(message, "open_fee"))
+                    $root.northstar.accounting.ChargeRate.encode(message.open_fee, writer.uint32(/* id 7, wireType 2 =*/58).fork(), _depth + 1).ldelim();
+                if (message.close_today_fee != null && $Object.hasOwnProperty.call(message, "close_today_fee"))
+                    $root.northstar.accounting.ChargeRate.encode(message.close_today_fee, writer.uint32(/* id 8, wireType 2 =*/66).fork(), _depth + 1).ldelim();
+                if (message.close_yesterday_fee != null && $Object.hasOwnProperty.call(message, "close_yesterday_fee"))
+                    $root.northstar.accounting.ChargeRate.encode(message.close_yesterday_fee, writer.uint32(/* id 9, wireType 2 =*/74).fork(), _depth + 1).ldelim();
+                if (message.long_margin != null && $Object.hasOwnProperty.call(message, "long_margin"))
+                    $root.northstar.accounting.ChargeRate.encode(message.long_margin, writer.uint32(/* id 10, wireType 2 =*/82).fork(), _depth + 1).ldelim();
+                if (message.short_margin != null && $Object.hasOwnProperty.call(message, "short_margin"))
+                    $root.northstar.accounting.ChargeRate.encode(message.short_margin, writer.uint32(/* id 11, wireType 2 =*/90).fork(), _depth + 1).ldelim();
+                if (message.lower_limit != null && $Object.hasOwnProperty.call(message, "lower_limit"))
+                    writer.uint32(/* id 12, wireType 2 =*/98).string(message.lower_limit);
+                if (message.upper_limit != null && $Object.hasOwnProperty.call(message, "upper_limit"))
+                    writer.uint32(/* id 13, wireType 2 =*/106).string(message.upper_limit);
+                if (message.money_quantum != null && $Object.hasOwnProperty.call(message, "money_quantum"))
+                    writer.uint32(/* id 14, wireType 2 =*/114).string(message.money_quantum);
+                if (message.fee_rounding != null && $Object.hasOwnProperty.call(message, "fee_rounding"))
+                    writer.uint32(/* id 15, wireType 2 =*/122).string(message.fee_rounding);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a FuturesTerms message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.accounting.FuturesTerms
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.accounting.FuturesTerms & northstar.accounting.FuturesTerms.$Shape} FuturesTerms
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            FuturesTerms.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.accounting.FuturesTerms();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.terms_id = reader.stringVerify();
+                            message._terms_id = "terms_id";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.contract_id = reader.stringVerify();
+                            message._contract_id = "contract_id";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 2)
+                                break;
+                            message.effective_from = reader.stringVerify();
+                            message._effective_from = "effective_from";
+                            continue;
+                        }
+                    case 4: {
+                            if (wireType !== 2)
+                                break;
+                            message.effective_until = reader.stringVerify();
+                            message._effective_until = "effective_until";
+                            continue;
+                        }
+                    case 5: {
+                            if (wireType !== 2)
+                                break;
+                            message.available_at = reader.stringVerify();
+                            message._available_at = "available_at";
+                            continue;
+                        }
+                    case 6: {
+                            if (wireType !== 2)
+                                break;
+                            message.source_reference = reader.stringVerify();
+                            message._source_reference = "source_reference";
+                            continue;
+                        }
+                    case 7: {
+                            if (wireType !== 2)
+                                break;
+                            message.open_fee = $root.northstar.accounting.ChargeRate.decode(reader, reader.uint32(), $undefined, _depth + 1, message.open_fee);
+                            message._open_fee = "open_fee";
+                            continue;
+                        }
+                    case 8: {
+                            if (wireType !== 2)
+                                break;
+                            message.close_today_fee = $root.northstar.accounting.ChargeRate.decode(reader, reader.uint32(), $undefined, _depth + 1, message.close_today_fee);
+                            message._close_today_fee = "close_today_fee";
+                            continue;
+                        }
+                    case 9: {
+                            if (wireType !== 2)
+                                break;
+                            message.close_yesterday_fee = $root.northstar.accounting.ChargeRate.decode(reader, reader.uint32(), $undefined, _depth + 1, message.close_yesterday_fee);
+                            message._close_yesterday_fee = "close_yesterday_fee";
+                            continue;
+                        }
+                    case 10: {
+                            if (wireType !== 2)
+                                break;
+                            message.long_margin = $root.northstar.accounting.ChargeRate.decode(reader, reader.uint32(), $undefined, _depth + 1, message.long_margin);
+                            message._long_margin = "long_margin";
+                            continue;
+                        }
+                    case 11: {
+                            if (wireType !== 2)
+                                break;
+                            message.short_margin = $root.northstar.accounting.ChargeRate.decode(reader, reader.uint32(), $undefined, _depth + 1, message.short_margin);
+                            message._short_margin = "short_margin";
+                            continue;
+                        }
+                    case 12: {
+                            if (wireType !== 2)
+                                break;
+                            message.lower_limit = reader.stringVerify();
+                            message._lower_limit = "lower_limit";
+                            continue;
+                        }
+                    case 13: {
+                            if (wireType !== 2)
+                                break;
+                            message.upper_limit = reader.stringVerify();
+                            message._upper_limit = "upper_limit";
+                            continue;
+                        }
+                    case 14: {
+                            if (wireType !== 2)
+                                break;
+                            message.money_quantum = reader.stringVerify();
+                            message._money_quantum = "money_quantum";
+                            continue;
+                        }
+                    case 15: {
+                            if (wireType !== 2)
+                                break;
+                            message.fee_rounding = reader.stringVerify();
+                            message._fee_rounding = "fee_rounding";
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a FuturesTerms message.
+             * @function verify
+             * @memberof northstar.accounting.FuturesTerms
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            FuturesTerms.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.terms_id != null && $Object.hasOwnProperty.call(message, "terms_id")) {
+                    properties._terms_id = 1;
+                    if (!$util.isString(message.terms_id))
+                        return "terms_id: string expected";
+                }
+                if (message.contract_id != null && $Object.hasOwnProperty.call(message, "contract_id")) {
+                    properties._contract_id = 1;
+                    if (!$util.isString(message.contract_id))
+                        return "contract_id: string expected";
+                }
+                if (message.effective_from != null && $Object.hasOwnProperty.call(message, "effective_from")) {
+                    properties._effective_from = 1;
+                    if (!$util.isString(message.effective_from))
+                        return "effective_from: string expected";
+                }
+                if (message.effective_until != null && $Object.hasOwnProperty.call(message, "effective_until")) {
+                    properties._effective_until = 1;
+                    if (!$util.isString(message.effective_until))
+                        return "effective_until: string expected";
+                }
+                if (message.available_at != null && $Object.hasOwnProperty.call(message, "available_at")) {
+                    properties._available_at = 1;
+                    if (!$util.isString(message.available_at))
+                        return "available_at: string expected";
+                }
+                if (message.source_reference != null && $Object.hasOwnProperty.call(message, "source_reference")) {
+                    properties._source_reference = 1;
+                    if (!$util.isString(message.source_reference))
+                        return "source_reference: string expected";
+                }
+                if (message.open_fee != null && $Object.hasOwnProperty.call(message, "open_fee")) {
+                    properties._open_fee = 1;
+                    {
+                        let error = $root.northstar.accounting.ChargeRate.verify(message.open_fee, _depth + 1);
+                        if (error)
+                            return "open_fee." + error;
+                    }
+                }
+                if (message.close_today_fee != null && $Object.hasOwnProperty.call(message, "close_today_fee")) {
+                    properties._close_today_fee = 1;
+                    {
+                        let error = $root.northstar.accounting.ChargeRate.verify(message.close_today_fee, _depth + 1);
+                        if (error)
+                            return "close_today_fee." + error;
+                    }
+                }
+                if (message.close_yesterday_fee != null && $Object.hasOwnProperty.call(message, "close_yesterday_fee")) {
+                    properties._close_yesterday_fee = 1;
+                    {
+                        let error = $root.northstar.accounting.ChargeRate.verify(message.close_yesterday_fee, _depth + 1);
+                        if (error)
+                            return "close_yesterday_fee." + error;
+                    }
+                }
+                if (message.long_margin != null && $Object.hasOwnProperty.call(message, "long_margin")) {
+                    properties._long_margin = 1;
+                    {
+                        let error = $root.northstar.accounting.ChargeRate.verify(message.long_margin, _depth + 1);
+                        if (error)
+                            return "long_margin." + error;
+                    }
+                }
+                if (message.short_margin != null && $Object.hasOwnProperty.call(message, "short_margin")) {
+                    properties._short_margin = 1;
+                    {
+                        let error = $root.northstar.accounting.ChargeRate.verify(message.short_margin, _depth + 1);
+                        if (error)
+                            return "short_margin." + error;
+                    }
+                }
+                if (message.lower_limit != null && $Object.hasOwnProperty.call(message, "lower_limit")) {
+                    properties._lower_limit = 1;
+                    if (!$util.isString(message.lower_limit))
+                        return "lower_limit: string expected";
+                }
+                if (message.upper_limit != null && $Object.hasOwnProperty.call(message, "upper_limit")) {
+                    properties._upper_limit = 1;
+                    if (!$util.isString(message.upper_limit))
+                        return "upper_limit: string expected";
+                }
+                if (message.money_quantum != null && $Object.hasOwnProperty.call(message, "money_quantum")) {
+                    properties._money_quantum = 1;
+                    if (!$util.isString(message.money_quantum))
+                        return "money_quantum: string expected";
+                }
+                if (message.fee_rounding != null && $Object.hasOwnProperty.call(message, "fee_rounding")) {
+                    properties._fee_rounding = 1;
+                    if (!$util.isString(message.fee_rounding))
+                        return "fee_rounding: string expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a FuturesTerms message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.accounting.FuturesTerms
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.accounting.FuturesTerms} FuturesTerms
+             */
+            FuturesTerms.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.accounting.FuturesTerms)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.accounting.FuturesTerms: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.accounting.FuturesTerms();
+                if (object.terms_id != null)
+                    message.terms_id = $String(object.terms_id);
+                if (object.contract_id != null)
+                    message.contract_id = $String(object.contract_id);
+                if (object.effective_from != null)
+                    message.effective_from = $String(object.effective_from);
+                if (object.effective_until != null)
+                    message.effective_until = $String(object.effective_until);
+                if (object.available_at != null)
+                    message.available_at = $String(object.available_at);
+                if (object.source_reference != null)
+                    message.source_reference = $String(object.source_reference);
+                if (object.open_fee != null) {
+                    if (!$util.isObject(object.open_fee))
+                        throw $TypeError(".northstar.accounting.FuturesTerms.open_fee: object expected");
+                    message.open_fee = $root.northstar.accounting.ChargeRate.fromObject(object.open_fee, _depth + 1);
+                }
+                if (object.close_today_fee != null) {
+                    if (!$util.isObject(object.close_today_fee))
+                        throw $TypeError(".northstar.accounting.FuturesTerms.close_today_fee: object expected");
+                    message.close_today_fee = $root.northstar.accounting.ChargeRate.fromObject(object.close_today_fee, _depth + 1);
+                }
+                if (object.close_yesterday_fee != null) {
+                    if (!$util.isObject(object.close_yesterday_fee))
+                        throw $TypeError(".northstar.accounting.FuturesTerms.close_yesterday_fee: object expected");
+                    message.close_yesterday_fee = $root.northstar.accounting.ChargeRate.fromObject(object.close_yesterday_fee, _depth + 1);
+                }
+                if (object.long_margin != null) {
+                    if (!$util.isObject(object.long_margin))
+                        throw $TypeError(".northstar.accounting.FuturesTerms.long_margin: object expected");
+                    message.long_margin = $root.northstar.accounting.ChargeRate.fromObject(object.long_margin, _depth + 1);
+                }
+                if (object.short_margin != null) {
+                    if (!$util.isObject(object.short_margin))
+                        throw $TypeError(".northstar.accounting.FuturesTerms.short_margin: object expected");
+                    message.short_margin = $root.northstar.accounting.ChargeRate.fromObject(object.short_margin, _depth + 1);
+                }
+                if (object.lower_limit != null)
+                    message.lower_limit = $String(object.lower_limit);
+                if (object.upper_limit != null)
+                    message.upper_limit = $String(object.upper_limit);
+                if (object.money_quantum != null)
+                    message.money_quantum = $String(object.money_quantum);
+                if (object.fee_rounding != null)
+                    message.fee_rounding = $String(object.fee_rounding);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a FuturesTerms message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.accounting.FuturesTerms
+             * @static
+             * @param {northstar.accounting.FuturesTerms} message FuturesTerms
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            FuturesTerms.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (message.terms_id != null && $Object.hasOwnProperty.call(message, "terms_id")) {
+                    object.terms_id = message.terms_id;
+                    if (options.oneofs)
+                        object._terms_id = "terms_id";
+                }
+                if (message.contract_id != null && $Object.hasOwnProperty.call(message, "contract_id")) {
+                    object.contract_id = message.contract_id;
+                    if (options.oneofs)
+                        object._contract_id = "contract_id";
+                }
+                if (message.effective_from != null && $Object.hasOwnProperty.call(message, "effective_from")) {
+                    object.effective_from = message.effective_from;
+                    if (options.oneofs)
+                        object._effective_from = "effective_from";
+                }
+                if (message.effective_until != null && $Object.hasOwnProperty.call(message, "effective_until")) {
+                    object.effective_until = message.effective_until;
+                    if (options.oneofs)
+                        object._effective_until = "effective_until";
+                }
+                if (message.available_at != null && $Object.hasOwnProperty.call(message, "available_at")) {
+                    object.available_at = message.available_at;
+                    if (options.oneofs)
+                        object._available_at = "available_at";
+                }
+                if (message.source_reference != null && $Object.hasOwnProperty.call(message, "source_reference")) {
+                    object.source_reference = message.source_reference;
+                    if (options.oneofs)
+                        object._source_reference = "source_reference";
+                }
+                if (message.open_fee != null && $Object.hasOwnProperty.call(message, "open_fee")) {
+                    object.open_fee = $root.northstar.accounting.ChargeRate.toObject(message.open_fee, options, _depth + 1);
+                    if (options.oneofs)
+                        object._open_fee = "open_fee";
+                }
+                if (message.close_today_fee != null && $Object.hasOwnProperty.call(message, "close_today_fee")) {
+                    object.close_today_fee = $root.northstar.accounting.ChargeRate.toObject(message.close_today_fee, options, _depth + 1);
+                    if (options.oneofs)
+                        object._close_today_fee = "close_today_fee";
+                }
+                if (message.close_yesterday_fee != null && $Object.hasOwnProperty.call(message, "close_yesterday_fee")) {
+                    object.close_yesterday_fee = $root.northstar.accounting.ChargeRate.toObject(message.close_yesterday_fee, options, _depth + 1);
+                    if (options.oneofs)
+                        object._close_yesterday_fee = "close_yesterday_fee";
+                }
+                if (message.long_margin != null && $Object.hasOwnProperty.call(message, "long_margin")) {
+                    object.long_margin = $root.northstar.accounting.ChargeRate.toObject(message.long_margin, options, _depth + 1);
+                    if (options.oneofs)
+                        object._long_margin = "long_margin";
+                }
+                if (message.short_margin != null && $Object.hasOwnProperty.call(message, "short_margin")) {
+                    object.short_margin = $root.northstar.accounting.ChargeRate.toObject(message.short_margin, options, _depth + 1);
+                    if (options.oneofs)
+                        object._short_margin = "short_margin";
+                }
+                if (message.lower_limit != null && $Object.hasOwnProperty.call(message, "lower_limit")) {
+                    object.lower_limit = message.lower_limit;
+                    if (options.oneofs)
+                        object._lower_limit = "lower_limit";
+                }
+                if (message.upper_limit != null && $Object.hasOwnProperty.call(message, "upper_limit")) {
+                    object.upper_limit = message.upper_limit;
+                    if (options.oneofs)
+                        object._upper_limit = "upper_limit";
+                }
+                if (message.money_quantum != null && $Object.hasOwnProperty.call(message, "money_quantum")) {
+                    object.money_quantum = message.money_quantum;
+                    if (options.oneofs)
+                        object._money_quantum = "money_quantum";
+                }
+                if (message.fee_rounding != null && $Object.hasOwnProperty.call(message, "fee_rounding")) {
+                    object.fee_rounding = message.fee_rounding;
+                    if (options.oneofs)
+                        object._fee_rounding = "fee_rounding";
+                }
+                return object;
+            };
+
+            /**
+             * Converts this FuturesTerms to JSON.
+             * @function toJSON
+             * @memberof northstar.accounting.FuturesTerms
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            FuturesTerms.prototype.toJSON = function() {
+                return FuturesTerms.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for FuturesTerms
+             * @function getTypeUrl
+             * @memberof northstar.accounting.FuturesTerms
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            FuturesTerms.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.accounting.FuturesTerms";
+            };
+
+            return FuturesTerms;
+        })();
+
+        accounting.SettlementFact = (function() {
+
+            /**
+             * Properties of a SettlementFact.
+             * @typedef {Object} northstar.accounting.SettlementFact.$Properties
+             * @property {string|null} [settlement_id] SettlementFact settlement_id
+             * @property {string|null} [contract_id] SettlementFact contract_id
+             * @property {string|null} [trading_day] SettlementFact trading_day
+             * @property {string|null} [next_trading_day] SettlementFact next_trading_day
+             * @property {string|null} [settled_at] SettlementFact settled_at
+             * @property {string|null} [available_at] SettlementFact available_at
+             * @property {string|null} [price] SettlementFact price
+             * @property {string|null} [source_reference] SettlementFact source_reference
+             * @property {"settlement_id"} [_settlement_id] SettlementFact _settlement_id
+             * @property {"contract_id"} [_contract_id] SettlementFact _contract_id
+             * @property {"trading_day"} [_trading_day] SettlementFact _trading_day
+             * @property {"next_trading_day"} [_next_trading_day] SettlementFact _next_trading_day
+             * @property {"settled_at"} [_settled_at] SettlementFact _settled_at
+             * @property {"available_at"} [_available_at] SettlementFact _available_at
+             * @property {"price"} [_price] SettlementFact _price
+             * @property {"source_reference"} [_source_reference] SettlementFact _source_reference
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a SettlementFact.
+             * @memberof northstar.accounting
+             * @interface ISettlementFact
+             * @augments northstar.accounting.SettlementFact.$Properties
+             * @deprecated Use northstar.accounting.SettlementFact.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a SettlementFact.
+             * @typedef {{
+             *   settlement_id?: string|null;
+             *   contract_id?: string|null;
+             *   trading_day?: string|null;
+             *   next_trading_day?: string|null;
+             *   settled_at?: string|null;
+             *   available_at?: string|null;
+             *   price?: string|null;
+             *   source_reference?: string|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _settlement_id?: undefined; settlement_id?: null }|{ _settlement_id?: "settlement_id"; settlement_id: string })
+             * ) & (
+             *   ({ _contract_id?: undefined; contract_id?: null }|{ _contract_id?: "contract_id"; contract_id: string })
+             * ) & (
+             *   ({ _trading_day?: undefined; trading_day?: null }|{ _trading_day?: "trading_day"; trading_day: string })
+             * ) & (
+             *   ({ _next_trading_day?: undefined; next_trading_day?: null }|{ _next_trading_day?: "next_trading_day"; next_trading_day: string })
+             * ) & (
+             *   ({ _settled_at?: undefined; settled_at?: null }|{ _settled_at?: "settled_at"; settled_at: string })
+             * ) & (
+             *   ({ _available_at?: undefined; available_at?: null }|{ _available_at?: "available_at"; available_at: string })
+             * ) & (
+             *   ({ _price?: undefined; price?: null }|{ _price?: "price"; price: string })
+             * ) & (
+             *   ({ _source_reference?: undefined; source_reference?: null }|{ _source_reference?: "source_reference"; source_reference: string })
+             * )} northstar.accounting.SettlementFact.$Shape
+             */
+
+            /**
+             * Constructs a new SettlementFact.
+             * @memberof northstar.accounting
+             * @classdesc Represents a SettlementFact.
+             * @constructor
+             * @param {northstar.accounting.SettlementFact.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const SettlementFact = function (properties) {
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * SettlementFact settlement_id.
+             * @member {string|null|undefined} settlement_id
+             * @memberof northstar.accounting.SettlementFact
+             * @instance
+             */
+            SettlementFact.prototype.settlement_id = null;
+
+            /**
+             * SettlementFact contract_id.
+             * @member {string|null|undefined} contract_id
+             * @memberof northstar.accounting.SettlementFact
+             * @instance
+             */
+            SettlementFact.prototype.contract_id = null;
+
+            /**
+             * SettlementFact trading_day.
+             * @member {string|null|undefined} trading_day
+             * @memberof northstar.accounting.SettlementFact
+             * @instance
+             */
+            SettlementFact.prototype.trading_day = null;
+
+            /**
+             * SettlementFact next_trading_day.
+             * @member {string|null|undefined} next_trading_day
+             * @memberof northstar.accounting.SettlementFact
+             * @instance
+             */
+            SettlementFact.prototype.next_trading_day = null;
+
+            /**
+             * SettlementFact settled_at.
+             * @member {string|null|undefined} settled_at
+             * @memberof northstar.accounting.SettlementFact
+             * @instance
+             */
+            SettlementFact.prototype.settled_at = null;
+
+            /**
+             * SettlementFact available_at.
+             * @member {string|null|undefined} available_at
+             * @memberof northstar.accounting.SettlementFact
+             * @instance
+             */
+            SettlementFact.prototype.available_at = null;
+
+            /**
+             * SettlementFact price.
+             * @member {string|null|undefined} price
+             * @memberof northstar.accounting.SettlementFact
+             * @instance
+             */
+            SettlementFact.prototype.price = null;
+
+            /**
+             * SettlementFact source_reference.
+             * @member {string|null|undefined} source_reference
+             * @memberof northstar.accounting.SettlementFact
+             * @instance
+             */
+            SettlementFact.prototype.source_reference = null;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * SettlementFact _settlement_id.
+             * @member {"settlement_id"|undefined} _settlement_id
+             * @memberof northstar.accounting.SettlementFact
+             * @instance
+             */
+            $Object.defineProperty(SettlementFact.prototype, "_settlement_id", {
+                get: $util.oneOfGetter($oneOfFields = ["settlement_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SettlementFact _contract_id.
+             * @member {"contract_id"|undefined} _contract_id
+             * @memberof northstar.accounting.SettlementFact
+             * @instance
+             */
+            $Object.defineProperty(SettlementFact.prototype, "_contract_id", {
+                get: $util.oneOfGetter($oneOfFields = ["contract_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SettlementFact _trading_day.
+             * @member {"trading_day"|undefined} _trading_day
+             * @memberof northstar.accounting.SettlementFact
+             * @instance
+             */
+            $Object.defineProperty(SettlementFact.prototype, "_trading_day", {
+                get: $util.oneOfGetter($oneOfFields = ["trading_day"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SettlementFact _next_trading_day.
+             * @member {"next_trading_day"|undefined} _next_trading_day
+             * @memberof northstar.accounting.SettlementFact
+             * @instance
+             */
+            $Object.defineProperty(SettlementFact.prototype, "_next_trading_day", {
+                get: $util.oneOfGetter($oneOfFields = ["next_trading_day"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SettlementFact _settled_at.
+             * @member {"settled_at"|undefined} _settled_at
+             * @memberof northstar.accounting.SettlementFact
+             * @instance
+             */
+            $Object.defineProperty(SettlementFact.prototype, "_settled_at", {
+                get: $util.oneOfGetter($oneOfFields = ["settled_at"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SettlementFact _available_at.
+             * @member {"available_at"|undefined} _available_at
+             * @memberof northstar.accounting.SettlementFact
+             * @instance
+             */
+            $Object.defineProperty(SettlementFact.prototype, "_available_at", {
+                get: $util.oneOfGetter($oneOfFields = ["available_at"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SettlementFact _price.
+             * @member {"price"|undefined} _price
+             * @memberof northstar.accounting.SettlementFact
+             * @instance
+             */
+            $Object.defineProperty(SettlementFact.prototype, "_price", {
+                get: $util.oneOfGetter($oneOfFields = ["price"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SettlementFact _source_reference.
+             * @member {"source_reference"|undefined} _source_reference
+             * @memberof northstar.accounting.SettlementFact
+             * @instance
+             */
+            $Object.defineProperty(SettlementFact.prototype, "_source_reference", {
+                get: $util.oneOfGetter($oneOfFields = ["source_reference"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new SettlementFact instance using the specified properties.
+             * @function create
+             * @memberof northstar.accounting.SettlementFact
+             * @static
+             * @param {northstar.accounting.SettlementFact.$Properties=} [properties] Properties to set
+             * @returns {northstar.accounting.SettlementFact} SettlementFact instance
+             * @type {{
+             *   (properties: northstar.accounting.SettlementFact.$Shape): northstar.accounting.SettlementFact & northstar.accounting.SettlementFact.$Shape;
+             *   (properties?: northstar.accounting.SettlementFact.$Properties): northstar.accounting.SettlementFact;
+             * }}
+             */
+            SettlementFact.create = function(properties) {
+                return new SettlementFact(properties);
+            };
+
+            /**
+             * Encodes the specified SettlementFact message. Does not implicitly {@link northstar.accounting.SettlementFact.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.accounting.SettlementFact
+             * @static
+             * @param {northstar.accounting.SettlementFact.$Properties} message SettlementFact message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            SettlementFact.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.settlement_id != null && $Object.hasOwnProperty.call(message, "settlement_id"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.settlement_id);
+                if (message.contract_id != null && $Object.hasOwnProperty.call(message, "contract_id"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.contract_id);
+                if (message.trading_day != null && $Object.hasOwnProperty.call(message, "trading_day"))
+                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.trading_day);
+                if (message.next_trading_day != null && $Object.hasOwnProperty.call(message, "next_trading_day"))
+                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.next_trading_day);
+                if (message.settled_at != null && $Object.hasOwnProperty.call(message, "settled_at"))
+                    writer.uint32(/* id 5, wireType 2 =*/42).string(message.settled_at);
+                if (message.available_at != null && $Object.hasOwnProperty.call(message, "available_at"))
+                    writer.uint32(/* id 6, wireType 2 =*/50).string(message.available_at);
+                if (message.price != null && $Object.hasOwnProperty.call(message, "price"))
+                    writer.uint32(/* id 7, wireType 2 =*/58).string(message.price);
+                if (message.source_reference != null && $Object.hasOwnProperty.call(message, "source_reference"))
+                    writer.uint32(/* id 8, wireType 2 =*/66).string(message.source_reference);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a SettlementFact message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.accounting.SettlementFact
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.accounting.SettlementFact & northstar.accounting.SettlementFact.$Shape} SettlementFact
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            SettlementFact.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.accounting.SettlementFact();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.settlement_id = reader.stringVerify();
+                            message._settlement_id = "settlement_id";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.contract_id = reader.stringVerify();
+                            message._contract_id = "contract_id";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 2)
+                                break;
+                            message.trading_day = reader.stringVerify();
+                            message._trading_day = "trading_day";
+                            continue;
+                        }
+                    case 4: {
+                            if (wireType !== 2)
+                                break;
+                            message.next_trading_day = reader.stringVerify();
+                            message._next_trading_day = "next_trading_day";
+                            continue;
+                        }
+                    case 5: {
+                            if (wireType !== 2)
+                                break;
+                            message.settled_at = reader.stringVerify();
+                            message._settled_at = "settled_at";
+                            continue;
+                        }
+                    case 6: {
+                            if (wireType !== 2)
+                                break;
+                            message.available_at = reader.stringVerify();
+                            message._available_at = "available_at";
+                            continue;
+                        }
+                    case 7: {
+                            if (wireType !== 2)
+                                break;
+                            message.price = reader.stringVerify();
+                            message._price = "price";
+                            continue;
+                        }
+                    case 8: {
+                            if (wireType !== 2)
+                                break;
+                            message.source_reference = reader.stringVerify();
+                            message._source_reference = "source_reference";
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a SettlementFact message.
+             * @function verify
+             * @memberof northstar.accounting.SettlementFact
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            SettlementFact.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.settlement_id != null && $Object.hasOwnProperty.call(message, "settlement_id")) {
+                    properties._settlement_id = 1;
+                    if (!$util.isString(message.settlement_id))
+                        return "settlement_id: string expected";
+                }
+                if (message.contract_id != null && $Object.hasOwnProperty.call(message, "contract_id")) {
+                    properties._contract_id = 1;
+                    if (!$util.isString(message.contract_id))
+                        return "contract_id: string expected";
+                }
+                if (message.trading_day != null && $Object.hasOwnProperty.call(message, "trading_day")) {
+                    properties._trading_day = 1;
+                    if (!$util.isString(message.trading_day))
+                        return "trading_day: string expected";
+                }
+                if (message.next_trading_day != null && $Object.hasOwnProperty.call(message, "next_trading_day")) {
+                    properties._next_trading_day = 1;
+                    if (!$util.isString(message.next_trading_day))
+                        return "next_trading_day: string expected";
+                }
+                if (message.settled_at != null && $Object.hasOwnProperty.call(message, "settled_at")) {
+                    properties._settled_at = 1;
+                    if (!$util.isString(message.settled_at))
+                        return "settled_at: string expected";
+                }
+                if (message.available_at != null && $Object.hasOwnProperty.call(message, "available_at")) {
+                    properties._available_at = 1;
+                    if (!$util.isString(message.available_at))
+                        return "available_at: string expected";
+                }
+                if (message.price != null && $Object.hasOwnProperty.call(message, "price")) {
+                    properties._price = 1;
+                    if (!$util.isString(message.price))
+                        return "price: string expected";
+                }
+                if (message.source_reference != null && $Object.hasOwnProperty.call(message, "source_reference")) {
+                    properties._source_reference = 1;
+                    if (!$util.isString(message.source_reference))
+                        return "source_reference: string expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a SettlementFact message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.accounting.SettlementFact
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.accounting.SettlementFact} SettlementFact
+             */
+            SettlementFact.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.accounting.SettlementFact)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.accounting.SettlementFact: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.accounting.SettlementFact();
+                if (object.settlement_id != null)
+                    message.settlement_id = $String(object.settlement_id);
+                if (object.contract_id != null)
+                    message.contract_id = $String(object.contract_id);
+                if (object.trading_day != null)
+                    message.trading_day = $String(object.trading_day);
+                if (object.next_trading_day != null)
+                    message.next_trading_day = $String(object.next_trading_day);
+                if (object.settled_at != null)
+                    message.settled_at = $String(object.settled_at);
+                if (object.available_at != null)
+                    message.available_at = $String(object.available_at);
+                if (object.price != null)
+                    message.price = $String(object.price);
+                if (object.source_reference != null)
+                    message.source_reference = $String(object.source_reference);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a SettlementFact message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.accounting.SettlementFact
+             * @static
+             * @param {northstar.accounting.SettlementFact} message SettlementFact
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            SettlementFact.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (message.settlement_id != null && $Object.hasOwnProperty.call(message, "settlement_id")) {
+                    object.settlement_id = message.settlement_id;
+                    if (options.oneofs)
+                        object._settlement_id = "settlement_id";
+                }
+                if (message.contract_id != null && $Object.hasOwnProperty.call(message, "contract_id")) {
+                    object.contract_id = message.contract_id;
+                    if (options.oneofs)
+                        object._contract_id = "contract_id";
+                }
+                if (message.trading_day != null && $Object.hasOwnProperty.call(message, "trading_day")) {
+                    object.trading_day = message.trading_day;
+                    if (options.oneofs)
+                        object._trading_day = "trading_day";
+                }
+                if (message.next_trading_day != null && $Object.hasOwnProperty.call(message, "next_trading_day")) {
+                    object.next_trading_day = message.next_trading_day;
+                    if (options.oneofs)
+                        object._next_trading_day = "next_trading_day";
+                }
+                if (message.settled_at != null && $Object.hasOwnProperty.call(message, "settled_at")) {
+                    object.settled_at = message.settled_at;
+                    if (options.oneofs)
+                        object._settled_at = "settled_at";
+                }
+                if (message.available_at != null && $Object.hasOwnProperty.call(message, "available_at")) {
+                    object.available_at = message.available_at;
+                    if (options.oneofs)
+                        object._available_at = "available_at";
+                }
+                if (message.price != null && $Object.hasOwnProperty.call(message, "price")) {
+                    object.price = message.price;
+                    if (options.oneofs)
+                        object._price = "price";
+                }
+                if (message.source_reference != null && $Object.hasOwnProperty.call(message, "source_reference")) {
+                    object.source_reference = message.source_reference;
+                    if (options.oneofs)
+                        object._source_reference = "source_reference";
+                }
+                return object;
+            };
+
+            /**
+             * Converts this SettlementFact to JSON.
+             * @function toJSON
+             * @memberof northstar.accounting.SettlementFact
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            SettlementFact.prototype.toJSON = function() {
+                return SettlementFact.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for SettlementFact
+             * @function getTypeUrl
+             * @memberof northstar.accounting.SettlementFact
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            SettlementFact.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.accounting.SettlementFact";
+            };
+
+            return SettlementFact;
+        })();
+
+        return accounting;
     })();
 
     return northstar;

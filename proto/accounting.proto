@@ -1,0 +1,39 @@
+syntax = "proto3";
+package northstar.accounting;
+import "api_options.proto";
+
+// Exact decimal and UTC timestamp strings; business validity is owned by Accounting.
+
+message ChargeRate {
+  optional string by_money = 1 [json_name = "by_money", (northstar.web.required_field) = true];
+  optional string by_volume = 2 [json_name = "by_volume", (northstar.web.required_field) = true];
+}
+
+message FuturesTerms {
+  optional string terms_id = 1 [json_name = "terms_id", (northstar.web.required_field) = true];
+  optional string contract_id = 2 [json_name = "contract_id", (northstar.web.required_field) = true];
+  optional string effective_from = 3 [json_name = "effective_from", (northstar.web.required_field) = true];
+  optional string effective_until = 4 [json_name = "effective_until", (northstar.web.required_field) = true];
+  optional string available_at = 5 [json_name = "available_at", (northstar.web.required_field) = true];
+  optional string source_reference = 6 [json_name = "source_reference", (northstar.web.required_field) = true];
+  optional ChargeRate open_fee = 7 [json_name = "open_fee", (northstar.web.required_field) = true];
+  optional ChargeRate close_today_fee = 8 [json_name = "close_today_fee", (northstar.web.required_field) = true];
+  optional ChargeRate close_yesterday_fee = 9 [json_name = "close_yesterday_fee", (northstar.web.required_field) = true];
+  optional ChargeRate long_margin = 10 [json_name = "long_margin", (northstar.web.required_field) = true];
+  optional ChargeRate short_margin = 11 [json_name = "short_margin", (northstar.web.required_field) = true];
+  optional string lower_limit = 12 [json_name = "lower_limit", (northstar.web.required_field) = true];
+  optional string upper_limit = 13 [json_name = "upper_limit", (northstar.web.required_field) = true];
+  optional string money_quantum = 14 [json_name = "money_quantum", (northstar.web.required_field) = true];
+  optional string fee_rounding = 15 [json_name = "fee_rounding", (northstar.web.required_field) = true];
+}
+
+message SettlementFact {
+  optional string settlement_id = 1 [json_name = "settlement_id", (northstar.web.required_field) = true];
+  optional string contract_id = 2 [json_name = "contract_id", (northstar.web.required_field) = true];
+  optional string trading_day = 3 [json_name = "trading_day", (northstar.web.required_field) = true];
+  optional string next_trading_day = 4 [json_name = "next_trading_day", (northstar.web.required_field) = true];
+  optional string settled_at = 5 [json_name = "settled_at", (northstar.web.required_field) = true];
+  optional string available_at = 6 [json_name = "available_at", (northstar.web.required_field) = true];
+  optional string price = 7 [json_name = "price", (northstar.web.required_field) = true];
+  optional string source_reference = 8 [json_name = "source_reference", (northstar.web.required_field) = true];
+}

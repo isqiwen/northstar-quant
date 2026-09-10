@@ -288,6 +288,12 @@ def test_cross_day_settlement_is_fixed_offline_replayable_and_survives_every_res
     assert offline.load_dataset(identifier) == fixed
     assert fixed.details.settlements == (fact,)
     assert fixed.details.terms == (first_terms, next_terms)
+    with TestClient(create_app(postgres_engine, library), base_url="http://core.local") as api:
+        response = api.get(f"/api/datasets/{identifier}")
+        assert response.status_code == 200
+        presented = decode(api_pb2.DatasetDetails.DESCRIPTOR, response.content)
+        assert presented["terms"] == [first_terms.to_dict(), next_terms.to_dict()]
+        assert presented["settlements"] == [fact.to_dict()]
     revised = load_dataset(
         postgres_engine,
         _publish(

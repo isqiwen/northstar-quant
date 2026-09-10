@@ -61,8 +61,8 @@ export type DatasetDetails = {
   sources: (Record<string, JsonValue>)[];
   symbol: string;
   trading_days: (string)[];
-  settlements: (Record<string, JsonValue>)[];
-  terms: (Record<string, JsonValue>)[];
+  settlements: (SettlementFact)[];
+  terms: (FuturesTerms)[];
 };
 export type DatasetLineage = {
   attempts: (Record<string, JsonValue>)[];
@@ -409,4 +409,35 @@ export type Error = {
   runtime_id?: string;
   url?: string;
   rejection_id?: string;
+};
+export type ChargeRate = {
+  by_money: string;
+  by_volume: string;
+};
+export type FuturesTerms = {
+  terms_id: string;
+  contract_id: string;
+  effective_from: string;
+  effective_until: string;
+  available_at: string;
+  source_reference: string;
+  open_fee: ChargeRate;
+  close_today_fee: ChargeRate;
+  close_yesterday_fee: ChargeRate;
+  long_margin: ChargeRate;
+  short_margin: ChargeRate;
+  lower_limit: string;
+  upper_limit: string;
+  money_quantum: string;
+  fee_rounding: string;
+};
+export type SettlementFact = {
+  settlement_id: string;
+  contract_id: string;
+  trading_day: string;
+  next_trading_day: string;
+  settled_at: string;
+  available_at: string;
+  price: string;
+  source_reference: string;
 };

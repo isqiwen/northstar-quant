@@ -63,5 +63,5 @@ strict = true
 warn_unreachable = true
 
 [[tool.mypy.overrides]]
-module = ["northstar_quant.web.api_options_pb2", "northstar_quant.web.common_pb2", "northstar_quant.apps.*.api_pb2"]
+module = ["northstar_quant.web.api_options_pb2", "northstar_quant.web.common_pb2", "northstar_quant.accounting.protocol_pb2", "northstar_quant.apps.*.api_pb2"]
 ignore_errors = true

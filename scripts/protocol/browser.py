@@ -17,6 +17,7 @@ def main() -> None:
         "northstar_quant",
         "northstar_quant.web",
         "northstar_quant.apps",
+        "northstar_quant.accounting",
         *[f"northstar_quant.apps.{role}" for role in ("data_hub", "research", "live")],
     ):
         namespace = ModuleType(name)
@@ -24,6 +25,7 @@ def main() -> None:
         sys.modules[name] = namespace
     options = importlib.import_module("northstar_quant.web.api_options_pb2")
     common = importlib.import_module("northstar_quant.web.common_pb2")
+    accounting = importlib.import_module("northstar_quant.accounting.protocol_pb2")
     from google.protobuf.descriptor import FieldDescriptor as F
 
     for role in ("data_hub", "research", "live"):
@@ -31,6 +33,7 @@ def main() -> None:
         descriptors = {
             **module.DESCRIPTOR.message_types_by_name,
             **common.DESCRIPTOR.message_types_by_name,
+            **accounting.DESCRIPTOR.message_types_by_name,
         }
         definitions = {}
         declarations = [

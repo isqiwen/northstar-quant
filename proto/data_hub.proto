@@ -3,6 +3,7 @@ package northstar.data_hub;
 import "google/protobuf/struct.proto";
 import "api_options.proto";
 import "common.proto";
+import "accounting.proto";
 
 message AdmissionRejection {
   option (northstar.web.evidence) = true;
@@ -36,8 +37,8 @@ message DatasetDetails {
   optional string symbol = 18 [json_name = "symbol", (northstar.web.required_field) = true];
   repeated string trading_days = 19 [json_name = "trading_days", (northstar.web.required_field) = true];
   repeated string null_fields = 2046;
-  repeated google.protobuf.Struct settlements = 20 [json_name = "settlements", (northstar.web.required_field) = true];
-  repeated google.protobuf.Struct terms = 21 [json_name = "terms", (northstar.web.required_field) = true];
+  repeated northstar.accounting.SettlementFact settlements = 20 [json_name = "settlements", (northstar.web.required_field) = true];
+  repeated northstar.accounting.FuturesTerms terms = 21 [json_name = "terms", (northstar.web.required_field) = true];
 }
 
 message DatasetLineage {

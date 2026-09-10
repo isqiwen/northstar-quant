@@ -191,7 +191,7 @@
         "settlements": {
           "id": 20,
           "presence": false,
-          "type": "google.protobuf.Struct",
+          "type": "northstar.accounting.SettlementFact",
           "required": true,
           "nullable": false,
           "rule": "repeated"
@@ -199,7 +199,7 @@
         "terms": {
           "id": 21,
           "presence": false,
-          "type": "google.protobuf.Struct",
+          "type": "northstar.accounting.FuturesTerms",
           "required": true,
           "nullable": false,
           "rule": "repeated"
@@ -1470,6 +1470,199 @@
           "presence": true,
           "type": "string",
           "required": false,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.accounting.ChargeRate": {
+      "fields": {
+        "by_money": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "by_volume": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.accounting.FuturesTerms": {
+      "fields": {
+        "terms_id": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "contract_id": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "effective_from": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "effective_until": {
+          "id": 4,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "available_at": {
+          "id": 5,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "source_reference": {
+          "id": 6,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "open_fee": {
+          "id": 7,
+          "presence": true,
+          "type": "northstar.accounting.ChargeRate",
+          "required": true,
+          "nullable": false
+        },
+        "close_today_fee": {
+          "id": 8,
+          "presence": true,
+          "type": "northstar.accounting.ChargeRate",
+          "required": true,
+          "nullable": false
+        },
+        "close_yesterday_fee": {
+          "id": 9,
+          "presence": true,
+          "type": "northstar.accounting.ChargeRate",
+          "required": true,
+          "nullable": false
+        },
+        "long_margin": {
+          "id": 10,
+          "presence": true,
+          "type": "northstar.accounting.ChargeRate",
+          "required": true,
+          "nullable": false
+        },
+        "short_margin": {
+          "id": 11,
+          "presence": true,
+          "type": "northstar.accounting.ChargeRate",
+          "required": true,
+          "nullable": false
+        },
+        "lower_limit": {
+          "id": 12,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "upper_limit": {
+          "id": 13,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "money_quantum": {
+          "id": 14,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "fee_rounding": {
+          "id": 15,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.accounting.SettlementFact": {
+      "fields": {
+        "settlement_id": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "contract_id": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "trading_day": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "next_trading_day": {
+          "id": 4,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "settled_at": {
+          "id": 5,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "available_at": {
+          "id": 6,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "price": {
+          "id": 7,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "source_reference": {
+          "id": 8,
+          "presence": true,
+          "type": "string",
+          "required": true,
           "nullable": false
         }
       },
