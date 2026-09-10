@@ -426,11 +426,14 @@ class PaperStore:
                 "input_hash"
             ] != _bar_hash(bar):
                 raise ValueError("accepted Paper input identity conflicts with snapshot facts")
-            result = session.advance(bar)
-            if result is None:
-                raise ValueError("next unprocessed Paper input was already in its checkpoint")
-            step = {**result.to_dict(), "code_revision": code_revision()}
-            checkpoint, summary = session.checkpoint(), session.summary()
+            try:
+                result = session.advance(bar)
+                if result is None:
+                    raise ValueError("next unprocessed Paper input was already in its checkpoint")
+                step = {**result.to_dict(), "code_revision": code_revision()}
+                checkpoint, summary = session.checkpoint(), session.summary()
+            finally:
+                session.close()
             state_hash = _hash(
                 {
                     "identity": row["identity_hash"],

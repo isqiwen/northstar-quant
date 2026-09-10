@@ -7,6 +7,7 @@ from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
+from queue import Empty, Queue
 from threading import Event
 from typing import Any
 from uuid import UUID, uuid4
@@ -65,10 +66,29 @@ def prepare(
 
     def receive(*args: Any, **kwargs: Any) -> None:
         calls["count"] += 1
-        calls["accept"] = kwargs["on_event"]
+        incoming: Queue[Any] = Queue(maxsize=1)
+
+        def accept(event: BrokerEvent) -> None:
+            completed = Event()
+            errors: list[BaseException] = []
+            incoming.put((event, completed, errors), timeout=5)
+            assert completed.wait(5), "synthetic core did not consume callback"
+            if errors:
+                raise errors[0]
+
+        calls["accept"] = accept
         calls["ready"].set()
         while not kwargs["should_stop"]():
-            time.sleep(0.01)
+            try:
+                event, completed, errors = incoming.get(timeout=0.01)
+            except Empty:
+                continue
+            try:
+                kwargs["on_event"](event)
+            except BaseException as error:
+                errors.append(error)
+            finally:
+                completed.set()
         if "tail" in calls:
             kwargs["on_event"](calls["tail"])
 

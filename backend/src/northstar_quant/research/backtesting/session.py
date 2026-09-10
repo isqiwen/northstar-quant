@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 import re
+from copy import copy
 from dataclasses import asdict, dataclass
 from datetime import date, datetime, timedelta
 from decimal import ROUND_HALF_EVEN, Decimal, localcontext
@@ -14,20 +16,50 @@ from northstar_quant.accounting.portfolio import PortfolioState
 from northstar_quant.data_management.research import DatasetDetails
 from northstar_quant.execution.orders import PendingOrder
 from northstar_quant.market_data import Market, MarketBar
+from northstar_quant.messaging import Endpoint, MessageBus, Topic
 from northstar_quant.research.configuration import ResearchConfig
 from northstar_quant.risk import evaluate_risk
 from northstar_quant.simulation import simulate_fill
 from northstar_quant.strategies.runtime import StrategyRuntime
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, init=False)
 class TradingStep:
     """Only the new facts from one advance; callers own the full persistent log."""
 
-    point: dict[str, object]
-    decision: dict[str, object] | None
+    _point: str
+    _decision: str | None
     fill: AppliedFill | None
     new_order: PendingOrder | None
+
+    def __init__(
+        self,
+        point: dict[str, object],
+        decision: dict[str, object] | None,
+        fill: AppliedFill | None,
+        new_order: PendingOrder | None,
+    ) -> None:
+        # Like ResearchResult, canonical bytes protect nested factor/metric values.
+        object.__setattr__(self, "_point", json.dumps(point, sort_keys=True, allow_nan=False))
+        object.__setattr__(
+            self,
+            "_decision",
+            None if decision is None else json.dumps(decision, sort_keys=True, allow_nan=False),
+        )
+        object.__setattr__(self, "fill", fill)
+        object.__setattr__(self, "new_order", new_order)
+
+    @property
+    def point(self) -> dict[str, object]:
+        result: dict[str, object] = json.loads(self._point)
+        return result
+
+    @property
+    def decision(self) -> dict[str, object] | None:
+        result: dict[str, object] | None = (
+            None if self._decision is None else json.loads(self._decision)
+        )
+        return result
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -68,6 +100,10 @@ class TradingStep:
             raise ValueError("invalid persisted trading step") from error
 
 
+ADVANCE_BAR: Endpoint[MarketBar, TradingStep | None] = Endpoint("research.advance", MarketBar)
+STEP_COMPLETED: Topic[TradingStep] = Topic("research.step.completed", TradingStep)
+
+
 class TradingSession:
     """Bounded shared research/Paper core: simulate, account, strategy, then Risk.
 
@@ -80,7 +116,7 @@ class TradingSession:
     """
 
     # Bump for changed Strategy/Risk/Simulation/Accounting rules or checkpoint format.
-    REVISION = "3"
+    REVISION = "4"
 
     def __init__(
         self,
@@ -136,8 +172,16 @@ class TradingSession:
         self._peak = config.simulation.initial_cash
         self._maximum_drawdown = Decimal(0)
         self._maximum_drawdown_fraction = Decimal(0)
+        self.bus = MessageBus()
+        self.bus.register(ADVANCE_BAR, self._process)
 
     def advance(self, bar: MarketBar) -> TradingStep | None:
+        return self.bus.request(ADVANCE_BAR, bar)
+
+    def close(self) -> None:
+        self.bus.close()
+
+    def _process(self, bar: MarketBar) -> TradingStep | None:
         self._validate_bar(bar)
         if not self._trader.accepts(bar):
             return None
@@ -149,7 +193,17 @@ class TradingSession:
         with localcontext() as context:
             context.prec = 96
             context.rounding = ROUND_HALF_EVEN
-            return self._advance(bar)
+            # Scalar state and bounded strategy history are staged. The Account
+            # rolls back only this event's projection and newly accepted fill.
+            candidate = copy(self)
+            candidate._trader = copy(self._trader)
+            with self.account.transaction():
+                result = candidate._advance(bar)
+            self.__dict__.update(candidate.__dict__)
+        # This is an in-memory completed research step, not a durable DB receipt.
+        # Paper commits it with its checkpoint in its owning transaction.
+        self.bus.publish(STEP_COMPLETED, result)
+        return result
 
     def _advance(self, bar: MarketBar) -> TradingStep:
         self._trading_day = bar.trading_day

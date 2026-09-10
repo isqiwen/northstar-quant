@@ -3,6 +3,7 @@
 import hashlib
 import json
 import re
+from collections.abc import Mapping
 from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal, InvalidOperation, localcontext
 from typing import Any
@@ -61,11 +62,11 @@ def decode_quote(
         "segment": segment,
         "price": decimal_text(price),
         "cumulative_volume": volume,
-        "content_hash": _hash(row),
+        "content_hash": _hash(dict(row)),
     }
 
 
-def ctp_day_quote_time(row: dict[str, Any]) -> datetime:
+def ctp_day_quote_time(row: Mapping[str, Any]) -> datetime:
     """Resolve the source clock used by DAY sampling and opening-budget freshness.
 
     Receipt or calculation time never substitutes for a missing CTP source clock.

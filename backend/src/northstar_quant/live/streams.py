@@ -1,6 +1,6 @@
 """One explicitly started SimNow reception and shadow-decision loop.
 
-Copied SDK callbacks are the bounded stream's authoritative source in PostgreSQL,
+Copied SDK callbacks are the bounded stream's authoritative source in the instance database,
 not vendor wire bytes or a published research Snapshot. Each callback commits
 before its projection. A stopped/interrupted stream is never restarted; a new
 connection requires a new explicit command. There is no execution interface.
@@ -34,8 +34,11 @@ from northstar_quant.data_management.broker import resolve_broker_contract, veri
 from northstar_quant.data_management.library import DataLibrary
 from northstar_quant.live.market import advance_market, idle_reason
 from northstar_quant.live.storage import KernelLock, write_transaction
+from northstar_quant.messaging import Endpoint, MessageBus
 from northstar_quant.research.configuration import ResearchConfig
 from northstar_quant.research.configurations import ConfigurationStore
+
+ACCEPT_BROKER_EVENT: Endpoint[BrokerEvent, None] = Endpoint("live.broker.receive", BrokerEvent)
 
 _STREAM_LOCK = 728401929
 _ACTIVE = {"STARTING", "RECEIVING", "STOP_REQUESTED"}
@@ -367,6 +370,8 @@ class LiveStreams:
         from northstar_quant.broker.settings import Credentials
 
         failure: str | None = None
+        bus = MessageBus()  # Created on the receiver/core thread, never the SDK thread.
+        bus.register(ACCEPT_BROKER_EVENT, lambda event: self.accept(identifier, event))
         try:
             pid_query = "SELECT 1" if owner.dialect.name == "sqlite" else "SELECT pg_backend_pid()"
             owner_pid = owner.execute(text(pid_query)).scalar_one()
@@ -408,13 +413,14 @@ class LiveStreams:
                 configured_profile(str(_object(binding["profile"])["name"])),
                 cast(Credentials, credentials),
                 str(binding["instrument"]),
-                on_event=lambda event: self.accept(identifier, event),
+                on_event=lambda event: bus.request(ACCEPT_BROKER_EVENT, event),
                 should_stop=should_stop,
                 duration_seconds=cast(int, _object(binding["request"])["duration_seconds"]),
             )
         except Exception:
             failure = "RECEPTION_OR_PERSISTENCE_FAILED"
         finally:
+            bus.close()
             try:
                 self._terminal(
                     identifier,
@@ -524,7 +530,7 @@ class LiveStreams:
             if event.sequence != cast(int, row["cursor"]) + 1:
                 raise ValueError("stream projection cannot skip a committed input")
             binding, state = _object(row["binding"]), dict(_object(row["state"]))
-            data = event.data or {}
+            data = dict(event.data or {})
             reason: str | None = None
             if progress["status"] == "UNKNOWN":
                 reason = "ACCOUNT_REPLIES_UNKNOWN"

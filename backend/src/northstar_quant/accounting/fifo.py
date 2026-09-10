@@ -8,7 +8,9 @@ settlement or broker opening-balance reconciliation yet.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections.abc import Iterator
+from contextlib import contextmanager
+from dataclasses import dataclass, replace
 from datetime import date, datetime, timedelta
 from decimal import ROUND_HALF_EVEN, Decimal, localcontext
 from uuid import UUID
@@ -246,6 +248,25 @@ class Account:
             applied = AppliedFill(fact, realized, self.position_lots, self.cash, self.total_fees)
             self._fills[fact.fill_id] = applied
             return applied
+
+    @contextmanager
+    def transaction(self) -> Iterator[None]:
+        """Stage one research event without copying the historical fill ledger.
+
+        Only open lots and scalar projections are copied; new fill identities are
+        removed on failure. Broker facts use their durable owner's transactions.
+        """
+        projection = (self.cash, self.realized_pnl, self.total_fees, self._ledger_position)
+        lots = [replace(lot) for lot in self._lots]
+        count = len(self._fills)
+        try:
+            yield
+        except BaseException:
+            self.cash, self.realized_pnl, self.total_fees, self._ledger_position = projection
+            self._lots = lots
+            while len(self._fills) > count:
+                self._fills.popitem()
+            raise
 
     def checkpoint(self) -> dict[str, object]:
         """Bounded open-lot projection for comparison with a rebuilt ledger."""

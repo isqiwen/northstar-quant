@@ -6,7 +6,7 @@ from northstar_quant.data_management.research import ResearchDataset
 from northstar_quant.research.configuration import ResearchConfig
 
 from .report import ResearchResult, build_result
-from .session import TradingSession, TradingStep
+from .session import STEP_COMPLETED, TradingSession, TradingStep
 
 __all__ = ["run_research", "ResearchResult"]
 
@@ -31,18 +31,20 @@ def run_research(
         data_details=dataset.details,
     )
     steps: list[TradingStep] = []
-    for index, bar in enumerate(
-        sorted(
-            dataset.bars,
-            key=lambda item: (item.available_at, item.completed_at, str(item.observation_id)),
-        ),
-        1,
-    ):
+    session.bus.subscribe(STEP_COMPLETED, steps.append)
+    try:
+        for index, bar in enumerate(
+            sorted(
+                dataset.bars,
+                key=lambda item: (item.available_at, item.completed_at, str(item.observation_id)),
+            ),
+            1,
+        ):
+            if progress is not None:
+                progress(index - 1, len(dataset.bars))
+            session.advance(bar)
         if progress is not None:
-            progress(index - 1, len(dataset.bars))
-        step = session.advance(bar)
-        if step is not None:
-            steps.append(step)
-    if progress is not None:
-        progress(len(dataset.bars), len(dataset.bars))
-    return build_result(session, steps)
+            progress(len(dataset.bars), len(dataset.bars))
+        return build_result(session, steps)
+    finally:
+        session.close()

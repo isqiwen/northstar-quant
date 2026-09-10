@@ -5,8 +5,10 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from types import MappingProxyType
 from typing import cast
 
 MAX_EVENTS = 10000
@@ -104,7 +106,7 @@ class BrokerEvent:
     is_last: bool | None
     received_at: str
     error_id: int
-    data: dict[str, object] | None
+    data: Mapping[str, object] | None
 
     def __post_init__(self) -> None:
         # A continuous session persists callbacks individually; QueryCapture
@@ -123,7 +125,7 @@ class BrokerEvent:
             raise ValueError("broker callback error identity is invalid")
         parse_time(self.received_at)
         if self.data is not None:
-            if not isinstance(self.data, dict):
+            if not isinstance(self.data, Mapping):
                 raise ValueError("broker callback fields must be a copied object")
             safe: dict[str, object] = {}
             for name in CALLBACK_FIELDS[self.callback]:
@@ -138,7 +140,7 @@ class BrokerEvent:
                     safe[name] = value
                 else:
                     raise ValueError("broker callback contains an unsupported field value")
-            object.__setattr__(self, "data", safe)
+            object.__setattr__(self, "data", MappingProxyType(safe))
 
     def to_dict(self) -> dict[str, object]:
         return {

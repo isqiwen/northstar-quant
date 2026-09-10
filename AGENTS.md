@@ -41,7 +41,11 @@ provenance; file names and directory shape alone do not establish correctness.
 
 Reference principles, not package names or implementation language. Do not
 rewrite the Python kernel in Rust, add NautilusTrader as a runtime dependency,
-or introduce a universal message bus solely to resemble the reference.
+or introduce infrastructure solely to resemble the reference.
+Research and Live use the shared instance-local `messaging` bus for typed synchronous
+routing. Keep business messages beside their owners, account transactions intact,
+and each bus confined to its core thread/process. Data Hub and cross-app APIs do
+not share this bus. Failed notifications do not undo committed facts or authorize retries.
 Domestic futures calendars, settlement, fees, margin and CTP semantics still
 require their own verified rules. Preserve Northstar's three independent apps,
 local Live SQLite, account ownership and explicit execution authorization.

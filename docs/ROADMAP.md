@@ -18,7 +18,8 @@
 | 并行工程 | [#23 持久研究负载验收](https://github.com/isqiwen/northstar-quant/issues/23) | 现有SQLite/worker的并发、取消、重启与实测资源管理 |
 | 6 | [#47 数据检查工作台](https://github.com/isqiwen/northstar-quant/issues/47) | 图表、覆盖、异常行和修订差异同源可查 |
 
-本轮主交付是 #46 的响应校验与规则身份；完成这个切片不等于整个规范化平台或跨日研究已完成。
+已交付 #46 的响应校验与规则身份；完整规范化仍未完成。
+当前按用户指定推进 [#56 共享消息总线](https://github.com/isqiwen/northstar-quant/issues/56)：Research/Live 实际接入、事件隔离与研究整步回滚。
 #20 的单事件异常修复可独立先做；完整成交模型仍需 #19。#41 的外部权限问题不阻止无凭据工程验证。
 
 ## 第一轮：Live Sim
