@@ -143,9 +143,11 @@ def main() -> None:
                 summary = saved["result"]["summary"]
                 assert summary["bar_count"] == 12, summary
                 assert summary["decision_count"] == 11, summary
-                assert summary["fill_count"] == 7, summary
-                assert Decimal(summary["total_fees"]) == Decimal(70), summary
-                assert Decimal(summary["ending_equity"]) == Decimal(94580), summary
+                # Two round trips: 3241→3169 and 3201→3159, five lots × multiplier 10.
+                # Four fills × five lots × fee 2; later targets cannot use prior bar volume.
+                assert summary["fill_count"] == 4, summary
+                assert Decimal(summary["total_fees"]) == Decimal(40), summary
+                assert Decimal(summary["ending_equity"]) == Decimal(94260), summary
                 assert Decimal(summary["ending_equity"]) == (
                     Decimal(summary["initial_cash"])
                     + Decimal(summary["realized_pnl"])
