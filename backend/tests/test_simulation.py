@@ -9,14 +9,14 @@ from northstar_quant.accounting.fifo import Account
 from northstar_quant.accounting.fills import FillFact
 from northstar_quant.accounting.positions import Position
 from northstar_quant.execution.orders import Offset, OrderBudget, PendingOrder, Side, order_slice
-from northstar_quant.market_data import Market, MarketBar
+from northstar_quant.market_data import Instrument, MarketBar
 from northstar_quant.simulation import simulate_fill
 
 
 def test_fill_enforces_actual_slipped_price_and_fifo_cost_conservation() -> None:
     at = datetime(2026, 1, 5, 1, tzinfo=UTC)
-    market = Market(
-        UUID(int=1), "RB2605", "Asia/Shanghai", "CNY", "TON", Decimal(1), Decimal(10), 60
+    market = Instrument(
+        UUID(int=1), "RB2605", "Asia/Shanghai", "CNY", "TON", Decimal(1), Decimal(10)
     )
     account = Account(Decimal(1000), (market,))
     order = PendingOrder(
@@ -54,6 +54,7 @@ def test_fill_enforces_actual_slipped_price_and_fifo_cost_conservation() -> None
             fee_per_lot=Decimal(2),
             slippage_ticks=1,
             max_volume_participation=Decimal("0.1"),
+            interval_seconds=60,
         ).fill
         is None
     )
@@ -64,6 +65,7 @@ def test_fill_enforces_actual_slipped_price_and_fifo_cost_conservation() -> None
         fee_per_lot=Decimal(2),
         slippage_ticks=0,
         max_volume_participation=Decimal("0.1"),
+        interval_seconds=60,
     ).fill
     assert fact is not None and fact.price == Decimal(102)
     with pytest.raises(ValueError, match="different contract"):
@@ -74,6 +76,7 @@ def test_fill_enforces_actual_slipped_price_and_fifo_cost_conservation() -> None
             fee_per_lot=Decimal(2),
             slippage_ticks=0,
             max_volume_participation=Decimal("0.1"),
+            interval_seconds=60,
         )
     assert account.position(account.markets[0].contract_id).net_lots == 0
     fill = account.apply(fact)
@@ -112,6 +115,7 @@ def test_fill_enforces_actual_slipped_price_and_fifo_cost_conservation() -> None
         fee_per_lot=Decimal(2),
         slippage_ticks=1,
         max_volume_participation=Decimal("0.1"),
+        interval_seconds=60,
     ).fill
     assert closing_fact is not None
     account.apply(closing_fact)
@@ -127,8 +131,8 @@ def test_fill_enforces_actual_slipped_price_and_fifo_cost_conservation() -> None
 
 def test_account_applies_individual_facts_not_whole_orders_or_bar_guesses() -> None:
     at = datetime(2026, 1, 5, 1, tzinfo=UTC)
-    market = Market(
-        UUID(int=1), "RB2605", "Asia/Shanghai", "CNY", "TON", Decimal(1), Decimal(10), 60
+    market = Instrument(
+        UUID(int=1), "RB2605", "Asia/Shanghai", "CNY", "TON", Decimal(1), Decimal(10)
     )
     account = Account(Decimal(1000), (market,))
     first = FillFact(
@@ -184,8 +188,8 @@ def test_gross_opens_explicit_closes_and_broker_projection_share_quantities() ->
     from northstar_quant.accounting.positions import PositionChange, project_intraday_positions
 
     at = datetime(2026, 1, 5, 1, tzinfo=UTC)
-    market = Market(
-        UUID(int=1), "RB2605", "Asia/Shanghai", "CNY", "TON", Decimal(1), Decimal(10), 60
+    market = Instrument(
+        UUID(int=1), "RB2605", "Asia/Shanghai", "CNY", "TON", Decimal(1), Decimal(10)
     )
     account = Account(Decimal(1000), (market,))
     first = FillFact(
@@ -301,8 +305,8 @@ def test_broker_timestamp_group_preserves_unknown_fill_order_and_position_age() 
 
 def test_participation_uses_only_post_order_volume_and_explains_each_rejection() -> None:
     at = datetime(2026, 1, 5, 1, tzinfo=UTC)
-    market = Market(
-        UUID(int=1), "RB2605", "Asia/Shanghai", "CNY", "TON", Decimal(1), Decimal(10), 60
+    market = Instrument(
+        UUID(int=1), "RB2605", "Asia/Shanghai", "CNY", "TON", Decimal(1), Decimal(10)
     )
     order = PendingOrder(
         "partial",
@@ -340,6 +344,7 @@ def test_participation_uses_only_post_order_volume_and_explains_each_rejection()
             fee_per_lot=Decimal(2),
             slippage_ticks=0,
             max_volume_participation=Decimal("0.1"),
+            interval_seconds=60,
         )
 
     result = attempt()
@@ -372,8 +377,8 @@ def test_limit_queue_keeps_order_and_reservation_without_inventing_a_fill(side, 
 
     fixed = terms()
     at = fixed.effective_from + timedelta(hours=1)
-    market = Market(
-        fixed.contract_id, "RB2605", "Asia/Shanghai", "CNY", "TON", Decimal(1), Decimal(10), 60
+    market = Instrument(
+        fixed.contract_id, "RB2605", "Asia/Shanghai", "CNY", "TON", Decimal(1), Decimal(10)
     )
     order = PendingOrder(
         "limit-queue",
@@ -413,6 +418,7 @@ def test_limit_queue_keeps_order_and_reservation_without_inventing_a_fill(side, 
             slippage_ticks=0,
             max_volume_participation=Decimal("0.1"),
             terms=fixed,
+            interval_seconds=60,
         )
 
     before = reservation(order)

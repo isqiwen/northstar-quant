@@ -11,7 +11,7 @@ from northstar_quant.accounting.fifo import Account
 from northstar_quant.accounting.fills import FillFact
 from northstar_quant.accounting.settlement import SettlementFact
 from northstar_quant.execution.orders import Offset, Side
-from northstar_quant.market_data import Market
+from northstar_quant.market_data import Instrument
 
 DAY = date(2026, 1, 9)
 NEXT = date(2026, 1, 12)
@@ -22,7 +22,7 @@ CLOSE = datetime(2026, 1, 9, 7, tzinfo=UTC)
 def _account():
     return Account(
         Decimal(10000),
-        (Market(uuid4(), "RB2605", "Asia/Shanghai", "CNY", "TON", Decimal(1), Decimal(10), 60),),
+        (Instrument(uuid4(), "RB2605", "Asia/Shanghai", "CNY", "TON", Decimal(1), Decimal(10)),),
     )
 
 

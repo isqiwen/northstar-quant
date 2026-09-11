@@ -17,7 +17,11 @@ from tests.test_research import dataset
 
 def session(data):
     return TradingSession(
-        data.market, ResearchConfig(), snapshot_id=data.snapshot_id, content_hash=data.content_hash
+        data.market,
+        ResearchConfig(),
+        snapshot_id=data.snapshot_id,
+        content_hash=data.content_hash,
+        interval_seconds=data.interval_seconds,
     )
 
 
@@ -65,6 +69,7 @@ def test_failed_event_rolls_back_fill_strategy_orders_metrics_then_retries(monke
         content_hash=data.content_hash,
         checkpoint=actual.checkpoint(),
         account=account,
+        interval_seconds=data.interval_seconds,
     )
     assert resumed.advance(data.bars[3]) == clean.advance(data.bars[3])
 

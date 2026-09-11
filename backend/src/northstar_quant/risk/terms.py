@@ -5,14 +5,14 @@ from decimal import ROUND_CEILING, ROUND_HALF_EVEN, Decimal, localcontext
 
 from northstar_quant.accounting.terms import FuturesTerms
 from northstar_quant.execution.orders import Offset, OrderBudget, Side
-from northstar_quant.market_data import Market
+from northstar_quant.market_data import Instrument
 
 from .sizing import RiskPolicy
 
 
 def order_budget(
     policy: RiskPolicy,
-    market: Market,
+    market: Instrument,
     *,
     side: Side,
     offset: Offset,
@@ -61,7 +61,7 @@ def order_budget(
         return OrderBudget(fee, margin if offset is Offset.OPEN else Decimal(0), gross, loss)
 
 
-def policy_for_terms(policy: RiskPolicy, terms: FuturesTerms, market: Market) -> RiskPolicy:
+def policy_for_terms(policy: RiskPolicy, terms: FuturesTerms, market: Instrument) -> RiskPolicy:
     """Bound every fee/side over the fixed daily price interval, including rounding.
 
     A one-lot upward fee bound also covers individually rounded partial fills.

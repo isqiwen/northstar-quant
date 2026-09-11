@@ -344,7 +344,7 @@ class FactorCatalog:
                         tuple(history),
                         bar.available_at,
                         dataset.market.contract_id,
-                        dataset.market.interval_seconds,
+                        dataset.interval_seconds,
                         source_scope=dataset.content_hash,
                     ),
                 )

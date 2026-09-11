@@ -8,7 +8,7 @@ from types import MappingProxyType
 from northstar_quant.accounting.portfolio import PortfolioState, PortfolioValuation
 from northstar_quant.accounting.terms import FuturesTerms, ordered_terms
 from northstar_quant.execution.orders import Offset, OrderBudget, PendingOrder, Side
-from northstar_quant.market_data import Market
+from northstar_quant.market_data import Instrument
 from northstar_quant.strategies import StrategyIntent
 
 from .sizing import Outcome, RiskDecision, RiskPolicy, evaluate_risk
@@ -23,7 +23,7 @@ class RiskEngine:
     """
 
     def __init__(
-        self, market: Market, policy: RiskPolicy, terms: tuple[FuturesTerms, ...] = ()
+        self, market: Instrument, policy: RiskPolicy, terms: tuple[FuturesTerms, ...] = ()
     ) -> None:
         revisions = ordered_terms(terms)
         if any(item.contract_id != market.contract_id for item in revisions):

@@ -360,6 +360,7 @@ def test_night_publication_preserves_declared_day_across_midnight_and_weekend(
             snapshot_id=fixed.snapshot_id,
             content_hash=fixed.content_hash,
             data_details=fixed.details,
+            interval_seconds=fixed.interval_seconds,
         )
         for bar in fixed.bars:
             runtime.advance(bar)

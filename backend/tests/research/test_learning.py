@@ -8,7 +8,7 @@ from uuid import UUID, uuid4
 import pytest
 
 from northstar_quant.data_management.research import ResearchDataset
-from northstar_quant.market_data import Market, MarketBar
+from northstar_quant.market_data import Instrument, MarketBar
 from northstar_quant.research.configuration import ResearchConfig
 from northstar_quant.research.learning import LearningRecipe, fit, training_rows
 from northstar_quant.strategies.configuration import StrategyConfig
@@ -16,7 +16,7 @@ from northstar_quant.strategies.runtime import StrategyRuntime
 
 
 def sample():
-    market = Market(uuid4(), "RB2610", "Asia/Shanghai", "CNY", "TON", Decimal(1), Decimal(10), 60)
+    market = Instrument(uuid4(), "RB2610", "Asia/Shanghai", "CNY", "TON", Decimal(1), Decimal(10))
     start = datetime(2026, 9, 1, 1, tzinfo=UTC)
     bars = tuple(
         MarketBar(
@@ -30,7 +30,7 @@ def sample():
         )
         for i in range(60)
     )
-    return ResearchDataset(uuid4(), "b" * 64, market, bars)
+    return ResearchDataset(uuid4(), "b" * 64, market, bars, interval_seconds=60)
 
 
 def test_vectorized_features_are_past_only_and_labels_stop_at_training_boundary():

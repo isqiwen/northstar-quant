@@ -13,7 +13,7 @@ from northstar_quant.accounting.fifo import Account
 from northstar_quant.accounting.positions import Position
 from northstar_quant.accounting.terms import FuturesTerms
 from northstar_quant.execution.orders import Side
-from northstar_quant.market_data import Market
+from northstar_quant.market_data import Instrument
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,7 +75,7 @@ class AccountValuation:
 
 @dataclass(frozen=True, slots=True)
 class HoldingValuation:
-    market: Market
+    market: Instrument
     position: Position
     mark: Decimal | None
     unrealized_pnl: Decimal

@@ -12,11 +12,11 @@ from northstar_quant.accounting.fills import FillFact
 from northstar_quant.accounting.portfolio import value_portfolio, value_single_contract
 from northstar_quant.accounting.settlement import SettlementFact
 from northstar_quant.execution.orders import Offset, Side
-from northstar_quant.market_data import Market
+from northstar_quant.market_data import Instrument
 from tests.accounting.test_terms import terms
 
 AT = datetime(2026, 1, 5, 1, tzinfo=UTC)
-A = Market(UUID(int=1), "SYNTHETIC_A", "Asia/Shanghai", "CNY", "LOT", Decimal(1), Decimal(10), 60)
+A = Instrument(UUID(int=1), "SYNTHETIC_A", "Asia/Shanghai", "CNY", "LOT", Decimal(1), Decimal(10))
 B = replace(A, contract_id=UUID(int=2), symbol="SYNTHETIC_B", multiplier=Decimal(5))
 
 

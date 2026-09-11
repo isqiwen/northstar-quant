@@ -27,7 +27,7 @@ from northstar_quant.execution.orders import (
     order_slice,
     reservation,
 )
-from northstar_quant.market_data import Market, MarketBar
+from northstar_quant.market_data import Instrument, MarketBar
 from northstar_quant.messaging import Endpoint, Topic
 from northstar_quant.research.configuration import ResearchConfig
 from northstar_quant.research.evaluation import EvaluationPlan
@@ -157,13 +157,14 @@ class TradingSession:
     """
 
     # Bump for changed Strategy/Risk/Simulation/Accounting rules or checkpoint format.
-    REVISION = "20"
+    REVISION = "21"
 
     def __init__(
         self,
-        market: Market,
+        market: Instrument,
         config: ResearchConfig,
         *,
+        interval_seconds: int,
         snapshot_id: UUID,
         content_hash: str,
         data_details: DatasetDetails | None = None,
@@ -178,8 +179,8 @@ class TradingSession:
             or not market.multiplier.is_finite()
             or market.price_tick <= 0
             or market.multiplier <= 0
-            or type(market.interval_seconds) is not int
-            or market.interval_seconds <= 0
+            or type(interval_seconds) is not int
+            or interval_seconds <= 0
         ):
             raise ValueError("market must have exact positive economics and interval")
         for value in (market.price_tick, market.multiplier):
@@ -191,6 +192,7 @@ class TradingSession:
                 or value.adjusted() > 33
             ):
                 raise ValueError("market economics exceed the 34-digit/18-place financial domain")
+        self.interval_seconds = interval_seconds
         self.market, self.config = market, config
         self.snapshot_id, self.content_hash = snapshot_id, content_hash
         if data_details is not None and (
@@ -224,7 +226,7 @@ class TradingSession:
         self._execution = ExecutionEngine()
         self._risk = RiskEngine(market, config.risk_policy(), self._terms)
         self._trader = StrategyRuntime(
-            config.strategy, market.contract_id, market.interval_seconds, source_scope=content_hash
+            config.strategy, market.contract_id, interval_seconds, source_scope=content_hash
         )
         self._trading_day: date | None = None
         self._last: MarketBar | None = None
@@ -343,6 +345,7 @@ class TradingSession:
                 slippage_ticks=self.config.simulation.slippage_ticks,
                 max_volume_participation=self.config.simulation.max_volume_participation,
                 terms=terms,
+                interval_seconds=self.interval_seconds,
             )
             if attempt.fill is not None:
                 fill = self.account.apply(attempt.fill)
@@ -552,6 +555,7 @@ class TradingSession:
                 else value
                 for name, value in asdict(self.market).items()
             },
+            "interval_seconds": self.interval_seconds,
             "config": self.config.to_dict(),
             "account": self.account.checkpoint(),
             "history": [_bar_dict(bar) for bar in self._trader.history],
@@ -568,9 +572,10 @@ class TradingSession:
     @classmethod
     def from_checkpoint(
         cls,
-        market: Market,
+        market: Instrument,
         config: ResearchConfig,
         *,
+        interval_seconds: int,
         snapshot_id: UUID,
         content_hash: str,
         checkpoint: dict[str, object],
@@ -590,6 +595,7 @@ class TradingSession:
             snapshot_id=snapshot_id,
             content_hash=content_hash,
             data_details=data_details,
+            interval_seconds=interval_seconds,
         )
         initial = session.checkpoint()
         if not isinstance(checkpoint, dict) or set(checkpoint) != set(initial):
@@ -600,6 +606,7 @@ class TradingSession:
             "snapshot_id",
             "content_hash",
             "market",
+            "interval_seconds",
             "config",
         ):
             if checkpoint[name] != initial[name]:
@@ -700,7 +707,7 @@ class TradingSession:
         session._trader = StrategyRuntime(
             config.strategy,
             market.contract_id,
-            market.interval_seconds,
+            interval_seconds,
             source_scope=content_hash,
             history=tuple(accepted_history),
             state=tuple((key, value) for key, value in raw_state.items()),  # type: ignore[misc]
@@ -735,9 +742,7 @@ class TradingSession:
     def _validate_bar(self, bar: MarketBar) -> None:
         if not isinstance(bar, MarketBar):
             raise ValueError("research requires canonical observations")
-        bar.validate(
-            interval_seconds=self.market.interval_seconds, price_tick=self.market.price_tick
-        )
+        bar.validate(interval_seconds=self.interval_seconds, price_tick=self.market.price_tick)
 
 
 def _object(value: object) -> dict[str, object]:

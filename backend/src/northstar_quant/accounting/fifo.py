@@ -21,7 +21,7 @@ from northstar_quant.accounting.fills import AppliedFill, FillFact
 from northstar_quant.accounting.positions import Position, PositionChange
 from northstar_quant.accounting.settlement import AppliedSettlement, SettlementFact
 from northstar_quant.execution.orders import Offset, Side
-from northstar_quant.market_data import Market
+from northstar_quant.market_data import Instrument
 
 
 @dataclass(slots=True)
@@ -34,7 +34,7 @@ class _Lot:
 
 @dataclass(frozen=True, slots=True)
 class _Inventory:
-    market: Market
+    market: Instrument
     position: Position = Position()
     lots: tuple[_Lot, ...] = ()
     trading_day: date | None = None
@@ -49,14 +49,14 @@ class Account:
     that fact and the new projection together under their account lock.
     """
 
-    def __init__(self, initial_cash: Decimal, markets: tuple[Market, ...]) -> None:
+    def __init__(self, initial_cash: Decimal, markets: tuple[Instrument, ...]) -> None:
         if (
             not isinstance(initial_cash, Decimal)
             or not initial_cash.is_finite()
             or initial_cash <= 0
         ):
             raise ValueError("account initial cash must be a positive exact amount")
-        if not markets or any(not isinstance(market, Market) for market in markets):
+        if not markets or any(not isinstance(market, Instrument) for market in markets):
             raise ValueError("account requires fixed contract markets")
         if len({market.contract_id for market in markets}) != len(markets):
             raise ValueError("account contract identities must be unique")
@@ -120,7 +120,7 @@ class Account:
     def applied_settlements(self) -> tuple[AppliedSettlement, ...]:
         return tuple(self._settlements.values())
 
-    def market(self, contract_id: UUID) -> Market:
+    def market(self, contract_id: UUID) -> Instrument:
         try:
             return self._inventories[contract_id].market
         except KeyError:

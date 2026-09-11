@@ -65,7 +65,7 @@ from northstar_quant.data_management.snapshots.publication import (
 from northstar_quant.data_management.snapshots.service import (
     DatasetSnapshotPublicationService,
 )
-from northstar_quant.market_data import Market, MarketBar
+from northstar_quant.market_data import Instrument, MarketBar
 from northstar_quant.market_data.sessions import resolve_trading_day
 
 if TYPE_CHECKING:
@@ -76,8 +76,9 @@ if TYPE_CHECKING:
 class ResearchDataset:
     snapshot_id: UUID
     content_hash: str
-    market: Market
+    market: Instrument
     bars: tuple[MarketBar, ...]
+    interval_seconds: int
     # Pure in-memory calculations need no persisted source receipt. Every Data
     # read/import supplies verified details; absence is never historical evidence.
     details: DatasetDetails | None = None

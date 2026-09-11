@@ -11,7 +11,7 @@ from math import lcm
 from northstar_quant.accounting.amounts import decimal_text
 from northstar_quant.accounting.portfolio import PortfolioState
 from northstar_quant.execution.orders import Side
-from northstar_quant.market_data import Market
+from northstar_quant.market_data import Instrument
 from northstar_quant.strategies import StrategyIntent
 
 _MAX_FINANCIAL = Decimal("9" * 34)
@@ -80,7 +80,7 @@ def evaluate_risk(
     intent: StrategyIntent,
     state: PortfolioState,
     policy: RiskPolicy,
-    market: Market,
+    market: Instrument,
 ) -> RiskDecision:
     """Authorize one target from current account truth, including execution fees.
 
@@ -110,7 +110,7 @@ def evaluate_risk(
 
 
 def _evaluate(
-    intent: StrategyIntent, state: PortfolioState, policy: RiskPolicy, market: Market
+    intent: StrategyIntent, state: PortfolioState, policy: RiskPolicy, market: Instrument
 ) -> RiskDecision:
     desired = int(
         (intent.target_fraction.copy_abs() * policy.max_lots).to_integral_value(
@@ -218,7 +218,7 @@ def _evaluate(
 
 
 def _authorize_price_interval(
-    state: PortfolioState, policy: RiskPolicy, market: Market, target: int, side: Side
+    state: PortfolioState, policy: RiskPolicy, market: Instrument, target: int, side: Side
 ) -> tuple[Decimal, Decimal] | None:
     multiplier, tick = market.multiplier, market.price_tick
     direction = 1 if side is Side.BUY else -1

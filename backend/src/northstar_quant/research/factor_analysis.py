@@ -21,7 +21,7 @@ def analyze(dataset: ResearchDataset, values: list[dict[str, Any]]) -> dict[str,
     if len(indexed) != len(bars):
         raise ValueError("factor analysis repeats observation identities")
     for index, bar in enumerate(bars):
-        bar.validate(interval_seconds=dataset.market.interval_seconds)
+        bar.validate(interval_seconds=dataset.interval_seconds)
         if index and bar.event_time < bars[index - 1].completed_at:
             raise ValueError("factor labels require ordered nonoverlapping bars")
         row = indexed.get(str(bar.observation_id))

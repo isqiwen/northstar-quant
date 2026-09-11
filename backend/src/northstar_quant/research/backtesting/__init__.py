@@ -29,6 +29,7 @@ def run_research(
         snapshot_id=dataset.snapshot_id,
         content_hash=dataset.content_hash,
         data_details=dataset.details,
+        interval_seconds=dataset.interval_seconds,
     )
     steps: list[TradingStep] = []
     session.kernel.subscribe(STEP_COMPLETED, steps.append)

@@ -9,7 +9,7 @@ from decimal import ROUND_FLOOR, ROUND_HALF_EVEN, Decimal, localcontext
 from northstar_quant.accounting.fills import FillFact
 from northstar_quant.accounting.terms import FuturesTerms
 from northstar_quant.execution.orders import PendingOrder, Side
-from northstar_quant.market_data import Market, MarketBar
+from northstar_quant.market_data import Instrument, MarketBar
 
 
 @dataclass(frozen=True, slots=True)
@@ -21,8 +21,9 @@ class FillAttempt:
 def simulate_fill(
     order: PendingOrder,
     bar: MarketBar,
-    market: Market,
+    market: Instrument,
     *,
+    interval_seconds: int,
     fee_per_lot: Decimal,
     slippage_ticks: int,
     max_volume_participation: Decimal,
@@ -36,7 +37,7 @@ def simulate_fill(
 
     if order.contract_id != market.contract_id:
         raise ValueError("simulation order belongs to a different contract")
-    bar.validate(interval_seconds=market.interval_seconds, price_tick=market.price_tick)
+    bar.validate(interval_seconds=interval_seconds, price_tick=market.price_tick)
     if terms is not None:
         terms.require_available(bar.available_at, start=bar.event_time)
         if terms.contract_id != market.contract_id:

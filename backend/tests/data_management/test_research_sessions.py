@@ -384,6 +384,7 @@ def test_cross_day_settlement_is_fixed_offline_replayable_and_survives_every_res
         snapshot_id=fixed.snapshot_id,
         content_hash=fixed.content_hash,
         data_details=fixed.details,
+        interval_seconds=fixed.interval_seconds,
     )
     try:
         steps = [step for bar in fixed.bars if (step := replay.advance(bar)) is not None]
@@ -459,6 +460,7 @@ def test_day_transition_without_available_fixed_settlement_rejects_without_chang
         snapshot_id=fixed.snapshot_id,
         content_hash=fixed.content_hash,
         data_details=fixed.details,
+        interval_seconds=fixed.interval_seconds,
     )
     try:
         for bar in first.bars:

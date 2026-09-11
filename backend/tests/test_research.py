@@ -10,7 +10,7 @@ from northstar_quant.accounting.fifo import Account
 from northstar_quant.accounting.fills import FillFact
 from northstar_quant.data_management.research import ResearchDataset
 from northstar_quant.factors.evaluation import Binding
-from northstar_quant.market_data import Market, MarketBar
+from northstar_quant.market_data import Instrument, MarketBar
 from northstar_quant.research.backtesting import run_research
 from northstar_quant.research.backtesting.report import build_result
 from northstar_quant.research.backtesting.session import TradingSession, TradingStep
@@ -26,7 +26,7 @@ def dataset(prices: tuple[str, ...]) -> ResearchDataset:
     return ResearchDataset(
         UUID(int=100),
         "a" * 64,
-        Market(UUID(int=200), "RB2605", "Asia/Shanghai", "CNY", "TON", Decimal(1), Decimal(10), 60),
+        Instrument(UUID(int=200), "RB2605", "Asia/Shanghai", "CNY", "TON", Decimal(1), Decimal(10)),
         tuple(
             MarketBar(
                 UUID(int=index + 1),
@@ -39,6 +39,7 @@ def dataset(prices: tuple[str, ...]) -> ResearchDataset:
             )
             for index, price in enumerate(prices)
         ),
+        interval_seconds=60,
     )
 
 
@@ -111,7 +112,11 @@ def test_risk_rejection_and_incremental_retries_are_observable_and_deterministic
     config = ResearchConfig(risk=RiskConfig(max_gross_notional=Decimal(1)))
     batch = run_research(data, config).to_dict()
     session = TradingSession(
-        data.market, config, snapshot_id=data.snapshot_id, content_hash=data.content_hash
+        data.market,
+        config,
+        snapshot_id=data.snapshot_id,
+        content_hash=data.content_hash,
+        interval_seconds=data.interval_seconds,
     )
     steps = []
     for bar in data.bars:
@@ -153,7 +158,11 @@ def test_configuration_is_complete_and_changed_strategy_changes_result_identity(
 def test_report_rejects_altered_fill_even_when_history_counts_match() -> None:
     data = dataset(("100", "110", "120", "120"))
     session = TradingSession(
-        data.market, ResearchConfig(), snapshot_id=data.snapshot_id, content_hash=data.content_hash
+        data.market,
+        ResearchConfig(),
+        snapshot_id=data.snapshot_id,
+        content_hash=data.content_hash,
+        interval_seconds=data.interval_seconds,
     )
     try:
         steps = [session.advance(bar) for bar in data.bars]
@@ -185,7 +194,11 @@ def test_checkpoint_recovery_preserves_pending_fifo_warmup_and_complete_result()
     )
     batch = run_research(data, config).to_dict()
     session = TradingSession(
-        data.market, config, snapshot_id=data.snapshot_id, content_hash=data.content_hash
+        data.market,
+        config,
+        snapshot_id=data.snapshot_id,
+        content_hash=data.content_hash,
+        interval_seconds=data.interval_seconds,
     )
     assert session.summary()["bar_count"] == 0
     assert session.summary()["ending_equity"] == "100000"
@@ -203,6 +216,7 @@ def test_checkpoint_recovery_preserves_pending_fifo_warmup_and_complete_result()
             content_hash=data.content_hash,
             checkpoint=checkpoint,
             account=rebuilt,
+            interval_seconds=data.interval_seconds,
         )
         step = session.advance(bar)
         assert step is not None
@@ -225,6 +239,7 @@ def test_checkpoint_recovery_preserves_pending_fifo_warmup_and_complete_result()
             content_hash=data.content_hash,
             checkpoint={**checkpoint, "decision_count": checkpoint["bar_count"] + 1},
             account=rebuilt,
+            interval_seconds=data.interval_seconds,
         )
     with pytest.raises(ValueError, match="drawdown"):
         TradingSession.from_checkpoint(
@@ -234,6 +249,7 @@ def test_checkpoint_recovery_preserves_pending_fifo_warmup_and_complete_result()
             content_hash=data.content_hash,
             checkpoint={**checkpoint, "maximum_drawdown": "0"},
             account=rebuilt,
+            interval_seconds=data.interval_seconds,
         )
     damaged_account = {**checkpoint["account"], "cash": str(rebuilt.cash + Decimal(1))}
     with pytest.raises(ValueError, match="verified fill ledger"):
@@ -244,6 +260,7 @@ def test_checkpoint_recovery_preserves_pending_fifo_warmup_and_complete_result()
             content_hash=data.content_hash,
             checkpoint={**checkpoint, "account": damaged_account},
             account=rebuilt,
+            interval_seconds=data.interval_seconds,
         )
     changed_plan = {
         **checkpoint,
@@ -257,6 +274,7 @@ def test_checkpoint_recovery_preserves_pending_fifo_warmup_and_complete_result()
             content_hash=data.content_hash,
             checkpoint=changed_plan,
             account=rebuilt,
+            interval_seconds=data.interval_seconds,
         )
     with pytest.raises(ValueError, match="fixed input or configuration"):
         TradingSession.from_checkpoint(
@@ -266,13 +284,18 @@ def test_checkpoint_recovery_preserves_pending_fifo_warmup_and_complete_result()
             content_hash=data.content_hash,
             checkpoint=checkpoint,
             account=rebuilt,
+            interval_seconds=data.interval_seconds,
         )
 
 
 def test_overlapping_market_interval_cannot_fill_a_pending_order() -> None:
     data = dataset(("100", "110", "112"))
     session = TradingSession(
-        data.market, ResearchConfig(), snapshot_id=data.snapshot_id, content_hash=data.content_hash
+        data.market,
+        ResearchConfig(),
+        snapshot_id=data.snapshot_id,
+        content_hash=data.content_hash,
+        interval_seconds=data.interval_seconds,
     )
     session.advance(data.bars[0])
     session.advance(data.bars[1])
@@ -336,6 +359,7 @@ def test_a_shorter_risk_window_replaces_the_old_working_order(monkeypatch) -> No
         ResearchConfig(risk=RiskConfig(max_lots=100)),
         snapshot_id=data.snapshot_id,
         content_hash=data.content_hash,
+        interval_seconds=data.interval_seconds,
     )
     session.advance(data.bars[0])
     session.advance(data.bars[1])
@@ -376,6 +400,7 @@ def test_report_rejects_changed_intermediate_valuation_with_unchanged_ledger() -
         ResearchConfig(risk=RiskConfig(max_lots=2)),
         snapshot_id=data.snapshot_id,
         content_hash=data.content_hash,
+        interval_seconds=data.interval_seconds,
     )
     steps = [session.advance(bar) for bar in data.bars]
     assert all(step is not None for step in steps)
@@ -410,6 +435,7 @@ def test_report_rejects_missing_submission_and_repeated_terminal_order() -> None
         ResearchConfig(risk=RiskConfig(max_lots=2)),
         snapshot_id=data.snapshot_id,
         content_hash=data.content_hash,
+        interval_seconds=data.interval_seconds,
     )
     steps = [session.advance(bar) for bar in data.bars]
     original = build_result(session, steps)
@@ -434,3 +460,58 @@ def test_report_rejects_missing_submission_and_repeated_terminal_order() -> None
         build_result(session, corrupted)
     assert build_result(session, steps) == original
     session.close()
+
+
+def test_stream_interval_is_fixed_for_replay_but_not_part_of_the_account():
+    data = dataset(("100", "101", "102", "103"))
+    config = ResearchConfig()
+    session = TradingSession(
+        data.market,
+        config,
+        snapshot_id=data.snapshot_id,
+        content_hash=data.content_hash,
+        interval_seconds=60,
+    )
+    other = TradingSession(
+        data.market,
+        config,
+        snapshot_id=data.snapshot_id,
+        content_hash=data.content_hash,
+        interval_seconds=900,
+    )
+    try:
+        assert session.account.markets == other.account.markets
+        assert session.account.checkpoint() == other.account.checkpoint()
+        with pytest.raises(ValueError, match="fixed input"):
+            TradingSession.from_checkpoint(
+                data.market,
+                config,
+                snapshot_id=data.snapshot_id,
+                content_hash=data.content_hash,
+                interval_seconds=900,
+                checkpoint=session.checkpoint(),
+                account=session.account,
+            )
+        with pytest.raises(ValueError, match="completion"):
+            other.advance(data.bars[0])
+        assert other.account.checkpoint() == session.account.checkpoint()
+        fifteen = replace(
+            data,
+            interval_seconds=900,
+            bars=tuple(
+                replace(
+                    bar,
+                    event_time=AT + timedelta(minutes=15 * i),
+                    completed_at=AT + timedelta(minutes=15 * (i + 1)),
+                    available_at=AT + timedelta(minutes=15 * (i + 1)),
+                )
+                for i, bar in enumerate(data.bars)
+            ),
+        )
+        result = run_research(fifteen, config).to_dict()
+        assert result["interval_seconds"] == 900
+        assert result["market"]["contract_id"] == str(data.market.contract_id)
+        assert "interval_seconds" not in result["market"]
+    finally:
+        session.close()
+        other.close()

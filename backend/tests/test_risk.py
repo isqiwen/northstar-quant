@@ -7,7 +7,7 @@ import pytest
 
 from northstar_quant.accounting.portfolio import PortfolioState
 from northstar_quant.execution.orders import Side
-from northstar_quant.market_data import Market
+from northstar_quant.market_data import Instrument
 from northstar_quant.risk import (
     OpeningAccount,
     OpeningCandidate,
@@ -21,7 +21,7 @@ from northstar_quant.risk import (
 from northstar_quant.strategies import StrategyIntent
 
 AT = datetime(2026, 1, 5, 1, tzinfo=UTC)
-MARKET = Market(UUID(int=200), "RB2605", "Asia/Shanghai", "CNY", "TON", Decimal(1), Decimal(10), 60)
+MARKET = Instrument(UUID(int=200), "RB2605", "Asia/Shanghai", "CNY", "TON", Decimal(1), Decimal(10))
 POLICY = RiskPolicy(
     10, Decimal("1000000"), Decimal("0.5"), Decimal("0.1"), Decimal("0.1"), Decimal(2), 1
 )

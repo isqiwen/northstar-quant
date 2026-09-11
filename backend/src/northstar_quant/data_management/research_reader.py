@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from northstar_quant.accounting.settlement import SettlementFact
 from northstar_quant.accounting.terms import FuturesTerms
-from northstar_quant.market_data import Market, MarketBar
+from northstar_quant.market_data import Instrument, MarketBar
 
 from .catalog.models import (
     DatasetSnapshotImportQualityPin,
@@ -137,7 +137,7 @@ def _read_partition(
     snapshot_id = resolved.manifest.id
     if partition.interval != "1m" or partition.timestamp_convention != "BAR_START":
         raise ValueError("research requires one-minute BAR_START data")
-    market = Market(
+    market = Instrument(
         contract_id=partition.contract_id,
         symbol=partition.contract_code,
         exchange_timezone=partition.exchange_timezone_name,
@@ -145,7 +145,6 @@ def _read_partition(
         quantity_unit=partition.quantity_unit,
         price_tick=partition.price_tick,
         multiplier=partition.contract_multiplier,
-        interval_seconds=60,
     )
     bars: list[MarketBar] = []
     member_import_ids: set[UUID] = set()
@@ -357,6 +356,8 @@ def _read_partition(
         processing_provenance=stream_provenance,
     )
     return (
-        ResearchDataset(snapshot_id, resolved.manifest.content_hash, market, tuple(bars), details),
+        ResearchDataset(
+            snapshot_id, resolved.manifest.content_hash, market, tuple(bars), 60, details
+        ),
         details,
     )

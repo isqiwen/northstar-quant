@@ -60,6 +60,7 @@ _sessions = Table(
     Column("code_revision", String(64), nullable=False),
     Column("identity_hash", String(64), nullable=False),
     Column("market", JSON().with_variant(JSONB(), "postgresql"), nullable=False),
+    Column("interval_seconds", Integer, nullable=False),
     Column("data", JSON().with_variant(JSONB(), "postgresql"), nullable=False),
     Column("total_inputs", Integer, nullable=False),
     Column("cursor", Integer, nullable=False),
@@ -177,7 +178,7 @@ class PaperStore:
         if dataset.details is None or not 1 <= len(dataset.bars) <= 100000:
             raise ValueError("Paper requires a verified fixed snapshot of at most 100000 bars")
         bars = _ordered_bars(dataset)
-        if dataset.market.interval_seconds != 60:
+        if dataset.interval_seconds != 60:
             raise ValueError("Paper requires fixed minute bars")
         implementation = code_revision()
         with write_transaction(self._engine) as connection:
@@ -191,6 +192,7 @@ class PaperStore:
                 snapshot_id=snapshot_id,
                 content_hash=dataset.content_hash,
                 data_details=dataset.details,
+                interval_seconds=dataset.interval_seconds,
             )
             session.validate_inputs(bars)
             market = {
@@ -208,6 +210,7 @@ class PaperStore:
                 "snapshot_hash": dataset.content_hash,
                 "code_revision": implementation,
                 "market": market,
+                "interval_seconds": dataset.interval_seconds,
                 "data": dataset.details.to_dict(),
                 "total_inputs": len(bars),
             }
@@ -226,6 +229,7 @@ class PaperStore:
                     code_revision=implementation,
                     identity_hash=identity,
                     market=market,
+                    interval_seconds=dataset.interval_seconds,
                     data=dataset.details.to_dict(),
                     total_inputs=len(bars),
                     cursor=0,
@@ -285,6 +289,7 @@ class PaperStore:
                         "created_at": row["created_at"].astimezone(UTC).isoformat(),
                         "updated_at": row["updated_at"].astimezone(UTC).isoformat(),
                         "market": row["market"],
+                        "interval_seconds": row["interval_seconds"],
                         "summary": row["summary"],
                         "configuration": configurations[row["configuration_id"]],
                         "cursor": row["cursor"],
@@ -318,6 +323,7 @@ class PaperStore:
                         "content_hash": row["snapshot_hash"],
                     },
                     "market": row["market"],
+                    "interval_seconds": row["interval_seconds"],
                     "data": row["data"],
                     "configuration": config,
                     "code_revision": row["code_revision"],
@@ -435,6 +441,7 @@ class PaperStore:
                 data_details=dataset.details,
                 checkpoint=_object(row["checkpoint"]),
                 account=account,
+                interval_seconds=dataset.interval_seconds,
             )
             if session.summary() != row["summary"]:
                 raise ValueError("Paper summary does not match its reconciled account state")
@@ -526,6 +533,7 @@ class PaperStore:
             "snapshot_hash": row["snapshot_hash"],
             "code_revision": row["code_revision"],
             "market": row["market"],
+            "interval_seconds": row["interval_seconds"],
             "data": row["data"],
             "total_inputs": row["total_inputs"],
         }
