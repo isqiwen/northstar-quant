@@ -394,6 +394,7 @@ def main() -> None:
                         .first
                     )
                     analysis.locator(".ant-table-row-expand-icon").first.click()
+                    expect(analysis.get_by_text(re.compile(r"因子未就绪：[1-9]"))).to_be_visible()
                     expect(
                         analysis.get_by_role("columnheader", name="日内 Spearman", exact=True)
                     ).to_be_visible()

@@ -933,7 +933,7 @@
         "excluded": {
           "id": 3,
           "presence": false,
-          "type": "string",
+          "type": "int64",
           "required": true,
           "nullable": false,
           "keyType": "string"

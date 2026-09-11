@@ -10196,7 +10196,7 @@ export const northstar = $root.northstar = (() => {
              * @typedef {Object} northstar.research.FactorHorizon.$Properties
              * @property {number|Long|null} [bars] FactorHorizon bars
              * @property {number|Long|null} [samples] FactorHorizon samples
-             * @property {Object.<string,string>|null} [excluded] FactorHorizon excluded
+             * @property {Object.<string,number|Long>|null} [excluded] FactorHorizon excluded
              * @property {string|null} [status] FactorHorizon status
              * @property {number|null} [pearson] FactorHorizon pearson
              * @property {number|null} [spearman] FactorHorizon spearman
@@ -10226,7 +10226,7 @@ export const northstar = $root.northstar = (() => {
              * @typedef {{
              *   bars?: number|Long|null;
              *   samples?: number|Long|null;
-             *   excluded?: Object.<string,string>|null;
+             *   excluded?: Object.<string,number|Long>|null;
              *   status?: string|null;
              *   pearson?: number|null;
              *   spearman?: number|null;
@@ -10287,7 +10287,7 @@ export const northstar = $root.northstar = (() => {
 
             /**
              * FactorHorizon excluded.
-             * @member {Object.<string,string>} excluded
+             * @member {Object.<string,number|Long>} excluded
              * @memberof northstar.research.FactorHorizon
              * @instance
              */
@@ -10456,7 +10456,7 @@ export const northstar = $root.northstar = (() => {
                     writer.uint32(/* id 2, wireType 0 =*/16).int64(message.samples);
                 if (message.excluded != null && $Object.hasOwnProperty.call(message, "excluded"))
                     for (let keys = $Object.keys(message.excluded), i = 0; i < keys.length; ++i)
-                        writer.uint32(/* id 3, wireType 2 =*/26).fork().uint32(/* id 1, wireType 2 =*/10).string(keys[i]).uint32(/* id 2, wireType 2 =*/18).string(message.excluded[keys[i]]).ldelim();
+                        writer.uint32(/* id 3, wireType 2 =*/26).fork().uint32(/* id 1, wireType 2 =*/10).string(keys[i]).uint32(/* id 2, wireType 0 =*/16).int64(message.excluded[keys[i]]).ldelim();
                 if (message.status != null && $Object.hasOwnProperty.call(message, "status"))
                     writer.uint32(/* id 4, wireType 2 =*/34).string(message.status);
                 if (message.pearson != null && $Object.hasOwnProperty.call(message, "pearson"))
@@ -10542,7 +10542,7 @@ export const northstar = $root.northstar = (() => {
                                 throw $RangeError("index out of range");
                             reader.len = end2;
                             key = "";
-                            value = "";
+                            value = $util.Long ? $util.Long.fromNumber(0, false) : 0;
                             while (reader.pos < end2) {
                                 let tag2 = reader.tag();
                                 wireType = tag2 & 7;
@@ -10553,9 +10553,9 @@ export const northstar = $root.northstar = (() => {
                                     key = reader.stringVerify();
                                     continue;
                                 case 2:
-                                    if (wireType !== 2)
+                                    if (wireType !== 0)
                                         break;
-                                    value = reader.stringVerify();
+                                    value = reader.int64();
                                     continue;
                                 }
                                 reader.skipType(wireType, _depth, tag2);
@@ -10668,8 +10668,8 @@ export const northstar = $root.northstar = (() => {
                         return "excluded: object expected";
                     let key = $Object.keys(message.excluded);
                     for (let i = 0; i < key.length; ++i)
-                        if (!$util.isString(message.excluded[key[i]]))
-                            return "excluded: string{k:string} expected";
+                        if (!$util.isInteger(message.excluded[key[i]]) && !(message.excluded[key[i]] && $util.isInteger(message.excluded[key[i]].low) && $util.isInteger(message.excluded[key[i]].high)))
+                            return "excluded: integer|Long{k:string} expected";
                 }
                 if (message.status != null && $Object.hasOwnProperty.call(message, "status")) {
                     properties._status = 1;
@@ -10762,7 +10762,14 @@ export const northstar = $root.northstar = (() => {
                     for (let keys = $Object.keys(object.excluded), i = 0; i < keys.length; ++i) {
                         if (keys[i] === "__proto__")
                             $util.makeProp(message.excluded, keys[i]);
-                        message.excluded[keys[i]] = $String(object.excluded[keys[i]]);
+                        if ($util.Long)
+                            message.excluded[keys[i]] = $util.Long.fromValue(object.excluded[keys[i]], false);
+                        else if (typeof object.excluded[keys[i]] === "string")
+                            message.excluded[keys[i]] = $parseInt(object.excluded[keys[i]], 10);
+                        else if (typeof object.excluded[keys[i]] === "number")
+                            message.excluded[keys[i]] = object.excluded[keys[i]];
+                        else if (typeof object.excluded[keys[i]] === "object")
+                            message.excluded[keys[i]] = new $util.LongBits(object.excluded[keys[i]].low >>> 0, object.excluded[keys[i]].high >>> 0).toNumber();
                     }
                 }
                 if (object.status != null)
@@ -10853,7 +10860,12 @@ export const northstar = $root.northstar = (() => {
                     for (let j = 0; j < keys2.length; ++j) {
                         if (keys2[j] === "__proto__")
                             $util.makeProp(object.excluded, keys2[j]);
-                        object.excluded[keys2[j]] = message.excluded[keys2[j]];
+                        if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                            object.excluded[keys2[j]] = typeof message.excluded[keys2[j]] === "number" ? $BigInt(message.excluded[keys2[j]]) : $util.Long.fromBits(message.excluded[keys2[j]].low >>> 0, message.excluded[keys2[j]].high >>> 0, false).toBigInt();
+                        else if (typeof message.excluded[keys2[j]] === "number")
+                            object.excluded[keys2[j]] = options.longs === $String ? $String(message.excluded[keys2[j]]) : message.excluded[keys2[j]];
+                        else
+                            object.excluded[keys2[j]] = options.longs === $String ? $util.Long.prototype.toString.call(message.excluded[keys2[j]]) : options.longs === $Number ? new $util.LongBits(message.excluded[keys2[j]].low >>> 0, message.excluded[keys2[j]].high >>> 0).toNumber() : message.excluded[keys2[j]];
                     }
                 }
                 if (message.status != null && $Object.hasOwnProperty.call(message, "status")) {

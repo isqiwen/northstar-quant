@@ -6998,7 +6998,7 @@ export const northstar = $root.northstar = (() => {
              * @typedef {Object} northstar.live.BrokerStatus.$Properties
              * @property {string|null} [connection] BrokerStatus connection
              * @property {google.protobuf.Struct.$Properties|null} [credentials] BrokerStatus credentials
-             * @property {Object.<string,string>|null} [execution] BrokerStatus execution
+             * @property {Object.<string,boolean>|null} [execution] BrokerStatus execution
              * @property {Array.<google.protobuf.Struct.$Properties>|null} [profiles] BrokerStatus profiles
              * @property {google.protobuf.Struct.$Properties|null} [sdk] BrokerStatus sdk
              * @property {Object.<string,google.protobuf.Value.$Properties>|null} [evidence_fields] BrokerStatus evidence_fields
@@ -7021,7 +7021,7 @@ export const northstar = $root.northstar = (() => {
              * @typedef {{
              *   connection?: string|null;
              *   credentials?: google.protobuf.Struct.$Shape|null;
-             *   execution?: Object.<string,string>|null;
+             *   execution?: Object.<string,boolean>|null;
              *   profiles?: Array.<google.protobuf.Struct.$Shape>|null;
              *   sdk?: google.protobuf.Struct.$Shape|null;
              *   evidence_fields?: Object.<string,google.protobuf.Value.$Shape>|null;
@@ -7071,7 +7071,7 @@ export const northstar = $root.northstar = (() => {
 
             /**
              * BrokerStatus execution.
-             * @member {Object.<string,string>} execution
+             * @member {Object.<string,boolean>} execution
              * @memberof northstar.live.BrokerStatus
              * @instance
              */
@@ -7175,7 +7175,7 @@ export const northstar = $root.northstar = (() => {
                     $root.google.protobuf.Struct.encode(message.credentials, writer.uint32(/* id 2, wireType 2 =*/18).fork(), _depth + 1).ldelim();
                 if (message.execution != null && $Object.hasOwnProperty.call(message, "execution"))
                     for (let keys = $Object.keys(message.execution), i = 0; i < keys.length; ++i)
-                        writer.uint32(/* id 3, wireType 2 =*/26).fork().uint32(/* id 1, wireType 2 =*/10).string(keys[i]).uint32(/* id 2, wireType 2 =*/18).string(message.execution[keys[i]]).ldelim();
+                        writer.uint32(/* id 3, wireType 2 =*/26).fork().uint32(/* id 1, wireType 2 =*/10).string(keys[i]).uint32(/* id 2, wireType 0 =*/16).bool(message.execution[keys[i]]).ldelim();
                 if (message.profiles != null && message.profiles.length)
                     for (let i = 0; i < message.profiles.length; ++i)
                         $root.google.protobuf.Struct.encode(message.profiles[i], writer.uint32(/* id 4, wireType 2 =*/34).fork(), _depth + 1).ldelim();
@@ -7254,7 +7254,7 @@ export const northstar = $root.northstar = (() => {
                                 throw $RangeError("index out of range");
                             reader.len = end2;
                             key = "";
-                            value = "";
+                            value = false;
                             while (reader.pos < end2) {
                                 let tag2 = reader.tag();
                                 wireType = tag2 & 7;
@@ -7265,9 +7265,9 @@ export const northstar = $root.northstar = (() => {
                                     key = reader.stringVerify();
                                     continue;
                                 case 2:
-                                    if (wireType !== 2)
+                                    if (wireType !== 0)
                                         break;
-                                    value = reader.stringVerify();
+                                    value = reader.bool();
                                     continue;
                                 }
                                 reader.skipType(wireType, _depth, tag2);
@@ -7382,8 +7382,8 @@ export const northstar = $root.northstar = (() => {
                         return "execution: object expected";
                     let key = $Object.keys(message.execution);
                     for (let i = 0; i < key.length; ++i)
-                        if (!$util.isString(message.execution[key[i]]))
-                            return "execution: string{k:string} expected";
+                        if (typeof message.execution[key[i]] !== "boolean")
+                            return "execution: boolean{k:string} expected";
                 }
                 if (message.profiles != null && $Object.hasOwnProperty.call(message, "profiles")) {
                     if (!$Array.isArray(message.profiles))
@@ -7447,7 +7447,7 @@ export const northstar = $root.northstar = (() => {
                     for (let keys = $Object.keys(object.execution), i = 0; i < keys.length; ++i) {
                         if (keys[i] === "__proto__")
                             $util.makeProp(message.execution, keys[i]);
-                        message.execution[keys[i]] = $String(object.execution[keys[i]]);
+                        message.execution[keys[i]] = $Boolean(object.execution[keys[i]]);
                     }
                 }
                 if (object.profiles) {
