@@ -13,7 +13,8 @@ from decimal import ROUND_HALF_EVEN, Decimal, localcontext
 from uuid import UUID
 
 from northstar_quant.accounting.amounts import decimal_text
-from northstar_quant.accounting.fifo import Account, AppliedFill, FillFact
+from northstar_quant.accounting.fifo import Account
+from northstar_quant.accounting.fills import AppliedFill, FillFact
 from northstar_quant.accounting.portfolio import value_portfolio, value_single_contract
 from northstar_quant.accounting.positions import Position
 from northstar_quant.accounting.settlement import AppliedSettlement, SettlementFact
@@ -156,7 +157,7 @@ class TradingSession:
     """
 
     # Bump for changed Strategy/Risk/Simulation/Accounting rules or checkpoint format.
-    REVISION = "18"
+    REVISION = "19"
 
     def __init__(
         self,

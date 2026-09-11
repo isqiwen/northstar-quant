@@ -95,7 +95,8 @@ def test_increased_cost_budget_requires_a_new_order_even_with_identical_price_bo
 
 
 def test_multi_contract_order_facts_keep_other_inventory_and_commitments_intact():
-    from northstar_quant.accounting.fifo import Account, FillFact
+    from northstar_quant.accounting.fifo import Account
+    from northstar_quant.accounting.fills import FillFact
     from northstar_quant.execution.history import OrderHistory
     from tests.accounting.test_portfolio_account import AT, A, B
 
@@ -141,6 +142,7 @@ def test_multi_contract_order_facts_keep_other_inventory_and_commitments_intact(
         1,
         Decimal(100),
         Decimal(1),
+        available_at=partial_at,
     )
     history.accept_fill(fact)
     account.apply(fact)

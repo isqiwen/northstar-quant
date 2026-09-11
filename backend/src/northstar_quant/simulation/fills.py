@@ -6,7 +6,7 @@ import hashlib
 from dataclasses import dataclass
 from decimal import ROUND_FLOOR, ROUND_HALF_EVEN, Decimal, localcontext
 
-from northstar_quant.accounting.fifo import FillFact
+from northstar_quant.accounting.fills import FillFact
 from northstar_quant.accounting.terms import FuturesTerms
 from northstar_quant.execution.orders import PendingOrder, Side
 from northstar_quant.market_data import Market, MarketBar
@@ -103,6 +103,7 @@ def simulate_fill(
             quantity * fee_per_lot
             if terms is None
             else terms.fee(order.offset, price, market.multiplier, quantity),
+            available_at=bar.available_at,
         )
 
         return FillAttempt(

@@ -15,7 +15,7 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import JSON, Column, Connection, Engine, Integer, MetaData, String, Table, select
 
-from northstar_quant.accounting.fifo import FillFact
+from northstar_quant.accounting.fills import FillFact
 from northstar_quant.persistence.sql import write_transaction
 
 from .orders import PendingOrder, reservation

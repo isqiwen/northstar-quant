@@ -8,7 +8,7 @@ from uuid import uuid4
 import pytest
 from sqlalchemy.exc import DBAPIError
 
-from northstar_quant.accounting.fifo import FillFact
+from northstar_quant.accounting.fills import FillFact
 from northstar_quant.execution.journal import OrderJournal, initialize_journal
 from northstar_quant.execution.orders import Offset, OrderBudget, PendingOrder, Side
 from northstar_quant.live.storage import open_store
@@ -62,6 +62,7 @@ def fill(order, quantity=1, *, identifier=None):
         quantity,
         Decimal("100"),
         Decimal("2"),
+        available_at=datetime.now(UTC),
     )
 
 
@@ -191,7 +192,11 @@ def test_fill_order_scope_expiry_and_retention(tmp_path):
     assert first["reservation"]["reserved_margin"] == "202"
     with pytest.raises(ValueError, match="different input"):
         journal.fill(replace(fact, fee=Decimal("3")), post_account=post)
-    late = replace(fill(order, 2), filled_at=order.expires_at + timedelta(seconds=1))
+    late = replace(
+        fill(order, 2),
+        filled_at=order.expires_at + timedelta(seconds=1),
+        available_at=order.expires_at + timedelta(seconds=1),
+    )
     result = journal.fill(late, post_account=post)
     assert result["status"] == "FILLED"
     assert result["reservation"]["reserved_fee"] == "0"

@@ -5,7 +5,8 @@ from uuid import UUID
 
 import pytest
 
-from northstar_quant.accounting.fifo import Account, FillFact
+from northstar_quant.accounting.fifo import Account
+from northstar_quant.accounting.fills import FillFact
 from northstar_quant.accounting.positions import Position
 from northstar_quant.execution.orders import Offset, OrderBudget, PendingOrder, Side, order_slice
 from northstar_quant.market_data import Market, MarketBar
@@ -142,6 +143,7 @@ def test_account_applies_individual_facts_not_whole_orders_or_bar_guesses() -> N
         2,
         Decimal(100),
         Decimal(2),
+        available_at=at,
     )
     second = replace(first, fill_id="fill-2", quantity_lots=1, price=Decimal(110), fee=Decimal(1))
     first_applied = account.apply(first)
@@ -198,6 +200,7 @@ def test_gross_opens_explicit_closes_and_broker_projection_share_quantities() ->
         2,
         Decimal(100),
         Decimal(2),
+        available_at=at,
     )
     short = replace(
         first, fill_id="short", side=Side.SELL, quantity_lots=1, price=Decimal(110), fee=Decimal(1)
@@ -227,6 +230,7 @@ def test_gross_opens_explicit_closes_and_broker_projection_share_quantities() ->
         offset=Offset.CLOSE_TODAY,
         price=Decimal(120),
         filled_at=at + timedelta(seconds=1),
+        available_at=at + timedelta(seconds=1),
     )
     applied = account.apply(close)
     facts.append(close)
@@ -284,7 +288,11 @@ def test_broker_timestamp_group_preserves_unknown_fill_order_and_position_age() 
     assert project_intraday_positions(at.date(), (closing, opening))[UUID(int=1)]["long_today"] == 1
     with pytest.raises(ValueError, match="exceed"):
         project_intraday_positions(
-            at.date(), (closing, replace(opening, filled_at=at + timedelta(seconds=1)))
+            at.date(),
+            (
+                closing,
+                replace(opening, filled_at=at + timedelta(seconds=1)),
+            ),
         )
     established = Position(long_today=2, long_yesterday=3)
     result = established.apply((replace(closing, offset="CLOSE_YESTERDAY"),))

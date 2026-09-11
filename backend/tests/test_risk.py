@@ -301,7 +301,8 @@ def test_opening_budget_never_replaces_unknown_or_unbounded_costs_with_zero(valu
 
 
 def test_portfolio_sizing_counts_other_inventory_and_unknown_order_commitments():
-    from northstar_quant.accounting.fifo import Account, FillFact
+    from northstar_quant.accounting.fifo import Account
+    from northstar_quant.accounting.fills import FillFact
     from northstar_quant.accounting.portfolio import value_portfolio
     from northstar_quant.execution.orders import Offset, PendingOrder
     from northstar_quant.risk.engine import RiskEngine
@@ -337,6 +338,7 @@ def test_portfolio_sizing_counts_other_inventory_and_unknown_order_commitments()
             2,
             Decimal(100),
             Decimal(4),
+            available_at=AT,
         )
     )
     assert decide().quantity_lots == 3
@@ -373,6 +375,7 @@ def test_portfolio_sizing_counts_other_inventory_and_unknown_order_commitments()
             1,
             Decimal(100),
             Decimal(2),
+            available_at=AT,
         )
     )
     assert decide((replace(pending, filled_lots=1),)).outcome is Outcome.REJECT

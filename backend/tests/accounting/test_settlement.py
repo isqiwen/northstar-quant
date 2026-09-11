@@ -7,7 +7,8 @@ from uuid import uuid4
 
 import pytest
 
-from northstar_quant.accounting.fifo import Account, FillFact
+from northstar_quant.accounting.fifo import Account
+from northstar_quant.accounting.fills import FillFact
 from northstar_quant.accounting.settlement import SettlementFact
 from northstar_quant.execution.orders import Offset, Side
 from northstar_quant.market_data import Market
@@ -38,6 +39,7 @@ def _fill(account, identity, side, offset, lots, price, *, day=DAY, at=OPEN):
         lots,
         Decimal(price),
         Decimal(2),
+        available_at=at,
     )
 
 

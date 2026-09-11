@@ -6,7 +6,8 @@ from uuid import UUID
 
 import pytest
 
-from northstar_quant.accounting.fifo import Account, FillFact
+from northstar_quant.accounting.fifo import Account
+from northstar_quant.accounting.fills import FillFact
 from northstar_quant.data_management.research import ResearchDataset
 from northstar_quant.factors.evaluation import Binding
 from northstar_quant.market_data import Market, MarketBar

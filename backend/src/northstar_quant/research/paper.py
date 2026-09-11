@@ -39,7 +39,8 @@ from sqlalchemy.engine import RowMapping
 
 from northstar_quant import code_revision
 from northstar_quant.accounting.amounts import decimal_text
-from northstar_quant.accounting.fifo import Account, FillFact
+from northstar_quant.accounting.fifo import Account
+from northstar_quant.accounting.fills import FillFact
 from northstar_quant.data_management.publications import DatasetReader
 from northstar_quant.data_management.research import ResearchDataset
 from northstar_quant.market_data import MarketBar

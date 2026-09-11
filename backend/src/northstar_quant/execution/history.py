@@ -6,7 +6,7 @@ from dataclasses import replace
 from datetime import datetime
 from uuid import UUID
 
-from northstar_quant.accounting.fifo import FillFact
+from northstar_quant.accounting.fills import FillFact
 from northstar_quant.execution.orders import OrderStatus, OrderUpdate, PendingOrder
 
 _TERMINAL = frozenset({OrderStatus.FILLED, OrderStatus.CANCELED, OrderStatus.EXPIRED})

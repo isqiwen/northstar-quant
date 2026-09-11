@@ -7,7 +7,8 @@ from uuid import UUID
 
 import pytest
 
-from northstar_quant.accounting.fifo import Account, FillFact
+from northstar_quant.accounting.fifo import Account
+from northstar_quant.accounting.fills import FillFact
 from northstar_quant.accounting.portfolio import value_portfolio, value_single_contract
 from northstar_quant.accounting.settlement import SettlementFact
 from northstar_quant.execution.orders import Offset, Side
@@ -33,6 +34,7 @@ def fills():
             2,
             Decimal(100),
             Decimal(2),
+            available_at=AT,
         ),
         FillFact(
             "b",
@@ -46,6 +48,7 @@ def fills():
             3,
             Decimal(200),
             Decimal(3),
+            available_at=AT,
         ),
     )
 
@@ -101,6 +104,7 @@ def test_contract_settlement_does_not_roll_other_inventory_or_duplicate_cash():
         price=Decimal(190),
         fee=Decimal(1),
         filled_at=AT + timedelta(seconds=2),
+        available_at=AT + timedelta(seconds=2),
     )
     account.apply(closed)
     settle = SettlementFact(
@@ -131,6 +135,7 @@ def test_contract_settlement_does_not_roll_other_inventory_or_duplicate_cash():
                 fill_id="b-next",
                 trading_day=settle.next_trading_day,
                 filled_at=settle.available_at + timedelta(seconds=1),
+                available_at=settle.available_at + timedelta(seconds=1),
             )
         )
     assert account.checkpoint() == before
@@ -139,3 +144,72 @@ def test_contract_settlement_does_not_roll_other_inventory_or_duplicate_cash():
         rebuilt.apply(fact)
     rebuilt.settle(settle, at=settle.available_at)
     assert rebuilt.checkpoint() == before
+
+
+def test_receipt_clock_preserves_delayed_cross_contract_execution_and_replay():
+    account = Account(Decimal(10000), (A, B))
+    first, second = fills()
+    first = replace(
+        first, filled_at=AT + timedelta(seconds=2), available_at=AT + timedelta(seconds=3)
+    )
+    second = replace(second, available_at=AT + timedelta(seconds=4))
+    account.apply(first)
+    account.apply(second)
+    assert account.last_fact_at == second.available_at
+    assert account.checkpoint()["positions"][str(B.contract_id)]["last_event_at"] == AT.isoformat()
+    rebuilt = Account(Decimal(10000), (A, B))
+    for record in account.applied_fills:
+        rebuilt.apply(FillFact.from_dict(record.to_dict()))
+    assert rebuilt.checkpoint() == account.checkpoint()
+    before = account.checkpoint()
+    with pytest.raises(ValueError, match="accepted event order"):
+        account.apply(
+            replace(second, fill_id="old-receipt", available_at=AT + timedelta(seconds=3))
+        )
+    with pytest.raises(ValueError, match="reconciliation"):
+        account.apply(
+            replace(
+                first, fill_id="old-execution", filled_at=AT, available_at=AT + timedelta(seconds=5)
+            )
+        )
+    assert account.checkpoint() == before
+    # A delayed publication can settle only after every accepted contract event;
+    # it does not change another contract's occurrence clock.
+    settlement = SettlementFact(
+        "delayed-b",
+        B.contract_id,
+        AT.date(),
+        AT.date() + timedelta(days=1),
+        AT + timedelta(seconds=1),
+        AT + timedelta(seconds=5),
+        Decimal(195),
+        "synthetic settlement",
+    )
+    account.settle(settlement, at=settlement.available_at)
+    assert account.last_fact_at == settlement.available_at
+    assert account.position(B.contract_id).short_yesterday == 3
+    with pytest.raises(ValueError, match="reconciliation"):
+        account.apply(
+            replace(
+                second,
+                fill_id="pre-settlement",
+                trading_day=settlement.next_trading_day,
+                available_at=AT + timedelta(seconds=6),
+            )
+        )
+
+
+def test_fill_fact_requires_explicit_causal_receipt_identity():
+    first, _ = fills()
+    with pytest.raises(ValueError, match="causal UTC"):
+        replace(first, available_at=AT - timedelta(microseconds=1))
+    with pytest.raises(ValueError, match="causal UTC"):
+        replace(first, available_at=AT.replace(tzinfo=None))
+    body = first.to_dict()
+    del body["available_at"]
+    with pytest.raises(ValueError, match="invalid persisted"):
+        FillFact.from_dict(body)
+    account = Account(Decimal(10000), (A, B))
+    account.apply(first)
+    with pytest.raises(ValueError, match="reused"):
+        account.apply(replace(first, available_at=AT + timedelta(seconds=1)))
