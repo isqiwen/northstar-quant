@@ -114,8 +114,10 @@ def main() -> None:
                     body=pack(descriptor, value).SerializeToString(),
                 )
 
-            def choose(label, text):
+            def choose(label, text, *, search=False):
                 page.get_by_label(label, exact=True).click()
+                if search:
+                    page.get_by_label(label, exact=True).fill(text)
                 page.locator(".ant-select-dropdown:visible .ant-select-item-option").filter(
                     has_text=text
                 ).first.click()
@@ -475,7 +477,7 @@ def main() -> None:
                         has_text="浏览器区间反转"
                     ).first.click()
                     page.get_by_label("策略版本名称", exact=True).fill("浏览器固定候选")
-                    choose("引用此配置的研究结果", runs[-1][:12])
+                    choose("引用此配置的研究结果", runs[-1][:12], search=True)
                     page.get_by_role("button", name="登记固定版本", exact=True).click()
                     page.wait_for_url(re.compile("/strategy-versions/"))
                     version_path = urlsplit(page.url).path

@@ -52,7 +52,7 @@ export default function Candidates() {
             label="引用此配置的研究结果"
             rules={[{ required: true }]}
           >
-            <Select mode="multiple" options={options} />
+            <Select mode="multiple" showSearch optionFilterProp="label" options={options} />
           </Form.Item>
           <Button disabled={!selectedConfig} htmlType="submit">
             登记固定版本
