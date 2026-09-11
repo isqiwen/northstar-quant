@@ -8,9 +8,9 @@ import pytest
 from northstar_quant.accounting.fifo import Account
 from northstar_quant.messaging import DispatchFailed
 from northstar_quant.research.backtesting import run_research
-from northstar_quant.research.backtesting import session as module
 from northstar_quant.research.backtesting.session import STEP_COMPLETED, TradingSession
 from northstar_quant.research.configuration import ResearchConfig
+from northstar_quant.risk import engine as module
 from northstar_quant.strategies.registry import resolve
 from tests.test_research import dataset
 

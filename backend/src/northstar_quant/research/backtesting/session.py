@@ -19,6 +19,7 @@ from northstar_quant.accounting.positions import Position
 from northstar_quant.accounting.settlement import AppliedSettlement, SettlementFact
 from northstar_quant.accounting.terms import FuturesTerms, ordered_terms
 from northstar_quant.data_management.research import DatasetDetails
+from northstar_quant.execution.engine import ExecutionEngine
 from northstar_quant.execution.orders import (
     OrderUpdate,
     PendingOrder,
@@ -155,7 +156,7 @@ class TradingSession:
     """
 
     # Bump for changed Strategy/Risk/Simulation/Accounting rules or checkpoint format.
-    REVISION = "14"
+    REVISION = "15"
 
     def __init__(
         self,
@@ -219,7 +220,7 @@ class TradingSession:
                 "research settlement facts must belong uniquely to the fixed contract/day"
             )
         self.account = Account(config.simulation.initial_cash, market)
-        self.pending: PendingOrder | None = None
+        self._execution = ExecutionEngine()
         self._risk = RiskEngine(market, config.risk_policy(), self._terms)
         self._trader = StrategyRuntime(
             config.strategy, market.contract_id, market.interval_seconds, source_scope=content_hash
@@ -240,6 +241,10 @@ class TradingSession:
             completed=STEP_COMPLETED,
         )
         self.kernel.start()
+
+    @property
+    def pending(self) -> PendingOrder | None:
+        return self._execution.pending
 
     def advance(self, bar: MarketBar) -> TradingStep | None:
         return self.kernel.advance(bar)
@@ -320,12 +325,11 @@ class TradingSession:
             if self.pending is not None:
                 if self.pending.expires_at > settlement.settled_at:
                     raise ValueError("unexpired simulated order cannot cross settlement")
-                orders.append(
-                    self.pending.expire(
-                        at=settlement.settled_at, reason="EXPIRED_BEFORE_SETTLEMENT"
-                    )
+                update = self.pending.expire(
+                    at=settlement.settled_at, reason="EXPIRED_BEFORE_SETTLEMENT"
                 )
-                self.pending = None
+                self._execution = self._execution.record(update)
+                orders.append(update)
             settlements = (self.account.settle(settlement, at=bar.event_time),)
         self._trading_day = bar.trading_day
         fill = None
@@ -345,12 +349,17 @@ class TradingSession:
                     attempt.fill.quantity_lots, at=bar.available_at, reason=attempt.reason
                 )
                 orders.append(update)
-                self.pending = update.order if update.order.remaining_lots else None
+                self._execution = self._execution.record(
+                    update, accepted_fill_lots=attempt.fill.quantity_lots
+                )
             elif attempt.reason == "EXPIRED":
-                orders.append(self.pending.expire(at=bar.available_at, reason=attempt.reason))
-                self.pending = None
+                update = self.pending.expire(at=bar.available_at, reason=attempt.reason)
+                self._execution = self._execution.record(update)
+                orders.append(update)
             else:
-                orders.append(self.pending.observe(at=bar.available_at, reason=attempt.reason))
+                update = self.pending.observe(at=bar.available_at, reason=attempt.reason)
+                self._execution = self._execution.record(update)
+                orders.append(update)
         self._bar_count += 1
         self._last = bar
         valuation = value_account(self.account, bar.close, at=bar.available_at, terms=terms)
@@ -411,44 +420,18 @@ class TradingSession:
                 assert risk.side is not None
                 assert risk.minimum_fill_price is not None and risk.maximum_fill_price is not None
                 plan = order_slice(self.account.position, risk.side, risk.quantity_lots)
-            if self.pending is not None:
-                keep = (
-                    plan is not None
-                    and risk.minimum_fill_price is not None
-                    and risk.maximum_fill_price is not None
-                    and risk.side is not None
-                    and self.pending.fits_authorization(
-                        side=risk.side,
-                        offset=plan[0],
-                        quantity_lots=plan[1],
-                        minimum_fill_price=risk.minimum_fill_price,
-                        maximum_fill_price=risk.maximum_fill_price,
-                        expires_at=risk.expires_at,
-                    )
-                )
-                if keep:
-                    decision["retained_order_id"] = self.pending.order_id
-                    orders.append(
-                        self.pending.observe(at=bar.available_at, reason="AUTHORIZATION_RETAINED")
-                    )
-                else:
-                    orders.append(
-                        self.pending.cancel(at=bar.available_at, reason="TARGET_REPLACED")
-                    )
-                    self.pending = None
-            if plan is not None and self.pending is None:
+            desired = None
+            if plan is not None:
                 assert risk.side is not None
                 assert risk.minimum_fill_price is not None and risk.maximum_fill_price is not None
                 offset, quantity = plan
-                decision["order_quantity_lots"] = quantity
-                decision["order_offset"] = offset.value
                 fee_budget, margin_budget = self._risk.budget(
                     side=risk.side,
                     offset=offset,
                     maximum_fill_price=risk.maximum_fill_price,
                     terms=terms,
                 )
-                self.pending = PendingOrder(
+                desired = PendingOrder(
                     intent.intent_id,
                     bar.observation_id,
                     bar.available_at,
@@ -461,7 +444,35 @@ class TradingSession:
                     fee_budget_per_lot=fee_budget,
                     margin_budget_per_lot=margin_budget,
                 )
-                orders.append(self.pending.observe(at=bar.available_at, reason="RISK_AUTHORIZED"))
+            retained_budget = None
+            if self.pending is not None and desired is not None:
+                retained_budget = self._risk.budget(
+                    side=self.pending.side,
+                    offset=self.pending.offset,
+                    maximum_fill_price=self.pending.maximum_fill_price,
+                    terms=terms,
+                )
+            replacement = self._execution.plan(desired, retained_budget=retained_budget)
+            if replacement.retained is not None:
+                decision["retained_order_id"] = replacement.retained.order_id
+                update = replacement.retained.observe(
+                    at=bar.available_at, reason="AUTHORIZATION_RETAINED"
+                )
+                self._execution = self._execution.record(update)
+                orders.append(update)
+            if replacement.cancel is not None:
+                # Historical simulation confirms this cancellation synchronously.
+                # An external broker must retain the working order until its report.
+                update = replacement.cancel.cancel(at=bar.available_at, reason="TARGET_REPLACED")
+                self._execution = self._execution.record(update)
+                orders.append(update)
+            if replacement.submit is not None:
+                submitted = replacement.submit
+                decision["order_quantity_lots"] = submitted.quantity_lots
+                decision["order_offset"] = submitted.offset.value
+                update = submitted.observe(at=bar.available_at, reason="RISK_AUTHORIZED")
+                self._execution = self._execution.record(update)
+                orders.append(update)
         point.update(reservation(self.pending))
         if valuation.margin_used is not None:
             point["available_after_reservations"] = decimal_text(
@@ -647,7 +658,10 @@ class TradingSession:
         if (decisions == 0) != (last_decision is None):
             raise ValueError("checkpoint counters differ from its last decision")
         pending = checkpoint["pending"]
-        session.pending = None if pending is None else PendingOrder.from_dict(_object(pending))
+        session._execution = ExecutionEngine(
+            None if pending is None else PendingOrder.from_dict(_object(pending)),
+            None if previous is None else previous.available_at,
+        )
         if session.pending is not None and (
             previous is None
             or not decisions
