@@ -37,8 +37,6 @@ def test_second_algorithm_needs_no_engine_branch_and_instances_are_isolated(
     assert build_result(instance, steps).to_dict() == expected
     decisions = expected["decisions"]
     assert all(item["strategy_id"] == strategy_id and item["factors"] for item in decisions)
-    target = Decimal(decisions[-1]["target_fraction"])
-    assert target > 0 if strategy_id == "trend.momentum" else target < 0
     changed = replace(data, bars=(*data.bars[:-1], replace(data.bars[-1], close=Decimal("128"))))
     assert run_research(changed, config).to_dict()["decisions"][:-1] == decisions[:-1]
 

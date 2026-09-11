@@ -514,6 +514,10 @@ message GetApiStrategyVersionsResponse {
 }
 
 service BrowserApi {
+  rpc LearnExperiment(LearningExperimentRequest) returns (Experiment) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/experiments/learn";
+  }
   rpc SubmitExperiment (ExperimentRequest) returns (Experiment) {
     option (northstar.web.http_method) = "POST";
     option (northstar.web.http_path) = "/api/experiments";
@@ -703,7 +707,25 @@ message ExperimentRequest {
   optional string test_snapshot = 5 [(northstar.web.required_field) = true];
   repeated ResearchConfigurationInput configurations = 6 [(northstar.web.required_field) = true];
 }
+message LearningRecipeInput {
+  optional int64 fast_bars = 1 [(northstar.web.required_field) = true];
+  optional int64 slow_bars = 2 [(northstar.web.required_field) = true];
+  optional int64 horizon_bars = 3 [(northstar.web.required_field) = true];
+  repeated string penalties = 4 [(northstar.web.required_field) = true];
+  optional string threshold = 5 [(northstar.web.required_field) = true];
+  optional string target_fraction = 6 [(northstar.web.required_field) = true];
+}
+message LearningExperimentRequest {
+  optional string request_id = 1 [(northstar.web.required_field) = true];
+  optional string hypothesis = 2 [(northstar.web.required_field) = true];
+  optional string train_snapshot = 3 [(northstar.web.required_field) = true];
+  optional string validation_snapshot = 4 [(northstar.web.required_field) = true];
+  optional string test_snapshot = 5 [(northstar.web.required_field) = true];
+  repeated ResearchConfigurationInput configurations = 6 [(northstar.web.required_field) = true];
+  optional LearningRecipeInput learning = 7 [(northstar.web.required_field) = true];
+}
 message Experiment {
+  optional google.protobuf.Struct fitted = 8 [(northstar.web.required_field) = true, (northstar.web.nullable) = true];
   optional string experiment_id = 1 [(northstar.web.required_field) = true];
   optional string plan_id = 2 [(northstar.web.required_field) = true];
   optional string created_at = 3 [(northstar.web.required_field) = true];

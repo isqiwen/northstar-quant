@@ -31227,11 +31227,1084 @@ export const northstar = $root.northstar = (() => {
             return ExperimentRequest;
         })();
 
+        research.LearningRecipeInput = (function() {
+
+            /**
+             * Properties of a LearningRecipeInput.
+             * @typedef {Object} northstar.research.LearningRecipeInput.$Properties
+             * @property {number|Long|null} [fast_bars] LearningRecipeInput fast_bars
+             * @property {number|Long|null} [slow_bars] LearningRecipeInput slow_bars
+             * @property {number|Long|null} [horizon_bars] LearningRecipeInput horizon_bars
+             * @property {Array.<string>|null} [penalties] LearningRecipeInput penalties
+             * @property {string|null} [threshold] LearningRecipeInput threshold
+             * @property {string|null} [target_fraction] LearningRecipeInput target_fraction
+             * @property {"fast_bars"} [_fast_bars] LearningRecipeInput _fast_bars
+             * @property {"slow_bars"} [_slow_bars] LearningRecipeInput _slow_bars
+             * @property {"horizon_bars"} [_horizon_bars] LearningRecipeInput _horizon_bars
+             * @property {"threshold"} [_threshold] LearningRecipeInput _threshold
+             * @property {"target_fraction"} [_target_fraction] LearningRecipeInput _target_fraction
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a LearningRecipeInput.
+             * @memberof northstar.research
+             * @interface ILearningRecipeInput
+             * @augments northstar.research.LearningRecipeInput.$Properties
+             * @deprecated Use northstar.research.LearningRecipeInput.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a LearningRecipeInput.
+             * @typedef {{
+             *   fast_bars?: number|Long|null;
+             *   slow_bars?: number|Long|null;
+             *   horizon_bars?: number|Long|null;
+             *   penalties?: Array.<string>|null;
+             *   threshold?: string|null;
+             *   target_fraction?: string|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _fast_bars?: undefined; fast_bars?: null }|{ _fast_bars?: "fast_bars"; fast_bars: number|Long })
+             * ) & (
+             *   ({ _slow_bars?: undefined; slow_bars?: null }|{ _slow_bars?: "slow_bars"; slow_bars: number|Long })
+             * ) & (
+             *   ({ _horizon_bars?: undefined; horizon_bars?: null }|{ _horizon_bars?: "horizon_bars"; horizon_bars: number|Long })
+             * ) & (
+             *   ({ _threshold?: undefined; threshold?: null }|{ _threshold?: "threshold"; threshold: string })
+             * ) & (
+             *   ({ _target_fraction?: undefined; target_fraction?: null }|{ _target_fraction?: "target_fraction"; target_fraction: string })
+             * )} northstar.research.LearningRecipeInput.$Shape
+             */
+
+            /**
+             * Constructs a new LearningRecipeInput.
+             * @memberof northstar.research
+             * @classdesc Represents a LearningRecipeInput.
+             * @constructor
+             * @param {northstar.research.LearningRecipeInput.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const LearningRecipeInput = function (properties) {
+                this.penalties = [];
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * LearningRecipeInput fast_bars.
+             * @member {number|Long|null|undefined} fast_bars
+             * @memberof northstar.research.LearningRecipeInput
+             * @instance
+             */
+            LearningRecipeInput.prototype.fast_bars = null;
+
+            /**
+             * LearningRecipeInput slow_bars.
+             * @member {number|Long|null|undefined} slow_bars
+             * @memberof northstar.research.LearningRecipeInput
+             * @instance
+             */
+            LearningRecipeInput.prototype.slow_bars = null;
+
+            /**
+             * LearningRecipeInput horizon_bars.
+             * @member {number|Long|null|undefined} horizon_bars
+             * @memberof northstar.research.LearningRecipeInput
+             * @instance
+             */
+            LearningRecipeInput.prototype.horizon_bars = null;
+
+            /**
+             * LearningRecipeInput penalties.
+             * @member {Array.<string>} penalties
+             * @memberof northstar.research.LearningRecipeInput
+             * @instance
+             */
+            LearningRecipeInput.prototype.penalties = $util.emptyArray;
+
+            /**
+             * LearningRecipeInput threshold.
+             * @member {string|null|undefined} threshold
+             * @memberof northstar.research.LearningRecipeInput
+             * @instance
+             */
+            LearningRecipeInput.prototype.threshold = null;
+
+            /**
+             * LearningRecipeInput target_fraction.
+             * @member {string|null|undefined} target_fraction
+             * @memberof northstar.research.LearningRecipeInput
+             * @instance
+             */
+            LearningRecipeInput.prototype.target_fraction = null;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * LearningRecipeInput _fast_bars.
+             * @member {"fast_bars"|undefined} _fast_bars
+             * @memberof northstar.research.LearningRecipeInput
+             * @instance
+             */
+            $Object.defineProperty(LearningRecipeInput.prototype, "_fast_bars", {
+                get: $util.oneOfGetter($oneOfFields = ["fast_bars"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * LearningRecipeInput _slow_bars.
+             * @member {"slow_bars"|undefined} _slow_bars
+             * @memberof northstar.research.LearningRecipeInput
+             * @instance
+             */
+            $Object.defineProperty(LearningRecipeInput.prototype, "_slow_bars", {
+                get: $util.oneOfGetter($oneOfFields = ["slow_bars"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * LearningRecipeInput _horizon_bars.
+             * @member {"horizon_bars"|undefined} _horizon_bars
+             * @memberof northstar.research.LearningRecipeInput
+             * @instance
+             */
+            $Object.defineProperty(LearningRecipeInput.prototype, "_horizon_bars", {
+                get: $util.oneOfGetter($oneOfFields = ["horizon_bars"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * LearningRecipeInput _threshold.
+             * @member {"threshold"|undefined} _threshold
+             * @memberof northstar.research.LearningRecipeInput
+             * @instance
+             */
+            $Object.defineProperty(LearningRecipeInput.prototype, "_threshold", {
+                get: $util.oneOfGetter($oneOfFields = ["threshold"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * LearningRecipeInput _target_fraction.
+             * @member {"target_fraction"|undefined} _target_fraction
+             * @memberof northstar.research.LearningRecipeInput
+             * @instance
+             */
+            $Object.defineProperty(LearningRecipeInput.prototype, "_target_fraction", {
+                get: $util.oneOfGetter($oneOfFields = ["target_fraction"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new LearningRecipeInput instance using the specified properties.
+             * @function create
+             * @memberof northstar.research.LearningRecipeInput
+             * @static
+             * @param {northstar.research.LearningRecipeInput.$Properties=} [properties] Properties to set
+             * @returns {northstar.research.LearningRecipeInput} LearningRecipeInput instance
+             * @type {{
+             *   (properties: northstar.research.LearningRecipeInput.$Shape): northstar.research.LearningRecipeInput & northstar.research.LearningRecipeInput.$Shape;
+             *   (properties?: northstar.research.LearningRecipeInput.$Properties): northstar.research.LearningRecipeInput;
+             * }}
+             */
+            LearningRecipeInput.create = function(properties) {
+                return new LearningRecipeInput(properties);
+            };
+
+            /**
+             * Encodes the specified LearningRecipeInput message. Does not implicitly {@link northstar.research.LearningRecipeInput.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.research.LearningRecipeInput
+             * @static
+             * @param {northstar.research.LearningRecipeInput.$Properties} message LearningRecipeInput message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            LearningRecipeInput.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.fast_bars != null && $Object.hasOwnProperty.call(message, "fast_bars"))
+                    writer.uint32(/* id 1, wireType 0 =*/8).int64(message.fast_bars);
+                if (message.slow_bars != null && $Object.hasOwnProperty.call(message, "slow_bars"))
+                    writer.uint32(/* id 2, wireType 0 =*/16).int64(message.slow_bars);
+                if (message.horizon_bars != null && $Object.hasOwnProperty.call(message, "horizon_bars"))
+                    writer.uint32(/* id 3, wireType 0 =*/24).int64(message.horizon_bars);
+                if (message.penalties != null && message.penalties.length)
+                    for (let i = 0; i < message.penalties.length; ++i)
+                        writer.uint32(/* id 4, wireType 2 =*/34).string(message.penalties[i]);
+                if (message.threshold != null && $Object.hasOwnProperty.call(message, "threshold"))
+                    writer.uint32(/* id 5, wireType 2 =*/42).string(message.threshold);
+                if (message.target_fraction != null && $Object.hasOwnProperty.call(message, "target_fraction"))
+                    writer.uint32(/* id 6, wireType 2 =*/50).string(message.target_fraction);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a LearningRecipeInput message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.research.LearningRecipeInput
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.research.LearningRecipeInput & northstar.research.LearningRecipeInput.$Shape} LearningRecipeInput
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            LearningRecipeInput.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.research.LearningRecipeInput();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 0)
+                                break;
+                            message.fast_bars = reader.int64();
+                            message._fast_bars = "fast_bars";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 0)
+                                break;
+                            message.slow_bars = reader.int64();
+                            message._slow_bars = "slow_bars";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 0)
+                                break;
+                            message.horizon_bars = reader.int64();
+                            message._horizon_bars = "horizon_bars";
+                            continue;
+                        }
+                    case 4: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.penalties && message.penalties.length))
+                                message.penalties = [];
+                            message.penalties.push(reader.stringVerify());
+                            continue;
+                        }
+                    case 5: {
+                            if (wireType !== 2)
+                                break;
+                            message.threshold = reader.stringVerify();
+                            message._threshold = "threshold";
+                            continue;
+                        }
+                    case 6: {
+                            if (wireType !== 2)
+                                break;
+                            message.target_fraction = reader.stringVerify();
+                            message._target_fraction = "target_fraction";
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a LearningRecipeInput message.
+             * @function verify
+             * @memberof northstar.research.LearningRecipeInput
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            LearningRecipeInput.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.fast_bars != null && $Object.hasOwnProperty.call(message, "fast_bars")) {
+                    properties._fast_bars = 1;
+                    if (!$util.isInteger(message.fast_bars) && !(message.fast_bars && $util.isInteger(message.fast_bars.low) && $util.isInteger(message.fast_bars.high)))
+                        return "fast_bars: integer|Long expected";
+                }
+                if (message.slow_bars != null && $Object.hasOwnProperty.call(message, "slow_bars")) {
+                    properties._slow_bars = 1;
+                    if (!$util.isInteger(message.slow_bars) && !(message.slow_bars && $util.isInteger(message.slow_bars.low) && $util.isInteger(message.slow_bars.high)))
+                        return "slow_bars: integer|Long expected";
+                }
+                if (message.horizon_bars != null && $Object.hasOwnProperty.call(message, "horizon_bars")) {
+                    properties._horizon_bars = 1;
+                    if (!$util.isInteger(message.horizon_bars) && !(message.horizon_bars && $util.isInteger(message.horizon_bars.low) && $util.isInteger(message.horizon_bars.high)))
+                        return "horizon_bars: integer|Long expected";
+                }
+                if (message.penalties != null && $Object.hasOwnProperty.call(message, "penalties")) {
+                    if (!$Array.isArray(message.penalties))
+                        return "penalties: array expected";
+                    for (let i = 0; i < message.penalties.length; ++i)
+                        if (!$util.isString(message.penalties[i]))
+                            return "penalties: string[] expected";
+                }
+                if (message.threshold != null && $Object.hasOwnProperty.call(message, "threshold")) {
+                    properties._threshold = 1;
+                    if (!$util.isString(message.threshold))
+                        return "threshold: string expected";
+                }
+                if (message.target_fraction != null && $Object.hasOwnProperty.call(message, "target_fraction")) {
+                    properties._target_fraction = 1;
+                    if (!$util.isString(message.target_fraction))
+                        return "target_fraction: string expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a LearningRecipeInput message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.research.LearningRecipeInput
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.research.LearningRecipeInput} LearningRecipeInput
+             */
+            LearningRecipeInput.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.research.LearningRecipeInput)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.research.LearningRecipeInput: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.research.LearningRecipeInput();
+                if (object.fast_bars != null)
+                    if ($util.Long)
+                        message.fast_bars = $util.Long.fromValue(object.fast_bars, false);
+                    else if (typeof object.fast_bars === "string")
+                        message.fast_bars = $parseInt(object.fast_bars, 10);
+                    else if (typeof object.fast_bars === "number")
+                        message.fast_bars = object.fast_bars;
+                    else if (typeof object.fast_bars === "object")
+                        message.fast_bars = new $util.LongBits(object.fast_bars.low >>> 0, object.fast_bars.high >>> 0).toNumber();
+                if (object.slow_bars != null)
+                    if ($util.Long)
+                        message.slow_bars = $util.Long.fromValue(object.slow_bars, false);
+                    else if (typeof object.slow_bars === "string")
+                        message.slow_bars = $parseInt(object.slow_bars, 10);
+                    else if (typeof object.slow_bars === "number")
+                        message.slow_bars = object.slow_bars;
+                    else if (typeof object.slow_bars === "object")
+                        message.slow_bars = new $util.LongBits(object.slow_bars.low >>> 0, object.slow_bars.high >>> 0).toNumber();
+                if (object.horizon_bars != null)
+                    if ($util.Long)
+                        message.horizon_bars = $util.Long.fromValue(object.horizon_bars, false);
+                    else if (typeof object.horizon_bars === "string")
+                        message.horizon_bars = $parseInt(object.horizon_bars, 10);
+                    else if (typeof object.horizon_bars === "number")
+                        message.horizon_bars = object.horizon_bars;
+                    else if (typeof object.horizon_bars === "object")
+                        message.horizon_bars = new $util.LongBits(object.horizon_bars.low >>> 0, object.horizon_bars.high >>> 0).toNumber();
+                if (object.penalties) {
+                    if (!$Array.isArray(object.penalties))
+                        throw $TypeError(".northstar.research.LearningRecipeInput.penalties: array expected");
+                    message.penalties = $Array(object.penalties.length);
+                    for (let i = 0; i < object.penalties.length; ++i)
+                        message.penalties[i] = $String(object.penalties[i]);
+                }
+                if (object.threshold != null)
+                    message.threshold = $String(object.threshold);
+                if (object.target_fraction != null)
+                    message.target_fraction = $String(object.target_fraction);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a LearningRecipeInput message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.research.LearningRecipeInput
+             * @static
+             * @param {northstar.research.LearningRecipeInput} message LearningRecipeInput
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            LearningRecipeInput.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.arrays || options.defaults)
+                    object.penalties = [];
+                if (message.fast_bars != null && $Object.hasOwnProperty.call(message, "fast_bars")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.fast_bars = typeof message.fast_bars === "number" ? $BigInt(message.fast_bars) : $util.Long.fromBits(message.fast_bars.low >>> 0, message.fast_bars.high >>> 0, false).toBigInt();
+                    else if (typeof message.fast_bars === "number")
+                        object.fast_bars = options.longs === $String ? $String(message.fast_bars) : message.fast_bars;
+                    else
+                        object.fast_bars = options.longs === $String ? $util.Long.prototype.toString.call(message.fast_bars) : options.longs === $Number ? new $util.LongBits(message.fast_bars.low >>> 0, message.fast_bars.high >>> 0).toNumber() : message.fast_bars;
+                    if (options.oneofs)
+                        object._fast_bars = "fast_bars";
+                }
+                if (message.slow_bars != null && $Object.hasOwnProperty.call(message, "slow_bars")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.slow_bars = typeof message.slow_bars === "number" ? $BigInt(message.slow_bars) : $util.Long.fromBits(message.slow_bars.low >>> 0, message.slow_bars.high >>> 0, false).toBigInt();
+                    else if (typeof message.slow_bars === "number")
+                        object.slow_bars = options.longs === $String ? $String(message.slow_bars) : message.slow_bars;
+                    else
+                        object.slow_bars = options.longs === $String ? $util.Long.prototype.toString.call(message.slow_bars) : options.longs === $Number ? new $util.LongBits(message.slow_bars.low >>> 0, message.slow_bars.high >>> 0).toNumber() : message.slow_bars;
+                    if (options.oneofs)
+                        object._slow_bars = "slow_bars";
+                }
+                if (message.horizon_bars != null && $Object.hasOwnProperty.call(message, "horizon_bars")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.horizon_bars = typeof message.horizon_bars === "number" ? $BigInt(message.horizon_bars) : $util.Long.fromBits(message.horizon_bars.low >>> 0, message.horizon_bars.high >>> 0, false).toBigInt();
+                    else if (typeof message.horizon_bars === "number")
+                        object.horizon_bars = options.longs === $String ? $String(message.horizon_bars) : message.horizon_bars;
+                    else
+                        object.horizon_bars = options.longs === $String ? $util.Long.prototype.toString.call(message.horizon_bars) : options.longs === $Number ? new $util.LongBits(message.horizon_bars.low >>> 0, message.horizon_bars.high >>> 0).toNumber() : message.horizon_bars;
+                    if (options.oneofs)
+                        object._horizon_bars = "horizon_bars";
+                }
+                if (message.penalties && message.penalties.length) {
+                    object.penalties = $Array(message.penalties.length);
+                    for (let j = 0; j < message.penalties.length; ++j)
+                        object.penalties[j] = message.penalties[j];
+                }
+                if (message.threshold != null && $Object.hasOwnProperty.call(message, "threshold")) {
+                    object.threshold = message.threshold;
+                    if (options.oneofs)
+                        object._threshold = "threshold";
+                }
+                if (message.target_fraction != null && $Object.hasOwnProperty.call(message, "target_fraction")) {
+                    object.target_fraction = message.target_fraction;
+                    if (options.oneofs)
+                        object._target_fraction = "target_fraction";
+                }
+                return object;
+            };
+
+            /**
+             * Converts this LearningRecipeInput to JSON.
+             * @function toJSON
+             * @memberof northstar.research.LearningRecipeInput
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            LearningRecipeInput.prototype.toJSON = function() {
+                return LearningRecipeInput.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for LearningRecipeInput
+             * @function getTypeUrl
+             * @memberof northstar.research.LearningRecipeInput
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            LearningRecipeInput.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.research.LearningRecipeInput";
+            };
+
+            return LearningRecipeInput;
+        })();
+
+        research.LearningExperimentRequest = (function() {
+
+            /**
+             * Properties of a LearningExperimentRequest.
+             * @typedef {Object} northstar.research.LearningExperimentRequest.$Properties
+             * @property {string|null} [request_id] LearningExperimentRequest request_id
+             * @property {string|null} [hypothesis] LearningExperimentRequest hypothesis
+             * @property {string|null} [train_snapshot] LearningExperimentRequest train_snapshot
+             * @property {string|null} [validation_snapshot] LearningExperimentRequest validation_snapshot
+             * @property {string|null} [test_snapshot] LearningExperimentRequest test_snapshot
+             * @property {Array.<northstar.research.ResearchConfigurationInput.$Properties>|null} [configurations] LearningExperimentRequest configurations
+             * @property {northstar.research.LearningRecipeInput.$Properties|null} [learning] LearningExperimentRequest learning
+             * @property {"request_id"} [_request_id] LearningExperimentRequest _request_id
+             * @property {"hypothesis"} [_hypothesis] LearningExperimentRequest _hypothesis
+             * @property {"train_snapshot"} [_train_snapshot] LearningExperimentRequest _train_snapshot
+             * @property {"validation_snapshot"} [_validation_snapshot] LearningExperimentRequest _validation_snapshot
+             * @property {"test_snapshot"} [_test_snapshot] LearningExperimentRequest _test_snapshot
+             * @property {"learning"} [_learning] LearningExperimentRequest _learning
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a LearningExperimentRequest.
+             * @memberof northstar.research
+             * @interface ILearningExperimentRequest
+             * @augments northstar.research.LearningExperimentRequest.$Properties
+             * @deprecated Use northstar.research.LearningExperimentRequest.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a LearningExperimentRequest.
+             * @typedef {{
+             *   request_id?: string|null;
+             *   hypothesis?: string|null;
+             *   train_snapshot?: string|null;
+             *   validation_snapshot?: string|null;
+             *   test_snapshot?: string|null;
+             *   configurations?: Array.<northstar.research.ResearchConfigurationInput.$Shape>|null;
+             *   learning?: northstar.research.LearningRecipeInput.$Shape|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _request_id?: undefined; request_id?: null }|{ _request_id?: "request_id"; request_id: string })
+             * ) & (
+             *   ({ _hypothesis?: undefined; hypothesis?: null }|{ _hypothesis?: "hypothesis"; hypothesis: string })
+             * ) & (
+             *   ({ _train_snapshot?: undefined; train_snapshot?: null }|{ _train_snapshot?: "train_snapshot"; train_snapshot: string })
+             * ) & (
+             *   ({ _validation_snapshot?: undefined; validation_snapshot?: null }|{ _validation_snapshot?: "validation_snapshot"; validation_snapshot: string })
+             * ) & (
+             *   ({ _test_snapshot?: undefined; test_snapshot?: null }|{ _test_snapshot?: "test_snapshot"; test_snapshot: string })
+             * ) & (
+             *   ({ _learning?: undefined; learning?: null }|{ _learning?: "learning"; learning: northstar.research.LearningRecipeInput.$Shape })
+             * )} northstar.research.LearningExperimentRequest.$Shape
+             */
+
+            /**
+             * Constructs a new LearningExperimentRequest.
+             * @memberof northstar.research
+             * @classdesc Represents a LearningExperimentRequest.
+             * @constructor
+             * @param {northstar.research.LearningExperimentRequest.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const LearningExperimentRequest = function (properties) {
+                this.configurations = [];
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * LearningExperimentRequest request_id.
+             * @member {string|null|undefined} request_id
+             * @memberof northstar.research.LearningExperimentRequest
+             * @instance
+             */
+            LearningExperimentRequest.prototype.request_id = null;
+
+            /**
+             * LearningExperimentRequest hypothesis.
+             * @member {string|null|undefined} hypothesis
+             * @memberof northstar.research.LearningExperimentRequest
+             * @instance
+             */
+            LearningExperimentRequest.prototype.hypothesis = null;
+
+            /**
+             * LearningExperimentRequest train_snapshot.
+             * @member {string|null|undefined} train_snapshot
+             * @memberof northstar.research.LearningExperimentRequest
+             * @instance
+             */
+            LearningExperimentRequest.prototype.train_snapshot = null;
+
+            /**
+             * LearningExperimentRequest validation_snapshot.
+             * @member {string|null|undefined} validation_snapshot
+             * @memberof northstar.research.LearningExperimentRequest
+             * @instance
+             */
+            LearningExperimentRequest.prototype.validation_snapshot = null;
+
+            /**
+             * LearningExperimentRequest test_snapshot.
+             * @member {string|null|undefined} test_snapshot
+             * @memberof northstar.research.LearningExperimentRequest
+             * @instance
+             */
+            LearningExperimentRequest.prototype.test_snapshot = null;
+
+            /**
+             * LearningExperimentRequest configurations.
+             * @member {Array.<northstar.research.ResearchConfigurationInput.$Properties>} configurations
+             * @memberof northstar.research.LearningExperimentRequest
+             * @instance
+             */
+            LearningExperimentRequest.prototype.configurations = $util.emptyArray;
+
+            /**
+             * LearningExperimentRequest learning.
+             * @member {northstar.research.LearningRecipeInput.$Properties|null|undefined} learning
+             * @memberof northstar.research.LearningExperimentRequest
+             * @instance
+             */
+            LearningExperimentRequest.prototype.learning = null;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * LearningExperimentRequest _request_id.
+             * @member {"request_id"|undefined} _request_id
+             * @memberof northstar.research.LearningExperimentRequest
+             * @instance
+             */
+            $Object.defineProperty(LearningExperimentRequest.prototype, "_request_id", {
+                get: $util.oneOfGetter($oneOfFields = ["request_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * LearningExperimentRequest _hypothesis.
+             * @member {"hypothesis"|undefined} _hypothesis
+             * @memberof northstar.research.LearningExperimentRequest
+             * @instance
+             */
+            $Object.defineProperty(LearningExperimentRequest.prototype, "_hypothesis", {
+                get: $util.oneOfGetter($oneOfFields = ["hypothesis"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * LearningExperimentRequest _train_snapshot.
+             * @member {"train_snapshot"|undefined} _train_snapshot
+             * @memberof northstar.research.LearningExperimentRequest
+             * @instance
+             */
+            $Object.defineProperty(LearningExperimentRequest.prototype, "_train_snapshot", {
+                get: $util.oneOfGetter($oneOfFields = ["train_snapshot"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * LearningExperimentRequest _validation_snapshot.
+             * @member {"validation_snapshot"|undefined} _validation_snapshot
+             * @memberof northstar.research.LearningExperimentRequest
+             * @instance
+             */
+            $Object.defineProperty(LearningExperimentRequest.prototype, "_validation_snapshot", {
+                get: $util.oneOfGetter($oneOfFields = ["validation_snapshot"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * LearningExperimentRequest _test_snapshot.
+             * @member {"test_snapshot"|undefined} _test_snapshot
+             * @memberof northstar.research.LearningExperimentRequest
+             * @instance
+             */
+            $Object.defineProperty(LearningExperimentRequest.prototype, "_test_snapshot", {
+                get: $util.oneOfGetter($oneOfFields = ["test_snapshot"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * LearningExperimentRequest _learning.
+             * @member {"learning"|undefined} _learning
+             * @memberof northstar.research.LearningExperimentRequest
+             * @instance
+             */
+            $Object.defineProperty(LearningExperimentRequest.prototype, "_learning", {
+                get: $util.oneOfGetter($oneOfFields = ["learning"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new LearningExperimentRequest instance using the specified properties.
+             * @function create
+             * @memberof northstar.research.LearningExperimentRequest
+             * @static
+             * @param {northstar.research.LearningExperimentRequest.$Properties=} [properties] Properties to set
+             * @returns {northstar.research.LearningExperimentRequest} LearningExperimentRequest instance
+             * @type {{
+             *   (properties: northstar.research.LearningExperimentRequest.$Shape): northstar.research.LearningExperimentRequest & northstar.research.LearningExperimentRequest.$Shape;
+             *   (properties?: northstar.research.LearningExperimentRequest.$Properties): northstar.research.LearningExperimentRequest;
+             * }}
+             */
+            LearningExperimentRequest.create = function(properties) {
+                return new LearningExperimentRequest(properties);
+            };
+
+            /**
+             * Encodes the specified LearningExperimentRequest message. Does not implicitly {@link northstar.research.LearningExperimentRequest.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.research.LearningExperimentRequest
+             * @static
+             * @param {northstar.research.LearningExperimentRequest.$Properties} message LearningExperimentRequest message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            LearningExperimentRequest.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.request_id);
+                if (message.hypothesis != null && $Object.hasOwnProperty.call(message, "hypothesis"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.hypothesis);
+                if (message.train_snapshot != null && $Object.hasOwnProperty.call(message, "train_snapshot"))
+                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.train_snapshot);
+                if (message.validation_snapshot != null && $Object.hasOwnProperty.call(message, "validation_snapshot"))
+                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.validation_snapshot);
+                if (message.test_snapshot != null && $Object.hasOwnProperty.call(message, "test_snapshot"))
+                    writer.uint32(/* id 5, wireType 2 =*/42).string(message.test_snapshot);
+                if (message.configurations != null && message.configurations.length)
+                    for (let i = 0; i < message.configurations.length; ++i)
+                        $root.northstar.research.ResearchConfigurationInput.encode(message.configurations[i], writer.uint32(/* id 6, wireType 2 =*/50).fork(), _depth + 1).ldelim();
+                if (message.learning != null && $Object.hasOwnProperty.call(message, "learning"))
+                    $root.northstar.research.LearningRecipeInput.encode(message.learning, writer.uint32(/* id 7, wireType 2 =*/58).fork(), _depth + 1).ldelim();
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a LearningExperimentRequest message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.research.LearningExperimentRequest
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.research.LearningExperimentRequest & northstar.research.LearningExperimentRequest.$Shape} LearningExperimentRequest
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            LearningExperimentRequest.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.research.LearningExperimentRequest();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.request_id = reader.stringVerify();
+                            message._request_id = "request_id";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.hypothesis = reader.stringVerify();
+                            message._hypothesis = "hypothesis";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 2)
+                                break;
+                            message.train_snapshot = reader.stringVerify();
+                            message._train_snapshot = "train_snapshot";
+                            continue;
+                        }
+                    case 4: {
+                            if (wireType !== 2)
+                                break;
+                            message.validation_snapshot = reader.stringVerify();
+                            message._validation_snapshot = "validation_snapshot";
+                            continue;
+                        }
+                    case 5: {
+                            if (wireType !== 2)
+                                break;
+                            message.test_snapshot = reader.stringVerify();
+                            message._test_snapshot = "test_snapshot";
+                            continue;
+                        }
+                    case 6: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.configurations && message.configurations.length))
+                                message.configurations = [];
+                            message.configurations.push($root.northstar.research.ResearchConfigurationInput.decode(reader, reader.uint32(), $undefined, _depth + 1));
+                            continue;
+                        }
+                    case 7: {
+                            if (wireType !== 2)
+                                break;
+                            message.learning = $root.northstar.research.LearningRecipeInput.decode(reader, reader.uint32(), $undefined, _depth + 1, message.learning);
+                            message._learning = "learning";
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a LearningExperimentRequest message.
+             * @function verify
+             * @memberof northstar.research.LearningExperimentRequest
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            LearningExperimentRequest.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id")) {
+                    properties._request_id = 1;
+                    if (!$util.isString(message.request_id))
+                        return "request_id: string expected";
+                }
+                if (message.hypothesis != null && $Object.hasOwnProperty.call(message, "hypothesis")) {
+                    properties._hypothesis = 1;
+                    if (!$util.isString(message.hypothesis))
+                        return "hypothesis: string expected";
+                }
+                if (message.train_snapshot != null && $Object.hasOwnProperty.call(message, "train_snapshot")) {
+                    properties._train_snapshot = 1;
+                    if (!$util.isString(message.train_snapshot))
+                        return "train_snapshot: string expected";
+                }
+                if (message.validation_snapshot != null && $Object.hasOwnProperty.call(message, "validation_snapshot")) {
+                    properties._validation_snapshot = 1;
+                    if (!$util.isString(message.validation_snapshot))
+                        return "validation_snapshot: string expected";
+                }
+                if (message.test_snapshot != null && $Object.hasOwnProperty.call(message, "test_snapshot")) {
+                    properties._test_snapshot = 1;
+                    if (!$util.isString(message.test_snapshot))
+                        return "test_snapshot: string expected";
+                }
+                if (message.configurations != null && $Object.hasOwnProperty.call(message, "configurations")) {
+                    if (!$Array.isArray(message.configurations))
+                        return "configurations: array expected";
+                    for (let i = 0; i < message.configurations.length; ++i) {
+                        let error = $root.northstar.research.ResearchConfigurationInput.verify(message.configurations[i], _depth + 1);
+                        if (error)
+                            return "configurations." + error;
+                    }
+                }
+                if (message.learning != null && $Object.hasOwnProperty.call(message, "learning")) {
+                    properties._learning = 1;
+                    {
+                        let error = $root.northstar.research.LearningRecipeInput.verify(message.learning, _depth + 1);
+                        if (error)
+                            return "learning." + error;
+                    }
+                }
+                return null;
+            };
+
+            /**
+             * Creates a LearningExperimentRequest message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.research.LearningExperimentRequest
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.research.LearningExperimentRequest} LearningExperimentRequest
+             */
+            LearningExperimentRequest.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.research.LearningExperimentRequest)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.research.LearningExperimentRequest: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.research.LearningExperimentRequest();
+                if (object.request_id != null)
+                    message.request_id = $String(object.request_id);
+                if (object.hypothesis != null)
+                    message.hypothesis = $String(object.hypothesis);
+                if (object.train_snapshot != null)
+                    message.train_snapshot = $String(object.train_snapshot);
+                if (object.validation_snapshot != null)
+                    message.validation_snapshot = $String(object.validation_snapshot);
+                if (object.test_snapshot != null)
+                    message.test_snapshot = $String(object.test_snapshot);
+                if (object.configurations) {
+                    if (!$Array.isArray(object.configurations))
+                        throw $TypeError(".northstar.research.LearningExperimentRequest.configurations: array expected");
+                    message.configurations = $Array(object.configurations.length);
+                    for (let i = 0; i < object.configurations.length; ++i) {
+                        if (!$util.isObject(object.configurations[i]))
+                            throw $TypeError(".northstar.research.LearningExperimentRequest.configurations: object expected");
+                        message.configurations[i] = $root.northstar.research.ResearchConfigurationInput.fromObject(object.configurations[i], _depth + 1);
+                    }
+                }
+                if (object.learning != null) {
+                    if (!$util.isObject(object.learning))
+                        throw $TypeError(".northstar.research.LearningExperimentRequest.learning: object expected");
+                    message.learning = $root.northstar.research.LearningRecipeInput.fromObject(object.learning, _depth + 1);
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a LearningExperimentRequest message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.research.LearningExperimentRequest
+             * @static
+             * @param {northstar.research.LearningExperimentRequest} message LearningExperimentRequest
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            LearningExperimentRequest.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.arrays || options.defaults)
+                    object.configurations = [];
+                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id")) {
+                    object.request_id = message.request_id;
+                    if (options.oneofs)
+                        object._request_id = "request_id";
+                }
+                if (message.hypothesis != null && $Object.hasOwnProperty.call(message, "hypothesis")) {
+                    object.hypothesis = message.hypothesis;
+                    if (options.oneofs)
+                        object._hypothesis = "hypothesis";
+                }
+                if (message.train_snapshot != null && $Object.hasOwnProperty.call(message, "train_snapshot")) {
+                    object.train_snapshot = message.train_snapshot;
+                    if (options.oneofs)
+                        object._train_snapshot = "train_snapshot";
+                }
+                if (message.validation_snapshot != null && $Object.hasOwnProperty.call(message, "validation_snapshot")) {
+                    object.validation_snapshot = message.validation_snapshot;
+                    if (options.oneofs)
+                        object._validation_snapshot = "validation_snapshot";
+                }
+                if (message.test_snapshot != null && $Object.hasOwnProperty.call(message, "test_snapshot")) {
+                    object.test_snapshot = message.test_snapshot;
+                    if (options.oneofs)
+                        object._test_snapshot = "test_snapshot";
+                }
+                if (message.configurations && message.configurations.length) {
+                    object.configurations = $Array(message.configurations.length);
+                    for (let j = 0; j < message.configurations.length; ++j)
+                        object.configurations[j] = $root.northstar.research.ResearchConfigurationInput.toObject(message.configurations[j], options, _depth + 1);
+                }
+                if (message.learning != null && $Object.hasOwnProperty.call(message, "learning")) {
+                    object.learning = $root.northstar.research.LearningRecipeInput.toObject(message.learning, options, _depth + 1);
+                    if (options.oneofs)
+                        object._learning = "learning";
+                }
+                return object;
+            };
+
+            /**
+             * Converts this LearningExperimentRequest to JSON.
+             * @function toJSON
+             * @memberof northstar.research.LearningExperimentRequest
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            LearningExperimentRequest.prototype.toJSON = function() {
+                return LearningExperimentRequest.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for LearningExperimentRequest
+             * @function getTypeUrl
+             * @memberof northstar.research.LearningExperimentRequest
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            LearningExperimentRequest.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.research.LearningExperimentRequest";
+            };
+
+            return LearningExperimentRequest;
+        })();
+
         research.Experiment = (function() {
 
             /**
              * Properties of an Experiment.
              * @typedef {Object} northstar.research.Experiment.$Properties
+             * @property {google.protobuf.Struct.$Properties|null} [fitted] Experiment fitted
              * @property {string|null} [experiment_id] Experiment experiment_id
              * @property {string|null} [plan_id] Experiment plan_id
              * @property {string|null} [created_at] Experiment created_at
@@ -31240,6 +32313,7 @@ export const northstar = $root.northstar = (() => {
              * @property {google.protobuf.Struct.$Properties|null} [selection] Experiment selection
              * @property {Array.<google.protobuf.Struct.$Properties>|null} [trials] Experiment trials
              * @property {Array.<string>|null} [null_fields] Experiment null_fields
+             * @property {"fitted"} [_fitted] Experiment _fitted
              * @property {"experiment_id"} [_experiment_id] Experiment _experiment_id
              * @property {"plan_id"} [_plan_id] Experiment _plan_id
              * @property {"created_at"} [_created_at] Experiment _created_at
@@ -31260,6 +32334,7 @@ export const northstar = $root.northstar = (() => {
             /**
              * Narrowed shape of an Experiment.
              * @typedef {{
+             *   fitted?: google.protobuf.Struct.$Shape|null;
              *   experiment_id?: string|null;
              *   plan_id?: string|null;
              *   created_at?: string|null;
@@ -31270,6 +32345,8 @@ export const northstar = $root.northstar = (() => {
              *   null_fields?: Array.<string>|null;
              *   $unknowns?: Array.<Uint8Array>;
              * } & (
+             *   ({ _fitted?: undefined; fitted?: null }|{ _fitted?: "fitted"; fitted: google.protobuf.Struct.$Shape })
+             * ) & (
              *   ({ _experiment_id?: undefined; experiment_id?: null }|{ _experiment_id?: "experiment_id"; experiment_id: string })
              * ) & (
              *   ({ _plan_id?: undefined; plan_id?: null }|{ _plan_id?: "plan_id"; plan_id: string })
@@ -31300,6 +32377,14 @@ export const northstar = $root.northstar = (() => {
                         if (properties[keys[i]] != null && keys[i] !== "__proto__")
                             this[keys[i]] = properties[keys[i]];
             };
+
+            /**
+             * Experiment fitted.
+             * @member {google.protobuf.Struct.$Properties|null|undefined} fitted
+             * @memberof northstar.research.Experiment
+             * @instance
+             */
+            Experiment.prototype.fitted = null;
 
             /**
              * Experiment experiment_id.
@@ -31367,6 +32452,17 @@ export const northstar = $root.northstar = (() => {
 
             // OneOf field names bound to virtual getters and setters
             let $oneOfFields;
+
+            /**
+             * Experiment _fitted.
+             * @member {"fitted"|undefined} _fitted
+             * @memberof northstar.research.Experiment
+             * @instance
+             */
+            $Object.defineProperty(Experiment.prototype, "_fitted", {
+                get: $util.oneOfGetter($oneOfFields = ["fitted"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
 
             /**
              * Experiment _experiment_id.
@@ -31481,6 +32577,8 @@ export const northstar = $root.northstar = (() => {
                 if (message.trials != null && message.trials.length)
                     for (let i = 0; i < message.trials.length; ++i)
                         $root.google.protobuf.Struct.encode(message.trials[i], writer.uint32(/* id 7, wireType 2 =*/58).fork(), _depth + 1).ldelim();
+                if (message.fitted != null && $Object.hasOwnProperty.call(message, "fitted"))
+                    $root.google.protobuf.Struct.encode(message.fitted, writer.uint32(/* id 8, wireType 2 =*/66).fork(), _depth + 1).ldelim();
                 if (message.null_fields != null && message.null_fields.length)
                     for (let i = 0; i < message.null_fields.length; ++i)
                         writer.uint32(/* id 2046, wireType 2 =*/16370).string(message.null_fields[i]);
@@ -31528,6 +32626,13 @@ export const northstar = $root.northstar = (() => {
                     }
                     let wireType = tag & 7;
                     switch (tag >>>= 3) {
+                    case 8: {
+                            if (wireType !== 2)
+                                break;
+                            message.fitted = $root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1, message.fitted);
+                            message._fitted = "fitted";
+                            continue;
+                        }
                     case 1: {
                             if (wireType !== 2)
                                 break;
@@ -31619,6 +32724,14 @@ export const northstar = $root.northstar = (() => {
                 if (_depth > $util.recursionLimit)
                     return "max depth exceeded";
                 let properties = {};
+                if (message.fitted != null && $Object.hasOwnProperty.call(message, "fitted")) {
+                    properties._fitted = 1;
+                    {
+                        let error = $root.google.protobuf.Struct.verify(message.fitted, _depth + 1);
+                        if (error)
+                            return "fitted." + error;
+                    }
+                }
                 if (message.experiment_id != null && $Object.hasOwnProperty.call(message, "experiment_id")) {
                     properties._experiment_id = 1;
                     if (!$util.isString(message.experiment_id))
@@ -31692,6 +32805,11 @@ export const northstar = $root.northstar = (() => {
                 if (_depth > $util.recursionLimit)
                     throw $Error("max depth exceeded");
                 let message = new $root.northstar.research.Experiment();
+                if (object.fitted != null) {
+                    if (!$util.isObject(object.fitted))
+                        throw $TypeError(".northstar.research.Experiment.fitted: object expected");
+                    message.fitted = $root.google.protobuf.Struct.fromObject(object.fitted, _depth + 1);
+                }
                 if (object.experiment_id != null)
                     message.experiment_id = $String(object.experiment_id);
                 if (object.plan_id != null)
@@ -31785,6 +32903,11 @@ export const northstar = $root.northstar = (() => {
                     object.trials = $Array(message.trials.length);
                     for (let j = 0; j < message.trials.length; ++j)
                         object.trials[j] = $root.google.protobuf.Struct.toObject(message.trials[j], options, _depth + 1);
+                }
+                if (message.fitted != null && $Object.hasOwnProperty.call(message, "fitted")) {
+                    object.fitted = $root.google.protobuf.Struct.toObject(message.fitted, options, _depth + 1);
+                    if (options.oneofs)
+                        object._fitted = "fitted";
                 }
                 if (message.null_fields && message.null_fields.length) {
                     object.null_fields = $Array(message.null_fields.length);

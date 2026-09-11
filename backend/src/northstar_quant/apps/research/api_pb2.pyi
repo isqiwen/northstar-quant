@@ -1021,8 +1021,43 @@ class ExperimentRequest(_message.Message):
     configurations: _containers.RepeatedCompositeFieldContainer[ResearchConfigurationInput]
     def __init__(self, request_id: _Optional[str] = ..., hypothesis: _Optional[str] = ..., train_snapshot: _Optional[str] = ..., validation_snapshot: _Optional[str] = ..., test_snapshot: _Optional[str] = ..., configurations: _Optional[_Iterable[_Union[ResearchConfigurationInput, _Mapping]]] = ...) -> None: ...
 
+class LearningRecipeInput(_message.Message):
+    __slots__ = ("fast_bars", "slow_bars", "horizon_bars", "penalties", "threshold", "target_fraction")
+    FAST_BARS_FIELD_NUMBER: _ClassVar[int]
+    SLOW_BARS_FIELD_NUMBER: _ClassVar[int]
+    HORIZON_BARS_FIELD_NUMBER: _ClassVar[int]
+    PENALTIES_FIELD_NUMBER: _ClassVar[int]
+    THRESHOLD_FIELD_NUMBER: _ClassVar[int]
+    TARGET_FRACTION_FIELD_NUMBER: _ClassVar[int]
+    fast_bars: int
+    slow_bars: int
+    horizon_bars: int
+    penalties: _containers.RepeatedScalarFieldContainer[str]
+    threshold: str
+    target_fraction: str
+    def __init__(self, fast_bars: _Optional[int] = ..., slow_bars: _Optional[int] = ..., horizon_bars: _Optional[int] = ..., penalties: _Optional[_Iterable[str]] = ..., threshold: _Optional[str] = ..., target_fraction: _Optional[str] = ...) -> None: ...
+
+class LearningExperimentRequest(_message.Message):
+    __slots__ = ("request_id", "hypothesis", "train_snapshot", "validation_snapshot", "test_snapshot", "configurations", "learning")
+    REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
+    HYPOTHESIS_FIELD_NUMBER: _ClassVar[int]
+    TRAIN_SNAPSHOT_FIELD_NUMBER: _ClassVar[int]
+    VALIDATION_SNAPSHOT_FIELD_NUMBER: _ClassVar[int]
+    TEST_SNAPSHOT_FIELD_NUMBER: _ClassVar[int]
+    CONFIGURATIONS_FIELD_NUMBER: _ClassVar[int]
+    LEARNING_FIELD_NUMBER: _ClassVar[int]
+    request_id: str
+    hypothesis: str
+    train_snapshot: str
+    validation_snapshot: str
+    test_snapshot: str
+    configurations: _containers.RepeatedCompositeFieldContainer[ResearchConfigurationInput]
+    learning: LearningRecipeInput
+    def __init__(self, request_id: _Optional[str] = ..., hypothesis: _Optional[str] = ..., train_snapshot: _Optional[str] = ..., validation_snapshot: _Optional[str] = ..., test_snapshot: _Optional[str] = ..., configurations: _Optional[_Iterable[_Union[ResearchConfigurationInput, _Mapping]]] = ..., learning: _Optional[_Union[LearningRecipeInput, _Mapping]] = ...) -> None: ...
+
 class Experiment(_message.Message):
-    __slots__ = ("experiment_id", "plan_id", "created_at", "status", "plan", "selection", "trials", "null_fields")
+    __slots__ = ("fitted", "experiment_id", "plan_id", "created_at", "status", "plan", "selection", "trials", "null_fields")
+    FITTED_FIELD_NUMBER: _ClassVar[int]
     EXPERIMENT_ID_FIELD_NUMBER: _ClassVar[int]
     PLAN_ID_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
@@ -1031,6 +1066,7 @@ class Experiment(_message.Message):
     SELECTION_FIELD_NUMBER: _ClassVar[int]
     TRIALS_FIELD_NUMBER: _ClassVar[int]
     NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    fitted: _struct_pb2.Struct
     experiment_id: str
     plan_id: str
     created_at: str
@@ -1039,7 +1075,7 @@ class Experiment(_message.Message):
     selection: _struct_pb2.Struct
     trials: _containers.RepeatedCompositeFieldContainer[_struct_pb2.Struct]
     null_fields: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, experiment_id: _Optional[str] = ..., plan_id: _Optional[str] = ..., created_at: _Optional[str] = ..., status: _Optional[str] = ..., plan: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., selection: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., trials: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+    def __init__(self, fitted: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., experiment_id: _Optional[str] = ..., plan_id: _Optional[str] = ..., created_at: _Optional[str] = ..., status: _Optional[str] = ..., plan: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., selection: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., trials: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ExperimentList(_message.Message):
     __slots__ = ("items",)

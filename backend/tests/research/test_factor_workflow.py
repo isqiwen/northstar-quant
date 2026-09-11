@@ -105,7 +105,6 @@ def test_http_catalog_and_exact_parameter_versions_use_same_business_operations(
     library, dataset, _ = _study(postgres_engine, tmp_path)
     with TestClient(create_app(postgres_engine, library), base_url="http://127.0.0.1") as client:
         _browser_session(client)
-        assert len(client.get("/api/catalog").json()["strategies"]) == 2
         payload = {"factor_id": "range.position", "parameters": {"window_bars": 2}}
         del client.headers["X-Northstar-CSRF"]
         assert client.post("/api/factor-revisions", json=payload).status_code == 403

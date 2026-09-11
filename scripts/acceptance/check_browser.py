@@ -19,6 +19,7 @@ from playwright.sync_api import expect, sync_playwright
 from sqlalchemy import create_engine, text
 from support.market import seed_market
 from support.processes import InstalledApplication
+from support.studies import seed_learning
 
 from northstar_quant.web.protobuf import decode, methods, pack
 
@@ -372,6 +373,7 @@ def main() -> None:
                     )
                     assert shifted["status"] == "PUBLISHED", shifted
                     study_snapshots.append(shifted["snapshot_id"])
+                learning_snapshots = seed_learning(app, spec, study["archive"])
                 with (
                     app.api("data-api"),
                     app.research_worker(),
@@ -445,6 +447,23 @@ def main() -> None:
                     expect(page.get_by_role("cell", name="测试", exact=True)).to_have_count(1)
                     expect(page.get_by_role("link", name="查看任务", exact=True)).to_have_count(5)
                     screenshot("parameter-study")
+                    study_row.locator(".ant-table-row-expand-icon").click()
+                    choose("实验方法", "训练期线性收益模型")
+                    page.get_by_label("研究假设", exact=True).fill("浏览器训练期拟合")
+                    for label, snapshot in zip(
+                        ("训练快照", "验证快照", "测试快照"), learning_snapshots, strict=True
+                    ):
+                        choose(label, snapshot[:8])
+                    choose("账户、风险与成本模板（1 个；策略由训练生成）", "浏览器动量")
+                    page.get_by_role("button", name="固定计划并提交", exact=True).click()
+                    learned_row = page.locator("tr").filter(
+                        has=page.get_by_text("浏览器训练期拟合", exact=True)
+                    )
+                    expect(learned_row.get_by_text("完成", exact=True)).to_be_visible(timeout=60000)
+                    learned_row.locator(".ant-table-row-expand-icon").click()
+                    expect(page.get_by_role("cell", name="测试", exact=True)).to_have_count(1)
+                    expect(page.get_by_role("link", name="查看任务", exact=True)).to_have_count(7)
+                    screenshot("learned-study")
                     visit(url + "/candidates")
                     version_form = (
                         page.locator(".ant-card")

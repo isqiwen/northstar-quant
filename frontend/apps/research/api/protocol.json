@@ -2733,8 +2733,120 @@
       "array": false,
       "evidence": false
     },
+    "northstar.research.LearningRecipeInput": {
+      "fields": {
+        "fast_bars": {
+          "id": 1,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "slow_bars": {
+          "id": 2,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "horizon_bars": {
+          "id": 3,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "penalties": {
+          "id": 4,
+          "presence": false,
+          "type": "string",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "threshold": {
+          "id": 5,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "target_fraction": {
+          "id": 6,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.research.LearningExperimentRequest": {
+      "fields": {
+        "request_id": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "hypothesis": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "train_snapshot": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "validation_snapshot": {
+          "id": 4,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "test_snapshot": {
+          "id": 5,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "configurations": {
+          "id": 6,
+          "presence": false,
+          "type": "northstar.research.ResearchConfigurationInput",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "learning": {
+          "id": 7,
+          "presence": true,
+          "type": "northstar.research.LearningRecipeInput",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
     "northstar.research.Experiment": {
       "fields": {
+        "fitted": {
+          "id": 8,
+          "presence": true,
+          "type": "google.protobuf.Struct",
+          "required": true,
+          "nullable": true
+        },
         "experiment_id": {
           "id": 1,
           "presence": true,
@@ -3304,6 +3416,13 @@
     }
   },
   "methods": [
+    {
+      "method": "POST",
+      "path": "/api/experiments/learn",
+      "input": "northstar.research.LearningExperimentRequest",
+      "output": "northstar.research.Experiment",
+      "runtime": false
+    },
     {
       "method": "POST",
       "path": "/api/experiments",

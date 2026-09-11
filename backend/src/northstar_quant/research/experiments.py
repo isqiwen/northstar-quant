@@ -28,6 +28,7 @@ from northstar_quant.factors.definition import content_id
 from northstar_quant.persistence.sql import UTCDateTime, write_transaction
 
 from .configuration import ResearchConfig
+from .learning import LearningRecipe, fit
 from .runs import RunStore
 from .tasks.store import TaskStore, jobs
 
@@ -47,6 +48,13 @@ _selections = Table(
     Column("decision", JSON, nullable=False),
     Column("decision_id", String(64), nullable=False),
 )
+_fits = Table(
+    "research_experiment_fits",
+    _metadata,
+    Column("experiment_id", String(36), primary_key=True),
+    Column("document", JSON, nullable=False),
+    Column("fit_id", String(64), nullable=False),
+)
 _PHASES = ("train", "validation", "test")
 _TERMINAL = {"SUCCEEDED", "FAILED", "CANCELLED"}
 
@@ -55,7 +63,7 @@ def initialize(connection: Connection) -> None:
     from .storage import immutable
 
     _metadata.create_all(connection)
-    for table in (_plans, _selections):
+    for table in (_plans, _selections, _fits):
         if connection.dialect.name == "sqlite":
             immutable(connection, table.name)
         else:
@@ -87,8 +95,10 @@ class Experiments:
         snapshots: tuple[UUID, UUID, UUID],
         configurations: list[ResearchConfig],
         library: DatasetReader,
+        learning: LearningRecipe | None = None,
     ) -> dict[str, Any]:
-        if not 1 <= len(hypothesis.strip()) <= 1000 or not 2 <= len(configurations) <= 64:
+        valid_count = len(configurations) == 1 if learning else 2 <= len(configurations) <= 64
+        if not 1 <= len(hypothesis.strip()) <= 1000 or not valid_count:
             raise ValueError("experiment requires a hypothesis and 2 to 64 fixed candidates")
         candidates = {content_id(c.to_dict()): c.to_dict() for c in configurations}
         if len(candidates) != len(configurations):
@@ -100,7 +110,10 @@ class Experiments:
         if len(set(snapshots)) != 3:
             raise ValueError("train, validation and test require distinct fixed snapshots")
         for previous, current in zip(details, details[1:]):
-            if previous.summary.session_close > current.summary.session_open:
+            if (
+                max(previous.summary.session_close, previous.available_at_cutoff)
+                > current.summary.session_open
+            ):
                 raise ValueError("train, validation and test windows must be ordered and disjoint")
 
         def economics(d: DatasetDetails) -> tuple[object, ...]:
@@ -128,16 +141,25 @@ class Experiments:
         ):
             raise ValueError("each fixed window must contain enough bounded warmup and input")
         plan = {
-            "revision": "finite-parameter-study/1",
+            "revision": "fixed-research-experiment/1",
+            "learning": None if learning is None else learning.to_dict(),
+            "base": None if learning is None else first.to_dict(),
             "hypothesis": hypothesis.strip(),
             "code_revision": code_revision(),
-            "candidates": dict(sorted(candidates.items())),
+            "candidates": dict(sorted(candidates.items())) if learning is None else {},
             "windows": {phase: d.to_dict() for phase, d in zip(_PHASES, details, strict=True)},
             "selection": "MAX_VALIDATION_NET_RETURN_THEN_CANDIDATE_ID",
             "initial_state": "INDEPENDENT_EMPTY_ACCOUNT_AND_WARMUP_PER_WINDOW",
-            "fit": "FIXED_STRATEGY_PARAMETER_GRID_NO_LEARNED_MODEL",
+            "fit": "FIXED_STRATEGY_PARAMETER_GRID_NO_LEARNED_MODEL"
+            if learning is None
+            else "TRAIN_ONLY_RIDGE_RETURN_MODEL",
             "sample_use": "HELD_OUT_WITHIN_PLAN_NOT_PROOF_OF_UNUSED_DATA",
         }
+        if learning and any(
+            not learning.slow_bars + learning.horizon_bars + 10 <= d.summary.bar_count <= 10000
+            for d in details
+        ):
+            raise ValueError("learning windows require enough bounded labelled input")
         with write_transaction(self.engine) as c:
             old = (
                 c.execute(select(_plans).where(_plans.c.experiment_id == str(identity)))
@@ -175,6 +197,11 @@ class Experiments:
                 .mappings()
                 .one_or_none()
             )
+            fitted = (
+                c.execute(select(_fits).where(_fits.c.experiment_id == identity))
+                .mappings()
+                .one_or_none()
+            )
         if row is None:
             raise LookupError("experiment not found")
         plan = row["plan"]
@@ -183,8 +210,12 @@ class Experiments:
         decision = None if selected is None else selected["decision"]
         if selected is not None and content_id(decision) != selected["decision_id"]:
             raise ValueError("experiment selection integrity failure")
+        learned = None if fitted is None else fitted["document"]
+        if fitted is not None and content_id(learned) != fitted["fit_id"]:
+            raise ValueError("experiment fitted artifact integrity failure")
+        candidates = plan["candidates"] if learned is None else learned.get("candidates", {})
         trials = []
-        for candidate in plan["candidates"]:
+        for candidate in candidates:
             for phase in _PHASES:
                 if phase == "test" and (decision is None or decision["winner"] != candidate):
                     continue
@@ -202,6 +233,11 @@ class Experiments:
             if decision["winner"] is None
             else (test["status"] if test and test["status"] in _TERMINAL else "TESTING")
         )
+        if plan["learning"] is not None:
+            if learned is None:
+                status = "FITTING"
+            elif learned["status"] == "FAILED":
+                status = "FAILED"
         if any(t["status"] == "INTERRUPTED" for t in trials):
             status = "INTERRUPTED"
         if plan["code_revision"] != code_revision() and status not in _TERMINAL:
@@ -213,6 +249,7 @@ class Experiments:
             "created_at": row["created_at"].isoformat(),
             "status": status,
             "selection": decision,
+            "fitted": learned,
             "trials": trials,
         }
 
@@ -227,6 +264,8 @@ class Experiments:
         """Query only unfinished plans; completed reports never enter the polling path."""
         query = (
             select(_plans.c.experiment_id)
+            .outerjoin(_fits, _fits.c.experiment_id == _plans.c.experiment_id)
+            .where(func.coalesce(_fits.c.document["status"].as_string(), "READY") != "FAILED")
             .outerjoin(_selections, _selections.c.experiment_id == _plans.c.experiment_id)
             .outerjoin(jobs, jobs.c.task_id == _selections.c.decision["test_task_id"].as_string())
             .where(
@@ -242,17 +281,41 @@ class Experiments:
         with self.engine.connect() as c:
             return tuple(c.scalars(query))
 
-    def advance(self, identity: str) -> None:
+    def advance(self, identity: str, library: DatasetReader | None = None) -> bool:
         state = self.get(identity)
         if state["status"] in _TERMINAL | {"IMPLEMENTATION_MISMATCH", "INTERRUPTED"}:
-            return
+            return False
         plan = state["plan"]
+        if plan["learning"] is not None and state["fitted"] is None:
+            if library is None:
+                raise ValueError("learning requires the fixed publication reader")
+            try:
+                window = plan["windows"]["train"]
+                dataset = library.load_dataset(UUID(window["snapshot_id"]))
+                if dataset.details is None or dataset.details.to_dict() != window:
+                    raise ValueError("fixed training input identity changed")
+                document = {
+                    "status": "SUCCEEDED",
+                    **fit(
+                        dataset,
+                        LearningRecipe.from_dict(plan["learning"]),
+                        ResearchConfig.from_mapping(plan["base"]),
+                    ),
+                }
+            except Exception as error:
+                document = {"status": "FAILED", "error": str(error)[:1000]}
+            with write_transaction(self.engine) as c:
+                c.execute(
+                    insert(_fits).values(
+                        experiment_id=identity, document=document, fit_id=content_id(document)
+                    )
+                )
+            return True
+        available = plan["candidates"] if state["fitted"] is None else state["fitted"]["candidates"]
         decision = state["selection"]
         phases = ("train", "validation") if decision is None else ("test",)
         candidates = (
-            plan["candidates"]
-            if decision is None
-            else {decision["winner"]: plan["candidates"][decision["winner"]]}
+            available if decision is None else {decision["winner"]: available[decision["winner"]]}
         )
         for candidate, config in candidates.items():
             for phase in phases:
@@ -276,12 +339,12 @@ class Experiments:
                     window,
                 )
         if decision is not None:
-            return
+            return False
         trials = self.get(identity)["trials"]
         if any(t["status"] not in _TERMINAL for t in trials):
-            return
+            return False
         scores: list[dict[str, Any]] = []
-        for candidate in plan["candidates"]:
+        for candidate in available:
             candidate_trials = [t for t in trials if t["candidate_id"] == candidate]
             if any(t["status"] != "SUCCEEDED" for t in candidate_trials):
                 scores.append({"candidate_id": candidate, "status": "FAILED", "score": None})
@@ -318,9 +381,11 @@ class Experiments:
             )
             observed = {t["task_id"]: (t["status"], t["run_id"]) for t in trials}
             if any(observed[t["task_id"]] != (t["status"], t["run_id"]) for t in current):
-                return  # a retry raced selection; wait for the newly admitted attempt
+                return False  # a retry raced selection; wait for the newly admitted attempt
             c.execute(
                 insert(_selections).values(
                     experiment_id=identity, decision=decision, decision_id=content_id(decision)
                 )
             )
+
+        return False

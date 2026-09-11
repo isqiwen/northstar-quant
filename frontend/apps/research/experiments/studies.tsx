@@ -8,6 +8,7 @@ import {
   Card,
   Form,
   Input,
+  InputNumber,
   Select,
   Table,
   Tag,
@@ -15,7 +16,7 @@ import {
 import { query, mutate } from "../api/client";
 import { requestId } from "../../../shared/api";
 import { useData } from "../../../shared/data";
-import { Failure, Identity } from "../../../shared/ui";
+import { Evidence, Failure, Identity } from "../../../shared/ui";
 
 const phases: Record<string, string> = {
   train: "训练",
@@ -23,6 +24,7 @@ const phases: Record<string, string> = {
   test: "测试",
 };
 const states: Record<string, string> = {
+  FITTING: "训练拟合",
   SEARCHING: "训练与验证",
   TESTING: "独立测试",
   SUCCEEDED: "完成",
@@ -42,6 +44,7 @@ export default function Studies() {
   const configurations = useData(query("/api/configurations"));
   const { message } = App.useApp();
   const [form] = Form.useForm();
+  const learning = Form.useWatch("mode", form) === "learning";
   const [identity, setIdentity] = useState<string>();
   const [busy, setBusy] = useState(false);
   return (
@@ -53,11 +56,20 @@ export default function Studies() {
         type="info"
         showIcon
         title="固定参数实验"
-        description="三个时间有序、互不重叠的固定快照；候选使用相同账户、风险和成本。按验证净收益选择，仅测试胜出配置，不按测试收益重新选参。各窗口独立预热和建账；当前不拟合机器学习模型。重复利用测试区间不构成未使用样本。"
+        description="三个时间有序、互不重叠的固定快照；候选使用相同账户、风险和成本。按验证净收益选择，仅测试胜出配置，不按测试收益重新选参。各窗口独立预热和建账；学习型实验仅在训练窗口拟合并固定系数。重复利用测试区间不构成未使用样本。"
       />
-      <Card title="新建有限参数实验">
+      <Card title="新建固定实验">
         <Form
           form={form}
+          initialValues={{
+            mode: "grid",
+            fast_bars: 1,
+            slow_bars: 15,
+            horizon_bars: 1,
+            penalties: "0.001,0.01,0.1",
+            threshold: "0.001",
+            target_fraction: "0.5",
+          }}
           layout="vertical"
           disabled={busy}
           onValuesChange={() => setIdentity(undefined)}
@@ -73,14 +85,29 @@ export default function Studies() {
                 if (!config) throw new Error("配置不可用，请刷新后重试");
                 return config.config;
               });
-              await mutate("/api/experiments", {
+              const body = {
                 request_id: id,
                 hypothesis: v.hypothesis,
                 train_snapshot: v.train,
                 validation_snapshot: v.validation,
                 test_snapshot: v.test,
                 configurations: selected,
-              });
+              };
+              if (learning)
+                await mutate("/api/experiments/learn", {
+                  ...body,
+                  learning: {
+                    fast_bars: v.fast_bars,
+                    slow_bars: v.slow_bars,
+                    horizon_bars: v.horizon_bars,
+                    penalties: String(v.penalties)
+                      .split(",")
+                      .map((p) => p.trim()),
+                    threshold: v.threshold,
+                    target_fraction: v.target_fraction,
+                  },
+                });
+              else await mutate("/api/experiments", body);
               message.success("实验已保存，独立 worker 将安排任务");
               form.resetFields();
               setIdentity(undefined);
@@ -91,6 +118,64 @@ export default function Studies() {
             }
           }}
         >
+          <Form.Item name="mode" label="实验方法">
+            <Select
+              options={[
+                { value: "grid", label: "固定参数比较" },
+                { value: "learning", label: "训练期线性收益模型" },
+              ]}
+            />
+          </Form.Item>
+          {learning && (
+            <>
+              <Alert
+                type="info"
+                title="仅在训练快照拟合两个收益因子的线性系数与标准化参数，冻结后交给原回测引擎验证。每个窗口最多 10,000 根 bar，不跨窗口取标签。"
+              />
+              <Form.Item
+                name="fast_bars"
+                label="短收益窗口"
+                rules={[{ required: true }]}
+              >
+                <InputNumber min={1} max={999} />
+              </Form.Item>
+              <Form.Item
+                name="slow_bars"
+                label="长收益窗口"
+                rules={[{ required: true }]}
+              >
+                <InputNumber min={2} max={1000} />
+              </Form.Item>
+              <Form.Item
+                name="horizon_bars"
+                label="标签前瞻 bar 数"
+                rules={[{ required: true }]}
+              >
+                <InputNumber min={1} max={100} />
+              </Form.Item>
+              <Form.Item
+                name="penalties"
+                label="固定正则强度（逗号分隔，2–16 个）"
+                rules={[{ required: true }]}
+              >
+                <Input />
+              </Form.Item>
+              <Form.Item
+                name="threshold"
+                label="预测收益阈值"
+                rules={[{ required: true }]}
+              >
+                <Input />
+              </Form.Item>
+              <Form.Item
+                name="target_fraction"
+                label="持仓限额比例"
+                rules={[{ required: true }]}
+              >
+                <Input />
+              </Form.Item>
+            </>
+          )}
           <Form.Item
             name="hypothesis"
             label="研究假设"
@@ -119,8 +204,19 @@ export default function Studies() {
           </div>
           <Form.Item
             name="configurations"
-            label="候选配置（2–64 个，仅策略或因子参数不同）"
-            rules={[{ required: true, type: "array", min: 2, max: 64 }]}
+            label={
+              learning
+                ? "账户、风险与成本模板（1 个；策略由训练生成）"
+                : "候选配置（2–64 个，仅策略或因子参数不同）"
+            }
+            rules={[
+              {
+                required: true,
+                type: "array",
+                min: learning ? 1 : 2,
+                max: learning ? 1 : 64,
+              },
+            ]}
           >
             <Select
               mode="multiple"
@@ -166,6 +262,14 @@ export default function Studies() {
               <p>
                 选择规则：验证净收益最高；同分按固定配置身份排序。失败候选保留，测试结果不参与选参。
               </p>
+              {r.fitted && (
+                <>
+                  {r.fitted.error && (
+                    <Alert type="error" title={String(r.fitted.error)} />
+                  )}
+                  <Evidence value={r.fitted} />
+                </>
+              )}
               <Table
                 rowKey="task_id"
                 pagination={false}

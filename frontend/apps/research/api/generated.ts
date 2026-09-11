@@ -426,7 +426,25 @@ export type ExperimentRequest = {
   test_snapshot: string;
   configurations: (ResearchConfigurationInput)[];
 };
+export type LearningRecipeInput = {
+  fast_bars: number;
+  slow_bars: number;
+  horizon_bars: number;
+  penalties: (string)[];
+  threshold: string;
+  target_fraction: string;
+};
+export type LearningExperimentRequest = {
+  request_id: string;
+  hypothesis: string;
+  train_snapshot: string;
+  validation_snapshot: string;
+  test_snapshot: string;
+  configurations: (ResearchConfigurationInput)[];
+  learning: LearningRecipeInput;
+};
 export type Experiment = {
+  fitted: Record<string, JsonValue> | null;
   experiment_id: string;
   plan_id: string;
   created_at: string;

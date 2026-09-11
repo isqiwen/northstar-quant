@@ -7,6 +7,12 @@ from typing import Any, cast
 from .definition import Strategy
 
 _IMPLEMENTATIONS = {
+    "learned.linear_return": (
+        "northstar_quant.strategies.learned.linear",
+        "固定线性收益模型",
+        "学习型研究",
+        "训练后固定系数，预测只消费已完成因子；研究结果不是实盘资格",
+    ),
     "trend.momentum": (
         "northstar_quant.strategies.trend.momentum",
         "窗口动量",

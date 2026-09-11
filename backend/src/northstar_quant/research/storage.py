@@ -116,6 +116,7 @@ def require_current(engine: Engine) -> None:
             "northstar_store",
             "research_jobs",
             "research_experiments",
+            "research_experiment_fits",
             "research_experiment_selections",
             "research_job_attempts",
             "research_runs",

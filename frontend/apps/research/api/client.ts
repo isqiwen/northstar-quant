@@ -30,11 +30,12 @@ P extends `/api/catalog` ? messages.Catalog :
 P extends `/api/tasks` ? messages.TaskList :
 P extends `/api/paper` ? messages.GetApiPaperResponse :
 P extends `/api/runs` ? messages.GetApiRunsResponse : never;
-export type CommandPath = `/api/factor-revisions/${string}/annotations` | `/api/strategy-versions/${string}/publish` | `/api/paper/${string}/advance` | `/api/tasks/${string}/control` | `/api/strategy-versions` | `/api/factor-revisions` | `/api/run-comparisons` | `/api/configurations` | `/api/experiments` | `/api/factor-runs` | `/api/logout` | `/api/login` | `/api/tasks` | `/api/paper`;
+export type CommandPath = `/api/factor-revisions/${string}/annotations` | `/api/strategy-versions/${string}/publish` | `/api/paper/${string}/advance` | `/api/tasks/${string}/control` | `/api/experiments/learn` | `/api/strategy-versions` | `/api/factor-revisions` | `/api/run-comparisons` | `/api/configurations` | `/api/experiments` | `/api/factor-runs` | `/api/logout` | `/api/login` | `/api/tasks` | `/api/paper`;
 export type CommandResponse<P> = P extends `/api/factor-revisions/${string}/annotations` ? messages.RevisionCreated :
 P extends `/api/strategy-versions/${string}/publish` ? messages.StrategyCandidate :
 P extends `/api/paper/${string}/advance` ? messages.PaperAdvanced :
 P extends `/api/tasks/${string}/control` ? messages.ResearchTask :
+P extends `/api/experiments/learn` ? messages.Experiment :
 P extends `/api/strategy-versions` ? messages.VersionCreated :
 P extends `/api/factor-revisions` ? messages.RevisionCreated :
 P extends `/api/run-comparisons` ? messages.PostApiRunComparisonsResponse :
@@ -49,6 +50,7 @@ export type CommandBody<P> = P extends `/api/factor-revisions/${string}/annotati
 P extends `/api/strategy-versions/${string}/publish` ? messages.PublishRequest :
 P extends `/api/paper/${string}/advance` ? messages.AdvanceRequest :
 P extends `/api/tasks/${string}/control` ? messages.TaskControl :
+P extends `/api/experiments/learn` ? messages.LearningExperimentRequest :
 P extends `/api/strategy-versions` ? messages.StrategyVersionRequest :
 P extends `/api/factor-revisions` ? messages.FactorRevisionRequest :
 P extends `/api/run-comparisons` ? messages.ComparisonRequest :

@@ -33,7 +33,7 @@ class Parameter:
             return value
         if (
             not isinstance(value, str)
-            or re.fullmatch(r"(?:0|[1-9][0-9]*)(?:\.[0-9]{1,18})?", value) is None
+            or re.fullmatch(r"-?(?:0|[1-9][0-9]*)(?:\.[0-9]{1,18})?", value) is None
         ):
             raise ValueError(f"{self.name} must be a plain decimal string")
         number = Decimal(value)

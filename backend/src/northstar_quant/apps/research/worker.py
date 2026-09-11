@@ -12,6 +12,7 @@ from pathlib import Path
 from threading import Event
 from time import monotonic
 
+from northstar_quant.data_management.publications import PublishedDatasets
 from northstar_quant.logging_ import configure
 from northstar_quant.research.experiments import Experiments
 from northstar_quant.research.storage import open_store, require_current
@@ -53,7 +54,8 @@ def run() -> None:
                     del children[process]
                 if monotonic() >= next_experiments:
                     for identity in experiments.pending():
-                        experiments.advance(identity)
+                        if experiments.advance(identity, PublishedDatasets.from_environment()):
+                            break  # one bounded fit per pass; keep child supervision responsive
                     next_experiments = monotonic() + 2.0
                 task = store.queued()
                 if task:
