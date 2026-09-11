@@ -19,6 +19,7 @@ from sqlalchemy import (
     insert,
     or_,
     select,
+    update,
 )
 
 from northstar_quant import code_revision
@@ -52,8 +53,9 @@ _fits = Table(
     "research_experiment_fits",
     _metadata,
     Column("experiment_id", String(36), primary_key=True),
-    Column("document", JSON, nullable=False),
-    Column("fit_id", String(64), nullable=False),
+    Column("status", String(20), nullable=False),
+    Column("document", JSON),
+    Column("fit_id", String(64)),
 )
 _PHASES = ("train", "validation", "test")
 _TERMINAL = {"SUCCEEDED", "FAILED", "CANCELLED"}
@@ -63,7 +65,7 @@ def initialize(connection: Connection) -> None:
     from .storage import immutable
 
     _metadata.create_all(connection)
-    for table in (_plans, _selections, _fits):
+    for table in (_plans, _selections):
         if connection.dialect.name == "sqlite":
             immutable(connection, table.name)
         else:
@@ -77,6 +79,29 @@ def initialize(connection: Connection) -> None:
                 f"CREATE TRIGGER immutable BEFORE UPDATE OR DELETE ON {table.name} "
                 "FOR EACH ROW EXECUTE FUNCTION experiment_immutable()"
             )
+
+    invalid = """OLD.experiment_id <> NEW.experiment_id OR NOT (
+      (OLD.status='QUEUED' AND NEW.status='RUNNING') OR
+      (OLD.status='RUNNING' AND NEW.status IN ('SUCCEEDED','FAILED','INTERRUPTED')))"""
+    if connection.dialect.name == "sqlite":
+        connection.exec_driver_sql(
+            "CREATE TRIGGER IF NOT EXISTS fit_transition BEFORE UPDATE ON research_experiment_fits "
+            f"WHEN {invalid} BEGIN SELECT RAISE(ABORT, 'fit facts are immutable'); END"
+        )
+        connection.exec_driver_sql(
+            "CREATE TRIGGER IF NOT EXISTS fit_retained BEFORE DELETE ON research_experiment_fits "
+            "BEGIN SELECT RAISE(ABORT, 'fit facts are immutable'); END"
+        )
+    else:
+        connection.exec_driver_sql(f"""
+            CREATE OR REPLACE FUNCTION fit_transition() RETURNS trigger AS $$
+            BEGIN IF TG_OP='DELETE' OR {invalid}
+            THEN RAISE EXCEPTION 'fit facts are immutable'; END IF;
+            RETURN NEW; END; $$ LANGUAGE plpgsql;
+            DROP TRIGGER IF EXISTS immutable ON research_experiment_fits;
+            CREATE TRIGGER immutable BEFORE UPDATE OR DELETE ON research_experiment_fits
+            FOR EACH ROW EXECUTE FUNCTION fit_transition();
+        """)
 
 
 def task_id(identity: str, candidate: str, phase: str) -> str:
@@ -178,6 +203,8 @@ class Experiments:
                         created_at=datetime.now(UTC),
                     )
                 )
+                if learning is not None:
+                    c.execute(insert(_fits).values(experiment_id=str(identity), status="QUEUED"))
         from .artifacts import publish_usage
 
         for snapshot in snapshots:
@@ -211,7 +238,7 @@ class Experiments:
         if selected is not None and content_id(decision) != selected["decision_id"]:
             raise ValueError("experiment selection integrity failure")
         learned = None if fitted is None else fitted["document"]
-        if fitted is not None and content_id(learned) != fitted["fit_id"]:
+        if fitted is not None and learned is not None and content_id(learned) != fitted["fit_id"]:
             raise ValueError("experiment fitted artifact integrity failure")
         candidates = plan["candidates"] if learned is None else learned.get("candidates", {})
         trials = []
@@ -234,10 +261,12 @@ class Experiments:
             else (test["status"] if test and test["status"] in _TERMINAL else "TESTING")
         )
         if plan["learning"] is not None:
+            if fitted is None:
+                raise ValueError("learning plan has no durable fit task")
             if learned is None:
-                status = "FITTING"
-            elif learned["status"] == "FAILED":
-                status = "FAILED"
+                status = "QUEUED" if fitted["status"] == "QUEUED" else "FITTING"
+            elif learned["status"] in {"FAILED", "INTERRUPTED"}:
+                status = learned["status"]
         if any(t["status"] == "INTERRUPTED" for t in trials):
             status = "INTERRUPTED"
         if plan["code_revision"] != code_revision() and status not in _TERMINAL:
@@ -265,7 +294,7 @@ class Experiments:
         query = (
             select(_plans.c.experiment_id)
             .outerjoin(_fits, _fits.c.experiment_id == _plans.c.experiment_id)
-            .where(func.coalesce(_fits.c.document["status"].as_string(), "READY") != "FAILED")
+            .where(func.coalesce(_fits.c.status, "READY").not_in(("FAILED", "INTERRUPTED")))
             .outerjoin(_selections, _selections.c.experiment_id == _plans.c.experiment_id)
             .outerjoin(jobs, jobs.c.task_id == _selections.c.decision["test_task_id"].as_string())
             .where(
@@ -281,36 +310,82 @@ class Experiments:
         with self.engine.connect() as c:
             return tuple(c.scalars(query))
 
-    def advance(self, identity: str, library: DatasetReader | None = None) -> bool:
+    def queued_fit(self) -> dict[str, Any] | None:
+        with self.engine.connect() as c:
+            identity = c.scalar(
+                select(_fits.c.experiment_id)
+                .join(_plans, _plans.c.experiment_id == _fits.c.experiment_id)
+                .where(_fits.c.status == "QUEUED")
+                .order_by(_plans.c.created_at)
+                .limit(1)
+            )
+        if identity is None:
+            return None
+        state = self.get(identity)
+        return {
+            "task_id": identity,
+            "total": state["plan"]["windows"]["train"]["bar_count"],
+            "created_at": state["created_at"],
+        }
+
+    def claim_fit(self, identity: str) -> bool:
+        with write_transaction(self.engine) as c:
+            return (
+                c.execute(
+                    update(_fits)
+                    .where(_fits.c.experiment_id == identity, _fits.c.status == "QUEUED")
+                    .values(status="RUNNING")
+                    .returning(_fits.c.experiment_id)
+                ).scalar_one_or_none()
+                is not None
+            )
+
+    def interrupt_fits(self, identity: str | None = None) -> None:
+        document = {"status": "INTERRUPTED", "error": "拟合进程退出，需要提交新的实验身份"}
+        with write_transaction(self.engine) as c:
+            statement = update(_fits).where(_fits.c.status == "RUNNING")
+            if identity is not None:
+                statement = statement.where(_fits.c.experiment_id == identity)
+            c.execute(
+                statement.values(
+                    status="INTERRUPTED", document=document, fit_id=content_id(document)
+                )
+            )
+
+    def execute_fit(self, identity: str, library: DatasetReader) -> None:
+        state = self.get(identity)
+        if state["status"] != "FITTING":
+            raise ValueError("fit must be claimed under its fixed implementation")
+        plan = state["plan"]
+        try:
+            window = plan["windows"]["train"]
+            dataset = library.load_dataset(UUID(window["snapshot_id"]))
+            if dataset.details is None or dataset.details.to_dict() != window:
+                raise ValueError("fixed training input identity changed")
+            document = {
+                "status": "SUCCEEDED",
+                **fit(
+                    dataset,
+                    LearningRecipe.from_dict(plan["learning"]),
+                    ResearchConfig.from_mapping(plan["base"]),
+                ),
+            }
+        except Exception as error:
+            document = {"status": "FAILED", "error": str(error)[:1000]}
+        with write_transaction(self.engine) as c:
+            c.execute(
+                update(_fits)
+                .where(_fits.c.experiment_id == identity, _fits.c.status == "RUNNING")
+                .values(status=document["status"], document=document, fit_id=content_id(document))
+            )
+
+    def advance(self, identity: str) -> bool:
         state = self.get(identity)
         if state["status"] in _TERMINAL | {"IMPLEMENTATION_MISMATCH", "INTERRUPTED"}:
             return False
         plan = state["plan"]
         if plan["learning"] is not None and state["fitted"] is None:
-            if library is None:
-                raise ValueError("learning requires the fixed publication reader")
-            try:
-                window = plan["windows"]["train"]
-                dataset = library.load_dataset(UUID(window["snapshot_id"]))
-                if dataset.details is None or dataset.details.to_dict() != window:
-                    raise ValueError("fixed training input identity changed")
-                document = {
-                    "status": "SUCCEEDED",
-                    **fit(
-                        dataset,
-                        LearningRecipe.from_dict(plan["learning"]),
-                        ResearchConfig.from_mapping(plan["base"]),
-                    ),
-                }
-            except Exception as error:
-                document = {"status": "FAILED", "error": str(error)[:1000]}
-            with write_transaction(self.engine) as c:
-                c.execute(
-                    insert(_fits).values(
-                        experiment_id=identity, document=document, fit_id=content_id(document)
-                    )
-                )
-            return True
+            return False
         available = plan["candidates"] if state["fitted"] is None else state["fitted"]["candidates"]
         decision = state["selection"]
         phases = ("train", "validation") if decision is None else ("test",)

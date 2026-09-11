@@ -140,3 +140,8 @@ def require_current(engine: Engine) -> None:
         columns = {item["name"] for item in inspect(connection).get_columns("factor_runs")}
         if not {"inputs", "total", "done"} <= columns:
             raise ValueError("Research storage requires current factor task initialization")
+        fit_columns = {
+            item["name"] for item in inspect(connection).get_columns("research_experiment_fits")
+        }
+        if "status" not in fit_columns:
+            raise ValueError("Research storage requires current fit task initialization")

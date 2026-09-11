@@ -124,7 +124,7 @@ def test_train_artifact_precedes_jobs_and_restart_never_refits_holdout(
     created = experiments.submit(
         UUID(identity), "train only", tuple(snapshots), [ResearchConfig()], library, recipe
     )
-    assert created["status"] == "FITTING" and created["fitted"] is None
+    assert created["status"] == "QUEUED" and created["fitted"] is None
     loaded = []
 
     class OnlyTrain:
@@ -133,24 +133,47 @@ def test_train_artifact_precedes_jobs_and_restart_never_refits_holdout(
             loaded.append(snapshot)
             return library.load_dataset(snapshot)
 
-    assert experiments.advance(identity, OnlyTrain()) is True
+    assert experiments.claim_fit(identity)
+    assert not experiments.claim_fit(identity)
+    experiments.execute_fit(identity, OnlyTrain())
     fitted = experiments.get(identity)["fitted"]
     assert fitted["status"] == "SUCCEEDED", fitted
     assert not TaskStore(engine).list()
+    crashed = str(uuid4())
+    experiments.submit(
+        UUID(crashed), "interrupted fit", tuple(snapshots), [ResearchConfig()], library, recipe
+    )
+    assert experiments.claim_fit(crashed)
+
+    class LostProcess:
+        def load_dataset(self, snapshot):
+            raise SystemExit("synthetic process loss before fitted commit")
+
+    with pytest.raises(SystemExit):
+        experiments.execute_fit(crashed, LostProcess())
+    assert experiments.get(crashed)["status"] == "FITTING"
+    reopened = Experiments(engine)
+    reopened.interrupt_fits(crashed)
+    assert reopened.get(crashed)["status"] == "INTERRUPTED"
+    assert not reopened.claim_fit(crashed)
+    assert crashed not in reopened.pending()
+    with pytest.raises(ValueError, match="claimed"):
+        reopened.execute_fit(crashed, OnlyTrain())
+    assert loaded == [snapshots[0]]
     engine.dispose()
     engine = open_store(path)
     experiments = Experiments(engine)
-    experiments.advance(identity, OnlyTrain())
+    experiments.advance(identity)
     assert loaded == [snapshots[0]]
     store = TaskStore(engine)
     assert len(store.list()) == 4
     while (task := store.claim()) is not None:
         execute(store, library, task["task_id"])
         assert store.get(task["task_id"])["status"] == "SUCCEEDED"
-    experiments.advance(identity, OnlyTrain())
+    experiments.advance(identity)
     assert experiments.get(identity)["selection"]["winner"]
     assert len(store.list()) == 4
-    experiments.advance(identity, OnlyTrain())
+    experiments.advance(identity)
     assert len(store.list()) == 5
     task = store.claim()
     execute(store, library, task["task_id"])
@@ -184,9 +207,31 @@ def test_train_artifact_precedes_jobs_and_restart_never_refits_holdout(
             def load_dataset(self, snapshot):
                 raise ValueError("synthetic corrupted training publication")
 
-        experiments.advance(pending, BrokenInput())
+        assert experiments.claim_fit(pending)
+        experiments.execute_fit(pending, BrokenInput())
         failed = client.get(f"/api/experiments/{pending}").json()
         assert failed["status"] == "FAILED"
         assert "corrupted" in failed["fitted"]["error"]
         assert not experiments.pending()
+    crashed = str(uuid4())
+    experiments.submit(
+        UUID(crashed), "interrupted fit", tuple(snapshots), [ResearchConfig()], library, recipe
+    )
+    assert experiments.claim_fit(crashed)
+
+    class LostProcess:
+        def load_dataset(self, snapshot):
+            raise SystemExit("synthetic process loss before fitted commit")
+
+    with pytest.raises(SystemExit):
+        experiments.execute_fit(crashed, LostProcess())
+    assert experiments.get(crashed)["status"] == "FITTING"
+    reopened = Experiments(engine)
+    reopened.interrupt_fits(crashed)
+    assert reopened.get(crashed)["status"] == "INTERRUPTED"
+    assert not reopened.claim_fit(crashed)
+    assert crashed not in reopened.pending()
+    with pytest.raises(ValueError, match="claimed"):
+        reopened.execute_fit(crashed, OnlyTrain())
+    assert loaded == [snapshots[0]]
     engine.dispose()

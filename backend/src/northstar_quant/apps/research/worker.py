@@ -42,10 +42,15 @@ def run() -> None:
             store.recover()
             factors = FactorCatalog(engine, PublishedDatasets.from_environment())
             factors.interrupt()
+            experiments.interrupt_fits()
             next_experiments = 0.0
             while not stop.is_set():
                 for process, (identity, budget, kind) in list(children.items()):
                     if process.poll() is None:
+                        continue
+                    if kind == "fit":
+                        experiments.interrupt_fits(identity)
+                        del children[process]
                         continue
                     if kind == "factor":
                         factors.interrupt(UUID(identity))
@@ -62,17 +67,20 @@ def run() -> None:
                     del children[process]
                 if monotonic() >= next_experiments:
                     for identity in experiments.pending():
-                        if experiments.advance(identity, PublishedDatasets.from_environment()):
-                            break  # one bounded fit per pass; keep child supervision responsive
+                        experiments.advance(identity)
                     next_experiments = monotonic() + 2.0
-                task = store.queued()
-                kind = "backtest"
-                factor = factors.queued()
-                if factor is not None and (
-                    task is None or factor["created_at"] < task["created_at"]
-                ):
-                    task = factor
-                    kind = "factor"
+                queued = [
+                    (kind, task)
+                    for kind, task in (
+                        ("backtest", store.queued()),
+                        ("factor", factors.queued()),
+                        ("fit", experiments.queued_fit()),
+                    )
+                    if task is not None
+                ]
+                kind, task = (
+                    min(queued, key=lambda pair: pair[1]["created_at"]) if queued else ("", None)
+                )
                 if task:
                     # Initial conservative budget includes Python/Arrow and retained result facts.
                     # Memory/disk availability, not a fixed fraction of the host, gates admission.
@@ -84,14 +92,15 @@ def run() -> None:
                         and available > budget + reserved + 128 * 1024**2
                         and disk > budget
                     ):
-                        claimed = (
-                            store.claim()
-                            if kind == "backtest"
-                            else (task if factors.claim(UUID(task["attempt_id"])) else None)
-                        )
+                        if kind == "backtest":
+                            claimed = store.claim()
+                        elif kind == "factor":
+                            claimed = task if factors.claim(UUID(task["attempt_id"])) else None
+                        else:
+                            claimed = task if experiments.claim_fit(task["task_id"]) else None
                         if claimed is not None:
                             identity = (
-                                claimed["task_id"] if kind == "backtest" else claimed["attempt_id"]
+                                claimed["attempt_id"] if kind == "factor" else claimed["task_id"]
                             )
                             environment = {
                                 k: v
@@ -130,6 +139,7 @@ def run() -> None:
                     process.wait()
             store.recover()
             factors.interrupt()
+            experiments.interrupt_fits()
     finally:
         engine.dispose()
         logging.getLogger(__name__).info("Research worker stopped")
@@ -145,5 +155,9 @@ if __name__ == "__main__":
         from northstar_quant.research.factor_execution import child as factor_child
 
         factor_child(UUID(sys.argv[2]))
+    elif sys.argv[1] == "fit":
+        from northstar_quant.research.learning_execution import child as fit_child
+
+        fit_child(sys.argv[2])
     else:
         raise ValueError("unknown research job kind")
