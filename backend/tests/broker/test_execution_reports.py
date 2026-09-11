@@ -213,3 +213,92 @@ def test_received_order_identity_survives_joint_sqlite_restore(live_engine, rece
         )
     finally:
         target.dispose()
+
+
+def rejection(engine, order, sequence, callback, *, error=31, **changes):
+    import json
+
+    kind = "INSERT" if callback.endswith("OrderInsert") else "CANCEL"
+    with engine.connect() as connection:
+        saved = (
+            connection.exec_driver_sql(
+                "SELECT * FROM ctp_requests WHERE order_id=? AND kind=? "
+                "ORDER BY sequence DESC LIMIT 1",
+                (order.order_id, kind),
+            )
+            .mappings()
+            .one()
+        )
+    return BrokerEvent(
+        sequence,
+        "TD",
+        callback,
+        None if callback.startswith("OnErrRtn") else saved["sequence"] + 100_000,
+        None if callback.startswith("OnErrRtn") else True,
+        datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+        error,
+        {**json.loads(saved["document"]), "RequestID": saved["sequence"] + 100_000, **changes},
+    )
+
+
+@pytest.mark.parametrize("callback", ["OnRspOrderInsert", "OnErrRtnOrderInsert"])
+def test_explicit_insert_rejection_releases_only_unfilled_order(live_engine, receiving, callback):
+    adapter, order, _, accept, _, _ = receiving
+    accept(rejection(live_engine, order, 3, callback))
+    saved = adapter.journal.get(order.order_id)
+    assert saved["status"] == "REJECTED"
+    assert saved["reservation"]["reserved_margin"] == "0"
+    assert verify_all(live_engine) == adapter.journal.verify_all() == 1
+
+
+def test_cancel_rejection_is_bound_to_attempt_and_does_not_close_order(live_engine, receiving):
+    adapter, order, _, accept, report, _ = receiving
+    accept(report(3))
+    first = uuid4()
+    sent = []
+    adapter.cancel(
+        order.order_id,
+        first,
+        admit=lambda c: None,
+        send=lambda *args: sent.append(args) or 0,
+        check_owner=lambda: None,
+    )
+    accept(rejection(live_engine, order, 4, "OnRspOrderAction"))
+    saved = adapter.journal.get(order.order_id)
+    assert saved["status"] == "ACCEPTED"
+    assert saved["reservation"]["reserved_margin"] == "303"
+    adapter.cancel(
+        order.order_id,
+        uuid4(),
+        admit=lambda c: None,
+        send=lambda *args: sent.append(args) or 0,
+        check_owner=lambda: None,
+    )
+    assert len(sent) == 2
+    assert verify_all(live_engine) == 2 and adapter.journal.verify_all() == 1
+
+
+@pytest.mark.parametrize("changes", [dict(OrderRef="9999"), dict(InvestorID="654321")])
+def test_rejection_with_wrong_request_fields_cannot_release_reserve(
+    live_engine, receiving, changes
+):
+    adapter, order, _, accept, _, _ = receiving
+    with pytest.raises(ValueError, match="differs"):
+        accept(rejection(live_engine, order, 3, "OnRspOrderInsert", **changes))
+    assert adapter.journal.get(order.order_id)["reservation"]["reserved_margin"] == "303"
+    assert verify_all(live_engine) == 0
+
+
+def test_success_response_without_order_fact_does_not_assume_acceptance(live_engine, receiving):
+    adapter, order, _, accept, _, _ = receiving
+    accept(rejection(live_engine, order, 3, "OnRspOrderInsert", error=0))
+    assert adapter.journal.get(order.order_id)["status"] == "UNKNOWN"
+    assert verify_all(live_engine) == 0
+
+
+def test_error_return_without_attempt_identity_remains_unresolved(live_engine, receiving):
+    adapter, order, _, accept, _, _ = receiving
+    accept(rejection(live_engine, order, 3, "OnErrRtnOrderInsert", RequestID=0))
+    assert adapter.journal.get(order.order_id)["status"] == "UNKNOWN"
+    assert adapter.journal.get(order.order_id)["reservation"]["reserved_margin"] == "303"
+    assert verify_all(live_engine) == 0

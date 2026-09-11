@@ -563,7 +563,13 @@ class LiveStreams:
         # Durable reception, account application and shadow calculation have
         # distinct commits. A failed application leaves the source for explicit
         # local catch-up. Pausing shadow never prevents booking actual fills.
-        if self._engine.dialect.name == "sqlite" and event.callback == "OnRtnOrder":
+        if self._engine.dialect.name == "sqlite" and event.callback in {
+            "OnRtnOrder",
+            "OnRspOrderInsert",
+            "OnRspOrderAction",
+            "OnErrRtnOrderInsert",
+            "OnErrRtnOrderAction",
+        }:
             from northstar_quant.broker.execution_reports import apply_stream
 
             apply_stream(self._engine, identifier, event.sequence)
@@ -793,7 +799,9 @@ class LiveStreams:
                         text(
                             "SELECT sequence FROM broker_stream_events WHERE stream_id=:id "
                             "AND sequence<=:through "
-                            "AND json_extract(event, '$.callback')='OnRtnOrder' "
+                            "AND json_extract(event, '$.callback') IN "
+                            "('OnRtnOrder', 'OnRspOrderInsert', 'OnRspOrderAction', "
+                            "'OnErrRtnOrderInsert', 'OnErrRtnOrderAction') "
                             "ORDER BY sequence"
                         ),
                         {"id": identifier, "through": through_sequence},

@@ -343,7 +343,12 @@ class OrderJournal:
         return self.get(order_id)
 
     def reject_cancel(
-        self, order_id: str, attempt_id: UUID, *, evidence_id: UUID
+        self,
+        order_id: str,
+        attempt_id: UUID,
+        *,
+        evidence_id: UUID,
+        record_source: Callable[[Connection], None] | None = None,
     ) -> dict[str, Any]:
         """Record an adapter-verified cancellation rejection, never an order rejection."""
         if not isinstance(attempt_id, UUID) or not isinstance(evidence_id, UUID):
@@ -361,6 +366,8 @@ class OrderJournal:
                 or attempt["kind"] != "CANCEL_ATTEMPT"
             ):
                 raise ValueError("cancel rejection has no matching local attempt")
+            if record_source is not None:
+                record_source(connection)
             _record(
                 connection,
                 str(evidence_id),

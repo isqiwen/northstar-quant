@@ -9,6 +9,7 @@ from uuid import UUID, uuid5
 
 from sqlalchemy import Connection, Engine
 
+from northstar_quant.broker.events import BrokerEvent
 from northstar_quant.broker.order_transport import _decode, _encode
 from northstar_quant.broker.stream_records import read_stream_event, read_stream_source
 from northstar_quant.execution.journal import OrderJournal
@@ -39,8 +40,87 @@ def initialize(connection: Connection) -> None:
             )
 
 
+def _rejection(
+    connection: Connection, stream_id: UUID, event: BrokerEvent
+) -> dict[str, Any] | None:
+    # Error returns have no callback argument; use the request identity copied
+    # from the native structure. Never substitute OrderRef for attempt identity.
+    native_id: object = event.request_id
+    if event.callback.startswith("OnErrRtn"):
+        native_id = (event.data or {}).get("RequestID")
+    if not event.error_id or type(native_id) is not int or native_id <= 100_000:
+        return None
+    request = (
+        connection.exec_driver_sql(
+            "SELECT * FROM ctp_requests WHERE sequence=?", (native_id - 100_000,)
+        )
+        .mappings()
+        .one_or_none()
+    )
+    if request is None:
+        return None
+    expected_kind = "INSERT" if event.callback.endswith("OrderInsert") else "CANCEL"
+    if request["kind"] != expected_kind:
+        raise ValueError("CTP rejection refers to a different operation")
+    fields = _decode(request)
+    binding = (
+        connection.exec_driver_sql(
+            "SELECT * FROM ctp_order_bindings WHERE order_id=?", (request["order_id"],)
+        )
+        .mappings()
+        .one()
+    )
+    session = _decode(binding)["session"]
+    source = read_stream_source(connection, stream_id)["binding"]
+    assert isinstance(source, dict)
+    if (source["profile"]["name"], source["profile"]["broker_id"], source["account_id"]) != (
+        session["profile"],
+        session["broker_id"],
+        session["account_id"],
+    ):
+        raise ValueError("CTP rejection account differs from its fixed request")
+    row = dict(event.data or {})
+    # Compare fields actually returned by CTP InputOrder/InputOrderAction.
+    keys: tuple[str, ...] = ("BrokerID", "InvestorID", "InstrumentID", "ExchangeID", "OrderRef")
+    keys += (
+        ("Direction", "CombOffsetFlag", "VolumeTotalOriginal")
+        if expected_kind == "INSERT"
+        else (
+            "FrontID",
+            "SessionID",
+            "ActionFlag",
+        )
+    )
+    if any(row.get(key) != fields[key] for key in keys):
+        raise ValueError("CTP rejection differs from its fixed request")
+    if expected_kind == "INSERT":
+        price = row.get("LimitPrice")
+        if not isinstance(price, str) or Decimal(price) != Decimal(fields["LimitPrice"]):
+            raise ValueError("CTP rejection changed the fixed limit")
+    return dict(
+        event_id=str(uuid5(stream_id, f"ctp-order:{event.sequence}")),
+        order_id=request["order_id"],
+        stream_id=str(stream_id),
+        sequence=event.sequence,
+        event_hash=_encode(event.to_dict())[1],
+        system_id=None,
+        exchange_key=None,
+        kind="BROKER_REPORT" if expected_kind == "INSERT" else "CANCEL_REJECTED",
+        state="REJECTED",
+        cumulative_lots=0,
+        attempt_id=request["request_id"],
+    )
+
+
 def _report(connection: Connection, stream_id: UUID, sequence: int) -> dict[str, Any] | None:
     event = read_stream_event(connection, stream_id, sequence)
+    if event.channel == "TD" and event.callback in {
+        "OnRspOrderInsert",
+        "OnRspOrderAction",
+        "OnErrRtnOrderInsert",
+        "OnErrRtnOrderAction",
+    }:
+        return _rejection(connection, stream_id, event)
     if event.channel != "TD" or event.callback != "OnRtnOrder":
         return None
     if connection.exec_driver_sql("SELECT 1 FROM ctp_order_bindings LIMIT 1").first() is None:
@@ -215,7 +295,16 @@ def apply_stream(engine: Engine, stream_id: UUID, sequence: int) -> str | None:
             raise ValueError("CTP receipt changed during projection")
         _save(connection, report)
 
-    OrderJournal(engine, UUID(int=0)).report(
+    journal = OrderJournal(engine, UUID(int=0))
+    if report.get("kind") == "CANCEL_REJECTED":
+        journal.reject_cancel(
+            report["order_id"],
+            UUID(report["attempt_id"]),
+            evidence_id=UUID(report["event_id"]),
+            record_source=save,
+        )
+        return str(report["order_id"])
+    journal.report(
         report["order_id"],
         evidence_id=UUID(report["event_id"]),
         state=report["state"],
@@ -241,11 +330,16 @@ def verify_all(engine: Engine) -> int:
                 .mappings()
                 .one_or_none()
             )
+            kind = report.get("kind", "BROKER_REPORT")
+            payload = (
+                {"attempt_id": report["attempt_id"]}
+                if kind == "CANCEL_REJECTED"
+                else {"state": report["state"], "cumulative_lots": report["cumulative_lots"]}
+            )
             if (
                 parent is None
-                or parent["kind"] != "BROKER_REPORT"
-                or json.loads(parent["document"])
-                != {"state": report["state"], "cumulative_lots": report["cumulative_lots"]}
+                or parent["kind"] != kind
+                or json.loads(parent["document"]) != payload
             ):
                 raise ValueError("CTP receipt has no matching execution report")
             if report["system_id"] is not None:

@@ -373,7 +373,7 @@ class CtpExecution:
                 raise ValueError("CTP send is outside its fixed order lifetime")
         code = send(
             "ReqOrderInsert" if kind == "INSERT" else "ReqOrderAction",
-            fields,
+            {**fields, "RequestID": row["sequence"] + 100_000},
             row["sequence"] + 100_000,
         )
         if type(code) is not int or code != 0:
