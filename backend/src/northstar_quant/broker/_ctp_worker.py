@@ -260,9 +260,23 @@ def _native_class(base: Any, receiver: _Receiver, channel: str) -> Any:
         "OnRspUserLogin": _response(receiver, channel, "OnRspUserLogin"),
     }
     if channel == "TD":
-        for suffix in ("Authenticate", *("Qry" + query for _, query in _TD_QUERIES)):
+        for suffix in (
+            "Authenticate",
+            "OrderInsert",
+            "OrderAction",
+            *("Qry" + query for _, query in _TD_QUERIES),
+        ):
             callback = "OnRsp" + suffix
             methods[callback] = _response(receiver, channel, callback)
+
+        def reject(callback: str) -> Any:
+            def respond(_self: object, native: object, error: object) -> None:
+                receiver.callback(channel, callback, native, error)
+
+            return respond
+
+        for callback in ("OnErrRtnOrderInsert", "OnErrRtnOrderAction"):
+            methods[callback] = reject(callback)
         for callback in ("OnRtnOrder", "OnRtnTrade"):
             methods[callback] = _notification(receiver, channel, callback)
     else:
@@ -348,6 +362,63 @@ def check_native(connection: Connection) -> None:
         structures = importlib.import_module("ctpwrapper.ApiStructure")
         # Synthetic identifiers, never operator credentials or a request send.
         _account_queries(structures, broker_id="9999", investor_id="0", instrument="rb2610")
+        from datetime import timedelta
+        from decimal import Decimal
+        from uuid import UUID
+
+        from northstar_quant.broker.order_transport import CtpSession, insert_fields, native_request
+        from northstar_quant.execution.orders import Offset, OrderBudget, PendingOrder, Side
+
+        now = datetime.now(UTC)
+        order = PendingOrder(
+            str(UUID(int=1)),
+            UUID(int=2),
+            now,
+            now + timedelta(minutes=1),
+            Side.BUY,
+            Offset.OPEN,
+            1,
+            Decimal(99),
+            Decimal(101),
+            contract_id=UUID(int=3),
+            budget=OrderBudget(*(Decimal(0) for _ in range(4))),
+        )
+        fields = insert_fields(
+            order,
+            CtpSession("simnow_dev", "9999", "0", now.date(), 0, 0, 0),
+            dict(
+                contract_id=str(order.contract_id),
+                ExchangeID="SHFE",
+                InstrumentID="rb2610",
+                PriceTick="1",
+                ProductClass="1",
+                MinLimitOrderVolume=1,
+                MaxLimitOrderVolume=100,
+            ),
+            order_ref=1,
+            limit_price=Decimal(100),
+        )
+        native_request(structures, "ReqOrderInsert", fields)
+        native_request(
+            structures,
+            "ReqOrderAction",
+            {
+                **{
+                    key: fields[key]
+                    for key in (
+                        "BrokerID",
+                        "InvestorID",
+                        "UserID",
+                        "InstrumentID",
+                        "ExchangeID",
+                        "OrderRef",
+                    )
+                },
+                "FrontID": 0,
+                "SessionID": 0,
+                "ActionFlag": "0",
+            },
+        )
         with tempfile.TemporaryDirectory(prefix="northstar-ctp-check-") as directory:
             trader, market = sdk.TraderApiPy(), sdk.MdApiPy()
             trader.Create(directory + "/td-")

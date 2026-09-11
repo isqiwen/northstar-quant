@@ -70,6 +70,7 @@ def initialize(engine: Engine) -> None:
     from northstar_quant.accounting.funds import initialize_broker_funds
     from northstar_quant.accounting.ledger import initialize_broker_ledger
     from northstar_quant.accounting.stream_progress import initialize_stream_accounts
+    from northstar_quant.broker.order_transport import initialize as initialize_ctp_orders
     from northstar_quant.broker.records import initialize_broker_records
     from northstar_quant.data_management.db.base import Base
     from northstar_quant.data_management.library import initialize_library
@@ -111,6 +112,7 @@ def initialize(engine: Engine) -> None:
             initialize_broker_funds,
             initialize_order_reviews,
             initialize_journal,
+            initialize_ctp_orders,
             initialize_materials,
             initialize_streams,
             initialize_stream_accounts,
@@ -146,6 +148,8 @@ def require_current(engine: Engine) -> None:
         "northstar_store",
         "live_instance_binding",
         "live_commands",
+        "ctp_order_bindings",
+        "ctp_requests",
         "execution_orders",
         "execution_order_events",
         "broker_streams",

@@ -7,6 +7,7 @@ from sqlalchemy import Engine, text
 from northstar_quant.accounting.baselines import BrokerBaselines
 from northstar_quant.accounting.funds import BrokerFunds
 from northstar_quant.accounting.ledger import BrokerLedger
+from northstar_quant.broker.order_transport import verify_all as verify_ctp
 from northstar_quant.broker.records import BrokerRecords
 from northstar_quant.data_management.files import SourceFiles
 from northstar_quant.data_management.library import DataLibrary
@@ -50,6 +51,7 @@ def verify(engine: Engine, files: SourceFiles) -> dict[str, int]:
     streams = LiveStreams(engine, library).verify_all()
     BrokerOpeningBudgets(engine, library).verify_all()
     return {
+        "ctp_orders_count": verify_ctp(engine),
         "query_batches_count": queries,
         "pending_queries_count": pending,
         **baselines,

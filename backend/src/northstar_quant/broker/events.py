@@ -29,6 +29,16 @@ _TRADE_FIELDS = tuple(
     "SettlementID SequenceNo".split()
 )
 
+_INSERT_FIELDS = tuple(
+    "BrokerID InvestorID InstrumentID OrderRef UserID ExchangeID Direction CombOffsetFlag "
+    "CombHedgeFlag OrderPriceType LimitPrice VolumeTotalOriginal TimeCondition VolumeCondition "
+    "MinVolume RequestID".split()
+)
+_ACTION_FIELDS = tuple(
+    "BrokerID InvestorID UserID InstrumentID ExchangeID OrderRef FrontID SessionID "
+    "OrderSysID ActionFlag OrderActionRef RequestID".split()
+)
+
 # These are the exact CTP fields this read-only application retains. Native code
 # copies these named attributes immediately; pointers, credentials, unrestricted
 # error strings and machine-identification fields never cross the Interface.
@@ -47,7 +57,15 @@ CALLBACK_FIELDS: dict[str, tuple[str, ...]] = {
     "OnHeartBeatWarning": ("TimeLapse",),
     "OnRspError": (),
     "OnRspAuthenticate": ("BrokerID", "UserID", "AppID", "AppType"),
-    "OnRspUserLogin": ("TradingDay", "LoginTime", "BrokerID", "UserID", "FrontID", "SessionID"),
+    "OnRspUserLogin": (
+        "TradingDay",
+        "LoginTime",
+        "BrokerID",
+        "UserID",
+        "FrontID",
+        "SessionID",
+        "MaxOrderRef",
+    ),
     "OnRspQryTradingAccount": tuple(
         "BrokerID AccountID CurrencyID TradingDay SettlementID PreBalance PreMargin Deposit "
         "Withdraw FrozenMargin FrozenCash FrozenCommission CurrMargin CashIn Commission "
@@ -61,6 +79,10 @@ CALLBACK_FIELDS: dict[str, tuple[str, ...]] = {
         "SettlementID OpenCost ExchangeMargin TodayPosition MarginRateByMoney MarginRateByVolume "
         "ExchangeID".split()
     ),
+    "OnRspOrderInsert": _INSERT_FIELDS,
+    "OnErrRtnOrderInsert": _INSERT_FIELDS,
+    "OnRspOrderAction": _ACTION_FIELDS,
+    "OnErrRtnOrderAction": _ACTION_FIELDS,
     "OnRspQryOrder": _ORDER_FIELDS,
     "OnRtnOrder": _ORDER_FIELDS,
     "OnRspQryTrade": _TRADE_FIELDS,
@@ -114,7 +136,7 @@ class BrokerEvent:
         if type(self.sequence) is not int or not 1 <= self.sequence <= 100_000:
             raise ValueError("broker callback sequence exceeds the bounded session")
         if self.channel not in {"TD", "MD"} or self.callback not in CALLBACK_FIELDS:
-            raise ValueError("unsupported read-only CTP callback")
+            raise ValueError("unsupported CTP callback")
         if self.request_id is not None and (
             type(self.request_id) is not int or not 0 <= self.request_id < 2**31
         ):

@@ -158,6 +158,7 @@ def test_initialization_and_restore_keep_all_interrupted_query_evidence(
         backup(live_engine, SourceFiles(tmp_path / "archive"), tmp_path / "backup")
         result = restore(target, tmp_path / "restored", tmp_path / "backup")
         assert result["evidence"] == {
+            "ctp_orders_count": 0,
             "query_batches_count": 105,
             "pending_queries_count": 101,
             "baselines_count": 1,
