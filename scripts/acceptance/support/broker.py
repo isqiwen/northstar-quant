@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import json
-import subprocess
-from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError
 from urllib.request import ProxyHandler, Request, build_opener
@@ -16,23 +14,6 @@ from support.processes import InstalledApplication
 def check_broker_access(
     application: InstalledApplication, base_url: str, configuration: dict[str, Any]
 ) -> None:
-    subprocess.run(
-        [
-            str(Path(application.executable).parent / "python"),
-            "-c",
-            "import json,sys; from northstar_quant.apps.storage import open_database; "
-            "from northstar_quant.research.configurations import ConfigurationStore; "
-            "from northstar_quant.research.configuration import ResearchConfig; "
-            "v=json.load(sys.stdin); ConfigurationStore(open_database()).save_configuration("
-            "v['name'],ResearchConfig.from_mapping(v['config']))",
-        ],
-        input=json.dumps(configuration),
-        text=True,
-        env=application.live_environment,
-        check=True,
-        capture_output=True,
-        timeout=30,
-    )
     command, request, opener = application.command, application.request, application.opener
     assert request(f"{base_url}/health/ready")
     broker_status = json.loads(request(f"{base_url}/api/broker/status"))

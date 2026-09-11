@@ -13124,10 +13124,12 @@ export const northstar = $root.northstar = (() => {
             /**
              * Properties of a LiveConfiguration.
              * @typedef {Object} northstar.live.LiveConfiguration.$Properties
+             * @property {string|null} [candidate_id] LiveConfiguration candidate_id
              * @property {google.protobuf.Struct.$Properties|null} [config] LiveConfiguration config
              * @property {string|null} [configuration_id] LiveConfiguration configuration_id
              * @property {string|null} [name] LiveConfiguration name
              * @property {Object.<string,google.protobuf.Value.$Properties>|null} [evidence_fields] LiveConfiguration evidence_fields
+             * @property {"candidate_id"} [_candidate_id] LiveConfiguration _candidate_id
              * @property {"config"} [_config] LiveConfiguration _config
              * @property {"configuration_id"} [_configuration_id] LiveConfiguration _configuration_id
              * @property {"name"} [_name] LiveConfiguration _name
@@ -13145,12 +13147,15 @@ export const northstar = $root.northstar = (() => {
             /**
              * Narrowed shape of a LiveConfiguration.
              * @typedef {{
+             *   candidate_id?: string|null;
              *   config?: google.protobuf.Struct.$Shape|null;
              *   configuration_id?: string|null;
              *   name?: string|null;
              *   evidence_fields?: Object.<string,google.protobuf.Value.$Shape>|null;
              *   $unknowns?: Array.<Uint8Array>;
              * } & (
+             *   ({ _candidate_id?: undefined; candidate_id?: null }|{ _candidate_id?: "candidate_id"; candidate_id: string })
+             * ) & (
              *   ({ _config?: undefined; config?: null }|{ _config?: "config"; config: google.protobuf.Struct.$Shape })
              * ) & (
              *   ({ _configuration_id?: undefined; configuration_id?: null }|{ _configuration_id?: "configuration_id"; configuration_id: string })
@@ -13174,6 +13179,14 @@ export const northstar = $root.northstar = (() => {
                         if (properties[keys[i]] != null && keys[i] !== "__proto__")
                             this[keys[i]] = properties[keys[i]];
             };
+
+            /**
+             * LiveConfiguration candidate_id.
+             * @member {string|null|undefined} candidate_id
+             * @memberof northstar.live.LiveConfiguration
+             * @instance
+             */
+            LiveConfiguration.prototype.candidate_id = null;
 
             /**
              * LiveConfiguration config.
@@ -13209,6 +13222,17 @@ export const northstar = $root.northstar = (() => {
 
             // OneOf field names bound to virtual getters and setters
             let $oneOfFields;
+
+            /**
+             * LiveConfiguration _candidate_id.
+             * @member {"candidate_id"|undefined} _candidate_id
+             * @memberof northstar.live.LiveConfiguration
+             * @instance
+             */
+            $Object.defineProperty(LiveConfiguration.prototype, "_candidate_id", {
+                get: $util.oneOfGetter($oneOfFields = ["candidate_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
 
             /**
              * LiveConfiguration _config.
@@ -13281,6 +13305,8 @@ export const northstar = $root.northstar = (() => {
                     writer.uint32(/* id 2, wireType 2 =*/18).string(message.configuration_id);
                 if (message.name != null && $Object.hasOwnProperty.call(message, "name"))
                     writer.uint32(/* id 3, wireType 2 =*/26).string(message.name);
+                if (message.candidate_id != null && $Object.hasOwnProperty.call(message, "candidate_id"))
+                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.candidate_id);
                 if (message.evidence_fields != null && $Object.hasOwnProperty.call(message, "evidence_fields"))
                     for (let keys = $Object.keys(message.evidence_fields), i = 0; i < keys.length; ++i) {
                         writer.uint32(/* id 1000, wireType 2 =*/8002).fork().uint32(/* id 1, wireType 2 =*/10).string(keys[i]);
@@ -13330,6 +13356,13 @@ export const northstar = $root.northstar = (() => {
                     }
                     let wireType = tag & 7;
                     switch (tag >>>= 3) {
+                    case 4: {
+                            if (wireType !== 2)
+                                break;
+                            message.candidate_id = reader.stringVerify();
+                            message._candidate_id = "candidate_id";
+                            continue;
+                        }
                     case 1: {
                             if (wireType !== 2)
                                 break;
@@ -13420,6 +13453,11 @@ export const northstar = $root.northstar = (() => {
                 if (_depth > $util.recursionLimit)
                     return "max depth exceeded";
                 let properties = {};
+                if (message.candidate_id != null && $Object.hasOwnProperty.call(message, "candidate_id")) {
+                    properties._candidate_id = 1;
+                    if (!$util.isString(message.candidate_id))
+                        return "candidate_id: string expected";
+                }
                 if (message.config != null && $Object.hasOwnProperty.call(message, "config")) {
                     properties._config = 1;
                     {
@@ -13469,6 +13507,8 @@ export const northstar = $root.northstar = (() => {
                 if (_depth > $util.recursionLimit)
                     throw $Error("max depth exceeded");
                 let message = new $root.northstar.live.LiveConfiguration();
+                if (object.candidate_id != null)
+                    message.candidate_id = $String(object.candidate_id);
                 if (object.config != null) {
                     if (!$util.isObject(object.config))
                         throw $TypeError(".northstar.live.LiveConfiguration.config: object expected");
@@ -13526,6 +13566,11 @@ export const northstar = $root.northstar = (() => {
                     object.name = message.name;
                     if (options.oneofs)
                         object._name = "name";
+                }
+                if (message.candidate_id != null && $Object.hasOwnProperty.call(message, "candidate_id")) {
+                    object.candidate_id = message.candidate_id;
+                    if (options.oneofs)
+                        object._candidate_id = "candidate_id";
                 }
                 let keys2;
                 if (message.evidence_fields && (keys2 = $Object.keys(message.evidence_fields)).length) {

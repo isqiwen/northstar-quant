@@ -171,6 +171,7 @@ export type LedgerContext = {
   [key: string]: unknown;
 };
 export type LiveConfiguration = {
+  candidate_id: string;
   config: Record<string, JsonValue>;
   configuration_id: string;
   name: string;

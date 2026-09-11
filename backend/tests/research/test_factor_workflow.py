@@ -215,6 +215,33 @@ def test_clean_material_is_received_locally_without_research_or_execution_author
             )
         )
     assert materials.list()[0]["document"] == candidate
+    assert materials.configurations() == [
+        {**candidate["document"]["configuration"], "candidate_id": candidate["candidate_id"]}
+    ]
+    assert materials.get_configuration(saved["configuration_id"]) == {
+        **candidate["document"]["configuration"],
+        "candidate_id": candidate["candidate_id"],
+    }
+    pinned = materials.get_configuration(
+        saved["configuration_id"], candidate_id=candidate["candidate_id"]
+    )
+    revised = deepcopy(candidate)
+    revised["document"]["validation"]["synthetic_review"] = "second received evidence"
+    revised["version_id"] = content_id(revised["document"])
+    revised["candidate_id"] = content_id(
+        {key: value for key, value in revised.items() if key != "candidate_id"}
+    )
+    materials.accept(revised)
+    assert (
+        materials.get_configuration(
+            saved["configuration_id"], candidate_id=candidate["candidate_id"]
+        )
+        == pinned
+    )
+    with pytest.raises(LookupError, match="not received"):
+        materials.get_configuration(saved["configuration_id"], candidate_id="0" * 64)
     monkeypatch.setattr("northstar_quant.strategies.artifacts.code_revision", lambda: "b" * 40)
     with pytest.raises(ValueError, match="installed Git"):
         materials.accept(candidate)
+    with pytest.raises(ValueError, match="installed Git"):
+        materials.get_configuration(saved["configuration_id"])

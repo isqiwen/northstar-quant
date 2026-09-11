@@ -126,6 +126,7 @@ class StreamArchive(EvidenceRecord):
 
 
 class LiveConfiguration(EvidenceRecord):
+    candidate_id: str
     configuration_id: str
     name: str
     config: dict[str, JsonValue]

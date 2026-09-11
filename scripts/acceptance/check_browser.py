@@ -629,6 +629,21 @@ def main() -> None:
                         visit(url)
                         expect(page.get_by_text("AVAILABLE", exact=True)).to_be_visible()
                         screenshot("live")
+                        visit(url + "/materials")
+                        expect(
+                            page.get_by_role("button", name="选择并核验候选文件")
+                        ).to_be_enabled()
+                        page.locator('input[type="file"]').set_input_files(str(candidate_path))
+                        expect(
+                            page.get_by_text("候选已接收，未授予执行权限", exact=True)
+                        ).to_be_visible()
+                        expect(page.get_by_text("RECEIVED", exact=True)).to_be_visible()
+                        screenshot("received-material")
+                        visit(url + "/streams")
+                        choose("本地固定配置", candidate["document"]["configuration"]["name"])
+                        screenshot("received-configuration")
+                        assert app.command("status")["order_sending"] is False
+                        visit(url)
                         page.get_by_role("link", name="运行诊断", exact=True).click()
                         expect(page.get_by_text("数据库盘空闲字节", exact=True)).to_be_visible()
                         expect(

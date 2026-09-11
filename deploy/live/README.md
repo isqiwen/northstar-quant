@@ -117,3 +117,10 @@ SQLite 使用 WAL、FULL 同步和短写事务；实例进程锁不随时间过�
 恢复保留实例、环境和账户绑定，不自动重新连接或授权发送。当前没有旧 PostgreSQL 数据自动转换工具。
 
 运行环境固定为 `BACKTEST` / `SANDBOX` / `LIVE`。两个 SimNow profile 都属于 SANDBOX，仍使用外部 CTP 柜台；生产资金属于 LIVE。部署按 profile 自动注入 `NORTHSTAR_ENVIRONMENT` 和 `NORTHSTAR_BROKER_PROFILE`；独立启动也必须匹配这两个值。修改配置不能切换已有数据库的账户绑定。
+
+
+## 固定策略材料
+
+在 Research 发布候选 JSON，在 Live 的“固定策略材料”页面接收。核验通过后，
+其配置会出现在“持续行情与影子策略”的本地配置列表；Research 停机不影响读取。
+会话固定具体候选，后续接收不会改写旧绑定。接收材料不授权下单。

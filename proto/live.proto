@@ -222,6 +222,7 @@ message LedgerContext {
 
 message LiveConfiguration {
   option (northstar.web.evidence) = true;
+  optional string candidate_id = 4 [json_name = "candidate_id", (northstar.web.required_field) = true];
   optional google.protobuf.Struct config = 1 [json_name = "config", (northstar.web.required_field) = true];
   optional string configuration_id = 2 [json_name = "configuration_id", (northstar.web.required_field) = true];
   optional string name = 3 [json_name = "name", (northstar.web.required_field) = true];

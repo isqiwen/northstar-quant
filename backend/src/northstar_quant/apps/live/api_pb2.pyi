@@ -462,7 +462,7 @@ class LedgerContext(_message.Message):
     def __init__(self, baseline: _Optional[_Union[BaselineRecord, _Mapping]] = ..., baseline_id: _Optional[str] = ..., checks: _Optional[_Iterable[_Union[CheckRecord, _Mapping]]] = ..., entries: _Optional[_Iterable[_Union[PositionEntry, _Mapping]]] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class LiveConfiguration(_message.Message):
-    __slots__ = ("config", "configuration_id", "name", "evidence_fields")
+    __slots__ = ("candidate_id", "config", "configuration_id", "name", "evidence_fields")
     class EvidenceFieldsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -470,15 +470,17 @@ class LiveConfiguration(_message.Message):
         key: str
         value: _struct_pb2.Value
         def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
+    CANDIDATE_ID_FIELD_NUMBER: _ClassVar[int]
     CONFIG_FIELD_NUMBER: _ClassVar[int]
     CONFIGURATION_ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     EVIDENCE_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    candidate_id: str
     config: _struct_pb2.Struct
     configuration_id: str
     name: str
     evidence_fields: _containers.MessageMap[str, _struct_pb2.Value]
-    def __init__(self, config: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., configuration_id: _Optional[str] = ..., name: _Optional[str] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...
+    def __init__(self, candidate_id: _Optional[str] = ..., config: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., configuration_id: _Optional[str] = ..., name: _Optional[str] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...
 
 class MaterialRequest(_message.Message):
     __slots__ = ("candidate", "request_id")

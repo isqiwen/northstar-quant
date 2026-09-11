@@ -1059,6 +1059,13 @@
     },
     "northstar.live.LiveConfiguration": {
       "fields": {
+        "candidate_id": {
+          "id": 4,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
         "config": {
           "id": 1,
           "presence": true,

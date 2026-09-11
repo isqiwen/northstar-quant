@@ -79,9 +79,6 @@ def initialize(engine: Engine) -> None:
     from northstar_quant.live.materials import initialize_materials
     from northstar_quant.live.opening_budgets import initialize_opening_budgets
     from northstar_quant.live.streams import initialize_streams
-    from northstar_quant.research.configurations import initialize_configuration_store
-    from northstar_quant.research.factor_catalog import initialize_factor_catalog
-    from northstar_quant.research.paper import initialize_paper_store
 
     if engine.dialect.name != "sqlite":
         raise ValueError("Live requires local SQLite")
@@ -107,9 +104,6 @@ def initialize(engine: Engine) -> None:
             raise ValueError("Live storage owner mismatch")
         for install in (
             initialize_library,
-            initialize_factor_catalog,
-            initialize_configuration_store,
-            initialize_paper_store,
             initialize_broker_records,
             initialize_broker_baselines,
             initialize_broker_ledger,
@@ -168,6 +162,11 @@ def require_current(engine: Engine) -> None:
             not in {
                 column["name"]
                 for column in inspect(connection).get_columns("live_instance_binding")
+            }
+            or "configuration_id"
+            not in {
+                column["name"]
+                for column in inspect(connection).get_columns("live_strategy_materials")
             }
             or connection.exec_driver_sql("SELECT owner FROM northstar_store").scalar_one()
             != "live"

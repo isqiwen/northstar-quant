@@ -34,11 +34,11 @@ from northstar_quant.broker.stream_records import append_stream_event, read_stre
 from northstar_quant.data_management.broker import resolve_broker_contract, verify_broker_contract
 from northstar_quant.data_management.library import DataLibrary
 from northstar_quant.live.market import advance_market, idle_reason
+from northstar_quant.live.materials import StrategyMaterials
 from northstar_quant.messaging import Endpoint
 from northstar_quant.persistence.locks import FileLock
 from northstar_quant.persistence.sql import UTCDateTime, write_transaction
-from northstar_quant.research.configuration import ResearchConfig
-from northstar_quant.research.configurations import ConfigurationStore
+from northstar_quant.strategies.configuration import StrategyConfig
 from northstar_quant.trading.environment import Environment
 from northstar_quant.trading.kernel import KernelState, TradingKernel
 
@@ -90,7 +90,7 @@ def initialize_streams(connection: Connection) -> None:
         CREATE TABLE IF NOT EXISTS broker_streams (
             stream_id CHAR(32) PRIMARY KEY,
             query_batch_id CHAR(32) NOT NULL REFERENCES broker_query_batches(batch_id),
-            configuration_id varchar(64) NOT NULL REFERENCES paper_configurations(configuration_id),
+            configuration_id varchar(64) NOT NULL ,
             binding JSON NOT NULL, binding_hash varchar(64) NOT NULL,
             status varchar(24) NOT NULL, paused boolean NOT NULL,
             reason varchar(96) NOT NULL, received integer NOT NULL DEFAULT 0,
@@ -149,7 +149,7 @@ def initialize_streams(connection: Connection) -> None:
         CREATE TABLE IF NOT EXISTS broker_streams (
             stream_id uuid PRIMARY KEY,
             query_batch_id uuid NOT NULL REFERENCES broker_query_batches(batch_id),
-            configuration_id varchar(64) NOT NULL REFERENCES paper_configurations(configuration_id),
+            configuration_id varchar(64) NOT NULL ,
             binding jsonb NOT NULL, binding_hash varchar(64) NOT NULL,
             status varchar(24) NOT NULL, paused boolean NOT NULL,
             reason varchar(96) NOT NULL, received integer NOT NULL DEFAULT 0,
@@ -212,7 +212,7 @@ class LiveStreams:
     ) -> None:
         self._engine = engine
         self._library = library
-        self._configurations = ConfigurationStore(engine)
+        self._configurations = StrategyMaterials(engine)
         self._ledger = BrokerLedger(engine)
         self._check_ownership = check_ownership
         self._guard = threading.Lock()
@@ -629,9 +629,11 @@ class LiveStreams:
                         instrument=str(binding["instrument"]),
                         contract_id=UUID(str(binding["contract_id"])),
                         price_tick=Decimal(str(_object(binding["terms"])["PriceTick"])),
-                        config=ResearchConfig.from_mapping(
-                            _object(_object(binding["configuration"])["config"])
-                        ).strategy,
+                        config=StrategyConfig.from_dict(
+                            _object(
+                                _object(_object(binding["configuration"])["config"])["strategy"]
+                            )
+                        ),
                         now=datetime.now(UTC),
                     )
                     state["market"] = market
@@ -912,7 +914,10 @@ class LiveStreams:
         )
         if any(query[key] != binding[key] for key in ("profile", "account_id", "instrument")):
             raise ValueError("shadow decision source identity differs from its binding")
-        configuration = self._configurations.get_configuration(str(stream["configuration_id"]))
+        configuration = self._configurations.get_configuration(
+            str(stream["configuration_id"]),
+            candidate_id=str(_object(binding["configuration"])["candidate_id"]),
+        )
         if configuration != binding["configuration"]:
             raise ValueError("shadow decision configuration differs from its fixed revision")
         verify_broker_contract(
@@ -983,7 +988,10 @@ class LiveStreams:
                 BrokerRecords(self._engine).get(
                     UUID(str(_object(binding["request"])["query_batch_id"]))
                 )
-                config = self._configurations.get_configuration(str(row["configuration_id"]))
+                config = self._configurations.get_configuration(
+                    str(row["configuration_id"]),
+                    candidate_id=str(_object(binding["configuration"])["candidate_id"]),
+                )
                 if config != binding["configuration"]:
                     raise ValueError("stream configuration differs from its fixed revision")
                 verify_broker_contract(

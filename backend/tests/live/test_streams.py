@@ -22,11 +22,13 @@ from northstar_quant.broker.records import BrokerRecords
 from northstar_quant.broker.settings import Credentials
 from northstar_quant.data_management.files import SourceFiles
 from northstar_quant.data_management.library import DataLibrary
+from northstar_quant.factors.definition import content_id
 from northstar_quant.live import streams as module
+from northstar_quant.live.materials import StrategyMaterials
 from northstar_quant.live.streams import LiveStreams
 from northstar_quant.research.artifacts import ResearchUsages
 from northstar_quant.research.configuration import ResearchConfig
-from northstar_quant.research.configurations import ConfigurationStore
+from northstar_quant.strategies.artifacts import CANDIDATE_FORMAT
 from northstar_quant.strategies.configuration import StrategyConfig
 from tests.accounting.test_ledger import ledger_query, position_baseline, trade
 from tests.apps.browser import ProtocolClient as TestClient
@@ -57,12 +59,41 @@ def prepare(
     library = DataLibrary(engine, SourceFiles(root / "archive"), usages=ResearchUsages(engine).list)
     position_baseline(engine, day=trading_day)
     source = ledger_query(engine, day=trading_day)
-    configuration = ConfigurationStore(engine).save_configuration(
-        "shadow",
-        ResearchConfig(
-            strategy=StrategyConfig.create(supplied={"threshold": str(Decimal("0.001"))})
-        ),
-    )
+    # Synthetic candidate protocol evidence only; not a historical or broker acceptance.
+    clean = "a" * 40
+    for name in (
+        "northstar_quant.factors.evaluation",
+        "northstar_quant.strategies.configuration",
+        "northstar_quant.strategies.evaluation",
+        "northstar_quant.strategies.artifacts",
+    ):
+        monkeypatch.setattr(name + ".code_revision", lambda: clean)
+    config = ResearchConfig(
+        strategy=StrategyConfig.create(supplied={"threshold": str(Decimal("0.001"))})
+    ).to_dict()
+    configuration = {"name": "shadow", "config": config}
+    configuration["configuration_id"] = content_id(configuration)
+    evidence = {
+        "code_revision": clean,
+        "snapshot": {"synthetic": True},
+        "config": config,
+        "result": {"synthetic": True},
+    }
+    evidence["run_id"] = content_id(evidence)
+    document = {
+        "configuration": configuration,
+        "code_revision": clean,
+        "evidence": [evidence],
+        "validation": {"synthetic": True},
+    }
+    candidate = {
+        "format": CANDIDATE_FORMAT,
+        "version_id": content_id(document),
+        "document": document,
+        "same_clean_revision": True,
+    }
+    candidate["candidate_id"] = content_id(candidate)
+    StrategyMaterials(engine).accept(candidate)
     calls: dict[str, Any] = {"count": 0, "ready": Event()}
 
     def receive(*args: Any, **kwargs: Any) -> None:
