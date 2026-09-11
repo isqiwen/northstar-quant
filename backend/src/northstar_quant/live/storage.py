@@ -78,6 +78,9 @@ def initialize(engine: Engine) -> None:
     from northstar_quant.execution.journal import initialize_journal
     from northstar_quant.execution.reviews import initialize_order_reviews
     from northstar_quant.live.commands import initialize_live_commands
+    from northstar_quant.live.execution_authority import (
+        initialize as initialize_execution_authority,
+    )
     from northstar_quant.live.instances import initialize as initialize_binding
     from northstar_quant.live.materials import initialize_materials
     from northstar_quant.live.opening_budgets import initialize_opening_budgets
@@ -120,6 +123,7 @@ def initialize(engine: Engine) -> None:
             initialize_stream_accounts,
             initialize_opening_budgets,
             initialize_live_commands,
+            initialize_execution_authority,
             initialize_binding,
         ):
             install(connection)
@@ -147,6 +151,8 @@ def initialize(engine: Engine) -> None:
 
 def require_current(engine: Engine) -> None:
     required = {
+        "live_execution_authorizations",
+        "live_execution_revocations",
         "northstar_store",
         "live_instance_binding",
         "live_commands",

@@ -17,7 +17,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import cast
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import JSON, Connection, Engine, Uuid
 from sqlalchemy import text as sql_text
@@ -211,8 +211,10 @@ class LiveStreams:
         library: DataLibrary,
         *,
         check_ownership: Callable[[], None] | None = None,
+        runtime_id: UUID | None = None,
     ) -> None:
         self._engine = engine
+        self.runtime_id = runtime_id or uuid4()
         self._library = library
         self._configurations = StrategyMaterials(engine)
         self._ledger = BrokerLedger(engine)
@@ -278,6 +280,7 @@ class LiveStreams:
                     "continuous SimNow reception requires the verified Linux amd64 SDK"
                 )
             binding = {
+                "runtime_id": str(self.runtime_id),
                 "request": request,
                 "environment": Environment.SANDBOX.value,
                 "profile": profile.identity(),

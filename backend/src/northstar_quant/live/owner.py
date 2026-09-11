@@ -20,6 +20,7 @@ from northstar_quant.data_management.library import DataLibrary
 from northstar_quant.execution.journal import OrderJournal
 from northstar_quant.execution.reviews import OrderReviews
 from northstar_quant.live.client import PROTOCOL_VERSION
+from northstar_quant.live.execution_authority import ExecutionAuthority
 from northstar_quant.live.opening_budgets import BrokerOpeningBudgets
 from northstar_quant.live.streams import LiveStreams
 
@@ -33,6 +34,8 @@ class LiveOwner:
         self.identifier = uuid4()
         self.started_at = datetime.now(UTC).isoformat()
         self.commands = Commands(engine, self.identifier)
+        self.authority = ExecutionAuthority(engine, self.identifier, self.check_ownership)
+        self.authority.verify_all()
         self.broker = BrokerQueries(engine)
         self.baselines = BrokerBaselines(engine)
         self.ledger = BrokerLedger(engine)
@@ -42,7 +45,9 @@ class LiveOwner:
         self.execution.verify_all()
         verify_ctp_orders(engine)
         verify_ctp_receipts(engine)
-        self.streams = LiveStreams(engine, library, check_ownership=self.check_ownership)
+        self.streams = LiveStreams(
+            engine, library, check_ownership=self.check_ownership, runtime_id=self.identifier
+        )
         self.opening_budgets = BrokerOpeningBudgets(engine, library)
 
     def check_ownership(self) -> None:

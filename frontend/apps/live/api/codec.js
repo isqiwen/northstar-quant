@@ -27761,6 +27761,1776 @@ export const northstar = $root.northstar = (() => {
             return LocalOrderDetail;
         })();
 
+        live.ExecutionConsent = (function() {
+
+            /**
+             * Properties of an ExecutionConsent.
+             * @typedef {Object} northstar.live.ExecutionConsent.$Properties
+             * @property {string|null} [authorization_id] ExecutionConsent authorization_id
+             * @property {string|null} [status] ExecutionConsent status
+             * @property {boolean|null} [requires_current_admission] ExecutionConsent requires_current_admission
+             * @property {Object.<string,google.protobuf.Value.$Properties>|null} [evidence_fields] ExecutionConsent evidence_fields
+             * @property {"authorization_id"} [_authorization_id] ExecutionConsent _authorization_id
+             * @property {"status"} [_status] ExecutionConsent _status
+             * @property {"requires_current_admission"} [_requires_current_admission] ExecutionConsent _requires_current_admission
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of an ExecutionConsent.
+             * @memberof northstar.live
+             * @interface IExecutionConsent
+             * @augments northstar.live.ExecutionConsent.$Properties
+             * @deprecated Use northstar.live.ExecutionConsent.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of an ExecutionConsent.
+             * @typedef {{
+             *   authorization_id?: string|null;
+             *   status?: string|null;
+             *   requires_current_admission?: boolean|null;
+             *   evidence_fields?: Object.<string,google.protobuf.Value.$Shape>|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _authorization_id?: undefined; authorization_id?: null }|{ _authorization_id?: "authorization_id"; authorization_id: string })
+             * ) & (
+             *   ({ _status?: undefined; status?: null }|{ _status?: "status"; status: string })
+             * ) & (
+             *   ({ _requires_current_admission?: undefined; requires_current_admission?: null }|{ _requires_current_admission?: "requires_current_admission"; requires_current_admission: boolean })
+             * )} northstar.live.ExecutionConsent.$Shape
+             */
+
+            /**
+             * Constructs a new ExecutionConsent.
+             * @memberof northstar.live
+             * @classdesc Represents an ExecutionConsent.
+             * @constructor
+             * @param {northstar.live.ExecutionConsent.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const ExecutionConsent = function (properties) {
+                this.evidence_fields = {};
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * ExecutionConsent authorization_id.
+             * @member {string|null|undefined} authorization_id
+             * @memberof northstar.live.ExecutionConsent
+             * @instance
+             */
+            ExecutionConsent.prototype.authorization_id = null;
+
+            /**
+             * ExecutionConsent status.
+             * @member {string|null|undefined} status
+             * @memberof northstar.live.ExecutionConsent
+             * @instance
+             */
+            ExecutionConsent.prototype.status = null;
+
+            /**
+             * ExecutionConsent requires_current_admission.
+             * @member {boolean|null|undefined} requires_current_admission
+             * @memberof northstar.live.ExecutionConsent
+             * @instance
+             */
+            ExecutionConsent.prototype.requires_current_admission = null;
+
+            /**
+             * ExecutionConsent evidence_fields.
+             * @member {Object.<string,google.protobuf.Value.$Properties>} evidence_fields
+             * @memberof northstar.live.ExecutionConsent
+             * @instance
+             */
+            ExecutionConsent.prototype.evidence_fields = $util.emptyObject;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * ExecutionConsent _authorization_id.
+             * @member {"authorization_id"|undefined} _authorization_id
+             * @memberof northstar.live.ExecutionConsent
+             * @instance
+             */
+            $Object.defineProperty(ExecutionConsent.prototype, "_authorization_id", {
+                get: $util.oneOfGetter($oneOfFields = ["authorization_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ExecutionConsent _status.
+             * @member {"status"|undefined} _status
+             * @memberof northstar.live.ExecutionConsent
+             * @instance
+             */
+            $Object.defineProperty(ExecutionConsent.prototype, "_status", {
+                get: $util.oneOfGetter($oneOfFields = ["status"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ExecutionConsent _requires_current_admission.
+             * @member {"requires_current_admission"|undefined} _requires_current_admission
+             * @memberof northstar.live.ExecutionConsent
+             * @instance
+             */
+            $Object.defineProperty(ExecutionConsent.prototype, "_requires_current_admission", {
+                get: $util.oneOfGetter($oneOfFields = ["requires_current_admission"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new ExecutionConsent instance using the specified properties.
+             * @function create
+             * @memberof northstar.live.ExecutionConsent
+             * @static
+             * @param {northstar.live.ExecutionConsent.$Properties=} [properties] Properties to set
+             * @returns {northstar.live.ExecutionConsent} ExecutionConsent instance
+             * @type {{
+             *   (properties: northstar.live.ExecutionConsent.$Shape): northstar.live.ExecutionConsent & northstar.live.ExecutionConsent.$Shape;
+             *   (properties?: northstar.live.ExecutionConsent.$Properties): northstar.live.ExecutionConsent;
+             * }}
+             */
+            ExecutionConsent.create = function(properties) {
+                return new ExecutionConsent(properties);
+            };
+
+            /**
+             * Encodes the specified ExecutionConsent message. Does not implicitly {@link northstar.live.ExecutionConsent.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.live.ExecutionConsent
+             * @static
+             * @param {northstar.live.ExecutionConsent.$Properties} message ExecutionConsent message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            ExecutionConsent.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.authorization_id != null && $Object.hasOwnProperty.call(message, "authorization_id"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.authorization_id);
+                if (message.status != null && $Object.hasOwnProperty.call(message, "status"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.status);
+                if (message.requires_current_admission != null && $Object.hasOwnProperty.call(message, "requires_current_admission"))
+                    writer.uint32(/* id 3, wireType 0 =*/24).bool(message.requires_current_admission);
+                if (message.evidence_fields != null && $Object.hasOwnProperty.call(message, "evidence_fields"))
+                    for (let keys = $Object.keys(message.evidence_fields), i = 0; i < keys.length; ++i) {
+                        writer.uint32(/* id 1000, wireType 2 =*/8002).fork().uint32(/* id 1, wireType 2 =*/10).string(keys[i]);
+                        $root.google.protobuf.Value.encode(message.evidence_fields[keys[i]], writer.uint32(/* id 2, wireType 2 =*/18).fork(), _depth + 1).ldelim().ldelim();
+                    }
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes an ExecutionConsent message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.live.ExecutionConsent
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.live.ExecutionConsent & northstar.live.ExecutionConsent.$Shape} ExecutionConsent
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            ExecutionConsent.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message, key, value;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.live.ExecutionConsent();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.authorization_id = reader.stringVerify();
+                            message._authorization_id = "authorization_id";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.status = reader.stringVerify();
+                            message._status = "status";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 0)
+                                break;
+                            message.requires_current_admission = reader.bool();
+                            message._requires_current_admission = "requires_current_admission";
+                            continue;
+                        }
+                    case 1000: {
+                            if (wireType !== 2)
+                                break;
+                            if (message.evidence_fields === $util.emptyObject)
+                                message.evidence_fields = {};
+                            let end2 = reader.uint32() + reader.pos;
+                            if (end2 > reader.len)
+                                throw $RangeError("index out of range");
+                            reader.len = end2;
+                            key = "";
+                            value = null;
+                            while (reader.pos < end2) {
+                                let tag2 = reader.tag();
+                                wireType = tag2 & 7;
+                                switch (tag2 >>>= 3) {
+                                case 1:
+                                    if (wireType !== 2)
+                                        break;
+                                    key = reader.stringVerify();
+                                    continue;
+                                case 2:
+                                    if (wireType !== 2)
+                                        break;
+                                    value = $root.google.protobuf.Value.decode(reader, reader.uint32(), $undefined, _depth + 1, value);
+                                    continue;
+                                }
+                                reader.skipType(wireType, _depth, tag2);
+                            }
+                            if (reader.pos !== end2)
+                                throw $RangeError("index out of range");
+                            reader.len = end;
+                            if (key === "__proto__")
+                                $util.makeProp(message.evidence_fields, key);
+                            message.evidence_fields[key] = value || new $root.google.protobuf.Value();
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies an ExecutionConsent message.
+             * @function verify
+             * @memberof northstar.live.ExecutionConsent
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            ExecutionConsent.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.authorization_id != null && $Object.hasOwnProperty.call(message, "authorization_id")) {
+                    properties._authorization_id = 1;
+                    if (!$util.isString(message.authorization_id))
+                        return "authorization_id: string expected";
+                }
+                if (message.status != null && $Object.hasOwnProperty.call(message, "status")) {
+                    properties._status = 1;
+                    if (!$util.isString(message.status))
+                        return "status: string expected";
+                }
+                if (message.requires_current_admission != null && $Object.hasOwnProperty.call(message, "requires_current_admission")) {
+                    properties._requires_current_admission = 1;
+                    if (typeof message.requires_current_admission !== "boolean")
+                        return "requires_current_admission: boolean expected";
+                }
+                if (message.evidence_fields != null && $Object.hasOwnProperty.call(message, "evidence_fields")) {
+                    if (!$util.isObject(message.evidence_fields))
+                        return "evidence_fields: object expected";
+                    let key = $Object.keys(message.evidence_fields);
+                    for (let i = 0; i < key.length; ++i) {
+                        let error = $root.google.protobuf.Value.verify(message.evidence_fields[key[i]], _depth + 1);
+                        if (error)
+                            return "evidence_fields." + error;
+                    }
+                }
+                return null;
+            };
+
+            /**
+             * Creates an ExecutionConsent message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.live.ExecutionConsent
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.live.ExecutionConsent} ExecutionConsent
+             */
+            ExecutionConsent.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.live.ExecutionConsent)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.live.ExecutionConsent: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.live.ExecutionConsent();
+                if (object.authorization_id != null)
+                    message.authorization_id = $String(object.authorization_id);
+                if (object.status != null)
+                    message.status = $String(object.status);
+                if (object.requires_current_admission != null)
+                    message.requires_current_admission = $Boolean(object.requires_current_admission);
+                if (object.evidence_fields) {
+                    if (!$util.isObject(object.evidence_fields))
+                        throw $TypeError(".northstar.live.ExecutionConsent.evidence_fields: object expected");
+                    message.evidence_fields = {};
+                    for (let keys = $Object.keys(object.evidence_fields), i = 0; i < keys.length; ++i) {
+                        if (keys[i] === "__proto__")
+                            $util.makeProp(message.evidence_fields, keys[i]);
+                        if (!$util.isObject(object.evidence_fields[keys[i]]))
+                            throw $TypeError(".northstar.live.ExecutionConsent.evidence_fields: object expected");
+                        message.evidence_fields[keys[i]] = $root.google.protobuf.Value.fromObject(object.evidence_fields[keys[i]], _depth + 1);
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from an ExecutionConsent message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.live.ExecutionConsent
+             * @static
+             * @param {northstar.live.ExecutionConsent} message ExecutionConsent
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            ExecutionConsent.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.objects || options.defaults)
+                    object.evidence_fields = {};
+                if (message.authorization_id != null && $Object.hasOwnProperty.call(message, "authorization_id")) {
+                    object.authorization_id = message.authorization_id;
+                    if (options.oneofs)
+                        object._authorization_id = "authorization_id";
+                }
+                if (message.status != null && $Object.hasOwnProperty.call(message, "status")) {
+                    object.status = message.status;
+                    if (options.oneofs)
+                        object._status = "status";
+                }
+                if (message.requires_current_admission != null && $Object.hasOwnProperty.call(message, "requires_current_admission")) {
+                    object.requires_current_admission = message.requires_current_admission;
+                    if (options.oneofs)
+                        object._requires_current_admission = "requires_current_admission";
+                }
+                let keys2;
+                if (message.evidence_fields && (keys2 = $Object.keys(message.evidence_fields)).length) {
+                    object.evidence_fields = {};
+                    for (let j = 0; j < keys2.length; ++j) {
+                        if (keys2[j] === "__proto__")
+                            $util.makeProp(object.evidence_fields, keys2[j]);
+                        object.evidence_fields[keys2[j]] = $root.google.protobuf.Value.toObject(message.evidence_fields[keys2[j]], options, _depth + 1);
+                    }
+                }
+                return object;
+            };
+
+            /**
+             * Converts this ExecutionConsent to JSON.
+             * @function toJSON
+             * @memberof northstar.live.ExecutionConsent
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            ExecutionConsent.prototype.toJSON = function() {
+                return ExecutionConsent.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for ExecutionConsent
+             * @function getTypeUrl
+             * @memberof northstar.live.ExecutionConsent
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            ExecutionConsent.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.live.ExecutionConsent";
+            };
+
+            return ExecutionConsent;
+        })();
+
+        live.ConsentPage = (function() {
+
+            /**
+             * Properties of a ConsentPage.
+             * @typedef {Object} northstar.live.ConsentPage.$Properties
+             * @property {Array.<northstar.live.ExecutionConsent.$Properties>|null} [authorizations] ConsentPage authorizations
+             * @property {number|Long|null} [next_before] ConsentPage next_before
+             * @property {Object.<string,google.protobuf.Value.$Properties>|null} [evidence_fields] ConsentPage evidence_fields
+             * @property {Array.<string>|null} [null_fields] ConsentPage null_fields
+             * @property {"next_before"} [_next_before] ConsentPage _next_before
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a ConsentPage.
+             * @memberof northstar.live
+             * @interface IConsentPage
+             * @augments northstar.live.ConsentPage.$Properties
+             * @deprecated Use northstar.live.ConsentPage.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a ConsentPage.
+             * @typedef {{
+             *   authorizations?: Array.<northstar.live.ExecutionConsent.$Shape>|null;
+             *   next_before?: number|Long|null;
+             *   evidence_fields?: Object.<string,google.protobuf.Value.$Shape>|null;
+             *   null_fields?: Array.<string>|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _next_before?: undefined; next_before?: null }|{ _next_before?: "next_before"; next_before: number|Long })
+             * )} northstar.live.ConsentPage.$Shape
+             */
+
+            /**
+             * Constructs a new ConsentPage.
+             * @memberof northstar.live
+             * @classdesc Represents a ConsentPage.
+             * @constructor
+             * @param {northstar.live.ConsentPage.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const ConsentPage = function (properties) {
+                this.authorizations = [];
+                this.evidence_fields = {};
+                this.null_fields = [];
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * ConsentPage authorizations.
+             * @member {Array.<northstar.live.ExecutionConsent.$Properties>} authorizations
+             * @memberof northstar.live.ConsentPage
+             * @instance
+             */
+            ConsentPage.prototype.authorizations = $util.emptyArray;
+
+            /**
+             * ConsentPage next_before.
+             * @member {number|Long|null|undefined} next_before
+             * @memberof northstar.live.ConsentPage
+             * @instance
+             */
+            ConsentPage.prototype.next_before = null;
+
+            /**
+             * ConsentPage evidence_fields.
+             * @member {Object.<string,google.protobuf.Value.$Properties>} evidence_fields
+             * @memberof northstar.live.ConsentPage
+             * @instance
+             */
+            ConsentPage.prototype.evidence_fields = $util.emptyObject;
+
+            /**
+             * ConsentPage null_fields.
+             * @member {Array.<string>} null_fields
+             * @memberof northstar.live.ConsentPage
+             * @instance
+             */
+            ConsentPage.prototype.null_fields = $util.emptyArray;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * ConsentPage _next_before.
+             * @member {"next_before"|undefined} _next_before
+             * @memberof northstar.live.ConsentPage
+             * @instance
+             */
+            $Object.defineProperty(ConsentPage.prototype, "_next_before", {
+                get: $util.oneOfGetter($oneOfFields = ["next_before"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new ConsentPage instance using the specified properties.
+             * @function create
+             * @memberof northstar.live.ConsentPage
+             * @static
+             * @param {northstar.live.ConsentPage.$Properties=} [properties] Properties to set
+             * @returns {northstar.live.ConsentPage} ConsentPage instance
+             * @type {{
+             *   (properties: northstar.live.ConsentPage.$Shape): northstar.live.ConsentPage & northstar.live.ConsentPage.$Shape;
+             *   (properties?: northstar.live.ConsentPage.$Properties): northstar.live.ConsentPage;
+             * }}
+             */
+            ConsentPage.create = function(properties) {
+                return new ConsentPage(properties);
+            };
+
+            /**
+             * Encodes the specified ConsentPage message. Does not implicitly {@link northstar.live.ConsentPage.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.live.ConsentPage
+             * @static
+             * @param {northstar.live.ConsentPage.$Properties} message ConsentPage message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            ConsentPage.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.authorizations != null && message.authorizations.length)
+                    for (let i = 0; i < message.authorizations.length; ++i)
+                        $root.northstar.live.ExecutionConsent.encode(message.authorizations[i], writer.uint32(/* id 1, wireType 2 =*/10).fork(), _depth + 1).ldelim();
+                if (message.next_before != null && $Object.hasOwnProperty.call(message, "next_before"))
+                    writer.uint32(/* id 2, wireType 0 =*/16).int64(message.next_before);
+                if (message.evidence_fields != null && $Object.hasOwnProperty.call(message, "evidence_fields"))
+                    for (let keys = $Object.keys(message.evidence_fields), i = 0; i < keys.length; ++i) {
+                        writer.uint32(/* id 1000, wireType 2 =*/8002).fork().uint32(/* id 1, wireType 2 =*/10).string(keys[i]);
+                        $root.google.protobuf.Value.encode(message.evidence_fields[keys[i]], writer.uint32(/* id 2, wireType 2 =*/18).fork(), _depth + 1).ldelim().ldelim();
+                    }
+                if (message.null_fields != null && message.null_fields.length)
+                    for (let i = 0; i < message.null_fields.length; ++i)
+                        writer.uint32(/* id 2046, wireType 2 =*/16370).string(message.null_fields[i]);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a ConsentPage message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.live.ConsentPage
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.live.ConsentPage & northstar.live.ConsentPage.$Shape} ConsentPage
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            ConsentPage.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message, key, value;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.live.ConsentPage();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.authorizations && message.authorizations.length))
+                                message.authorizations = [];
+                            message.authorizations.push($root.northstar.live.ExecutionConsent.decode(reader, reader.uint32(), $undefined, _depth + 1));
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 0)
+                                break;
+                            message.next_before = reader.int64();
+                            message._next_before = "next_before";
+                            continue;
+                        }
+                    case 1000: {
+                            if (wireType !== 2)
+                                break;
+                            if (message.evidence_fields === $util.emptyObject)
+                                message.evidence_fields = {};
+                            let end2 = reader.uint32() + reader.pos;
+                            if (end2 > reader.len)
+                                throw $RangeError("index out of range");
+                            reader.len = end2;
+                            key = "";
+                            value = null;
+                            while (reader.pos < end2) {
+                                let tag2 = reader.tag();
+                                wireType = tag2 & 7;
+                                switch (tag2 >>>= 3) {
+                                case 1:
+                                    if (wireType !== 2)
+                                        break;
+                                    key = reader.stringVerify();
+                                    continue;
+                                case 2:
+                                    if (wireType !== 2)
+                                        break;
+                                    value = $root.google.protobuf.Value.decode(reader, reader.uint32(), $undefined, _depth + 1, value);
+                                    continue;
+                                }
+                                reader.skipType(wireType, _depth, tag2);
+                            }
+                            if (reader.pos !== end2)
+                                throw $RangeError("index out of range");
+                            reader.len = end;
+                            if (key === "__proto__")
+                                $util.makeProp(message.evidence_fields, key);
+                            message.evidence_fields[key] = value || new $root.google.protobuf.Value();
+                            continue;
+                        }
+                    case 2046: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.null_fields && message.null_fields.length))
+                                message.null_fields = [];
+                            message.null_fields.push(reader.stringVerify());
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a ConsentPage message.
+             * @function verify
+             * @memberof northstar.live.ConsentPage
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            ConsentPage.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.authorizations != null && $Object.hasOwnProperty.call(message, "authorizations")) {
+                    if (!$Array.isArray(message.authorizations))
+                        return "authorizations: array expected";
+                    for (let i = 0; i < message.authorizations.length; ++i) {
+                        let error = $root.northstar.live.ExecutionConsent.verify(message.authorizations[i], _depth + 1);
+                        if (error)
+                            return "authorizations." + error;
+                    }
+                }
+                if (message.next_before != null && $Object.hasOwnProperty.call(message, "next_before")) {
+                    properties._next_before = 1;
+                    if (!$util.isInteger(message.next_before) && !(message.next_before && $util.isInteger(message.next_before.low) && $util.isInteger(message.next_before.high)))
+                        return "next_before: integer|Long expected";
+                }
+                if (message.evidence_fields != null && $Object.hasOwnProperty.call(message, "evidence_fields")) {
+                    if (!$util.isObject(message.evidence_fields))
+                        return "evidence_fields: object expected";
+                    let key = $Object.keys(message.evidence_fields);
+                    for (let i = 0; i < key.length; ++i) {
+                        let error = $root.google.protobuf.Value.verify(message.evidence_fields[key[i]], _depth + 1);
+                        if (error)
+                            return "evidence_fields." + error;
+                    }
+                }
+                if (message.null_fields != null && $Object.hasOwnProperty.call(message, "null_fields")) {
+                    if (!$Array.isArray(message.null_fields))
+                        return "null_fields: array expected";
+                    for (let i = 0; i < message.null_fields.length; ++i)
+                        if (!$util.isString(message.null_fields[i]))
+                            return "null_fields: string[] expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a ConsentPage message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.live.ConsentPage
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.live.ConsentPage} ConsentPage
+             */
+            ConsentPage.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.live.ConsentPage)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.live.ConsentPage: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.live.ConsentPage();
+                if (object.authorizations) {
+                    if (!$Array.isArray(object.authorizations))
+                        throw $TypeError(".northstar.live.ConsentPage.authorizations: array expected");
+                    message.authorizations = $Array(object.authorizations.length);
+                    for (let i = 0; i < object.authorizations.length; ++i) {
+                        if (!$util.isObject(object.authorizations[i]))
+                            throw $TypeError(".northstar.live.ConsentPage.authorizations: object expected");
+                        message.authorizations[i] = $root.northstar.live.ExecutionConsent.fromObject(object.authorizations[i], _depth + 1);
+                    }
+                }
+                if (object.next_before != null)
+                    if ($util.Long)
+                        message.next_before = $util.Long.fromValue(object.next_before, false);
+                    else if (typeof object.next_before === "string")
+                        message.next_before = $parseInt(object.next_before, 10);
+                    else if (typeof object.next_before === "number")
+                        message.next_before = object.next_before;
+                    else if (typeof object.next_before === "object")
+                        message.next_before = new $util.LongBits(object.next_before.low >>> 0, object.next_before.high >>> 0).toNumber();
+                if (object.evidence_fields) {
+                    if (!$util.isObject(object.evidence_fields))
+                        throw $TypeError(".northstar.live.ConsentPage.evidence_fields: object expected");
+                    message.evidence_fields = {};
+                    for (let keys = $Object.keys(object.evidence_fields), i = 0; i < keys.length; ++i) {
+                        if (keys[i] === "__proto__")
+                            $util.makeProp(message.evidence_fields, keys[i]);
+                        if (!$util.isObject(object.evidence_fields[keys[i]]))
+                            throw $TypeError(".northstar.live.ConsentPage.evidence_fields: object expected");
+                        message.evidence_fields[keys[i]] = $root.google.protobuf.Value.fromObject(object.evidence_fields[keys[i]], _depth + 1);
+                    }
+                }
+                if (object.null_fields) {
+                    if (!$Array.isArray(object.null_fields))
+                        throw $TypeError(".northstar.live.ConsentPage.null_fields: array expected");
+                    message.null_fields = $Array(object.null_fields.length);
+                    for (let i = 0; i < object.null_fields.length; ++i)
+                        message.null_fields[i] = $String(object.null_fields[i]);
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a ConsentPage message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.live.ConsentPage
+             * @static
+             * @param {northstar.live.ConsentPage} message ConsentPage
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            ConsentPage.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.arrays || options.defaults) {
+                    object.authorizations = [];
+                    object.null_fields = [];
+                }
+                if (options.objects || options.defaults)
+                    object.evidence_fields = {};
+                if (message.authorizations && message.authorizations.length) {
+                    object.authorizations = $Array(message.authorizations.length);
+                    for (let j = 0; j < message.authorizations.length; ++j)
+                        object.authorizations[j] = $root.northstar.live.ExecutionConsent.toObject(message.authorizations[j], options, _depth + 1);
+                }
+                if (message.next_before != null && $Object.hasOwnProperty.call(message, "next_before")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.next_before = typeof message.next_before === "number" ? $BigInt(message.next_before) : $util.Long.fromBits(message.next_before.low >>> 0, message.next_before.high >>> 0, false).toBigInt();
+                    else if (typeof message.next_before === "number")
+                        object.next_before = options.longs === $String ? $String(message.next_before) : message.next_before;
+                    else
+                        object.next_before = options.longs === $String ? $util.Long.prototype.toString.call(message.next_before) : options.longs === $Number ? new $util.LongBits(message.next_before.low >>> 0, message.next_before.high >>> 0).toNumber() : message.next_before;
+                    if (options.oneofs)
+                        object._next_before = "next_before";
+                }
+                let keys2;
+                if (message.evidence_fields && (keys2 = $Object.keys(message.evidence_fields)).length) {
+                    object.evidence_fields = {};
+                    for (let j = 0; j < keys2.length; ++j) {
+                        if (keys2[j] === "__proto__")
+                            $util.makeProp(object.evidence_fields, keys2[j]);
+                        object.evidence_fields[keys2[j]] = $root.google.protobuf.Value.toObject(message.evidence_fields[keys2[j]], options, _depth + 1);
+                    }
+                }
+                if (message.null_fields && message.null_fields.length) {
+                    object.null_fields = $Array(message.null_fields.length);
+                    for (let j = 0; j < message.null_fields.length; ++j)
+                        object.null_fields[j] = message.null_fields[j];
+                }
+                return object;
+            };
+
+            /**
+             * Converts this ConsentPage to JSON.
+             * @function toJSON
+             * @memberof northstar.live.ConsentPage
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            ConsentPage.prototype.toJSON = function() {
+                return ConsentPage.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for ConsentPage
+             * @function getTypeUrl
+             * @memberof northstar.live.ConsentPage
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            ConsentPage.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.live.ConsentPage";
+            };
+
+            return ConsentPage;
+        })();
+
+        live.ConsentRequest = (function() {
+
+            /**
+             * Properties of a ConsentRequest.
+             * @typedef {Object} northstar.live.ConsentRequest.$Properties
+             * @property {string|null} [request_id] ConsentRequest request_id
+             * @property {string|null} [expires_at] ConsentRequest expires_at
+             * @property {number|Long|null} [max_order_lots] ConsentRequest max_order_lots
+             * @property {number|Long|null} [max_total_lots] ConsentRequest max_total_lots
+             * @property {string|null} [fee] ConsentRequest fee
+             * @property {string|null} [margin] ConsentRequest margin
+             * @property {string|null} [gross] ConsentRequest gross
+             * @property {string|null} [loss] ConsentRequest loss
+             * @property {"request_id"} [_request_id] ConsentRequest _request_id
+             * @property {"expires_at"} [_expires_at] ConsentRequest _expires_at
+             * @property {"max_order_lots"} [_max_order_lots] ConsentRequest _max_order_lots
+             * @property {"max_total_lots"} [_max_total_lots] ConsentRequest _max_total_lots
+             * @property {"fee"} [_fee] ConsentRequest _fee
+             * @property {"margin"} [_margin] ConsentRequest _margin
+             * @property {"gross"} [_gross] ConsentRequest _gross
+             * @property {"loss"} [_loss] ConsentRequest _loss
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a ConsentRequest.
+             * @memberof northstar.live
+             * @interface IConsentRequest
+             * @augments northstar.live.ConsentRequest.$Properties
+             * @deprecated Use northstar.live.ConsentRequest.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a ConsentRequest.
+             * @typedef {{
+             *   request_id?: string|null;
+             *   expires_at?: string|null;
+             *   max_order_lots?: number|Long|null;
+             *   max_total_lots?: number|Long|null;
+             *   fee?: string|null;
+             *   margin?: string|null;
+             *   gross?: string|null;
+             *   loss?: string|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _request_id?: undefined; request_id?: null }|{ _request_id?: "request_id"; request_id: string })
+             * ) & (
+             *   ({ _expires_at?: undefined; expires_at?: null }|{ _expires_at?: "expires_at"; expires_at: string })
+             * ) & (
+             *   ({ _max_order_lots?: undefined; max_order_lots?: null }|{ _max_order_lots?: "max_order_lots"; max_order_lots: number|Long })
+             * ) & (
+             *   ({ _max_total_lots?: undefined; max_total_lots?: null }|{ _max_total_lots?: "max_total_lots"; max_total_lots: number|Long })
+             * ) & (
+             *   ({ _fee?: undefined; fee?: null }|{ _fee?: "fee"; fee: string })
+             * ) & (
+             *   ({ _margin?: undefined; margin?: null }|{ _margin?: "margin"; margin: string })
+             * ) & (
+             *   ({ _gross?: undefined; gross?: null }|{ _gross?: "gross"; gross: string })
+             * ) & (
+             *   ({ _loss?: undefined; loss?: null }|{ _loss?: "loss"; loss: string })
+             * )} northstar.live.ConsentRequest.$Shape
+             */
+
+            /**
+             * Constructs a new ConsentRequest.
+             * @memberof northstar.live
+             * @classdesc Represents a ConsentRequest.
+             * @constructor
+             * @param {northstar.live.ConsentRequest.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const ConsentRequest = function (properties) {
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * ConsentRequest request_id.
+             * @member {string|null|undefined} request_id
+             * @memberof northstar.live.ConsentRequest
+             * @instance
+             */
+            ConsentRequest.prototype.request_id = null;
+
+            /**
+             * ConsentRequest expires_at.
+             * @member {string|null|undefined} expires_at
+             * @memberof northstar.live.ConsentRequest
+             * @instance
+             */
+            ConsentRequest.prototype.expires_at = null;
+
+            /**
+             * ConsentRequest max_order_lots.
+             * @member {number|Long|null|undefined} max_order_lots
+             * @memberof northstar.live.ConsentRequest
+             * @instance
+             */
+            ConsentRequest.prototype.max_order_lots = null;
+
+            /**
+             * ConsentRequest max_total_lots.
+             * @member {number|Long|null|undefined} max_total_lots
+             * @memberof northstar.live.ConsentRequest
+             * @instance
+             */
+            ConsentRequest.prototype.max_total_lots = null;
+
+            /**
+             * ConsentRequest fee.
+             * @member {string|null|undefined} fee
+             * @memberof northstar.live.ConsentRequest
+             * @instance
+             */
+            ConsentRequest.prototype.fee = null;
+
+            /**
+             * ConsentRequest margin.
+             * @member {string|null|undefined} margin
+             * @memberof northstar.live.ConsentRequest
+             * @instance
+             */
+            ConsentRequest.prototype.margin = null;
+
+            /**
+             * ConsentRequest gross.
+             * @member {string|null|undefined} gross
+             * @memberof northstar.live.ConsentRequest
+             * @instance
+             */
+            ConsentRequest.prototype.gross = null;
+
+            /**
+             * ConsentRequest loss.
+             * @member {string|null|undefined} loss
+             * @memberof northstar.live.ConsentRequest
+             * @instance
+             */
+            ConsentRequest.prototype.loss = null;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * ConsentRequest _request_id.
+             * @member {"request_id"|undefined} _request_id
+             * @memberof northstar.live.ConsentRequest
+             * @instance
+             */
+            $Object.defineProperty(ConsentRequest.prototype, "_request_id", {
+                get: $util.oneOfGetter($oneOfFields = ["request_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ConsentRequest _expires_at.
+             * @member {"expires_at"|undefined} _expires_at
+             * @memberof northstar.live.ConsentRequest
+             * @instance
+             */
+            $Object.defineProperty(ConsentRequest.prototype, "_expires_at", {
+                get: $util.oneOfGetter($oneOfFields = ["expires_at"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ConsentRequest _max_order_lots.
+             * @member {"max_order_lots"|undefined} _max_order_lots
+             * @memberof northstar.live.ConsentRequest
+             * @instance
+             */
+            $Object.defineProperty(ConsentRequest.prototype, "_max_order_lots", {
+                get: $util.oneOfGetter($oneOfFields = ["max_order_lots"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ConsentRequest _max_total_lots.
+             * @member {"max_total_lots"|undefined} _max_total_lots
+             * @memberof northstar.live.ConsentRequest
+             * @instance
+             */
+            $Object.defineProperty(ConsentRequest.prototype, "_max_total_lots", {
+                get: $util.oneOfGetter($oneOfFields = ["max_total_lots"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ConsentRequest _fee.
+             * @member {"fee"|undefined} _fee
+             * @memberof northstar.live.ConsentRequest
+             * @instance
+             */
+            $Object.defineProperty(ConsentRequest.prototype, "_fee", {
+                get: $util.oneOfGetter($oneOfFields = ["fee"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ConsentRequest _margin.
+             * @member {"margin"|undefined} _margin
+             * @memberof northstar.live.ConsentRequest
+             * @instance
+             */
+            $Object.defineProperty(ConsentRequest.prototype, "_margin", {
+                get: $util.oneOfGetter($oneOfFields = ["margin"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ConsentRequest _gross.
+             * @member {"gross"|undefined} _gross
+             * @memberof northstar.live.ConsentRequest
+             * @instance
+             */
+            $Object.defineProperty(ConsentRequest.prototype, "_gross", {
+                get: $util.oneOfGetter($oneOfFields = ["gross"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ConsentRequest _loss.
+             * @member {"loss"|undefined} _loss
+             * @memberof northstar.live.ConsentRequest
+             * @instance
+             */
+            $Object.defineProperty(ConsentRequest.prototype, "_loss", {
+                get: $util.oneOfGetter($oneOfFields = ["loss"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new ConsentRequest instance using the specified properties.
+             * @function create
+             * @memberof northstar.live.ConsentRequest
+             * @static
+             * @param {northstar.live.ConsentRequest.$Properties=} [properties] Properties to set
+             * @returns {northstar.live.ConsentRequest} ConsentRequest instance
+             * @type {{
+             *   (properties: northstar.live.ConsentRequest.$Shape): northstar.live.ConsentRequest & northstar.live.ConsentRequest.$Shape;
+             *   (properties?: northstar.live.ConsentRequest.$Properties): northstar.live.ConsentRequest;
+             * }}
+             */
+            ConsentRequest.create = function(properties) {
+                return new ConsentRequest(properties);
+            };
+
+            /**
+             * Encodes the specified ConsentRequest message. Does not implicitly {@link northstar.live.ConsentRequest.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.live.ConsentRequest
+             * @static
+             * @param {northstar.live.ConsentRequest.$Properties} message ConsentRequest message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            ConsentRequest.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.request_id);
+                if (message.expires_at != null && $Object.hasOwnProperty.call(message, "expires_at"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.expires_at);
+                if (message.max_order_lots != null && $Object.hasOwnProperty.call(message, "max_order_lots"))
+                    writer.uint32(/* id 3, wireType 0 =*/24).int64(message.max_order_lots);
+                if (message.max_total_lots != null && $Object.hasOwnProperty.call(message, "max_total_lots"))
+                    writer.uint32(/* id 4, wireType 0 =*/32).int64(message.max_total_lots);
+                if (message.fee != null && $Object.hasOwnProperty.call(message, "fee"))
+                    writer.uint32(/* id 5, wireType 2 =*/42).string(message.fee);
+                if (message.margin != null && $Object.hasOwnProperty.call(message, "margin"))
+                    writer.uint32(/* id 6, wireType 2 =*/50).string(message.margin);
+                if (message.gross != null && $Object.hasOwnProperty.call(message, "gross"))
+                    writer.uint32(/* id 7, wireType 2 =*/58).string(message.gross);
+                if (message.loss != null && $Object.hasOwnProperty.call(message, "loss"))
+                    writer.uint32(/* id 8, wireType 2 =*/66).string(message.loss);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a ConsentRequest message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.live.ConsentRequest
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.live.ConsentRequest & northstar.live.ConsentRequest.$Shape} ConsentRequest
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            ConsentRequest.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.live.ConsentRequest();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.request_id = reader.stringVerify();
+                            message._request_id = "request_id";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.expires_at = reader.stringVerify();
+                            message._expires_at = "expires_at";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 0)
+                                break;
+                            message.max_order_lots = reader.int64();
+                            message._max_order_lots = "max_order_lots";
+                            continue;
+                        }
+                    case 4: {
+                            if (wireType !== 0)
+                                break;
+                            message.max_total_lots = reader.int64();
+                            message._max_total_lots = "max_total_lots";
+                            continue;
+                        }
+                    case 5: {
+                            if (wireType !== 2)
+                                break;
+                            message.fee = reader.stringVerify();
+                            message._fee = "fee";
+                            continue;
+                        }
+                    case 6: {
+                            if (wireType !== 2)
+                                break;
+                            message.margin = reader.stringVerify();
+                            message._margin = "margin";
+                            continue;
+                        }
+                    case 7: {
+                            if (wireType !== 2)
+                                break;
+                            message.gross = reader.stringVerify();
+                            message._gross = "gross";
+                            continue;
+                        }
+                    case 8: {
+                            if (wireType !== 2)
+                                break;
+                            message.loss = reader.stringVerify();
+                            message._loss = "loss";
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a ConsentRequest message.
+             * @function verify
+             * @memberof northstar.live.ConsentRequest
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            ConsentRequest.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id")) {
+                    properties._request_id = 1;
+                    if (!$util.isString(message.request_id))
+                        return "request_id: string expected";
+                }
+                if (message.expires_at != null && $Object.hasOwnProperty.call(message, "expires_at")) {
+                    properties._expires_at = 1;
+                    if (!$util.isString(message.expires_at))
+                        return "expires_at: string expected";
+                }
+                if (message.max_order_lots != null && $Object.hasOwnProperty.call(message, "max_order_lots")) {
+                    properties._max_order_lots = 1;
+                    if (!$util.isInteger(message.max_order_lots) && !(message.max_order_lots && $util.isInteger(message.max_order_lots.low) && $util.isInteger(message.max_order_lots.high)))
+                        return "max_order_lots: integer|Long expected";
+                }
+                if (message.max_total_lots != null && $Object.hasOwnProperty.call(message, "max_total_lots")) {
+                    properties._max_total_lots = 1;
+                    if (!$util.isInteger(message.max_total_lots) && !(message.max_total_lots && $util.isInteger(message.max_total_lots.low) && $util.isInteger(message.max_total_lots.high)))
+                        return "max_total_lots: integer|Long expected";
+                }
+                if (message.fee != null && $Object.hasOwnProperty.call(message, "fee")) {
+                    properties._fee = 1;
+                    if (!$util.isString(message.fee))
+                        return "fee: string expected";
+                }
+                if (message.margin != null && $Object.hasOwnProperty.call(message, "margin")) {
+                    properties._margin = 1;
+                    if (!$util.isString(message.margin))
+                        return "margin: string expected";
+                }
+                if (message.gross != null && $Object.hasOwnProperty.call(message, "gross")) {
+                    properties._gross = 1;
+                    if (!$util.isString(message.gross))
+                        return "gross: string expected";
+                }
+                if (message.loss != null && $Object.hasOwnProperty.call(message, "loss")) {
+                    properties._loss = 1;
+                    if (!$util.isString(message.loss))
+                        return "loss: string expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a ConsentRequest message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.live.ConsentRequest
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.live.ConsentRequest} ConsentRequest
+             */
+            ConsentRequest.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.live.ConsentRequest)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.live.ConsentRequest: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.live.ConsentRequest();
+                if (object.request_id != null)
+                    message.request_id = $String(object.request_id);
+                if (object.expires_at != null)
+                    message.expires_at = $String(object.expires_at);
+                if (object.max_order_lots != null)
+                    if ($util.Long)
+                        message.max_order_lots = $util.Long.fromValue(object.max_order_lots, false);
+                    else if (typeof object.max_order_lots === "string")
+                        message.max_order_lots = $parseInt(object.max_order_lots, 10);
+                    else if (typeof object.max_order_lots === "number")
+                        message.max_order_lots = object.max_order_lots;
+                    else if (typeof object.max_order_lots === "object")
+                        message.max_order_lots = new $util.LongBits(object.max_order_lots.low >>> 0, object.max_order_lots.high >>> 0).toNumber();
+                if (object.max_total_lots != null)
+                    if ($util.Long)
+                        message.max_total_lots = $util.Long.fromValue(object.max_total_lots, false);
+                    else if (typeof object.max_total_lots === "string")
+                        message.max_total_lots = $parseInt(object.max_total_lots, 10);
+                    else if (typeof object.max_total_lots === "number")
+                        message.max_total_lots = object.max_total_lots;
+                    else if (typeof object.max_total_lots === "object")
+                        message.max_total_lots = new $util.LongBits(object.max_total_lots.low >>> 0, object.max_total_lots.high >>> 0).toNumber();
+                if (object.fee != null)
+                    message.fee = $String(object.fee);
+                if (object.margin != null)
+                    message.margin = $String(object.margin);
+                if (object.gross != null)
+                    message.gross = $String(object.gross);
+                if (object.loss != null)
+                    message.loss = $String(object.loss);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a ConsentRequest message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.live.ConsentRequest
+             * @static
+             * @param {northstar.live.ConsentRequest} message ConsentRequest
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            ConsentRequest.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id")) {
+                    object.request_id = message.request_id;
+                    if (options.oneofs)
+                        object._request_id = "request_id";
+                }
+                if (message.expires_at != null && $Object.hasOwnProperty.call(message, "expires_at")) {
+                    object.expires_at = message.expires_at;
+                    if (options.oneofs)
+                        object._expires_at = "expires_at";
+                }
+                if (message.max_order_lots != null && $Object.hasOwnProperty.call(message, "max_order_lots")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.max_order_lots = typeof message.max_order_lots === "number" ? $BigInt(message.max_order_lots) : $util.Long.fromBits(message.max_order_lots.low >>> 0, message.max_order_lots.high >>> 0, false).toBigInt();
+                    else if (typeof message.max_order_lots === "number")
+                        object.max_order_lots = options.longs === $String ? $String(message.max_order_lots) : message.max_order_lots;
+                    else
+                        object.max_order_lots = options.longs === $String ? $util.Long.prototype.toString.call(message.max_order_lots) : options.longs === $Number ? new $util.LongBits(message.max_order_lots.low >>> 0, message.max_order_lots.high >>> 0).toNumber() : message.max_order_lots;
+                    if (options.oneofs)
+                        object._max_order_lots = "max_order_lots";
+                }
+                if (message.max_total_lots != null && $Object.hasOwnProperty.call(message, "max_total_lots")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.max_total_lots = typeof message.max_total_lots === "number" ? $BigInt(message.max_total_lots) : $util.Long.fromBits(message.max_total_lots.low >>> 0, message.max_total_lots.high >>> 0, false).toBigInt();
+                    else if (typeof message.max_total_lots === "number")
+                        object.max_total_lots = options.longs === $String ? $String(message.max_total_lots) : message.max_total_lots;
+                    else
+                        object.max_total_lots = options.longs === $String ? $util.Long.prototype.toString.call(message.max_total_lots) : options.longs === $Number ? new $util.LongBits(message.max_total_lots.low >>> 0, message.max_total_lots.high >>> 0).toNumber() : message.max_total_lots;
+                    if (options.oneofs)
+                        object._max_total_lots = "max_total_lots";
+                }
+                if (message.fee != null && $Object.hasOwnProperty.call(message, "fee")) {
+                    object.fee = message.fee;
+                    if (options.oneofs)
+                        object._fee = "fee";
+                }
+                if (message.margin != null && $Object.hasOwnProperty.call(message, "margin")) {
+                    object.margin = message.margin;
+                    if (options.oneofs)
+                        object._margin = "margin";
+                }
+                if (message.gross != null && $Object.hasOwnProperty.call(message, "gross")) {
+                    object.gross = message.gross;
+                    if (options.oneofs)
+                        object._gross = "gross";
+                }
+                if (message.loss != null && $Object.hasOwnProperty.call(message, "loss")) {
+                    object.loss = message.loss;
+                    if (options.oneofs)
+                        object._loss = "loss";
+                }
+                return object;
+            };
+
+            /**
+             * Converts this ConsentRequest to JSON.
+             * @function toJSON
+             * @memberof northstar.live.ConsentRequest
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            ConsentRequest.prototype.toJSON = function() {
+                return ConsentRequest.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for ConsentRequest
+             * @function getTypeUrl
+             * @memberof northstar.live.ConsentRequest
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            ConsentRequest.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.live.ConsentRequest";
+            };
+
+            return ConsentRequest;
+        })();
+
+        live.RevokeConsent = (function() {
+
+            /**
+             * Properties of a RevokeConsent.
+             * @typedef {Object} northstar.live.RevokeConsent.$Properties
+             * @property {string|null} [request_id] RevokeConsent request_id
+             * @property {"request_id"} [_request_id] RevokeConsent _request_id
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a RevokeConsent.
+             * @memberof northstar.live
+             * @interface IRevokeConsent
+             * @augments northstar.live.RevokeConsent.$Properties
+             * @deprecated Use northstar.live.RevokeConsent.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a RevokeConsent.
+             * @typedef {{
+             *   request_id?: string|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _request_id?: undefined; request_id?: null }|{ _request_id?: "request_id"; request_id: string })
+             * )} northstar.live.RevokeConsent.$Shape
+             */
+
+            /**
+             * Constructs a new RevokeConsent.
+             * @memberof northstar.live
+             * @classdesc Represents a RevokeConsent.
+             * @constructor
+             * @param {northstar.live.RevokeConsent.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const RevokeConsent = function (properties) {
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * RevokeConsent request_id.
+             * @member {string|null|undefined} request_id
+             * @memberof northstar.live.RevokeConsent
+             * @instance
+             */
+            RevokeConsent.prototype.request_id = null;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * RevokeConsent _request_id.
+             * @member {"request_id"|undefined} _request_id
+             * @memberof northstar.live.RevokeConsent
+             * @instance
+             */
+            $Object.defineProperty(RevokeConsent.prototype, "_request_id", {
+                get: $util.oneOfGetter($oneOfFields = ["request_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new RevokeConsent instance using the specified properties.
+             * @function create
+             * @memberof northstar.live.RevokeConsent
+             * @static
+             * @param {northstar.live.RevokeConsent.$Properties=} [properties] Properties to set
+             * @returns {northstar.live.RevokeConsent} RevokeConsent instance
+             * @type {{
+             *   (properties: northstar.live.RevokeConsent.$Shape): northstar.live.RevokeConsent & northstar.live.RevokeConsent.$Shape;
+             *   (properties?: northstar.live.RevokeConsent.$Properties): northstar.live.RevokeConsent;
+             * }}
+             */
+            RevokeConsent.create = function(properties) {
+                return new RevokeConsent(properties);
+            };
+
+            /**
+             * Encodes the specified RevokeConsent message. Does not implicitly {@link northstar.live.RevokeConsent.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.live.RevokeConsent
+             * @static
+             * @param {northstar.live.RevokeConsent.$Properties} message RevokeConsent message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            RevokeConsent.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.request_id);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a RevokeConsent message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.live.RevokeConsent
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.live.RevokeConsent & northstar.live.RevokeConsent.$Shape} RevokeConsent
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            RevokeConsent.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.live.RevokeConsent();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.request_id = reader.stringVerify();
+                            message._request_id = "request_id";
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a RevokeConsent message.
+             * @function verify
+             * @memberof northstar.live.RevokeConsent
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            RevokeConsent.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id")) {
+                    properties._request_id = 1;
+                    if (!$util.isString(message.request_id))
+                        return "request_id: string expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a RevokeConsent message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.live.RevokeConsent
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.live.RevokeConsent} RevokeConsent
+             */
+            RevokeConsent.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.live.RevokeConsent)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.live.RevokeConsent: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.live.RevokeConsent();
+                if (object.request_id != null)
+                    message.request_id = $String(object.request_id);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a RevokeConsent message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.live.RevokeConsent
+             * @static
+             * @param {northstar.live.RevokeConsent} message RevokeConsent
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            RevokeConsent.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id")) {
+                    object.request_id = message.request_id;
+                    if (options.oneofs)
+                        object._request_id = "request_id";
+                }
+                return object;
+            };
+
+            /**
+             * Converts this RevokeConsent to JSON.
+             * @function toJSON
+             * @memberof northstar.live.RevokeConsent
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            RevokeConsent.prototype.toJSON = function() {
+                return RevokeConsent.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for RevokeConsent
+             * @function getTypeUrl
+             * @memberof northstar.live.RevokeConsent
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            RevokeConsent.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.live.RevokeConsent";
+            };
+
+            return RevokeConsent;
+        })();
+
         return live;
     })();
 

@@ -977,3 +977,67 @@ class LocalOrderDetail(_message.Message):
     evidence_fields: _containers.MessageMap[str, _struct_pb2.Value]
     null_fields: _containers.RepeatedScalarFieldContainer[str]
     def __init__(self, record: _Optional[_Union[LocalOrder, _Mapping]] = ..., events: _Optional[_Iterable[_Union[LocalOrderEvent, _Mapping]]] = ..., next_after: _Optional[int] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class ExecutionConsent(_message.Message):
+    __slots__ = ("authorization_id", "status", "requires_current_admission", "evidence_fields")
+    class EvidenceFieldsEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: _struct_pb2.Value
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
+    AUTHORIZATION_ID_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    REQUIRES_CURRENT_ADMISSION_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    authorization_id: str
+    status: str
+    requires_current_admission: bool
+    evidence_fields: _containers.MessageMap[str, _struct_pb2.Value]
+    def __init__(self, authorization_id: _Optional[str] = ..., status: _Optional[str] = ..., requires_current_admission: _Optional[bool] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...
+
+class ConsentPage(_message.Message):
+    __slots__ = ("authorizations", "next_before", "evidence_fields", "null_fields")
+    class EvidenceFieldsEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: _struct_pb2.Value
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
+    AUTHORIZATIONS_FIELD_NUMBER: _ClassVar[int]
+    NEXT_BEFORE_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    authorizations: _containers.RepeatedCompositeFieldContainer[ExecutionConsent]
+    next_before: int
+    evidence_fields: _containers.MessageMap[str, _struct_pb2.Value]
+    null_fields: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, authorizations: _Optional[_Iterable[_Union[ExecutionConsent, _Mapping]]] = ..., next_before: _Optional[int] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class ConsentRequest(_message.Message):
+    __slots__ = ("request_id", "expires_at", "max_order_lots", "max_total_lots", "fee", "margin", "gross", "loss")
+    REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
+    EXPIRES_AT_FIELD_NUMBER: _ClassVar[int]
+    MAX_ORDER_LOTS_FIELD_NUMBER: _ClassVar[int]
+    MAX_TOTAL_LOTS_FIELD_NUMBER: _ClassVar[int]
+    FEE_FIELD_NUMBER: _ClassVar[int]
+    MARGIN_FIELD_NUMBER: _ClassVar[int]
+    GROSS_FIELD_NUMBER: _ClassVar[int]
+    LOSS_FIELD_NUMBER: _ClassVar[int]
+    request_id: str
+    expires_at: str
+    max_order_lots: int
+    max_total_lots: int
+    fee: str
+    margin: str
+    gross: str
+    loss: str
+    def __init__(self, request_id: _Optional[str] = ..., expires_at: _Optional[str] = ..., max_order_lots: _Optional[int] = ..., max_total_lots: _Optional[int] = ..., fee: _Optional[str] = ..., margin: _Optional[str] = ..., gross: _Optional[str] = ..., loss: _Optional[str] = ...) -> None: ...
+
+class RevokeConsent(_message.Message):
+    __slots__ = ("request_id",)
+    REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
+    request_id: str
+    def __init__(self, request_id: _Optional[str] = ...) -> None: ...

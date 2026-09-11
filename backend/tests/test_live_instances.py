@@ -204,7 +204,7 @@ def test_wrong_endpoint_identity_cannot_receive_a_command():
             200,
             json={},
             headers={
-                "x-northstar-protocol": "3",
+                "x-northstar-protocol": "4",
                 "x-live-instance-id": "wrong",
                 "x-live-runtime-id": str(uuid4()),
                 "x-live-observed-at": datetime.now(UTC).isoformat(),

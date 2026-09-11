@@ -120,7 +120,12 @@ export function Stream() {
       <Heading
         title="持续接收详情"
         description="每三秒读取内核确认事实。控制不代表撤单、成交或执行授权。"
-        actions={<Button onClick={refresh}>刷新观察</Button>}
+        actions={
+          <Space>
+            <Button onClick={refresh}>刷新观察</Button>
+            <Link href={`/streams/${id}/authorizations`}>执行限额与授权</Link>
+          </Space>
+        }
       />
       <Failure error={q.error || budgets.error || ledger.error} />
       {q.data && (

@@ -17,6 +17,7 @@ from uuid import uuid4
 
 from playwright.sync_api import expect, sync_playwright
 from sqlalchemy import create_engine, text
+from support.authority_browser import check_authority
 from support.market import seed_market
 from support.processes import InstalledApplication
 from support.studies import seed_learning
@@ -660,6 +661,7 @@ def main() -> None:
                         ).to_be_visible()
                         screenshot("local-order-events")
                         assert app.command("status")["order_sending"] is False
+                        check_authority(page, url, visit, screenshot, original)
                         visit(url)
                         page.get_by_role("link", name="运行诊断", exact=True).click()
                         expect(page.get_by_text("数据库盘空闲字节", exact=True)).to_be_visible()

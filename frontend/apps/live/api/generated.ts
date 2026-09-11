@@ -354,6 +354,30 @@ export type LocalOrderDetail = {
   next_after: number | null;
   [key: string]: unknown;
 };
+export type ExecutionConsent = {
+  authorization_id: string;
+  status: string;
+  requires_current_admission: boolean;
+  [key: string]: unknown;
+};
+export type ConsentPage = {
+  authorizations: (ExecutionConsent)[];
+  next_before: number | null;
+  [key: string]: unknown;
+};
+export type ConsentRequest = {
+  request_id: string;
+  expires_at: string;
+  max_order_lots: number;
+  max_total_lots: number;
+  fee: string;
+  margin: string;
+  gross: string;
+  loss: string;
+};
+export type RevokeConsent = {
+  request_id: string;
+};
 export type Empty = {
 };
 export type Error = {

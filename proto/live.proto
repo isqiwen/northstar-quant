@@ -473,7 +473,52 @@ message LocalOrderDetail {
   repeated string null_fields = 2046;
 }
 
+message ExecutionConsent {
+  option (northstar.web.evidence) = true;
+  optional string authorization_id = 1 [(northstar.web.required_field) = true];
+  optional string status = 2 [(northstar.web.required_field) = true];
+  optional bool requires_current_admission = 3 [(northstar.web.required_field) = true];
+  map<string, google.protobuf.Value> evidence_fields = 1000;
+}
+message ConsentPage {
+  option (northstar.web.evidence) = true;
+  repeated ExecutionConsent authorizations = 1 [(northstar.web.required_field) = true];
+  optional int64 next_before = 2 [(northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  map<string, google.protobuf.Value> evidence_fields = 1000;
+  repeated string null_fields = 2046;
+}
+message ConsentRequest {
+  optional string request_id = 1 [(northstar.web.required_field) = true];
+  optional string expires_at = 2 [(northstar.web.required_field) = true];
+  optional int64 max_order_lots = 3 [(northstar.web.required_field) = true];
+  optional int64 max_total_lots = 4 [(northstar.web.required_field) = true];
+  optional string fee = 5 [(northstar.web.required_field) = true];
+  optional string margin = 6 [(northstar.web.required_field) = true];
+  optional string gross = 7 [(northstar.web.required_field) = true];
+  optional string loss = 8 [(northstar.web.required_field) = true];
+}
+message RevokeConsent {
+  optional string request_id = 1 [(northstar.web.required_field) = true];
+}
+
 service BrowserApi {
+  rpc GetApiStreamsStreamIdAuthorizations (northstar.web.Empty) returns (ConsentPage) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/streams/{stream_id}/authorizations";
+  }
+  rpc PostApiStreamsStreamIdAuthorizations (ConsentRequest) returns (ExecutionConsent) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/streams/{stream_id}/authorizations";
+  }
+  rpc GetApiAuthorizationsIdentifier (northstar.web.Empty) returns (ExecutionConsent) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/authorizations/{identifier}";
+  }
+  rpc PostApiAuthorizationsIdentifierRevoke (RevokeConsent) returns (ExecutionConsent) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/authorizations/{identifier}/revoke";
+  }
+
   rpc GetApiOrders (northstar.web.Empty) returns (LocalOrderPage) {
     option (northstar.web.http_method) = "GET";
     option (northstar.web.http_path) = "/api/orders";
