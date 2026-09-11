@@ -5,7 +5,7 @@ import type { Query } from "../../../shared/data";
 import protocol from "./protocol.json";
 import codec from "./codec";
 registerProtocol(protocol, codec);
-export type GetPath = `/api/broker/queries/${string}/baseline-context` | `/api/broker/queries/${string}/ledger-context` | `/api/streams/${string}/decisions/${string}` | `/api/broker/queries/${string}/funds-context` | `/api/streams/${string}/opening-budgets` | `/api/broker/opening-budgets/${string}` | `/api/broker/position-entries/${string}` | `/api/broker/baseline-checks/${string}` | `/api/broker/position-checks/${string}` | `/api/broker/funds-entries/${string}` | `/api/broker/order-checks/${string}` | `/api/live/commands/${string}` | `/api/streams/${string}/events` | `/api/broker/queries/${string}` | `/api/datasets/${string}` | `/api/attempts/${string}` | `/api/sources/${string}` | `/api/streams/${string}` | `/api/strategy-materials` | `/api/live/diagnostics` | `/api/browser-session` | `/api/live/instances` | `/api/broker/queries` | `/api/configurations` | `/api/broker/status` | `/api/live/status` | `/api/streams`;
+export type GetPath = `/api/broker/queries/${string}/baseline-context` | `/api/broker/queries/${string}/ledger-context` | `/api/streams/${string}/decisions/${string}` | `/api/broker/queries/${string}/funds-context` | `/api/streams/${string}/opening-budgets` | `/api/broker/opening-budgets/${string}` | `/api/broker/position-entries/${string}` | `/api/broker/baseline-checks/${string}` | `/api/broker/position-checks/${string}` | `/api/broker/funds-entries/${string}` | `/api/broker/order-checks/${string}` | `/api/live/commands/${string}` | `/api/streams/${string}/events` | `/api/broker/queries/${string}` | `/api/datasets/${string}` | `/api/attempts/${string}` | `/api/sources/${string}` | `/api/streams/${string}` | `/api/strategy-materials` | `/api/orders/${string}` | `/api/live/diagnostics` | `/api/browser-session` | `/api/live/instances` | `/api/broker/queries` | `/api/configurations` | `/api/broker/status` | `/api/live/status` | `/api/streams` | `/api/orders`;
 export type GetResponse<P> = P extends `/api/broker/queries/${string}/baseline-context` ? messages.BaselineContext :
 P extends `/api/broker/queries/${string}/ledger-context` ? messages.LedgerContext :
 P extends `/api/streams/${string}/decisions/${string}` ? messages.StreamDecision :
@@ -25,6 +25,7 @@ P extends `/api/attempts/${string}` ? messages.ArchiveAttempt :
 P extends `/api/sources/${string}` ? messages.ArchiveSource :
 P extends `/api/streams/${string}` ? messages.StreamDetail :
 P extends `/api/strategy-materials` ? messages.GetApiStrategyMaterialsResponse :
+P extends `/api/orders/${string}` ? messages.LocalOrderDetail :
 P extends `/api/live/diagnostics` ? messages.Diagnostics :
 P extends `/api/browser-session` ? messages.BrowserSession :
 P extends `/api/live/instances` ? messages.InstanceCatalog :
@@ -32,7 +33,8 @@ P extends `/api/broker/queries` ? messages.GetApiBrokerQueriesResponse :
 P extends `/api/configurations` ? messages.GetApiConfigurationsResponse :
 P extends `/api/broker/status` ? messages.BrokerStatus :
 P extends `/api/live/status` ? messages.RuntimeStatus :
-P extends `/api/streams` ? messages.GetApiStreamsResponse : never;
+P extends `/api/streams` ? messages.GetApiStreamsResponse :
+P extends `/api/orders` ? messages.LocalOrderPage : never;
 export type CommandPath = `/api/streams/${string}/position-entries` | `/api/streams/${string}/account-catchup` | `/api/streams/${string}/opening-budgets` | `/api/sources/${string}/reprocess` | `/api/streams/${string}/archive` | `/api/streams/${string}/control` | `/api/broker/position-entries` | `/api/broker/baseline-checks` | `/api/broker/position-checks` | `/api/broker/funds-entries` | `/api/broker/order-checks` | `/api/strategy-materials` | `/api/broker/baselines` | `/api/broker/queries` | `/api/streams` | `/api/logout` | `/api/login`;
 export type CommandResponse<P> = P extends `/api/streams/${string}/position-entries` ? messages.PositionEntry :
 P extends `/api/streams/${string}/account-catchup` ? messages.AccountProgress :

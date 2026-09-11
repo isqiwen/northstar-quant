@@ -427,7 +427,62 @@ message GetApiStreamsStreamIdEventsResponse {
   repeated StreamEvent items = 1;
 }
 
+message OrderReservation {
+  optional string reserved_fee = 1 [(northstar.web.required_field) = true];
+  optional string reserved_margin = 2 [(northstar.web.required_field) = true];
+  optional string reserved_gross = 3 [(northstar.web.required_field) = true];
+  optional string reserved_loss = 4 [(northstar.web.required_field) = true];
+  optional int64 reserved_close_lots = 5 [(northstar.web.required_field) = true];
+}
+message LocalOrder {
+  option (northstar.web.evidence) = true;
+  optional string order_id = 1 [(northstar.web.required_field) = true];
+  optional string contract_id = 2 [(northstar.web.required_field) = true];
+  optional string authorization_id = 3 [(northstar.web.required_field) = true];
+  optional string runtime_id = 4 [(northstar.web.required_field) = true];
+  optional string attempt_id = 5 [(northstar.web.required_field) = true];
+  optional string status = 6 [(northstar.web.required_field) = true];
+  optional int64 quantity_lots = 7 [(northstar.web.required_field) = true];
+  optional int64 filled_lots = 8 [(northstar.web.required_field) = true];
+  optional bool requires_reconciliation = 9 [(northstar.web.required_field) = true];
+  optional OrderReservation reservation = 10 [(northstar.web.required_field) = true];
+  optional google.protobuf.Struct order = 11 [(northstar.web.required_field) = true];
+  map<string, google.protobuf.Value> evidence_fields = 1000;
+}
+message LocalOrderEvent {
+  optional int64 sequence = 1 [(northstar.web.required_field) = true];
+  optional string event_id = 2 [(northstar.web.required_field) = true];
+  optional string order_id = 3 [(northstar.web.required_field) = true];
+  optional string kind = 4 [(northstar.web.required_field) = true];
+  optional string recorded_at = 5 [(northstar.web.required_field) = true];
+  optional google.protobuf.Struct document = 6 [(northstar.web.required_field) = true];
+}
+message LocalOrderPage {
+  option (northstar.web.evidence) = true;
+  repeated LocalOrder orders = 1 [(northstar.web.required_field) = true];
+  optional int64 next_before = 2 [(northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  map<string, google.protobuf.Value> evidence_fields = 1000;
+  repeated string null_fields = 2046;
+}
+message LocalOrderDetail {
+  option (northstar.web.evidence) = true;
+  optional LocalOrder record = 1 [(northstar.web.required_field) = true];
+  repeated LocalOrderEvent events = 2 [(northstar.web.required_field) = true];
+  optional int64 next_after = 3 [(northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  map<string, google.protobuf.Value> evidence_fields = 1000;
+  repeated string null_fields = 2046;
+}
+
 service BrowserApi {
+  rpc GetApiOrders (northstar.web.Empty) returns (LocalOrderPage) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/orders";
+  }
+  rpc GetApiOrdersOrderId (northstar.web.Empty) returns (LocalOrderDetail) {
+    option (northstar.web.http_method) = "GET";
+    option (northstar.web.http_path) = "/api/orders/{order_id}";
+  }
+
   rpc PostApiLogin (northstar.web.auth.LoginRequest) returns (northstar.web.auth.BrowserSession) {
     option (northstar.web.http_method) = "POST";
     option (northstar.web.http_path) = "/api/login";

@@ -30,7 +30,7 @@ from northstar_quant.live.instances import Instance, InstanceBinding
 from northstar_quant.live.owner import LiveOwner
 from northstar_quant.logging_ import status as log_status
 
-from . import broker_routes, budget_routes, material_routes, stream_routes
+from . import broker_routes, budget_routes, material_routes, order_routes, stream_routes
 
 
 class _BoundedCommandBody:
@@ -159,6 +159,7 @@ def create_app(engine: Engine, library: DataLibrary, auth: LiveAuth) -> FastAPI:
     app.include_router(stream_routes.routes(owner))
     app.include_router(broker_routes.routes(owner))
     app.include_router(budget_routes.routes(owner))
+    app.include_router(order_routes.routes(owner))
     return app
 
 

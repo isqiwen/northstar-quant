@@ -872,3 +872,108 @@ class GetApiStreamsStreamIdEventsResponse(_message.Message):
     ITEMS_FIELD_NUMBER: _ClassVar[int]
     items: _containers.RepeatedCompositeFieldContainer[StreamEvent]
     def __init__(self, items: _Optional[_Iterable[_Union[StreamEvent, _Mapping]]] = ...) -> None: ...
+
+class OrderReservation(_message.Message):
+    __slots__ = ("reserved_fee", "reserved_margin", "reserved_gross", "reserved_loss", "reserved_close_lots")
+    RESERVED_FEE_FIELD_NUMBER: _ClassVar[int]
+    RESERVED_MARGIN_FIELD_NUMBER: _ClassVar[int]
+    RESERVED_GROSS_FIELD_NUMBER: _ClassVar[int]
+    RESERVED_LOSS_FIELD_NUMBER: _ClassVar[int]
+    RESERVED_CLOSE_LOTS_FIELD_NUMBER: _ClassVar[int]
+    reserved_fee: str
+    reserved_margin: str
+    reserved_gross: str
+    reserved_loss: str
+    reserved_close_lots: int
+    def __init__(self, reserved_fee: _Optional[str] = ..., reserved_margin: _Optional[str] = ..., reserved_gross: _Optional[str] = ..., reserved_loss: _Optional[str] = ..., reserved_close_lots: _Optional[int] = ...) -> None: ...
+
+class LocalOrder(_message.Message):
+    __slots__ = ("order_id", "contract_id", "authorization_id", "runtime_id", "attempt_id", "status", "quantity_lots", "filled_lots", "requires_reconciliation", "reservation", "order", "evidence_fields")
+    class EvidenceFieldsEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: _struct_pb2.Value
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
+    ORDER_ID_FIELD_NUMBER: _ClassVar[int]
+    CONTRACT_ID_FIELD_NUMBER: _ClassVar[int]
+    AUTHORIZATION_ID_FIELD_NUMBER: _ClassVar[int]
+    RUNTIME_ID_FIELD_NUMBER: _ClassVar[int]
+    ATTEMPT_ID_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    QUANTITY_LOTS_FIELD_NUMBER: _ClassVar[int]
+    FILLED_LOTS_FIELD_NUMBER: _ClassVar[int]
+    REQUIRES_RECONCILIATION_FIELD_NUMBER: _ClassVar[int]
+    RESERVATION_FIELD_NUMBER: _ClassVar[int]
+    ORDER_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    order_id: str
+    contract_id: str
+    authorization_id: str
+    runtime_id: str
+    attempt_id: str
+    status: str
+    quantity_lots: int
+    filled_lots: int
+    requires_reconciliation: bool
+    reservation: OrderReservation
+    order: _struct_pb2.Struct
+    evidence_fields: _containers.MessageMap[str, _struct_pb2.Value]
+    def __init__(self, order_id: _Optional[str] = ..., contract_id: _Optional[str] = ..., authorization_id: _Optional[str] = ..., runtime_id: _Optional[str] = ..., attempt_id: _Optional[str] = ..., status: _Optional[str] = ..., quantity_lots: _Optional[int] = ..., filled_lots: _Optional[int] = ..., requires_reconciliation: _Optional[bool] = ..., reservation: _Optional[_Union[OrderReservation, _Mapping]] = ..., order: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...
+
+class LocalOrderEvent(_message.Message):
+    __slots__ = ("sequence", "event_id", "order_id", "kind", "recorded_at", "document")
+    SEQUENCE_FIELD_NUMBER: _ClassVar[int]
+    EVENT_ID_FIELD_NUMBER: _ClassVar[int]
+    ORDER_ID_FIELD_NUMBER: _ClassVar[int]
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    RECORDED_AT_FIELD_NUMBER: _ClassVar[int]
+    DOCUMENT_FIELD_NUMBER: _ClassVar[int]
+    sequence: int
+    event_id: str
+    order_id: str
+    kind: str
+    recorded_at: str
+    document: _struct_pb2.Struct
+    def __init__(self, sequence: _Optional[int] = ..., event_id: _Optional[str] = ..., order_id: _Optional[str] = ..., kind: _Optional[str] = ..., recorded_at: _Optional[str] = ..., document: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...
+
+class LocalOrderPage(_message.Message):
+    __slots__ = ("orders", "next_before", "evidence_fields", "null_fields")
+    class EvidenceFieldsEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: _struct_pb2.Value
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
+    ORDERS_FIELD_NUMBER: _ClassVar[int]
+    NEXT_BEFORE_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    orders: _containers.RepeatedCompositeFieldContainer[LocalOrder]
+    next_before: int
+    evidence_fields: _containers.MessageMap[str, _struct_pb2.Value]
+    null_fields: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, orders: _Optional[_Iterable[_Union[LocalOrder, _Mapping]]] = ..., next_before: _Optional[int] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class LocalOrderDetail(_message.Message):
+    __slots__ = ("record", "events", "next_after", "evidence_fields", "null_fields")
+    class EvidenceFieldsEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: _struct_pb2.Value
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
+    RECORD_FIELD_NUMBER: _ClassVar[int]
+    EVENTS_FIELD_NUMBER: _ClassVar[int]
+    NEXT_AFTER_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    record: LocalOrder
+    events: _containers.RepeatedCompositeFieldContainer[LocalOrderEvent]
+    next_after: int
+    evidence_fields: _containers.MessageMap[str, _struct_pb2.Value]
+    null_fields: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, record: _Optional[_Union[LocalOrder, _Mapping]] = ..., events: _Optional[_Iterable[_Union[LocalOrderEvent, _Mapping]]] = ..., next_after: _Optional[int] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...

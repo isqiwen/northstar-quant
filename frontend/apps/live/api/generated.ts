@@ -314,6 +314,46 @@ export type GetApiConfigurationsResponse = (LiveConfiguration)[];
 export type GetApiStrategyMaterialsResponse = (StrategyMaterial)[];
 export type GetApiStreamsResponse = (StreamSummary)[];
 export type GetApiStreamsStreamIdEventsResponse = (StreamEvent)[];
+export type OrderReservation = {
+  reserved_fee: string;
+  reserved_margin: string;
+  reserved_gross: string;
+  reserved_loss: string;
+  reserved_close_lots: number;
+};
+export type LocalOrder = {
+  order_id: string;
+  contract_id: string;
+  authorization_id: string;
+  runtime_id: string;
+  attempt_id: string;
+  status: string;
+  quantity_lots: number;
+  filled_lots: number;
+  requires_reconciliation: boolean;
+  reservation: OrderReservation;
+  order: Record<string, JsonValue>;
+  [key: string]: unknown;
+};
+export type LocalOrderEvent = {
+  sequence: number;
+  event_id: string;
+  order_id: string;
+  kind: string;
+  recorded_at: string;
+  document: Record<string, JsonValue>;
+};
+export type LocalOrderPage = {
+  orders: (LocalOrder)[];
+  next_before: number | null;
+  [key: string]: unknown;
+};
+export type LocalOrderDetail = {
+  record: LocalOrder;
+  events: (LocalOrderEvent)[];
+  next_after: number | null;
+  [key: string]: unknown;
+};
 export type Empty = {
 };
 export type Error = {

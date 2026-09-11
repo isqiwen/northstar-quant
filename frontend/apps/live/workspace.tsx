@@ -8,6 +8,7 @@ import {
   LineChartOutlined,
   SafetyCertificateOutlined,
   DeploymentUnitOutlined,
+  OrderedListOutlined,
 } from "@ant-design/icons";
 import { Providers, Shell } from "../../shared/shell";
 import { DatasetDetail } from "../../shared/datasets";
@@ -30,6 +31,11 @@ export default function Workspace({ children }: { children: ReactNode }) {
           { key: "/", label: "运行概览", icon: <DashboardOutlined /> },
           { key: "/broker", label: "连接与账户", icon: <ApiOutlined /> },
           { key: "/streams", label: "持续行情", icon: <LineChartOutlined /> },
+          {
+            key: "/orders",
+            label: "订单与预占",
+            icon: <OrderedListOutlined />,
+          },
           {
             key: "/materials",
             label: "固定策略材料",

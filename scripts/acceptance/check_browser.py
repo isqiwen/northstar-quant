@@ -623,6 +623,7 @@ def main() -> None:
                     "Research browser: queued task completed with frontend/API/Data Hub stopped",
                     flush=True,
                 )
+                local_order = app.seed_order_journal()
                 with app.live() as owner:
                     original = app.command("status")
                     with app.web() as url:
@@ -642,6 +643,22 @@ def main() -> None:
                         visit(url + "/streams")
                         choose("本地固定配置", candidate["document"]["configuration"]["name"])
                         screenshot("received-configuration")
+                        visit(url + "/orders")
+                        expect(
+                            page.get_by_role("heading", name="订单与预占", exact=True)
+                        ).to_be_visible()
+                        expect(page.get_by_role("cell", name="UNKNOWN", exact=True)).to_be_visible()
+                        expect(page.get_by_role("cell", name="303", exact=True)).to_be_visible()
+                        screenshot("local-orders")
+                        visit(url + "/orders/" + local_order["order_id"])
+                        expect(page.get_by_text("订单结果待核对", exact=True)).to_be_visible()
+                        expect(
+                            page.get_by_role("cell", name="发送尝试已保存", exact=True)
+                        ).to_be_visible()
+                        expect(
+                            page.get_by_role("cell", name="柜台订单回报", exact=True)
+                        ).to_be_visible()
+                        screenshot("local-order-events")
                         assert app.command("status")["order_sending"] is False
                         visit(url)
                         page.get_by_role("link", name="运行诊断", exact=True).click()

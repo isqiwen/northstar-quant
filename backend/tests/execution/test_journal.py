@@ -308,3 +308,61 @@ def test_joint_restore_preserves_uncertain_attempt_without_resending(live_engine
         assert journal.working() == (order,)
     finally:
         restored.dispose()
+
+
+def test_browser_reads_exact_order_facts_and_cannot_submit(live_engine, live_web_app, tmp_path):
+    from northstar_quant.data_management.files import SourceFiles
+    from northstar_quant.data_management.library import DataLibrary
+    from tests.apps.browser import ProtocolClient, login_response
+
+    journal = OrderJournal(live_engine, uuid4())
+    order = request()
+    journal.submit(order, uuid4(), admit=lambda c: None, dispatch=lambda o: None)
+    journal.report(order.order_id, evidence_id=uuid4(), state="CANCELED", cumulative_lots=1)
+    application = live_web_app(
+        live_engine, DataLibrary(live_engine, SourceFiles(tmp_path / "files"))
+    )
+    with ProtocolClient(application, base_url="http://127.0.0.1") as http:
+        path = f"/api/orders/{order.order_id}"
+        assert http.get(path).status_code == 401
+        login_response(http)
+        listing = http.get("/api/orders").json()
+        assert listing["next_before"] is None
+        assert listing["orders"][0]["quantity_lots"] == 3
+        record = http.get(path).json()
+        assert record["record"]["status"] == "UNKNOWN"
+        assert record["record"]["reservation"]["reserved_margin"] == "303"
+        assert [event["kind"] for event in record["events"]] == [
+            "SEND_ATTEMPT",
+            "TRANSPORT_RETURNED",
+            "BROKER_REPORT",
+        ]
+        assert http.get(path + "?after=2").json()["events"] == record["events"][2:]
+        assert http.get(path + "?after=-1").status_code == 422
+        assert http.get("/api/orders?before=0").status_code == 422
+        assert http.post("/api/orders", json=order.to_dict()).status_code in {403, 405}
+        assert journal.verify_all() == 1
+
+
+def test_order_history_pages_do_not_drop_or_duplicate_facts(tmp_path):
+    engine, journal = setup_journal(tmp_path)
+    identifiers = []
+    for _ in range(102):
+        order = request()
+        identifiers.append(order.order_id)
+        journal.submit(order, uuid4(), admit=lambda c: None, dispatch=lambda o: None)
+    first = journal.list()
+    assert len(first["orders"]) == 100 and first["next_before"] is not None
+    second = journal.list(before=first["next_before"])
+    assert second["next_before"] is None
+    assert [row["order_id"] for row in first["orders"] + second["orders"]] == identifiers[::-1]
+    order_id = identifiers[-1]
+    for _ in range(101):
+        journal.report(order_id, evidence_id=uuid4(), state="ACCEPTED", cumulative_lots=0)
+    events = journal.detail(order_id)
+    assert len(events["events"]) == 100
+    following = journal.detail(order_id, after=events["next_after"])
+    assert len(following["events"]) == 3 and following["next_after"] is None
+    assert len({e["event_id"] for e in events["events"] + following["events"]}) == 103
+    assert journal.verify_all() == 102
+    engine.dispose()

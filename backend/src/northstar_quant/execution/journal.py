@@ -177,6 +177,7 @@ def _view(row: dict[str, Any]) -> dict[str, Any]:
     return {
         **row,
         "order": order.to_dict(),
+        "quantity_lots": order.quantity_lots,
         "reservation": reservation(None if row["status"] in _TERMINAL else order),
         "requires_reconciliation": row["status"] == "UNKNOWN",
     }
@@ -211,6 +212,8 @@ class OrderJournal:
     ) -> dict[str, Any]:
         if order.filled_lots or not isinstance(authorization_id, UUID):
             raise ValueError("admission requires an unfilled order and explicit authorization")
+        if str(UUID(order.order_id)) != order.order_id:
+            raise ValueError("local external order identity must be a canonical UUID")
         attempt = str(uuid4())
         with write_transaction(self._engine) as connection:
             try:
@@ -435,6 +438,50 @@ class OrderJournal:
                 )
             )
             return _view(row)
+
+    def list(self, *, before: int | None = None) -> dict[str, Any]:
+        if before is not None and (type(before) is not int or before <= 0):
+            raise ValueError("order page requires a positive cursor")
+        with self._engine.connect() as connection:
+            statement = select(_orders, _events.c.sequence).join(
+                _events, _events.c.event_id == _orders.c.attempt_id
+            )
+            if before is not None:
+                statement = statement.where(_events.c.sequence < before)
+            rows = list(
+                connection.execute(
+                    statement.order_by(_events.c.sequence.desc()).limit(101)
+                ).mappings()
+            )
+            return {
+                "orders": [
+                    _view({key: value for key, value in row.items() if key != "sequence"})
+                    for row in rows[:100]
+                ],
+                "next_before": rows[99]["sequence"] if len(rows) > 100 else None,
+            }
+
+    def detail(self, order_id: str, *, after: int = 0) -> dict[str, Any]:
+        if type(after) is not int or after < 0:
+            raise ValueError("order events require a nonnegative cursor")
+        with self._engine.connect() as connection:
+            row = _get(connection, order_id)
+            events = list(
+                connection.execute(
+                    select(_events)
+                    .where(
+                        _events.c.order_id == order_id,
+                        _events.c.sequence > after,
+                    )
+                    .order_by(_events.c.sequence)
+                    .limit(101)
+                ).mappings()
+            )
+            return {
+                "record": _view(row),
+                "events": [dict(event) for event in events[:100]],
+                "next_after": events[99]["sequence"] if len(events) > 100 else None,
+            }
 
     def working(self) -> tuple[PendingOrder, ...]:
         with self._engine.connect() as connection:

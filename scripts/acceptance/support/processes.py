@@ -109,6 +109,43 @@ class InstalledApplication:
             )
         return json.loads(completed.stdout)
 
+    def seed_order_journal(self) -> dict:
+        """Synthetic local persistence/UI evidence, never a native broker request."""
+        code = """
+import json
+from datetime import UTC, datetime, timedelta
+from decimal import Decimal
+from uuid import uuid4
+from northstar_quant.apps.storage import open_database
+from northstar_quant.execution.journal import OrderJournal
+from northstar_quant.execution.orders import PendingOrder, OrderBudget, Side, Offset
+engine = open_database()
+now = datetime.now(UTC)
+order = PendingOrder(str(uuid4()), uuid4(), now, now + timedelta(seconds=60),
+    Side.BUY, Offset.OPEN, 3, Decimal('99'), Decimal('101'), contract_id=uuid4(),
+    budget=OrderBudget(Decimal('2'), Decimal('101'), Decimal('1010'), Decimal('10')))
+journal = OrderJournal(engine, uuid4())
+journal.submit(order, uuid4(), admit=lambda connection: None, dispatch=lambda value: None)
+journal.report(order.order_id, evidence_id=uuid4(), state='CANCELED', cumulative_lots=1)
+assert journal.verify_all() == 1
+print(json.dumps({'order_id': order.order_id, 'evidence': 'SYNTHETIC_LOCAL_JOURNAL_NO_BROKER'}))
+engine.dispose()
+"""
+        completed = subprocess.run(
+            [str(Path(self.executable).parent / "python"), "-c", code],
+            cwd=self.directory,
+            env=self.live_environment,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if completed.returncode:
+            raise RuntimeError(
+                "Installed local journal setup failed: "
+                + redact(completed.stderr, self.live_environment)
+            )
+        return json.loads(completed.stdout)
+
     def seed_source(self, payload: dict, *, wait: bool = False) -> dict:
         """Synthetic acceptance setup in the installed interpreter; no upload API."""
         code = """
