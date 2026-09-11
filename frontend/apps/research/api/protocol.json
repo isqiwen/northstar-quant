@@ -1080,6 +1080,20 @@
     },
     "northstar.research.FactorRun": {
       "fields": {
+        "total": {
+          "id": 10,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "done": {
+          "id": 11,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
         "attempt_id": {
           "id": 1,
           "presence": true,
@@ -1165,6 +1179,13 @@
     },
     "northstar.research.FactorRunRequest": {
       "fields": {
+        "request_id": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
         "revision_id": {
           "id": 1,
           "presence": true,
@@ -3781,6 +3802,13 @@
       "method": "POST",
       "path": "/api/factor-runs",
       "input": "northstar.research.FactorRunRequest",
+      "output": "northstar.research.FactorRun",
+      "runtime": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/factor-runs/{attempt_id}/cancel",
+      "input": "northstar.research.PublishRequest",
       "output": "northstar.research.FactorRun",
       "runtime": false
     },

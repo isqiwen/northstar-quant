@@ -1,6 +1,6 @@
 "use client";
 import { query, mutate } from "./api/client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { App, Button, Card, Form, Input, Select, Spin, Tabs, Tag } from "antd";
 import Link from "next/link";
 import { useRouter, useParams } from "next/navigation";
@@ -150,6 +150,7 @@ export function Factor() {
   const { message } = App.useApp();
   const navigate = useRouter().push;
   const [busy, setBusy] = useState(false);
+  const requestId = useRef(crypto.randomUUID());
   return (
     <>
       <Heading
@@ -161,6 +162,9 @@ export function Factor() {
         <Card title="计算配置">
           <Form
             layout="vertical"
+            onValuesChange={() => {
+              requestId.current = crypto.randomUUID();
+            }}
             onFinish={async (v) => {
               setBusy(true);
               try {
@@ -169,6 +173,7 @@ export function Factor() {
                   parameters: v.parameters,
                 });
                 const result = await mutate("/api/factor-runs", {
+                  request_id: requestId.current,
                   revision_id: revision.revision_id,
                   snapshot_id: v.snapshot_id,
                 });
@@ -312,7 +317,16 @@ export function Configuration() {
 }
 export function FactorRun() {
   const { id } = useParams<{ id: string }>();
-  const q = useData(query(`/api/factor-runs/${id}`));
+  const [interval, setInterval] = useState(1000);
+  const q = useData(query(`/api/factor-runs/${id}`), interval);
+  useEffect(() => setInterval(1000), [id]);
+  useEffect(() => {
+    if (
+      q.data &&
+      !["QUEUED", "RUNNING", "CANCEL_REQUESTED"].includes(q.data.status)
+    )
+      setInterval(0);
+  }, [q.data]);
   const revisions = useData(query("/api/factor-revisions"));
   const { message } = App.useApp();
   const [busy, setBusy] = useState(false);
@@ -330,11 +344,30 @@ export function FactorRun() {
             <Fields
               value={{
                 状态: q.data.status,
+                进度: `${q.data.done} / ${q.data.total}`,
                 样本数: rows.length,
                 参数版本: q.data.revision_id,
               }}
             />
           </Card>
+          {["QUEUED", "RUNNING", "CANCEL_REQUESTED"].includes(
+            q.data.status,
+          ) && (
+            <Button
+              disabled={q.data.status === "CANCEL_REQUESTED"}
+              onClick={async () => {
+                try {
+                  await mutate(`/api/factor-runs/${id}/cancel`, {});
+                  q.refresh();
+                } catch (e) {
+                  message.error((e as Error).message);
+                }
+              }}
+            >
+              取消因子计算
+            </Button>
+          )}
+          {q.data.error && <p role="alert">{q.data.error}</p>}
           <Card title="因子时间序列">
             <Line
               name="因子值"

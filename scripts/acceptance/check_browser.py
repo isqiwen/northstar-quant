@@ -533,6 +533,15 @@ def main() -> None:
                     task_id = urlsplit(page.url).path.split("/")[-1]
                     expect(page.get_by_text("排队中", exact=True)).to_be_visible()
                     screenshot("queued")
+                    visit(url + "/factors/trend.return")
+                    choose("固定数据快照", learning_snapshots[0][:8])
+                    page.get_by_label("收益窗口 · bars", exact=True).fill("2")
+                    page.get_by_role("button", name="固定参数并计算", exact=True).click()
+                    page.wait_for_url(re.compile("/factor-runs/"))
+                    queued_factor_path = urlsplit(page.url).path
+                    queued_factor = queued_factor_path.rsplit("/", 1)[-1]
+                    expect(page.get_by_text("QUEUED", exact=True)).to_be_visible()
+
                 assert app.command("research", "task", task_id)["status"] == "QUEUED"
                 with app.research_worker():
                     deadline = time.monotonic() + 60
@@ -546,7 +555,28 @@ def main() -> None:
                         }, completed_task
                         time.sleep(0.2)
                     assert completed_task["status"] == "SUCCEEDED", completed_task
+                    import sqlite3
+
+                    # The two Web processes and Data Hub remain stopped. Inspect only
+                    # the durable completion marker, then verify result through the API.
+                    with sqlite3.connect(
+                        f"file:{app.environment['NORTHSTAR_RESEARCH_DATABASE']}?mode=ro", uri=True
+                    ) as connection:
+                        while time.monotonic() < deadline:
+                            state = connection.execute(
+                                "SELECT status FROM factor_runs WHERE attempt_id=?",
+                                (queued_factor.replace("-", ""),),
+                            ).fetchone()[0]
+                            if state not in {"QUEUED", "RUNNING"}:
+                                break
+                            time.sleep(0.1)
+                        assert state == "SUCCEEDED", state
+
                 with app.web("research-api") as url:
+                    visit(url + queued_factor_path)
+                    expect(page.get_by_text("SUCCEEDED", exact=True)).to_be_visible()
+                    expect(page.get_by_text("仅描述性分析", exact=True).first).to_be_visible()
+                    screenshot("factor-completed-offline")
                     visit(url + "/tasks/" + task_id)
                     expect(
                         page.get_by_role("button", name="查看研究报告", exact=True)

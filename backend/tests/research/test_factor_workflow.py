@@ -33,14 +33,18 @@ def test_factor_revisions_causal_results_references_and_candidate_survive_reopen
     binding = dict(config.strategy.factors)["momentum"]
     identity = catalog.register(binding)
     assert catalog.register(binding) == identity
-    calculated = catalog.calculate(identity, dataset.snapshot_id)
+    job = catalog.submit(identity, dataset.snapshot_id, uuid4())
+    assert catalog.claim(UUID(job["attempt_id"]))
+    calculated = catalog.execute(UUID(job["attempt_id"]))
     assert calculated["status"] == "SUCCEEDED"
     assert calculated["result"]["values"][0]["status"] == "WARMING_UP"
     assert calculated["result"]["values"][1]["status"] == "READY"
     changed = Binding.create("trend.return", {"window_bars": 2})
     changed_id = catalog.register(changed)
     assert changed_id != identity
-    other = catalog.calculate(changed_id, dataset.snapshot_id)
+    job = catalog.submit(changed_id, dataset.snapshot_id, uuid4())
+    assert catalog.claim(UUID(job["attempt_id"]))
+    other = catalog.execute(UUID(job["attempt_id"]))
     assert other["result"]["values"][1]["status"] == "WARMING_UP"
     catalog.annotate(identity, "人工说明，不改变公式或结果")
     assert catalog.get(UUID(calculated["attempt_id"])) == calculated
@@ -92,7 +96,9 @@ def test_factor_revisions_causal_results_references_and_candidate_survive_reopen
         raise ValueError("bounded calculation failed")
 
     monkeypatch.setattr("northstar_quant.research.factor_catalog.evaluate", broken)
-    failed = catalog.calculate(failing_id, dataset.snapshot_id)
+    job = catalog.submit(failing_id, dataset.snapshot_id, uuid4())
+    assert catalog.claim(UUID(job["attempt_id"]))
+    failed = catalog.execute(UUID(job["attempt_id"]))
     assert failed["status"] == "FAILED" and failed["result"] is None
     with pytest.raises(LookupError):
         operations.run(uuid4(), config)
@@ -112,10 +118,14 @@ def test_http_catalog_and_exact_parameter_versions_use_same_business_operations(
         revision = client.post("/api/factor-revisions", json=payload).json()["revision_id"]
         calculated = client.post(
             "/api/factor-runs",
-            json={"revision_id": revision, "snapshot_id": str(dataset.snapshot_id)},
+            json={
+                "revision_id": revision,
+                "snapshot_id": str(dataset.snapshot_id),
+                "request_id": str(uuid4()),
+            },
         )
-        assert calculated.status_code == 201, calculated.text
-        assert calculated.json()["status"] == "SUCCEEDED"
+        assert calculated.status_code == 202, calculated.text
+        assert calculated.json()["status"] == "QUEUED"
         config = ResearchConfig(
             strategy=StrategyConfig.create(
                 "mean_reversion.range",

@@ -29,6 +29,7 @@ class AnnotationRequest(ApiModel):
 
 
 class FactorRunRequest(ApiModel):
+    request_id: UUIDText
     revision_id: str
     snapshot_id: UUIDText
 
@@ -154,6 +155,8 @@ class FactorResult(ApiModel):
 
 
 class FactorRun(EvidenceRecord):
+    total: int
+    done: int
     attempt_id: str
     revision_id: str
     snapshot_id: str
@@ -260,7 +263,7 @@ def register(
 
     @app.post(
         "/api/factor-runs",
-        status_code=201,
+        status_code=202,
         response_model=FactorRun,
         response_model_exclude_unset=True,
     )
@@ -268,8 +271,22 @@ def register(
         access.protect(request)
         body = document.model_dump(mode="json", exclude_unset=True)
         return await run_in_threadpool(
-            catalog.calculate, str(body["revision_id"]), UUID(str(body["snapshot_id"]))
+            catalog.submit,
+            str(body["revision_id"]),
+            UUID(str(body["snapshot_id"])),
+            UUID(str(body["request_id"])),
         )
+
+    @app.post(
+        "/api/factor-runs/{attempt_id}/cancel",
+        response_model=FactorRun,
+        response_model_exclude_unset=True,
+    )
+    def cancel_factor(
+        attempt_id: UUID, request: Request, document: PublishRequest
+    ) -> dict[str, object]:
+        access.protect(request)
+        return catalog.cancel(attempt_id)
 
     @app.get(
         "/api/strategy-versions",

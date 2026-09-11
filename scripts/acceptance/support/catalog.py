@@ -1,6 +1,8 @@
 """Fixed Research material acceptance through installed, authenticated HTTP."""
 
 import json
+from time import monotonic, sleep
+from uuid import uuid4
 
 
 def check_catalog(request, url, snapshot_id, configuration, run_id):
@@ -11,7 +13,14 @@ def check_catalog(request, url, snapshot_id, configuration, run_id):
         "/api/factor-revisions",
         {"factor_id": "trend.return", "parameters": {"window_bars": 2}},
     )["revision_id"]
-    factor = api("/api/factor-runs", {"revision_id": revision, "snapshot_id": snapshot_id})
+    factor = api(
+        "/api/factor-runs",
+        {"revision_id": revision, "snapshot_id": snapshot_id, "request_id": str(uuid4())},
+    )
+    deadline = monotonic() + 30
+    while factor["status"] in {"QUEUED", "RUNNING"} and monotonic() < deadline:
+        sleep(0.1)
+        factor = api("/api/factor-runs/" + factor["attempt_id"])
     assert factor["status"] == "SUCCEEDED"
     api(f"/api/factor-revisions/{revision}/annotations", {"description": "Installed acceptance"})
     version = api(

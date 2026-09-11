@@ -374,7 +374,7 @@ class FactorRevisionRequest(_message.Message):
     def __init__(self, factor_id: _Optional[str] = ..., parameters: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...
 
 class FactorRun(_message.Message):
-    __slots__ = ("attempt_id", "code_revision", "completed_at", "created_at", "error", "result", "revision_id", "snapshot_id", "status", "evidence_fields", "null_fields")
+    __slots__ = ("total", "done", "attempt_id", "code_revision", "completed_at", "created_at", "error", "result", "revision_id", "snapshot_id", "status", "evidence_fields", "null_fields")
     class EvidenceFieldsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -382,6 +382,8 @@ class FactorRun(_message.Message):
         key: str
         value: _struct_pb2.Value
         def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
+    TOTAL_FIELD_NUMBER: _ClassVar[int]
+    DONE_FIELD_NUMBER: _ClassVar[int]
     ATTEMPT_ID_FIELD_NUMBER: _ClassVar[int]
     CODE_REVISION_FIELD_NUMBER: _ClassVar[int]
     COMPLETED_AT_FIELD_NUMBER: _ClassVar[int]
@@ -393,6 +395,8 @@ class FactorRun(_message.Message):
     STATUS_FIELD_NUMBER: _ClassVar[int]
     EVIDENCE_FIELDS_FIELD_NUMBER: _ClassVar[int]
     NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    total: int
+    done: int
     attempt_id: str
     code_revision: str
     completed_at: str
@@ -404,15 +408,17 @@ class FactorRun(_message.Message):
     status: str
     evidence_fields: _containers.MessageMap[str, _struct_pb2.Value]
     null_fields: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, attempt_id: _Optional[str] = ..., code_revision: _Optional[str] = ..., completed_at: _Optional[str] = ..., created_at: _Optional[str] = ..., error: _Optional[str] = ..., result: _Optional[_Union[FactorResult, _Mapping]] = ..., revision_id: _Optional[str] = ..., snapshot_id: _Optional[str] = ..., status: _Optional[str] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+    def __init__(self, total: _Optional[int] = ..., done: _Optional[int] = ..., attempt_id: _Optional[str] = ..., code_revision: _Optional[str] = ..., completed_at: _Optional[str] = ..., created_at: _Optional[str] = ..., error: _Optional[str] = ..., result: _Optional[_Union[FactorResult, _Mapping]] = ..., revision_id: _Optional[str] = ..., snapshot_id: _Optional[str] = ..., status: _Optional[str] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class FactorRunRequest(_message.Message):
-    __slots__ = ("revision_id", "snapshot_id")
+    __slots__ = ("request_id", "revision_id", "snapshot_id")
+    REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
     REVISION_ID_FIELD_NUMBER: _ClassVar[int]
     SNAPSHOT_ID_FIELD_NUMBER: _ClassVar[int]
+    request_id: str
     revision_id: str
     snapshot_id: str
-    def __init__(self, revision_id: _Optional[str] = ..., snapshot_id: _Optional[str] = ...) -> None: ...
+    def __init__(self, request_id: _Optional[str] = ..., revision_id: _Optional[str] = ..., snapshot_id: _Optional[str] = ...) -> None: ...
 
 class FactorSummary(_message.Message):
     __slots__ = ("capabilities", "category", "description", "factor_id", "limitations", "name")

@@ -299,9 +299,10 @@ def main() -> None:
                         request(f"{research_url}/api/runs/{submitted['run_id']}")
                     )
                     assert submitted_run["result"]["summary"] == summary
-                    catalog_evidence = check_catalog(
-                        request, research_url, snapshot_id, configuration, run_id
-                    )
+                    with application.research_worker():
+                        catalog_evidence = check_catalog(
+                            request, research_url, snapshot_id, configuration, run_id
+                        )
                     assert json.loads(request(f"{research_url}/api/runs/{run_id}")) == saved
                     assert request(f"{base_url}/health/ready")
                     assert (

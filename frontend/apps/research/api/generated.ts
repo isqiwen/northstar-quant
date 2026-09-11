@@ -170,6 +170,8 @@ export type FactorRevisionRequest = {
   parameters: Record<string, JsonValue>;
 };
 export type FactorRun = {
+  total: number;
+  done: number;
   attempt_id: string;
   code_revision: string;
   completed_at: string | null;
@@ -182,6 +184,7 @@ export type FactorRun = {
   [key: string]: unknown;
 };
 export type FactorRunRequest = {
+  request_id: string;
   revision_id: string;
   snapshot_id: string;
 };

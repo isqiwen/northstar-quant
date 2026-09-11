@@ -11,10 +11,12 @@ import sys
 from pathlib import Path
 from threading import Event
 from time import monotonic
+from uuid import UUID
 
 from northstar_quant.data_management.publications import PublishedDatasets
 from northstar_quant.logging_ import configure
 from northstar_quant.research.experiments import Experiments
+from northstar_quant.research.factor_catalog import FactorCatalog
 from northstar_quant.research.storage import open_store, require_current
 from northstar_quant.research.tasks.resources import capacity
 from northstar_quant.research.tasks.store import TaskStore
@@ -26,7 +28,7 @@ def run() -> None:
     signal.signal(signal.SIGINT, lambda *_: stop.set())
     logs = configure("research", "worker")
     engine = open_store()
-    children: dict[subprocess.Popen[bytes], tuple[str, int]] = {}
+    children: dict[subprocess.Popen[bytes], tuple[str, int, str]] = {}
     lock_path = Path(os.environ["NORTHSTAR_RESEARCH_DATABASE"]).with_suffix(".worker.lock")
     try:
         require_current(engine)
@@ -38,10 +40,16 @@ def run() -> None:
             store = TaskStore(engine)
             experiments = Experiments(engine)
             store.recover()
+            factors = FactorCatalog(engine, PublishedDatasets.from_environment())
+            factors.interrupt()
             next_experiments = 0.0
             while not stop.is_set():
-                for process, (identity, budget) in list(children.items()):
+                for process, (identity, budget, kind) in list(children.items()):
                     if process.poll() is None:
+                        continue
+                    if kind == "factor":
+                        factors.interrupt(UUID(identity))
+                        del children[process]
                         continue
                     completed_task = store.get(identity)
                     if completed_task["status"] in {"RUNNING", "CANCEL_REQUESTED", "FINALIZING"}:
@@ -58,6 +66,13 @@ def run() -> None:
                             break  # one bounded fit per pass; keep child supervision responsive
                     next_experiments = monotonic() + 2.0
                 task = store.queued()
+                kind = "backtest"
+                factor = factors.queued()
+                if factor is not None and (
+                    task is None or factor["created_at"] < task["created_at"]
+                ):
+                    task = factor
+                    kind = "factor"
                 if task:
                     # Initial conservative budget includes Python/Arrow and retained result facts.
                     # Memory/disk availability, not a fixed fraction of the host, gates admission.
@@ -69,8 +84,15 @@ def run() -> None:
                         and available > budget + reserved + 128 * 1024**2
                         and disk > budget
                     ):
-                        claimed = store.claim()
+                        claimed = (
+                            store.claim()
+                            if kind == "backtest"
+                            else (task if factors.claim(UUID(task["attempt_id"])) else None)
+                        )
                         if claimed is not None:
+                            identity = (
+                                claimed["task_id"] if kind == "backtest" else claimed["attempt_id"]
+                            )
                             environment = {
                                 k: v
                                 for k, v in os.environ.items()
@@ -86,13 +108,14 @@ def run() -> None:
                                     sys.executable,
                                     "-m",
                                     "northstar_quant.apps.research.worker",
-                                    claimed["task_id"],
+                                    kind,
+                                    identity,
                                 ],
                                 env=environment,
                                 pass_fds=(lock.fileno(),),
                             )
-                            children[process] = (claimed["task_id"], budget)
-                    else:
+                            children[process] = (identity, budget, kind)
+                    elif kind == "backtest":
                         store.waiting(
                             task["task_id"], "等待可用 CPU、内存或本机磁盘；保持管理与取消可用"
                         )
@@ -106,6 +129,7 @@ def run() -> None:
                     process.kill()
                     process.wait()
             store.recover()
+            factors.interrupt()
     finally:
         engine.dispose()
         logging.getLogger(__name__).info("Research worker stopped")
@@ -115,4 +139,11 @@ def run() -> None:
 if __name__ == "__main__":
     from northstar_quant.research.tasks.execution import child
 
-    child(sys.argv[1])
+    if sys.argv[1] == "backtest":
+        child(sys.argv[2])
+    elif sys.argv[1] == "factor":
+        from northstar_quant.research.factor_execution import child as factor_child
+
+        factor_child(UUID(sys.argv[2]))
+    else:
+        raise ValueError("unknown research job kind")

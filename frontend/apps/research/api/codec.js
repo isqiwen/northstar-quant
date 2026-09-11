@@ -12026,6 +12026,8 @@ export const northstar = $root.northstar = (() => {
             /**
              * Properties of a FactorRun.
              * @typedef {Object} northstar.research.FactorRun.$Properties
+             * @property {number|Long|null} [total] FactorRun total
+             * @property {number|Long|null} [done] FactorRun done
              * @property {string|null} [attempt_id] FactorRun attempt_id
              * @property {string|null} [code_revision] FactorRun code_revision
              * @property {string|null} [completed_at] FactorRun completed_at
@@ -12037,6 +12039,8 @@ export const northstar = $root.northstar = (() => {
              * @property {string|null} [status] FactorRun status
              * @property {Object.<string,google.protobuf.Value.$Properties>|null} [evidence_fields] FactorRun evidence_fields
              * @property {Array.<string>|null} [null_fields] FactorRun null_fields
+             * @property {"total"} [_total] FactorRun _total
+             * @property {"done"} [_done] FactorRun _done
              * @property {"attempt_id"} [_attempt_id] FactorRun _attempt_id
              * @property {"code_revision"} [_code_revision] FactorRun _code_revision
              * @property {"completed_at"} [_completed_at] FactorRun _completed_at
@@ -12060,6 +12064,8 @@ export const northstar = $root.northstar = (() => {
             /**
              * Narrowed shape of a FactorRun.
              * @typedef {{
+             *   total?: number|Long|null;
+             *   done?: number|Long|null;
              *   attempt_id?: string|null;
              *   code_revision?: string|null;
              *   completed_at?: string|null;
@@ -12073,6 +12079,10 @@ export const northstar = $root.northstar = (() => {
              *   null_fields?: Array.<string>|null;
              *   $unknowns?: Array.<Uint8Array>;
              * } & (
+             *   ({ _total?: undefined; total?: null }|{ _total?: "total"; total: number|Long })
+             * ) & (
+             *   ({ _done?: undefined; done?: null }|{ _done?: "done"; done: number|Long })
+             * ) & (
              *   ({ _attempt_id?: undefined; attempt_id?: null }|{ _attempt_id?: "attempt_id"; attempt_id: string })
              * ) & (
              *   ({ _code_revision?: undefined; code_revision?: null }|{ _code_revision?: "code_revision"; code_revision: string })
@@ -12109,6 +12119,22 @@ export const northstar = $root.northstar = (() => {
                         if (properties[keys[i]] != null && keys[i] !== "__proto__")
                             this[keys[i]] = properties[keys[i]];
             };
+
+            /**
+             * FactorRun total.
+             * @member {number|Long|null|undefined} total
+             * @memberof northstar.research.FactorRun
+             * @instance
+             */
+            FactorRun.prototype.total = null;
+
+            /**
+             * FactorRun done.
+             * @member {number|Long|null|undefined} done
+             * @memberof northstar.research.FactorRun
+             * @instance
+             */
+            FactorRun.prototype.done = null;
 
             /**
              * FactorRun attempt_id.
@@ -12200,6 +12226,28 @@ export const northstar = $root.northstar = (() => {
 
             // OneOf field names bound to virtual getters and setters
             let $oneOfFields;
+
+            /**
+             * FactorRun _total.
+             * @member {"total"|undefined} _total
+             * @memberof northstar.research.FactorRun
+             * @instance
+             */
+            $Object.defineProperty(FactorRun.prototype, "_total", {
+                get: $util.oneOfGetter($oneOfFields = ["total"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * FactorRun _done.
+             * @member {"done"|undefined} _done
+             * @memberof northstar.research.FactorRun
+             * @instance
+             */
+            $Object.defineProperty(FactorRun.prototype, "_done", {
+                get: $util.oneOfGetter($oneOfFields = ["done"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
 
             /**
              * FactorRun _attempt_id.
@@ -12350,6 +12398,10 @@ export const northstar = $root.northstar = (() => {
                     writer.uint32(/* id 8, wireType 2 =*/66).string(message.snapshot_id);
                 if (message.status != null && $Object.hasOwnProperty.call(message, "status"))
                     writer.uint32(/* id 9, wireType 2 =*/74).string(message.status);
+                if (message.total != null && $Object.hasOwnProperty.call(message, "total"))
+                    writer.uint32(/* id 10, wireType 0 =*/80).int64(message.total);
+                if (message.done != null && $Object.hasOwnProperty.call(message, "done"))
+                    writer.uint32(/* id 11, wireType 0 =*/88).int64(message.done);
                 if (message.evidence_fields != null && $Object.hasOwnProperty.call(message, "evidence_fields"))
                     for (let keys = $Object.keys(message.evidence_fields), i = 0; i < keys.length; ++i) {
                         writer.uint32(/* id 1000, wireType 2 =*/8002).fork().uint32(/* id 1, wireType 2 =*/10).string(keys[i]);
@@ -12402,6 +12454,20 @@ export const northstar = $root.northstar = (() => {
                     }
                     let wireType = tag & 7;
                     switch (tag >>>= 3) {
+                    case 10: {
+                            if (wireType !== 0)
+                                break;
+                            message.total = reader.int64();
+                            message._total = "total";
+                            continue;
+                        }
+                    case 11: {
+                            if (wireType !== 0)
+                                break;
+                            message.done = reader.int64();
+                            message._done = "done";
+                            continue;
+                        }
                     case 1: {
                             if (wireType !== 2)
                                 break;
@@ -12542,6 +12608,16 @@ export const northstar = $root.northstar = (() => {
                 if (_depth > $util.recursionLimit)
                     return "max depth exceeded";
                 let properties = {};
+                if (message.total != null && $Object.hasOwnProperty.call(message, "total")) {
+                    properties._total = 1;
+                    if (!$util.isInteger(message.total) && !(message.total && $util.isInteger(message.total.low) && $util.isInteger(message.total.high)))
+                        return "total: integer|Long expected";
+                }
+                if (message.done != null && $Object.hasOwnProperty.call(message, "done")) {
+                    properties._done = 1;
+                    if (!$util.isInteger(message.done) && !(message.done && $util.isInteger(message.done.low) && $util.isInteger(message.done.high)))
+                        return "done: integer|Long expected";
+                }
                 if (message.attempt_id != null && $Object.hasOwnProperty.call(message, "attempt_id")) {
                     properties._attempt_id = 1;
                     if (!$util.isString(message.attempt_id))
@@ -12628,6 +12704,24 @@ export const northstar = $root.northstar = (() => {
                 if (_depth > $util.recursionLimit)
                     throw $Error("max depth exceeded");
                 let message = new $root.northstar.research.FactorRun();
+                if (object.total != null)
+                    if ($util.Long)
+                        message.total = $util.Long.fromValue(object.total, false);
+                    else if (typeof object.total === "string")
+                        message.total = $parseInt(object.total, 10);
+                    else if (typeof object.total === "number")
+                        message.total = object.total;
+                    else if (typeof object.total === "object")
+                        message.total = new $util.LongBits(object.total.low >>> 0, object.total.high >>> 0).toNumber();
+                if (object.done != null)
+                    if ($util.Long)
+                        message.done = $util.Long.fromValue(object.done, false);
+                    else if (typeof object.done === "string")
+                        message.done = $parseInt(object.done, 10);
+                    else if (typeof object.done === "number")
+                        message.done = object.done;
+                    else if (typeof object.done === "object")
+                        message.done = new $util.LongBits(object.done.low >>> 0, object.done.high >>> 0).toNumber();
                 if (object.attempt_id != null)
                     message.attempt_id = $String(object.attempt_id);
                 if (object.code_revision != null)
@@ -12737,6 +12831,26 @@ export const northstar = $root.northstar = (() => {
                     if (options.oneofs)
                         object._status = "status";
                 }
+                if (message.total != null && $Object.hasOwnProperty.call(message, "total")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.total = typeof message.total === "number" ? $BigInt(message.total) : $util.Long.fromBits(message.total.low >>> 0, message.total.high >>> 0, false).toBigInt();
+                    else if (typeof message.total === "number")
+                        object.total = options.longs === $String ? $String(message.total) : message.total;
+                    else
+                        object.total = options.longs === $String ? $util.Long.prototype.toString.call(message.total) : options.longs === $Number ? new $util.LongBits(message.total.low >>> 0, message.total.high >>> 0).toNumber() : message.total;
+                    if (options.oneofs)
+                        object._total = "total";
+                }
+                if (message.done != null && $Object.hasOwnProperty.call(message, "done")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.done = typeof message.done === "number" ? $BigInt(message.done) : $util.Long.fromBits(message.done.low >>> 0, message.done.high >>> 0, false).toBigInt();
+                    else if (typeof message.done === "number")
+                        object.done = options.longs === $String ? $String(message.done) : message.done;
+                    else
+                        object.done = options.longs === $String ? $util.Long.prototype.toString.call(message.done) : options.longs === $Number ? new $util.LongBits(message.done.low >>> 0, message.done.high >>> 0).toNumber() : message.done;
+                    if (options.oneofs)
+                        object._done = "done";
+                }
                 let keys2;
                 if (message.evidence_fields && (keys2 = $Object.keys(message.evidence_fields)).length) {
                     object.evidence_fields = {};
@@ -12787,8 +12901,10 @@ export const northstar = $root.northstar = (() => {
             /**
              * Properties of a FactorRunRequest.
              * @typedef {Object} northstar.research.FactorRunRequest.$Properties
+             * @property {string|null} [request_id] FactorRunRequest request_id
              * @property {string|null} [revision_id] FactorRunRequest revision_id
              * @property {string|null} [snapshot_id] FactorRunRequest snapshot_id
+             * @property {"request_id"} [_request_id] FactorRunRequest _request_id
              * @property {"revision_id"} [_revision_id] FactorRunRequest _revision_id
              * @property {"snapshot_id"} [_snapshot_id] FactorRunRequest _snapshot_id
              * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
@@ -12805,10 +12921,13 @@ export const northstar = $root.northstar = (() => {
             /**
              * Narrowed shape of a FactorRunRequest.
              * @typedef {{
+             *   request_id?: string|null;
              *   revision_id?: string|null;
              *   snapshot_id?: string|null;
              *   $unknowns?: Array.<Uint8Array>;
              * } & (
+             *   ({ _request_id?: undefined; request_id?: null }|{ _request_id?: "request_id"; request_id: string })
+             * ) & (
              *   ({ _revision_id?: undefined; revision_id?: null }|{ _revision_id?: "revision_id"; revision_id: string })
              * ) & (
              *   ({ _snapshot_id?: undefined; snapshot_id?: null }|{ _snapshot_id?: "snapshot_id"; snapshot_id: string })
@@ -12831,6 +12950,14 @@ export const northstar = $root.northstar = (() => {
             };
 
             /**
+             * FactorRunRequest request_id.
+             * @member {string|null|undefined} request_id
+             * @memberof northstar.research.FactorRunRequest
+             * @instance
+             */
+            FactorRunRequest.prototype.request_id = null;
+
+            /**
              * FactorRunRequest revision_id.
              * @member {string|null|undefined} revision_id
              * @memberof northstar.research.FactorRunRequest
@@ -12848,6 +12975,17 @@ export const northstar = $root.northstar = (() => {
 
             // OneOf field names bound to virtual getters and setters
             let $oneOfFields;
+
+            /**
+             * FactorRunRequest _request_id.
+             * @member {"request_id"|undefined} _request_id
+             * @memberof northstar.research.FactorRunRequest
+             * @instance
+             */
+            $Object.defineProperty(FactorRunRequest.prototype, "_request_id", {
+                get: $util.oneOfGetter($oneOfFields = ["request_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
 
             /**
              * FactorRunRequest _revision_id.
@@ -12907,6 +13045,8 @@ export const northstar = $root.northstar = (() => {
                     writer.uint32(/* id 1, wireType 2 =*/10).string(message.revision_id);
                 if (message.snapshot_id != null && $Object.hasOwnProperty.call(message, "snapshot_id"))
                     writer.uint32(/* id 2, wireType 2 =*/18).string(message.snapshot_id);
+                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id"))
+                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.request_id);
                 if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
                     for (let i = 0; i < message.$unknowns.length; ++i)
                         writer.raw(message.$unknowns[i]);
@@ -12951,6 +13091,13 @@ export const northstar = $root.northstar = (() => {
                     }
                     let wireType = tag & 7;
                     switch (tag >>>= 3) {
+                    case 3: {
+                            if (wireType !== 2)
+                                break;
+                            message.request_id = reader.stringVerify();
+                            message._request_id = "request_id";
+                            continue;
+                        }
                     case 1: {
                             if (wireType !== 2)
                                 break;
@@ -12998,6 +13145,11 @@ export const northstar = $root.northstar = (() => {
                 if (_depth > $util.recursionLimit)
                     return "max depth exceeded";
                 let properties = {};
+                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id")) {
+                    properties._request_id = 1;
+                    if (!$util.isString(message.request_id))
+                        return "request_id: string expected";
+                }
                 if (message.revision_id != null && $Object.hasOwnProperty.call(message, "revision_id")) {
                     properties._revision_id = 1;
                     if (!$util.isString(message.revision_id))
@@ -13029,6 +13181,8 @@ export const northstar = $root.northstar = (() => {
                 if (_depth > $util.recursionLimit)
                     throw $Error("max depth exceeded");
                 let message = new $root.northstar.research.FactorRunRequest();
+                if (object.request_id != null)
+                    message.request_id = $String(object.request_id);
                 if (object.revision_id != null)
                     message.revision_id = $String(object.revision_id);
                 if (object.snapshot_id != null)
@@ -13062,6 +13216,11 @@ export const northstar = $root.northstar = (() => {
                     object.snapshot_id = message.snapshot_id;
                     if (options.oneofs)
                         object._snapshot_id = "snapshot_id";
+                }
+                if (message.request_id != null && $Object.hasOwnProperty.call(message, "request_id")) {
+                    object.request_id = message.request_id;
+                    if (options.oneofs)
+                        object._request_id = "request_id";
                 }
                 return object;
             };

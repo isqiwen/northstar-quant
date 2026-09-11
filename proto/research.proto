@@ -203,6 +203,8 @@ message FactorRevisionRequest {
 }
 
 message FactorRun {
+  optional int64 total = 10 [json_name = "total", (northstar.web.required_field) = true];
+  optional int64 done = 11 [json_name = "done", (northstar.web.required_field) = true];
   option (northstar.web.evidence) = true;
   optional string attempt_id = 1 [json_name = "attempt_id", (northstar.web.required_field) = true];
   optional string code_revision = 2 [json_name = "code_revision", (northstar.web.required_field) = true];
@@ -218,6 +220,7 @@ message FactorRun {
 }
 
 message FactorRunRequest {
+  optional string request_id = 3 [json_name = "request_id", (northstar.web.required_field) = true];
   optional string revision_id = 1 [json_name = "revision_id", (northstar.web.required_field) = true];
   optional string snapshot_id = 2 [json_name = "snapshot_id", (northstar.web.required_field) = true];
 }
@@ -649,6 +652,10 @@ service BrowserApi {
   rpc PostApiFactorRuns (FactorRunRequest) returns (FactorRun) {
     option (northstar.web.http_method) = "POST";
     option (northstar.web.http_path) = "/api/factor-runs";
+  }
+  rpc PostApiFactorRunsCancel (PublishRequest) returns (FactorRun) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/factor-runs/{attempt_id}/cancel";
   }
   rpc GetApiFactorRunsAttemptId (northstar.web.Empty) returns (FactorRun) {
     option (northstar.web.http_method) = "GET";
