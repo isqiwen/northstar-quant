@@ -1,4 +1,5 @@
 "use client";
+import { Performance } from "./reports/performance";
 import { query } from "./api/client";
 import { Alert, Card, Descriptions, Spin, Tabs } from "antd";
 import { useParams } from "next/navigation";
@@ -60,6 +61,11 @@ export function Report() {
             <Tabs
               items={[
                 {
+                  key: "performance",
+                  label: "收益与回撤分析",
+                  children: <Performance value={result.performance} />,
+                },
+                {
                   key: "ledger",
                   label: "资金与持仓",
                   children: (
@@ -96,6 +102,13 @@ export function Report() {
                         size="small"
                         column={{ xs: 1, sm: 1, md: 2 }}
                         items={[
+                          {
+                            key: "performance",
+                            label: "收益与回撤分析",
+                            children: (
+                              <Performance value={result.performance} />
+                            ),
+                          },
                           {
                             label: "评价身份",
                             children: (

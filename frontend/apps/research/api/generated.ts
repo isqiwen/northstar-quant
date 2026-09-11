@@ -297,6 +297,7 @@ export type ResearchConfigurationInput = {
   strategy?: JsonValue | null;
 };
 export type ResearchResultDocument = {
+  performance: PerformanceReport;
   evaluation: EvaluationResult;
   orders: (Record<string, JsonValue>)[];
   data: DatasetDetails | null;
@@ -513,6 +514,41 @@ export type EvaluationResult = {
   annualized_return: string | null;
   sharpe: string | null;
   limitations: (string)[];
+};
+export type PerformancePeriod = {
+  period: string;
+  start_at: string;
+  end_at: string;
+  opening_equity: string;
+  closing_equity: string;
+  pnl: string;
+  return_fraction: string | null;
+  observations: number;
+};
+export type DrawdownPeriod = {
+  peak_at: string;
+  start_at: string;
+  trough_at: string;
+  end_at: string;
+  peak_equity: string;
+  trough_equity: string;
+  drawdown: string;
+  drawdown_fraction: string;
+  elapsed_seconds: string;
+  recovered: boolean;
+};
+export type RollingReturn = {
+  start_day: string;
+  end_day: string;
+  observed_days: number;
+  return_fraction: string | null;
+};
+export type PerformanceReport = {
+  daily: (PerformancePeriod)[];
+  monthly: (PerformancePeriod)[];
+  drawdowns: (DrawdownPeriod)[];
+  rolling: (RollingReturn)[];
+  basis: string;
 };
 export type Empty = {
 };

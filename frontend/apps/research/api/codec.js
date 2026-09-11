@@ -20559,6 +20559,7 @@ export const northstar = $root.northstar = (() => {
             /**
              * Properties of a ResearchResultDocument.
              * @typedef {Object} northstar.research.ResearchResultDocument.$Properties
+             * @property {northstar.research.PerformanceReport.$Properties|null} [performance] ResearchResultDocument performance
              * @property {northstar.research.EvaluationResult.$Properties|null} [evaluation] ResearchResultDocument evaluation
              * @property {Array.<google.protobuf.Struct.$Properties>|null} [orders] ResearchResultDocument orders
              * @property {northstar.research.DatasetDetails.$Properties|null} [data] ResearchResultDocument data
@@ -20569,6 +20570,7 @@ export const northstar = $root.northstar = (() => {
              * @property {Object.<string,google.protobuf.Value.$Properties>|null} [evidence_fields] ResearchResultDocument evidence_fields
              * @property {Array.<string>|null} [null_fields] ResearchResultDocument null_fields
              * @property {Array.<google.protobuf.Struct.$Properties>|null} [settlements] ResearchResultDocument settlements
+             * @property {"performance"} [_performance] ResearchResultDocument _performance
              * @property {"evaluation"} [_evaluation] ResearchResultDocument _evaluation
              * @property {"data"} [_data] ResearchResultDocument _data
              * @property {"summary"} [_summary] ResearchResultDocument _summary
@@ -20586,6 +20588,7 @@ export const northstar = $root.northstar = (() => {
             /**
              * Narrowed shape of a ResearchResultDocument.
              * @typedef {{
+             *   performance?: northstar.research.PerformanceReport.$Shape|null;
              *   evaluation?: northstar.research.EvaluationResult.$Shape|null;
              *   orders?: Array.<google.protobuf.Struct.$Shape>|null;
              *   data?: northstar.research.DatasetDetails.$Shape|null;
@@ -20598,6 +20601,8 @@ export const northstar = $root.northstar = (() => {
              *   settlements?: Array.<google.protobuf.Struct.$Shape>|null;
              *   $unknowns?: Array.<Uint8Array>;
              * } & (
+             *   ({ _performance?: undefined; performance?: null }|{ _performance?: "performance"; performance: northstar.research.PerformanceReport.$Shape })
+             * ) & (
              *   ({ _evaluation?: undefined; evaluation?: null }|{ _evaluation?: "evaluation"; evaluation: northstar.research.EvaluationResult.$Shape })
              * ) & (
              *   ({ _data?: undefined; data?: null }|{ _data?: "data"; data: northstar.research.DatasetDetails.$Shape })
@@ -20627,6 +20632,14 @@ export const northstar = $root.northstar = (() => {
                         if (properties[keys[i]] != null && keys[i] !== "__proto__")
                             this[keys[i]] = properties[keys[i]];
             };
+
+            /**
+             * ResearchResultDocument performance.
+             * @member {northstar.research.PerformanceReport.$Properties|null|undefined} performance
+             * @memberof northstar.research.ResearchResultDocument
+             * @instance
+             */
+            ResearchResultDocument.prototype.performance = null;
 
             /**
              * ResearchResultDocument evaluation.
@@ -20710,6 +20723,17 @@ export const northstar = $root.northstar = (() => {
 
             // OneOf field names bound to virtual getters and setters
             let $oneOfFields;
+
+            /**
+             * ResearchResultDocument _performance.
+             * @member {"performance"|undefined} _performance
+             * @memberof northstar.research.ResearchResultDocument
+             * @instance
+             */
+            $Object.defineProperty(ResearchResultDocument.prototype, "_performance", {
+                get: $util.oneOfGetter($oneOfFields = ["performance"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
 
             /**
              * ResearchResultDocument _evaluation.
@@ -20797,6 +20821,8 @@ export const northstar = $root.northstar = (() => {
                         $root.google.protobuf.Struct.encode(message.orders[i], writer.uint32(/* id 7, wireType 2 =*/58).fork(), _depth + 1).ldelim();
                 if (message.evaluation != null && $Object.hasOwnProperty.call(message, "evaluation"))
                     $root.northstar.research.EvaluationResult.encode(message.evaluation, writer.uint32(/* id 8, wireType 2 =*/66).fork(), _depth + 1).ldelim();
+                if (message.performance != null && $Object.hasOwnProperty.call(message, "performance"))
+                    $root.northstar.research.PerformanceReport.encode(message.performance, writer.uint32(/* id 9, wireType 2 =*/74).fork(), _depth + 1).ldelim();
                 if (message.evidence_fields != null && $Object.hasOwnProperty.call(message, "evidence_fields"))
                     for (let keys = $Object.keys(message.evidence_fields), i = 0; i < keys.length; ++i) {
                         writer.uint32(/* id 1000, wireType 2 =*/8002).fork().uint32(/* id 1, wireType 2 =*/10).string(keys[i]);
@@ -20849,6 +20875,13 @@ export const northstar = $root.northstar = (() => {
                     }
                     let wireType = tag & 7;
                     switch (tag >>>= 3) {
+                    case 9: {
+                            if (wireType !== 2)
+                                break;
+                            message.performance = $root.northstar.research.PerformanceReport.decode(reader, reader.uint32(), $undefined, _depth + 1, message.performance);
+                            message._performance = "performance";
+                            continue;
+                        }
                     case 8: {
                             if (wireType !== 2)
                                 break;
@@ -20987,6 +21020,14 @@ export const northstar = $root.northstar = (() => {
                 if (_depth > $util.recursionLimit)
                     return "max depth exceeded";
                 let properties = {};
+                if (message.performance != null && $Object.hasOwnProperty.call(message, "performance")) {
+                    properties._performance = 1;
+                    {
+                        let error = $root.northstar.research.PerformanceReport.verify(message.performance, _depth + 1);
+                        if (error)
+                            return "performance." + error;
+                    }
+                }
                 if (message.evaluation != null && $Object.hasOwnProperty.call(message, "evaluation")) {
                     properties._evaluation = 1;
                     {
@@ -21094,6 +21135,11 @@ export const northstar = $root.northstar = (() => {
                 if (_depth > $util.recursionLimit)
                     throw $Error("max depth exceeded");
                 let message = new $root.northstar.research.ResearchResultDocument();
+                if (object.performance != null) {
+                    if (!$util.isObject(object.performance))
+                        throw $TypeError(".northstar.research.ResearchResultDocument.performance: object expected");
+                    message.performance = $root.northstar.research.PerformanceReport.fromObject(object.performance, _depth + 1);
+                }
                 if (object.evaluation != null) {
                     if (!$util.isObject(object.evaluation))
                         throw $TypeError(".northstar.research.ResearchResultDocument.evaluation: object expected");
@@ -21247,6 +21293,11 @@ export const northstar = $root.northstar = (() => {
                     object.evaluation = $root.northstar.research.EvaluationResult.toObject(message.evaluation, options, _depth + 1);
                     if (options.oneofs)
                         object._evaluation = "evaluation";
+                }
+                if (message.performance != null && $Object.hasOwnProperty.call(message, "performance")) {
+                    object.performance = $root.northstar.research.PerformanceReport.toObject(message.performance, options, _depth + 1);
+                    if (options.oneofs)
+                        object._performance = "performance";
                 }
                 let keys2;
                 if (message.evidence_fields && (keys2 = $Object.keys(message.evidence_fields)).length) {
@@ -37307,6 +37358,2229 @@ export const northstar = $root.northstar = (() => {
             };
 
             return EvaluationResult;
+        })();
+
+        research.PerformancePeriod = (function() {
+
+            /**
+             * Properties of a PerformancePeriod.
+             * @typedef {Object} northstar.research.PerformancePeriod.$Properties
+             * @property {string|null} [period] PerformancePeriod period
+             * @property {string|null} [start_at] PerformancePeriod start_at
+             * @property {string|null} [end_at] PerformancePeriod end_at
+             * @property {string|null} [opening_equity] PerformancePeriod opening_equity
+             * @property {string|null} [closing_equity] PerformancePeriod closing_equity
+             * @property {string|null} [pnl] PerformancePeriod pnl
+             * @property {string|null} [return_fraction] PerformancePeriod return_fraction
+             * @property {number|Long|null} [observations] PerformancePeriod observations
+             * @property {Array.<string>|null} [null_fields] PerformancePeriod null_fields
+             * @property {"period"} [_period] PerformancePeriod _period
+             * @property {"start_at"} [_start_at] PerformancePeriod _start_at
+             * @property {"end_at"} [_end_at] PerformancePeriod _end_at
+             * @property {"opening_equity"} [_opening_equity] PerformancePeriod _opening_equity
+             * @property {"closing_equity"} [_closing_equity] PerformancePeriod _closing_equity
+             * @property {"pnl"} [_pnl] PerformancePeriod _pnl
+             * @property {"return_fraction"} [_return_fraction] PerformancePeriod _return_fraction
+             * @property {"observations"} [_observations] PerformancePeriod _observations
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a PerformancePeriod.
+             * @memberof northstar.research
+             * @interface IPerformancePeriod
+             * @augments northstar.research.PerformancePeriod.$Properties
+             * @deprecated Use northstar.research.PerformancePeriod.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a PerformancePeriod.
+             * @typedef {{
+             *   period?: string|null;
+             *   start_at?: string|null;
+             *   end_at?: string|null;
+             *   opening_equity?: string|null;
+             *   closing_equity?: string|null;
+             *   pnl?: string|null;
+             *   return_fraction?: string|null;
+             *   observations?: number|Long|null;
+             *   null_fields?: Array.<string>|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _period?: undefined; period?: null }|{ _period?: "period"; period: string })
+             * ) & (
+             *   ({ _start_at?: undefined; start_at?: null }|{ _start_at?: "start_at"; start_at: string })
+             * ) & (
+             *   ({ _end_at?: undefined; end_at?: null }|{ _end_at?: "end_at"; end_at: string })
+             * ) & (
+             *   ({ _opening_equity?: undefined; opening_equity?: null }|{ _opening_equity?: "opening_equity"; opening_equity: string })
+             * ) & (
+             *   ({ _closing_equity?: undefined; closing_equity?: null }|{ _closing_equity?: "closing_equity"; closing_equity: string })
+             * ) & (
+             *   ({ _pnl?: undefined; pnl?: null }|{ _pnl?: "pnl"; pnl: string })
+             * ) & (
+             *   ({ _return_fraction?: undefined; return_fraction?: null }|{ _return_fraction?: "return_fraction"; return_fraction: string })
+             * ) & (
+             *   ({ _observations?: undefined; observations?: null }|{ _observations?: "observations"; observations: number|Long })
+             * )} northstar.research.PerformancePeriod.$Shape
+             */
+
+            /**
+             * Constructs a new PerformancePeriod.
+             * @memberof northstar.research
+             * @classdesc Represents a PerformancePeriod.
+             * @constructor
+             * @param {northstar.research.PerformancePeriod.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const PerformancePeriod = function (properties) {
+                this.null_fields = [];
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * PerformancePeriod period.
+             * @member {string|null|undefined} period
+             * @memberof northstar.research.PerformancePeriod
+             * @instance
+             */
+            PerformancePeriod.prototype.period = null;
+
+            /**
+             * PerformancePeriod start_at.
+             * @member {string|null|undefined} start_at
+             * @memberof northstar.research.PerformancePeriod
+             * @instance
+             */
+            PerformancePeriod.prototype.start_at = null;
+
+            /**
+             * PerformancePeriod end_at.
+             * @member {string|null|undefined} end_at
+             * @memberof northstar.research.PerformancePeriod
+             * @instance
+             */
+            PerformancePeriod.prototype.end_at = null;
+
+            /**
+             * PerformancePeriod opening_equity.
+             * @member {string|null|undefined} opening_equity
+             * @memberof northstar.research.PerformancePeriod
+             * @instance
+             */
+            PerformancePeriod.prototype.opening_equity = null;
+
+            /**
+             * PerformancePeriod closing_equity.
+             * @member {string|null|undefined} closing_equity
+             * @memberof northstar.research.PerformancePeriod
+             * @instance
+             */
+            PerformancePeriod.prototype.closing_equity = null;
+
+            /**
+             * PerformancePeriod pnl.
+             * @member {string|null|undefined} pnl
+             * @memberof northstar.research.PerformancePeriod
+             * @instance
+             */
+            PerformancePeriod.prototype.pnl = null;
+
+            /**
+             * PerformancePeriod return_fraction.
+             * @member {string|null|undefined} return_fraction
+             * @memberof northstar.research.PerformancePeriod
+             * @instance
+             */
+            PerformancePeriod.prototype.return_fraction = null;
+
+            /**
+             * PerformancePeriod observations.
+             * @member {number|Long|null|undefined} observations
+             * @memberof northstar.research.PerformancePeriod
+             * @instance
+             */
+            PerformancePeriod.prototype.observations = null;
+
+            /**
+             * PerformancePeriod null_fields.
+             * @member {Array.<string>} null_fields
+             * @memberof northstar.research.PerformancePeriod
+             * @instance
+             */
+            PerformancePeriod.prototype.null_fields = $util.emptyArray;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * PerformancePeriod _period.
+             * @member {"period"|undefined} _period
+             * @memberof northstar.research.PerformancePeriod
+             * @instance
+             */
+            $Object.defineProperty(PerformancePeriod.prototype, "_period", {
+                get: $util.oneOfGetter($oneOfFields = ["period"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * PerformancePeriod _start_at.
+             * @member {"start_at"|undefined} _start_at
+             * @memberof northstar.research.PerformancePeriod
+             * @instance
+             */
+            $Object.defineProperty(PerformancePeriod.prototype, "_start_at", {
+                get: $util.oneOfGetter($oneOfFields = ["start_at"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * PerformancePeriod _end_at.
+             * @member {"end_at"|undefined} _end_at
+             * @memberof northstar.research.PerformancePeriod
+             * @instance
+             */
+            $Object.defineProperty(PerformancePeriod.prototype, "_end_at", {
+                get: $util.oneOfGetter($oneOfFields = ["end_at"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * PerformancePeriod _opening_equity.
+             * @member {"opening_equity"|undefined} _opening_equity
+             * @memberof northstar.research.PerformancePeriod
+             * @instance
+             */
+            $Object.defineProperty(PerformancePeriod.prototype, "_opening_equity", {
+                get: $util.oneOfGetter($oneOfFields = ["opening_equity"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * PerformancePeriod _closing_equity.
+             * @member {"closing_equity"|undefined} _closing_equity
+             * @memberof northstar.research.PerformancePeriod
+             * @instance
+             */
+            $Object.defineProperty(PerformancePeriod.prototype, "_closing_equity", {
+                get: $util.oneOfGetter($oneOfFields = ["closing_equity"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * PerformancePeriod _pnl.
+             * @member {"pnl"|undefined} _pnl
+             * @memberof northstar.research.PerformancePeriod
+             * @instance
+             */
+            $Object.defineProperty(PerformancePeriod.prototype, "_pnl", {
+                get: $util.oneOfGetter($oneOfFields = ["pnl"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * PerformancePeriod _return_fraction.
+             * @member {"return_fraction"|undefined} _return_fraction
+             * @memberof northstar.research.PerformancePeriod
+             * @instance
+             */
+            $Object.defineProperty(PerformancePeriod.prototype, "_return_fraction", {
+                get: $util.oneOfGetter($oneOfFields = ["return_fraction"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * PerformancePeriod _observations.
+             * @member {"observations"|undefined} _observations
+             * @memberof northstar.research.PerformancePeriod
+             * @instance
+             */
+            $Object.defineProperty(PerformancePeriod.prototype, "_observations", {
+                get: $util.oneOfGetter($oneOfFields = ["observations"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new PerformancePeriod instance using the specified properties.
+             * @function create
+             * @memberof northstar.research.PerformancePeriod
+             * @static
+             * @param {northstar.research.PerformancePeriod.$Properties=} [properties] Properties to set
+             * @returns {northstar.research.PerformancePeriod} PerformancePeriod instance
+             * @type {{
+             *   (properties: northstar.research.PerformancePeriod.$Shape): northstar.research.PerformancePeriod & northstar.research.PerformancePeriod.$Shape;
+             *   (properties?: northstar.research.PerformancePeriod.$Properties): northstar.research.PerformancePeriod;
+             * }}
+             */
+            PerformancePeriod.create = function(properties) {
+                return new PerformancePeriod(properties);
+            };
+
+            /**
+             * Encodes the specified PerformancePeriod message. Does not implicitly {@link northstar.research.PerformancePeriod.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.research.PerformancePeriod
+             * @static
+             * @param {northstar.research.PerformancePeriod.$Properties} message PerformancePeriod message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            PerformancePeriod.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.period != null && $Object.hasOwnProperty.call(message, "period"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.period);
+                if (message.start_at != null && $Object.hasOwnProperty.call(message, "start_at"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.start_at);
+                if (message.end_at != null && $Object.hasOwnProperty.call(message, "end_at"))
+                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.end_at);
+                if (message.opening_equity != null && $Object.hasOwnProperty.call(message, "opening_equity"))
+                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.opening_equity);
+                if (message.closing_equity != null && $Object.hasOwnProperty.call(message, "closing_equity"))
+                    writer.uint32(/* id 5, wireType 2 =*/42).string(message.closing_equity);
+                if (message.pnl != null && $Object.hasOwnProperty.call(message, "pnl"))
+                    writer.uint32(/* id 6, wireType 2 =*/50).string(message.pnl);
+                if (message.return_fraction != null && $Object.hasOwnProperty.call(message, "return_fraction"))
+                    writer.uint32(/* id 7, wireType 2 =*/58).string(message.return_fraction);
+                if (message.observations != null && $Object.hasOwnProperty.call(message, "observations"))
+                    writer.uint32(/* id 8, wireType 0 =*/64).int64(message.observations);
+                if (message.null_fields != null && message.null_fields.length)
+                    for (let i = 0; i < message.null_fields.length; ++i)
+                        writer.uint32(/* id 2046, wireType 2 =*/16370).string(message.null_fields[i]);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a PerformancePeriod message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.research.PerformancePeriod
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.research.PerformancePeriod & northstar.research.PerformancePeriod.$Shape} PerformancePeriod
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            PerformancePeriod.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.research.PerformancePeriod();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.period = reader.stringVerify();
+                            message._period = "period";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.start_at = reader.stringVerify();
+                            message._start_at = "start_at";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 2)
+                                break;
+                            message.end_at = reader.stringVerify();
+                            message._end_at = "end_at";
+                            continue;
+                        }
+                    case 4: {
+                            if (wireType !== 2)
+                                break;
+                            message.opening_equity = reader.stringVerify();
+                            message._opening_equity = "opening_equity";
+                            continue;
+                        }
+                    case 5: {
+                            if (wireType !== 2)
+                                break;
+                            message.closing_equity = reader.stringVerify();
+                            message._closing_equity = "closing_equity";
+                            continue;
+                        }
+                    case 6: {
+                            if (wireType !== 2)
+                                break;
+                            message.pnl = reader.stringVerify();
+                            message._pnl = "pnl";
+                            continue;
+                        }
+                    case 7: {
+                            if (wireType !== 2)
+                                break;
+                            message.return_fraction = reader.stringVerify();
+                            message._return_fraction = "return_fraction";
+                            continue;
+                        }
+                    case 8: {
+                            if (wireType !== 0)
+                                break;
+                            message.observations = reader.int64();
+                            message._observations = "observations";
+                            continue;
+                        }
+                    case 2046: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.null_fields && message.null_fields.length))
+                                message.null_fields = [];
+                            message.null_fields.push(reader.stringVerify());
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a PerformancePeriod message.
+             * @function verify
+             * @memberof northstar.research.PerformancePeriod
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            PerformancePeriod.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.period != null && $Object.hasOwnProperty.call(message, "period")) {
+                    properties._period = 1;
+                    if (!$util.isString(message.period))
+                        return "period: string expected";
+                }
+                if (message.start_at != null && $Object.hasOwnProperty.call(message, "start_at")) {
+                    properties._start_at = 1;
+                    if (!$util.isString(message.start_at))
+                        return "start_at: string expected";
+                }
+                if (message.end_at != null && $Object.hasOwnProperty.call(message, "end_at")) {
+                    properties._end_at = 1;
+                    if (!$util.isString(message.end_at))
+                        return "end_at: string expected";
+                }
+                if (message.opening_equity != null && $Object.hasOwnProperty.call(message, "opening_equity")) {
+                    properties._opening_equity = 1;
+                    if (!$util.isString(message.opening_equity))
+                        return "opening_equity: string expected";
+                }
+                if (message.closing_equity != null && $Object.hasOwnProperty.call(message, "closing_equity")) {
+                    properties._closing_equity = 1;
+                    if (!$util.isString(message.closing_equity))
+                        return "closing_equity: string expected";
+                }
+                if (message.pnl != null && $Object.hasOwnProperty.call(message, "pnl")) {
+                    properties._pnl = 1;
+                    if (!$util.isString(message.pnl))
+                        return "pnl: string expected";
+                }
+                if (message.return_fraction != null && $Object.hasOwnProperty.call(message, "return_fraction")) {
+                    properties._return_fraction = 1;
+                    if (!$util.isString(message.return_fraction))
+                        return "return_fraction: string expected";
+                }
+                if (message.observations != null && $Object.hasOwnProperty.call(message, "observations")) {
+                    properties._observations = 1;
+                    if (!$util.isInteger(message.observations) && !(message.observations && $util.isInteger(message.observations.low) && $util.isInteger(message.observations.high)))
+                        return "observations: integer|Long expected";
+                }
+                if (message.null_fields != null && $Object.hasOwnProperty.call(message, "null_fields")) {
+                    if (!$Array.isArray(message.null_fields))
+                        return "null_fields: array expected";
+                    for (let i = 0; i < message.null_fields.length; ++i)
+                        if (!$util.isString(message.null_fields[i]))
+                            return "null_fields: string[] expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a PerformancePeriod message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.research.PerformancePeriod
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.research.PerformancePeriod} PerformancePeriod
+             */
+            PerformancePeriod.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.research.PerformancePeriod)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.research.PerformancePeriod: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.research.PerformancePeriod();
+                if (object.period != null)
+                    message.period = $String(object.period);
+                if (object.start_at != null)
+                    message.start_at = $String(object.start_at);
+                if (object.end_at != null)
+                    message.end_at = $String(object.end_at);
+                if (object.opening_equity != null)
+                    message.opening_equity = $String(object.opening_equity);
+                if (object.closing_equity != null)
+                    message.closing_equity = $String(object.closing_equity);
+                if (object.pnl != null)
+                    message.pnl = $String(object.pnl);
+                if (object.return_fraction != null)
+                    message.return_fraction = $String(object.return_fraction);
+                if (object.observations != null)
+                    if ($util.Long)
+                        message.observations = $util.Long.fromValue(object.observations, false);
+                    else if (typeof object.observations === "string")
+                        message.observations = $parseInt(object.observations, 10);
+                    else if (typeof object.observations === "number")
+                        message.observations = object.observations;
+                    else if (typeof object.observations === "object")
+                        message.observations = new $util.LongBits(object.observations.low >>> 0, object.observations.high >>> 0).toNumber();
+                if (object.null_fields) {
+                    if (!$Array.isArray(object.null_fields))
+                        throw $TypeError(".northstar.research.PerformancePeriod.null_fields: array expected");
+                    message.null_fields = $Array(object.null_fields.length);
+                    for (let i = 0; i < object.null_fields.length; ++i)
+                        message.null_fields[i] = $String(object.null_fields[i]);
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a PerformancePeriod message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.research.PerformancePeriod
+             * @static
+             * @param {northstar.research.PerformancePeriod} message PerformancePeriod
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            PerformancePeriod.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.arrays || options.defaults)
+                    object.null_fields = [];
+                if (message.period != null && $Object.hasOwnProperty.call(message, "period")) {
+                    object.period = message.period;
+                    if (options.oneofs)
+                        object._period = "period";
+                }
+                if (message.start_at != null && $Object.hasOwnProperty.call(message, "start_at")) {
+                    object.start_at = message.start_at;
+                    if (options.oneofs)
+                        object._start_at = "start_at";
+                }
+                if (message.end_at != null && $Object.hasOwnProperty.call(message, "end_at")) {
+                    object.end_at = message.end_at;
+                    if (options.oneofs)
+                        object._end_at = "end_at";
+                }
+                if (message.opening_equity != null && $Object.hasOwnProperty.call(message, "opening_equity")) {
+                    object.opening_equity = message.opening_equity;
+                    if (options.oneofs)
+                        object._opening_equity = "opening_equity";
+                }
+                if (message.closing_equity != null && $Object.hasOwnProperty.call(message, "closing_equity")) {
+                    object.closing_equity = message.closing_equity;
+                    if (options.oneofs)
+                        object._closing_equity = "closing_equity";
+                }
+                if (message.pnl != null && $Object.hasOwnProperty.call(message, "pnl")) {
+                    object.pnl = message.pnl;
+                    if (options.oneofs)
+                        object._pnl = "pnl";
+                }
+                if (message.return_fraction != null && $Object.hasOwnProperty.call(message, "return_fraction")) {
+                    object.return_fraction = message.return_fraction;
+                    if (options.oneofs)
+                        object._return_fraction = "return_fraction";
+                }
+                if (message.observations != null && $Object.hasOwnProperty.call(message, "observations")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.observations = typeof message.observations === "number" ? $BigInt(message.observations) : $util.Long.fromBits(message.observations.low >>> 0, message.observations.high >>> 0, false).toBigInt();
+                    else if (typeof message.observations === "number")
+                        object.observations = options.longs === $String ? $String(message.observations) : message.observations;
+                    else
+                        object.observations = options.longs === $String ? $util.Long.prototype.toString.call(message.observations) : options.longs === $Number ? new $util.LongBits(message.observations.low >>> 0, message.observations.high >>> 0).toNumber() : message.observations;
+                    if (options.oneofs)
+                        object._observations = "observations";
+                }
+                if (message.null_fields && message.null_fields.length) {
+                    object.null_fields = $Array(message.null_fields.length);
+                    for (let j = 0; j < message.null_fields.length; ++j)
+                        object.null_fields[j] = message.null_fields[j];
+                }
+                return object;
+            };
+
+            /**
+             * Converts this PerformancePeriod to JSON.
+             * @function toJSON
+             * @memberof northstar.research.PerformancePeriod
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            PerformancePeriod.prototype.toJSON = function() {
+                return PerformancePeriod.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for PerformancePeriod
+             * @function getTypeUrl
+             * @memberof northstar.research.PerformancePeriod
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            PerformancePeriod.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.research.PerformancePeriod";
+            };
+
+            return PerformancePeriod;
+        })();
+
+        research.DrawdownPeriod = (function() {
+
+            /**
+             * Properties of a DrawdownPeriod.
+             * @typedef {Object} northstar.research.DrawdownPeriod.$Properties
+             * @property {string|null} [peak_at] DrawdownPeriod peak_at
+             * @property {string|null} [start_at] DrawdownPeriod start_at
+             * @property {string|null} [trough_at] DrawdownPeriod trough_at
+             * @property {string|null} [end_at] DrawdownPeriod end_at
+             * @property {string|null} [peak_equity] DrawdownPeriod peak_equity
+             * @property {string|null} [trough_equity] DrawdownPeriod trough_equity
+             * @property {string|null} [drawdown] DrawdownPeriod drawdown
+             * @property {string|null} [drawdown_fraction] DrawdownPeriod drawdown_fraction
+             * @property {string|null} [elapsed_seconds] DrawdownPeriod elapsed_seconds
+             * @property {boolean|null} [recovered] DrawdownPeriod recovered
+             * @property {"peak_at"} [_peak_at] DrawdownPeriod _peak_at
+             * @property {"start_at"} [_start_at] DrawdownPeriod _start_at
+             * @property {"trough_at"} [_trough_at] DrawdownPeriod _trough_at
+             * @property {"end_at"} [_end_at] DrawdownPeriod _end_at
+             * @property {"peak_equity"} [_peak_equity] DrawdownPeriod _peak_equity
+             * @property {"trough_equity"} [_trough_equity] DrawdownPeriod _trough_equity
+             * @property {"drawdown"} [_drawdown] DrawdownPeriod _drawdown
+             * @property {"drawdown_fraction"} [_drawdown_fraction] DrawdownPeriod _drawdown_fraction
+             * @property {"elapsed_seconds"} [_elapsed_seconds] DrawdownPeriod _elapsed_seconds
+             * @property {"recovered"} [_recovered] DrawdownPeriod _recovered
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a DrawdownPeriod.
+             * @memberof northstar.research
+             * @interface IDrawdownPeriod
+             * @augments northstar.research.DrawdownPeriod.$Properties
+             * @deprecated Use northstar.research.DrawdownPeriod.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a DrawdownPeriod.
+             * @typedef {{
+             *   peak_at?: string|null;
+             *   start_at?: string|null;
+             *   trough_at?: string|null;
+             *   end_at?: string|null;
+             *   peak_equity?: string|null;
+             *   trough_equity?: string|null;
+             *   drawdown?: string|null;
+             *   drawdown_fraction?: string|null;
+             *   elapsed_seconds?: string|null;
+             *   recovered?: boolean|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _peak_at?: undefined; peak_at?: null }|{ _peak_at?: "peak_at"; peak_at: string })
+             * ) & (
+             *   ({ _start_at?: undefined; start_at?: null }|{ _start_at?: "start_at"; start_at: string })
+             * ) & (
+             *   ({ _trough_at?: undefined; trough_at?: null }|{ _trough_at?: "trough_at"; trough_at: string })
+             * ) & (
+             *   ({ _end_at?: undefined; end_at?: null }|{ _end_at?: "end_at"; end_at: string })
+             * ) & (
+             *   ({ _peak_equity?: undefined; peak_equity?: null }|{ _peak_equity?: "peak_equity"; peak_equity: string })
+             * ) & (
+             *   ({ _trough_equity?: undefined; trough_equity?: null }|{ _trough_equity?: "trough_equity"; trough_equity: string })
+             * ) & (
+             *   ({ _drawdown?: undefined; drawdown?: null }|{ _drawdown?: "drawdown"; drawdown: string })
+             * ) & (
+             *   ({ _drawdown_fraction?: undefined; drawdown_fraction?: null }|{ _drawdown_fraction?: "drawdown_fraction"; drawdown_fraction: string })
+             * ) & (
+             *   ({ _elapsed_seconds?: undefined; elapsed_seconds?: null }|{ _elapsed_seconds?: "elapsed_seconds"; elapsed_seconds: string })
+             * ) & (
+             *   ({ _recovered?: undefined; recovered?: null }|{ _recovered?: "recovered"; recovered: boolean })
+             * )} northstar.research.DrawdownPeriod.$Shape
+             */
+
+            /**
+             * Constructs a new DrawdownPeriod.
+             * @memberof northstar.research
+             * @classdesc Represents a DrawdownPeriod.
+             * @constructor
+             * @param {northstar.research.DrawdownPeriod.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const DrawdownPeriod = function (properties) {
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * DrawdownPeriod peak_at.
+             * @member {string|null|undefined} peak_at
+             * @memberof northstar.research.DrawdownPeriod
+             * @instance
+             */
+            DrawdownPeriod.prototype.peak_at = null;
+
+            /**
+             * DrawdownPeriod start_at.
+             * @member {string|null|undefined} start_at
+             * @memberof northstar.research.DrawdownPeriod
+             * @instance
+             */
+            DrawdownPeriod.prototype.start_at = null;
+
+            /**
+             * DrawdownPeriod trough_at.
+             * @member {string|null|undefined} trough_at
+             * @memberof northstar.research.DrawdownPeriod
+             * @instance
+             */
+            DrawdownPeriod.prototype.trough_at = null;
+
+            /**
+             * DrawdownPeriod end_at.
+             * @member {string|null|undefined} end_at
+             * @memberof northstar.research.DrawdownPeriod
+             * @instance
+             */
+            DrawdownPeriod.prototype.end_at = null;
+
+            /**
+             * DrawdownPeriod peak_equity.
+             * @member {string|null|undefined} peak_equity
+             * @memberof northstar.research.DrawdownPeriod
+             * @instance
+             */
+            DrawdownPeriod.prototype.peak_equity = null;
+
+            /**
+             * DrawdownPeriod trough_equity.
+             * @member {string|null|undefined} trough_equity
+             * @memberof northstar.research.DrawdownPeriod
+             * @instance
+             */
+            DrawdownPeriod.prototype.trough_equity = null;
+
+            /**
+             * DrawdownPeriod drawdown.
+             * @member {string|null|undefined} drawdown
+             * @memberof northstar.research.DrawdownPeriod
+             * @instance
+             */
+            DrawdownPeriod.prototype.drawdown = null;
+
+            /**
+             * DrawdownPeriod drawdown_fraction.
+             * @member {string|null|undefined} drawdown_fraction
+             * @memberof northstar.research.DrawdownPeriod
+             * @instance
+             */
+            DrawdownPeriod.prototype.drawdown_fraction = null;
+
+            /**
+             * DrawdownPeriod elapsed_seconds.
+             * @member {string|null|undefined} elapsed_seconds
+             * @memberof northstar.research.DrawdownPeriod
+             * @instance
+             */
+            DrawdownPeriod.prototype.elapsed_seconds = null;
+
+            /**
+             * DrawdownPeriod recovered.
+             * @member {boolean|null|undefined} recovered
+             * @memberof northstar.research.DrawdownPeriod
+             * @instance
+             */
+            DrawdownPeriod.prototype.recovered = null;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * DrawdownPeriod _peak_at.
+             * @member {"peak_at"|undefined} _peak_at
+             * @memberof northstar.research.DrawdownPeriod
+             * @instance
+             */
+            $Object.defineProperty(DrawdownPeriod.prototype, "_peak_at", {
+                get: $util.oneOfGetter($oneOfFields = ["peak_at"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * DrawdownPeriod _start_at.
+             * @member {"start_at"|undefined} _start_at
+             * @memberof northstar.research.DrawdownPeriod
+             * @instance
+             */
+            $Object.defineProperty(DrawdownPeriod.prototype, "_start_at", {
+                get: $util.oneOfGetter($oneOfFields = ["start_at"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * DrawdownPeriod _trough_at.
+             * @member {"trough_at"|undefined} _trough_at
+             * @memberof northstar.research.DrawdownPeriod
+             * @instance
+             */
+            $Object.defineProperty(DrawdownPeriod.prototype, "_trough_at", {
+                get: $util.oneOfGetter($oneOfFields = ["trough_at"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * DrawdownPeriod _end_at.
+             * @member {"end_at"|undefined} _end_at
+             * @memberof northstar.research.DrawdownPeriod
+             * @instance
+             */
+            $Object.defineProperty(DrawdownPeriod.prototype, "_end_at", {
+                get: $util.oneOfGetter($oneOfFields = ["end_at"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * DrawdownPeriod _peak_equity.
+             * @member {"peak_equity"|undefined} _peak_equity
+             * @memberof northstar.research.DrawdownPeriod
+             * @instance
+             */
+            $Object.defineProperty(DrawdownPeriod.prototype, "_peak_equity", {
+                get: $util.oneOfGetter($oneOfFields = ["peak_equity"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * DrawdownPeriod _trough_equity.
+             * @member {"trough_equity"|undefined} _trough_equity
+             * @memberof northstar.research.DrawdownPeriod
+             * @instance
+             */
+            $Object.defineProperty(DrawdownPeriod.prototype, "_trough_equity", {
+                get: $util.oneOfGetter($oneOfFields = ["trough_equity"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * DrawdownPeriod _drawdown.
+             * @member {"drawdown"|undefined} _drawdown
+             * @memberof northstar.research.DrawdownPeriod
+             * @instance
+             */
+            $Object.defineProperty(DrawdownPeriod.prototype, "_drawdown", {
+                get: $util.oneOfGetter($oneOfFields = ["drawdown"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * DrawdownPeriod _drawdown_fraction.
+             * @member {"drawdown_fraction"|undefined} _drawdown_fraction
+             * @memberof northstar.research.DrawdownPeriod
+             * @instance
+             */
+            $Object.defineProperty(DrawdownPeriod.prototype, "_drawdown_fraction", {
+                get: $util.oneOfGetter($oneOfFields = ["drawdown_fraction"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * DrawdownPeriod _elapsed_seconds.
+             * @member {"elapsed_seconds"|undefined} _elapsed_seconds
+             * @memberof northstar.research.DrawdownPeriod
+             * @instance
+             */
+            $Object.defineProperty(DrawdownPeriod.prototype, "_elapsed_seconds", {
+                get: $util.oneOfGetter($oneOfFields = ["elapsed_seconds"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * DrawdownPeriod _recovered.
+             * @member {"recovered"|undefined} _recovered
+             * @memberof northstar.research.DrawdownPeriod
+             * @instance
+             */
+            $Object.defineProperty(DrawdownPeriod.prototype, "_recovered", {
+                get: $util.oneOfGetter($oneOfFields = ["recovered"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new DrawdownPeriod instance using the specified properties.
+             * @function create
+             * @memberof northstar.research.DrawdownPeriod
+             * @static
+             * @param {northstar.research.DrawdownPeriod.$Properties=} [properties] Properties to set
+             * @returns {northstar.research.DrawdownPeriod} DrawdownPeriod instance
+             * @type {{
+             *   (properties: northstar.research.DrawdownPeriod.$Shape): northstar.research.DrawdownPeriod & northstar.research.DrawdownPeriod.$Shape;
+             *   (properties?: northstar.research.DrawdownPeriod.$Properties): northstar.research.DrawdownPeriod;
+             * }}
+             */
+            DrawdownPeriod.create = function(properties) {
+                return new DrawdownPeriod(properties);
+            };
+
+            /**
+             * Encodes the specified DrawdownPeriod message. Does not implicitly {@link northstar.research.DrawdownPeriod.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.research.DrawdownPeriod
+             * @static
+             * @param {northstar.research.DrawdownPeriod.$Properties} message DrawdownPeriod message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            DrawdownPeriod.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.peak_at != null && $Object.hasOwnProperty.call(message, "peak_at"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.peak_at);
+                if (message.start_at != null && $Object.hasOwnProperty.call(message, "start_at"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.start_at);
+                if (message.trough_at != null && $Object.hasOwnProperty.call(message, "trough_at"))
+                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.trough_at);
+                if (message.end_at != null && $Object.hasOwnProperty.call(message, "end_at"))
+                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.end_at);
+                if (message.peak_equity != null && $Object.hasOwnProperty.call(message, "peak_equity"))
+                    writer.uint32(/* id 5, wireType 2 =*/42).string(message.peak_equity);
+                if (message.trough_equity != null && $Object.hasOwnProperty.call(message, "trough_equity"))
+                    writer.uint32(/* id 6, wireType 2 =*/50).string(message.trough_equity);
+                if (message.drawdown != null && $Object.hasOwnProperty.call(message, "drawdown"))
+                    writer.uint32(/* id 7, wireType 2 =*/58).string(message.drawdown);
+                if (message.drawdown_fraction != null && $Object.hasOwnProperty.call(message, "drawdown_fraction"))
+                    writer.uint32(/* id 8, wireType 2 =*/66).string(message.drawdown_fraction);
+                if (message.elapsed_seconds != null && $Object.hasOwnProperty.call(message, "elapsed_seconds"))
+                    writer.uint32(/* id 9, wireType 2 =*/74).string(message.elapsed_seconds);
+                if (message.recovered != null && $Object.hasOwnProperty.call(message, "recovered"))
+                    writer.uint32(/* id 10, wireType 0 =*/80).bool(message.recovered);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a DrawdownPeriod message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.research.DrawdownPeriod
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.research.DrawdownPeriod & northstar.research.DrawdownPeriod.$Shape} DrawdownPeriod
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            DrawdownPeriod.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.research.DrawdownPeriod();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.peak_at = reader.stringVerify();
+                            message._peak_at = "peak_at";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.start_at = reader.stringVerify();
+                            message._start_at = "start_at";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 2)
+                                break;
+                            message.trough_at = reader.stringVerify();
+                            message._trough_at = "trough_at";
+                            continue;
+                        }
+                    case 4: {
+                            if (wireType !== 2)
+                                break;
+                            message.end_at = reader.stringVerify();
+                            message._end_at = "end_at";
+                            continue;
+                        }
+                    case 5: {
+                            if (wireType !== 2)
+                                break;
+                            message.peak_equity = reader.stringVerify();
+                            message._peak_equity = "peak_equity";
+                            continue;
+                        }
+                    case 6: {
+                            if (wireType !== 2)
+                                break;
+                            message.trough_equity = reader.stringVerify();
+                            message._trough_equity = "trough_equity";
+                            continue;
+                        }
+                    case 7: {
+                            if (wireType !== 2)
+                                break;
+                            message.drawdown = reader.stringVerify();
+                            message._drawdown = "drawdown";
+                            continue;
+                        }
+                    case 8: {
+                            if (wireType !== 2)
+                                break;
+                            message.drawdown_fraction = reader.stringVerify();
+                            message._drawdown_fraction = "drawdown_fraction";
+                            continue;
+                        }
+                    case 9: {
+                            if (wireType !== 2)
+                                break;
+                            message.elapsed_seconds = reader.stringVerify();
+                            message._elapsed_seconds = "elapsed_seconds";
+                            continue;
+                        }
+                    case 10: {
+                            if (wireType !== 0)
+                                break;
+                            message.recovered = reader.bool();
+                            message._recovered = "recovered";
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a DrawdownPeriod message.
+             * @function verify
+             * @memberof northstar.research.DrawdownPeriod
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            DrawdownPeriod.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.peak_at != null && $Object.hasOwnProperty.call(message, "peak_at")) {
+                    properties._peak_at = 1;
+                    if (!$util.isString(message.peak_at))
+                        return "peak_at: string expected";
+                }
+                if (message.start_at != null && $Object.hasOwnProperty.call(message, "start_at")) {
+                    properties._start_at = 1;
+                    if (!$util.isString(message.start_at))
+                        return "start_at: string expected";
+                }
+                if (message.trough_at != null && $Object.hasOwnProperty.call(message, "trough_at")) {
+                    properties._trough_at = 1;
+                    if (!$util.isString(message.trough_at))
+                        return "trough_at: string expected";
+                }
+                if (message.end_at != null && $Object.hasOwnProperty.call(message, "end_at")) {
+                    properties._end_at = 1;
+                    if (!$util.isString(message.end_at))
+                        return "end_at: string expected";
+                }
+                if (message.peak_equity != null && $Object.hasOwnProperty.call(message, "peak_equity")) {
+                    properties._peak_equity = 1;
+                    if (!$util.isString(message.peak_equity))
+                        return "peak_equity: string expected";
+                }
+                if (message.trough_equity != null && $Object.hasOwnProperty.call(message, "trough_equity")) {
+                    properties._trough_equity = 1;
+                    if (!$util.isString(message.trough_equity))
+                        return "trough_equity: string expected";
+                }
+                if (message.drawdown != null && $Object.hasOwnProperty.call(message, "drawdown")) {
+                    properties._drawdown = 1;
+                    if (!$util.isString(message.drawdown))
+                        return "drawdown: string expected";
+                }
+                if (message.drawdown_fraction != null && $Object.hasOwnProperty.call(message, "drawdown_fraction")) {
+                    properties._drawdown_fraction = 1;
+                    if (!$util.isString(message.drawdown_fraction))
+                        return "drawdown_fraction: string expected";
+                }
+                if (message.elapsed_seconds != null && $Object.hasOwnProperty.call(message, "elapsed_seconds")) {
+                    properties._elapsed_seconds = 1;
+                    if (!$util.isString(message.elapsed_seconds))
+                        return "elapsed_seconds: string expected";
+                }
+                if (message.recovered != null && $Object.hasOwnProperty.call(message, "recovered")) {
+                    properties._recovered = 1;
+                    if (typeof message.recovered !== "boolean")
+                        return "recovered: boolean expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a DrawdownPeriod message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.research.DrawdownPeriod
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.research.DrawdownPeriod} DrawdownPeriod
+             */
+            DrawdownPeriod.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.research.DrawdownPeriod)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.research.DrawdownPeriod: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.research.DrawdownPeriod();
+                if (object.peak_at != null)
+                    message.peak_at = $String(object.peak_at);
+                if (object.start_at != null)
+                    message.start_at = $String(object.start_at);
+                if (object.trough_at != null)
+                    message.trough_at = $String(object.trough_at);
+                if (object.end_at != null)
+                    message.end_at = $String(object.end_at);
+                if (object.peak_equity != null)
+                    message.peak_equity = $String(object.peak_equity);
+                if (object.trough_equity != null)
+                    message.trough_equity = $String(object.trough_equity);
+                if (object.drawdown != null)
+                    message.drawdown = $String(object.drawdown);
+                if (object.drawdown_fraction != null)
+                    message.drawdown_fraction = $String(object.drawdown_fraction);
+                if (object.elapsed_seconds != null)
+                    message.elapsed_seconds = $String(object.elapsed_seconds);
+                if (object.recovered != null)
+                    message.recovered = $Boolean(object.recovered);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a DrawdownPeriod message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.research.DrawdownPeriod
+             * @static
+             * @param {northstar.research.DrawdownPeriod} message DrawdownPeriod
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            DrawdownPeriod.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (message.peak_at != null && $Object.hasOwnProperty.call(message, "peak_at")) {
+                    object.peak_at = message.peak_at;
+                    if (options.oneofs)
+                        object._peak_at = "peak_at";
+                }
+                if (message.start_at != null && $Object.hasOwnProperty.call(message, "start_at")) {
+                    object.start_at = message.start_at;
+                    if (options.oneofs)
+                        object._start_at = "start_at";
+                }
+                if (message.trough_at != null && $Object.hasOwnProperty.call(message, "trough_at")) {
+                    object.trough_at = message.trough_at;
+                    if (options.oneofs)
+                        object._trough_at = "trough_at";
+                }
+                if (message.end_at != null && $Object.hasOwnProperty.call(message, "end_at")) {
+                    object.end_at = message.end_at;
+                    if (options.oneofs)
+                        object._end_at = "end_at";
+                }
+                if (message.peak_equity != null && $Object.hasOwnProperty.call(message, "peak_equity")) {
+                    object.peak_equity = message.peak_equity;
+                    if (options.oneofs)
+                        object._peak_equity = "peak_equity";
+                }
+                if (message.trough_equity != null && $Object.hasOwnProperty.call(message, "trough_equity")) {
+                    object.trough_equity = message.trough_equity;
+                    if (options.oneofs)
+                        object._trough_equity = "trough_equity";
+                }
+                if (message.drawdown != null && $Object.hasOwnProperty.call(message, "drawdown")) {
+                    object.drawdown = message.drawdown;
+                    if (options.oneofs)
+                        object._drawdown = "drawdown";
+                }
+                if (message.drawdown_fraction != null && $Object.hasOwnProperty.call(message, "drawdown_fraction")) {
+                    object.drawdown_fraction = message.drawdown_fraction;
+                    if (options.oneofs)
+                        object._drawdown_fraction = "drawdown_fraction";
+                }
+                if (message.elapsed_seconds != null && $Object.hasOwnProperty.call(message, "elapsed_seconds")) {
+                    object.elapsed_seconds = message.elapsed_seconds;
+                    if (options.oneofs)
+                        object._elapsed_seconds = "elapsed_seconds";
+                }
+                if (message.recovered != null && $Object.hasOwnProperty.call(message, "recovered")) {
+                    object.recovered = message.recovered;
+                    if (options.oneofs)
+                        object._recovered = "recovered";
+                }
+                return object;
+            };
+
+            /**
+             * Converts this DrawdownPeriod to JSON.
+             * @function toJSON
+             * @memberof northstar.research.DrawdownPeriod
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            DrawdownPeriod.prototype.toJSON = function() {
+                return DrawdownPeriod.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for DrawdownPeriod
+             * @function getTypeUrl
+             * @memberof northstar.research.DrawdownPeriod
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            DrawdownPeriod.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.research.DrawdownPeriod";
+            };
+
+            return DrawdownPeriod;
+        })();
+
+        research.RollingReturn = (function() {
+
+            /**
+             * Properties of a RollingReturn.
+             * @typedef {Object} northstar.research.RollingReturn.$Properties
+             * @property {string|null} [start_day] RollingReturn start_day
+             * @property {string|null} [end_day] RollingReturn end_day
+             * @property {number|Long|null} [observed_days] RollingReturn observed_days
+             * @property {string|null} [return_fraction] RollingReturn return_fraction
+             * @property {Array.<string>|null} [null_fields] RollingReturn null_fields
+             * @property {"start_day"} [_start_day] RollingReturn _start_day
+             * @property {"end_day"} [_end_day] RollingReturn _end_day
+             * @property {"observed_days"} [_observed_days] RollingReturn _observed_days
+             * @property {"return_fraction"} [_return_fraction] RollingReturn _return_fraction
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a RollingReturn.
+             * @memberof northstar.research
+             * @interface IRollingReturn
+             * @augments northstar.research.RollingReturn.$Properties
+             * @deprecated Use northstar.research.RollingReturn.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a RollingReturn.
+             * @typedef {{
+             *   start_day?: string|null;
+             *   end_day?: string|null;
+             *   observed_days?: number|Long|null;
+             *   return_fraction?: string|null;
+             *   null_fields?: Array.<string>|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _start_day?: undefined; start_day?: null }|{ _start_day?: "start_day"; start_day: string })
+             * ) & (
+             *   ({ _end_day?: undefined; end_day?: null }|{ _end_day?: "end_day"; end_day: string })
+             * ) & (
+             *   ({ _observed_days?: undefined; observed_days?: null }|{ _observed_days?: "observed_days"; observed_days: number|Long })
+             * ) & (
+             *   ({ _return_fraction?: undefined; return_fraction?: null }|{ _return_fraction?: "return_fraction"; return_fraction: string })
+             * )} northstar.research.RollingReturn.$Shape
+             */
+
+            /**
+             * Constructs a new RollingReturn.
+             * @memberof northstar.research
+             * @classdesc Represents a RollingReturn.
+             * @constructor
+             * @param {northstar.research.RollingReturn.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const RollingReturn = function (properties) {
+                this.null_fields = [];
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * RollingReturn start_day.
+             * @member {string|null|undefined} start_day
+             * @memberof northstar.research.RollingReturn
+             * @instance
+             */
+            RollingReturn.prototype.start_day = null;
+
+            /**
+             * RollingReturn end_day.
+             * @member {string|null|undefined} end_day
+             * @memberof northstar.research.RollingReturn
+             * @instance
+             */
+            RollingReturn.prototype.end_day = null;
+
+            /**
+             * RollingReturn observed_days.
+             * @member {number|Long|null|undefined} observed_days
+             * @memberof northstar.research.RollingReturn
+             * @instance
+             */
+            RollingReturn.prototype.observed_days = null;
+
+            /**
+             * RollingReturn return_fraction.
+             * @member {string|null|undefined} return_fraction
+             * @memberof northstar.research.RollingReturn
+             * @instance
+             */
+            RollingReturn.prototype.return_fraction = null;
+
+            /**
+             * RollingReturn null_fields.
+             * @member {Array.<string>} null_fields
+             * @memberof northstar.research.RollingReturn
+             * @instance
+             */
+            RollingReturn.prototype.null_fields = $util.emptyArray;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * RollingReturn _start_day.
+             * @member {"start_day"|undefined} _start_day
+             * @memberof northstar.research.RollingReturn
+             * @instance
+             */
+            $Object.defineProperty(RollingReturn.prototype, "_start_day", {
+                get: $util.oneOfGetter($oneOfFields = ["start_day"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * RollingReturn _end_day.
+             * @member {"end_day"|undefined} _end_day
+             * @memberof northstar.research.RollingReturn
+             * @instance
+             */
+            $Object.defineProperty(RollingReturn.prototype, "_end_day", {
+                get: $util.oneOfGetter($oneOfFields = ["end_day"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * RollingReturn _observed_days.
+             * @member {"observed_days"|undefined} _observed_days
+             * @memberof northstar.research.RollingReturn
+             * @instance
+             */
+            $Object.defineProperty(RollingReturn.prototype, "_observed_days", {
+                get: $util.oneOfGetter($oneOfFields = ["observed_days"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * RollingReturn _return_fraction.
+             * @member {"return_fraction"|undefined} _return_fraction
+             * @memberof northstar.research.RollingReturn
+             * @instance
+             */
+            $Object.defineProperty(RollingReturn.prototype, "_return_fraction", {
+                get: $util.oneOfGetter($oneOfFields = ["return_fraction"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new RollingReturn instance using the specified properties.
+             * @function create
+             * @memberof northstar.research.RollingReturn
+             * @static
+             * @param {northstar.research.RollingReturn.$Properties=} [properties] Properties to set
+             * @returns {northstar.research.RollingReturn} RollingReturn instance
+             * @type {{
+             *   (properties: northstar.research.RollingReturn.$Shape): northstar.research.RollingReturn & northstar.research.RollingReturn.$Shape;
+             *   (properties?: northstar.research.RollingReturn.$Properties): northstar.research.RollingReturn;
+             * }}
+             */
+            RollingReturn.create = function(properties) {
+                return new RollingReturn(properties);
+            };
+
+            /**
+             * Encodes the specified RollingReturn message. Does not implicitly {@link northstar.research.RollingReturn.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.research.RollingReturn
+             * @static
+             * @param {northstar.research.RollingReturn.$Properties} message RollingReturn message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            RollingReturn.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.start_day != null && $Object.hasOwnProperty.call(message, "start_day"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.start_day);
+                if (message.end_day != null && $Object.hasOwnProperty.call(message, "end_day"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.end_day);
+                if (message.observed_days != null && $Object.hasOwnProperty.call(message, "observed_days"))
+                    writer.uint32(/* id 3, wireType 0 =*/24).int64(message.observed_days);
+                if (message.return_fraction != null && $Object.hasOwnProperty.call(message, "return_fraction"))
+                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.return_fraction);
+                if (message.null_fields != null && message.null_fields.length)
+                    for (let i = 0; i < message.null_fields.length; ++i)
+                        writer.uint32(/* id 2046, wireType 2 =*/16370).string(message.null_fields[i]);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a RollingReturn message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.research.RollingReturn
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.research.RollingReturn & northstar.research.RollingReturn.$Shape} RollingReturn
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            RollingReturn.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.research.RollingReturn();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.start_day = reader.stringVerify();
+                            message._start_day = "start_day";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.end_day = reader.stringVerify();
+                            message._end_day = "end_day";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 0)
+                                break;
+                            message.observed_days = reader.int64();
+                            message._observed_days = "observed_days";
+                            continue;
+                        }
+                    case 4: {
+                            if (wireType !== 2)
+                                break;
+                            message.return_fraction = reader.stringVerify();
+                            message._return_fraction = "return_fraction";
+                            continue;
+                        }
+                    case 2046: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.null_fields && message.null_fields.length))
+                                message.null_fields = [];
+                            message.null_fields.push(reader.stringVerify());
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a RollingReturn message.
+             * @function verify
+             * @memberof northstar.research.RollingReturn
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            RollingReturn.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.start_day != null && $Object.hasOwnProperty.call(message, "start_day")) {
+                    properties._start_day = 1;
+                    if (!$util.isString(message.start_day))
+                        return "start_day: string expected";
+                }
+                if (message.end_day != null && $Object.hasOwnProperty.call(message, "end_day")) {
+                    properties._end_day = 1;
+                    if (!$util.isString(message.end_day))
+                        return "end_day: string expected";
+                }
+                if (message.observed_days != null && $Object.hasOwnProperty.call(message, "observed_days")) {
+                    properties._observed_days = 1;
+                    if (!$util.isInteger(message.observed_days) && !(message.observed_days && $util.isInteger(message.observed_days.low) && $util.isInteger(message.observed_days.high)))
+                        return "observed_days: integer|Long expected";
+                }
+                if (message.return_fraction != null && $Object.hasOwnProperty.call(message, "return_fraction")) {
+                    properties._return_fraction = 1;
+                    if (!$util.isString(message.return_fraction))
+                        return "return_fraction: string expected";
+                }
+                if (message.null_fields != null && $Object.hasOwnProperty.call(message, "null_fields")) {
+                    if (!$Array.isArray(message.null_fields))
+                        return "null_fields: array expected";
+                    for (let i = 0; i < message.null_fields.length; ++i)
+                        if (!$util.isString(message.null_fields[i]))
+                            return "null_fields: string[] expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a RollingReturn message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.research.RollingReturn
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.research.RollingReturn} RollingReturn
+             */
+            RollingReturn.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.research.RollingReturn)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.research.RollingReturn: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.research.RollingReturn();
+                if (object.start_day != null)
+                    message.start_day = $String(object.start_day);
+                if (object.end_day != null)
+                    message.end_day = $String(object.end_day);
+                if (object.observed_days != null)
+                    if ($util.Long)
+                        message.observed_days = $util.Long.fromValue(object.observed_days, false);
+                    else if (typeof object.observed_days === "string")
+                        message.observed_days = $parseInt(object.observed_days, 10);
+                    else if (typeof object.observed_days === "number")
+                        message.observed_days = object.observed_days;
+                    else if (typeof object.observed_days === "object")
+                        message.observed_days = new $util.LongBits(object.observed_days.low >>> 0, object.observed_days.high >>> 0).toNumber();
+                if (object.return_fraction != null)
+                    message.return_fraction = $String(object.return_fraction);
+                if (object.null_fields) {
+                    if (!$Array.isArray(object.null_fields))
+                        throw $TypeError(".northstar.research.RollingReturn.null_fields: array expected");
+                    message.null_fields = $Array(object.null_fields.length);
+                    for (let i = 0; i < object.null_fields.length; ++i)
+                        message.null_fields[i] = $String(object.null_fields[i]);
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a RollingReturn message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.research.RollingReturn
+             * @static
+             * @param {northstar.research.RollingReturn} message RollingReturn
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            RollingReturn.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.arrays || options.defaults)
+                    object.null_fields = [];
+                if (message.start_day != null && $Object.hasOwnProperty.call(message, "start_day")) {
+                    object.start_day = message.start_day;
+                    if (options.oneofs)
+                        object._start_day = "start_day";
+                }
+                if (message.end_day != null && $Object.hasOwnProperty.call(message, "end_day")) {
+                    object.end_day = message.end_day;
+                    if (options.oneofs)
+                        object._end_day = "end_day";
+                }
+                if (message.observed_days != null && $Object.hasOwnProperty.call(message, "observed_days")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.observed_days = typeof message.observed_days === "number" ? $BigInt(message.observed_days) : $util.Long.fromBits(message.observed_days.low >>> 0, message.observed_days.high >>> 0, false).toBigInt();
+                    else if (typeof message.observed_days === "number")
+                        object.observed_days = options.longs === $String ? $String(message.observed_days) : message.observed_days;
+                    else
+                        object.observed_days = options.longs === $String ? $util.Long.prototype.toString.call(message.observed_days) : options.longs === $Number ? new $util.LongBits(message.observed_days.low >>> 0, message.observed_days.high >>> 0).toNumber() : message.observed_days;
+                    if (options.oneofs)
+                        object._observed_days = "observed_days";
+                }
+                if (message.return_fraction != null && $Object.hasOwnProperty.call(message, "return_fraction")) {
+                    object.return_fraction = message.return_fraction;
+                    if (options.oneofs)
+                        object._return_fraction = "return_fraction";
+                }
+                if (message.null_fields && message.null_fields.length) {
+                    object.null_fields = $Array(message.null_fields.length);
+                    for (let j = 0; j < message.null_fields.length; ++j)
+                        object.null_fields[j] = message.null_fields[j];
+                }
+                return object;
+            };
+
+            /**
+             * Converts this RollingReturn to JSON.
+             * @function toJSON
+             * @memberof northstar.research.RollingReturn
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            RollingReturn.prototype.toJSON = function() {
+                return RollingReturn.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for RollingReturn
+             * @function getTypeUrl
+             * @memberof northstar.research.RollingReturn
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            RollingReturn.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.research.RollingReturn";
+            };
+
+            return RollingReturn;
+        })();
+
+        research.PerformanceReport = (function() {
+
+            /**
+             * Properties of a PerformanceReport.
+             * @typedef {Object} northstar.research.PerformanceReport.$Properties
+             * @property {Array.<northstar.research.PerformancePeriod.$Properties>|null} [daily] PerformanceReport daily
+             * @property {Array.<northstar.research.PerformancePeriod.$Properties>|null} [monthly] PerformanceReport monthly
+             * @property {Array.<northstar.research.DrawdownPeriod.$Properties>|null} [drawdowns] PerformanceReport drawdowns
+             * @property {Array.<northstar.research.RollingReturn.$Properties>|null} [rolling] PerformanceReport rolling
+             * @property {string|null} [basis] PerformanceReport basis
+             * @property {"basis"} [_basis] PerformanceReport _basis
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a PerformanceReport.
+             * @memberof northstar.research
+             * @interface IPerformanceReport
+             * @augments northstar.research.PerformanceReport.$Properties
+             * @deprecated Use northstar.research.PerformanceReport.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a PerformanceReport.
+             * @typedef {{
+             *   daily?: Array.<northstar.research.PerformancePeriod.$Shape>|null;
+             *   monthly?: Array.<northstar.research.PerformancePeriod.$Shape>|null;
+             *   drawdowns?: Array.<northstar.research.DrawdownPeriod.$Shape>|null;
+             *   rolling?: Array.<northstar.research.RollingReturn.$Shape>|null;
+             *   basis?: string|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _basis?: undefined; basis?: null }|{ _basis?: "basis"; basis: string })
+             * )} northstar.research.PerformanceReport.$Shape
+             */
+
+            /**
+             * Constructs a new PerformanceReport.
+             * @memberof northstar.research
+             * @classdesc Represents a PerformanceReport.
+             * @constructor
+             * @param {northstar.research.PerformanceReport.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const PerformanceReport = function (properties) {
+                this.daily = [];
+                this.monthly = [];
+                this.drawdowns = [];
+                this.rolling = [];
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * PerformanceReport daily.
+             * @member {Array.<northstar.research.PerformancePeriod.$Properties>} daily
+             * @memberof northstar.research.PerformanceReport
+             * @instance
+             */
+            PerformanceReport.prototype.daily = $util.emptyArray;
+
+            /**
+             * PerformanceReport monthly.
+             * @member {Array.<northstar.research.PerformancePeriod.$Properties>} monthly
+             * @memberof northstar.research.PerformanceReport
+             * @instance
+             */
+            PerformanceReport.prototype.monthly = $util.emptyArray;
+
+            /**
+             * PerformanceReport drawdowns.
+             * @member {Array.<northstar.research.DrawdownPeriod.$Properties>} drawdowns
+             * @memberof northstar.research.PerformanceReport
+             * @instance
+             */
+            PerformanceReport.prototype.drawdowns = $util.emptyArray;
+
+            /**
+             * PerformanceReport rolling.
+             * @member {Array.<northstar.research.RollingReturn.$Properties>} rolling
+             * @memberof northstar.research.PerformanceReport
+             * @instance
+             */
+            PerformanceReport.prototype.rolling = $util.emptyArray;
+
+            /**
+             * PerformanceReport basis.
+             * @member {string|null|undefined} basis
+             * @memberof northstar.research.PerformanceReport
+             * @instance
+             */
+            PerformanceReport.prototype.basis = null;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * PerformanceReport _basis.
+             * @member {"basis"|undefined} _basis
+             * @memberof northstar.research.PerformanceReport
+             * @instance
+             */
+            $Object.defineProperty(PerformanceReport.prototype, "_basis", {
+                get: $util.oneOfGetter($oneOfFields = ["basis"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new PerformanceReport instance using the specified properties.
+             * @function create
+             * @memberof northstar.research.PerformanceReport
+             * @static
+             * @param {northstar.research.PerformanceReport.$Properties=} [properties] Properties to set
+             * @returns {northstar.research.PerformanceReport} PerformanceReport instance
+             * @type {{
+             *   (properties: northstar.research.PerformanceReport.$Shape): northstar.research.PerformanceReport & northstar.research.PerformanceReport.$Shape;
+             *   (properties?: northstar.research.PerformanceReport.$Properties): northstar.research.PerformanceReport;
+             * }}
+             */
+            PerformanceReport.create = function(properties) {
+                return new PerformanceReport(properties);
+            };
+
+            /**
+             * Encodes the specified PerformanceReport message. Does not implicitly {@link northstar.research.PerformanceReport.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.research.PerformanceReport
+             * @static
+             * @param {northstar.research.PerformanceReport.$Properties} message PerformanceReport message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            PerformanceReport.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.daily != null && message.daily.length)
+                    for (let i = 0; i < message.daily.length; ++i)
+                        $root.northstar.research.PerformancePeriod.encode(message.daily[i], writer.uint32(/* id 1, wireType 2 =*/10).fork(), _depth + 1).ldelim();
+                if (message.monthly != null && message.monthly.length)
+                    for (let i = 0; i < message.monthly.length; ++i)
+                        $root.northstar.research.PerformancePeriod.encode(message.monthly[i], writer.uint32(/* id 2, wireType 2 =*/18).fork(), _depth + 1).ldelim();
+                if (message.drawdowns != null && message.drawdowns.length)
+                    for (let i = 0; i < message.drawdowns.length; ++i)
+                        $root.northstar.research.DrawdownPeriod.encode(message.drawdowns[i], writer.uint32(/* id 3, wireType 2 =*/26).fork(), _depth + 1).ldelim();
+                if (message.rolling != null && message.rolling.length)
+                    for (let i = 0; i < message.rolling.length; ++i)
+                        $root.northstar.research.RollingReturn.encode(message.rolling[i], writer.uint32(/* id 4, wireType 2 =*/34).fork(), _depth + 1).ldelim();
+                if (message.basis != null && $Object.hasOwnProperty.call(message, "basis"))
+                    writer.uint32(/* id 5, wireType 2 =*/42).string(message.basis);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a PerformanceReport message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.research.PerformanceReport
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.research.PerformanceReport & northstar.research.PerformanceReport.$Shape} PerformanceReport
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            PerformanceReport.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.research.PerformanceReport();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.daily && message.daily.length))
+                                message.daily = [];
+                            message.daily.push($root.northstar.research.PerformancePeriod.decode(reader, reader.uint32(), $undefined, _depth + 1));
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.monthly && message.monthly.length))
+                                message.monthly = [];
+                            message.monthly.push($root.northstar.research.PerformancePeriod.decode(reader, reader.uint32(), $undefined, _depth + 1));
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.drawdowns && message.drawdowns.length))
+                                message.drawdowns = [];
+                            message.drawdowns.push($root.northstar.research.DrawdownPeriod.decode(reader, reader.uint32(), $undefined, _depth + 1));
+                            continue;
+                        }
+                    case 4: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.rolling && message.rolling.length))
+                                message.rolling = [];
+                            message.rolling.push($root.northstar.research.RollingReturn.decode(reader, reader.uint32(), $undefined, _depth + 1));
+                            continue;
+                        }
+                    case 5: {
+                            if (wireType !== 2)
+                                break;
+                            message.basis = reader.stringVerify();
+                            message._basis = "basis";
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a PerformanceReport message.
+             * @function verify
+             * @memberof northstar.research.PerformanceReport
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            PerformanceReport.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.daily != null && $Object.hasOwnProperty.call(message, "daily")) {
+                    if (!$Array.isArray(message.daily))
+                        return "daily: array expected";
+                    for (let i = 0; i < message.daily.length; ++i) {
+                        let error = $root.northstar.research.PerformancePeriod.verify(message.daily[i], _depth + 1);
+                        if (error)
+                            return "daily." + error;
+                    }
+                }
+                if (message.monthly != null && $Object.hasOwnProperty.call(message, "monthly")) {
+                    if (!$Array.isArray(message.monthly))
+                        return "monthly: array expected";
+                    for (let i = 0; i < message.monthly.length; ++i) {
+                        let error = $root.northstar.research.PerformancePeriod.verify(message.monthly[i], _depth + 1);
+                        if (error)
+                            return "monthly." + error;
+                    }
+                }
+                if (message.drawdowns != null && $Object.hasOwnProperty.call(message, "drawdowns")) {
+                    if (!$Array.isArray(message.drawdowns))
+                        return "drawdowns: array expected";
+                    for (let i = 0; i < message.drawdowns.length; ++i) {
+                        let error = $root.northstar.research.DrawdownPeriod.verify(message.drawdowns[i], _depth + 1);
+                        if (error)
+                            return "drawdowns." + error;
+                    }
+                }
+                if (message.rolling != null && $Object.hasOwnProperty.call(message, "rolling")) {
+                    if (!$Array.isArray(message.rolling))
+                        return "rolling: array expected";
+                    for (let i = 0; i < message.rolling.length; ++i) {
+                        let error = $root.northstar.research.RollingReturn.verify(message.rolling[i], _depth + 1);
+                        if (error)
+                            return "rolling." + error;
+                    }
+                }
+                if (message.basis != null && $Object.hasOwnProperty.call(message, "basis")) {
+                    properties._basis = 1;
+                    if (!$util.isString(message.basis))
+                        return "basis: string expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a PerformanceReport message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.research.PerformanceReport
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.research.PerformanceReport} PerformanceReport
+             */
+            PerformanceReport.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.research.PerformanceReport)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.research.PerformanceReport: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.research.PerformanceReport();
+                if (object.daily) {
+                    if (!$Array.isArray(object.daily))
+                        throw $TypeError(".northstar.research.PerformanceReport.daily: array expected");
+                    message.daily = $Array(object.daily.length);
+                    for (let i = 0; i < object.daily.length; ++i) {
+                        if (!$util.isObject(object.daily[i]))
+                            throw $TypeError(".northstar.research.PerformanceReport.daily: object expected");
+                        message.daily[i] = $root.northstar.research.PerformancePeriod.fromObject(object.daily[i], _depth + 1);
+                    }
+                }
+                if (object.monthly) {
+                    if (!$Array.isArray(object.monthly))
+                        throw $TypeError(".northstar.research.PerformanceReport.monthly: array expected");
+                    message.monthly = $Array(object.monthly.length);
+                    for (let i = 0; i < object.monthly.length; ++i) {
+                        if (!$util.isObject(object.monthly[i]))
+                            throw $TypeError(".northstar.research.PerformanceReport.monthly: object expected");
+                        message.monthly[i] = $root.northstar.research.PerformancePeriod.fromObject(object.monthly[i], _depth + 1);
+                    }
+                }
+                if (object.drawdowns) {
+                    if (!$Array.isArray(object.drawdowns))
+                        throw $TypeError(".northstar.research.PerformanceReport.drawdowns: array expected");
+                    message.drawdowns = $Array(object.drawdowns.length);
+                    for (let i = 0; i < object.drawdowns.length; ++i) {
+                        if (!$util.isObject(object.drawdowns[i]))
+                            throw $TypeError(".northstar.research.PerformanceReport.drawdowns: object expected");
+                        message.drawdowns[i] = $root.northstar.research.DrawdownPeriod.fromObject(object.drawdowns[i], _depth + 1);
+                    }
+                }
+                if (object.rolling) {
+                    if (!$Array.isArray(object.rolling))
+                        throw $TypeError(".northstar.research.PerformanceReport.rolling: array expected");
+                    message.rolling = $Array(object.rolling.length);
+                    for (let i = 0; i < object.rolling.length; ++i) {
+                        if (!$util.isObject(object.rolling[i]))
+                            throw $TypeError(".northstar.research.PerformanceReport.rolling: object expected");
+                        message.rolling[i] = $root.northstar.research.RollingReturn.fromObject(object.rolling[i], _depth + 1);
+                    }
+                }
+                if (object.basis != null)
+                    message.basis = $String(object.basis);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a PerformanceReport message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.research.PerformanceReport
+             * @static
+             * @param {northstar.research.PerformanceReport} message PerformanceReport
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            PerformanceReport.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.arrays || options.defaults) {
+                    object.daily = [];
+                    object.monthly = [];
+                    object.drawdowns = [];
+                    object.rolling = [];
+                }
+                if (message.daily && message.daily.length) {
+                    object.daily = $Array(message.daily.length);
+                    for (let j = 0; j < message.daily.length; ++j)
+                        object.daily[j] = $root.northstar.research.PerformancePeriod.toObject(message.daily[j], options, _depth + 1);
+                }
+                if (message.monthly && message.monthly.length) {
+                    object.monthly = $Array(message.monthly.length);
+                    for (let j = 0; j < message.monthly.length; ++j)
+                        object.monthly[j] = $root.northstar.research.PerformancePeriod.toObject(message.monthly[j], options, _depth + 1);
+                }
+                if (message.drawdowns && message.drawdowns.length) {
+                    object.drawdowns = $Array(message.drawdowns.length);
+                    for (let j = 0; j < message.drawdowns.length; ++j)
+                        object.drawdowns[j] = $root.northstar.research.DrawdownPeriod.toObject(message.drawdowns[j], options, _depth + 1);
+                }
+                if (message.rolling && message.rolling.length) {
+                    object.rolling = $Array(message.rolling.length);
+                    for (let j = 0; j < message.rolling.length; ++j)
+                        object.rolling[j] = $root.northstar.research.RollingReturn.toObject(message.rolling[j], options, _depth + 1);
+                }
+                if (message.basis != null && $Object.hasOwnProperty.call(message, "basis")) {
+                    object.basis = message.basis;
+                    if (options.oneofs)
+                        object._basis = "basis";
+                }
+                return object;
+            };
+
+            /**
+             * Converts this PerformanceReport to JSON.
+             * @function toJSON
+             * @memberof northstar.research.PerformanceReport
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            PerformanceReport.prototype.toJSON = function() {
+                return PerformanceReport.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for PerformanceReport
+             * @function getTypeUrl
+             * @memberof northstar.research.PerformanceReport
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            PerformanceReport.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.research.PerformanceReport";
+            };
+
+            return PerformanceReport;
         })();
 
         return research;

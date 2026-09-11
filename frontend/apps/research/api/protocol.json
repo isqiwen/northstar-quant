@@ -1879,6 +1879,13 @@
     },
     "northstar.research.ResearchResultDocument": {
       "fields": {
+        "performance": {
+          "id": 9,
+          "presence": true,
+          "type": "northstar.research.PerformanceReport",
+          "required": true,
+          "nullable": false
+        },
         "evaluation": {
           "id": 8,
           "presence": true,
@@ -3343,6 +3350,239 @@
           "required": false,
           "nullable": false,
           "rule": "repeated"
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.research.PerformancePeriod": {
+      "fields": {
+        "period": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "start_at": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "end_at": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "opening_equity": {
+          "id": 4,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "closing_equity": {
+          "id": 5,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "pnl": {
+          "id": 6,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "return_fraction": {
+          "id": 7,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": true
+        },
+        "observations": {
+          "id": 8,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "null_fields": {
+          "id": 2046,
+          "presence": false,
+          "type": "string",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.research.DrawdownPeriod": {
+      "fields": {
+        "peak_at": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "start_at": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "trough_at": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "end_at": {
+          "id": 4,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "peak_equity": {
+          "id": 5,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "trough_equity": {
+          "id": 6,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "drawdown": {
+          "id": 7,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "drawdown_fraction": {
+          "id": 8,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "elapsed_seconds": {
+          "id": 9,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "recovered": {
+          "id": 10,
+          "presence": true,
+          "type": "bool",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.research.RollingReturn": {
+      "fields": {
+        "start_day": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "end_day": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "observed_days": {
+          "id": 3,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
+        "return_fraction": {
+          "id": 4,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": true
+        },
+        "null_fields": {
+          "id": 2046,
+          "presence": false,
+          "type": "string",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.research.PerformanceReport": {
+      "fields": {
+        "daily": {
+          "id": 1,
+          "presence": false,
+          "type": "northstar.research.PerformancePeriod",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "monthly": {
+          "id": 2,
+          "presence": false,
+          "type": "northstar.research.PerformancePeriod",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "drawdowns": {
+          "id": 3,
+          "presence": false,
+          "type": "northstar.research.DrawdownPeriod",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "rolling": {
+          "id": 4,
+          "presence": false,
+          "type": "northstar.research.RollingReturn",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "basis": {
+          "id": 5,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
         }
       },
       "array": false,

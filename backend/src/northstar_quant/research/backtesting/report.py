@@ -17,6 +17,8 @@ from northstar_quant.accounting.portfolio import value_single_contract
 from northstar_quant.execution.history import OrderHistory
 from northstar_quant.execution.orders import reservation
 
+from .performance import performance
+
 if TYPE_CHECKING:
     from .session import TradingSession, TradingStep
 
@@ -148,6 +150,9 @@ def build_result(session: TradingSession, steps: Sequence[TradingStep]) -> Resea
             },
             "config": session.config.to_dict(),
             "summary": session.summary(),
+            "performance": performance(
+                session.account.initial_cash, [step.point for step in steps]
+            ),
             "evaluation": session.evaluation.evaluate(
                 initial_cash=session.account.initial_cash,
                 ending_equity=Decimal(str(session.summary()["ending_equity"])),

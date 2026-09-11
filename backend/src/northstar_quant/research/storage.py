@@ -137,6 +137,11 @@ def require_current(engine: Engine) -> None:
             != "research"
         ):
             raise ValueError("Research storage requires current initialization")
+        replay_columns = {
+            item["name"] for item in inspect(connection).get_columns("paper_sessions")
+        }
+        if "interval_seconds" not in replay_columns:
+            raise ValueError("Research storage requires current fixed stream initialization")
         columns = {item["name"] for item in inspect(connection).get_columns("factor_runs")}
         if not {"inputs", "total", "done"} <= columns:
             raise ValueError("Research storage requires current factor task initialization")

@@ -357,6 +357,7 @@ message ResearchConfigurationInput {
 }
 
 message ResearchResultDocument {
+  optional PerformanceReport performance = 9 [(northstar.web.required_field) = true];
   optional EvaluationResult evaluation = 8 [(northstar.web.required_field) = true];
   repeated google.protobuf.Struct orders = 7 [json_name = "orders", (northstar.web.required_field) = true];
   option (northstar.web.evidence) = true;
@@ -816,4 +817,42 @@ message EvaluationResult {
   optional string sharpe = 8 [(northstar.web.required_field) = true, (northstar.web.nullable) = true];
   repeated string limitations = 9 [(northstar.web.required_field) = true];
   repeated string null_fields = 2046;
+}
+
+message PerformancePeriod {
+  optional string period = 1 [(northstar.web.required_field) = true];
+  optional string start_at = 2 [(northstar.web.required_field) = true];
+  optional string end_at = 3 [(northstar.web.required_field) = true];
+  optional string opening_equity = 4 [(northstar.web.required_field) = true];
+  optional string closing_equity = 5 [(northstar.web.required_field) = true];
+  optional string pnl = 6 [(northstar.web.required_field) = true];
+  optional string return_fraction = 7 [(northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  optional int64 observations = 8 [(northstar.web.required_field) = true];
+  repeated string null_fields = 2046;
+}
+message DrawdownPeriod {
+  optional string peak_at = 1 [(northstar.web.required_field) = true];
+  optional string start_at = 2 [(northstar.web.required_field) = true];
+  optional string trough_at = 3 [(northstar.web.required_field) = true];
+  optional string end_at = 4 [(northstar.web.required_field) = true];
+  optional string peak_equity = 5 [(northstar.web.required_field) = true];
+  optional string trough_equity = 6 [(northstar.web.required_field) = true];
+  optional string drawdown = 7 [(northstar.web.required_field) = true];
+  optional string drawdown_fraction = 8 [(northstar.web.required_field) = true];
+  optional string elapsed_seconds = 9 [(northstar.web.required_field) = true];
+  optional bool recovered = 10 [(northstar.web.required_field) = true];
+}
+message RollingReturn {
+  optional string start_day = 1 [(northstar.web.required_field) = true];
+  optional string end_day = 2 [(northstar.web.required_field) = true];
+  optional int64 observed_days = 3 [(northstar.web.required_field) = true];
+  optional string return_fraction = 4 [(northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  repeated string null_fields = 2046;
+}
+message PerformanceReport {
+  repeated PerformancePeriod daily = 1 [(northstar.web.required_field) = true];
+  repeated PerformancePeriod monthly = 2 [(northstar.web.required_field) = true];
+  repeated DrawdownPeriod drawdowns = 3 [(northstar.web.required_field) = true];
+  repeated RollingReturn rolling = 4 [(northstar.web.required_field) = true];
+  optional string basis = 5 [(northstar.web.required_field) = true];
 }

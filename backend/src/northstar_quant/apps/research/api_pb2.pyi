@@ -680,7 +680,7 @@ class ResearchConfigurationInput(_message.Message):
     def __init__(self, risk: _Optional[_Union[RiskInput, _Mapping]] = ..., simulation: _Optional[_Union[SimulationInput, _Mapping]] = ..., strategy: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ResearchResultDocument(_message.Message):
-    __slots__ = ("evaluation", "orders", "data", "decisions", "equity_curve", "fills", "summary", "evidence_fields", "null_fields", "settlements")
+    __slots__ = ("performance", "evaluation", "orders", "data", "decisions", "equity_curve", "fills", "summary", "evidence_fields", "null_fields", "settlements")
     class EvidenceFieldsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -688,6 +688,7 @@ class ResearchResultDocument(_message.Message):
         key: str
         value: _struct_pb2.Value
         def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
+    PERFORMANCE_FIELD_NUMBER: _ClassVar[int]
     EVALUATION_FIELD_NUMBER: _ClassVar[int]
     ORDERS_FIELD_NUMBER: _ClassVar[int]
     DATA_FIELD_NUMBER: _ClassVar[int]
@@ -698,6 +699,7 @@ class ResearchResultDocument(_message.Message):
     EVIDENCE_FIELDS_FIELD_NUMBER: _ClassVar[int]
     NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
     SETTLEMENTS_FIELD_NUMBER: _ClassVar[int]
+    performance: PerformanceReport
     evaluation: EvaluationResult
     orders: _containers.RepeatedCompositeFieldContainer[_struct_pb2.Struct]
     data: DatasetDetails
@@ -708,7 +710,7 @@ class ResearchResultDocument(_message.Message):
     evidence_fields: _containers.MessageMap[str, _struct_pb2.Value]
     null_fields: _containers.RepeatedScalarFieldContainer[str]
     settlements: _containers.RepeatedCompositeFieldContainer[_struct_pb2.Struct]
-    def __init__(self, evaluation: _Optional[_Union[EvaluationResult, _Mapping]] = ..., orders: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., data: _Optional[_Union[DatasetDetails, _Mapping]] = ..., decisions: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., equity_curve: _Optional[_Iterable[_Union[EquityPoint, _Mapping]]] = ..., fills: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., summary: _Optional[_Union[ResearchSummary, _Mapping]] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., null_fields: _Optional[_Iterable[str]] = ..., settlements: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ...) -> None: ...
+    def __init__(self, performance: _Optional[_Union[PerformanceReport, _Mapping]] = ..., evaluation: _Optional[_Union[EvaluationResult, _Mapping]] = ..., orders: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., data: _Optional[_Union[DatasetDetails, _Mapping]] = ..., decisions: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., equity_curve: _Optional[_Iterable[_Union[EquityPoint, _Mapping]]] = ..., fills: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ..., summary: _Optional[_Union[ResearchSummary, _Mapping]] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., null_fields: _Optional[_Iterable[str]] = ..., settlements: _Optional[_Iterable[_Union[_struct_pb2.Struct, _Mapping]]] = ...) -> None: ...
 
 class ResearchSummary(_message.Message):
     __slots__ = ("bar_count", "decision_count", "ending_cash", "ending_equity", "ending_position_lots", "fill_count", "initial_cash", "max_drawdown", "max_drawdown_fraction", "realized_pnl", "total_fees", "total_return", "unrealized_pnl")
@@ -1223,3 +1225,77 @@ class EvaluationResult(_message.Message):
     limitations: _containers.RepeatedScalarFieldContainer[str]
     null_fields: _containers.RepeatedScalarFieldContainer[str]
     def __init__(self, plan: _Optional[_Union[EvaluationPlan, _Mapping]] = ..., status: _Optional[str] = ..., observed_bars: _Optional[int] = ..., benchmark_ending_equity: _Optional[str] = ..., benchmark_return: _Optional[str] = ..., excess_return: _Optional[str] = ..., annualized_return: _Optional[str] = ..., sharpe: _Optional[str] = ..., limitations: _Optional[_Iterable[str]] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class PerformancePeriod(_message.Message):
+    __slots__ = ("period", "start_at", "end_at", "opening_equity", "closing_equity", "pnl", "return_fraction", "observations", "null_fields")
+    PERIOD_FIELD_NUMBER: _ClassVar[int]
+    START_AT_FIELD_NUMBER: _ClassVar[int]
+    END_AT_FIELD_NUMBER: _ClassVar[int]
+    OPENING_EQUITY_FIELD_NUMBER: _ClassVar[int]
+    CLOSING_EQUITY_FIELD_NUMBER: _ClassVar[int]
+    PNL_FIELD_NUMBER: _ClassVar[int]
+    RETURN_FRACTION_FIELD_NUMBER: _ClassVar[int]
+    OBSERVATIONS_FIELD_NUMBER: _ClassVar[int]
+    NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    period: str
+    start_at: str
+    end_at: str
+    opening_equity: str
+    closing_equity: str
+    pnl: str
+    return_fraction: str
+    observations: int
+    null_fields: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, period: _Optional[str] = ..., start_at: _Optional[str] = ..., end_at: _Optional[str] = ..., opening_equity: _Optional[str] = ..., closing_equity: _Optional[str] = ..., pnl: _Optional[str] = ..., return_fraction: _Optional[str] = ..., observations: _Optional[int] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class DrawdownPeriod(_message.Message):
+    __slots__ = ("peak_at", "start_at", "trough_at", "end_at", "peak_equity", "trough_equity", "drawdown", "drawdown_fraction", "elapsed_seconds", "recovered")
+    PEAK_AT_FIELD_NUMBER: _ClassVar[int]
+    START_AT_FIELD_NUMBER: _ClassVar[int]
+    TROUGH_AT_FIELD_NUMBER: _ClassVar[int]
+    END_AT_FIELD_NUMBER: _ClassVar[int]
+    PEAK_EQUITY_FIELD_NUMBER: _ClassVar[int]
+    TROUGH_EQUITY_FIELD_NUMBER: _ClassVar[int]
+    DRAWDOWN_FIELD_NUMBER: _ClassVar[int]
+    DRAWDOWN_FRACTION_FIELD_NUMBER: _ClassVar[int]
+    ELAPSED_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    RECOVERED_FIELD_NUMBER: _ClassVar[int]
+    peak_at: str
+    start_at: str
+    trough_at: str
+    end_at: str
+    peak_equity: str
+    trough_equity: str
+    drawdown: str
+    drawdown_fraction: str
+    elapsed_seconds: str
+    recovered: bool
+    def __init__(self, peak_at: _Optional[str] = ..., start_at: _Optional[str] = ..., trough_at: _Optional[str] = ..., end_at: _Optional[str] = ..., peak_equity: _Optional[str] = ..., trough_equity: _Optional[str] = ..., drawdown: _Optional[str] = ..., drawdown_fraction: _Optional[str] = ..., elapsed_seconds: _Optional[str] = ..., recovered: _Optional[bool] = ...) -> None: ...
+
+class RollingReturn(_message.Message):
+    __slots__ = ("start_day", "end_day", "observed_days", "return_fraction", "null_fields")
+    START_DAY_FIELD_NUMBER: _ClassVar[int]
+    END_DAY_FIELD_NUMBER: _ClassVar[int]
+    OBSERVED_DAYS_FIELD_NUMBER: _ClassVar[int]
+    RETURN_FRACTION_FIELD_NUMBER: _ClassVar[int]
+    NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    start_day: str
+    end_day: str
+    observed_days: int
+    return_fraction: str
+    null_fields: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, start_day: _Optional[str] = ..., end_day: _Optional[str] = ..., observed_days: _Optional[int] = ..., return_fraction: _Optional[str] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class PerformanceReport(_message.Message):
+    __slots__ = ("daily", "monthly", "drawdowns", "rolling", "basis")
+    DAILY_FIELD_NUMBER: _ClassVar[int]
+    MONTHLY_FIELD_NUMBER: _ClassVar[int]
+    DRAWDOWNS_FIELD_NUMBER: _ClassVar[int]
+    ROLLING_FIELD_NUMBER: _ClassVar[int]
+    BASIS_FIELD_NUMBER: _ClassVar[int]
+    daily: _containers.RepeatedCompositeFieldContainer[PerformancePeriod]
+    monthly: _containers.RepeatedCompositeFieldContainer[PerformancePeriod]
+    drawdowns: _containers.RepeatedCompositeFieldContainer[DrawdownPeriod]
+    rolling: _containers.RepeatedCompositeFieldContainer[RollingReturn]
+    basis: str
+    def __init__(self, daily: _Optional[_Iterable[_Union[PerformancePeriod, _Mapping]]] = ..., monthly: _Optional[_Iterable[_Union[PerformancePeriod, _Mapping]]] = ..., drawdowns: _Optional[_Iterable[_Union[DrawdownPeriod, _Mapping]]] = ..., rolling: _Optional[_Iterable[_Union[RollingReturn, _Mapping]]] = ..., basis: _Optional[str] = ...) -> None: ...

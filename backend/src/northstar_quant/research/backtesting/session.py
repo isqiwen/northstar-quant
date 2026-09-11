@@ -157,7 +157,7 @@ class TradingSession:
     """
 
     # Bump for changed Strategy/Risk/Simulation/Accounting rules or checkpoint format.
-    REVISION = "21"
+    REVISION = "22"
 
     def __init__(
         self,
@@ -376,6 +376,8 @@ class TradingSession:
         point: dict[str, object] = {
             "observation_id": str(bar.observation_id),
             "at": bar.available_at.isoformat(),
+            "event_time": bar.event_time.isoformat(),
+            "trading_day": bar.trading_day.isoformat(),
             "close": decimal_text(bar.close),
             **valuation.to_dict(),
             "drawdown": decimal_text(drawdown),
