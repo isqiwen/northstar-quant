@@ -130,9 +130,12 @@ print(json.dumps(result))
             capture_output=True,
             env=self.environment,
             cwd=self.directory,
-            check=True,
             timeout=60,
         )
+        if result.returncode:
+            raise RuntimeError(
+                "Installed source setup failed: " + redact(result.stderr, self.environment)
+            )
         return json.loads(result.stdout)
 
     def seed_study(self, study: Path) -> dict:
