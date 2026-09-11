@@ -73,7 +73,7 @@ def _verify_valuations(session: TradingSession, steps: Sequence[TradingStep]) ->
                         raise ValueError(
                             "report order reservation differs from its fixed risk budget"
                         )
-            orders.require_pending(step.new_order)
+            orders.require_working(() if step.new_order is None else (step.new_order,))
             valuation = value_single_contract(
                 account, Decimal(str(point["close"])), at=at, terms=active_terms
             )
@@ -103,7 +103,7 @@ def _verify_valuations(session: TradingSession, steps: Sequence[TradingStep]) ->
                 raise ValueError("report valuation differs from the identified account ledger")
         except (KeyError, TypeError, ArithmeticError) as error:
             raise ValueError("report valuation evidence is incomplete or invalid") from error
-    orders.require_pending(session.pending)
+    orders.require_working(session._execution.working)
     if (
         account.checkpoint() != session.account.checkpoint()
         or peak != session._peak

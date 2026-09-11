@@ -156,7 +156,7 @@ class TradingSession:
     """
 
     # Bump for changed Strategy/Risk/Simulation/Accounting rules or checkpoint format.
-    REVISION = "17"
+    REVISION = "18"
 
     def __init__(
         self,
@@ -244,7 +244,7 @@ class TradingSession:
 
     @property
     def pending(self) -> PendingOrder | None:
-        return self._execution.pending
+        return self._execution.pending_for(self.market.contract_id)
 
     def advance(self, bar: MarketBar) -> TradingStep | None:
         return self.kernel.advance(bar)
@@ -460,7 +460,9 @@ class TradingSession:
                     maximum_fill_price=self.pending.maximum_fill_price,
                     terms=terms,
                 )
-            replacement = self._execution.plan(desired, retained_budget=retained_budget)
+            replacement = self._execution.plan(
+                self.market.contract_id, desired, retained_budget=retained_budget
+            )
             if replacement.retained is not None:
                 decision["retained_order_id"] = replacement.retained.order_id
                 update = replacement.retained.observe(
@@ -670,7 +672,7 @@ class TradingSession:
             raise ValueError("checkpoint counters differ from its last decision")
         pending = checkpoint["pending"]
         session._execution = ExecutionEngine(
-            None if pending is None else PendingOrder.from_dict(_object(pending)),
+            () if pending is None else (PendingOrder.from_dict(_object(pending)),),
             None if previous is None else previous.available_at,
         )
         if session.pending is not None and (

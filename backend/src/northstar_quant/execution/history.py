@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 from datetime import datetime
+from uuid import UUID
 
 from northstar_quant.accounting.fifo import FillFact
 from northstar_quant.execution.orders import OrderStatus, OrderUpdate, PendingOrder
@@ -14,7 +15,7 @@ _TERMINAL = frozenset({OrderStatus.FILLED, OrderStatus.CANCELED, OrderStatus.EXP
 class OrderHistory:
     """Transient verification projection, never a sender or a reservation store.
 
-    The current research execution environment permits one working order. Each
+    The net-target execution path permits one working order per contract. Each
     step's accepted fill precedes its order notifications. Broker reconciliation
     has different ordering and terminal-correction semantics and does not use
     this simulated-history audit.
@@ -24,7 +25,7 @@ class OrderHistory:
         self._orders: dict[str, OrderUpdate] = {}
         self._filled: dict[str, int] = {}
         self._fill_ids: set[str] = set()
-        self._working: str | None = None
+        self._working: dict[UUID, str] = {}
         self._unreported: set[str] = set()
         self._last_fill_at: dict[str, datetime] = {}
 
@@ -62,8 +63,8 @@ class OrderHistory:
                 or update.at != order.submitted_at
             ):
                 raise ValueError("order history must start with an unfilled submission")
-            if self._working is not None:
-                raise ValueError("research execution permits only one working order")
+            if order.contract_id in self._working:
+                raise ValueError("research execution permits only one working order per contract")
             self._filled[order.order_id] = 0
         elif (
             prior.status in _TERMINAL
@@ -78,10 +79,16 @@ class OrderHistory:
         ):
             raise ValueError("order cumulative fills differ from individual account facts")
         self._orders[order.order_id] = update
-        self._working = None if update.status in _TERMINAL else order.order_id
+        if update.status in _TERMINAL:
+            self._working.pop(order.contract_id, None)
+        else:
+            self._working[order.contract_id] = order.order_id
         self._unreported.discard(order.order_id)
 
-    def require_pending(self, pending: PendingOrder | None) -> None:
-        working = None if self._working is None else self._orders[self._working].order
-        if working != pending or self._unreported:
+    def require_working(self, pending: tuple[PendingOrder, ...]) -> None:
+        working = {
+            identity: self._orders[order_id].order for identity, order_id in self._working.items()
+        }
+        expected = {order.contract_id: order for order in pending}
+        if len(expected) != len(pending) or working != expected or self._unreported:
             raise ValueError("pending order differs from its complete execution history")

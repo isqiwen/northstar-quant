@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from datetime import datetime
+from datetime import datetime, timedelta
+from uuid import UUID
 
 from .orders import OrderBudget, OrderStatus, OrderUpdate, PendingOrder
 
@@ -17,7 +18,7 @@ class Replacement:
 
 @dataclass(frozen=True, slots=True)
 class ExecutionEngine:
-    """One working order for the current single-target execution path.
+    """One account working-order projection, with one net-target order per contract.
 
     Planning never cancels an order. Only a confirmed terminal update releases
     it. The owning transaction accepts identified account fills first and passes
@@ -25,16 +26,46 @@ class ExecutionEngine:
     This reconstructible projection does not itself persist or send commands.
     """
 
-    pending: PendingOrder | None = None
+    working: tuple[PendingOrder, ...] = ()
     observed_at: datetime | None = None
+
+    def __post_init__(self) -> None:
+        if (
+            not isinstance(self.working, tuple)
+            or any(
+                not isinstance(order, PendingOrder) or not order.remaining_lots
+                for order in self.working
+            )
+            or len({order.contract_id for order in self.working}) != len(self.working)
+            or len({order.order_id for order in self.working}) != len(self.working)
+        ):
+            raise ValueError("working orders require unique contracts and order identities")
+        if self.working and self.observed_at is None:
+            raise ValueError("working orders require an observation time")
+        if self.observed_at is not None and (
+            self.observed_at.utcoffset() != timedelta(0)
+            or any(order.submitted_at > self.observed_at for order in self.working)
+        ):
+            raise ValueError("working order observation must cover all submissions")
+        object.__setattr__(
+            self, "working", tuple(sorted(self.working, key=lambda order: order.contract_id.int))
+        )
+
+    def pending_for(self, contract_id: UUID) -> PendingOrder | None:
+        return next((order for order in self.working if order.contract_id == contract_id), None)
 
     def plan(
         self,
+        contract_id: UUID,
         desired: PendingOrder | None,
         *,
         retained_budget: OrderBudget | None = None,
     ) -> Replacement:
-        prior = self.pending
+        prior = self.pending_for(contract_id)
+        if not isinstance(contract_id, UUID) or (
+            desired is not None and desired.contract_id != contract_id
+        ):
+            raise ValueError("replacement plan belongs to a different contract")
         if prior is not None and desired is not None and retained_budget is None:
             raise ValueError("retention requires current risk budgets at the original price bound")
         if (
@@ -58,7 +89,13 @@ class ExecutionEngine:
     def record(self, update: OrderUpdate, *, accepted_fill_lots: int = 0) -> ExecutionEngine:
         if type(accepted_fill_lots) is not int or accepted_fill_lots < 0:
             raise ValueError("execution requires newly accepted integer fill lots")
-        prior = self.pending
+        prior = self.pending_for(update.order.contract_id)
+        if any(
+            order.order_id == update.order.order_id
+            and order.contract_id != update.order.contract_id
+            for order in self.working
+        ):
+            raise ValueError("working order identity belongs to another contract")
         if self.observed_at is not None and update.at < self.observed_at:
             raise ValueError("execution update time moved backwards")
         if prior is None:
@@ -79,4 +116,7 @@ class ExecutionEngine:
             OrderStatus.CANCELED,
             OrderStatus.EXPIRED,
         }
-        return ExecutionEngine(None if terminal else update.order, update.at)
+        others = tuple(
+            order for order in self.working if order.contract_id != update.order.contract_id
+        )
+        return ExecutionEngine(others if terminal else others + (update.order,), update.at)
