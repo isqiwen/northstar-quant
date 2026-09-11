@@ -275,14 +275,85 @@ class FactorInput(_message.Message):
     def __init__(self, factor_id: _Optional[str] = ..., parameters: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ...) -> None: ...
 
 class FactorResult(_message.Message):
-    __slots__ = ("evaluation", "inputs", "values")
+    __slots__ = ("evaluation", "inputs", "values", "analysis")
     EVALUATION_FIELD_NUMBER: _ClassVar[int]
     INPUTS_FIELD_NUMBER: _ClassVar[int]
     VALUES_FIELD_NUMBER: _ClassVar[int]
+    ANALYSIS_FIELD_NUMBER: _ClassVar[int]
     evaluation: _struct_pb2.Struct
     inputs: _struct_pb2.Struct
     values: _containers.RepeatedCompositeFieldContainer[FactorValue]
-    def __init__(self, evaluation: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., inputs: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., values: _Optional[_Iterable[_Union[FactorValue, _Mapping]]] = ...) -> None: ...
+    analysis: FactorAnalysis
+    def __init__(self, evaluation: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., inputs: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., values: _Optional[_Iterable[_Union[FactorValue, _Mapping]]] = ..., analysis: _Optional[_Union[FactorAnalysis, _Mapping]] = ...) -> None: ...
+
+class ForwardGroup(_message.Message):
+    __slots__ = ("group", "samples", "mean_forward_return", "null_fields")
+    GROUP_FIELD_NUMBER: _ClassVar[int]
+    SAMPLES_FIELD_NUMBER: _ClassVar[int]
+    MEAN_FORWARD_RETURN_FIELD_NUMBER: _ClassVar[int]
+    NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    group: int
+    samples: int
+    mean_forward_return: float
+    null_fields: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, group: _Optional[int] = ..., samples: _Optional[int] = ..., mean_forward_return: _Optional[float] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class ForwardDay(_message.Message):
+    __slots__ = ("trading_day", "samples", "spearman", "mean_forward_return", "null_fields")
+    TRADING_DAY_FIELD_NUMBER: _ClassVar[int]
+    SAMPLES_FIELD_NUMBER: _ClassVar[int]
+    SPEARMAN_FIELD_NUMBER: _ClassVar[int]
+    MEAN_FORWARD_RETURN_FIELD_NUMBER: _ClassVar[int]
+    NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    trading_day: str
+    samples: int
+    spearman: float
+    mean_forward_return: float
+    null_fields: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, trading_day: _Optional[str] = ..., samples: _Optional[int] = ..., spearman: _Optional[float] = ..., mean_forward_return: _Optional[float] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class FactorHorizon(_message.Message):
+    __slots__ = ("bars", "samples", "excluded", "status", "pearson", "spearman", "group_change_fraction", "groups", "days", "null_fields")
+    class ExcludedEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: int
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[int] = ...) -> None: ...
+    BARS_FIELD_NUMBER: _ClassVar[int]
+    SAMPLES_FIELD_NUMBER: _ClassVar[int]
+    EXCLUDED_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    PEARSON_FIELD_NUMBER: _ClassVar[int]
+    SPEARMAN_FIELD_NUMBER: _ClassVar[int]
+    GROUP_CHANGE_FRACTION_FIELD_NUMBER: _ClassVar[int]
+    GROUPS_FIELD_NUMBER: _ClassVar[int]
+    DAYS_FIELD_NUMBER: _ClassVar[int]
+    NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    bars: int
+    samples: int
+    excluded: _containers.ScalarMap[str, int]
+    status: str
+    pearson: float
+    spearman: float
+    group_change_fraction: float
+    groups: _containers.RepeatedCompositeFieldContainer[ForwardGroup]
+    days: _containers.RepeatedCompositeFieldContainer[ForwardDay]
+    null_fields: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, bars: _Optional[int] = ..., samples: _Optional[int] = ..., excluded: _Optional[_Mapping[str, int]] = ..., status: _Optional[str] = ..., pearson: _Optional[float] = ..., spearman: _Optional[float] = ..., group_change_fraction: _Optional[float] = ..., groups: _Optional[_Iterable[_Union[ForwardGroup, _Mapping]]] = ..., days: _Optional[_Iterable[_Union[ForwardDay, _Mapping]]] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class FactorAnalysis(_message.Message):
+    __slots__ = ("plan", "numeric", "horizons", "limitations")
+    PLAN_FIELD_NUMBER: _ClassVar[int]
+    NUMERIC_FIELD_NUMBER: _ClassVar[int]
+    HORIZONS_FIELD_NUMBER: _ClassVar[int]
+    LIMITATIONS_FIELD_NUMBER: _ClassVar[int]
+    plan: str
+    numeric: str
+    horizons: _containers.RepeatedCompositeFieldContainer[FactorHorizon]
+    limitations: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, plan: _Optional[str] = ..., numeric: _Optional[str] = ..., horizons: _Optional[_Iterable[_Union[FactorHorizon, _Mapping]]] = ..., limitations: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class FactorRevision(_message.Message):
     __slots__ = ("annotations", "binding", "revision_id")

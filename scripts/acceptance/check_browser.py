@@ -388,6 +388,16 @@ def main() -> None:
                     page.wait_for_url(re.compile("/factor-runs/"))
                     factor_path = urlsplit(page.url).path
                     expect(page.get_by_text("WARMING_UP", exact=True).first).to_be_visible()
+                    analysis = (
+                        page.locator(".ant-card")
+                        .filter(has=page.get_by_text("前瞻收益与稳定性诊断", exact=True))
+                        .first
+                    )
+                    analysis.locator(".ant-table-row-expand-icon").first.click()
+                    expect(
+                        analysis.get_by_role("columnheader", name="日内 Spearman", exact=True)
+                    ).to_be_visible()
+                    screenshot("factor-analysis")
                     page.get_by_label("追加研究说明", exact=True).fill(annotation)
                     page.get_by_role("button", name="保存说明", exact=True).click()
                     expect(page.get_by_text("说明已追加", exact=True)).to_be_visible()
@@ -507,6 +517,7 @@ def main() -> None:
                 ):
                     visit(url + factor_path)
                     expect(page.get_by_text(annotation, exact=False)).to_be_visible()
+                    expect(page.get_by_text("前瞻收益与稳定性诊断", exact=True)).to_be_visible()
                     visit(url + version_path)
                     expect(page.get_by_text("已发布：", exact=False)).to_be_visible()
                     visit(url + paper_path)

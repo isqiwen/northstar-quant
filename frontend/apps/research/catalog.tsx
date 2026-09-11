@@ -17,6 +17,7 @@ import {
   Status,
 } from "../../shared/ui";
 import { Line } from "../../shared/chart";
+import FactorDiagnostics from "./experiments/factor-analysis";
 export function Catalog() {
   const q = useData(query("/api/catalog"));
   const runs = useData(query("/api/factor-runs"));
@@ -320,7 +321,7 @@ export function FactorRun() {
     <>
       <Heading
         title="因子计算结果"
-        description="可用性与覆盖率检查，不代表收益评价或交易许可。"
+        description="固定因子值、可得性及前瞻价格收益诊断，不构成交易许可。"
       />
       <Failure error={q.error} />
       {q.data && (
@@ -343,6 +344,9 @@ export function FactorRun() {
               )}
             />
           </Card>
+          {q.data.result && (
+            <FactorDiagnostics value={q.data.result.analysis} />
+          )}
           <Records
             title="逐行计算"
             rows={rows}

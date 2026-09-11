@@ -28,6 +28,8 @@ from northstar_quant.factors.definition import Bar, Inputs, content_id
 from northstar_quant.factors.evaluation import Binding, evaluate
 from northstar_quant.persistence.sql import UTCDateTime, write_transaction
 
+from .factor_analysis import analyze
+
 _metadata = MetaData()
 _revisions = Table(
     "factor_revisions",
@@ -195,6 +197,7 @@ class FactorCatalog:
             "availability": "COMPLETED_AND_AVAILABLE_PREFIX",
             "numeric": "DECIMAL_96_HALF_EVEN",
             "initial_state": "EMPTY",
+            "analysis": "SINGLE_CONTRACT_TIME_SERIES_FORWARD_RETURNS_V1",
         }
         identity = content_id(material)
         implementation = code_revision()
@@ -262,6 +265,7 @@ class FactorCatalog:
             document = {
                 "inputs": material,
                 "values": results,
+                "analysis": analyze(dataset, results),
                 "evaluation": {
                     "plan": "BOUNDED_AVAILABILITY_COVERAGE_V1",
                     "counts": counts,

@@ -8893,8 +8893,10 @@ export const northstar = $root.northstar = (() => {
              * @property {google.protobuf.Struct.$Properties|null} [evaluation] FactorResult evaluation
              * @property {google.protobuf.Struct.$Properties|null} [inputs] FactorResult inputs
              * @property {Array.<northstar.research.FactorValue.$Properties>|null} [values] FactorResult values
+             * @property {northstar.research.FactorAnalysis.$Properties|null} [analysis] FactorResult analysis
              * @property {"evaluation"} [_evaluation] FactorResult _evaluation
              * @property {"inputs"} [_inputs] FactorResult _inputs
+             * @property {"analysis"} [_analysis] FactorResult _analysis
              * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
              */
 
@@ -8912,11 +8914,14 @@ export const northstar = $root.northstar = (() => {
              *   evaluation?: google.protobuf.Struct.$Shape|null;
              *   inputs?: google.protobuf.Struct.$Shape|null;
              *   values?: Array.<northstar.research.FactorValue.$Shape>|null;
+             *   analysis?: northstar.research.FactorAnalysis.$Shape|null;
              *   $unknowns?: Array.<Uint8Array>;
              * } & (
              *   ({ _evaluation?: undefined; evaluation?: null }|{ _evaluation?: "evaluation"; evaluation: google.protobuf.Struct.$Shape })
              * ) & (
              *   ({ _inputs?: undefined; inputs?: null }|{ _inputs?: "inputs"; inputs: google.protobuf.Struct.$Shape })
+             * ) & (
+             *   ({ _analysis?: undefined; analysis?: null }|{ _analysis?: "analysis"; analysis: northstar.research.FactorAnalysis.$Shape })
              * )} northstar.research.FactorResult.$Shape
              */
 
@@ -8960,6 +8965,14 @@ export const northstar = $root.northstar = (() => {
              */
             FactorResult.prototype.values = $util.emptyArray;
 
+            /**
+             * FactorResult analysis.
+             * @member {northstar.research.FactorAnalysis.$Properties|null|undefined} analysis
+             * @memberof northstar.research.FactorResult
+             * @instance
+             */
+            FactorResult.prototype.analysis = null;
+
             // OneOf field names bound to virtual getters and setters
             let $oneOfFields;
 
@@ -8982,6 +8995,17 @@ export const northstar = $root.northstar = (() => {
              */
             $Object.defineProperty(FactorResult.prototype, "_inputs", {
                 get: $util.oneOfGetter($oneOfFields = ["inputs"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * FactorResult _analysis.
+             * @member {"analysis"|undefined} _analysis
+             * @memberof northstar.research.FactorResult
+             * @instance
+             */
+            $Object.defineProperty(FactorResult.prototype, "_analysis", {
+                get: $util.oneOfGetter($oneOfFields = ["analysis"]),
                 set: $util.oneOfSetter($oneOfFields)
             });
 
@@ -9024,6 +9048,8 @@ export const northstar = $root.northstar = (() => {
                 if (message.values != null && message.values.length)
                     for (let i = 0; i < message.values.length; ++i)
                         $root.northstar.research.FactorValue.encode(message.values[i], writer.uint32(/* id 3, wireType 2 =*/26).fork(), _depth + 1).ldelim();
+                if (message.analysis != null && $Object.hasOwnProperty.call(message, "analysis"))
+                    $root.northstar.research.FactorAnalysis.encode(message.analysis, writer.uint32(/* id 4, wireType 2 =*/34).fork(), _depth + 1).ldelim();
                 if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
                     for (let i = 0; i < message.$unknowns.length; ++i)
                         writer.raw(message.$unknowns[i]);
@@ -9090,6 +9116,13 @@ export const northstar = $root.northstar = (() => {
                             message.values.push($root.northstar.research.FactorValue.decode(reader, reader.uint32(), $undefined, _depth + 1));
                             continue;
                         }
+                    case 4: {
+                            if (wireType !== 2)
+                                break;
+                            message.analysis = $root.northstar.research.FactorAnalysis.decode(reader, reader.uint32(), $undefined, _depth + 1, message.analysis);
+                            message._analysis = "analysis";
+                            continue;
+                        }
                     }
                     reader.skipType(wireType, _depth, tag);
                     if (!reader.discardUnknown) {
@@ -9148,6 +9181,14 @@ export const northstar = $root.northstar = (() => {
                             return "values." + error;
                     }
                 }
+                if (message.analysis != null && $Object.hasOwnProperty.call(message, "analysis")) {
+                    properties._analysis = 1;
+                    {
+                        let error = $root.northstar.research.FactorAnalysis.verify(message.analysis, _depth + 1);
+                        if (error)
+                            return "analysis." + error;
+                    }
+                }
                 return null;
             };
 
@@ -9189,6 +9230,11 @@ export const northstar = $root.northstar = (() => {
                         message.values[i] = $root.northstar.research.FactorValue.fromObject(object.values[i], _depth + 1);
                     }
                 }
+                if (object.analysis != null) {
+                    if (!$util.isObject(object.analysis))
+                        throw $TypeError(".northstar.research.FactorResult.analysis: object expected");
+                    message.analysis = $root.northstar.research.FactorAnalysis.fromObject(object.analysis, _depth + 1);
+                }
                 return message;
             };
 
@@ -9226,6 +9272,11 @@ export const northstar = $root.northstar = (() => {
                     for (let j = 0; j < message.values.length; ++j)
                         object.values[j] = $root.northstar.research.FactorValue.toObject(message.values[j], options, _depth + 1);
                 }
+                if (message.analysis != null && $Object.hasOwnProperty.call(message, "analysis")) {
+                    object.analysis = $root.northstar.research.FactorAnalysis.toObject(message.analysis, options, _depth + 1);
+                    if (options.oneofs)
+                        object._analysis = "analysis";
+                }
                 return object;
             };
 
@@ -9255,6 +9306,2023 @@ export const northstar = $root.northstar = (() => {
             };
 
             return FactorResult;
+        })();
+
+        research.ForwardGroup = (function() {
+
+            /**
+             * Properties of a ForwardGroup.
+             * @typedef {Object} northstar.research.ForwardGroup.$Properties
+             * @property {number|Long|null} [group] ForwardGroup group
+             * @property {number|Long|null} [samples] ForwardGroup samples
+             * @property {number|null} [mean_forward_return] ForwardGroup mean_forward_return
+             * @property {Array.<string>|null} [null_fields] ForwardGroup null_fields
+             * @property {"group"} [_group] ForwardGroup _group
+             * @property {"samples"} [_samples] ForwardGroup _samples
+             * @property {"mean_forward_return"} [_mean_forward_return] ForwardGroup _mean_forward_return
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a ForwardGroup.
+             * @memberof northstar.research
+             * @interface IForwardGroup
+             * @augments northstar.research.ForwardGroup.$Properties
+             * @deprecated Use northstar.research.ForwardGroup.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a ForwardGroup.
+             * @typedef {{
+             *   group?: number|Long|null;
+             *   samples?: number|Long|null;
+             *   mean_forward_return?: number|null;
+             *   null_fields?: Array.<string>|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _group?: undefined; group?: null }|{ _group?: "group"; group: number|Long })
+             * ) & (
+             *   ({ _samples?: undefined; samples?: null }|{ _samples?: "samples"; samples: number|Long })
+             * ) & (
+             *   ({ _mean_forward_return?: undefined; mean_forward_return?: null }|{ _mean_forward_return?: "mean_forward_return"; mean_forward_return: number })
+             * )} northstar.research.ForwardGroup.$Shape
+             */
+
+            /**
+             * Constructs a new ForwardGroup.
+             * @memberof northstar.research
+             * @classdesc Represents a ForwardGroup.
+             * @constructor
+             * @param {northstar.research.ForwardGroup.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const ForwardGroup = function (properties) {
+                this.null_fields = [];
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * ForwardGroup group.
+             * @member {number|Long|null|undefined} group
+             * @memberof northstar.research.ForwardGroup
+             * @instance
+             */
+            ForwardGroup.prototype.group = null;
+
+            /**
+             * ForwardGroup samples.
+             * @member {number|Long|null|undefined} samples
+             * @memberof northstar.research.ForwardGroup
+             * @instance
+             */
+            ForwardGroup.prototype.samples = null;
+
+            /**
+             * ForwardGroup mean_forward_return.
+             * @member {number|null|undefined} mean_forward_return
+             * @memberof northstar.research.ForwardGroup
+             * @instance
+             */
+            ForwardGroup.prototype.mean_forward_return = null;
+
+            /**
+             * ForwardGroup null_fields.
+             * @member {Array.<string>} null_fields
+             * @memberof northstar.research.ForwardGroup
+             * @instance
+             */
+            ForwardGroup.prototype.null_fields = $util.emptyArray;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * ForwardGroup _group.
+             * @member {"group"|undefined} _group
+             * @memberof northstar.research.ForwardGroup
+             * @instance
+             */
+            $Object.defineProperty(ForwardGroup.prototype, "_group", {
+                get: $util.oneOfGetter($oneOfFields = ["group"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ForwardGroup _samples.
+             * @member {"samples"|undefined} _samples
+             * @memberof northstar.research.ForwardGroup
+             * @instance
+             */
+            $Object.defineProperty(ForwardGroup.prototype, "_samples", {
+                get: $util.oneOfGetter($oneOfFields = ["samples"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ForwardGroup _mean_forward_return.
+             * @member {"mean_forward_return"|undefined} _mean_forward_return
+             * @memberof northstar.research.ForwardGroup
+             * @instance
+             */
+            $Object.defineProperty(ForwardGroup.prototype, "_mean_forward_return", {
+                get: $util.oneOfGetter($oneOfFields = ["mean_forward_return"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new ForwardGroup instance using the specified properties.
+             * @function create
+             * @memberof northstar.research.ForwardGroup
+             * @static
+             * @param {northstar.research.ForwardGroup.$Properties=} [properties] Properties to set
+             * @returns {northstar.research.ForwardGroup} ForwardGroup instance
+             * @type {{
+             *   (properties: northstar.research.ForwardGroup.$Shape): northstar.research.ForwardGroup & northstar.research.ForwardGroup.$Shape;
+             *   (properties?: northstar.research.ForwardGroup.$Properties): northstar.research.ForwardGroup;
+             * }}
+             */
+            ForwardGroup.create = function(properties) {
+                return new ForwardGroup(properties);
+            };
+
+            /**
+             * Encodes the specified ForwardGroup message. Does not implicitly {@link northstar.research.ForwardGroup.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.research.ForwardGroup
+             * @static
+             * @param {northstar.research.ForwardGroup.$Properties} message ForwardGroup message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            ForwardGroup.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.group != null && $Object.hasOwnProperty.call(message, "group"))
+                    writer.uint32(/* id 1, wireType 0 =*/8).int64(message.group);
+                if (message.samples != null && $Object.hasOwnProperty.call(message, "samples"))
+                    writer.uint32(/* id 2, wireType 0 =*/16).int64(message.samples);
+                if (message.mean_forward_return != null && $Object.hasOwnProperty.call(message, "mean_forward_return"))
+                    writer.uint32(/* id 3, wireType 1 =*/25).double(message.mean_forward_return);
+                if (message.null_fields != null && message.null_fields.length)
+                    for (let i = 0; i < message.null_fields.length; ++i)
+                        writer.uint32(/* id 2046, wireType 2 =*/16370).string(message.null_fields[i]);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a ForwardGroup message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.research.ForwardGroup
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.research.ForwardGroup & northstar.research.ForwardGroup.$Shape} ForwardGroup
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            ForwardGroup.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.research.ForwardGroup();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 0)
+                                break;
+                            message.group = reader.int64();
+                            message._group = "group";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 0)
+                                break;
+                            message.samples = reader.int64();
+                            message._samples = "samples";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 1)
+                                break;
+                            message.mean_forward_return = reader.double();
+                            message._mean_forward_return = "mean_forward_return";
+                            continue;
+                        }
+                    case 2046: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.null_fields && message.null_fields.length))
+                                message.null_fields = [];
+                            message.null_fields.push(reader.stringVerify());
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a ForwardGroup message.
+             * @function verify
+             * @memberof northstar.research.ForwardGroup
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            ForwardGroup.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.group != null && $Object.hasOwnProperty.call(message, "group")) {
+                    properties._group = 1;
+                    if (!$util.isInteger(message.group) && !(message.group && $util.isInteger(message.group.low) && $util.isInteger(message.group.high)))
+                        return "group: integer|Long expected";
+                }
+                if (message.samples != null && $Object.hasOwnProperty.call(message, "samples")) {
+                    properties._samples = 1;
+                    if (!$util.isInteger(message.samples) && !(message.samples && $util.isInteger(message.samples.low) && $util.isInteger(message.samples.high)))
+                        return "samples: integer|Long expected";
+                }
+                if (message.mean_forward_return != null && $Object.hasOwnProperty.call(message, "mean_forward_return")) {
+                    properties._mean_forward_return = 1;
+                    if (typeof message.mean_forward_return !== "number")
+                        return "mean_forward_return: number expected";
+                }
+                if (message.null_fields != null && $Object.hasOwnProperty.call(message, "null_fields")) {
+                    if (!$Array.isArray(message.null_fields))
+                        return "null_fields: array expected";
+                    for (let i = 0; i < message.null_fields.length; ++i)
+                        if (!$util.isString(message.null_fields[i]))
+                            return "null_fields: string[] expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a ForwardGroup message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.research.ForwardGroup
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.research.ForwardGroup} ForwardGroup
+             */
+            ForwardGroup.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.research.ForwardGroup)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.research.ForwardGroup: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.research.ForwardGroup();
+                if (object.group != null)
+                    if ($util.Long)
+                        message.group = $util.Long.fromValue(object.group, false);
+                    else if (typeof object.group === "string")
+                        message.group = $parseInt(object.group, 10);
+                    else if (typeof object.group === "number")
+                        message.group = object.group;
+                    else if (typeof object.group === "object")
+                        message.group = new $util.LongBits(object.group.low >>> 0, object.group.high >>> 0).toNumber();
+                if (object.samples != null)
+                    if ($util.Long)
+                        message.samples = $util.Long.fromValue(object.samples, false);
+                    else if (typeof object.samples === "string")
+                        message.samples = $parseInt(object.samples, 10);
+                    else if (typeof object.samples === "number")
+                        message.samples = object.samples;
+                    else if (typeof object.samples === "object")
+                        message.samples = new $util.LongBits(object.samples.low >>> 0, object.samples.high >>> 0).toNumber();
+                if (object.mean_forward_return != null)
+                    message.mean_forward_return = $Number(object.mean_forward_return);
+                if (object.null_fields) {
+                    if (!$Array.isArray(object.null_fields))
+                        throw $TypeError(".northstar.research.ForwardGroup.null_fields: array expected");
+                    message.null_fields = $Array(object.null_fields.length);
+                    for (let i = 0; i < object.null_fields.length; ++i)
+                        message.null_fields[i] = $String(object.null_fields[i]);
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a ForwardGroup message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.research.ForwardGroup
+             * @static
+             * @param {northstar.research.ForwardGroup} message ForwardGroup
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            ForwardGroup.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.arrays || options.defaults)
+                    object.null_fields = [];
+                if (message.group != null && $Object.hasOwnProperty.call(message, "group")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.group = typeof message.group === "number" ? $BigInt(message.group) : $util.Long.fromBits(message.group.low >>> 0, message.group.high >>> 0, false).toBigInt();
+                    else if (typeof message.group === "number")
+                        object.group = options.longs === $String ? $String(message.group) : message.group;
+                    else
+                        object.group = options.longs === $String ? $util.Long.prototype.toString.call(message.group) : options.longs === $Number ? new $util.LongBits(message.group.low >>> 0, message.group.high >>> 0).toNumber() : message.group;
+                    if (options.oneofs)
+                        object._group = "group";
+                }
+                if (message.samples != null && $Object.hasOwnProperty.call(message, "samples")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.samples = typeof message.samples === "number" ? $BigInt(message.samples) : $util.Long.fromBits(message.samples.low >>> 0, message.samples.high >>> 0, false).toBigInt();
+                    else if (typeof message.samples === "number")
+                        object.samples = options.longs === $String ? $String(message.samples) : message.samples;
+                    else
+                        object.samples = options.longs === $String ? $util.Long.prototype.toString.call(message.samples) : options.longs === $Number ? new $util.LongBits(message.samples.low >>> 0, message.samples.high >>> 0).toNumber() : message.samples;
+                    if (options.oneofs)
+                        object._samples = "samples";
+                }
+                if (message.mean_forward_return != null && $Object.hasOwnProperty.call(message, "mean_forward_return")) {
+                    object.mean_forward_return = options.json && !$isFinite(message.mean_forward_return) ? $String(message.mean_forward_return) : message.mean_forward_return;
+                    if (options.oneofs)
+                        object._mean_forward_return = "mean_forward_return";
+                }
+                if (message.null_fields && message.null_fields.length) {
+                    object.null_fields = $Array(message.null_fields.length);
+                    for (let j = 0; j < message.null_fields.length; ++j)
+                        object.null_fields[j] = message.null_fields[j];
+                }
+                return object;
+            };
+
+            /**
+             * Converts this ForwardGroup to JSON.
+             * @function toJSON
+             * @memberof northstar.research.ForwardGroup
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            ForwardGroup.prototype.toJSON = function() {
+                return ForwardGroup.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for ForwardGroup
+             * @function getTypeUrl
+             * @memberof northstar.research.ForwardGroup
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            ForwardGroup.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.research.ForwardGroup";
+            };
+
+            return ForwardGroup;
+        })();
+
+        research.ForwardDay = (function() {
+
+            /**
+             * Properties of a ForwardDay.
+             * @typedef {Object} northstar.research.ForwardDay.$Properties
+             * @property {string|null} [trading_day] ForwardDay trading_day
+             * @property {number|Long|null} [samples] ForwardDay samples
+             * @property {number|null} [spearman] ForwardDay spearman
+             * @property {number|null} [mean_forward_return] ForwardDay mean_forward_return
+             * @property {Array.<string>|null} [null_fields] ForwardDay null_fields
+             * @property {"trading_day"} [_trading_day] ForwardDay _trading_day
+             * @property {"samples"} [_samples] ForwardDay _samples
+             * @property {"spearman"} [_spearman] ForwardDay _spearman
+             * @property {"mean_forward_return"} [_mean_forward_return] ForwardDay _mean_forward_return
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a ForwardDay.
+             * @memberof northstar.research
+             * @interface IForwardDay
+             * @augments northstar.research.ForwardDay.$Properties
+             * @deprecated Use northstar.research.ForwardDay.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a ForwardDay.
+             * @typedef {{
+             *   trading_day?: string|null;
+             *   samples?: number|Long|null;
+             *   spearman?: number|null;
+             *   mean_forward_return?: number|null;
+             *   null_fields?: Array.<string>|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _trading_day?: undefined; trading_day?: null }|{ _trading_day?: "trading_day"; trading_day: string })
+             * ) & (
+             *   ({ _samples?: undefined; samples?: null }|{ _samples?: "samples"; samples: number|Long })
+             * ) & (
+             *   ({ _spearman?: undefined; spearman?: null }|{ _spearman?: "spearman"; spearman: number })
+             * ) & (
+             *   ({ _mean_forward_return?: undefined; mean_forward_return?: null }|{ _mean_forward_return?: "mean_forward_return"; mean_forward_return: number })
+             * )} northstar.research.ForwardDay.$Shape
+             */
+
+            /**
+             * Constructs a new ForwardDay.
+             * @memberof northstar.research
+             * @classdesc Represents a ForwardDay.
+             * @constructor
+             * @param {northstar.research.ForwardDay.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const ForwardDay = function (properties) {
+                this.null_fields = [];
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * ForwardDay trading_day.
+             * @member {string|null|undefined} trading_day
+             * @memberof northstar.research.ForwardDay
+             * @instance
+             */
+            ForwardDay.prototype.trading_day = null;
+
+            /**
+             * ForwardDay samples.
+             * @member {number|Long|null|undefined} samples
+             * @memberof northstar.research.ForwardDay
+             * @instance
+             */
+            ForwardDay.prototype.samples = null;
+
+            /**
+             * ForwardDay spearman.
+             * @member {number|null|undefined} spearman
+             * @memberof northstar.research.ForwardDay
+             * @instance
+             */
+            ForwardDay.prototype.spearman = null;
+
+            /**
+             * ForwardDay mean_forward_return.
+             * @member {number|null|undefined} mean_forward_return
+             * @memberof northstar.research.ForwardDay
+             * @instance
+             */
+            ForwardDay.prototype.mean_forward_return = null;
+
+            /**
+             * ForwardDay null_fields.
+             * @member {Array.<string>} null_fields
+             * @memberof northstar.research.ForwardDay
+             * @instance
+             */
+            ForwardDay.prototype.null_fields = $util.emptyArray;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * ForwardDay _trading_day.
+             * @member {"trading_day"|undefined} _trading_day
+             * @memberof northstar.research.ForwardDay
+             * @instance
+             */
+            $Object.defineProperty(ForwardDay.prototype, "_trading_day", {
+                get: $util.oneOfGetter($oneOfFields = ["trading_day"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ForwardDay _samples.
+             * @member {"samples"|undefined} _samples
+             * @memberof northstar.research.ForwardDay
+             * @instance
+             */
+            $Object.defineProperty(ForwardDay.prototype, "_samples", {
+                get: $util.oneOfGetter($oneOfFields = ["samples"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ForwardDay _spearman.
+             * @member {"spearman"|undefined} _spearman
+             * @memberof northstar.research.ForwardDay
+             * @instance
+             */
+            $Object.defineProperty(ForwardDay.prototype, "_spearman", {
+                get: $util.oneOfGetter($oneOfFields = ["spearman"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * ForwardDay _mean_forward_return.
+             * @member {"mean_forward_return"|undefined} _mean_forward_return
+             * @memberof northstar.research.ForwardDay
+             * @instance
+             */
+            $Object.defineProperty(ForwardDay.prototype, "_mean_forward_return", {
+                get: $util.oneOfGetter($oneOfFields = ["mean_forward_return"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new ForwardDay instance using the specified properties.
+             * @function create
+             * @memberof northstar.research.ForwardDay
+             * @static
+             * @param {northstar.research.ForwardDay.$Properties=} [properties] Properties to set
+             * @returns {northstar.research.ForwardDay} ForwardDay instance
+             * @type {{
+             *   (properties: northstar.research.ForwardDay.$Shape): northstar.research.ForwardDay & northstar.research.ForwardDay.$Shape;
+             *   (properties?: northstar.research.ForwardDay.$Properties): northstar.research.ForwardDay;
+             * }}
+             */
+            ForwardDay.create = function(properties) {
+                return new ForwardDay(properties);
+            };
+
+            /**
+             * Encodes the specified ForwardDay message. Does not implicitly {@link northstar.research.ForwardDay.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.research.ForwardDay
+             * @static
+             * @param {northstar.research.ForwardDay.$Properties} message ForwardDay message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            ForwardDay.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.trading_day != null && $Object.hasOwnProperty.call(message, "trading_day"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.trading_day);
+                if (message.samples != null && $Object.hasOwnProperty.call(message, "samples"))
+                    writer.uint32(/* id 2, wireType 0 =*/16).int64(message.samples);
+                if (message.spearman != null && $Object.hasOwnProperty.call(message, "spearman"))
+                    writer.uint32(/* id 3, wireType 1 =*/25).double(message.spearman);
+                if (message.mean_forward_return != null && $Object.hasOwnProperty.call(message, "mean_forward_return"))
+                    writer.uint32(/* id 4, wireType 1 =*/33).double(message.mean_forward_return);
+                if (message.null_fields != null && message.null_fields.length)
+                    for (let i = 0; i < message.null_fields.length; ++i)
+                        writer.uint32(/* id 2046, wireType 2 =*/16370).string(message.null_fields[i]);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a ForwardDay message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.research.ForwardDay
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.research.ForwardDay & northstar.research.ForwardDay.$Shape} ForwardDay
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            ForwardDay.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.research.ForwardDay();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.trading_day = reader.stringVerify();
+                            message._trading_day = "trading_day";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 0)
+                                break;
+                            message.samples = reader.int64();
+                            message._samples = "samples";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 1)
+                                break;
+                            message.spearman = reader.double();
+                            message._spearman = "spearman";
+                            continue;
+                        }
+                    case 4: {
+                            if (wireType !== 1)
+                                break;
+                            message.mean_forward_return = reader.double();
+                            message._mean_forward_return = "mean_forward_return";
+                            continue;
+                        }
+                    case 2046: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.null_fields && message.null_fields.length))
+                                message.null_fields = [];
+                            message.null_fields.push(reader.stringVerify());
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a ForwardDay message.
+             * @function verify
+             * @memberof northstar.research.ForwardDay
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            ForwardDay.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.trading_day != null && $Object.hasOwnProperty.call(message, "trading_day")) {
+                    properties._trading_day = 1;
+                    if (!$util.isString(message.trading_day))
+                        return "trading_day: string expected";
+                }
+                if (message.samples != null && $Object.hasOwnProperty.call(message, "samples")) {
+                    properties._samples = 1;
+                    if (!$util.isInteger(message.samples) && !(message.samples && $util.isInteger(message.samples.low) && $util.isInteger(message.samples.high)))
+                        return "samples: integer|Long expected";
+                }
+                if (message.spearman != null && $Object.hasOwnProperty.call(message, "spearman")) {
+                    properties._spearman = 1;
+                    if (typeof message.spearman !== "number")
+                        return "spearman: number expected";
+                }
+                if (message.mean_forward_return != null && $Object.hasOwnProperty.call(message, "mean_forward_return")) {
+                    properties._mean_forward_return = 1;
+                    if (typeof message.mean_forward_return !== "number")
+                        return "mean_forward_return: number expected";
+                }
+                if (message.null_fields != null && $Object.hasOwnProperty.call(message, "null_fields")) {
+                    if (!$Array.isArray(message.null_fields))
+                        return "null_fields: array expected";
+                    for (let i = 0; i < message.null_fields.length; ++i)
+                        if (!$util.isString(message.null_fields[i]))
+                            return "null_fields: string[] expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a ForwardDay message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.research.ForwardDay
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.research.ForwardDay} ForwardDay
+             */
+            ForwardDay.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.research.ForwardDay)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.research.ForwardDay: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.research.ForwardDay();
+                if (object.trading_day != null)
+                    message.trading_day = $String(object.trading_day);
+                if (object.samples != null)
+                    if ($util.Long)
+                        message.samples = $util.Long.fromValue(object.samples, false);
+                    else if (typeof object.samples === "string")
+                        message.samples = $parseInt(object.samples, 10);
+                    else if (typeof object.samples === "number")
+                        message.samples = object.samples;
+                    else if (typeof object.samples === "object")
+                        message.samples = new $util.LongBits(object.samples.low >>> 0, object.samples.high >>> 0).toNumber();
+                if (object.spearman != null)
+                    message.spearman = $Number(object.spearman);
+                if (object.mean_forward_return != null)
+                    message.mean_forward_return = $Number(object.mean_forward_return);
+                if (object.null_fields) {
+                    if (!$Array.isArray(object.null_fields))
+                        throw $TypeError(".northstar.research.ForwardDay.null_fields: array expected");
+                    message.null_fields = $Array(object.null_fields.length);
+                    for (let i = 0; i < object.null_fields.length; ++i)
+                        message.null_fields[i] = $String(object.null_fields[i]);
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a ForwardDay message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.research.ForwardDay
+             * @static
+             * @param {northstar.research.ForwardDay} message ForwardDay
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            ForwardDay.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.arrays || options.defaults)
+                    object.null_fields = [];
+                if (message.trading_day != null && $Object.hasOwnProperty.call(message, "trading_day")) {
+                    object.trading_day = message.trading_day;
+                    if (options.oneofs)
+                        object._trading_day = "trading_day";
+                }
+                if (message.samples != null && $Object.hasOwnProperty.call(message, "samples")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.samples = typeof message.samples === "number" ? $BigInt(message.samples) : $util.Long.fromBits(message.samples.low >>> 0, message.samples.high >>> 0, false).toBigInt();
+                    else if (typeof message.samples === "number")
+                        object.samples = options.longs === $String ? $String(message.samples) : message.samples;
+                    else
+                        object.samples = options.longs === $String ? $util.Long.prototype.toString.call(message.samples) : options.longs === $Number ? new $util.LongBits(message.samples.low >>> 0, message.samples.high >>> 0).toNumber() : message.samples;
+                    if (options.oneofs)
+                        object._samples = "samples";
+                }
+                if (message.spearman != null && $Object.hasOwnProperty.call(message, "spearman")) {
+                    object.spearman = options.json && !$isFinite(message.spearman) ? $String(message.spearman) : message.spearman;
+                    if (options.oneofs)
+                        object._spearman = "spearman";
+                }
+                if (message.mean_forward_return != null && $Object.hasOwnProperty.call(message, "mean_forward_return")) {
+                    object.mean_forward_return = options.json && !$isFinite(message.mean_forward_return) ? $String(message.mean_forward_return) : message.mean_forward_return;
+                    if (options.oneofs)
+                        object._mean_forward_return = "mean_forward_return";
+                }
+                if (message.null_fields && message.null_fields.length) {
+                    object.null_fields = $Array(message.null_fields.length);
+                    for (let j = 0; j < message.null_fields.length; ++j)
+                        object.null_fields[j] = message.null_fields[j];
+                }
+                return object;
+            };
+
+            /**
+             * Converts this ForwardDay to JSON.
+             * @function toJSON
+             * @memberof northstar.research.ForwardDay
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            ForwardDay.prototype.toJSON = function() {
+                return ForwardDay.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for ForwardDay
+             * @function getTypeUrl
+             * @memberof northstar.research.ForwardDay
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            ForwardDay.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.research.ForwardDay";
+            };
+
+            return ForwardDay;
+        })();
+
+        research.FactorHorizon = (function() {
+
+            /**
+             * Properties of a FactorHorizon.
+             * @typedef {Object} northstar.research.FactorHorizon.$Properties
+             * @property {number|Long|null} [bars] FactorHorizon bars
+             * @property {number|Long|null} [samples] FactorHorizon samples
+             * @property {Object.<string,string>|null} [excluded] FactorHorizon excluded
+             * @property {string|null} [status] FactorHorizon status
+             * @property {number|null} [pearson] FactorHorizon pearson
+             * @property {number|null} [spearman] FactorHorizon spearman
+             * @property {number|null} [group_change_fraction] FactorHorizon group_change_fraction
+             * @property {Array.<northstar.research.ForwardGroup.$Properties>|null} [groups] FactorHorizon groups
+             * @property {Array.<northstar.research.ForwardDay.$Properties>|null} [days] FactorHorizon days
+             * @property {Array.<string>|null} [null_fields] FactorHorizon null_fields
+             * @property {"bars"} [_bars] FactorHorizon _bars
+             * @property {"samples"} [_samples] FactorHorizon _samples
+             * @property {"status"} [_status] FactorHorizon _status
+             * @property {"pearson"} [_pearson] FactorHorizon _pearson
+             * @property {"spearman"} [_spearman] FactorHorizon _spearman
+             * @property {"group_change_fraction"} [_group_change_fraction] FactorHorizon _group_change_fraction
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a FactorHorizon.
+             * @memberof northstar.research
+             * @interface IFactorHorizon
+             * @augments northstar.research.FactorHorizon.$Properties
+             * @deprecated Use northstar.research.FactorHorizon.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a FactorHorizon.
+             * @typedef {{
+             *   bars?: number|Long|null;
+             *   samples?: number|Long|null;
+             *   excluded?: Object.<string,string>|null;
+             *   status?: string|null;
+             *   pearson?: number|null;
+             *   spearman?: number|null;
+             *   group_change_fraction?: number|null;
+             *   groups?: Array.<northstar.research.ForwardGroup.$Shape>|null;
+             *   days?: Array.<northstar.research.ForwardDay.$Shape>|null;
+             *   null_fields?: Array.<string>|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _bars?: undefined; bars?: null }|{ _bars?: "bars"; bars: number|Long })
+             * ) & (
+             *   ({ _samples?: undefined; samples?: null }|{ _samples?: "samples"; samples: number|Long })
+             * ) & (
+             *   ({ _status?: undefined; status?: null }|{ _status?: "status"; status: string })
+             * ) & (
+             *   ({ _pearson?: undefined; pearson?: null }|{ _pearson?: "pearson"; pearson: number })
+             * ) & (
+             *   ({ _spearman?: undefined; spearman?: null }|{ _spearman?: "spearman"; spearman: number })
+             * ) & (
+             *   ({ _group_change_fraction?: undefined; group_change_fraction?: null }|{ _group_change_fraction?: "group_change_fraction"; group_change_fraction: number })
+             * )} northstar.research.FactorHorizon.$Shape
+             */
+
+            /**
+             * Constructs a new FactorHorizon.
+             * @memberof northstar.research
+             * @classdesc Represents a FactorHorizon.
+             * @constructor
+             * @param {northstar.research.FactorHorizon.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const FactorHorizon = function (properties) {
+                this.excluded = {};
+                this.groups = [];
+                this.days = [];
+                this.null_fields = [];
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * FactorHorizon bars.
+             * @member {number|Long|null|undefined} bars
+             * @memberof northstar.research.FactorHorizon
+             * @instance
+             */
+            FactorHorizon.prototype.bars = null;
+
+            /**
+             * FactorHorizon samples.
+             * @member {number|Long|null|undefined} samples
+             * @memberof northstar.research.FactorHorizon
+             * @instance
+             */
+            FactorHorizon.prototype.samples = null;
+
+            /**
+             * FactorHorizon excluded.
+             * @member {Object.<string,string>} excluded
+             * @memberof northstar.research.FactorHorizon
+             * @instance
+             */
+            FactorHorizon.prototype.excluded = $util.emptyObject;
+
+            /**
+             * FactorHorizon status.
+             * @member {string|null|undefined} status
+             * @memberof northstar.research.FactorHorizon
+             * @instance
+             */
+            FactorHorizon.prototype.status = null;
+
+            /**
+             * FactorHorizon pearson.
+             * @member {number|null|undefined} pearson
+             * @memberof northstar.research.FactorHorizon
+             * @instance
+             */
+            FactorHorizon.prototype.pearson = null;
+
+            /**
+             * FactorHorizon spearman.
+             * @member {number|null|undefined} spearman
+             * @memberof northstar.research.FactorHorizon
+             * @instance
+             */
+            FactorHorizon.prototype.spearman = null;
+
+            /**
+             * FactorHorizon group_change_fraction.
+             * @member {number|null|undefined} group_change_fraction
+             * @memberof northstar.research.FactorHorizon
+             * @instance
+             */
+            FactorHorizon.prototype.group_change_fraction = null;
+
+            /**
+             * FactorHorizon groups.
+             * @member {Array.<northstar.research.ForwardGroup.$Properties>} groups
+             * @memberof northstar.research.FactorHorizon
+             * @instance
+             */
+            FactorHorizon.prototype.groups = $util.emptyArray;
+
+            /**
+             * FactorHorizon days.
+             * @member {Array.<northstar.research.ForwardDay.$Properties>} days
+             * @memberof northstar.research.FactorHorizon
+             * @instance
+             */
+            FactorHorizon.prototype.days = $util.emptyArray;
+
+            /**
+             * FactorHorizon null_fields.
+             * @member {Array.<string>} null_fields
+             * @memberof northstar.research.FactorHorizon
+             * @instance
+             */
+            FactorHorizon.prototype.null_fields = $util.emptyArray;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * FactorHorizon _bars.
+             * @member {"bars"|undefined} _bars
+             * @memberof northstar.research.FactorHorizon
+             * @instance
+             */
+            $Object.defineProperty(FactorHorizon.prototype, "_bars", {
+                get: $util.oneOfGetter($oneOfFields = ["bars"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * FactorHorizon _samples.
+             * @member {"samples"|undefined} _samples
+             * @memberof northstar.research.FactorHorizon
+             * @instance
+             */
+            $Object.defineProperty(FactorHorizon.prototype, "_samples", {
+                get: $util.oneOfGetter($oneOfFields = ["samples"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * FactorHorizon _status.
+             * @member {"status"|undefined} _status
+             * @memberof northstar.research.FactorHorizon
+             * @instance
+             */
+            $Object.defineProperty(FactorHorizon.prototype, "_status", {
+                get: $util.oneOfGetter($oneOfFields = ["status"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * FactorHorizon _pearson.
+             * @member {"pearson"|undefined} _pearson
+             * @memberof northstar.research.FactorHorizon
+             * @instance
+             */
+            $Object.defineProperty(FactorHorizon.prototype, "_pearson", {
+                get: $util.oneOfGetter($oneOfFields = ["pearson"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * FactorHorizon _spearman.
+             * @member {"spearman"|undefined} _spearman
+             * @memberof northstar.research.FactorHorizon
+             * @instance
+             */
+            $Object.defineProperty(FactorHorizon.prototype, "_spearman", {
+                get: $util.oneOfGetter($oneOfFields = ["spearman"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * FactorHorizon _group_change_fraction.
+             * @member {"group_change_fraction"|undefined} _group_change_fraction
+             * @memberof northstar.research.FactorHorizon
+             * @instance
+             */
+            $Object.defineProperty(FactorHorizon.prototype, "_group_change_fraction", {
+                get: $util.oneOfGetter($oneOfFields = ["group_change_fraction"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new FactorHorizon instance using the specified properties.
+             * @function create
+             * @memberof northstar.research.FactorHorizon
+             * @static
+             * @param {northstar.research.FactorHorizon.$Properties=} [properties] Properties to set
+             * @returns {northstar.research.FactorHorizon} FactorHorizon instance
+             * @type {{
+             *   (properties: northstar.research.FactorHorizon.$Shape): northstar.research.FactorHorizon & northstar.research.FactorHorizon.$Shape;
+             *   (properties?: northstar.research.FactorHorizon.$Properties): northstar.research.FactorHorizon;
+             * }}
+             */
+            FactorHorizon.create = function(properties) {
+                return new FactorHorizon(properties);
+            };
+
+            /**
+             * Encodes the specified FactorHorizon message. Does not implicitly {@link northstar.research.FactorHorizon.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.research.FactorHorizon
+             * @static
+             * @param {northstar.research.FactorHorizon.$Properties} message FactorHorizon message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            FactorHorizon.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.bars != null && $Object.hasOwnProperty.call(message, "bars"))
+                    writer.uint32(/* id 1, wireType 0 =*/8).int64(message.bars);
+                if (message.samples != null && $Object.hasOwnProperty.call(message, "samples"))
+                    writer.uint32(/* id 2, wireType 0 =*/16).int64(message.samples);
+                if (message.excluded != null && $Object.hasOwnProperty.call(message, "excluded"))
+                    for (let keys = $Object.keys(message.excluded), i = 0; i < keys.length; ++i)
+                        writer.uint32(/* id 3, wireType 2 =*/26).fork().uint32(/* id 1, wireType 2 =*/10).string(keys[i]).uint32(/* id 2, wireType 2 =*/18).string(message.excluded[keys[i]]).ldelim();
+                if (message.status != null && $Object.hasOwnProperty.call(message, "status"))
+                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.status);
+                if (message.pearson != null && $Object.hasOwnProperty.call(message, "pearson"))
+                    writer.uint32(/* id 5, wireType 1 =*/41).double(message.pearson);
+                if (message.spearman != null && $Object.hasOwnProperty.call(message, "spearman"))
+                    writer.uint32(/* id 6, wireType 1 =*/49).double(message.spearman);
+                if (message.group_change_fraction != null && $Object.hasOwnProperty.call(message, "group_change_fraction"))
+                    writer.uint32(/* id 7, wireType 1 =*/57).double(message.group_change_fraction);
+                if (message.groups != null && message.groups.length)
+                    for (let i = 0; i < message.groups.length; ++i)
+                        $root.northstar.research.ForwardGroup.encode(message.groups[i], writer.uint32(/* id 8, wireType 2 =*/66).fork(), _depth + 1).ldelim();
+                if (message.days != null && message.days.length)
+                    for (let i = 0; i < message.days.length; ++i)
+                        $root.northstar.research.ForwardDay.encode(message.days[i], writer.uint32(/* id 9, wireType 2 =*/74).fork(), _depth + 1).ldelim();
+                if (message.null_fields != null && message.null_fields.length)
+                    for (let i = 0; i < message.null_fields.length; ++i)
+                        writer.uint32(/* id 2046, wireType 2 =*/16370).string(message.null_fields[i]);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a FactorHorizon message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.research.FactorHorizon
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.research.FactorHorizon & northstar.research.FactorHorizon.$Shape} FactorHorizon
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            FactorHorizon.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message, key, value;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.research.FactorHorizon();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 0)
+                                break;
+                            message.bars = reader.int64();
+                            message._bars = "bars";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 0)
+                                break;
+                            message.samples = reader.int64();
+                            message._samples = "samples";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 2)
+                                break;
+                            if (message.excluded === $util.emptyObject)
+                                message.excluded = {};
+                            let end2 = reader.uint32() + reader.pos;
+                            if (end2 > reader.len)
+                                throw $RangeError("index out of range");
+                            reader.len = end2;
+                            key = "";
+                            value = "";
+                            while (reader.pos < end2) {
+                                let tag2 = reader.tag();
+                                wireType = tag2 & 7;
+                                switch (tag2 >>>= 3) {
+                                case 1:
+                                    if (wireType !== 2)
+                                        break;
+                                    key = reader.stringVerify();
+                                    continue;
+                                case 2:
+                                    if (wireType !== 2)
+                                        break;
+                                    value = reader.stringVerify();
+                                    continue;
+                                }
+                                reader.skipType(wireType, _depth, tag2);
+                            }
+                            if (reader.pos !== end2)
+                                throw $RangeError("index out of range");
+                            reader.len = end;
+                            if (key === "__proto__")
+                                $util.makeProp(message.excluded, key);
+                            message.excluded[key] = value;
+                            continue;
+                        }
+                    case 4: {
+                            if (wireType !== 2)
+                                break;
+                            message.status = reader.stringVerify();
+                            message._status = "status";
+                            continue;
+                        }
+                    case 5: {
+                            if (wireType !== 1)
+                                break;
+                            message.pearson = reader.double();
+                            message._pearson = "pearson";
+                            continue;
+                        }
+                    case 6: {
+                            if (wireType !== 1)
+                                break;
+                            message.spearman = reader.double();
+                            message._spearman = "spearman";
+                            continue;
+                        }
+                    case 7: {
+                            if (wireType !== 1)
+                                break;
+                            message.group_change_fraction = reader.double();
+                            message._group_change_fraction = "group_change_fraction";
+                            continue;
+                        }
+                    case 8: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.groups && message.groups.length))
+                                message.groups = [];
+                            message.groups.push($root.northstar.research.ForwardGroup.decode(reader, reader.uint32(), $undefined, _depth + 1));
+                            continue;
+                        }
+                    case 9: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.days && message.days.length))
+                                message.days = [];
+                            message.days.push($root.northstar.research.ForwardDay.decode(reader, reader.uint32(), $undefined, _depth + 1));
+                            continue;
+                        }
+                    case 2046: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.null_fields && message.null_fields.length))
+                                message.null_fields = [];
+                            message.null_fields.push(reader.stringVerify());
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a FactorHorizon message.
+             * @function verify
+             * @memberof northstar.research.FactorHorizon
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            FactorHorizon.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.bars != null && $Object.hasOwnProperty.call(message, "bars")) {
+                    properties._bars = 1;
+                    if (!$util.isInteger(message.bars) && !(message.bars && $util.isInteger(message.bars.low) && $util.isInteger(message.bars.high)))
+                        return "bars: integer|Long expected";
+                }
+                if (message.samples != null && $Object.hasOwnProperty.call(message, "samples")) {
+                    properties._samples = 1;
+                    if (!$util.isInteger(message.samples) && !(message.samples && $util.isInteger(message.samples.low) && $util.isInteger(message.samples.high)))
+                        return "samples: integer|Long expected";
+                }
+                if (message.excluded != null && $Object.hasOwnProperty.call(message, "excluded")) {
+                    if (!$util.isObject(message.excluded))
+                        return "excluded: object expected";
+                    let key = $Object.keys(message.excluded);
+                    for (let i = 0; i < key.length; ++i)
+                        if (!$util.isString(message.excluded[key[i]]))
+                            return "excluded: string{k:string} expected";
+                }
+                if (message.status != null && $Object.hasOwnProperty.call(message, "status")) {
+                    properties._status = 1;
+                    if (!$util.isString(message.status))
+                        return "status: string expected";
+                }
+                if (message.pearson != null && $Object.hasOwnProperty.call(message, "pearson")) {
+                    properties._pearson = 1;
+                    if (typeof message.pearson !== "number")
+                        return "pearson: number expected";
+                }
+                if (message.spearman != null && $Object.hasOwnProperty.call(message, "spearman")) {
+                    properties._spearman = 1;
+                    if (typeof message.spearman !== "number")
+                        return "spearman: number expected";
+                }
+                if (message.group_change_fraction != null && $Object.hasOwnProperty.call(message, "group_change_fraction")) {
+                    properties._group_change_fraction = 1;
+                    if (typeof message.group_change_fraction !== "number")
+                        return "group_change_fraction: number expected";
+                }
+                if (message.groups != null && $Object.hasOwnProperty.call(message, "groups")) {
+                    if (!$Array.isArray(message.groups))
+                        return "groups: array expected";
+                    for (let i = 0; i < message.groups.length; ++i) {
+                        let error = $root.northstar.research.ForwardGroup.verify(message.groups[i], _depth + 1);
+                        if (error)
+                            return "groups." + error;
+                    }
+                }
+                if (message.days != null && $Object.hasOwnProperty.call(message, "days")) {
+                    if (!$Array.isArray(message.days))
+                        return "days: array expected";
+                    for (let i = 0; i < message.days.length; ++i) {
+                        let error = $root.northstar.research.ForwardDay.verify(message.days[i], _depth + 1);
+                        if (error)
+                            return "days." + error;
+                    }
+                }
+                if (message.null_fields != null && $Object.hasOwnProperty.call(message, "null_fields")) {
+                    if (!$Array.isArray(message.null_fields))
+                        return "null_fields: array expected";
+                    for (let i = 0; i < message.null_fields.length; ++i)
+                        if (!$util.isString(message.null_fields[i]))
+                            return "null_fields: string[] expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a FactorHorizon message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.research.FactorHorizon
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.research.FactorHorizon} FactorHorizon
+             */
+            FactorHorizon.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.research.FactorHorizon)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.research.FactorHorizon: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.research.FactorHorizon();
+                if (object.bars != null)
+                    if ($util.Long)
+                        message.bars = $util.Long.fromValue(object.bars, false);
+                    else if (typeof object.bars === "string")
+                        message.bars = $parseInt(object.bars, 10);
+                    else if (typeof object.bars === "number")
+                        message.bars = object.bars;
+                    else if (typeof object.bars === "object")
+                        message.bars = new $util.LongBits(object.bars.low >>> 0, object.bars.high >>> 0).toNumber();
+                if (object.samples != null)
+                    if ($util.Long)
+                        message.samples = $util.Long.fromValue(object.samples, false);
+                    else if (typeof object.samples === "string")
+                        message.samples = $parseInt(object.samples, 10);
+                    else if (typeof object.samples === "number")
+                        message.samples = object.samples;
+                    else if (typeof object.samples === "object")
+                        message.samples = new $util.LongBits(object.samples.low >>> 0, object.samples.high >>> 0).toNumber();
+                if (object.excluded) {
+                    if (!$util.isObject(object.excluded))
+                        throw $TypeError(".northstar.research.FactorHorizon.excluded: object expected");
+                    message.excluded = {};
+                    for (let keys = $Object.keys(object.excluded), i = 0; i < keys.length; ++i) {
+                        if (keys[i] === "__proto__")
+                            $util.makeProp(message.excluded, keys[i]);
+                        message.excluded[keys[i]] = $String(object.excluded[keys[i]]);
+                    }
+                }
+                if (object.status != null)
+                    message.status = $String(object.status);
+                if (object.pearson != null)
+                    message.pearson = $Number(object.pearson);
+                if (object.spearman != null)
+                    message.spearman = $Number(object.spearman);
+                if (object.group_change_fraction != null)
+                    message.group_change_fraction = $Number(object.group_change_fraction);
+                if (object.groups) {
+                    if (!$Array.isArray(object.groups))
+                        throw $TypeError(".northstar.research.FactorHorizon.groups: array expected");
+                    message.groups = $Array(object.groups.length);
+                    for (let i = 0; i < object.groups.length; ++i) {
+                        if (!$util.isObject(object.groups[i]))
+                            throw $TypeError(".northstar.research.FactorHorizon.groups: object expected");
+                        message.groups[i] = $root.northstar.research.ForwardGroup.fromObject(object.groups[i], _depth + 1);
+                    }
+                }
+                if (object.days) {
+                    if (!$Array.isArray(object.days))
+                        throw $TypeError(".northstar.research.FactorHorizon.days: array expected");
+                    message.days = $Array(object.days.length);
+                    for (let i = 0; i < object.days.length; ++i) {
+                        if (!$util.isObject(object.days[i]))
+                            throw $TypeError(".northstar.research.FactorHorizon.days: object expected");
+                        message.days[i] = $root.northstar.research.ForwardDay.fromObject(object.days[i], _depth + 1);
+                    }
+                }
+                if (object.null_fields) {
+                    if (!$Array.isArray(object.null_fields))
+                        throw $TypeError(".northstar.research.FactorHorizon.null_fields: array expected");
+                    message.null_fields = $Array(object.null_fields.length);
+                    for (let i = 0; i < object.null_fields.length; ++i)
+                        message.null_fields[i] = $String(object.null_fields[i]);
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a FactorHorizon message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.research.FactorHorizon
+             * @static
+             * @param {northstar.research.FactorHorizon} message FactorHorizon
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            FactorHorizon.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.arrays || options.defaults) {
+                    object.groups = [];
+                    object.days = [];
+                    object.null_fields = [];
+                }
+                if (options.objects || options.defaults)
+                    object.excluded = {};
+                if (message.bars != null && $Object.hasOwnProperty.call(message, "bars")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.bars = typeof message.bars === "number" ? $BigInt(message.bars) : $util.Long.fromBits(message.bars.low >>> 0, message.bars.high >>> 0, false).toBigInt();
+                    else if (typeof message.bars === "number")
+                        object.bars = options.longs === $String ? $String(message.bars) : message.bars;
+                    else
+                        object.bars = options.longs === $String ? $util.Long.prototype.toString.call(message.bars) : options.longs === $Number ? new $util.LongBits(message.bars.low >>> 0, message.bars.high >>> 0).toNumber() : message.bars;
+                    if (options.oneofs)
+                        object._bars = "bars";
+                }
+                if (message.samples != null && $Object.hasOwnProperty.call(message, "samples")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.samples = typeof message.samples === "number" ? $BigInt(message.samples) : $util.Long.fromBits(message.samples.low >>> 0, message.samples.high >>> 0, false).toBigInt();
+                    else if (typeof message.samples === "number")
+                        object.samples = options.longs === $String ? $String(message.samples) : message.samples;
+                    else
+                        object.samples = options.longs === $String ? $util.Long.prototype.toString.call(message.samples) : options.longs === $Number ? new $util.LongBits(message.samples.low >>> 0, message.samples.high >>> 0).toNumber() : message.samples;
+                    if (options.oneofs)
+                        object._samples = "samples";
+                }
+                let keys2;
+                if (message.excluded && (keys2 = $Object.keys(message.excluded)).length) {
+                    object.excluded = {};
+                    for (let j = 0; j < keys2.length; ++j) {
+                        if (keys2[j] === "__proto__")
+                            $util.makeProp(object.excluded, keys2[j]);
+                        object.excluded[keys2[j]] = message.excluded[keys2[j]];
+                    }
+                }
+                if (message.status != null && $Object.hasOwnProperty.call(message, "status")) {
+                    object.status = message.status;
+                    if (options.oneofs)
+                        object._status = "status";
+                }
+                if (message.pearson != null && $Object.hasOwnProperty.call(message, "pearson")) {
+                    object.pearson = options.json && !$isFinite(message.pearson) ? $String(message.pearson) : message.pearson;
+                    if (options.oneofs)
+                        object._pearson = "pearson";
+                }
+                if (message.spearman != null && $Object.hasOwnProperty.call(message, "spearman")) {
+                    object.spearman = options.json && !$isFinite(message.spearman) ? $String(message.spearman) : message.spearman;
+                    if (options.oneofs)
+                        object._spearman = "spearman";
+                }
+                if (message.group_change_fraction != null && $Object.hasOwnProperty.call(message, "group_change_fraction")) {
+                    object.group_change_fraction = options.json && !$isFinite(message.group_change_fraction) ? $String(message.group_change_fraction) : message.group_change_fraction;
+                    if (options.oneofs)
+                        object._group_change_fraction = "group_change_fraction";
+                }
+                if (message.groups && message.groups.length) {
+                    object.groups = $Array(message.groups.length);
+                    for (let j = 0; j < message.groups.length; ++j)
+                        object.groups[j] = $root.northstar.research.ForwardGroup.toObject(message.groups[j], options, _depth + 1);
+                }
+                if (message.days && message.days.length) {
+                    object.days = $Array(message.days.length);
+                    for (let j = 0; j < message.days.length; ++j)
+                        object.days[j] = $root.northstar.research.ForwardDay.toObject(message.days[j], options, _depth + 1);
+                }
+                if (message.null_fields && message.null_fields.length) {
+                    object.null_fields = $Array(message.null_fields.length);
+                    for (let j = 0; j < message.null_fields.length; ++j)
+                        object.null_fields[j] = message.null_fields[j];
+                }
+                return object;
+            };
+
+            /**
+             * Converts this FactorHorizon to JSON.
+             * @function toJSON
+             * @memberof northstar.research.FactorHorizon
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            FactorHorizon.prototype.toJSON = function() {
+                return FactorHorizon.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for FactorHorizon
+             * @function getTypeUrl
+             * @memberof northstar.research.FactorHorizon
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            FactorHorizon.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.research.FactorHorizon";
+            };
+
+            return FactorHorizon;
+        })();
+
+        research.FactorAnalysis = (function() {
+
+            /**
+             * Properties of a FactorAnalysis.
+             * @typedef {Object} northstar.research.FactorAnalysis.$Properties
+             * @property {string|null} [plan] FactorAnalysis plan
+             * @property {string|null} [numeric] FactorAnalysis numeric
+             * @property {Array.<northstar.research.FactorHorizon.$Properties>|null} [horizons] FactorAnalysis horizons
+             * @property {Array.<string>|null} [limitations] FactorAnalysis limitations
+             * @property {"plan"} [_plan] FactorAnalysis _plan
+             * @property {"numeric"} [_numeric] FactorAnalysis _numeric
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a FactorAnalysis.
+             * @memberof northstar.research
+             * @interface IFactorAnalysis
+             * @augments northstar.research.FactorAnalysis.$Properties
+             * @deprecated Use northstar.research.FactorAnalysis.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a FactorAnalysis.
+             * @typedef {{
+             *   plan?: string|null;
+             *   numeric?: string|null;
+             *   horizons?: Array.<northstar.research.FactorHorizon.$Shape>|null;
+             *   limitations?: Array.<string>|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _plan?: undefined; plan?: null }|{ _plan?: "plan"; plan: string })
+             * ) & (
+             *   ({ _numeric?: undefined; numeric?: null }|{ _numeric?: "numeric"; numeric: string })
+             * )} northstar.research.FactorAnalysis.$Shape
+             */
+
+            /**
+             * Constructs a new FactorAnalysis.
+             * @memberof northstar.research
+             * @classdesc Represents a FactorAnalysis.
+             * @constructor
+             * @param {northstar.research.FactorAnalysis.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const FactorAnalysis = function (properties) {
+                this.horizons = [];
+                this.limitations = [];
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * FactorAnalysis plan.
+             * @member {string|null|undefined} plan
+             * @memberof northstar.research.FactorAnalysis
+             * @instance
+             */
+            FactorAnalysis.prototype.plan = null;
+
+            /**
+             * FactorAnalysis numeric.
+             * @member {string|null|undefined} numeric
+             * @memberof northstar.research.FactorAnalysis
+             * @instance
+             */
+            FactorAnalysis.prototype.numeric = null;
+
+            /**
+             * FactorAnalysis horizons.
+             * @member {Array.<northstar.research.FactorHorizon.$Properties>} horizons
+             * @memberof northstar.research.FactorAnalysis
+             * @instance
+             */
+            FactorAnalysis.prototype.horizons = $util.emptyArray;
+
+            /**
+             * FactorAnalysis limitations.
+             * @member {Array.<string>} limitations
+             * @memberof northstar.research.FactorAnalysis
+             * @instance
+             */
+            FactorAnalysis.prototype.limitations = $util.emptyArray;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * FactorAnalysis _plan.
+             * @member {"plan"|undefined} _plan
+             * @memberof northstar.research.FactorAnalysis
+             * @instance
+             */
+            $Object.defineProperty(FactorAnalysis.prototype, "_plan", {
+                get: $util.oneOfGetter($oneOfFields = ["plan"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * FactorAnalysis _numeric.
+             * @member {"numeric"|undefined} _numeric
+             * @memberof northstar.research.FactorAnalysis
+             * @instance
+             */
+            $Object.defineProperty(FactorAnalysis.prototype, "_numeric", {
+                get: $util.oneOfGetter($oneOfFields = ["numeric"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new FactorAnalysis instance using the specified properties.
+             * @function create
+             * @memberof northstar.research.FactorAnalysis
+             * @static
+             * @param {northstar.research.FactorAnalysis.$Properties=} [properties] Properties to set
+             * @returns {northstar.research.FactorAnalysis} FactorAnalysis instance
+             * @type {{
+             *   (properties: northstar.research.FactorAnalysis.$Shape): northstar.research.FactorAnalysis & northstar.research.FactorAnalysis.$Shape;
+             *   (properties?: northstar.research.FactorAnalysis.$Properties): northstar.research.FactorAnalysis;
+             * }}
+             */
+            FactorAnalysis.create = function(properties) {
+                return new FactorAnalysis(properties);
+            };
+
+            /**
+             * Encodes the specified FactorAnalysis message. Does not implicitly {@link northstar.research.FactorAnalysis.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.research.FactorAnalysis
+             * @static
+             * @param {northstar.research.FactorAnalysis.$Properties} message FactorAnalysis message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            FactorAnalysis.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.plan != null && $Object.hasOwnProperty.call(message, "plan"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.plan);
+                if (message.numeric != null && $Object.hasOwnProperty.call(message, "numeric"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.numeric);
+                if (message.horizons != null && message.horizons.length)
+                    for (let i = 0; i < message.horizons.length; ++i)
+                        $root.northstar.research.FactorHorizon.encode(message.horizons[i], writer.uint32(/* id 3, wireType 2 =*/26).fork(), _depth + 1).ldelim();
+                if (message.limitations != null && message.limitations.length)
+                    for (let i = 0; i < message.limitations.length; ++i)
+                        writer.uint32(/* id 4, wireType 2 =*/34).string(message.limitations[i]);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a FactorAnalysis message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.research.FactorAnalysis
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.research.FactorAnalysis & northstar.research.FactorAnalysis.$Shape} FactorAnalysis
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            FactorAnalysis.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.research.FactorAnalysis();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.plan = reader.stringVerify();
+                            message._plan = "plan";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.numeric = reader.stringVerify();
+                            message._numeric = "numeric";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.horizons && message.horizons.length))
+                                message.horizons = [];
+                            message.horizons.push($root.northstar.research.FactorHorizon.decode(reader, reader.uint32(), $undefined, _depth + 1));
+                            continue;
+                        }
+                    case 4: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.limitations && message.limitations.length))
+                                message.limitations = [];
+                            message.limitations.push(reader.stringVerify());
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a FactorAnalysis message.
+             * @function verify
+             * @memberof northstar.research.FactorAnalysis
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            FactorAnalysis.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.plan != null && $Object.hasOwnProperty.call(message, "plan")) {
+                    properties._plan = 1;
+                    if (!$util.isString(message.plan))
+                        return "plan: string expected";
+                }
+                if (message.numeric != null && $Object.hasOwnProperty.call(message, "numeric")) {
+                    properties._numeric = 1;
+                    if (!$util.isString(message.numeric))
+                        return "numeric: string expected";
+                }
+                if (message.horizons != null && $Object.hasOwnProperty.call(message, "horizons")) {
+                    if (!$Array.isArray(message.horizons))
+                        return "horizons: array expected";
+                    for (let i = 0; i < message.horizons.length; ++i) {
+                        let error = $root.northstar.research.FactorHorizon.verify(message.horizons[i], _depth + 1);
+                        if (error)
+                            return "horizons." + error;
+                    }
+                }
+                if (message.limitations != null && $Object.hasOwnProperty.call(message, "limitations")) {
+                    if (!$Array.isArray(message.limitations))
+                        return "limitations: array expected";
+                    for (let i = 0; i < message.limitations.length; ++i)
+                        if (!$util.isString(message.limitations[i]))
+                            return "limitations: string[] expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a FactorAnalysis message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.research.FactorAnalysis
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.research.FactorAnalysis} FactorAnalysis
+             */
+            FactorAnalysis.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.research.FactorAnalysis)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.research.FactorAnalysis: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.research.FactorAnalysis();
+                if (object.plan != null)
+                    message.plan = $String(object.plan);
+                if (object.numeric != null)
+                    message.numeric = $String(object.numeric);
+                if (object.horizons) {
+                    if (!$Array.isArray(object.horizons))
+                        throw $TypeError(".northstar.research.FactorAnalysis.horizons: array expected");
+                    message.horizons = $Array(object.horizons.length);
+                    for (let i = 0; i < object.horizons.length; ++i) {
+                        if (!$util.isObject(object.horizons[i]))
+                            throw $TypeError(".northstar.research.FactorAnalysis.horizons: object expected");
+                        message.horizons[i] = $root.northstar.research.FactorHorizon.fromObject(object.horizons[i], _depth + 1);
+                    }
+                }
+                if (object.limitations) {
+                    if (!$Array.isArray(object.limitations))
+                        throw $TypeError(".northstar.research.FactorAnalysis.limitations: array expected");
+                    message.limitations = $Array(object.limitations.length);
+                    for (let i = 0; i < object.limitations.length; ++i)
+                        message.limitations[i] = $String(object.limitations[i]);
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a FactorAnalysis message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.research.FactorAnalysis
+             * @static
+             * @param {northstar.research.FactorAnalysis} message FactorAnalysis
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            FactorAnalysis.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.arrays || options.defaults) {
+                    object.horizons = [];
+                    object.limitations = [];
+                }
+                if (message.plan != null && $Object.hasOwnProperty.call(message, "plan")) {
+                    object.plan = message.plan;
+                    if (options.oneofs)
+                        object._plan = "plan";
+                }
+                if (message.numeric != null && $Object.hasOwnProperty.call(message, "numeric")) {
+                    object.numeric = message.numeric;
+                    if (options.oneofs)
+                        object._numeric = "numeric";
+                }
+                if (message.horizons && message.horizons.length) {
+                    object.horizons = $Array(message.horizons.length);
+                    for (let j = 0; j < message.horizons.length; ++j)
+                        object.horizons[j] = $root.northstar.research.FactorHorizon.toObject(message.horizons[j], options, _depth + 1);
+                }
+                if (message.limitations && message.limitations.length) {
+                    object.limitations = $Array(message.limitations.length);
+                    for (let j = 0; j < message.limitations.length; ++j)
+                        object.limitations[j] = message.limitations[j];
+                }
+                return object;
+            };
+
+            /**
+             * Converts this FactorAnalysis to JSON.
+             * @function toJSON
+             * @memberof northstar.research.FactorAnalysis
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            FactorAnalysis.prototype.toJSON = function() {
+                return FactorAnalysis.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for FactorAnalysis
+             * @function getTypeUrl
+             * @memberof northstar.research.FactorAnalysis
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            FactorAnalysis.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.research.FactorAnalysis";
+            };
+
+            return FactorAnalysis;
         })();
 
         research.FactorRevision = (function() {

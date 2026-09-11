@@ -153,6 +153,42 @@ message FactorResult {
   optional google.protobuf.Struct evaluation = 1 [json_name = "evaluation", (northstar.web.required_field) = true];
   optional google.protobuf.Struct inputs = 2 [json_name = "inputs", (northstar.web.required_field) = true];
   repeated FactorValue values = 3 [json_name = "values", (northstar.web.required_field) = true];
+  optional FactorAnalysis analysis = 4 [json_name = "analysis", (northstar.web.required_field) = true];
+}
+
+message ForwardGroup {
+  optional int64 group = 1 [(northstar.web.required_field) = true];
+  optional int64 samples = 2 [(northstar.web.required_field) = true];
+  optional double mean_forward_return = 3 [(northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  repeated string null_fields = 2046;
+}
+
+message ForwardDay {
+  optional string trading_day = 1 [(northstar.web.required_field) = true];
+  optional int64 samples = 2 [(northstar.web.required_field) = true];
+  optional double spearman = 3 [(northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  optional double mean_forward_return = 4 [(northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  repeated string null_fields = 2046;
+}
+
+message FactorHorizon {
+  optional int64 bars = 1 [(northstar.web.required_field) = true];
+  optional int64 samples = 2 [(northstar.web.required_field) = true];
+  map<string, int64> excluded = 3 [(northstar.web.required_field) = true];
+  optional string status = 4 [(northstar.web.required_field) = true];
+  optional double pearson = 5 [(northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  optional double spearman = 6 [(northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  optional double group_change_fraction = 7 [(northstar.web.required_field) = true, (northstar.web.nullable) = true];
+  repeated ForwardGroup groups = 8 [(northstar.web.required_field) = true];
+  repeated ForwardDay days = 9 [(northstar.web.required_field) = true];
+  repeated string null_fields = 2046;
+}
+
+message FactorAnalysis {
+  optional string plan = 1 [(northstar.web.required_field) = true];
+  optional string numeric = 2 [(northstar.web.required_field) = true];
+  repeated FactorHorizon horizons = 3 [(northstar.web.required_field) = true];
+  repeated string limitations = 4 [(northstar.web.required_field) = true];
 }
 
 message FactorRevision {

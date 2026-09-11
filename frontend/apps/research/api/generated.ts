@@ -130,6 +130,35 @@ export type FactorResult = {
   evaluation: Record<string, JsonValue>;
   inputs: Record<string, JsonValue>;
   values: (FactorValue)[];
+  analysis: FactorAnalysis;
+};
+export type ForwardGroup = {
+  group: number;
+  samples: number;
+  mean_forward_return: number | null;
+};
+export type ForwardDay = {
+  trading_day: string;
+  samples: number;
+  spearman: number | null;
+  mean_forward_return: number | null;
+};
+export type FactorHorizon = {
+  bars: number;
+  samples: number;
+  excluded: Record<string, number>;
+  status: string;
+  pearson: number | null;
+  spearman: number | null;
+  group_change_fraction: number | null;
+  groups: (ForwardGroup)[];
+  days: (ForwardDay)[];
+};
+export type FactorAnalysis = {
+  plan: string;
+  numeric: string;
+  horizons: (FactorHorizon)[];
+  limitations: (string)[];
 };
 export type FactorRevision = {
   annotations: (Annotation)[];

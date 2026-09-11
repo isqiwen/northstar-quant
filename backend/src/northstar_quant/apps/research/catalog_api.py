@@ -114,10 +114,43 @@ class FactorValue(EvidenceRecord):
     reason: str
 
 
+class ForwardGroup(ApiModel):
+    group: int
+    samples: int
+    mean_forward_return: float | None
+
+
+class ForwardDay(ApiModel):
+    trading_day: str
+    samples: int
+    spearman: float | None
+    mean_forward_return: float | None
+
+
+class FactorHorizon(ApiModel):
+    bars: int
+    samples: int
+    excluded: dict[str, int]
+    status: str
+    pearson: float | None
+    spearman: float | None
+    group_change_fraction: float | None
+    groups: list[ForwardGroup]
+    days: list[ForwardDay]
+
+
+class FactorAnalysis(ApiModel):
+    plan: str
+    numeric: str
+    horizons: list[FactorHorizon]
+    limitations: list[str]
+
+
 class FactorResult(ApiModel):
     inputs: dict[str, JsonValue]
     values: list[FactorValue]
     evaluation: dict[str, JsonValue]
+    analysis: FactorAnalysis
 
 
 class FactorRun(EvidenceRecord):
