@@ -299,6 +299,19 @@ class BrokerLedger:
             raise ValueError("position ledger entry is outside its fixed chain")
         return entry
 
+    def get_fill(self, entry_id: UUID, fill_id: str) -> dict[str, Any]:
+        """Read one retained execution through an exact verified account prefix."""
+        entry = self._raw(_entries, entry_id)
+        history = self._history(UUID(entry["baseline_id"]), through=entry["ordinal"])
+        if not history or history[-1] != entry:
+            raise ValueError("position ledger entry is outside its fixed chain")
+        matches = [
+            fill for item in history for fill in item["added_fills"] if fill["fill_id"] == fill_id
+        ]
+        if len(matches) != 1:
+            raise ValueError("account prefix lacks one unique retained execution")
+        return dict(matches[0])
+
     def get_check(self, check_id: UUID) -> dict[str, Any]:
         check = self._raw(_checks, check_id)
         entry = self.get(UUID(check["entry_id"]))
@@ -353,11 +366,13 @@ class BrokerLedger:
 
         return _StreamAccount(self).bind(baseline_id, stream_id)
 
-    def advance_stream(self, stream_id: UUID, through_sequence: int) -> dict[str, Any]:
+    def advance_stream(
+        self, stream_id: UUID, through_sequence: int, *, transaction: Connection | None = None
+    ) -> dict[str, Any]:
         """Apply saved asynchronous account observations, never strategy or network work."""
         from northstar_quant.accounting.stream_progress import _StreamAccount
 
-        return _StreamAccount(self).advance(stream_id, through_sequence)
+        return _StreamAccount(self).advance(stream_id, through_sequence, transaction=transaction)
 
     def stream_progress(self, stream_id: UUID) -> dict[str, Any]:
         """Read bounded local progress; this is not proof of external account coverage."""

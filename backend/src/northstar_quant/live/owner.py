@@ -13,6 +13,7 @@ from northstar_quant import code_revision
 from northstar_quant.accounting.baselines import BrokerBaselines
 from northstar_quant.accounting.funds import BrokerFunds
 from northstar_quant.accounting.ledger import BrokerLedger
+from northstar_quant.broker.execution_fills import verify_all as verify_ctp_fills
 from northstar_quant.broker.execution_reports import verify_all as verify_ctp_receipts
 from northstar_quant.broker.order_transport import verify_all as verify_ctp_orders
 from northstar_quant.broker.queries import BrokerQueries
@@ -45,6 +46,7 @@ class LiveOwner:
         self.execution.verify_all()
         verify_ctp_orders(engine)
         verify_ctp_receipts(engine)
+        verify_ctp_fills(engine)
         self.streams = LiveStreams(
             engine, library, check_ownership=self.check_ownership, runtime_id=self.identifier
         )

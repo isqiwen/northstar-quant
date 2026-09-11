@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from contextlib import nullcontext
 from datetime import UTC
 from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID, uuid5
@@ -350,10 +351,14 @@ class _StreamAccount:
             {"id": stream_id, "after": after, "through": through},
         ).mappings()
 
-    def advance(self, stream_id: UUID, through_sequence: int) -> dict[str, Any]:
+    def advance(
+        self, stream_id: UUID, through_sequence: int, *, transaction: Connection | None = None
+    ) -> dict[str, Any]:
         if type(through_sequence) is not int or not 0 <= through_sequence <= 100000:
             raise ValueError("account catchup requires a bounded saved sequence")
-        with write_transaction(self.engine) as connection:
+        with (
+            nullcontext(transaction) if transaction is not None else write_transaction(self.engine)
+        ) as connection:
             self._lock(connection, stream_id)
             row = self._read(connection, stream_id)
             if row["baseline_id"] is None:

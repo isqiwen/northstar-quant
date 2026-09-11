@@ -160,6 +160,7 @@ def test_initialization_and_restore_keep_all_interrupted_query_evidence(
         assert result["evidence"] == {
             "ctp_orders_count": 0,
             "ctp_receipts_count": 0,
+            "ctp_fills_count": 0,
             "authorizations_count": 0,
             "query_batches_count": 105,
             "pending_queries_count": 101,

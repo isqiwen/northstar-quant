@@ -563,8 +563,9 @@ class LiveStreams:
                 event,
                 receiving=row["status"] in {"RECEIVING", "STOP_REQUESTED"},
             )
-        # Durable reception, account application and shadow calculation have
-        # distinct commits. A failed application leaves the source for explicit
+        # Raw reception and shadow calculation have their own commits.
+        # Matched OMS fills and account progress commit together. Failed application
+        # leaves the source for explicit
         # local catch-up. Pausing shadow never prevents booking actual fills.
         if self._engine.dialect.name == "sqlite" and event.callback in {
             "OnRtnOrder",
@@ -575,7 +576,15 @@ class LiveStreams:
         }:
             from northstar_quant.broker.execution_reports import apply_stream
 
-            apply_stream(self._engine, identifier, event.sequence)
+            order_id = apply_stream(self._engine, identifier, event.sequence)
+            if order_id is not None:
+                from northstar_quant.broker.execution_fills import apply_pending
+
+                apply_pending(self._engine, identifier, event.sequence, order_id=order_id)
+        elif self._engine.dialect.name == "sqlite" and event.callback == "OnRtnTrade":
+            from northstar_quant.broker.execution_fills import apply_stream as apply_fill
+
+            apply_fill(self._engine, identifier, event.sequence)
         progress = self._ledger.advance_stream(identifier, event.sequence)
         with write_transaction(self._engine) as connection:
             self._timeouts(connection)
@@ -793,6 +802,7 @@ class LiveStreams:
             row = self._row(connection, identifier)
             if through_sequence > cast(int, row["received"]):
                 raise ValueError("account catch-up cannot include unreceived callbacks")
+        self._ledger.bind_stream(baseline_id, identifier)
         if self._engine.dialect.name == "sqlite":
             from northstar_quant.broker.execution_reports import apply_stream
 
@@ -814,7 +824,9 @@ class LiveStreams:
                 )
             for sequence in sequences:
                 apply_stream(self._engine, identifier, sequence)
-        self._ledger.bind_stream(baseline_id, identifier)
+            from northstar_quant.broker.execution_fills import apply_pending
+
+            apply_pending(self._engine, identifier, through_sequence)
         return self._ledger.advance_stream(identifier, through_sequence)
 
     def archive(

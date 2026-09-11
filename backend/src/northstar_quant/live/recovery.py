@@ -7,6 +7,7 @@ from sqlalchemy import Engine, text
 from northstar_quant.accounting.baselines import BrokerBaselines
 from northstar_quant.accounting.funds import BrokerFunds
 from northstar_quant.accounting.ledger import BrokerLedger
+from northstar_quant.broker.execution_fills import verify_all as verify_ctp_fills
 from northstar_quant.broker.execution_reports import verify_all as verify_ctp_receipts
 from northstar_quant.broker.order_transport import verify_all as verify_ctp
 from northstar_quant.broker.records import BrokerRecords
@@ -56,6 +57,7 @@ def verify(engine: Engine, files: SourceFiles) -> dict[str, int]:
         "authorizations_count": ExecutionAuthority(engine, UUID(int=0), lambda: None).verify_all(),
         "ctp_orders_count": verify_ctp(engine),
         "ctp_receipts_count": verify_ctp_receipts(engine),
+        "ctp_fills_count": verify_ctp_fills(engine),
         "query_batches_count": queries,
         "pending_queries_count": pending,
         **baselines,

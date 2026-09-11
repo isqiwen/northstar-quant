@@ -510,7 +510,11 @@ class OrderJournal:
             return _view(row)
 
     def fill(
-        self, fact: FillFact, *, post_account: Callable[[Connection, FillFact], None]
+        self,
+        fact: FillFact,
+        *,
+        post_account: Callable[[Connection, FillFact], None],
+        record_source: Callable[[Connection], None] | None = None,
     ) -> dict[str, Any]:
         """Post one identified account fact and remaining budget in one transaction.
 
@@ -524,9 +528,13 @@ class OrderJournal:
             if not _record(
                 connection, "fill:" + fact.fill_id, fact.order_id, "FILL", fact.to_dict()
             ):
+                if record_source is not None:
+                    record_source(connection)
                 return _view(row)
             _apply_fill(row, fact)
             post_account(connection, fact)
+            if record_source is not None:
+                record_source(connection)
             connection.execute(
                 _orders.update()
                 .where(_orders.c.order_id == fact.order_id)
