@@ -66,6 +66,7 @@ from northstar_quant.data_management.snapshots.service import (
     DatasetSnapshotPublicationService,
 )
 from northstar_quant.market_data import Market, MarketBar
+from northstar_quant.market_data.sessions import resolve_trading_day
 
 if TYPE_CHECKING:
     from northstar_quant.data_management.stream import StreamMinutes
@@ -706,7 +707,8 @@ class _ResearchCsv:
                         f"CSV row {index} FINAL_REVISED available_at must equal event_time "
                         "+ 1 minute (the simulated information-clock assumption)"
                     )
-                if not self.spec.session_open <= event < self.spec.session_close:
+                trading_day = resolve_trading_day(event, (self.spec.window,))
+                if trading_day is None:
                     raise ValueError(f"CSV row {index} falls outside the declared session")
                 numbers: dict[str, Decimal] = {}
                 for name in ("open", "high", "low", "close", "volume"):
@@ -721,7 +723,7 @@ class _ResearchCsv:
                         symbol=self.spec.symbol,
                         interval="1m",
                         event_time=event.astimezone(ZoneInfo(self.spec.timezone)),
-                        trading_day=self.spec.trading_day,
+                        trading_day=trading_day,
                         available_at=available.astimezone(ZoneInfo(self.spec.timezone)),
                         source_record_id=row["source_record_id"],
                         price_currency=self.spec.currency,

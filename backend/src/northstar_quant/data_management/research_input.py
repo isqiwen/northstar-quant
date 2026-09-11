@@ -12,6 +12,8 @@ from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from northstar_quant.market_data.sessions import SessionWindow
+
 
 @dataclass(frozen=True, slots=True)
 class ImportSpec:
@@ -108,6 +110,10 @@ class ImportSpec:
                 raise ValueError("NIGHT session must be one continuous window shorter than a day")
         else:
             raise ValueError("data.session_kind must be DAY or NIGHT")
+
+    @property
+    def window(self) -> SessionWindow:
+        return SessionWindow(self.trading_day, self.session_open, self.session_close)
 
     @classmethod
     def from_mapping(cls, value: dict[str, object]) -> ImportSpec:
