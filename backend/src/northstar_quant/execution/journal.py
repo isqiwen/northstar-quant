@@ -47,7 +47,7 @@ _events = Table(
     Column("document", JSON, nullable=False),
 )
 _TERMINAL = {"FILLED", "CANCELED", "REJECTED"}
-_REPORTS = {"ACCEPTED", "PARTIALLY_FILLED", *_TERMINAL}
+_REPORTS = {"UNKNOWN", "ACCEPTED", "PARTIALLY_FILLED", *_TERMINAL}
 
 
 def initialize_journal(connection: Connection) -> None:
@@ -115,7 +115,7 @@ def _get(connection: Connection, order_id: str) -> dict[str, Any]:
 
 
 def _status(row: dict[str, Any]) -> str:
-    if row["conflicted"]:
+    if row["conflicted"] or row["broker_state"] == "UNKNOWN":
         return "UNKNOWN"
     quantity = PendingOrder.from_dict(row["request"]).quantity_lots
     accepted, reported, state = row["filled_lots"], row["reported_lots"], row["broker_state"]
@@ -371,7 +371,13 @@ class OrderJournal:
             return _view(row)
 
     def report(
-        self, order_id: str, *, evidence_id: UUID, state: str, cumulative_lots: int
+        self,
+        order_id: str,
+        *,
+        evidence_id: UUID,
+        state: str,
+        cumulative_lots: int,
+        record_source: Callable[[Connection], None] | None = None,
     ) -> dict[str, Any]:
         """Apply an adapter-validated report; an absent query row is never terminal.
 
@@ -386,6 +392,8 @@ class OrderJournal:
             raise ValueError("order report requires identified supported broker facts")
         with write_transaction(self._engine) as connection:
             row = _get(connection, order_id)
+            if record_source is not None:
+                record_source(connection)
             if not _record(
                 connection,
                 str(evidence_id),

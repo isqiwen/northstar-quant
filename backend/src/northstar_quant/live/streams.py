@@ -563,6 +563,10 @@ class LiveStreams:
         # Durable reception, account application and shadow calculation have
         # distinct commits. A failed application leaves the source for explicit
         # local catch-up. Pausing shadow never prevents booking actual fills.
+        if self._engine.dialect.name == "sqlite" and event.callback == "OnRtnOrder":
+            from northstar_quant.broker.execution_reports import apply_stream
+
+            apply_stream(self._engine, identifier, event.sequence)
         progress = self._ledger.advance_stream(identifier, event.sequence)
         with write_transaction(self._engine) as connection:
             self._timeouts(connection)
@@ -780,6 +784,25 @@ class LiveStreams:
             row = self._row(connection, identifier)
             if through_sequence > cast(int, row["received"]):
                 raise ValueError("account catch-up cannot include unreceived callbacks")
+        if self._engine.dialect.name == "sqlite":
+            from northstar_quant.broker.execution_reports import apply_stream
+
+            with self._engine.connect() as connection:
+                sequences = (
+                    connection.execute(
+                        text(
+                            "SELECT sequence FROM broker_stream_events WHERE stream_id=:id "
+                            "AND sequence<=:through "
+                            "AND json_extract(event, '$.callback')='OnRtnOrder' "
+                            "ORDER BY sequence"
+                        ),
+                        {"id": identifier, "through": through_sequence},
+                    )
+                    .scalars()
+                    .all()
+                )
+            for sequence in sequences:
+                apply_stream(self._engine, identifier, sequence)
         self._ledger.bind_stream(baseline_id, identifier)
         return self._ledger.advance_stream(identifier, through_sequence)
 

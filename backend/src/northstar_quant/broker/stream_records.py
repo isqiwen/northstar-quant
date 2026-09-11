@@ -60,6 +60,27 @@ def read_stream_source(connection: Connection, identifier: UUID) -> dict[str, ob
     return result
 
 
+def read_stream_event(connection: Connection, identifier: UUID, sequence: int) -> BrokerEvent:
+    """Read one already committed copied event with its original content identity."""
+    row = (
+        connection.execute(
+            text(
+                "SELECT event, event_hash FROM broker_stream_events "
+                "WHERE stream_id=:id AND sequence=:seq"
+            ),
+            {"id": identifier, "seq": sequence},
+        )
+        .mappings()
+        .one_or_none()
+    )
+    if row is None or _hash(row["event"]) != row["event_hash"]:
+        raise ValueError("stream event source is missing or damaged")
+    event = BrokerEvent.from_dict(row["event"])
+    if event.sequence != sequence:
+        raise ValueError("stream event source sequence differs")
+    return event
+
+
 def append_stream_event(
     connection: Connection, identifier: UUID, event: BrokerEvent, *, receiving: bool
 ) -> None:
