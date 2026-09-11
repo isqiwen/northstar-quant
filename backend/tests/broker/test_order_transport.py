@@ -33,7 +33,7 @@ def test_ctp_attempt_is_committed_before_send_and_never_resubmitted(live_engine)
     adapter = CtpExecution(live_engine, runtime, session())
     calls = []
 
-    def send(method, fields, request_id):
+    def send(method, fields, request_id, expires_at):
         assert adapter.journal.get(order.order_id)["status"] == "UNKNOWN"
         assert verify_all(live_engine) == 1
         assert fields["OrderRef"] == "501" and request_id > 100_000
@@ -77,7 +77,7 @@ def test_ctp_attempt_is_committed_before_send_and_never_resubmitted(live_engine)
     cancel_id = uuid4()
     canceled = []
 
-    def cancel(method, fields, native_id):
+    def cancel(method, fields, native_id, expires_at):
         assert (fields["FrontID"], fields["SessionID"], fields["OrderRef"]) == (7, 99, "501")
         canceled.append((method, native_id))
         return 0
@@ -191,7 +191,7 @@ def test_ctp_references_increase_across_runtime_and_login(live_engine):
             instrument(order),
             Decimal(100),
             admit=lambda c: None,
-            send=lambda _, f, n: refs.append(f["OrderRef"]) or 0,
+            send=lambda _, f, n, deadline: refs.append(f["OrderRef"]) or 0,
             check_owner=lambda: None,
         )
         adapter = CtpExecution(live_engine, uuid4(), replace(session(), max_order_ref=900))
@@ -280,7 +280,7 @@ def test_native_order_building_never_connects_or_sends(live_engine):
         InputOrderField=SimpleNamespace, InputOrderActionField=SimpleNamespace
     )
 
-    def construct(method, fields, native_id):
+    def construct(method, fields, native_id, expires_at):
         value = native_request(structures, method, fields)
         built.append((method, value, native_id))
         return 0

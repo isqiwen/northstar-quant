@@ -1,4 +1,4 @@
-"""Private native implementation for one explicitly requested SimNow read.
+"""Private native CTP query/reception and explicitly supplied order transport.
 
 CTP owns callback pointers only while the callback runs. Copy permitted scalar
 fields immediately, then drain a bounded queue from the worker's Python thread.
@@ -90,6 +90,7 @@ class _Receiver:
         self.expected_responses: set[tuple[str, str, int]] = set()
         self.quote_seen = False
         self.closed = False
+        self.poll_orders: Callable[[], None] | None = None
 
     def event(
         self,
@@ -142,7 +143,12 @@ class _Receiver:
                 self.failure = self.failure or "DISCONNECTED"
             elif callback == "OnHeartBeatWarning" and self.streaming:
                 self.failure = self.failure or "HEARTBEAT_WARNING"
-            elif error_id:
+            elif error_id and callback not in {
+                "OnRspOrderInsert",
+                "OnRspOrderAction",
+                "OnErrRtnOrderInsert",
+                "OnErrRtnOrderAction",
+            }:
                 self.failure = self.failure or "CTP_RESPONSE_ERROR"
             if is_last and (channel, callback, request_id) in self.expected_responses:
                 assert request_id is not None
@@ -186,6 +192,10 @@ class _Receiver:
     def wait(self, condition: Callable[[], bool], seconds: float | None = None) -> bool:
         deadline = min(self.deadline, time.monotonic() + seconds) if seconds else self.deadline
         while time.monotonic() < deadline:
+            if self.stop_signal is not None and self.stop_signal.is_set():
+                raise _Stopped
+            if self.poll_orders is not None and not self.failure:
+                self.poll_orders()
             self.drain()
             if self.failure:
                 return False
@@ -458,6 +468,7 @@ def stream(
     directory: str,
     duration: float,
     stop_signal: Any,
+    order_queues: tuple[Any, Any] | None = None,
 ) -> None:
     _capture(
         connection,
@@ -468,6 +479,7 @@ def stream(
         duration,
         streaming=True,
         stop_signal=stop_signal,
+        order_queues=order_queues,
     )
 
 
@@ -481,6 +493,7 @@ def _capture(
     *,
     streaming: bool = False,
     stop_signal: Any = None,
+    order_queues: tuple[Any, Any] | None = None,
 ) -> None:
     # Native libraries can print directly through C stdio. Suppress both output
     # descriptors before importing them; only our typed evidence leaves the child.
@@ -619,6 +632,19 @@ def _capture(
             if subscription is None or subscription.get("InstrumentID") != instrument:
                 receiver.failure = "SUBSCRIPTION_IDENTITY_MISMATCH"
                 return
+            if order_queues is not None:
+                from northstar_quant.broker.order_channel import drain_order
+
+                seen: set[int] = set()
+                receiver.poll_orders = lambda: drain_order(
+                    *order_queues,
+                    trader=trader,
+                    structures=structures,
+                    broker_id=credentials.broker_id,
+                    account_id=credentials.user_id,
+                    seen=seen,
+                    record=receiver.event,
+                )
             receiver.deadline = stream_deadline
             receiver.wait(lambda: False)
         else:

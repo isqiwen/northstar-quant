@@ -35,7 +35,7 @@ def receiving(live_engine, tmp_path, monkeypatch):
             instrument(order),
             Decimal(100),
             admit=lambda c: None,
-            send=lambda _, fields, __: sent.append(fields) or 0,
+            send=lambda _, fields, __, deadline: sent.append(fields) or 0,
             check_owner=lambda: None,
         )
 

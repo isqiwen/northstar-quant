@@ -12,7 +12,7 @@ import json
 import re
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal, localcontext
 from typing import Any, cast
 from uuid import UUID
@@ -218,7 +218,7 @@ class CtpExecution:
         limit_price: Decimal,
         *,
         admit: Callable[[Connection], None],
-        send: Callable[[str, dict[str, Any], int], int],
+        send: Callable[[str, dict[str, Any], int, datetime], int],
         check_owner: Callable[[], None],
     ) -> dict[str, Any]:
         # A repeated local identity cannot silently accept a changed wire price
@@ -283,7 +283,7 @@ class CtpExecution:
         request_id: UUID,
         *,
         admit: Callable[[Connection], None],
-        send: Callable[[str, dict[str, Any], int], int],
+        send: Callable[[str, dict[str, Any], int, datetime], int],
         check_owner: Callable[[], None],
     ) -> dict[str, Any]:
         def prepare(connection: Connection) -> None:
@@ -349,7 +349,7 @@ class CtpExecution:
         self,
         request_id: str,
         kind: str,
-        send: Callable[[str, dict[str, Any], int], int],
+        send: Callable[[str, dict[str, Any], int, datetime], int],
         check_owner: Callable[[], None],
     ) -> None:
         with self.engine.connect() as connection:
@@ -364,6 +364,7 @@ class CtpExecution:
                 raise ValueError("CTP request operation changed")
             fields = _decode(row)
         check_owner()
+        expires_at = datetime.now(UTC) + timedelta(seconds=2)
         if kind == "INSERT":
             with self.engine.connect() as connection:
                 order = PendingOrder.from_dict(
@@ -371,14 +372,16 @@ class CtpExecution:
                 )
             if not order.submitted_at <= datetime.now(UTC) < order.expires_at:
                 raise ValueError("CTP send is outside its fixed order lifetime")
+            expires_at = min(expires_at, order.expires_at)
         code = send(
             "ReqOrderInsert" if kind == "INSERT" else "ReqOrderAction",
             {**fields, "RequestID": row["sequence"] + 100_000},
             row["sequence"] + 100_000,
+            expires_at,
         )
         if type(code) is not int or code != 0:
-            # Do not release an order from an immediate native return; the full
-            # callback and external inquiry are the authoritative resolution.
+            # A local enqueue return or an immediate native code does not release
+            # an order; callbacks and external inquiry resolve the outcome.
             raise ValueError("CTP transport did not establish an accepted request")
 
 
