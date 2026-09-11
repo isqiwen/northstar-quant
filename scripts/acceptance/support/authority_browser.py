@@ -31,7 +31,10 @@ def check_authority(page, base_url, visit, screenshot, runtime):
             account_id="synthetic-account",
             instrument="rb2610",
             environment="SANDBOX",
-            request={"configuration_id": "synthetic-fixed-configuration"},
+            request={
+                "configuration_id": "synthetic-fixed-configuration",
+                "query_batch_id": str(uuid4()),
+            },
         ),
     )
 
