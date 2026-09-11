@@ -33,6 +33,37 @@ def intent(target: str = "1") -> StrategyIntent:
     )
 
 
+def test_engine_fixes_terms_and_never_bypasses_price_or_time_envelopes():
+    from northstar_quant.risk.engine import RiskEngine
+    from tests.accounting.test_terms import terms
+
+    fixed = replace(
+        terms(),
+        contract_id=MARKET.contract_id,
+        effective_until=AT + timedelta(minutes=1),
+        lower_limit=Decimal(99),
+        upper_limit=Decimal(101),
+    )
+    engine = RiskEngine(MARKET, POLICY, (fixed,))
+    state = PortfolioState(AT, Decimal(100000), 0, Decimal(100))
+    result = engine.evaluate(intent(), state, terms=fixed)
+    assert result.quantity_lots > 0
+    assert (
+        fixed.lower_limit
+        <= result.minimum_fill_price
+        <= result.maximum_fill_price
+        <= fixed.upper_limit
+    )
+    assert result.expires_at == fixed.effective_until
+    with pytest.raises(ValueError, match="bypassed"):
+        engine.evaluate(intent(), state)
+    with pytest.raises(ValueError, match="fixed revision"):
+        engine.evaluate(intent(), state, terms=replace(fixed, upper_limit=Decimal(110)))
+    with pytest.raises(ValueError, match="available and effective"):
+        engine.evaluate(intent(), replace(state, observed_at=fixed.effective_until), terms=fixed)
+    assert engine.evaluate(intent(), state, terms=fixed) == result
+
+
 def test_sizing_reserves_fees_and_slippage_before_margin_is_authorized() -> None:
     # One lot has 100 margin but fees+slippage leave only 98 equity at the mark.
     state = PortfolioState(AT, Decimal(110), 0, Decimal(100))

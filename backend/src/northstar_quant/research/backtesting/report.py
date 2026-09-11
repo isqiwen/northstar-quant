@@ -16,7 +16,6 @@ from northstar_quant.accounting.fifo import Account
 from northstar_quant.accounting.portfolio import value_account
 from northstar_quant.execution.history import OrderHistory
 from northstar_quant.execution.orders import reservation
-from northstar_quant.risk.terms import order_budget
 
 if TYPE_CHECKING:
     from .session import TradingSession, TradingStep
@@ -64,9 +63,7 @@ def _verify_valuations(session: TradingSession, steps: Sequence[TradingStep]) ->
             for update in step.orders:
                 orders.observe(update, at=at)
                 if update.at == update.order.submitted_at:
-                    expected_budget = order_budget(
-                        session._policy,
-                        session.market,
+                    expected_budget = session._risk.budget(
                         side=update.order.side,
                         offset=update.order.offset,
                         maximum_fill_price=update.order.maximum_fill_price,

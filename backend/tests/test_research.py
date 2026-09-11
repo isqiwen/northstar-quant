@@ -326,7 +326,7 @@ def test_partial_execution_and_target_replacement_preserve_order_quantities_and_
 
 
 def test_a_shorter_risk_window_replaces_the_old_working_order(monkeypatch) -> None:
-    import northstar_quant.research.backtesting.session as loop
+    import northstar_quant.risk.engine as loop
 
     data = dataset(("100", "110", "120"))
     data = replace(data, bars=tuple(replace(bar, volume=Decimal(0)) for bar in data.bars))

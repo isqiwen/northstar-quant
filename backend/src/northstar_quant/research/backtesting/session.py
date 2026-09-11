@@ -7,7 +7,7 @@ import re
 from bisect import bisect_right
 from collections.abc import Sequence
 from copy import copy
-from dataclasses import asdict, dataclass, replace
+from dataclasses import asdict, dataclass
 from datetime import date, datetime, timedelta
 from decimal import ROUND_HALF_EVEN, Decimal, localcontext
 from uuid import UUID
@@ -29,9 +29,7 @@ from northstar_quant.market_data import Market, MarketBar
 from northstar_quant.messaging import Endpoint, Topic
 from northstar_quant.research.configuration import ResearchConfig
 from northstar_quant.research.evaluation import EvaluationPlan
-from northstar_quant.risk import evaluate_risk
-from northstar_quant.risk.sizing import Outcome
-from northstar_quant.risk.terms import order_budget, policy_for_terms
+from northstar_quant.risk.engine import RiskEngine
 from northstar_quant.simulation import simulate_fill
 from northstar_quant.strategies.runtime import StrategyRuntime
 from northstar_quant.trading.environment import Environment
@@ -222,10 +220,7 @@ class TradingSession:
             )
         self.account = Account(config.simulation.initial_cash, market)
         self.pending: PendingOrder | None = None
-        self._policy = config.risk_policy()
-        self._term_policies = {
-            item.terms_id: policy_for_terms(self._policy, item, market) for item in self._terms
-        }
+        self._risk = RiskEngine(market, config.risk_policy(), self._terms)
         self._trader = StrategyRuntime(
             config.strategy, market.contract_id, market.interval_seconds, source_scope=content_hash
         )
@@ -384,39 +379,11 @@ class TradingSession:
         intent = signal.intent
         if intent is not None:
             self._last_decision = (intent.observation_id, intent.generated_at)
-            risk = evaluate_risk(
+            risk = self._risk.evaluate(
                 intent,
                 PortfolioState(bar.available_at, equity, self.account.position_lots, bar.close),
-                self._policy if terms is None else self._term_policies[terms.terms_id],
-                self.market,
+                terms=terms,
             )
-            if terms is not None:
-                minimum = (
-                    None
-                    if risk.minimum_fill_price is None
-                    else max(risk.minimum_fill_price, terms.lower_limit)
-                )
-                maximum = (
-                    None
-                    if risk.maximum_fill_price is None
-                    else min(risk.maximum_fill_price, terms.upper_limit)
-                )
-                if minimum is not None and maximum is not None and minimum > maximum:
-                    risk = replace(
-                        risk,
-                        outcome=Outcome.REJECT,
-                        reason="NO_PRICE_WITHIN_EFFECTIVE_TERMS",
-                        approved_position_lots=None,
-                        side=None,
-                        quantity_lots=0,
-                    )
-                    minimum, maximum = None, None
-                risk = replace(
-                    risk,
-                    minimum_fill_price=minimum,
-                    maximum_fill_price=maximum,
-                    expires_at=min(risk.expires_at, terms.effective_until),
-                )
             decision = {
                 "observation_id": str(bar.observation_id),
                 "at": bar.available_at.isoformat(),
@@ -475,9 +442,7 @@ class TradingSession:
                 offset, quantity = plan
                 decision["order_quantity_lots"] = quantity
                 decision["order_offset"] = offset.value
-                fee_budget, margin_budget = order_budget(
-                    self._policy,
-                    self.market,
+                fee_budget, margin_budget = self._risk.budget(
                     side=risk.side,
                     offset=offset,
                     maximum_fill_price=risk.maximum_fill_price,
