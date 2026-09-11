@@ -660,6 +660,11 @@ def main() -> None:
                             page.get_by_role("cell", name="柜台订单回报", exact=True)
                         ).to_be_visible()
                         screenshot("local-order-events")
+                        visit(url + "/orders/" + local_order["fee_order_id"])
+                        expect(page.get_by_text("费用待确认手数", exact=True)).to_be_visible()
+                        expect(page.get_by_text("订单结果待核对", exact=True)).to_be_visible()
+                        expect(page.get_by_text("FILLED", exact=True)).to_be_visible()
+                        screenshot("local-order-pending-fees")
                         assert app.command("status")["order_sending"] is False
                         check_authority(page, url, visit, screenshot, original)
                         visit(url)

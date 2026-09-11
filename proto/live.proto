@@ -447,6 +447,7 @@ message LocalOrder {
   optional bool requires_reconciliation = 9 [(northstar.web.required_field) = true];
   optional OrderReservation reservation = 10 [(northstar.web.required_field) = true];
   optional google.protobuf.Struct order = 11 [(northstar.web.required_field) = true];
+  optional int64 fee_pending_lots = 12 [(northstar.web.required_field) = true];
   map<string, google.protobuf.Value> evidence_fields = 1000;
 }
 message LocalOrderEvent {

@@ -10,11 +10,14 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import replace
 from datetime import UTC, datetime
+from decimal import Decimal, localcontext
 from typing import Any
 from uuid import UUID, uuid4
 
 from sqlalchemy import JSON, Column, Connection, Engine, Integer, MetaData, String, Table, select
 
+from northstar_quant.accounting.amounts import decimal_text
+from northstar_quant.accounting.fees import FeeFact
 from northstar_quant.accounting.fills import FillFact
 from northstar_quant.persistence.sql import write_transaction
 
@@ -31,6 +34,7 @@ _orders = Table(
     Column("attempt_id", String, nullable=False, unique=True),
     Column("request", JSON, nullable=False),
     Column("filled_lots", Integer, nullable=False),
+    Column("pending_fees", JSON, nullable=False),
     Column("reported_lots", Integer),
     Column("broker_state", String),
     Column("conflicted", Integer, nullable=False),
@@ -44,6 +48,12 @@ _events = Table(
     Column("order_id", String, nullable=False, index=True),
     Column("kind", String, nullable=False),
     Column("recorded_at", String, nullable=False),
+    Column("document", JSON, nullable=False),
+)
+_fees = Table(
+    "execution_fees",
+    _metadata,
+    Column("fee_id", String, primary_key=True),
     Column("document", JSON, nullable=False),
 )
 _TERMINAL = {"FILLED", "CANCELED", "REJECTED"}
@@ -66,6 +76,7 @@ def initialize_journal(connection: Connection) -> None:
     for table, actions in (
         ("execution_orders", ("DELETE",)),
         ("execution_order_events", ("UPDATE", "DELETE")),
+        ("execution_fees", ("UPDATE", "DELETE")),
     ):
         for action in actions:
             connection.exec_driver_sql(
@@ -164,7 +175,17 @@ def _apply_fill(row: dict[str, Any], fact: FillFact) -> None:
         raise ValueError("fill does not belong to the fixed local order")
     if row["filled_lots"] + fact.quantity_lots > order.quantity_lots:
         raise ValueError("individual fills exceed the local order quantity")
+    with localcontext() as context:
+        context.prec = 192
+        if (
+            not order.minimum_fill_price <= fact.price <= order.maximum_fill_price
+            or fact.fee is not None
+            and fact.fee > order.budget.fee * fact.quantity_lots
+        ):
+            row["conflicted"] = 1
     row["filled_lots"] += fact.quantity_lots
+    if fact.fee is None:
+        row["pending_fees"] = {**row["pending_fees"], fact.fill_id: fact.quantity_lots}
     # A later fill contradicting an already matched terminal report must
     # be accounted for, but it cannot silently re-arm this contract.
     if row["status"] in {"CANCELED", "REJECTED"}:
@@ -174,13 +195,75 @@ def _apply_fill(row: dict[str, Any], fact: FillFact) -> None:
 
 def _view(row: dict[str, Any]) -> dict[str, Any]:
     order = replace(PendingOrder.from_dict(row["request"]), filled_lots=row["filled_lots"])
+    held = reservation(None if row["status"] in _TERMINAL else order)
+    with localcontext() as context:
+        context.prec = 192
+        held["reserved_fee"] = decimal_text(
+            Decimal(str(held["reserved_fee"]))
+            + sum(row["pending_fees"].values()) * order.budget.fee
+        )
     return {
         **row,
         "order": order.to_dict(),
         "quantity_lots": order.quantity_lots,
-        "reservation": reservation(None if row["status"] in _TERMINAL else order),
-        "requires_reconciliation": row["status"] == "UNKNOWN",
+        "fee_pending_lots": sum(row["pending_fees"].values()),
+        "reservation": held,
+        "requires_reconciliation": row["status"] == "UNKNOWN" or bool(row["pending_fees"]),
     }
+
+
+def _fee_orders(connection: Connection, fact: FeeFact) -> dict[str, tuple[str, ...]]:
+    rows = (
+        connection.execute(
+            select(_events).where(
+                _events.c.event_id.in_(["fill:" + identity for identity in fact.fill_ids])
+            )
+        )
+        .mappings()
+        .all()
+    )
+    if len(rows) != len(fact.fill_ids):
+        raise ValueError("fee lacks its complete execution evidence")
+    groups: dict[str, list[str]] = {}
+    for row in rows:
+        fill = FillFact.from_dict(row["document"])
+        if (
+            row["kind"] != "FILL"
+            or row["order_id"] != fill.order_id
+            or row["event_id"] != "fill:" + fill.fill_id
+            or fill.fee is not None
+            or fill.available_at > fact.available_at
+            or fill.filled_at > fact.charged_at
+        ):
+            raise ValueError("fee conflicts with its retained execution facts")
+        groups.setdefault(fill.order_id, []).append(fill.fill_id)
+    return {identity: tuple(sorted(fills)) for identity, fills in groups.items()}
+
+
+def _fee_exceeds_budget(connection: Connection, fact: FeeFact) -> bool:
+    with localcontext() as context:
+        context.prec = 192
+        budget = Decimal(0)
+        rows = connection.execute(
+            select(_events.c.document, _orders.c.request)
+            .join(_orders, _orders.c.order_id == _events.c.order_id)
+            .where(_events.c.event_id.in_(["fill:" + identity for identity in fact.fill_ids]))
+        ).mappings()
+        for row in rows:
+            order = PendingOrder.from_dict(row["request"])
+            budget += FillFact.from_dict(row["document"]).quantity_lots * order.budget.fee
+        return fact.amount > budget
+
+
+def _apply_fee(row: dict[str, Any], fill_ids: tuple[str, ...], *, budget_exceeded: bool) -> None:
+    if not fill_ids or not set(fill_ids).issubset(row["pending_fees"]):
+        raise ValueError("execution fee was already resolved or was never pending")
+    row["pending_fees"] = {
+        key: value for key, value in row["pending_fees"].items() if key not in fill_ids
+    }
+    if budget_exceeded:
+        row["conflicted"] = 1
+    row["status"] = _status(row)
 
 
 class OrderJournal:
@@ -234,7 +317,7 @@ class OrderJournal:
                 select(_orders.c.order_id)
                 .where(
                     _orders.c.contract_id == str(order.contract_id),
-                    _orders.c.status.not_in(_TERMINAL),
+                    (_orders.c.status.not_in(_TERMINAL) | (_orders.c.pending_fees != {})),
                 )
                 .limit(1)
             )
@@ -250,6 +333,7 @@ class OrderJournal:
                     attempt_id=attempt,
                     request=order.to_dict(),
                     filled_lots=0,
+                    pending_fees={},
                     reported_lots=None,
                     broker_state=None,
                     conflicted=0,
@@ -307,7 +391,7 @@ class OrderJournal:
                 }:
                     raise ValueError("cancellation identity is bound to different input")
                 return _view(row)
-            if row["status"] in _TERMINAL:
+            if row["status"] in _TERMINAL or row["filled_lots"] == row["request"]["quantity_lots"]:
                 _record(connection, str(request_id), order_id, "CANCEL_NOT_NEEDED", {})
                 return _view(row)
             attempted: set[str] = set()
@@ -448,11 +532,53 @@ class OrderJournal:
                 .where(_orders.c.order_id == fact.order_id)
                 .values(
                     filled_lots=row["filled_lots"],
+                    pending_fees=row["pending_fees"],
                     conflicted=row["conflicted"],
                     status=row["status"],
                 )
             )
             return _view(row)
+
+    def confirm_fee(
+        self, fact: FeeFact, *, post_account: Callable[[Connection, FeeFact], None]
+    ) -> tuple[dict[str, Any], ...]:
+        """Resolve verified fee coverage and account charge in the same writer commit."""
+        with write_transaction(self._engine) as connection:
+            groups = _fee_orders(connection, fact)
+            previous = (
+                connection.execute(select(_fees).where(_fees.c.fee_id == fact.fee_id))
+                .mappings()
+                .one_or_none()
+            )
+            if previous is not None:
+                if previous["document"] != fact.to_dict():
+                    raise ValueError("fee identity is bound to different input")
+                return tuple(_view(_get(connection, identity)) for identity in sorted(groups))
+            connection.execute(_fees.insert().values(fee_id=fact.fee_id, document=fact.to_dict()))
+            exceeded = _fee_exceeds_budget(connection, fact)
+            views = []
+            for identity, fills in sorted(groups.items()):
+                row = _get(connection, identity)
+                _apply_fee(row, fills, budget_exceeded=exceeded)
+                _record(
+                    connection,
+                    "fee:" + fact.fee_id + ":" + identity,
+                    identity,
+                    "FEE_CONFIRMED",
+                    fact.to_dict(),
+                )
+                connection.execute(
+                    _orders.update()
+                    .where(_orders.c.order_id == identity)
+                    .values(
+                        pending_fees=row["pending_fees"],
+                        conflicted=row["conflicted"],
+                        status=row["status"],
+                    )
+                )
+                views.append(_view(row))
+            post_account(connection, fact)
+            return tuple(views)
 
     def list(self, *, before: int | None = None) -> dict[str, Any]:
         if before is not None and (type(before) is not int or before <= 0):
@@ -526,6 +652,27 @@ class OrderJournal:
             )
             if orphan is not None:
                 raise ValueError("execution event has no owned order")
+            for fee in connection.execute(select(_fees)).mappings().yield_per(100):
+                fee_fact = FeeFact.from_dict(fee["document"])
+                if fee["fee_id"] != fee_fact.fee_id:
+                    raise ValueError("execution fee identity is damaged")
+                for identity in _fee_orders(connection, fee_fact):
+                    event = (
+                        connection.execute(
+                            select(_events).where(
+                                _events.c.event_id == "fee:" + fee_fact.fee_id + ":" + identity
+                            )
+                        )
+                        .mappings()
+                        .one_or_none()
+                    )
+                    if (
+                        event is None
+                        or event["order_id"] != identity
+                        or event["kind"] != "FEE_CONFIRMED"
+                        or event["document"] != fee_fact.to_dict()
+                    ):
+                        raise ValueError("execution fee lacks its complete order coverage")
             for stored in connection.execute(select(_orders)).mappings().yield_per(100):
                 row = dict(stored)
                 request = PendingOrder.from_dict(row["request"])
@@ -539,6 +686,7 @@ class OrderJournal:
                     UUID(row[name])
                 row.update(
                     filled_lots=0,
+                    pending_fees={},
                     reported_lots=None,
                     broker_state=None,
                     conflicted=0,
@@ -578,7 +726,11 @@ class OrderJournal:
                             raise ValueError("execution transport outcome is damaged")
                         returned = True
                     elif kind == "CANCEL_ATTEMPT":
-                        if row["status"] in _TERMINAL or set(document) != {"runtime_id"}:
+                        if (
+                            row["status"] in _TERMINAL
+                            or row["filled_lots"] == request.quantity_lots
+                            or set(document) != {"runtime_id"}
+                        ):
                             raise ValueError("invalid cancellation attempt")
                         UUID(document["runtime_id"])
                         if unresolved_cancellations:
@@ -586,7 +738,10 @@ class OrderJournal:
                         cancellations.add(event["event_id"])
                         unresolved_cancellations.add(event["event_id"])
                     elif kind == "CANCEL_NOT_NEEDED":
-                        if row["status"] not in _TERMINAL or document != {}:
+                        if (
+                            row["status"] not in _TERMINAL
+                            and row["filled_lots"] != request.quantity_lots
+                        ) or document != {}:
                             raise ValueError("invalid terminal cancellation observation")
                     elif kind in {
                         "CANCEL_REJECTED",
@@ -612,6 +767,21 @@ class OrderJournal:
                         ):
                             raise ValueError("execution fill identity is damaged")
                         _apply_fill(row, fact)
+                    elif kind == "FEE_CONFIRMED":
+                        fact_fee = FeeFact.from_dict(document)
+                        retained = connection.scalar(
+                            select(_fees.c.document).where(_fees.c.fee_id == fact_fee.fee_id)
+                        )
+                        if (
+                            retained != document
+                            or event["event_id"] != "fee:" + fact_fee.fee_id + ":" + row["order_id"]
+                        ):
+                            raise ValueError("execution fee lacks its retained account charge")
+                        _apply_fee(
+                            row,
+                            _fee_orders(connection, fact_fee).get(row["order_id"], ()),
+                            budget_exceeded=_fee_exceeds_budget(connection, fact_fee),
+                        )
                     else:
                         raise ValueError("unknown execution event")
                 if not started or row != dict(stored):

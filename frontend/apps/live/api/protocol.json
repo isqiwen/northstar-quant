@@ -2052,6 +2052,13 @@
           "required": true,
           "nullable": false
         },
+        "fee_pending_lots": {
+          "id": 12,
+          "presence": true,
+          "type": "int64",
+          "required": true,
+          "nullable": false
+        },
         "evidence_fields": {
           "id": 1000,
           "presence": false,

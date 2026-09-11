@@ -162,6 +162,7 @@ def require_current(engine: Engine) -> None:
         "ctp_requests",
         "execution_orders",
         "execution_order_events",
+        "execution_fees",
         "broker_streams",
         "broker_stream_events",
         "broker_stream_accounts",

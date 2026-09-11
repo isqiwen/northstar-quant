@@ -26,7 +26,7 @@ class FillFact:
     offset: Offset
     quantity_lots: int
     price: Decimal
-    fee: Decimal
+    fee: Decimal | None
     available_at: datetime
 
     def __post_init__(self) -> None:
@@ -56,6 +56,8 @@ class FillFact:
             raise ValueError("fill quantity must be a positive integer number of lots")
         for name in ("price", "fee"):
             value = getattr(self, name)
+            if name == "fee" and value is None:
+                continue
             if (
                 not isinstance(value, Decimal)
                 or not value.is_finite()
@@ -81,7 +83,7 @@ class FillFact:
             "offset": self.offset.value,
             "quantity_lots": self.quantity_lots,
             "price": decimal_text(self.price),
-            "fee": decimal_text(self.fee),
+            "fee": None if self.fee is None else decimal_text(self.fee),
         }
 
     @classmethod
@@ -101,7 +103,7 @@ class FillFact:
             if any(not isinstance(value[name], str) for name in names):
                 raise ValueError("persisted fill identities and times must be strings")
             price, fee = value["price"], value["fee"]
-            if not isinstance(price, str) or not isinstance(fee, str):
+            if not isinstance(price, str) or fee is not None and not isinstance(fee, str):
                 raise ValueError("persisted fill money must be exact decimal strings")
             quantity = value["quantity_lots"]
             if type(quantity) is not int:
@@ -120,7 +122,7 @@ class FillFact:
                 Offset(str(value["offset"])),
                 quantity,
                 Decimal(price),
-                Decimal(fee),
+                None if fee is None else Decimal(fee),
                 datetime.fromisoformat(str(value["available_at"])),
             )
         except (KeyError, TypeError, ArithmeticError) as error:
@@ -132,7 +134,7 @@ class AppliedFill:
     fact: FillFact
     realized_pnl: Decimal
     position_lots: int
-    cash: Decimal
+    cash: Decimal | None
     total_fees: Decimal
     gross_position: Position
 
@@ -141,7 +143,7 @@ class AppliedFill:
             **self.fact.to_dict(),
             "realized_pnl": decimal_text(self.realized_pnl),
             "position_lots": self.position_lots,
-            "cash": decimal_text(self.cash),
+            "cash": None if self.cash is None else decimal_text(self.cash),
             "total_fees": decimal_text(self.total_fees),
             "gross_position": self.gross_position.to_dict(),
         }

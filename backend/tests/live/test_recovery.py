@@ -405,3 +405,47 @@ def test_live_restore_manifest_and_target_preflight_cannot_block_or_modify_backu
         with pytest.raises(ValueError, match="bounded regular file"):
             restore(target, tmp_path / "restored", destination)
         assert not (tmp_path / "restored").exists()
+
+
+def test_joint_restore_preserves_unpriced_fills_and_confirmed_fee_coverage(
+    live_engine: Engine, tmp_path: Path
+) -> None:
+    from dataclasses import replace
+    from datetime import UTC
+
+    from northstar_quant.accounting.fees import FeeFact
+    from northstar_quant.execution.journal import OrderJournal
+    from tests.execution.test_journal import fill, request
+
+    journal = OrderJournal(live_engine, uuid4())
+    pending, resolved = request(), request()
+    facts = []
+    for requested in (pending, resolved):
+        journal.submit(
+            requested, authorization_id=uuid4(), admit=lambda _: None, dispatch=lambda *_: None
+        )
+        fact = replace(fill(requested, 3), fee=None)
+        # This case isolates OMS backup semantics; no broker/account is asserted.
+        journal.fill(fact, post_account=lambda *_: None)
+        facts.append(fact)
+    at = datetime.now(UTC)
+    fee = FeeFact(
+        str(uuid4()),
+        (facts[1].fill_id,),
+        Decimal("5"),
+        "CNY",
+        at,
+        at,
+        "synthetic OMS coverage, no broker assertion",
+    )
+    journal.confirm_fee(fee, post_account=lambda *_: None)
+    expected = [journal.get(row.order_id) for row in (pending, resolved)]
+    destination = tmp_path / "fee-backup"
+    backup(live_engine, SourceFiles(tmp_path / "fee-sources"), destination)
+    with _empty_restore_database(tmp_path) as target:
+        restore(target, tmp_path / "restored-fee-sources", destination)
+        reopened = OrderJournal(target, uuid4())
+        assert reopened.verify_all() == 2
+        assert [reopened.get(row.order_id) for row in (pending, resolved)] == expected
+        assert reopened.get(pending.order_id)["fee_pending_lots"] == 3
+        assert reopened.get(resolved.order_id)["fee_pending_lots"] == 0

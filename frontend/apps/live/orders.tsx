@@ -25,6 +25,7 @@ const kinds: Record<string, string> = {
   CANCEL_REJECTED: "柜台拒绝撤单",
   CANCEL_NOT_NEEDED: "订单已终结，无需撤单",
   BROKER_REPORT: "柜台订单回报",
+  FEE_CONFIRMED: "实际费用及覆盖已确认",
   FILL: "逐笔成交已入账",
 };
 
@@ -59,7 +60,7 @@ export function Orders() {
         type="info"
         showIcon
         title="请求不等于确认成交"
-        description="发送返回、撤单请求、断线和授权到期都不会释放未决预算。UNKNOWN 需要核对，不能盲目重发。当前尚未开放柜台报撤单入口。"
+        description="发送返回、撤单请求、断线和授权到期都不会释放未决预算。UNKNOWN 需要核对，不能盲目重发。成交已完成但费用尚未确认时，仍保留手续费预占，账户现金不可用于新增风险。当前尚未开放柜台报撤单入口。"
       />
       <Records
         title="本地订单"
@@ -83,7 +84,8 @@ export function Orders() {
             render: (v) => <Status value={v} />,
           },
           { title: "委托手数", dataIndex: "quantity_lots" },
-          { title: "已入账手数", dataIndex: "filled_lots" },
+          { title: "已确认成交手数", dataIndex: "filled_lots" },
+          { title: "费用待确认手数", dataIndex: "fee_pending_lots" },
           {
             title: "保证金预占",
             dataIndex: ["reservation", "reserved_margin"],
@@ -124,7 +126,7 @@ export function OrderDetail() {
     <>
       <Heading
         title="订单事实"
-        description="预算来自固定订单；成交数量来自逐笔入账，不以累计回报代替。"
+        description="预算来自固定订单；成交数量来自逐笔事实，费用单独确认，不以累计回报代替。"
         actions={<Button onClick={q.refresh}>刷新观察</Button>}
       />
       <Failure error={q.error} />
@@ -145,7 +147,8 @@ export function OrderDetail() {
                 状态: record.status,
                 合约: record.contract_id,
                 委托手数: record.quantity_lots,
-                已入账手数: record.filled_lots,
+                已确认成交手数: record.filled_lots,
+                费用待确认手数: record.fee_pending_lots,
                 授权引用: record.authorization_id,
                 发送尝试: record.attempt_id,
                 原运行身份: record.runtime_id,

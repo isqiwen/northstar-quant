@@ -235,14 +235,14 @@ def test_checkpoint_recovery_preserves_pending_fifo_warmup_and_complete_result()
             checkpoint={**checkpoint, "maximum_drawdown": "0"},
             account=rebuilt,
         )
-    rebuilt.cash += Decimal(1)
+    damaged_account = {**checkpoint["account"], "cash": str(rebuilt.cash + Decimal(1))}
     with pytest.raises(ValueError, match="verified fill ledger"):
         TradingSession.from_checkpoint(
             data.market,
             config,
             snapshot_id=data.snapshot_id,
             content_hash=data.content_hash,
-            checkpoint=checkpoint,
+            checkpoint={**checkpoint, "account": damaged_account},
             account=rebuilt,
         )
     changed_plan = {

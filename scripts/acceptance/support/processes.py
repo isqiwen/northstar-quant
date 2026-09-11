@@ -113,9 +113,11 @@ class InstalledApplication:
         """Synthetic local persistence/UI evidence, never a native broker request."""
         code = """
 import json
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from uuid import uuid4
+from northstar_quant.accounting.fills import FillFact
 from northstar_quant.apps.storage import open_database
 from northstar_quant.execution.journal import OrderJournal
 from northstar_quant.execution.orders import PendingOrder, OrderBudget, Side, Offset
@@ -127,8 +129,15 @@ order = PendingOrder(str(uuid4()), uuid4(), now, now + timedelta(seconds=60),
 journal = OrderJournal(engine, uuid4())
 journal.submit(order, uuid4(), admit=lambda connection: None, dispatch=lambda value: None)
 journal.report(order.order_id, evidence_id=uuid4(), state='CANCELED', cumulative_lots=1)
-assert journal.verify_all() == 1
-print(json.dumps({'order_id': order.order_id, 'evidence': 'SYNTHETIC_LOCAL_JOURNAL_NO_BROKER'}))
+priced_later = replace(order, order_id=str(uuid4()), contract_id=uuid4())
+journal.submit(priced_later, uuid4(), admit=lambda connection: None, dispatch=lambda value: None)
+received = datetime.now(UTC)
+journal.fill(FillFact(str(uuid4()), priced_later.order_id, priced_later.contract_id,
+    None, received, received.date(), Side.BUY, Offset.OPEN, 3, Decimal('100'), None,
+    available_at=received), post_account=lambda connection, fact: None)
+assert journal.verify_all() == 2
+print(json.dumps({'order_id': order.order_id, 'fee_order_id': priced_later.order_id,
+    'evidence': 'SYNTHETIC_LOCAL_JOURNAL_NO_BROKER'}))
 engine.dispose()
 """
         completed = subprocess.run(

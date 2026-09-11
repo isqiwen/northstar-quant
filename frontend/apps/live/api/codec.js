@@ -25468,6 +25468,7 @@ export const northstar = $root.northstar = (() => {
              * @property {boolean|null} [requires_reconciliation] LocalOrder requires_reconciliation
              * @property {northstar.live.OrderReservation.$Properties|null} [reservation] LocalOrder reservation
              * @property {google.protobuf.Struct.$Properties|null} [order] LocalOrder order
+             * @property {number|Long|null} [fee_pending_lots] LocalOrder fee_pending_lots
              * @property {Object.<string,google.protobuf.Value.$Properties>|null} [evidence_fields] LocalOrder evidence_fields
              * @property {"order_id"} [_order_id] LocalOrder _order_id
              * @property {"contract_id"} [_contract_id] LocalOrder _contract_id
@@ -25480,6 +25481,7 @@ export const northstar = $root.northstar = (() => {
              * @property {"requires_reconciliation"} [_requires_reconciliation] LocalOrder _requires_reconciliation
              * @property {"reservation"} [_reservation] LocalOrder _reservation
              * @property {"order"} [_order] LocalOrder _order
+             * @property {"fee_pending_lots"} [_fee_pending_lots] LocalOrder _fee_pending_lots
              * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
              */
 
@@ -25505,6 +25507,7 @@ export const northstar = $root.northstar = (() => {
              *   requires_reconciliation?: boolean|null;
              *   reservation?: northstar.live.OrderReservation.$Shape|null;
              *   order?: google.protobuf.Struct.$Shape|null;
+             *   fee_pending_lots?: number|Long|null;
              *   evidence_fields?: Object.<string,google.protobuf.Value.$Shape>|null;
              *   $unknowns?: Array.<Uint8Array>;
              * } & (
@@ -25529,6 +25532,8 @@ export const northstar = $root.northstar = (() => {
              *   ({ _reservation?: undefined; reservation?: null }|{ _reservation?: "reservation"; reservation: northstar.live.OrderReservation.$Shape })
              * ) & (
              *   ({ _order?: undefined; order?: null }|{ _order?: "order"; order: google.protobuf.Struct.$Shape })
+             * ) & (
+             *   ({ _fee_pending_lots?: undefined; fee_pending_lots?: null }|{ _fee_pending_lots?: "fee_pending_lots"; fee_pending_lots: number|Long })
              * )} northstar.live.LocalOrder.$Shape
              */
 
@@ -25635,6 +25640,14 @@ export const northstar = $root.northstar = (() => {
              * @instance
              */
             LocalOrder.prototype.order = null;
+
+            /**
+             * LocalOrder fee_pending_lots.
+             * @member {number|Long|null|undefined} fee_pending_lots
+             * @memberof northstar.live.LocalOrder
+             * @instance
+             */
+            LocalOrder.prototype.fee_pending_lots = null;
 
             /**
              * LocalOrder evidence_fields.
@@ -25769,6 +25782,17 @@ export const northstar = $root.northstar = (() => {
             });
 
             /**
+             * LocalOrder _fee_pending_lots.
+             * @member {"fee_pending_lots"|undefined} _fee_pending_lots
+             * @memberof northstar.live.LocalOrder
+             * @instance
+             */
+            $Object.defineProperty(LocalOrder.prototype, "_fee_pending_lots", {
+                get: $util.oneOfGetter($oneOfFields = ["fee_pending_lots"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
              * Creates a new LocalOrder instance using the specified properties.
              * @function create
              * @memberof northstar.live.LocalOrder
@@ -25822,6 +25846,8 @@ export const northstar = $root.northstar = (() => {
                     $root.northstar.live.OrderReservation.encode(message.reservation, writer.uint32(/* id 10, wireType 2 =*/82).fork(), _depth + 1).ldelim();
                 if (message.order != null && $Object.hasOwnProperty.call(message, "order"))
                     $root.google.protobuf.Struct.encode(message.order, writer.uint32(/* id 11, wireType 2 =*/90).fork(), _depth + 1).ldelim();
+                if (message.fee_pending_lots != null && $Object.hasOwnProperty.call(message, "fee_pending_lots"))
+                    writer.uint32(/* id 12, wireType 0 =*/96).int64(message.fee_pending_lots);
                 if (message.evidence_fields != null && $Object.hasOwnProperty.call(message, "evidence_fields"))
                     for (let keys = $Object.keys(message.evidence_fields), i = 0; i < keys.length; ++i) {
                         writer.uint32(/* id 1000, wireType 2 =*/8002).fork().uint32(/* id 1, wireType 2 =*/10).string(keys[i]);
@@ -25946,6 +25972,13 @@ export const northstar = $root.northstar = (() => {
                                 break;
                             message.order = $root.google.protobuf.Struct.decode(reader, reader.uint32(), $undefined, _depth + 1, message.order);
                             message._order = "order";
+                            continue;
+                        }
+                    case 12: {
+                            if (wireType !== 0)
+                                break;
+                            message.fee_pending_lots = reader.int64();
+                            message._fee_pending_lots = "fee_pending_lots";
                             continue;
                         }
                     case 1000: {
@@ -26078,6 +26111,11 @@ export const northstar = $root.northstar = (() => {
                             return "order." + error;
                     }
                 }
+                if (message.fee_pending_lots != null && $Object.hasOwnProperty.call(message, "fee_pending_lots")) {
+                    properties._fee_pending_lots = 1;
+                    if (!$util.isInteger(message.fee_pending_lots) && !(message.fee_pending_lots && $util.isInteger(message.fee_pending_lots.low) && $util.isInteger(message.fee_pending_lots.high)))
+                        return "fee_pending_lots: integer|Long expected";
+                }
                 if (message.evidence_fields != null && $Object.hasOwnProperty.call(message, "evidence_fields")) {
                     if (!$util.isObject(message.evidence_fields))
                         return "evidence_fields: object expected";
@@ -26151,6 +26189,15 @@ export const northstar = $root.northstar = (() => {
                         throw $TypeError(".northstar.live.LocalOrder.order: object expected");
                     message.order = $root.google.protobuf.Struct.fromObject(object.order, _depth + 1);
                 }
+                if (object.fee_pending_lots != null)
+                    if ($util.Long)
+                        message.fee_pending_lots = $util.Long.fromValue(object.fee_pending_lots, false);
+                    else if (typeof object.fee_pending_lots === "string")
+                        message.fee_pending_lots = $parseInt(object.fee_pending_lots, 10);
+                    else if (typeof object.fee_pending_lots === "number")
+                        message.fee_pending_lots = object.fee_pending_lots;
+                    else if (typeof object.fee_pending_lots === "object")
+                        message.fee_pending_lots = new $util.LongBits(object.fee_pending_lots.low >>> 0, object.fee_pending_lots.high >>> 0).toNumber();
                 if (object.evidence_fields) {
                     if (!$util.isObject(object.evidence_fields))
                         throw $TypeError(".northstar.live.LocalOrder.evidence_fields: object expected");
@@ -26249,6 +26296,16 @@ export const northstar = $root.northstar = (() => {
                     object.order = $root.google.protobuf.Struct.toObject(message.order, options, _depth + 1);
                     if (options.oneofs)
                         object._order = "order";
+                }
+                if (message.fee_pending_lots != null && $Object.hasOwnProperty.call(message, "fee_pending_lots")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.fee_pending_lots = typeof message.fee_pending_lots === "number" ? $BigInt(message.fee_pending_lots) : $util.Long.fromBits(message.fee_pending_lots.low >>> 0, message.fee_pending_lots.high >>> 0, false).toBigInt();
+                    else if (typeof message.fee_pending_lots === "number")
+                        object.fee_pending_lots = options.longs === $String ? $String(message.fee_pending_lots) : message.fee_pending_lots;
+                    else
+                        object.fee_pending_lots = options.longs === $String ? $util.Long.prototype.toString.call(message.fee_pending_lots) : options.longs === $Number ? new $util.LongBits(message.fee_pending_lots.low >>> 0, message.fee_pending_lots.high >>> 0).toNumber() : message.fee_pending_lots;
+                    if (options.oneofs)
+                        object._fee_pending_lots = "fee_pending_lots";
                 }
                 let keys2;
                 if (message.evidence_fields && (keys2 = $Object.keys(message.evidence_fields)).length) {

@@ -16,6 +16,7 @@ from decimal import ROUND_HALF_EVEN, Decimal, localcontext
 from uuid import UUID
 
 from northstar_quant.accounting.amounts import decimal_text
+from northstar_quant.accounting.fees import AppliedFee, FeeFact
 from northstar_quant.accounting.fills import AppliedFill, FillFact
 from northstar_quant.accounting.positions import Position, PositionChange
 from northstar_quant.accounting.settlement import AppliedSettlement, SettlementFact
@@ -83,13 +84,29 @@ class Account:
         self.initial_cash = initial_cash
         self.markets = tuple(sorted(markets, key=lambda market: str(market.contract_id)))
         self._inventories = {market.contract_id: _Inventory(market) for market in self.markets}
-        self.cash = initial_cash
+        self._cash = initial_cash
         self.realized_pnl = Decimal(0)
         self.total_fees = Decimal(0)
+        self._pending_fees: set[str] = set()
+        self._fees: dict[str, AppliedFee] = {}
         self._fills: dict[str, AppliedFill] = {}
         self._settlements: dict[str, AppliedSettlement] = {}
         self._last_fact_at: datetime | None = None
         self.settlement_pnl = Decimal(0)
+
+    @property
+    def cash(self) -> Decimal:
+        if self._pending_fees:
+            raise ValueError("account cash requires confirmed fees for all accepted fills")
+        return self._cash
+
+    @property
+    def pending_fee_fill_ids(self) -> tuple[str, ...]:
+        return tuple(sorted(self._pending_fees))
+
+    @property
+    def applied_fees(self) -> tuple[AppliedFee, ...]:
+        return tuple(self._fees.values())
 
     @property
     def fill_count(self) -> int:
@@ -219,9 +236,10 @@ class Account:
                 lots = [lot for lot in lots if lot.quantity]
                 if quantity:
                     raise RuntimeError("account lots disagree with gross positions")
-            total_fees = self.total_fees + fact.fee
+            known_fee = Decimal(0) if fact.fee is None else fact.fee
+            total_fees = self.total_fees + known_fee
             realized_pnl = self.realized_pnl + realized
-            cash = self.cash + realized - fact.fee
+            cash = self._cash + realized - known_fee
             if (
                 sum(lot.quantity for lot in lots if lot.direction == 1)
                 != position.long_today + position.long_yesterday
@@ -230,11 +248,20 @@ class Account:
                 or cash != self.initial_cash + realized_pnl - total_fees
             ):
                 raise RuntimeError("account ledger conservation failed")
-            applied = AppliedFill(fact, realized, position.net_lots, cash, total_fees, position)
+            if fact.fee is None:
+                self._pending_fees.add(fact.fill_id)
+            applied = AppliedFill(
+                fact,
+                realized,
+                position.net_lots,
+                None if self._pending_fees else cash,
+                total_fees,
+                position,
+            )
             self._inventories[fact.contract_id] = _Inventory(
                 market, position, tuple(lots), fact.trading_day, fact.filled_at
             )
-            self.total_fees, self.realized_pnl, self.cash = total_fees, realized_pnl, cash
+            self.total_fees, self.realized_pnl, self._cash = total_fees, realized_pnl, cash
             self._last_fact_at = fact.available_at
             self._fills[fact.fill_id] = applied
             return applied
@@ -274,7 +301,7 @@ class Account:
                 ),
                 Decimal(0),
             )
-            cash = self.cash + variation
+            cash = self._cash + variation
             realized = self.realized_pnl + variation
             if cash != self.initial_cash + realized - self.total_fees:
                 raise RuntimeError("settlement ledger conservation failed")
@@ -283,14 +310,47 @@ class Account:
                 short_yesterday=inventory.position.short_today + inventory.position.short_yesterday,
             )
             lots = [replace(lot, entry_price=fact.price) for lot in inventory.lots]
-            applied = AppliedSettlement(fact, variation, cash)
-            self.cash, self.realized_pnl = cash, realized
+            applied = AppliedSettlement(fact, variation, None if self._pending_fees else cash)
+            self._cash, self.realized_pnl = cash, realized
             self.settlement_pnl += variation
             self._inventories[fact.contract_id] = _Inventory(
                 market, position, tuple(lots), fact.next_trading_day, fact.settled_at
             )
             self._last_fact_at = fact.available_at
             self._settlements[fact.settlement_id] = applied
+            return applied
+
+    def confirm_fee(self, fact: FeeFact) -> AppliedFee:
+        """Book one verified aggregate charge without inventing per-fill amounts."""
+        if not isinstance(fact, FeeFact) or fact.currency != self.markets[0].currency:
+            raise ValueError("fee belongs to a different account currency")
+        previous = self._fees.get(fact.fee_id)
+        if previous is not None:
+            if previous.fact != fact:
+                raise ValueError("fee identity was reused with different facts")
+            return previous
+        if not set(fact.fill_ids).issubset(self._pending_fees):
+            raise ValueError("fee must cover exclusively accepted fills awaiting confirmed fees")
+        if (
+            self._last_fact_at is not None
+            and fact.available_at < self._last_fact_at
+            or any(
+                self._fills[identity].fact.filled_at > fact.charged_at for identity in fact.fill_ids
+            )
+        ):
+            raise ValueError("fee precedes accepted account or execution facts")
+        with localcontext() as context:
+            context.prec = 192
+            context.rounding = ROUND_HALF_EVEN
+            cash = self._cash - fact.amount
+            total_fees = self.total_fees + fact.amount
+            if cash != self.initial_cash + self.realized_pnl - total_fees:
+                raise RuntimeError("fee ledger conservation failed")
+            self._pending_fees.difference_update(fact.fill_ids)
+            applied = AppliedFee(fact, None if self._pending_fees else cash, total_fees)
+            self._cash, self.total_fees = cash, total_fees
+            self._last_fact_at = fact.available_at
+            self._fees[fact.fee_id] = applied
             return applied
 
     @contextmanager
@@ -301,30 +361,35 @@ class Account:
         removed on failure. Broker facts use their durable owner's transactions.
         """
         projection = (
-            self.cash,
+            self._cash,
             self.realized_pnl,
             self.total_fees,
             self._inventories.copy(),
             self._last_fact_at,
             self.settlement_pnl,
+            self._pending_fees.copy(),
         )
         count = len(self._fills)
         settlement_count = len(self._settlements)
+        fee_count = len(self._fees)
         try:
             yield
         except BaseException:
             (
-                self.cash,
+                self._cash,
                 self.realized_pnl,
                 self.total_fees,
                 self._inventories,
                 self._last_fact_at,
                 self.settlement_pnl,
+                self._pending_fees,
             ) = projection
             while len(self._fills) > count:
                 self._fills.popitem()
             while len(self._settlements) > settlement_count:
                 self._settlements.popitem()
+            while len(self._fees) > fee_count:
+                self._fees.popitem()
             raise
 
     def checkpoint(self) -> dict[str, object]:
@@ -332,7 +397,10 @@ class Account:
         return {
             "currency": self.markets[0].currency,
             "initial_cash": decimal_text(self.initial_cash),
-            "cash": decimal_text(self.cash),
+            "cash": None if self._pending_fees else decimal_text(self._cash),
+            "cash_before_pending_fees": decimal_text(self._cash),
+            "pending_fee_fill_ids": list(self.pending_fee_fill_ids),
+            "fee_count": len(self._fees),
             "realized_pnl": decimal_text(self.realized_pnl),
             "total_fees": decimal_text(self.total_fees),
             "fill_count": self.fill_count,

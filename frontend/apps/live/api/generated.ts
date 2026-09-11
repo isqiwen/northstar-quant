@@ -333,6 +333,7 @@ export type LocalOrder = {
   requires_reconciliation: boolean;
   reservation: OrderReservation;
   order: Record<string, JsonValue>;
+  fee_pending_lots: number;
   [key: string]: unknown;
 };
 export type LocalOrderEvent = {

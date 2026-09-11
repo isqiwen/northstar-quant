@@ -888,7 +888,7 @@ class OrderReservation(_message.Message):
     def __init__(self, reserved_fee: _Optional[str] = ..., reserved_margin: _Optional[str] = ..., reserved_gross: _Optional[str] = ..., reserved_loss: _Optional[str] = ..., reserved_close_lots: _Optional[int] = ...) -> None: ...
 
 class LocalOrder(_message.Message):
-    __slots__ = ("order_id", "contract_id", "authorization_id", "runtime_id", "attempt_id", "status", "quantity_lots", "filled_lots", "requires_reconciliation", "reservation", "order", "evidence_fields")
+    __slots__ = ("order_id", "contract_id", "authorization_id", "runtime_id", "attempt_id", "status", "quantity_lots", "filled_lots", "requires_reconciliation", "reservation", "order", "fee_pending_lots", "evidence_fields")
     class EvidenceFieldsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -907,6 +907,7 @@ class LocalOrder(_message.Message):
     REQUIRES_RECONCILIATION_FIELD_NUMBER: _ClassVar[int]
     RESERVATION_FIELD_NUMBER: _ClassVar[int]
     ORDER_FIELD_NUMBER: _ClassVar[int]
+    FEE_PENDING_LOTS_FIELD_NUMBER: _ClassVar[int]
     EVIDENCE_FIELDS_FIELD_NUMBER: _ClassVar[int]
     order_id: str
     contract_id: str
@@ -919,8 +920,9 @@ class LocalOrder(_message.Message):
     requires_reconciliation: bool
     reservation: OrderReservation
     order: _struct_pb2.Struct
+    fee_pending_lots: int
     evidence_fields: _containers.MessageMap[str, _struct_pb2.Value]
-    def __init__(self, order_id: _Optional[str] = ..., contract_id: _Optional[str] = ..., authorization_id: _Optional[str] = ..., runtime_id: _Optional[str] = ..., attempt_id: _Optional[str] = ..., status: _Optional[str] = ..., quantity_lots: _Optional[int] = ..., filled_lots: _Optional[int] = ..., requires_reconciliation: _Optional[bool] = ..., reservation: _Optional[_Union[OrderReservation, _Mapping]] = ..., order: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...
+    def __init__(self, order_id: _Optional[str] = ..., contract_id: _Optional[str] = ..., authorization_id: _Optional[str] = ..., runtime_id: _Optional[str] = ..., attempt_id: _Optional[str] = ..., status: _Optional[str] = ..., quantity_lots: _Optional[int] = ..., filled_lots: _Optional[int] = ..., requires_reconciliation: _Optional[bool] = ..., reservation: _Optional[_Union[OrderReservation, _Mapping]] = ..., order: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., fee_pending_lots: _Optional[int] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ...) -> None: ...
 
 class LocalOrderEvent(_message.Message):
     __slots__ = ("sequence", "event_id", "order_id", "kind", "recorded_at", "document")

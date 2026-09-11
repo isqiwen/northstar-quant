@@ -98,11 +98,11 @@ class SettlementFact:
 class AppliedSettlement:
     fact: SettlementFact
     variation_pnl: Decimal
-    cash: Decimal
+    cash: Decimal | None
 
     def to_dict(self) -> dict[str, object]:
         return {
             **self.fact.to_dict(),
             "variation_pnl": decimal_text(self.variation_pnl),
-            "cash": decimal_text(self.cash),
+            "cash": None if self.cash is None else decimal_text(self.cash),
         }
