@@ -384,7 +384,7 @@ def test_daily_missing_middle_day_cannot_advance_coverage(automatic, monkeypatch
 
 
 def test_joint_restore_preserves_downloads_and_fixed_publication(automatic, monkeypatch, tmp_path):
-    from northstar_quant.apps.maintenance import backup, restore
+    from northstar_quant.data_management.backup import backup, restore
     from tests.apps.test_maintenance import _empty_restore_database
 
     pending(automatic)

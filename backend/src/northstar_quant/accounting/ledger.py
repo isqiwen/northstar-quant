@@ -25,11 +25,11 @@ from sqlalchemy import (
     String,
     Table,
     UniqueConstraint,
+    Uuid,
     select,
     text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.dialects.postgresql import UUID as PGUUID
 
 from northstar_quant import code_revision
 from northstar_quant.accounting.baselines import BrokerBaselines
@@ -48,9 +48,9 @@ _metadata = MetaData()
 _entries = Table(
     "broker_position_entries",
     _metadata,
-    Column("entry_id", PGUUID(as_uuid=True), primary_key=True),
-    Column("baseline_id", PGUUID(as_uuid=True), nullable=False),
-    Column("source_batch_id", PGUUID(as_uuid=True), nullable=False),
+    Column("entry_id", Uuid(as_uuid=True), primary_key=True),
+    Column("baseline_id", Uuid(as_uuid=True), nullable=False),
+    Column("source_batch_id", Uuid(as_uuid=True), nullable=False),
     Column("ordinal", Integer, nullable=False),
     Column("recorded_at", UTCDateTime(), nullable=False),
     Column("document", JSON().with_variant(JSONB, "postgresql"), nullable=False),
@@ -60,9 +60,9 @@ _entries = Table(
 _checks = Table(
     "broker_position_checks",
     _metadata,
-    Column("check_id", PGUUID(as_uuid=True), primary_key=True),
-    Column("entry_id", PGUUID(as_uuid=True), nullable=False),
-    Column("query_batch_id", PGUUID(as_uuid=True), nullable=False),
+    Column("check_id", Uuid(as_uuid=True), primary_key=True),
+    Column("entry_id", Uuid(as_uuid=True), nullable=False),
+    Column("query_batch_id", Uuid(as_uuid=True), nullable=False),
     Column("recorded_at", UTCDateTime(), nullable=False),
     Column("document", JSON().with_variant(JSONB, "postgresql"), nullable=False),
     Column("sha256", String(64), nullable=False),

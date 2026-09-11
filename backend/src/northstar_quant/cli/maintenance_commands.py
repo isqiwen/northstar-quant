@@ -52,7 +52,7 @@ def execute(arguments: argparse.Namespace, engine: Engine) -> int:
         print(json.dumps(library.reconcile(), ensure_ascii=False))
         return 0
     if arguments.operation == "backup":
-        from northstar_quant.apps.maintenance import backup
+        from northstar_quant.data_management.backup import backup
 
         print(
             json.dumps(backup(engine, files, arguments.destination.resolve()), ensure_ascii=False)

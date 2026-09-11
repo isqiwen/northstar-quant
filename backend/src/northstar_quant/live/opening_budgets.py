@@ -23,10 +23,10 @@ from sqlalchemy import (
     MetaData,
     String,
     Table,
+    Uuid,
     select,
 )
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
@@ -53,10 +53,10 @@ _metadata = MetaData()
 _budgets = Table(
     "broker_opening_budgets",
     _metadata,
-    Column("budget_id", PGUUID(as_uuid=True), primary_key=True),
-    Column("stream_id", PGUUID(as_uuid=True), nullable=False),
+    Column("budget_id", Uuid(as_uuid=True), primary_key=True),
+    Column("stream_id", Uuid(as_uuid=True), nullable=False),
     Column("sequence", Integer, nullable=False),
-    Column("order_check_id", PGUUID(as_uuid=True), nullable=False),
+    Column("order_check_id", Uuid(as_uuid=True), nullable=False),
     Column("recorded_at", UTCDateTime(), nullable=False),
     Column("document", JSON().with_variant(JSONB, "postgresql"), nullable=False),
     Column("sha256", String(64), nullable=False),

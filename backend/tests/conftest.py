@@ -25,6 +25,48 @@ def _reset(engine: Engine) -> None:
         connection.execute(text("CREATE SCHEMA public"))
 
 
+def _initialize_portable_components(engine: Engine) -> None:
+    """PG adapter regression fixtures only; deployed stores never compose these owners."""
+    from northstar_quant.accounting.baselines import initialize_broker_baselines
+    from northstar_quant.accounting.funds import initialize_broker_funds
+    from northstar_quant.accounting.ledger import initialize_broker_ledger
+    from northstar_quant.accounting.stream_progress import initialize_stream_accounts
+    from northstar_quant.broker.records import initialize_broker_records
+    from northstar_quant.execution.reviews import initialize_order_reviews
+    from northstar_quant.live.commands import initialize_live_commands
+    from northstar_quant.live.materials import initialize_materials
+    from northstar_quant.live.opening_budgets import initialize_opening_budgets
+    from northstar_quant.live.streams import initialize_streams
+    from northstar_quant.research.configurations import initialize_configuration_store
+    from northstar_quant.research.factor_catalog import initialize_factor_catalog
+    from northstar_quant.research.paper import initialize_paper_store
+    from northstar_quant.research.runs import initialize_run_store
+    from northstar_quant.research.strategy_management import initialize_strategy_management
+
+    with engine.begin() as connection:
+        for install in (
+            initialize_factor_catalog,
+            initialize_strategy_management,
+            initialize_run_store,
+            initialize_configuration_store,
+            initialize_paper_store,
+            initialize_materials,
+            initialize_broker_records,
+            initialize_broker_baselines,
+            initialize_broker_ledger,
+            initialize_order_reviews,
+            initialize_streams,
+            initialize_stream_accounts,
+            initialize_opening_budgets,
+            initialize_broker_funds,
+            initialize_live_commands,
+        ):
+            install(connection)
+        from northstar_quant.live.instances import initialize
+
+        initialize(connection)
+
+
 @pytest.fixture(scope="session")
 def postgres_engine() -> Generator[Engine, None, None]:
     database_url = os.environ.get("NORTHSTAR_TEST_DATABASE_URL")
@@ -42,6 +84,7 @@ def postgres_engine() -> Generator[Engine, None, None]:
     engine = create_engine(database_url, pool_pre_ping=True)
     _reset(engine)
     initialize_database(engine)
+    _initialize_portable_components(engine)
     try:
         yield engine
     finally:

@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import shutil
-import stat
 import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
@@ -17,6 +15,7 @@ from sqlalchemy import Engine, inspect, text
 
 from northstar_quant.data_management.files import SourceFiles
 from northstar_quant.data_management.maintenance import freeze_sources, record_backup
+from northstar_quant.persistence.backup_files import file_hash, read_record, write_record
 
 
 def _pg_command(engine: Engine, executable: str, *arguments: str) -> None:
@@ -45,25 +44,6 @@ def _pg_command(engine: Engine, executable: str, *arguments: str) -> None:
         raise ValueError(f"{executable} failed; no completed backup/restore is declared") from error
 
 
-def _file_hash(path: Path) -> str:
-    descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
-    with os.fdopen(descriptor, "rb") as stream:
-        if not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):
-            raise ValueError("backup content must be a regular file")
-        digest = hashlib.sha256()
-        while chunk := stream.read(1024 * 1024):
-            digest.update(chunk)
-    return digest.hexdigest()
-
-
-def _write_record(path: Path, content: bytes) -> None:
-    with path.open("xb") as stream:
-        stream.write(content)
-        stream.flush()
-        os.fsync(stream.fileno())
-    SourceFiles._sync(path.parent)
-
-
 def backup(engine: Engine, files: SourceFiles, destination: Path) -> dict[str, object]:
     """Copy one exported database snapshot and exactly its immutable source references.
 
@@ -74,10 +54,10 @@ def backup(engine: Engine, files: SourceFiles, destination: Path) -> dict[str, o
     """
 
     from northstar_quant import code_revision
-    from northstar_quant.apps.storage import require_current_database
+    from northstar_quant.data_management.db.store import require_current
     from northstar_quant.data_management.library import manifest
 
-    require_current_database(engine)
+    require_current(engine)
     if not destination.is_absolute() or destination.exists() or destination.is_symlink():
         raise ValueError("backup requires a new absolute destination directory")
     target = destination.resolve()
@@ -121,14 +101,14 @@ def backup(engine: Engine, files: SourceFiles, destination: Path) -> dict[str, o
                 "baseline": connection.execute(
                     text("SELECT version_num FROM alembic_version")
                 ).scalar_one(),
-                "database_sha256": _file_hash(dump),
+                "database_sha256": file_hash(dump),
                 "sources": references,
                 "deletion_enabled": False,
             }
             content = json.dumps(
                 document, ensure_ascii=False, sort_keys=True, allow_nan=False
             ).encode()
-            _write_record(target / "manifest.json", content)
+            write_record(target / "manifest.json", content)
             record_backup(connection, document, content)
     return document
 
@@ -137,14 +117,7 @@ def _read_manifest(directory: Path) -> dict[str, object]:
     path = directory / "manifest.json"
     if directory.is_symlink():
         raise ValueError("backup manifest is not a bounded regular file")
-    descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
-    with os.fdopen(descriptor, "rb") as stream:
-        details = os.fstat(stream.fileno())
-        if not stat.S_ISREG(details.st_mode) or details.st_size > 20 * 1024 * 1024:
-            raise ValueError("backup manifest is not a bounded regular file")
-        content = stream.read(20 * 1024 * 1024 + 1)
-    if len(content) != details.st_size or len(content) > 20 * 1024 * 1024:
-        raise ValueError("backup manifest changed or exceeded its size limit")
+    content = read_record(path)
     document = json.loads(content)
     fields = {
         "format",
@@ -187,13 +160,8 @@ def restore(
     a marker that the normal application entrypoints refuse to open.
     """
 
-    from northstar_quant.accounting.baselines import BrokerBaselines
-    from northstar_quant.accounting.funds import BrokerFunds
-    from northstar_quant.accounting.ledger import BrokerLedger
-    from northstar_quant.apps.storage import initialize_database, require_current_database
-    from northstar_quant.broker.records import BrokerRecords
+    from northstar_quant.data_management.db.store import require_current
     from northstar_quant.data_management.library import DataLibrary, manifest
-    from northstar_quant.execution.reviews import OrderReviews
 
     if (
         not directory.is_absolute()
@@ -207,7 +175,7 @@ def restore(
         raise ValueError("restore target and backup must be separate directories")
     document = _read_manifest(directory)
     sources = cast(list[dict[str, object]], document["sources"])
-    if _file_hash(directory / "database.dump") != document["database_sha256"]:
+    if file_hash(directory / "database.dump") != document["database_sha256"]:
         raise ValueError("backup database digest does not match the completed manifest")
     archive_path = directory / "sources"
     if archive_path.is_symlink() or not all(
@@ -229,7 +197,7 @@ def restore(
         source_root.mkdir(parents=True, mode=0o700)
         initialize(source_root, storage_identity)
     target = SourceFiles(source_root)
-    _write_record(
+    write_record(
         target.root / ".restore-incomplete", b"Restore has not passed activation checks.\n"
     )
     target.store_many(
@@ -245,10 +213,7 @@ def restore(
         "--single-transaction",
         str(directory / "database.dump"),
     )
-    # A matching core baseline may predate newly added Module tables. Use the
-    # ordinary explicit initializer; it preserves facts and rejects retired cores.
-    initialize_database(engine)
-    require_current_database(engine)
+    require_current(engine)
     library = DataLibrary(engine, target)
     # Failed processing still owns admitted sources. Verify their links to the
     # retained broker prefix too, not only archives reached by publications.
@@ -276,71 +241,13 @@ def restore(
     for snapshot_id in snapshot_ids:
         library.load_dataset(snapshot_id)
     audit = library.reconcile()
-    with engine.connect() as connection:
-        owner = connection.execute(text("SELECT owner FROM northstar_store")).scalar_one()
-    if owner == "data_hub":
-        # Data Hub owns no broker, account or Research tables. Its activation
-        # checks end at the verified source relationships and fixed publications.
-        (target.root / ".restore-incomplete").unlink()
-        SourceFiles._sync(target.root)
-        return {
-            "status": "restored",
-            "owner": owner,
-            "backup_id": document["backup_id"],
-            "source_count": len(sources),
-            "audit": audit,
-            "scope": "Data Hub database, retained sources and fixed publications",
-        }
-    records = BrokerRecords(engine)
-    query_batches_count = pending_queries_count = 0
-    # A restored database is not active yet. Stream every identity, not the
-    # workspace's bounded recent list, and let the owning Module verify facts.
-    # PENDING remains interrupted evidence: get() never reconnects or resumes it.
-    with engine.connect().execution_options(yield_per=100) as connection:
-        query_ids = connection.execute(
-            text("SELECT batch_id FROM broker_query_batches ORDER BY batch_id")
-        ).scalars()
-        for query_id in query_ids:
-            query = records.get(query_id)
-            query_batches_count += 1
-            pending_queries_count += query["status"] == "PENDING"
-    from northstar_quant.live.materials import StrategyMaterials
-    from northstar_quant.research.factor_catalog import FactorCatalog
-    from northstar_quant.research.strategy_management import StrategyVersions
-
-    FactorCatalog(engine, library).verify_all()
-    StrategyVersions(engine).verify_all()
-    StrategyMaterials(engine).list()
-    baselines = BrokerBaselines(engine).verify_all()
-    positions = BrokerLedger(engine).verify_all()
-    BrokerFunds(engine).verify_all()
-    from northstar_quant.live.streams import LiveStreams
-
-    streams_count = LiveStreams(engine, library).verify_all()
-    from northstar_quant.live.opening_budgets import BrokerOpeningBudgets
-
-    BrokerOpeningBudgets(engine, library).verify_all()
-    evidence = {
-        "query_batches_count": query_batches_count,
-        "pending_queries_count": pending_queries_count,
-        "baselines_count": baselines["baselines_count"],
-        "checks_count": baselines["checks_count"],
-        "position_entries_count": positions["position_entries_count"],
-        "position_checks_count": positions["position_checks_count"],
-        "order_checks_count": OrderReviews(engine).verify_all(),
-        "streams_count": streams_count,
-    }
     (target.root / ".restore-incomplete").unlink()
     SourceFiles._sync(target.root)
     return {
         "status": "restored",
+        "owner": "data_hub",
         "backup_id": document["backup_id"],
         "source_count": len(sources),
         "audit": audit,
-        "evidence": evidence,
-        "execution": "PAUSED",
-        "scope": (
-            "retained sources, data/research, broker baseline, position and order evidence; "
-            "current account reconciliation and execution recovery are not established"
-        ),
+        "scope": "Data Hub database, retained sources and fixed publications",
     }

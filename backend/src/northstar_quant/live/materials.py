@@ -161,3 +161,18 @@ class StrategyMaterials:
                 }
             )
         return result
+
+    def verify_all(self) -> int:
+        """Verify every retained receipt, independently of workspace pagination."""
+        count = 0
+        with self._engine.connect().execution_options(yield_per=100) as connection:
+            for row in connection.execute(select(_materials)).mappings():
+                verified = verify_candidate(row["document"])
+                if (
+                    verified["candidate_id"] != row["candidate_id"]
+                    or verified["document"]["configuration"]["configuration_id"]
+                    != row["configuration_id"]
+                ):
+                    raise ValueError("received material index differs from its fixed content")
+                count += 1
+        return count

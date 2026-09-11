@@ -24,10 +24,10 @@ from sqlalchemy import (
     String,
     Table,
     UniqueConstraint,
+    Uuid,
     select,
 )
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
@@ -44,10 +44,10 @@ _metadata = MetaData()
 _baselines = Table(
     "broker_account_baselines",
     _metadata,
-    Column("baseline_id", PGUUID(as_uuid=True), primary_key=True),
+    Column("baseline_id", Uuid(as_uuid=True), primary_key=True),
     Column("profile_name", String(32), nullable=False),
     Column("account_id", String(12), nullable=False),
-    Column("source_batch_id", PGUUID(as_uuid=True), nullable=False, unique=True),
+    Column("source_batch_id", Uuid(as_uuid=True), nullable=False, unique=True),
     Column("created_at", UTCDateTime(), nullable=False),
     Column("document", JSON().with_variant(JSONB, "postgresql"), nullable=False),
     Column("sha256", String(64), nullable=False),
@@ -56,11 +56,9 @@ _baselines = Table(
 _checks = Table(
     "broker_baseline_checks",
     _metadata,
-    Column("check_id", PGUUID(as_uuid=True), primary_key=True),
-    Column(
-        "baseline_id", PGUUID(as_uuid=True), ForeignKey(_baselines.c.baseline_id), nullable=False
-    ),
-    Column("query_batch_id", PGUUID(as_uuid=True), nullable=False),
+    Column("check_id", Uuid(as_uuid=True), primary_key=True),
+    Column("baseline_id", Uuid(as_uuid=True), ForeignKey(_baselines.c.baseline_id), nullable=False),
+    Column("query_batch_id", Uuid(as_uuid=True), nullable=False),
     Column("created_at", UTCDateTime(), nullable=False),
     Column("document", JSON().with_variant(JSONB, "postgresql"), nullable=False),
     Column("sha256", String(64), nullable=False),

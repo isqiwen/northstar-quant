@@ -2,27 +2,23 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import sqlite3
 from contextlib import closing
 from pathlib import Path
 from typing import Any, cast
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from sqlalchemy import Engine, inspect
 
 from northstar_quant import code_revision
 from northstar_quant.data_management.files import SourceFiles
 from northstar_quant.data_management.library import manifest
+from northstar_quant.live.recovery import verify
 from northstar_quant.live.storage import open_store, require_current
+from northstar_quant.persistence.backup_files import file_hash, read_record
 from northstar_quant.persistence.locks import FileLock
-
-
-def _hash(path: Path) -> str:
-    with path.open("rb") as stream:
-        return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
 def backup(engine: Engine, files: SourceFiles, destination: Path) -> dict[str, Any]:
@@ -39,7 +35,10 @@ def backup(engine: Engine, files: SourceFiles, destination: Path) -> dict[str, A
     destination.mkdir(parents=True, mode=0o700)
     saved = destination / "database.sqlite"
     saved.touch(mode=0o600)
-    with closing(sqlite3.connect(database)) as source, closing(sqlite3.connect(saved)) as target:
+    with (
+        closing(sqlite3.connect(database.as_uri() + "?mode=ro", uri=True)) as source,
+        closing(sqlite3.connect(saved)) as target,
+    ):
         source.backup(target)
         target.execute("PRAGMA journal_mode=DELETE")
         if target.execute("PRAGMA integrity_check").fetchone() != ("ok",):
@@ -54,13 +53,14 @@ def backup(engine: Engine, files: SourceFiles, destination: Path) -> dict[str, A
             files.read(str(item["content_hash"]), cast(int, item["byte_count"]))
             for item in references
         )
+        evidence = verify(frozen, archive)
     finally:
         frozen.dispose()
     document = dict(
         format="northstar-live-sqlite-backup",
         backup_id=str(uuid4()),
         code_revision=code_revision(),
-        database_sha256=_hash(saved),
+        database_sha256=file_hash(saved),
         sources=references,
     )
     path = destination / "manifest.json"
@@ -75,23 +75,49 @@ def backup(engine: Engine, files: SourceFiles, destination: Path) -> dict[str, A
         os.fsync(descriptor)
     finally:
         os.close(descriptor)
-    return document
+    return {**document, "evidence": evidence}
 
 
 def restore(engine: Engine, source_root: Path, directory: Path) -> dict[str, Any]:
-    if engine.dialect.name != "sqlite" or source_root.exists() or not source_root.is_absolute():
+    if (
+        engine.dialect.name != "sqlite"
+        or source_root.exists()
+        or source_root.is_symlink()
+        or not source_root.is_absolute()
+    ):
         raise ValueError("Live restore requires empty local SQLite and a new source directory")
     if directory.is_symlink() or not directory.is_absolute():
         raise ValueError("Live backup must be an absolute non-symlink directory")
-    document = json.loads((directory / "manifest.json").read_text())
+    database = Path(str(engine.url.database))
+    if (
+        source_root.is_relative_to(directory)
+        or directory.is_relative_to(source_root)
+        or database.is_relative_to(directory)
+    ):
+        raise ValueError("Live restore target and backup must be separate directories")
+    document = json.loads(read_record(directory / "manifest.json"))
+    if not isinstance(document, dict) or set(document) != {
+        "format",
+        "backup_id",
+        "code_revision",
+        "database_sha256",
+        "sources",
+    }:
+        raise ValueError("Live backup manifest has an unsupported shape")
+    UUID(document["backup_id"])
     saved = directory / "database.sqlite"
     if (
         saved.is_symlink()
         or document.get("format") != "northstar-live-sqlite-backup"
-        or _hash(saved) != document.get("database_sha256")
+        or file_hash(saved) != document.get("database_sha256")
     ):
         raise ValueError("Live backup identity mismatch")
-    original = SourceFiles(directory / "sources")
+    archive_path = directory / "sources"
+    if archive_path.is_symlink() or not all(
+        (archive_path / name).is_dir() for name in ("objects", "staging")
+    ):
+        raise ValueError("Live backup source archive is missing")
+    original = SourceFiles(archive_path)
     frozen = open_store(saved)
     try:
         require_current(frozen)
@@ -101,9 +127,9 @@ def restore(engine: Engine, source_root: Path, directory: Path) -> dict[str, Any
             raise ValueError("Live backup source references differ from database")
         for item in references:
             original.read(str(item["content_hash"]), cast(int, item["byte_count"]))
+        evidence = verify(frozen, original)
     finally:
         frozen.dispose()
-    database = Path(str(engine.url.database))
     with closing(FileLock(database)):
         with engine.connect() as connection:
             if inspect(connection).get_table_names():
@@ -115,7 +141,7 @@ def restore(engine: Engine, source_root: Path, directory: Path) -> dict[str, Any
         )
         engine.dispose()
         with (
-            closing(sqlite3.connect(saved)) as source,
+            closing(sqlite3.connect(saved.as_uri() + "?mode=ro", uri=True)) as source,
             closing(sqlite3.connect(database)) as target,
         ):
             source.backup(target)
@@ -124,4 +150,5 @@ def restore(engine: Engine, source_root: Path, directory: Path) -> dict[str, Any
         "backup_id": document["backup_id"],
         "status": "restored",
         "execution": "RECONCILIATION_REQUIRED",
+        "evidence": evidence,
     }

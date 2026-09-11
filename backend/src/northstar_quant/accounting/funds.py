@@ -23,11 +23,11 @@ from sqlalchemy import (
     String,
     Table,
     UniqueConstraint,
+    Uuid,
     select,
     text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
@@ -43,9 +43,9 @@ _metadata = MetaData()
 _entries = Table(
     "broker_funds_entries",
     _metadata,
-    Column("entry_id", PGUUID(as_uuid=True), primary_key=True),
-    Column("baseline_id", PGUUID(as_uuid=True), nullable=False),
-    Column("source_batch_id", PGUUID(as_uuid=True), nullable=False),
+    Column("entry_id", Uuid(as_uuid=True), primary_key=True),
+    Column("baseline_id", Uuid(as_uuid=True), nullable=False),
+    Column("source_batch_id", Uuid(as_uuid=True), nullable=False),
     Column("ordinal", Integer, nullable=False),
     Column("recorded_at", UTCDateTime(), nullable=False),
     Column("document", JSON().with_variant(JSONB, "postgresql"), nullable=False),

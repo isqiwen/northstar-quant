@@ -21,11 +21,11 @@ from sqlalchemy import (
     MetaData,
     String,
     Table,
+    Uuid,
     select,
     update,
 )
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
@@ -53,7 +53,7 @@ _metadata = MetaData()
 _batches = Table(
     "broker_query_batches",
     _metadata,
-    Column("batch_id", PGUUID(as_uuid=True), primary_key=True),
+    Column("batch_id", Uuid(as_uuid=True), primary_key=True),
     Column("profile_name", String(32), nullable=False),
     Column("profile", JSON().with_variant(JSONB, "postgresql"), nullable=False),
     Column("account_id", String(12), nullable=False),

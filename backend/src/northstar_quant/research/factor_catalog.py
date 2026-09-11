@@ -18,11 +18,11 @@ from sqlalchemy import (
     MetaData,
     String,
     Table,
+    Uuid,
     func,
     select,
     update,
 )
-from sqlalchemy import Uuid as PGUUID
 from sqlalchemy.dialects.postgresql import JSONB, insert
 
 from northstar_quant import code_revision
@@ -44,7 +44,7 @@ _revisions = Table(
 _notes = Table(
     "factor_annotations",
     _metadata,
-    Column("annotation_id", PGUUID(as_uuid=True), primary_key=True),
+    Column("annotation_id", Uuid(as_uuid=True), primary_key=True),
     Column("revision_id", String(64), nullable=False),
     Column("description", String(2000), nullable=False),
     Column("created_at", UTCDateTime(), server_default=func.now(), nullable=False),
@@ -52,9 +52,9 @@ _notes = Table(
 _runs = Table(
     "factor_runs",
     _metadata,
-    Column("attempt_id", PGUUID(as_uuid=True), primary_key=True),
+    Column("attempt_id", Uuid(as_uuid=True), primary_key=True),
     Column("revision_id", String(64), nullable=False),
-    Column("snapshot_id", PGUUID(as_uuid=True), nullable=False),
+    Column("snapshot_id", Uuid(as_uuid=True), nullable=False),
     Column("input_hash", String(64), nullable=False),
     Column("inputs", JSON().with_variant(JSONB(), "postgresql"), nullable=False),
     Column("total", Integer, nullable=False),
