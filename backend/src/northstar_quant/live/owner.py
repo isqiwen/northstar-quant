@@ -15,6 +15,7 @@ from northstar_quant.accounting.funds import BrokerFunds
 from northstar_quant.accounting.ledger import BrokerLedger
 from northstar_quant.broker.queries import BrokerQueries
 from northstar_quant.data_management.library import DataLibrary
+from northstar_quant.execution.journal import OrderJournal
 from northstar_quant.execution.reviews import OrderReviews
 from northstar_quant.live.client import PROTOCOL_VERSION
 from northstar_quant.live.opening_budgets import BrokerOpeningBudgets
@@ -35,6 +36,8 @@ class LiveOwner:
         self.ledger = BrokerLedger(engine)
         self.funds = BrokerFunds(engine)
         self.orders = OrderReviews(engine)
+        self.execution = OrderJournal(engine, self.identifier)
+        self.execution.verify_all()
         self.streams = LiveStreams(engine, library, check_ownership=self.check_ownership)
         self.opening_budgets = BrokerOpeningBudgets(engine, library)
 

@@ -12,7 +12,8 @@ import pytest
 from sqlalchemy import Engine
 
 from northstar_quant.broker import stream_records
-from northstar_quant.data_management.library import AdmissionRejected
+from northstar_quant.data_management.files import SourceFiles
+from northstar_quant.data_management.library import AdmissionRejected, DataLibrary
 from northstar_quant.live import streams as stream_module
 from northstar_quant.live.streams import LiveStreams, read_stream_archive
 from northstar_quant.research.backtesting import run_research
@@ -84,6 +85,13 @@ def test_paused_shadow_source_publishes_without_rewriting_decisions_and_reuses_a
     reopened = LiveStreams(postgres_engine, library)
     assert (
         reopened.archive(identifier, through_sequence=48, request_id=request_id, **RANGE) == attempt
+    )
+    from northstar_quant.research.artifacts import ResearchUsages
+
+    library = DataLibrary(
+        postgres_engine,
+        SourceFiles(tmp_path / "archive"),
+        usages=ResearchUsages(postgres_engine).list,
     )
     configuration_value = ResearchConfig()
     research = run_research(dataset, configuration_value)
@@ -191,16 +199,14 @@ def test_archive_rejects_forged_permission_and_does_not_truncate_oversized_prefi
 
 def test_browser_archive_requires_csrf_and_publishes_saved_prefix_without_connecting(
     live_web_app,
-    postgres_engine: Engine,
-    clean_database: None,
+    live_engine: Engine,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    del clean_database
     library, source, configuration, calls = prepare(
-        postgres_engine, tmp_path, monkeypatch, trading_day="20260904"
+        live_engine, tmp_path, monkeypatch, trading_day="20260904"
     )
-    streams, identifier = LiveStreams(postgres_engine, library), uuid4()
+    streams, identifier = LiveStreams(live_engine, library), uuid4()
     try:
         start(streams, source, configuration, identifier)
         assert calls["ready"].wait(3)
@@ -213,7 +219,7 @@ def test_browser_archive_requires_csrf_and_publishes_saved_prefix_without_connec
         streams.close()
     monkeypatch.setenv("NORTHSTAR_DATA_DIR", str(tmp_path / "archive"))
     monkeypatch.setattr(stream_module, "load_credentials", lambda: pytest.fail("archive connected"))
-    with TestClient(live_web_app(postgres_engine, library), base_url="http://127.0.0.1") as client:
+    with TestClient(live_web_app(live_engine, library), base_url="http://127.0.0.1") as client:
         page = login_response(client)
         csrf = page.json()["csrf"]
         payload = {

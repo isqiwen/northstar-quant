@@ -26,12 +26,11 @@ from tests.apps.browser import ProtocolClient as TestClient
 
 
 def test_live_auth_expiry_and_target_rejection_have_no_account_effect(
-    postgres_engine: Engine, clean_database: None, tmp_path: Path
+    live_engine: Engine, tmp_path: Path
 ) -> None:
-    del clean_database
-    source = saved_query(postgres_engine)
+    source = saved_query(live_engine)
     auth = LiveAuth("r" * 48, "c" * 48)
-    app = create_app(postgres_engine, DataLibrary(postgres_engine, SourceFiles(tmp_path)), auth)
+    app = create_app(live_engine, DataLibrary(live_engine, SourceFiles(tmp_path)), auth)
     with TestClient(app) as http:
         client = LiveClient("http://localhost", auth, client=http)
         status = client.status()
@@ -117,13 +116,12 @@ def test_stale_or_future_runtime_observation_cannot_authorize_commands(offset: i
 
 
 def test_response_loss_is_queried_after_console_and_live_restart_without_repeating_effect(
-    postgres_engine: Engine, clean_database: None, tmp_path: Path
+    live_engine: Engine, tmp_path: Path
 ) -> None:
-    del clean_database
-    source = saved_query(postgres_engine)
+    source = saved_query(live_engine)
     auth = LiveAuth("r" * 48, "c" * 48)
-    library = DataLibrary(postgres_engine, SourceFiles(tmp_path))
-    app = create_app(postgres_engine, library, auth)
+    library = DataLibrary(live_engine, SourceFiles(tmp_path))
+    app = create_app(live_engine, library, auth)
     identifier = uuid4()
     sends = 0
     with TestClient(app) as http:
@@ -166,7 +164,7 @@ def test_response_loss_is_queried_after_console_and_live_restart_without_repeati
             LiveClient("http://localhost", auth, client=http).status()["runtime_id"] == owner_before
         )
     # A new Live owns observations, but a past receipt remains an immutable acknowledgement.
-    with TestClient(create_app(postgres_engine, library, auth)) as restarted_http:
+    with TestClient(create_app(live_engine, library, auth)) as restarted_http:
         restarted = LiveClient("http://localhost", auth, client=restarted_http)
         assert restarted.status()["runtime_id"] != owner_before
         assert restarted.broker.establish_baseline(source, request_id=identifier) == baseline
@@ -175,17 +173,15 @@ def test_response_loss_is_queried_after_console_and_live_restart_without_repeati
 
 @pytest.mark.parametrize("failure", [RuntimeError, ValueError, LookupError])
 def test_interrupted_effect_stays_unknown_and_old_page_never_retargets_new_live(
-    postgres_engine: Engine,
-    clean_database: None,
+    live_engine: Engine,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     failure: type[Exception],
 ) -> None:
-    del clean_database
-    source = saved_query(postgres_engine)
+    source = saved_query(live_engine)
     auth = LiveAuth("r" * 48, "c" * 48)
-    library = DataLibrary(postgres_engine, SourceFiles(tmp_path))
-    app = create_app(postgres_engine, library, auth)
+    library = DataLibrary(live_engine, SourceFiles(tmp_path))
+    app = create_app(live_engine, library, auth)
     original = app.state.owner.baselines.establish
     attempts = 0
 
@@ -207,7 +203,7 @@ def test_interrupted_effect_stays_unknown_and_old_page_never_retargets_new_live(
         with pytest.raises(CommandUnknown):
             client.broker.establish_baseline(source, request_id=identifier)
         assert attempts == 1
-    with TestClient(create_app(postgres_engine, library, auth)) as http:
+    with TestClient(create_app(live_engine, library, auth)) as http:
         client = LiveClient("http://localhost", auth, client=http)
         old_page = client.for_runtime(owner_before)
         assert client.broker.baseline_context(source)["baseline"]["baseline_id"] == str(identifier)
@@ -223,11 +219,10 @@ def test_interrupted_effect_stays_unknown_and_old_page_never_retargets_new_live(
 
 
 def test_missing_runtime_keeps_last_observation_but_never_returns_it_as_live(
-    postgres_engine: Engine, clean_database: None, tmp_path: Path
+    live_engine: Engine, tmp_path: Path
 ) -> None:
-    del clean_database
     auth = LiveAuth("r" * 48, "c" * 48)
-    app = create_app(postgres_engine, DataLibrary(postgres_engine, SourceFiles(tmp_path)), auth)
+    app = create_app(live_engine, DataLibrary(live_engine, SourceFiles(tmp_path)), auth)
     available = True
     with TestClient(app) as http:
 

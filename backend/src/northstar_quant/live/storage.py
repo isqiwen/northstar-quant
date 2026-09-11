@@ -73,6 +73,7 @@ def initialize(engine: Engine) -> None:
     from northstar_quant.broker.records import initialize_broker_records
     from northstar_quant.data_management.db.base import Base
     from northstar_quant.data_management.library import initialize_library
+    from northstar_quant.execution.journal import initialize_journal
     from northstar_quant.execution.reviews import initialize_order_reviews
     from northstar_quant.live.commands import initialize_live_commands
     from northstar_quant.live.instances import initialize as initialize_binding
@@ -109,6 +110,7 @@ def initialize(engine: Engine) -> None:
             initialize_broker_ledger,
             initialize_broker_funds,
             initialize_order_reviews,
+            initialize_journal,
             initialize_materials,
             initialize_streams,
             initialize_stream_accounts,
@@ -144,6 +146,8 @@ def require_current(engine: Engine) -> None:
         "northstar_store",
         "live_instance_binding",
         "live_commands",
+        "execution_orders",
+        "execution_order_events",
         "broker_streams",
         "broker_stream_events",
         "broker_stream_accounts",

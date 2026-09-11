@@ -293,3 +293,26 @@ def test_sqlite_saved_broker_facts(tmp_path, monkeypatch, module_name, test_name
 
     finally:
         engine.dispose()
+
+
+def test_contract_resolution_shares_the_account_writer_and_rolls_back(live_engine):
+    from northstar_quant.broker.records import BrokerRecords
+    from northstar_quant.data_management.broker import (
+        resolve_broker_contract,
+        verify_broker_contract,
+    )
+    from tests.accounting.test_ledger import ledger_query, position_baseline
+
+    position_baseline(live_engine)
+    batch = BrokerRecords(live_engine).get(ledger_query(live_engine))
+    instrument = batch["completeness"]["sections"]["instrument"]["rows"][0]
+    with pytest.raises(RuntimeError, match="account failed"):
+        with write_transaction(live_engine) as connection:
+            contract = resolve_broker_contract(connection, instrument)
+            assert verify_broker_contract(connection, contract.contract_id, instrument) == contract
+            raise RuntimeError("account failed after registering its contract")
+    with pytest.raises(ValueError, match="missing"):
+        verify_broker_contract(live_engine, contract.contract_id, instrument)
+    with write_transaction(live_engine) as connection:
+        accepted = resolve_broker_contract(connection, instrument)
+    assert verify_broker_contract(live_engine, accepted.contract_id, instrument) == accepted

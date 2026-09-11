@@ -225,11 +225,10 @@ def test_changed_money_or_source_evidence_is_refused_on_read(
 
 
 def test_browser_money_registration_requires_session_csrf_and_saved_inputs_only(
-    live_web_app, postgres_engine: Engine, clean_database: None, tmp_path: Path
+    live_web_app, live_engine: Engine, tmp_path: Path
 ) -> None:
-    del clean_database
-    baseline = money_baseline(postgres_engine)
-    source = money_query(postgres_engine, money={"Commission": "5", "Balance": "99995"})
+    baseline = money_baseline(live_engine)
+    source = money_query(live_engine, money={"Commission": "5", "Balance": "99995"})
     command = uuid4()
     payload = {
         "baseline_id": str(baseline),
@@ -237,7 +236,7 @@ def test_browser_money_registration_requires_session_csrf_and_saved_inputs_only(
         "request_id": str(command),
     }
     application = live_web_app(
-        postgres_engine, DataLibrary(postgres_engine, SourceFiles(tmp_path / "archive"))
+        live_engine, DataLibrary(live_engine, SourceFiles(tmp_path / "archive"))
     )
     with TestClient(application, base_url="http://127.0.0.1") as client:
         path = f"/api/broker/funds-entries/{command}"
@@ -261,4 +260,4 @@ def test_browser_money_registration_requires_session_csrf_and_saved_inputs_only(
         assert client.get(path).json() == result
         assert client.post("/api/broker/funds-entries", json=payload).json() == result
         page = login_response(client)
-        assert BrokerFunds(postgres_engine).verify_all() == 1
+        assert BrokerFunds(live_engine).verify_all() == 1

@@ -65,6 +65,8 @@ def text(statement: str) -> TextualSelect:
         created_at=UTCDateTime(),
         updated_at=UTCDateTime(),
         committed_at=UTCDateTime(),
+        event_committed_at=UTCDateTime(),
+        step_committed_at=UTCDateTime(),
     )
 
 

@@ -10,7 +10,7 @@ from threading import Event
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import Engine, create_engine
+from sqlalchemy import Engine
 
 from northstar_quant.accounting.baselines import BrokerBaselines
 from northstar_quant.accounting.ledger import BrokerLedger
@@ -29,28 +29,26 @@ from tests.execution.test_orders import order
 
 
 def test_saved_stream_catchup_rejects_missing_session_before_database_or_broker_access(
-    live_web_app, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    live_web_app, live_engine, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     def forbidden_access(*args: object, **kwargs: object) -> None:
         pytest.fail("unauthenticated catchup must not access a database or broker")
 
     monkeypatch.setattr(ctp, "query_account", forbidden_access)
     monkeypatch.setattr(ctp, "stream_account", forbidden_access)
-    engine = create_engine("postgresql+psycopg://", creator=forbidden_access)
-    try:
-        library = DataLibrary(engine, SourceFiles(tmp_path / "archive"))
-        with TestClient(live_web_app(engine, library), base_url="http://127.0.0.1") as client:
-            path = f"/api/streams/{uuid4()}/account-catchup"
-            payload = {"baseline_id": str(uuid4()), "through_sequence": 3}
-            assert client.post(path, json=payload).status_code == 401
-            assert (
-                client.post(
-                    path, json=payload, headers={"X-Northstar-CSRF": "unbound-token"}
-                ).status_code
-                == 401
-            )
-    finally:
-        engine.dispose()
+    library = DataLibrary(live_engine, SourceFiles(tmp_path / "archive"))
+    application = live_web_app(live_engine, library)
+    monkeypatch.setattr(live_engine, "connect", forbidden_access)
+    with TestClient(application, base_url="http://127.0.0.1") as client:
+        path = f"/api/streams/{uuid4()}/account-catchup"
+        payload = {"baseline_id": str(uuid4()), "through_sequence": 3}
+        assert client.post(path, json=payload).status_code == 401
+        assert (
+            client.post(
+                path, json=payload, headers={"X-Northstar-CSRF": "unbound-token"}
+            ).status_code
+            == 401
+        )
 
 
 def _credentials(path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -138,12 +136,10 @@ def test_query_failure_is_fixed_on_retry_and_blocks_concurrent_account_capture(
 
 def test_broker_browser_requires_explicit_command_and_keeps_failure_evidence(
     live_web_app,
-    postgres_engine: Engine,
-    clean_database: None,
+    live_engine: Engine,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    del clean_database
     monkeypatch.setenv("NORTHSTAR_SIMNOW_USER_ID", "123456")
     monkeypatch.delenv("NORTHSTAR_SIMNOW_PASSWORD", raising=False)
     calls = 0
@@ -156,7 +152,7 @@ def test_broker_browser_requires_explicit_command_and_keeps_failure_evidence(
 
     monkeypatch.setattr(ctp, "query_account", capture)
     application = live_web_app(
-        postgres_engine, DataLibrary(postgres_engine, SourceFiles(tmp_path / "archive"))
+        live_engine, DataLibrary(live_engine, SourceFiles(tmp_path / "archive"))
     )
     payload = {"instrument": "rb2610", "request_id": str(uuid4())}
     with TestClient(application, base_url="http://127.0.0.1") as client:
@@ -199,12 +195,10 @@ def test_broker_browser_requires_explicit_command_and_keeps_failure_evidence(
 
 def test_browser_baseline_commands_are_private_local_and_preserve_original_queries(
     live_web_app,
-    postgres_engine: Engine,
-    clean_database: None,
+    live_engine: Engine,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    del clean_database
     monkeypatch.delenv("NORTHSTAR_SIMNOW_PASSWORD", raising=False)
 
     def forbidden(*args: object, **kwargs: object) -> None:
@@ -212,13 +206,13 @@ def test_browser_baseline_commands_are_private_local_and_preserve_original_queri
 
     monkeypatch.setattr(ctp, "query_account", forbidden)
     monkeypatch.setattr("northstar_quant.broker.queries.load_credentials", forbidden)
-    source = saved_query(postgres_engine)
-    original = BrokerQueries(postgres_engine).get(source)
+    source = saved_query(live_engine)
+    original = BrokerQueries(live_engine).get(source)
     baseline_id, check_id = uuid4(), uuid4()
     baseline_payload = {"source_batch_id": str(source), "request_id": str(baseline_id)}
-    library = DataLibrary(postgres_engine, SourceFiles(tmp_path / "archive"))
+    library = DataLibrary(live_engine, SourceFiles(tmp_path / "archive"))
     context_url = f"/api/broker/queries/{source}/baseline-context"
-    with TestClient(live_web_app(postgres_engine, library), base_url="http://127.0.0.1") as client:
+    with TestClient(live_web_app(live_engine, library), base_url="http://127.0.0.1") as client:
         assert client.get(context_url).status_code == 401
         assert client.get(f"/api/broker/baseline-checks/{check_id}").status_code == 401
         assert client.post("/api/broker/baselines", json=baseline_payload).status_code == 401
@@ -276,7 +270,7 @@ def test_browser_baseline_commands_are_private_local_and_preserve_original_queri
             "/api/broker/baseline-checks", json=check_payload | {"request_id": str(uuid4())}
         )
         assert rejected.status_code == 503 and rejected.json()["status"] == "UNKNOWN"
-        later = saved_query(postgres_engine, money={"Balance": "99999.9"}, position=True)
+        later = saved_query(live_engine, money={"Balance": "99999.9"}, position=True)
         check_payload["query_batch_id"] = str(later)
         assert (
             client.post(
@@ -297,9 +291,7 @@ def test_browser_baseline_commands_are_private_local_and_preserve_original_queri
         assert page.status_code == 200
         assert client.get(f"/api/broker/queries/{source}").json() == original
         assert len(client.get("/api/broker/queries").json()) == 2
-    with TestClient(
-        live_web_app(postgres_engine, library), base_url="http://127.0.0.1"
-    ) as restarted:
+    with TestClient(live_web_app(live_engine, library), base_url="http://127.0.0.1") as restarted:
         assert restarted.get(context_url).status_code == 401
         assert login_response(restarted).status_code == 200
         context = restarted.get(context_url).json()
@@ -310,20 +302,18 @@ def test_browser_baseline_commands_are_private_local_and_preserve_original_queri
 def test_cli_baseline_and_comparison_use_saved_evidence_without_credentials(
     live_client,
     tmp_path: Path,
-    postgres_engine: Engine,
-    clean_database: None,
+    live_engine: Engine,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    del clean_database
-    library = DataLibrary(postgres_engine, SourceFiles(tmp_path / "archive"))
+    library = DataLibrary(live_engine, SourceFiles(tmp_path / "archive"))
     monkeypatch.setattr(
         "northstar_quant.live.LiveClient.from_environment",
-        lambda: live_client(postgres_engine, library),
+        lambda: live_client(live_engine, library),
     )
     monkeypatch.delenv("NORTHSTAR_SIMNOW_PASSWORD", raising=False)
     monkeypatch.setenv(
-        "NORTHSTAR_DATABASE_URL", postgres_engine.url.render_as_string(hide_password=False)
+        "NORTHSTAR_DATABASE_URL", live_engine.url.render_as_string(hide_password=False)
     )
 
     def forbidden(*args: object, **kwargs: object) -> None:
@@ -331,7 +321,7 @@ def test_cli_baseline_and_comparison_use_saved_evidence_without_credentials(
 
     monkeypatch.setattr(ctp, "query_account", forbidden)
     monkeypatch.setattr("northstar_quant.broker.queries.load_credentials", forbidden)
-    source = saved_query(postgres_engine)
+    source = saved_query(live_engine)
     baseline_id = uuid4()
     command = ["advanced", "broker", "baseline", str(source), "--request-id", str(baseline_id)]
     assert main(command) == 0
@@ -339,7 +329,7 @@ def test_cli_baseline_and_comparison_use_saved_evidence_without_credentials(
     assert baseline["status"] == "BASELINE_RECORDED"
     assert main(command) == 0
     assert json.loads(capsys.readouterr().out) == baseline
-    later = saved_query(postgres_engine)
+    later = saved_query(live_engine)
     assert (
         main(
             [
@@ -359,7 +349,7 @@ def test_cli_baseline_and_comparison_use_saved_evidence_without_credentials(
     assert main(["advanced", "broker", "baseline-context", str(later)]) == 0
     context = json.loads(capsys.readouterr().out)
     assert context["baseline"] == baseline and context["checks"] == [check]
-    incomplete = saved_query(postgres_engine, money={"Available": None})
+    incomplete = saved_query(live_engine, money={"Available": None})
     assert (
         main(
             [
@@ -379,12 +369,10 @@ def test_cli_baseline_and_comparison_use_saved_evidence_without_credentials(
 
 def test_browser_position_ledger_requires_local_commands_and_independent_evidence(
     live_web_app,
-    postgres_engine: Engine,
-    clean_database: None,
+    live_engine: Engine,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    del clean_database
     monkeypatch.delenv("NORTHSTAR_SIMNOW_PASSWORD", raising=False)
 
     def forbidden(*args: object, **kwargs: object) -> None:
@@ -392,12 +380,12 @@ def test_browser_position_ledger_requires_local_commands_and_independent_evidenc
 
     monkeypatch.setattr(ctp, "query_account", forbidden)
     monkeypatch.setattr("northstar_quant.broker.queries.load_credentials", forbidden)
-    workspace = BrokerQueries(postgres_engine)
-    origin = saved_query(postgres_engine)
+    workspace = BrokerQueries(live_engine)
+    origin = saved_query(live_engine)
     baseline_id, entry_id, check_id = uuid4(), uuid4(), uuid4()
-    BrokerBaselines(postgres_engine).establish(origin, request_id=baseline_id)
-    source = saved_query(postgres_engine)
-    before_entry = saved_query(postgres_engine)
+    BrokerBaselines(live_engine).establish(origin, request_id=baseline_id)
+    source = saved_query(live_engine)
+    before_entry = saved_query(live_engine)
     original = workspace.get(source)
     entry_payload = {
         "baseline_id": str(baseline_id),
@@ -412,8 +400,8 @@ def test_browser_position_ledger_requires_local_commands_and_independent_evidenc
     context_url = f"/api/broker/queries/{source}/ledger-context"
     entry_url = f"/api/broker/position-entries/{entry_id}"
     check_url = f"/api/broker/position-checks/{check_id}"
-    library = DataLibrary(postgres_engine, SourceFiles(tmp_path / "archive"))
-    with TestClient(live_web_app(postgres_engine, library), base_url="http://127.0.0.1") as client:
+    library = DataLibrary(live_engine, SourceFiles(tmp_path / "archive"))
+    with TestClient(live_web_app(live_engine, library), base_url="http://127.0.0.1") as client:
         for url in (context_url, entry_url, check_url):
             assert client.get(url).status_code == 401
         assert client.post("/api/broker/position-entries", json=entry_payload).status_code == 401
@@ -453,7 +441,7 @@ def test_browser_position_ledger_requires_local_commands_and_independent_evidenc
             "/api/broker/position-checks", json=check_payload | {"request_id": str(uuid4())}
         )
         assert rejected.status_code == 503 and rejected.json()["status"] == "UNKNOWN"
-        later = saved_query(postgres_engine)
+        later = saved_query(live_engine)
         check_payload["query_batch_id"] = str(later)
         assert (
             client.post(
@@ -477,9 +465,7 @@ def test_browser_position_ledger_requires_local_commands_and_independent_evidenc
         assert context["source_entry"] is None
         assert client.get(f"/api/broker/queries/{source}").json() == original
         assert len(client.get("/api/broker/queries").json()) == 4
-    with TestClient(
-        live_web_app(postgres_engine, library), base_url="http://127.0.0.1"
-    ) as restarted:
+    with TestClient(live_web_app(live_engine, library), base_url="http://127.0.0.1") as restarted:
         assert restarted.get(context_url).status_code == 401
         assert login_response(restarted).status_code == 200
         context = restarted.get(context_url).json()
@@ -493,20 +479,18 @@ def test_browser_position_ledger_requires_local_commands_and_independent_evidenc
 def test_cli_position_ledger_does_not_turn_unknown_observations_into_success(
     live_client,
     tmp_path: Path,
-    postgres_engine: Engine,
-    clean_database: None,
+    live_engine: Engine,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    del clean_database
-    library = DataLibrary(postgres_engine, SourceFiles(tmp_path / "archive"))
+    library = DataLibrary(live_engine, SourceFiles(tmp_path / "archive"))
     monkeypatch.setattr(
         "northstar_quant.live.LiveClient.from_environment",
-        lambda: live_client(postgres_engine, library),
+        lambda: live_client(live_engine, library),
     )
     monkeypatch.delenv("NORTHSTAR_SIMNOW_PASSWORD", raising=False)
     monkeypatch.setenv(
-        "NORTHSTAR_DATABASE_URL", postgres_engine.url.render_as_string(hide_password=False)
+        "NORTHSTAR_DATABASE_URL", live_engine.url.render_as_string(hide_password=False)
     )
 
     def forbidden(*args: object, **kwargs: object) -> None:
@@ -515,9 +499,9 @@ def test_cli_position_ledger_does_not_turn_unknown_observations_into_success(
     monkeypatch.setattr(ctp, "query_account", forbidden)
     monkeypatch.setattr("northstar_quant.broker.queries.load_credentials", forbidden)
     baseline_id, entry_id = uuid4(), uuid4()
-    source = saved_query(postgres_engine)
-    BrokerBaselines(postgres_engine).establish(source, request_id=baseline_id)
-    source = saved_query(postgres_engine)
+    source = saved_query(live_engine)
+    BrokerBaselines(live_engine).establish(source, request_id=baseline_id)
+    source = saved_query(live_engine)
     command = [
         "advanced",
         "broker",
@@ -532,7 +516,7 @@ def test_cli_position_ledger_does_not_turn_unknown_observations_into_success(
     assert entry["status"] == "READY"
     assert main(command) == 0
     assert json.loads(capsys.readouterr().out) == entry
-    later = saved_query(postgres_engine)
+    later = saved_query(live_engine)
     assert (
         main(
             [
@@ -566,7 +550,7 @@ def test_cli_position_ledger_does_not_turn_unknown_observations_into_success(
     assert order_check["reconciliation"] == "UNRECONCILED"
     assert main(order_command) == 0
     assert json.loads(capsys.readouterr().out) == order_check
-    incomplete = saved_query(postgres_engine, failure="SDK_PROCESS_EXITED")
+    incomplete = saved_query(live_engine, failure="SDK_PROCESS_EXITED")
     assert (
         main(
             [
@@ -616,12 +600,10 @@ def test_cli_position_ledger_does_not_turn_unknown_observations_into_success(
 
 def test_browser_order_check_uses_fixed_inputs_without_credentials_or_manual_facts(
     live_web_app,
-    postgres_engine: Engine,
-    clean_database: None,
+    live_engine: Engine,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    del clean_database
     monkeypatch.delenv("NORTHSTAR_SIMNOW_PASSWORD", raising=False)
 
     def forbidden(*args: object, **kwargs: object) -> None:
@@ -629,25 +611,23 @@ def test_browser_order_check_uses_fixed_inputs_without_credentials_or_manual_fac
 
     monkeypatch.setattr(ctp, "query_account", forbidden)
     monkeypatch.setattr("northstar_quant.broker.queries.load_credentials", forbidden)
-    workspace = BrokerQueries(postgres_engine)
-    baseline_id = position_baseline(postgres_engine)
+    workspace = BrokerQueries(live_engine)
+    baseline_id = position_baseline(live_engine)
     source = ledger_query(
-        postgres_engine, trades=(trade(),), positions=(position(),), orders=(order(),)
+        live_engine, trades=(trade(),), positions=(position(),), orders=(order(),)
     )
     entry_id, position_check_id, order_check_id = uuid4(), uuid4(), uuid4()
-    entry = BrokerLedger(postgres_engine).ingest(baseline_id, source, request_id=entry_id)
-    later = ledger_query(
-        postgres_engine, trades=(trade(),), positions=(position(),), orders=(order(),)
-    )
-    position_check = BrokerLedger(postgres_engine).compare(
+    entry = BrokerLedger(live_engine).ingest(baseline_id, source, request_id=entry_id)
+    later = ledger_query(live_engine, trades=(trade(),), positions=(position(),), orders=(order(),))
+    position_check = BrokerLedger(live_engine).compare(
         entry_id, later, request_id=position_check_id
     )
     original = workspace.get(later)
     payload = {"position_check_id": str(position_check_id), "request_id": str(order_check_id)}
     check_url = f"/api/broker/order-checks/{order_check_id}"
     context_url = f"/api/broker/queries/{later}/ledger-context"
-    library = DataLibrary(postgres_engine, SourceFiles(tmp_path / "archive"))
-    with TestClient(live_web_app(postgres_engine, library), base_url="http://127.0.0.1") as client:
+    library = DataLibrary(live_engine, SourceFiles(tmp_path / "archive"))
+    with TestClient(live_web_app(live_engine, library), base_url="http://127.0.0.1") as client:
         assert client.get(check_url).status_code == 401
         assert client.post("/api/broker/order-checks", json=payload).status_code == 401
         page = login_response(client)
@@ -696,9 +676,7 @@ def test_browser_order_check_uses_fixed_inputs_without_credentials_or_manual_fac
             client.get(f"/api/broker/position-checks/{position_check_id}").json() == position_check
         )
         assert len(client.get("/api/broker/queries").json()) == 3
-    with TestClient(
-        live_web_app(postgres_engine, library), base_url="http://127.0.0.1"
-    ) as restarted:
+    with TestClient(live_web_app(live_engine, library), base_url="http://127.0.0.1") as restarted:
         assert restarted.get(check_url).status_code == 401
         assert login_response(restarted).status_code == 200
         assert restarted.get(check_url).json() == check

@@ -549,7 +549,7 @@ class BrokerLedger:
                             instruments = batch["completeness"]["sections"]["instrument"]
                             if instruments["status"] != "COMPLETE" or len(instruments["rows"]) != 1:
                                 raise ValueError("trade has no confirmed supported contract")
-                            contract = resolve_broker_contract(self._engine, instruments["rows"][0])
+                            contract = resolve_broker_contract(connection, instruments["rows"][0])
                     contract_id = str(contract.contract_id)
                 except ValueError:
                     new_problems.append({"code": "CANONICAL_CONTRACT_NOT_CONFIRMED", **locator})
