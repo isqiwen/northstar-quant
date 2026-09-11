@@ -1,4 +1,4 @@
-"""Apply identified single-contract fills to an exact FIFO account.
+"""Apply identified futures fills to an exact FIFO account.
 
 The caller supplies confirmed facts in its accepted ledger order. Accounting
 does not infer fills from bars, require an order to fill all at once, or reject
@@ -8,7 +8,7 @@ account fact; broker opening-balance reconciliation belongs to the adapter.
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass, replace
 from datetime import date, datetime, timedelta
@@ -149,28 +149,47 @@ class _Lot:
     opened_on: date
 
 
+@dataclass(frozen=True, slots=True)
+class _Inventory:
+    market: Market
+    position: Position = Position()
+    lots: tuple[_Lot, ...] = ()
+    trading_day: date | None = None
+    last_event_at: datetime | None = None
+
+
 class Account:
-    """FIFO projection rebuilt from initial cash and accepted individual fills.
+    """One cash ledger with FIFO inventory per fixed contract.
 
     A checkpoint is a comparison target, never an account constructor. Persistent
     callers rebuild from their verified ledger, apply the next fact and commit
     that fact and the new projection together under their account lock.
     """
 
-    def __init__(self, initial_cash: Decimal, market: Market) -> None:
+    def __init__(self, initial_cash: Decimal, markets: tuple[Market, ...]) -> None:
         if (
             not isinstance(initial_cash, Decimal)
             or not initial_cash.is_finite()
             or initial_cash <= 0
         ):
             raise ValueError("account initial cash must be a positive exact amount")
-        if (
-            not isinstance(market.multiplier, Decimal)
-            or not market.multiplier.is_finite()
-            or market.multiplier <= 0
+        if not markets or any(not isinstance(market, Market) for market in markets):
+            raise ValueError("account requires fixed contract markets")
+        if len({market.contract_id for market in markets}) != len(markets):
+            raise ValueError("account contract identities must be unique")
+        if any(
+            not isinstance(market.contract_id, UUID)
+            or not isinstance(market.currency, str)
+            or len(market.currency) != 3
+            or not all("A" <= c <= "Z" for c in market.currency)
+            for market in markets
         ):
-            raise ValueError("account requires a positive exact contract multiplier")
-        for value in (initial_cash, market.multiplier):
+            raise ValueError("account markets require canonical contracts and currencies")
+        if len({market.currency for market in markets}) != 1:
+            raise ValueError("one futures account requires one currency; FX is not inferred")
+        for value in (initial_cash, *(market.multiplier for market in markets)):
+            if not isinstance(value, Decimal) or not value.is_finite() or value <= 0:
+                raise ValueError("account requires positive exact economics")
             exponent = value.as_tuple().exponent
             if (
                 not isinstance(exponent, int)
@@ -180,17 +199,15 @@ class Account:
             ):
                 raise ValueError("account economics exceed the bounded financial domain")
         self.initial_cash = initial_cash
-        self.market = market
+        self.markets = tuple(sorted(markets, key=lambda market: str(market.contract_id)))
+        self._inventories = {market.contract_id: _Inventory(market) for market in self.markets}
         self.cash = initial_cash
         self.realized_pnl = Decimal(0)
         self.total_fees = Decimal(0)
         self._fills: dict[str, AppliedFill] = {}
-        self._lots: list[_Lot] = []
         self._settlements: dict[str, AppliedSettlement] = {}
         self._last_fact_at: datetime | None = None
         self.settlement_pnl = Decimal(0)
-        self._position = Position()
-        self._trading_day: date | None = None
 
     @property
     def fill_count(self) -> int:
@@ -204,42 +221,73 @@ class Account:
     def applied_settlements(self) -> tuple[AppliedSettlement, ...]:
         return tuple(self._settlements.values())
 
-    @property
-    def position(self) -> Position:
-        return self._position
+    def market(self, contract_id: UUID) -> Market:
+        try:
+            return self._inventories[contract_id].market
+        except KeyError:
+            raise ValueError("account fact belongs to a different contract") from None
 
-    @property
-    def position_lots(self) -> int:
-        return self._position.net_lots
+    def position(self, contract_id: UUID) -> Position:
+        self.market(contract_id)
+        return self._inventories[contract_id].position
 
     @property
     def last_fact_at(self) -> datetime | None:
         """Latest accepted account fact's availability in the owning ledger clock."""
         return self._last_fact_at
 
-    def unrealized_pnl(self, mark: Decimal) -> Decimal:
+    def unrealized_pnl(self, marks: Mapping[UUID, Decimal]) -> Decimal:
+        if any(key not in self._inventories for key in marks):
+            raise ValueError("mark belongs to a different contract")
+        with localcontext() as context:
+            context.prec = 192
+            context.rounding = ROUND_HALF_EVEN
+            total = Decimal(0)
+            for identity, inventory in self._inventories.items():
+                mark = marks.get(identity)
+                if mark is None:
+                    if inventory.lots:
+                        raise ValueError("every open contract requires an explicit mark")
+                    continue
+                if not isinstance(mark, Decimal) or not mark.is_finite() or mark <= 0:
+                    raise ValueError("account mark must be a positive exact price")
+                total += self.contract_unrealized_pnl(identity, mark)
+            return total
+
+    def contract_unrealized_pnl(self, contract_id: UUID, mark: Decimal) -> Decimal:
+        market = self.market(contract_id)
         if not isinstance(mark, Decimal) or not mark.is_finite() or mark <= 0:
             raise ValueError("account mark must be a positive exact price")
+        exponent = mark.as_tuple().exponent
+        if (
+            not isinstance(exponent, int)
+            or exponent < -18
+            or mark.adjusted() > 33
+            or len(mark.as_tuple().digits) > 34
+        ):
+            raise ValueError("account mark exceeds the bounded financial domain")
         with localcontext() as context:
-            context.prec = 96
+            context.prec = 192
             context.rounding = ROUND_HALF_EVEN
             return sum(
                 (
-                    lot.direction * (mark - lot.entry_price) * lot.quantity * self.market.multiplier
-                    for lot in self._lots
+                    lot.direction * (mark - lot.entry_price) * lot.quantity * market.multiplier
+                    for lot in self._inventories[contract_id].lots
                 ),
-                start=Decimal(0),
+                Decimal(0),
             )
 
-    def equity(self, mark: Decimal) -> Decimal:
+    def equity(self, marks: Mapping[UUID, Decimal]) -> Decimal:
         with localcontext() as context:
-            context.prec = 96
+            context.prec = 192
             context.rounding = ROUND_HALF_EVEN
-            return self.cash + self.unrealized_pnl(mark)
+            return self.cash + self.unrealized_pnl(marks)
 
     def apply(self, fact: FillFact) -> AppliedFill:
-        if not isinstance(fact, FillFact) or fact.contract_id != self.market.contract_id:
+        if not isinstance(fact, FillFact):
             raise ValueError("fill fact belongs to a different contract")
+        market = self.market(fact.contract_id)
+        inventory = self._inventories[fact.contract_id]
         previous = self._fills.get(fact.fill_id)
         if previous is not None:
             if previous.fact != fact:
@@ -247,9 +295,9 @@ class Account:
             return previous
         if self._last_fact_at is not None and fact.filled_at < self._last_fact_at:
             raise ValueError("account facts must follow accepted event order")
-        if self._trading_day is not None and fact.trading_day != self._trading_day:
+        if inventory.trading_day is not None and fact.trading_day != inventory.trading_day:
             raise ValueError("account requires settlement before a new trading day")
-        position = self._position.apply(
+        position = inventory.position.apply(
             (
                 PositionChange(
                     fact.contract_id,
@@ -262,12 +310,12 @@ class Account:
             )
         )
         with localcontext() as context:
-            context.prec = 96
+            context.prec = 192
             context.rounding = ROUND_HALF_EVEN
             direction = 1 if fact.side is Side.BUY else -1
             quantity = fact.quantity_lots
             realized = Decimal(0)
-            lots = [replace(lot) for lot in self._lots]
+            lots = [replace(lot) for lot in inventory.lots]
             if fact.offset is Offset.OPEN:
                 lots.append(_Lot(direction, quantity, fact.price, fact.trading_day))
             else:
@@ -278,10 +326,7 @@ class Account:
                         continue
                     closed = min(quantity, lot.quantity)
                     realized += (
-                        lot.direction
-                        * (fact.price - lot.entry_price)
-                        * closed
-                        * self.market.multiplier
+                        lot.direction * (fact.price - lot.entry_price) * closed * market.multiplier
                     )
                     lot.quantity -= closed
                     quantity -= closed
@@ -302,7 +347,9 @@ class Account:
             ):
                 raise RuntimeError("account ledger conservation failed")
             applied = AppliedFill(fact, realized, position.net_lots, cash, total_fees, position)
-            self._lots, self._position, self._trading_day = lots, position, fact.trading_day
+            self._inventories[fact.contract_id] = _Inventory(
+                market, position, tuple(lots), fact.trading_day, fact.filled_at
+            )
             self.total_fees, self.realized_pnl, self.cash = total_fees, realized_pnl, cash
             self._last_fact_at = fact.filled_at
             self._fills[fact.fill_id] = applied
@@ -310,37 +357,54 @@ class Account:
 
     def settle(self, fact: SettlementFact, *, at: datetime) -> AppliedSettlement:
         """Realize daily variation and roll quantity age, preserving open positions."""
-        if not isinstance(fact, SettlementFact) or fact.contract_id != self.market.contract_id:
+        if not isinstance(fact, SettlementFact):
             raise ValueError("settlement belongs to a different contract")
         if not isinstance(at, datetime) or at.utcoffset() != timedelta(0) or at < fact.available_at:
             raise ValueError("settlement is not yet available to this account clock")
+        market = self.market(fact.contract_id)
+        inventory = self._inventories[fact.contract_id]
         previous = self._settlements.get(fact.settlement_id)
         if previous is not None:
             if previous.fact != fact:
                 raise ValueError("settlement identity was reused with different facts")
             return previous
-        if self._trading_day is not None and fact.trading_day != self._trading_day:
+        if inventory.trading_day is not None and fact.trading_day != inventory.trading_day:
             raise ValueError("settlement does not match the current account trading day")
-        if self._last_fact_at is not None and fact.settled_at < self._last_fact_at:
+        if (
+            self._last_fact_at is not None
+            and fact.available_at < self._last_fact_at
+            or inventory.last_event_at is not None
+            and fact.settled_at < inventory.last_event_at
+        ):
             raise ValueError("settlement precedes accepted account facts")
         with localcontext() as context:
-            context.prec = 96
+            context.prec = 192
             context.rounding = ROUND_HALF_EVEN
-            variation = self.unrealized_pnl(fact.price)
+            variation = sum(
+                (
+                    lot.direction
+                    * (fact.price - lot.entry_price)
+                    * lot.quantity
+                    * market.multiplier
+                    for lot in inventory.lots
+                ),
+                Decimal(0),
+            )
             cash = self.cash + variation
             realized = self.realized_pnl + variation
             if cash != self.initial_cash + realized - self.total_fees:
                 raise RuntimeError("settlement ledger conservation failed")
             position = Position(
-                long_yesterday=self._position.long_today + self._position.long_yesterday,
-                short_yesterday=self._position.short_today + self._position.short_yesterday,
+                long_yesterday=inventory.position.long_today + inventory.position.long_yesterday,
+                short_yesterday=inventory.position.short_today + inventory.position.short_yesterday,
             )
-            lots = [replace(lot, entry_price=fact.price) for lot in self._lots]
+            lots = [replace(lot, entry_price=fact.price) for lot in inventory.lots]
             applied = AppliedSettlement(fact, variation, cash)
             self.cash, self.realized_pnl = cash, realized
             self.settlement_pnl += variation
-            self._position, self._lots = position, lots
-            self._trading_day = fact.next_trading_day
+            self._inventories[fact.contract_id] = _Inventory(
+                market, position, tuple(lots), fact.next_trading_day, fact.settled_at
+            )
             self._last_fact_at = fact.available_at
             self._settlements[fact.settlement_id] = applied
             return applied
@@ -356,12 +420,10 @@ class Account:
             self.cash,
             self.realized_pnl,
             self.total_fees,
-            self._position,
-            self._trading_day,
+            self._inventories.copy(),
             self._last_fact_at,
             self.settlement_pnl,
         )
-        lots = [replace(lot) for lot in self._lots]
         count = len(self._fills)
         settlement_count = len(self._settlements)
         try:
@@ -371,12 +433,10 @@ class Account:
                 self.cash,
                 self.realized_pnl,
                 self.total_fees,
-                self._position,
-                self._trading_day,
+                self._inventories,
                 self._last_fact_at,
                 self.settlement_pnl,
             ) = projection
-            self._lots = lots
             while len(self._fills) > count:
                 self._fills.popitem()
             while len(self._settlements) > settlement_count:
@@ -384,28 +444,36 @@ class Account:
             raise
 
     def checkpoint(self) -> dict[str, object]:
-        """Bounded open-lot projection for comparison with a rebuilt ledger."""
-
+        """Comparison projection only; reconstruction always replays the ledger."""
         return {
-            "contract_id": str(self.market.contract_id),
+            "currency": self.markets[0].currency,
             "initial_cash": decimal_text(self.initial_cash),
             "cash": decimal_text(self.cash),
             "realized_pnl": decimal_text(self.realized_pnl),
             "total_fees": decimal_text(self.total_fees),
-            "position_lots": self.position_lots,
             "fill_count": self.fill_count,
             "settlement_count": len(self._settlements),
             "settlement_pnl": decimal_text(self.settlement_pnl),
             "last_fact_at": None if self._last_fact_at is None else self._last_fact_at.isoformat(),
-            "gross_position": self._position.to_dict(),
-            "trading_day": None if self._trading_day is None else self._trading_day.isoformat(),
-            "lots": [
-                {
-                    "direction": lot.direction,
-                    "quantity_lots": lot.quantity,
-                    "entry_price": decimal_text(lot.entry_price),
-                    "opened_on": lot.opened_on.isoformat(),
+            "positions": {
+                str(identity): {
+                    "gross_position": inventory.position.to_dict(),
+                    "last_event_at": None
+                    if inventory.last_event_at is None
+                    else inventory.last_event_at.isoformat(),
+                    "trading_day": None
+                    if inventory.trading_day is None
+                    else inventory.trading_day.isoformat(),
+                    "lots": [
+                        {
+                            "direction": lot.direction,
+                            "quantity_lots": lot.quantity,
+                            "entry_price": decimal_text(lot.entry_price),
+                            "opened_on": lot.opened_on.isoformat(),
+                        }
+                        for lot in inventory.lots
+                    ],
                 }
-                for lot in self._lots
-            ],
+                for identity, inventory in self._inventories.items()
+            },
         }

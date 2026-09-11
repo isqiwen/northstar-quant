@@ -14,7 +14,7 @@ from uuid import UUID
 
 from northstar_quant.accounting.amounts import decimal_text
 from northstar_quant.accounting.fifo import Account, AppliedFill, FillFact
-from northstar_quant.accounting.portfolio import PortfolioState, value_account
+from northstar_quant.accounting.portfolio import PortfolioState, value_single_contract
 from northstar_quant.accounting.positions import Position
 from northstar_quant.accounting.settlement import AppliedSettlement, SettlementFact
 from northstar_quant.accounting.terms import FuturesTerms, ordered_terms
@@ -156,7 +156,7 @@ class TradingSession:
     """
 
     # Bump for changed Strategy/Risk/Simulation/Accounting rules or checkpoint format.
-    REVISION = "15"
+    REVISION = "16"
 
     def __init__(
         self,
@@ -219,7 +219,7 @@ class TradingSession:
             raise ValueError(
                 "research settlement facts must belong uniquely to the fixed contract/day"
             )
-        self.account = Account(config.simulation.initial_cash, market)
+        self.account = Account(config.simulation.initial_cash, (market,))
         self._execution = ExecutionEngine()
         self._risk = RiskEngine(market, config.risk_policy(), self._terms)
         self._trader = StrategyRuntime(
@@ -362,7 +362,7 @@ class TradingSession:
                 orders.append(update)
         self._bar_count += 1
         self._last = bar
-        valuation = value_account(self.account, bar.close, at=bar.available_at, terms=terms)
+        valuation = value_single_contract(self.account, bar.close, at=bar.available_at, terms=terms)
         equity = valuation.equity
         self._peak = max(self._peak, equity)
         drawdown = self._peak - equity
@@ -390,7 +390,12 @@ class TradingSession:
             self._last_decision = (intent.observation_id, intent.generated_at)
             risk = self._risk.evaluate(
                 intent,
-                PortfolioState(bar.available_at, equity, self.account.position_lots, bar.close),
+                PortfolioState(
+                    bar.available_at,
+                    equity,
+                    self.account.position(self.market.contract_id).net_lots,
+                    bar.close,
+                ),
                 terms=terms,
             )
             decision = {
@@ -419,7 +424,9 @@ class TradingSession:
             if risk.quantity_lots:
                 assert risk.side is not None
                 assert risk.minimum_fill_price is not None and risk.maximum_fill_price is not None
-                plan = order_slice(self.account.position, risk.side, risk.quantity_lots)
+                plan = order_slice(
+                    self.account.position(self.market.contract_id), risk.side, risk.quantity_lots
+                )
             desired = None
             if plan is not None:
                 assert risk.side is not None
@@ -490,7 +497,9 @@ class TradingSession:
             context.prec = 96
             context.rounding = ROUND_HALF_EVEN
             unrealized = (
-                Decimal(0) if self._last is None else self.account.unrealized_pnl(self._last.close)
+                Decimal(0)
+                if self._last is None
+                else self.account.unrealized_pnl({self.market.contract_id: self._last.close})
             )
             equity = self.account.cash + unrealized
             return {
@@ -499,7 +508,7 @@ class TradingSession:
                 "fill_count": self.account.fill_count,
                 "initial_cash": decimal_text(self.config.simulation.initial_cash),
                 "ending_cash": decimal_text(self.account.cash),
-                "ending_position_lots": self.account.position_lots,
+                "ending_position_lots": self.account.position(self.market.contract_id).net_lots,
                 "realized_pnl": decimal_text(self.account.realized_pnl),
                 "unrealized_pnl": decimal_text(unrealized),
                 "total_fees": decimal_text(self.account.total_fees),
@@ -591,7 +600,7 @@ class TradingSession:
             if checkpoint[name] != initial[name]:
                 raise ValueError("checkpoint differs from its fixed input or configuration")
         if (
-            account.market != market
+            account.markets != (market,)
             or account.initial_cash != config.simulation.initial_cash
             or checkpoint["account"] != account.checkpoint()
         ):
@@ -671,7 +680,9 @@ class TradingSession:
             or session.pending.quantity_lots > config.risk.max_lots
             or session.pending.offset
             is not order_slice(
-                account.position, session.pending.side, session.pending.remaining_lots
+                account.position(market.contract_id),
+                session.pending.side,
+                session.pending.remaining_lots,
             )[0]
         ):
             raise ValueError("checkpoint pending order differs from its last decision")
@@ -701,7 +712,7 @@ class TradingSession:
             with localcontext() as context:
                 context.prec = 96
                 context.rounding = ROUND_HALF_EVEN
-                equity = account.equity(previous.close)
+                equity = account.equity({market.contract_id: previous.close})
                 current_drawdown = session._peak - equity
                 if (
                     current_drawdown < 0

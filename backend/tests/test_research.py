@@ -192,7 +192,7 @@ def test_checkpoint_recovery_preserves_pending_fifo_warmup_and_complete_result()
     ledger = []
     steps = []
     for bar in data.bars:
-        rebuilt = Account(config.simulation.initial_cash, data.market)
+        rebuilt = Account(config.simulation.initial_cash, (data.market,))
         for fill in ledger:
             assert rebuilt.apply(FillFact.from_dict(fill)).to_dict() == fill
         session = TradingSession.from_checkpoint(

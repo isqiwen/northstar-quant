@@ -54,7 +54,7 @@ def test_failed_event_rolls_back_fill_strategy_orders_metrics_then_retries(monke
     assert seen[-1] == completed
     assert actual.advance(data.bars[2]) is None
     assert len(seen) == 3
-    account = Account(actual.config.simulation.initial_cash, data.market)
+    account = Account(actual.config.simulation.initial_cash, (data.market,))
     for step in [*accepted, completed]:
         if step.fill:
             account.apply(step.fill.fact)

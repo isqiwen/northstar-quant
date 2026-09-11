@@ -406,7 +406,7 @@ class PaperStore:
                 raise ValueError("Paper input no longer matches its fixed snapshot")
             saved_config = read_configuration(connection, str(row["configuration_id"]))
             config = ResearchConfig.from_mapping(_object(saved_config["config"]))
-            account = Account(config.simulation.initial_cash, dataset.market)
+            account = Account(config.simulation.initial_cash, (dataset.market,))
             if dataset.details is None:
                 raise ValueError("Paper requires its fixed source evidence")
             fixed_settlements = {fact.settlement_id: fact for fact in dataset.details.settlements}

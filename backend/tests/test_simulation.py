@@ -17,7 +17,7 @@ def test_fill_enforces_actual_slipped_price_and_fifo_cost_conservation() -> None
     market = Market(
         UUID(int=1), "RB2605", "Asia/Shanghai", "CNY", "TON", Decimal(1), Decimal(10), 60
     )
-    account = Account(Decimal(1000), market)
+    account = Account(Decimal(1000), (market,))
     order = PendingOrder(
         "open",
         UUID(int=10),
@@ -60,7 +60,7 @@ def test_fill_enforces_actual_slipped_price_and_fifo_cost_conservation() -> None
         max_volume_participation=Decimal("0.1"),
     ).fill
     assert fact is not None and fact.price == Decimal(102)
-    assert account.position_lots == 0
+    assert account.position(account.markets[0].contract_id).net_lots == 0
     fill = account.apply(fact)
     assert account.apply(fact) == fill
     closing = PendingOrder(
@@ -97,8 +97,12 @@ def test_fill_enforces_actual_slipped_price_and_fifo_cost_conservation() -> None
     account.apply(closing_fact)
     assert account.realized_pnl == Decimal(40)
     assert account.total_fees == Decimal(8)
-    assert account.cash == account.equity(later.close) == Decimal(1032)
-    assert account.position_lots == 0
+    assert (
+        account.cash
+        == account.equity({account.markets[0].contract_id: later.close})
+        == Decimal(1032)
+    )
+    assert account.position(account.markets[0].contract_id).net_lots == 0
 
 
 def test_account_applies_individual_facts_not_whole_orders_or_bar_guesses() -> None:
@@ -106,7 +110,7 @@ def test_account_applies_individual_facts_not_whole_orders_or_bar_guesses() -> N
     market = Market(
         UUID(int=1), "RB2605", "Asia/Shanghai", "CNY", "TON", Decimal(1), Decimal(10), 60
     )
-    account = Account(Decimal(1000), market)
+    account = Account(Decimal(1000), (market,))
     first = FillFact(
         "fill-1",
         "open",
@@ -141,10 +145,10 @@ def test_account_applies_individual_facts_not_whole_orders_or_bar_guesses() -> N
     account.apply(
         replace(reversal, fill_id="fill-5", offset=Offset.OPEN, quantity_lots=1, fee=Decimal(1))
     )
-    assert account.position_lots == -1
+    assert account.position(account.markets[0].contract_id).net_lots == -1
     assert account.cash == Decimal(893)
     assert account.total_fees == Decimal(7)
-    assert account.equity(Decimal(85)) == Decimal(943)
+    assert account.equity({account.markets[0].contract_id: Decimal(85)}) == Decimal(943)
     state = account.checkpoint()
     assert account.apply(FillFact.from_dict(first_applied.to_dict())) == first_applied
     assert account.checkpoint() == state
@@ -162,7 +166,7 @@ def test_gross_opens_explicit_closes_and_broker_projection_share_quantities() ->
     market = Market(
         UUID(int=1), "RB2605", "Asia/Shanghai", "CNY", "TON", Decimal(1), Decimal(10), 60
     )
-    account = Account(Decimal(1000), market)
+    account = Account(Decimal(1000), (market,))
     first = FillFact(
         "long",
         "open",
@@ -182,10 +186,13 @@ def test_gross_opens_explicit_closes_and_broker_projection_share_quantities() ->
     facts = [first, short]
     for fact in facts:
         account.apply(fact)
-    assert account.position.long_today == 2 and account.position.short_today == 1
+    assert (
+        account.position(account.markets[0].contract_id).long_today == 2
+        and account.position(account.markets[0].contract_id).short_today == 1
+    )
     assert account.realized_pnl == 0
     assert account.cash == Decimal(997)
-    assert account.equity(Decimal(105)) == Decimal(1147)
+    assert account.equity({account.markets[0].contract_id: Decimal(105)}) == Decimal(1147)
     before = account.checkpoint()
     for invalid in (
         replace(short, fill_id="overclose", offset=Offset.CLOSE_TODAY, quantity_lots=3),
@@ -206,18 +213,20 @@ def test_gross_opens_explicit_closes_and_broker_projection_share_quantities() ->
     facts.append(close)
     assert applied.realized_pnl == Decimal(200)
     assert applied.gross_position.long_today == applied.gross_position.short_today == 1
-    assert account.position_lots == 0  # Flat net exposure still has two gross holdings.
-    assert account.equity(Decimal(105)) == Decimal(1296)
-    from northstar_quant.accounting.portfolio import value_account
+    assert (
+        account.position(account.markets[0].contract_id).net_lots == 0
+    )  # Flat net exposure still has two gross holdings.
+    assert account.equity({account.markets[0].contract_id: Decimal(105)}) == Decimal(1296)
+    from northstar_quant.accounting.portfolio import value_single_contract
 
-    valuation = value_account(account, Decimal(105), at=close.filled_at)
+    valuation = value_single_contract(account, Decimal(105), at=close.filled_at)
     assert valuation.long_lots == valuation.short_lots == 1
     assert valuation.net_exposure == 0 and valuation.gross_exposure == Decimal(2100)
     assert valuation.trade_realized_pnl == Decimal(200) and valuation.settlement_pnl == 0
     assert valuation.equity == Decimal(1296)
     assert valuation.margin_used is None and "available" not in valuation.to_dict()
     with pytest.raises(ValueError, match="precede"):
-        value_account(account, Decimal(105), at=at)
+        value_single_contract(account, Decimal(105), at=at)
     changes = tuple(
         PositionChange(
             f.contract_id, f.trading_day, f.side.value, f.offset.value, f.quantity_lots, f.filled_at
@@ -226,9 +235,9 @@ def test_gross_opens_explicit_closes_and_broker_projection_share_quantities() ->
     )
     assert (
         project_intraday_positions(at.date(), changes)[market.contract_id]
-        == account.position.to_dict()
+        == account.position(account.markets[0].contract_id).to_dict()
     )
-    rebuilt = Account(Decimal(1000), market)
+    rebuilt = Account(Decimal(1000), (market,))
     for fact in facts:
         rebuilt.apply(FillFact.from_dict(fact.to_dict()))
     assert rebuilt.checkpoint() == account.checkpoint()

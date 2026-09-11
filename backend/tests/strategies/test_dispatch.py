@@ -91,7 +91,7 @@ def test_no_new_target_keeps_existing_authorization_until_fill_and_survives_chec
         snapshot_id=data.snapshot_id,
         content_hash=data.content_hash,
         checkpoint=session.checkpoint(),
-        account=Account(config.simulation.initial_cash, data.market),
+        account=Account(config.simulation.initial_cash, (data.market,)),
     )
     fourth = restarted.advance(data.bars[3])
     assert fourth.fill is not None and restarted.pending is None
