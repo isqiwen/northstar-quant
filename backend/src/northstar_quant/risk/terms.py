@@ -4,7 +4,7 @@ from dataclasses import replace
 from decimal import ROUND_CEILING, ROUND_HALF_EVEN, Decimal, localcontext
 
 from northstar_quant.accounting.terms import FuturesTerms
-from northstar_quant.execution.orders import Offset, Side
+from northstar_quant.execution.orders import Offset, OrderBudget, Side
 from northstar_quant.market_data import Market
 
 from .sizing import RiskPolicy
@@ -18,7 +18,7 @@ def order_budget(
     offset: Offset,
     maximum_fill_price: Decimal,
     terms: FuturesTerms | None,
-) -> tuple[Decimal, Decimal]:
+) -> OrderBudget:
     """Bound per-lot fee and new margin before the owner fixes an order.
 
     Upward one-lot rounding covers separately charged partial fills. Close
@@ -31,11 +31,18 @@ def order_budget(
         if not maximum_fill_price.is_finite() or maximum_fill_price <= 0:
             raise ValueError("order budget requires a bounded positive authorized price")
         mark_bound = maximum_fill_price + policy.slippage_ticks * market.price_tick
+        gross = mark_bound * market.multiplier if offset is Offset.OPEN else Decimal(0)
+        loss = policy.slippage_ticks * market.price_tick * market.multiplier
         if terms is None:
-            return policy.fee_per_lot, (
-                mark_bound * market.multiplier * policy.initial_margin_fraction
-                if offset is Offset.OPEN
-                else Decimal(0)
+            return OrderBudget(
+                policy.fee_per_lot,
+                (
+                    mark_bound * market.multiplier * policy.initial_margin_fraction
+                    if offset is Offset.OPEN
+                    else Decimal(0)
+                ),
+                gross,
+                loss,
             )
         if terms.contract_id != market.contract_id:
             raise ValueError("order budget terms belong to another contract")
@@ -51,7 +58,7 @@ def order_budget(
         margin = (
             margin_rate.amount(mark_bound * market.multiplier, 1) / terms.money_quantum
         ).to_integral_value(rounding=ROUND_CEILING) * terms.money_quantum
-        return fee, margin if offset is Offset.OPEN else Decimal(0)
+        return OrderBudget(fee, margin if offset is Offset.OPEN else Decimal(0), gross, loss)
 
 
 def policy_for_terms(policy: RiskPolicy, terms: FuturesTerms, market: Market) -> RiskPolicy:

@@ -69,10 +69,7 @@ def _verify_valuations(session: TradingSession, steps: Sequence[TradingStep]) ->
                         maximum_fill_price=update.order.maximum_fill_price,
                         terms=active_terms,
                     )
-                    if expected_budget != (
-                        update.order.fee_budget_per_lot,
-                        update.order.margin_budget_per_lot,
-                    ):
+                    if expected_budget != update.order.budget:
                         raise ValueError(
                             "report order reservation differs from its fixed risk budget"
                         )
@@ -88,6 +85,7 @@ def _verify_valuations(session: TradingSession, steps: Sequence[TradingStep]) ->
                     - valuation.margin_used
                     - Decimal(str(expected["reserved_fee"]))
                     - Decimal(str(expected["reserved_margin"]))
+                    - Decimal(str(expected["reserved_loss"]))
                 )
             if not terms and any(
                 name in point

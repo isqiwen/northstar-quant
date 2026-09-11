@@ -181,7 +181,7 @@ def test_fixed_order_budget_covers_partial_fees_and_never_spends_close_margin_re
     fixed = replace(terms(), contract_id=MARKET.contract_id)
     for side in Side:
         for offset in Offset:
-            fee, margin = order_budget(
+            budget = order_budget(
                 POLICY,
                 MARKET,
                 side=side,
@@ -190,11 +190,11 @@ def test_fixed_order_budget_covers_partial_fees_and_never_spends_close_margin_re
                 terms=fixed,
             )
             for price in (fixed.lower_limit, Decimal(101), fixed.upper_limit):
-                assert fixed.fee(offset, price, MARKET.multiplier, 1) * 7 <= fee * 7
+                assert fixed.fee(offset, price, MARKET.multiplier, 1) * 7 <= budget.fee * 7
                 if offset is Offset.OPEN:
-                    assert fixed.margin(side, price, MARKET.multiplier, 7) <= margin * 7
+                    assert fixed.margin(side, price, MARKET.multiplier, 7) <= budget.margin * 7
                 else:
-                    assert margin == 0
+                    assert budget.margin == 0
 
 
 def test_opening_budget_uses_actual_available_and_sell_daily_upper_bound() -> None:
@@ -298,3 +298,122 @@ def test_opening_budget_never_replaces_unknown_or_unbounded_costs_with_zero(valu
     _, terms, _, _ = opening_inputs()
     with pytest.raises(ValueError):
         replace(terms, open_fee_by_money=value)
+
+
+def test_portfolio_sizing_counts_other_inventory_and_unknown_order_commitments():
+    from northstar_quant.accounting.fifo import Account, FillFact
+    from northstar_quant.accounting.portfolio import value_portfolio
+    from northstar_quant.execution.orders import Offset, PendingOrder
+    from northstar_quant.risk.engine import RiskEngine
+    from tests.accounting.test_terms import terms
+
+    other = replace(MARKET, contract_id=UUID(int=201), symbol="SYNTHETIC_OTHER")
+    account = Account(Decimal(100000), (MARKET, other))
+    marks = {MARKET.contract_id: Decimal(100), other.contract_id: Decimal(100)}
+    effective = {
+        item.contract_id: replace(terms(), contract_id=item.contract_id) for item in (MARKET, other)
+    }
+    policy = replace(POLICY, max_gross_notional=Decimal(5000), slippage_ticks=0)
+    engine = RiskEngine(MARKET, policy, (effective[MARKET.contract_id],))
+    other_engine = RiskEngine(other, policy, (effective[other.contract_id],))
+
+    def decide(pending=()):
+        view = value_portfolio(account, marks, at=AT, terms=effective)
+        return engine.evaluate_portfolio(
+            intent(), view, at=AT, terms=effective[MARKET.contract_id], pending=pending
+        )
+
+    assert decide().quantity_lots == 5
+    account.apply(
+        FillFact(
+            "other-fill",
+            "other-order",
+            other.contract_id,
+            None,
+            AT,
+            AT.date(),
+            Side.BUY,
+            Offset.OPEN,
+            2,
+            Decimal(100),
+            Decimal(4),
+        )
+    )
+    assert decide().quantity_lots == 3
+    pending = PendingOrder(
+        "unknown-other",
+        UUID(int=99),
+        AT - timedelta(minutes=2),
+        AT - timedelta(minutes=1),
+        Side.BUY,
+        Offset.OPEN,
+        2,
+        Decimal(90),
+        Decimal(110),
+        contract_id=other.contract_id,
+        budget=other_engine.budget(
+            side=Side.BUY,
+            offset=Offset.OPEN,
+            maximum_fill_price=Decimal(110),
+            terms=effective[other.contract_id],
+        ),
+    )
+    # Expired authority is not a confirmed terminal outcome; keep all commitments.
+    assert decide((pending,)).outcome is Outcome.REJECT
+    account.apply(
+        FillFact(
+            "other-partial",
+            pending.order_id,
+            other.contract_id,
+            None,
+            AT,
+            AT.date(),
+            Side.BUY,
+            Offset.OPEN,
+            1,
+            Decimal(100),
+            Decimal(2),
+        )
+    )
+    assert decide((replace(pending, filled_lots=1),)).outcome is Outcome.REJECT
+    assert decide().quantity_lots == 2
+    before = account.checkpoint()
+    with pytest.raises(ValueError, match="duplicated"):
+        decide((pending, pending))
+    with pytest.raises(ValueError, match="working order"):
+        decide((replace(pending, contract_id=MARKET.contract_id),))
+    view = value_portfolio(account, marks, at=AT, terms=effective)
+    with pytest.raises(ValueError, match="observation time"):
+        engine.evaluate_portfolio(
+            intent(), view, at=AT + timedelta(seconds=1), terms=effective[MARKET.contract_id]
+        )
+    assert account.checkpoint() == before
+
+
+def test_portfolio_price_bounds_preserve_shared_margin_and_reserved_costs():
+    state = PortfolioState(
+        AT,
+        Decimal(2000),
+        0,
+        Decimal(100),
+        other_gross_notional=Decimal(2000),
+        other_margin=Decimal(600),
+        reserved_costs=Decimal(80),
+    )
+    for side in ("1", "-1"):
+        result = evaluate_risk(intent(side), state, POLICY, MARKET)
+        assert 0 < result.quantity_lots < POLICY.max_lots
+        for fill_price in (result.minimum_fill_price, result.maximum_fill_price):
+            direction = 1 if result.side is Side.BUY else -1
+            mark = fill_price - direction * POLICY.slippage_ticks * MARKET.price_tick
+            cost = result.quantity_lots * (
+                POLICY.fee_per_lot + POLICY.slippage_ticks * MARKET.price_tick * MARKET.multiplier
+            )
+            equity = state.equity - state.reserved_costs - cost
+            own_gross = result.quantity_lots * mark * MARKET.multiplier
+            assert own_gross + state.other_gross_notional <= POLICY.max_gross_notional
+            assert own_gross * POLICY.initial_margin_fraction + state.other_margin <= (
+                equity * POLICY.max_margin_fraction
+            )
+    exhausted = replace(state, other_margin=Decimal(1000))
+    assert evaluate_risk(intent(), exhausted, POLICY, MARKET).outcome is Outcome.REJECT

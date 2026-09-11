@@ -24,6 +24,9 @@ class PortfolioState:
     equity: Decimal
     position_lots: int
     mark_price: Decimal
+    other_gross_notional: Decimal = Decimal(0)
+    other_margin: Decimal = Decimal(0)
+    reserved_costs: Decimal = Decimal(0)
 
 
 @dataclass(frozen=True, slots=True)
@@ -97,6 +100,7 @@ class HoldingValuation:
 
 @dataclass(frozen=True, slots=True)
 class PortfolioValuation:
+    observed_at: datetime
     cash: Decimal
     realized_pnl: Decimal
     unrealized_pnl: Decimal
@@ -192,6 +196,7 @@ def value_portfolio(
             net += holding.net_exposure
             gross += holding.gross_exposure
         return PortfolioValuation(
+            at,
             account.cash,
             account.realized_pnl,
             unrealized,

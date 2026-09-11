@@ -105,6 +105,8 @@ export type EquityPoint = {
   reserved_margin: string;
   reserved_close_lots: number;
   available_after_reservations?: string | null;
+  reserved_gross: string;
+  reserved_loss: string;
 };
 export type FactorBinding = {
   code_revision: string;

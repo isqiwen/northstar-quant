@@ -4,9 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 from datetime import datetime
-from decimal import Decimal
 
-from .orders import OrderStatus, OrderUpdate, PendingOrder
+from .orders import OrderBudget, OrderStatus, OrderUpdate, PendingOrder
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,25 +32,17 @@ class ExecutionEngine:
         self,
         desired: PendingOrder | None,
         *,
-        retained_budget: tuple[Decimal, Decimal] | None = None,
+        retained_budget: OrderBudget | None = None,
     ) -> Replacement:
         prior = self.pending
-        if retained_budget is not None and (
-            len(retained_budget) != 2
-            or any(
-                not isinstance(value, Decimal) or not value.is_finite() or value < 0
-                for value in retained_budget
-            )
-        ):
-            raise ValueError("retention budgets require two nonnegative exact amounts")
         if prior is not None and desired is not None and retained_budget is None:
             raise ValueError("retention requires current risk budgets at the original price bound")
         if (
             prior is not None
             and desired is not None
             and retained_budget is not None
-            and prior.fee_budget_per_lot >= retained_budget[0]
-            and prior.margin_budget_per_lot >= retained_budget[1]
+            and prior.contract_id == desired.contract_id
+            and prior.budget.covers(retained_budget)
             and prior.fits_authorization(
                 side=desired.side,
                 offset=desired.offset,

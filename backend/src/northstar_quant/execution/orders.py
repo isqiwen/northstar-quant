@@ -24,6 +24,51 @@ class Offset(StrEnum):
 
 
 @dataclass(frozen=True, slots=True)
+class OrderBudget:
+    """Per-lot commitments fixed by Risk; Execution owns their remaining quantity."""
+
+    fee: Decimal
+    margin: Decimal
+    gross: Decimal
+    loss: Decimal
+
+    def __post_init__(self) -> None:
+        for value in (self.fee, self.margin, self.gross, self.loss):
+            if (
+                not isinstance(value, Decimal)
+                or not value.is_finite()
+                or value < 0
+                or len(value.as_tuple().digits) > 96
+                or value.adjusted() > 33
+            ):
+                raise ValueError("order budget exceeds the exact financial domain")
+            exponent = value.as_tuple().exponent
+            if not isinstance(exponent, int) or exponent < -96:
+                raise ValueError("order budget requires at most 96 decimal places")
+
+    def covers(self, required: OrderBudget) -> bool:
+        return all(
+            getattr(self, name) >= getattr(required, name)
+            for name in ("fee", "margin", "gross", "loss")
+        )
+
+    def to_dict(self) -> dict[str, str]:
+        return {
+            name: decimal_text(getattr(self, name)) for name in ("fee", "margin", "gross", "loss")
+        }
+
+    @classmethod
+    def from_dict(cls, value: object) -> OrderBudget:
+        if (
+            not isinstance(value, dict)
+            or set(value) != {"fee", "margin", "gross", "loss"}
+            or any(not isinstance(item, str) for item in value.values())
+        ):
+            raise ValueError("order budget requires all exact decimal strings")
+        return cls(*(Decimal(value[name]) for name in ("fee", "margin", "gross", "loss")))
+
+
+@dataclass(frozen=True, slots=True)
 class PendingOrder:
     order_id: str
     observation_id: UUID
@@ -35,14 +80,16 @@ class PendingOrder:
     minimum_fill_price: Decimal
     maximum_fill_price: Decimal
     filled_lots: int = 0
-    fee_budget_per_lot: Decimal = field(kw_only=True)
-    margin_budget_per_lot: Decimal = field(kw_only=True)
+    contract_id: UUID = field(kw_only=True)
+    budget: OrderBudget = field(kw_only=True)
 
     def __post_init__(self) -> None:
         if (
             not isinstance(self.order_id, str)
             or not 1 <= len(self.order_id) <= 256
             or not isinstance(self.observation_id, UUID)
+            or not isinstance(self.contract_id, UUID)
+            or not isinstance(self.budget, OrderBudget)
             or not isinstance(self.side, Side)
             or not isinstance(self.offset, Offset)
             or type(self.quantity_lots) is not int
@@ -62,8 +109,6 @@ class PendingOrder:
         for name in (
             "minimum_fill_price",
             "maximum_fill_price",
-            "fee_budget_per_lot",
-            "margin_budget_per_lot",
         ):
             value = getattr(self, name)
             if (
@@ -79,8 +124,8 @@ class PendingOrder:
                 raise ValueError("order prices and budgets require at most 96 decimal places")
         if not Decimal(0) < self.minimum_fill_price <= self.maximum_fill_price:
             raise ValueError("order requires an exact positive fill-price interval")
-        if self.offset is not Offset.OPEN and self.margin_budget_per_lot != 0:
-            raise ValueError("closing orders cannot reserve new opening margin")
+        if self.offset is not Offset.OPEN and (self.budget.margin != 0 or self.budget.gross != 0):
+            raise ValueError("closing orders cannot reserve new opening margin or gross")
 
     @property
     def remaining_lots(self) -> int:
@@ -137,6 +182,7 @@ class PendingOrder:
     def to_dict(self) -> dict[str, object]:
         return {
             "order_id": self.order_id,
+            "contract_id": str(self.contract_id),
             "observation_id": str(self.observation_id),
             "submitted_at": self.submitted_at.isoformat(),
             "expires_at": self.expires_at.isoformat(),
@@ -146,8 +192,7 @@ class PendingOrder:
             "filled_lots": self.filled_lots,
             "minimum_fill_price": decimal_text(self.minimum_fill_price),
             "maximum_fill_price": decimal_text(self.maximum_fill_price),
-            "fee_budget_per_lot": decimal_text(self.fee_budget_per_lot),
-            "margin_budget_per_lot": decimal_text(self.margin_budget_per_lot),
+            "budget": self.budget.to_dict(),
         }
 
     @classmethod
@@ -160,8 +205,6 @@ class PendingOrder:
             for name in (
                 "minimum_fill_price",
                 "maximum_fill_price",
-                "fee_budget_per_lot",
-                "margin_budget_per_lot",
             ):
                 if not isinstance(value[name], str):
                     raise ValueError(
@@ -178,8 +221,8 @@ class PendingOrder:
                 Decimal(str(value["minimum_fill_price"])),
                 Decimal(str(value["maximum_fill_price"])),
                 filled,
-                fee_budget_per_lot=Decimal(str(value["fee_budget_per_lot"])),
-                margin_budget_per_lot=Decimal(str(value["margin_budget_per_lot"])),
+                contract_id=UUID(str(value["contract_id"])),
+                budget=OrderBudget.from_dict(value["budget"]),
             )
         except (KeyError, TypeError, ArithmeticError) as error:
             raise ValueError("invalid persisted pending order") from error
@@ -198,10 +241,16 @@ def reservation(order: PendingOrder | None) -> dict[str, object]:
         remaining = 0 if order is None else order.remaining_lots
         return {
             "reserved_fee": decimal_text(
-                Decimal(0) if order is None else remaining * order.fee_budget_per_lot
+                Decimal(0) if order is None else remaining * order.budget.fee
             ),
             "reserved_margin": decimal_text(
-                Decimal(0) if order is None else remaining * order.margin_budget_per_lot
+                Decimal(0) if order is None else remaining * order.budget.margin
+            ),
+            "reserved_gross": decimal_text(
+                Decimal(0) if order is None else remaining * order.budget.gross
+            ),
+            "reserved_loss": decimal_text(
+                Decimal(0) if order is None else remaining * order.budget.loss
             ),
             "reserved_close_lots": remaining
             if order is not None and order.offset is not Offset.OPEN

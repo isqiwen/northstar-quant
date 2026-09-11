@@ -365,6 +365,7 @@ def test_cross_day_settlement_is_fixed_offline_replayable_and_survives_every_res
             - Decimal(point["margin_used"])
             - Decimal(point["reserved_fee"])
             - Decimal(point["reserved_margin"])
+            - Decimal(point["reserved_loss"])
         )
     assert all("margin_used" in point and "available" in point for point in batch["equity_curve"])
     assert {point["terms_id"] for point in batch["equity_curve"]} == {

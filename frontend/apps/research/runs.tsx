@@ -162,7 +162,7 @@ export function Report() {
                       <Alert
                         type="info"
                         showIcon
-                        title="保证金按多空双边持仓计算。未成交订单另行预占手续费、开仓保证金或平仓手数；预占是预算，不是已发生费用或柜台冻结事实。"
+                        title="保证金按多空双边持仓计算。未成交订单另行预占手续费、滑点损失、开仓保证金、总敞口或平仓手数；预占是预算，不是已发生费用或柜台冻结事实。"
                       />
                       <Records
                         rowKey="observation_id"
@@ -176,6 +176,11 @@ export function Report() {
                           { title: "条款保证金", dataIndex: "margin_used" },
                           { title: "扣除保证金后资金", dataIndex: "available" },
                           { title: "手续费预占", dataIndex: "reserved_fee" },
+                          { title: "成交滑点预算", dataIndex: "reserved_loss" },
+                          {
+                            title: "新增敞口预算",
+                            dataIndex: "reserved_gross",
+                          },
                           {
                             title: "开仓保证金预占",
                             dataIndex: "reserved_margin",

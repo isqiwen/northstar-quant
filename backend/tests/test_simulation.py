@@ -7,7 +7,7 @@ import pytest
 
 from northstar_quant.accounting.fifo import Account, FillFact
 from northstar_quant.accounting.positions import Position
-from northstar_quant.execution.orders import Offset, PendingOrder, Side, order_slice
+from northstar_quant.execution.orders import Offset, OrderBudget, PendingOrder, Side, order_slice
 from northstar_quant.market_data import Market, MarketBar
 from northstar_quant.simulation import simulate_fill
 
@@ -28,8 +28,13 @@ def test_fill_enforces_actual_slipped_price_and_fifo_cost_conservation() -> None
         2,
         Decimal(100),
         Decimal(102),
-        fee_budget_per_lot=Decimal(2),
-        margin_budget_per_lot=Decimal(102),
+        contract_id=UUID(int=1),
+        budget=OrderBudget(
+            Decimal(2),
+            Decimal(102),
+            Decimal(1100),
+            Decimal(0),
+        ),
     )
     bar = MarketBar(
         UUID(int=11),
@@ -60,6 +65,15 @@ def test_fill_enforces_actual_slipped_price_and_fifo_cost_conservation() -> None
         max_volume_participation=Decimal("0.1"),
     ).fill
     assert fact is not None and fact.price == Decimal(102)
+    with pytest.raises(ValueError, match="different contract"):
+        simulate_fill(
+            replace(order, contract_id=UUID(int=999)),
+            bar,
+            market,
+            fee_per_lot=Decimal(2),
+            slippage_ticks=0,
+            max_volume_participation=Decimal("0.1"),
+        )
     assert account.position(account.markets[0].contract_id).net_lots == 0
     fill = account.apply(fact)
     assert account.apply(fact) == fill
@@ -73,8 +87,13 @@ def test_fill_enforces_actual_slipped_price_and_fifo_cost_conservation() -> None
         2,
         Decimal(100),
         Decimal(110),
-        fee_budget_per_lot=Decimal(2),
-        margin_budget_per_lot=Decimal(0),
+        contract_id=UUID(int=1),
+        budget=OrderBudget(
+            Decimal(2),
+            Decimal(0),
+            Decimal(0),
+            Decimal(0),
+        ),
     )
     later = MarketBar(
         UUID(int=12),
@@ -287,8 +306,13 @@ def test_participation_uses_only_post_order_volume_and_explains_each_rejection()
         5,
         Decimal(90),
         Decimal(110),
-        fee_budget_per_lot=Decimal(2),
-        margin_budget_per_lot=Decimal(110),
+        contract_id=UUID(int=1),
+        budget=OrderBudget(
+            Decimal(2),
+            Decimal(110),
+            Decimal(1100),
+            Decimal(0),
+        ),
     )
     bar = MarketBar(
         UUID(int=11),
@@ -353,8 +377,13 @@ def test_limit_queue_keeps_order_and_reservation_without_inventing_a_fill(side, 
         5,
         fixed.lower_limit,
         fixed.upper_limit,
-        fee_budget_per_lot=Decimal(4),
-        margin_budget_per_lot=Decimal(300) if offset is Offset.OPEN else Decimal(0),
+        contract_id=UUID(int=1),
+        budget=OrderBudget(
+            Decimal(4),
+            Decimal(300) if offset is Offset.OPEN else Decimal(0),
+            Decimal(1100) if offset is Offset.OPEN else Decimal(0),
+            Decimal(0),
+        ),
     )
     price = fixed.upper_limit if side is Side.BUY else fixed.lower_limit
     bar = MarketBar(
@@ -409,8 +438,10 @@ def test_limit_queue_keeps_order_and_reservation_without_inventing_a_fill(side, 
     [
         "minimum_fill_price",
         "maximum_fill_price",
-        "fee_budget_per_lot",
-        "margin_budget_per_lot",
+        "fee",
+        "gross",
+        "loss",
+        "margin",
     ],
 )
 @pytest.mark.parametrize("value", ["1e999999999", "1e-999999999", "NaN", "Infinity"])
@@ -428,10 +459,22 @@ def test_order_restore_rejects_unbounded_money_before_reservation(field, value):
         2,
         Decimal(100),
         Decimal(102),
-        fee_budget_per_lot=Decimal(2),
-        margin_budget_per_lot=Decimal(102),
+        contract_id=UUID(int=1),
+        budget=OrderBudget(
+            Decimal(2),
+            Decimal(102),
+            Decimal(1100),
+            Decimal(0),
+        ),
     )
     prior = reservation(order)
     with pytest.raises(ValueError, match="financial domain|decimal places"):
-        PendingOrder.from_dict(order.to_dict() | {field: value})
+        PendingOrder.from_dict(
+            order.to_dict()
+            | (
+                {field: value}
+                if field in {"minimum_fill_price", "maximum_fill_price"}
+                else {"budget": order.budget.to_dict() | {field: value}}
+            )
+        )
     assert reservation(order) == prior

@@ -34,6 +34,7 @@ class OrderHistory:
             fact.fill_id in self._fill_ids
             or prior is None
             or prior.status in _TERMINAL
+            or fact.contract_id != prior.order.contract_id
             or fact.side is not prior.order.side
             or fact.offset is not prior.order.offset
             or not prior.order.submitted_at < fact.filled_at < prior.order.expires_at

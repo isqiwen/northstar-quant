@@ -6128,6 +6128,8 @@ export const northstar = $root.northstar = (() => {
              * @property {string|null} [reserved_margin] EquityPoint reserved_margin
              * @property {number|Long|null} [reserved_close_lots] EquityPoint reserved_close_lots
              * @property {string|null} [available_after_reservations] EquityPoint available_after_reservations
+             * @property {string|null} [reserved_gross] EquityPoint reserved_gross
+             * @property {string|null} [reserved_loss] EquityPoint reserved_loss
              * @property {Array.<string>|null} [null_fields] EquityPoint null_fields
              * @property {"at"} [_at] EquityPoint _at
              * @property {"equity"} [_equity] EquityPoint _equity
@@ -6153,6 +6155,8 @@ export const northstar = $root.northstar = (() => {
              * @property {"reserved_margin"} [_reserved_margin] EquityPoint _reserved_margin
              * @property {"reserved_close_lots"} [_reserved_close_lots] EquityPoint _reserved_close_lots
              * @property {"available_after_reservations"} [_available_after_reservations] EquityPoint _available_after_reservations
+             * @property {"reserved_gross"} [_reserved_gross] EquityPoint _reserved_gross
+             * @property {"reserved_loss"} [_reserved_loss] EquityPoint _reserved_loss
              * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
              */
 
@@ -6192,6 +6196,8 @@ export const northstar = $root.northstar = (() => {
              *   reserved_margin?: string|null;
              *   reserved_close_lots?: number|Long|null;
              *   available_after_reservations?: string|null;
+             *   reserved_gross?: string|null;
+             *   reserved_loss?: string|null;
              *   null_fields?: Array.<string>|null;
              *   $unknowns?: Array.<Uint8Array>;
              * } & (
@@ -6242,6 +6248,10 @@ export const northstar = $root.northstar = (() => {
              *   ({ _reserved_close_lots?: undefined; reserved_close_lots?: null }|{ _reserved_close_lots?: "reserved_close_lots"; reserved_close_lots: number|Long })
              * ) & (
              *   ({ _available_after_reservations?: undefined; available_after_reservations?: null }|{ _available_after_reservations?: "available_after_reservations"; available_after_reservations: string })
+             * ) & (
+             *   ({ _reserved_gross?: undefined; reserved_gross?: null }|{ _reserved_gross?: "reserved_gross"; reserved_gross: string })
+             * ) & (
+             *   ({ _reserved_loss?: undefined; reserved_loss?: null }|{ _reserved_loss?: "reserved_loss"; reserved_loss: string })
              * )} northstar.research.EquityPoint.$Shape
              */
 
@@ -6461,6 +6471,22 @@ export const northstar = $root.northstar = (() => {
              * @instance
              */
             EquityPoint.prototype.available_after_reservations = null;
+
+            /**
+             * EquityPoint reserved_gross.
+             * @member {string|null|undefined} reserved_gross
+             * @memberof northstar.research.EquityPoint
+             * @instance
+             */
+            EquityPoint.prototype.reserved_gross = null;
+
+            /**
+             * EquityPoint reserved_loss.
+             * @member {string|null|undefined} reserved_loss
+             * @memberof northstar.research.EquityPoint
+             * @instance
+             */
+            EquityPoint.prototype.reserved_loss = null;
 
             /**
              * EquityPoint null_fields.
@@ -6738,6 +6764,28 @@ export const northstar = $root.northstar = (() => {
             });
 
             /**
+             * EquityPoint _reserved_gross.
+             * @member {"reserved_gross"|undefined} _reserved_gross
+             * @memberof northstar.research.EquityPoint
+             * @instance
+             */
+            $Object.defineProperty(EquityPoint.prototype, "_reserved_gross", {
+                get: $util.oneOfGetter($oneOfFields = ["reserved_gross"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * EquityPoint _reserved_loss.
+             * @member {"reserved_loss"|undefined} _reserved_loss
+             * @memberof northstar.research.EquityPoint
+             * @instance
+             */
+            $Object.defineProperty(EquityPoint.prototype, "_reserved_loss", {
+                get: $util.oneOfGetter($oneOfFields = ["reserved_loss"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
              * Creates a new EquityPoint instance using the specified properties.
              * @function create
              * @memberof northstar.research.EquityPoint
@@ -6817,6 +6865,10 @@ export const northstar = $root.northstar = (() => {
                     writer.uint32(/* id 23, wireType 0 =*/184).int64(message.reserved_close_lots);
                 if (message.available_after_reservations != null && $Object.hasOwnProperty.call(message, "available_after_reservations"))
                     writer.uint32(/* id 24, wireType 2 =*/194).string(message.available_after_reservations);
+                if (message.reserved_gross != null && $Object.hasOwnProperty.call(message, "reserved_gross"))
+                    writer.uint32(/* id 25, wireType 2 =*/202).string(message.reserved_gross);
+                if (message.reserved_loss != null && $Object.hasOwnProperty.call(message, "reserved_loss"))
+                    writer.uint32(/* id 26, wireType 2 =*/210).string(message.reserved_loss);
                 if (message.evidence_fields != null && $Object.hasOwnProperty.call(message, "evidence_fields"))
                     for (let keys = $Object.keys(message.evidence_fields), i = 0; i < keys.length; ++i) {
                         writer.uint32(/* id 1000, wireType 2 =*/8002).fork().uint32(/* id 1, wireType 2 =*/10).string(keys[i]);
@@ -7073,6 +7125,20 @@ export const northstar = $root.northstar = (() => {
                             message._available_after_reservations = "available_after_reservations";
                             continue;
                         }
+                    case 25: {
+                            if (wireType !== 2)
+                                break;
+                            message.reserved_gross = reader.stringVerify();
+                            message._reserved_gross = "reserved_gross";
+                            continue;
+                        }
+                    case 26: {
+                            if (wireType !== 2)
+                                break;
+                            message.reserved_loss = reader.stringVerify();
+                            message._reserved_loss = "reserved_loss";
+                            continue;
+                        }
                     case 2046: {
                             if (wireType !== 2)
                                 break;
@@ -7244,6 +7310,16 @@ export const northstar = $root.northstar = (() => {
                     if (!$util.isString(message.available_after_reservations))
                         return "available_after_reservations: string expected";
                 }
+                if (message.reserved_gross != null && $Object.hasOwnProperty.call(message, "reserved_gross")) {
+                    properties._reserved_gross = 1;
+                    if (!$util.isString(message.reserved_gross))
+                        return "reserved_gross: string expected";
+                }
+                if (message.reserved_loss != null && $Object.hasOwnProperty.call(message, "reserved_loss")) {
+                    properties._reserved_loss = 1;
+                    if (!$util.isString(message.reserved_loss))
+                        return "reserved_loss: string expected";
+                }
                 if (message.null_fields != null && $Object.hasOwnProperty.call(message, "null_fields")) {
                     if (!$Array.isArray(message.null_fields))
                         return "null_fields: array expected";
@@ -7360,6 +7436,10 @@ export const northstar = $root.northstar = (() => {
                         message.reserved_close_lots = new $util.LongBits(object.reserved_close_lots.low >>> 0, object.reserved_close_lots.high >>> 0).toNumber();
                 if (object.available_after_reservations != null)
                     message.available_after_reservations = $String(object.available_after_reservations);
+                if (object.reserved_gross != null)
+                    message.reserved_gross = $String(object.reserved_gross);
+                if (object.reserved_loss != null)
+                    message.reserved_loss = $String(object.reserved_loss);
                 if (object.null_fields) {
                     if (!$Array.isArray(object.null_fields))
                         throw $TypeError(".northstar.research.EquityPoint.null_fields: array expected");
@@ -7530,6 +7610,16 @@ export const northstar = $root.northstar = (() => {
                     object.available_after_reservations = message.available_after_reservations;
                     if (options.oneofs)
                         object._available_after_reservations = "available_after_reservations";
+                }
+                if (message.reserved_gross != null && $Object.hasOwnProperty.call(message, "reserved_gross")) {
+                    object.reserved_gross = message.reserved_gross;
+                    if (options.oneofs)
+                        object._reserved_gross = "reserved_gross";
+                }
+                if (message.reserved_loss != null && $Object.hasOwnProperty.call(message, "reserved_loss")) {
+                    object.reserved_loss = message.reserved_loss;
+                    if (options.oneofs)
+                        object._reserved_loss = "reserved_loss";
                 }
                 let keys2;
                 if (message.evidence_fields && (keys2 = $Object.keys(message.evidence_fields)).length) {

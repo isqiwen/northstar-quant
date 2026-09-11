@@ -172,7 +172,7 @@ class DatasetSummary(_message.Message):
     def __init__(self, bar_count: _Optional[int] = ..., content_hash: _Optional[str] = ..., exchange: _Optional[str] = ..., product: _Optional[str] = ..., published_at: _Optional[str] = ..., session_close: _Optional[str] = ..., session_open: _Optional[str] = ..., snapshot_id: _Optional[str] = ..., symbol: _Optional[str] = ..., trading_days: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class EquityPoint(_message.Message):
-    __slots__ = ("at", "equity", "observation_id", "evidence_fields", "close", "cash", "position_lots", "realized_pnl", "unrealized_pnl", "total_fees", "drawdown", "drawdown_fraction", "long_lots", "short_lots", "net_exposure", "gross_exposure", "settlement_pnl", "trade_realized_pnl", "terms_id", "margin_used", "available", "reserved_fee", "reserved_margin", "reserved_close_lots", "available_after_reservations", "null_fields")
+    __slots__ = ("at", "equity", "observation_id", "evidence_fields", "close", "cash", "position_lots", "realized_pnl", "unrealized_pnl", "total_fees", "drawdown", "drawdown_fraction", "long_lots", "short_lots", "net_exposure", "gross_exposure", "settlement_pnl", "trade_realized_pnl", "terms_id", "margin_used", "available", "reserved_fee", "reserved_margin", "reserved_close_lots", "available_after_reservations", "reserved_gross", "reserved_loss", "null_fields")
     class EvidenceFieldsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -205,6 +205,8 @@ class EquityPoint(_message.Message):
     RESERVED_MARGIN_FIELD_NUMBER: _ClassVar[int]
     RESERVED_CLOSE_LOTS_FIELD_NUMBER: _ClassVar[int]
     AVAILABLE_AFTER_RESERVATIONS_FIELD_NUMBER: _ClassVar[int]
+    RESERVED_GROSS_FIELD_NUMBER: _ClassVar[int]
+    RESERVED_LOSS_FIELD_NUMBER: _ClassVar[int]
     NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
     at: str
     equity: str
@@ -231,8 +233,10 @@ class EquityPoint(_message.Message):
     reserved_margin: str
     reserved_close_lots: int
     available_after_reservations: str
+    reserved_gross: str
+    reserved_loss: str
     null_fields: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, at: _Optional[str] = ..., equity: _Optional[str] = ..., observation_id: _Optional[str] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., close: _Optional[str] = ..., cash: _Optional[str] = ..., position_lots: _Optional[int] = ..., realized_pnl: _Optional[str] = ..., unrealized_pnl: _Optional[str] = ..., total_fees: _Optional[str] = ..., drawdown: _Optional[str] = ..., drawdown_fraction: _Optional[str] = ..., long_lots: _Optional[int] = ..., short_lots: _Optional[int] = ..., net_exposure: _Optional[str] = ..., gross_exposure: _Optional[str] = ..., settlement_pnl: _Optional[str] = ..., trade_realized_pnl: _Optional[str] = ..., terms_id: _Optional[str] = ..., margin_used: _Optional[str] = ..., available: _Optional[str] = ..., reserved_fee: _Optional[str] = ..., reserved_margin: _Optional[str] = ..., reserved_close_lots: _Optional[int] = ..., available_after_reservations: _Optional[str] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+    def __init__(self, at: _Optional[str] = ..., equity: _Optional[str] = ..., observation_id: _Optional[str] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., close: _Optional[str] = ..., cash: _Optional[str] = ..., position_lots: _Optional[int] = ..., realized_pnl: _Optional[str] = ..., unrealized_pnl: _Optional[str] = ..., total_fees: _Optional[str] = ..., drawdown: _Optional[str] = ..., drawdown_fraction: _Optional[str] = ..., long_lots: _Optional[int] = ..., short_lots: _Optional[int] = ..., net_exposure: _Optional[str] = ..., gross_exposure: _Optional[str] = ..., settlement_pnl: _Optional[str] = ..., trade_realized_pnl: _Optional[str] = ..., terms_id: _Optional[str] = ..., margin_used: _Optional[str] = ..., available: _Optional[str] = ..., reserved_fee: _Optional[str] = ..., reserved_margin: _Optional[str] = ..., reserved_close_lots: _Optional[int] = ..., available_after_reservations: _Optional[str] = ..., reserved_gross: _Optional[str] = ..., reserved_loss: _Optional[str] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class FactorBinding(_message.Message):
     __slots__ = ("code_revision", "factor_id", "parameters", "revision")

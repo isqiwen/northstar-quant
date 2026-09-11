@@ -3,12 +3,12 @@
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
 from northstar_quant.execution.engine import ExecutionEngine
-from northstar_quant.execution.orders import Offset, PendingOrder, Side, reservation
+from northstar_quant.execution.orders import Offset, OrderBudget, PendingOrder, Side, reservation
 
 
 def test_partial_facts_and_confirmed_cancel_control_the_working_order():
@@ -23,8 +23,13 @@ def test_partial_facts_and_confirmed_cancel_control_the_working_order():
         3,
         Decimal(90),
         Decimal(110),
-        fee_budget_per_lot=Decimal(2),
-        margin_budget_per_lot=Decimal(100),
+        contract_id=UUID(int=1),
+        budget=OrderBudget(
+            Decimal(2),
+            Decimal(100),
+            Decimal(1100),
+            Decimal(0),
+        ),
     )
     engine = ExecutionEngine().record(order.observe(at=at, reason="CONFIRMED_SUBMISSION"))
     partial = order.record_fill(1, at=at + timedelta(seconds=1), reason="CONFIRMED_FILL")
@@ -35,13 +40,16 @@ def test_partial_facts_and_confirmed_cancel_control_the_working_order():
         "reserved_fee": "4",
         "reserved_margin": "200",
         "reserved_close_lots": 0,
+        "reserved_gross": "2200",
+        "reserved_loss": "0",
     }
     desired = replace(order, order_id="order-2", submitted_at=at + timedelta(seconds=2))
-    assert (
-        engine.plan(desired, retained_budget=(Decimal(2), Decimal(100))).retained == engine.pending
-    )
+    assert engine.plan(desired, retained_budget=order.budget).retained == engine.pending
+    different = replace(desired, contract_id=UUID(int=2))
+    plan = engine.plan(different, retained_budget=different.budget)
+    assert plan.retained is None and plan.cancel == engine.pending and plan.submit == different
     desired = replace(desired, minimum_fill_price=Decimal(100))
-    planned = engine.plan(desired, retained_budget=(Decimal(2), Decimal(100)))
+    planned = engine.plan(desired, retained_budget=order.budget)
     assert planned.cancel == engine.pending and planned.submit == desired
     assert reservation(engine.pending)["reserved_margin"] == "200"
     with pytest.raises(ValueError, match="fixed terms"):
@@ -67,11 +75,16 @@ def test_increased_cost_budget_requires_a_new_order_even_with_identical_price_bo
         2,
         Decimal(90),
         Decimal(110),
-        fee_budget_per_lot=Decimal(2),
-        margin_budget_per_lot=Decimal(0),
+        contract_id=UUID(int=1),
+        budget=OrderBudget(
+            Decimal(2),
+            Decimal(0),
+            Decimal(0),
+            Decimal(0),
+        ),
     )
     engine = ExecutionEngine().record(order.observe(at=at, reason="CONFIRMED_SUBMISSION"))
-    candidate = replace(order, order_id="higher-fee", fee_budget_per_lot=Decimal(3))
-    plan = engine.plan(candidate, retained_budget=(Decimal(3), Decimal(0)))
+    candidate = replace(order, order_id="higher-fee", budget=replace(order.budget, fee=Decimal(3)))
+    plan = engine.plan(candidate, retained_budget=candidate.budget)
     assert plan.retained is None and plan.cancel == order and plan.submit == candidate
     assert reservation(engine.pending)["reserved_close_lots"] == 2

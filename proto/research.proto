@@ -123,6 +123,8 @@ message EquityPoint {
   optional string reserved_margin = 22 [json_name = "reserved_margin", (northstar.web.required_field) = true];
   optional int64 reserved_close_lots = 23 [json_name = "reserved_close_lots", (northstar.web.required_field) = true];
   optional string available_after_reservations = 24 [json_name = "available_after_reservations", (northstar.web.nullable) = true];
+  optional string reserved_gross = 25 [json_name = "reserved_gross", (northstar.web.required_field) = true];
+  optional string reserved_loss = 26 [json_name = "reserved_loss", (northstar.web.required_field) = true];
   repeated string null_fields = 2046;
 }
 

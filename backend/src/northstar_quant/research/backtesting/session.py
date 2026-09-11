@@ -14,7 +14,7 @@ from uuid import UUID
 
 from northstar_quant.accounting.amounts import decimal_text
 from northstar_quant.accounting.fifo import Account, AppliedFill, FillFact
-from northstar_quant.accounting.portfolio import PortfolioState, value_single_contract
+from northstar_quant.accounting.portfolio import value_portfolio, value_single_contract
 from northstar_quant.accounting.positions import Position
 from northstar_quant.accounting.settlement import AppliedSettlement, SettlementFact
 from northstar_quant.accounting.terms import FuturesTerms, ordered_terms
@@ -156,7 +156,7 @@ class TradingSession:
     """
 
     # Bump for changed Strategy/Risk/Simulation/Accounting rules or checkpoint format.
-    REVISION = "16"
+    REVISION = "17"
 
     def __init__(
         self,
@@ -388,14 +388,15 @@ class TradingSession:
         intent = signal.intent
         if intent is not None:
             self._last_decision = (intent.observation_id, intent.generated_at)
-            risk = self._risk.evaluate(
+            risk = self._risk.evaluate_portfolio(
                 intent,
-                PortfolioState(
-                    bar.available_at,
-                    equity,
-                    self.account.position(self.market.contract_id).net_lots,
-                    bar.close,
+                value_portfolio(
+                    self.account,
+                    {self.market.contract_id: bar.close},
+                    at=bar.available_at,
+                    terms=None if terms is None else {self.market.contract_id: terms},
                 ),
+                at=bar.available_at,
                 terms=terms,
             )
             decision = {
@@ -432,7 +433,7 @@ class TradingSession:
                 assert risk.side is not None
                 assert risk.minimum_fill_price is not None and risk.maximum_fill_price is not None
                 offset, quantity = plan
-                fee_budget, margin_budget = self._risk.budget(
+                budget = self._risk.budget(
                     side=risk.side,
                     offset=offset,
                     maximum_fill_price=risk.maximum_fill_price,
@@ -448,8 +449,8 @@ class TradingSession:
                     quantity,
                     risk.minimum_fill_price,
                     risk.maximum_fill_price,
-                    fee_budget_per_lot=fee_budget,
-                    margin_budget_per_lot=margin_budget,
+                    contract_id=self.market.contract_id,
+                    budget=budget,
                 )
             retained_budget = None
             if self.pending is not None and desired is not None:
@@ -487,6 +488,7 @@ class TradingSession:
                 - valuation.margin_used
                 - Decimal(str(point["reserved_fee"]))
                 - Decimal(str(point["reserved_margin"]))
+                - Decimal(str(point["reserved_loss"]))
             )
         return TradingStep(point, decision, fill, self.pending, settlements, tuple(orders))
 
@@ -673,6 +675,7 @@ class TradingSession:
         )
         if session.pending is not None and (
             previous is None
+            or session.pending.contract_id != market.contract_id
             or not decisions
             or session._last_decision is None
             or session.pending.submitted_at > session._last_decision[1]
