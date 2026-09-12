@@ -26,7 +26,7 @@ def _empty_restore_database(source: Engine) -> Iterator[Engine]:
     name = "northstar_quant_restore_test_" + uuid4().hex
     quoted = source.dialect.identifier_preparer.quote(name)
     with source.connect().execution_options(isolation_level="AUTOCOMMIT") as connection:
-        connection.exec_driver_sql(f"CREATE DATABASE {quoted}")
+        connection.exec_driver_sql(f"CREATE DATABASE {quoted} TEMPLATE template0 ENCODING 'UTF8'")
     target = create_engine(source.url.set(database=name))
     try:
         yield target

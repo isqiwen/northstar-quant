@@ -319,8 +319,13 @@ def _import_stream(
             quantity_unit=product.quantity_unit,
             price_tick=product.price_tick,
             multiplier=product.contract_multiplier,
-            trading_day=reconstructed.session_open.astimezone(ZoneInfo("Asia/Shanghai")).date(),
-            session_kind="DAY",
+            trading_day=reconstructed.trading_day,
+            session_kind=(
+                "DAY"
+                if reconstructed.session_open.astimezone(ZoneInfo("Asia/Shanghai")).date()
+                == reconstructed.trading_day
+                else "NIGHT"
+            ),
             session_open=reconstructed.session_open,
             session_close=reconstructed.session_close,
             source_name="SIMNOW_CTP",

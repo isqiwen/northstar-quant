@@ -1,4 +1,4 @@
-"""Decode explicit CTP SHFE daytime quotes and their source/receipt clocks."""
+"""Decode CTP SHFE quotes against explicit civil clocks and trading sessions."""
 
 import hashlib
 import json

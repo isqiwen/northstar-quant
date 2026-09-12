@@ -115,7 +115,7 @@ def _bar(item: dict[str, Any]) -> MarketBar:
 
 
 def idle_reason(state: dict[str, Any] | None, *, now: datetime) -> str | None:
-    """Classify absent SHFE DAY input without changing its verified checkpoint.
+    """Classify absent SHFE input against its fixed sessions without changing state.
 
     No accepted quote means no inferred TradingDay or session status. A planned
     break/end requires the previous segment's final five seconds to have been

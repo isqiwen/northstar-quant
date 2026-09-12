@@ -29,7 +29,7 @@ def sample_market(
 
     Source and receipt clocks are explicit. Initial/post-break minutes are partial;
     completion waits for its causal confirmation and never flushes terminal bars.
-    Only one caller-verified SHFE DAY contract is supported in the current sampler.
+    One caller-verified SHFE contract binds declared sessions, or the daytime default.
     """
     if (
         not isinstance(instrument, str)
