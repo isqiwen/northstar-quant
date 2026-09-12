@@ -265,11 +265,14 @@ def test_browser_money_registration_requires_session_csrf_and_saved_inputs_only(
 
 @pytest.mark.parametrize("damage", ["amount", "delta", "status", "authority", "receipt"])
 def test_recovery_recomputes_money_evidence_even_when_projection_hash_is_valid(
-    live_engine: Engine, damage: str
+    live_engine: Engine, damage: str, tmp_path: Path
 ) -> None:
     import hashlib
     import json
 
+    from northstar_quant.live.recovery import verify
+
+    files = SourceFiles(tmp_path / "recovery-files")
     baseline = money_baseline(live_engine)
     funds = BrokerFunds(live_engine)
     first = money_query(live_engine, money={"Commission": "8", "Balance": "99992"})
@@ -277,6 +280,7 @@ def test_recovery_recomputes_money_evidence_even_when_projection_hash_is_valid(
     source = money_query(live_engine, money={"Commission": "3", "Balance": "99997"})
     command = uuid4()
     entry = funds.observe(baseline, source, request_id=command)
+    verify(live_engine, files)
     assert entry["status"] == "UNKNOWN"
     assert "CUMULATIVE_COMMISSION_ADJUSTMENT_UNRESOLVED" in entry["problems"]
     if damage == "amount":
@@ -306,6 +310,7 @@ def test_recovery_recomputes_money_evidence_even_when_projection_hash_is_valid(
         lambda: restarted.context(source),
         lambda: restarted.observe(baseline, source, request_id=command),
         restarted.verify_all,
+        lambda: verify(live_engine, files),
     ):
         with pytest.raises(ValueError, match="projection differs"):
             operation()
