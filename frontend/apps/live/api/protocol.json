@@ -1005,6 +1005,78 @@
       "array": false,
       "evidence": false
     },
+    "northstar.live.BrokerAccountProjection": {
+      "fields": {
+        "status": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "through_entry_id": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "realized_pnl_before_fees": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": false,
+          "nullable": false
+        },
+        "cash": {
+          "id": 4,
+          "presence": true,
+          "type": "string",
+          "required": false,
+          "nullable": true
+        },
+        "total_fees": {
+          "id": 5,
+          "presence": true,
+          "type": "string",
+          "required": false,
+          "nullable": true
+        },
+        "pending_fee_fill_ids": {
+          "id": 6,
+          "presence": false,
+          "type": "string",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        },
+        "fill_count": {
+          "id": 7,
+          "presence": true,
+          "type": "int64",
+          "required": false,
+          "nullable": false
+        },
+        "evidence_fields": {
+          "id": 1000,
+          "presence": false,
+          "type": "google.protobuf.Value",
+          "required": false,
+          "nullable": false,
+          "keyType": "string"
+        },
+        "null_fields": {
+          "id": 2046,
+          "presence": false,
+          "type": "string",
+          "required": false,
+          "nullable": false,
+          "rule": "repeated"
+        }
+      },
+      "array": false,
+      "evidence": true
+    },
     "northstar.live.LedgerContext": {
       "fields": {
         "baseline": {
@@ -1036,6 +1108,13 @@
           "required": false,
           "nullable": false,
           "rule": "repeated"
+        },
+        "accounting_projection": {
+          "id": 5,
+          "presence": true,
+          "type": "northstar.live.BrokerAccountProjection",
+          "required": false,
+          "nullable": true
         },
         "evidence_fields": {
           "id": 1000,

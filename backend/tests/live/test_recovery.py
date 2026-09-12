@@ -569,3 +569,44 @@ def test_rehashed_query_projection_cannot_replace_original_callbacks(live_engine
         )
     with pytest.raises(ValueError, match="projection differs from its retained callbacks"):
         BrokerRecords(live_engine).get(identifier)
+
+
+def test_broker_context_uses_shared_fifo_without_inventing_fees_or_cash(live_engine):
+    baseline = position_baseline(live_engine)
+    source = ledger_query(
+        live_engine,
+        trades=(
+            trade("OPEN", Price="3100", Volume=2),
+            trade(
+                "CLOSE", Price="3110", Volume=1, Direction="1", OffsetFlag="3", TradeTime="09:31:00"
+            ),
+            trade("SHORT", Price="3120", Volume=3, Direction="1", TradeTime="09:32:00"),
+        ),
+    )
+    ledger, identifier = BrokerLedger(live_engine), uuid4()
+    fixed = ledger.ingest(baseline, source, request_id=identifier)
+    result = ledger.context(source)["accounting_projection"]
+    assert result["realized_pnl_before_fees"] == "100"
+    assert result["status"] == "INCOMPLETE" and result["cash"] is None
+    assert result["total_fees"] is None and len(result["pending_fee_fill_ids"]) == 3
+    assert result["fill_count"] == 3 and result["execution"]["order_sending"] is False
+    assert BrokerLedger(live_engine).context(source)["accounting_projection"] == result
+    assert ledger.get(identifier) == fixed
+    assert all(fill["fee"] is None for fill in fixed["added_fills"])
+
+
+def test_broker_fill_prices_remain_exact_even_outside_expected_tick(live_engine):
+    baseline = position_baseline(live_engine)
+    source = ledger_query(
+        live_engine,
+        trades=(
+            trade("OPEN", Price="3100.1"),
+            trade("CLOSE", Price="3110.2", Direction="1", OffsetFlag="3", TradeTime="09:31:00"),
+        ),
+    )
+    ledger, identifier = BrokerLedger(live_engine), uuid4()
+    ledger.ingest(baseline, source, request_id=identifier)
+    result = ledger.context(source)["accounting_projection"]
+    assert result["realized_pnl_before_fees"] == "202"
+    assert result["status"] == "INCOMPLETE" and result["cash"] is None
+    assert ledger.get(identifier)["added_fills"][0]["price"] == "3100.1"

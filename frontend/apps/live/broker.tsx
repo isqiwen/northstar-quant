@@ -73,6 +73,7 @@ export function BrokerDetail() {
   const ledger = useData(query(`/api/broker/queries/${id}/ledger-context`));
   const funds = useData(query(`/api/broker/queries/${id}/funds-context`));
   const base = baseline.data?.baseline?.baseline_id;
+  const accounting = ledger.data?.accounting_projection;
   const refresh = () => {
     baseline.refresh();
     ledger.refresh();
@@ -171,6 +172,31 @@ export function BrokerDetail() {
                   ]}
                   onDone={refresh}
                 />
+                {accounting && (
+                  <Card title="已确认成交的账户计价">
+                    <p>
+                      与研究共用 FIFO
+                      规则。费用、资金流与结算未完整核对，不提供可交易余额。
+                    </p>
+                    <Fields
+                      value={{
+                        计价状态:
+                          accounting.status === "INCOMPLETE"
+                            ? "待完整核对"
+                            : "暂不可计价",
+                        费用前已实现盈亏:
+                          accounting.realized_pnl_before_fees ?? "未知",
+                        总费用: accounting.total_fees ?? "未知",
+                        可交易余额: "未核定",
+                        已确认成交笔数: accounting.fill_count ?? "未知",
+                        待确认费用成交笔数:
+                          accounting.status === "INCOMPLETE"
+                            ? (accounting.pending_fee_fill_ids?.length ?? 0)
+                            : "未知",
+                      }}
+                    />
+                  </Card>
+                )}
                 <Evidence value={ledger.data} />
               </>
             ),

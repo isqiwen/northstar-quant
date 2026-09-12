@@ -12578,6 +12578,681 @@ export const northstar = $root.northstar = (() => {
             return ImportSpecification;
         })();
 
+        live.BrokerAccountProjection = (function() {
+
+            /**
+             * Properties of a BrokerAccountProjection.
+             * @typedef {Object} northstar.live.BrokerAccountProjection.$Properties
+             * @property {string|null} [status] BrokerAccountProjection status
+             * @property {string|null} [through_entry_id] BrokerAccountProjection through_entry_id
+             * @property {string|null} [realized_pnl_before_fees] BrokerAccountProjection realized_pnl_before_fees
+             * @property {string|null} [cash] BrokerAccountProjection cash
+             * @property {string|null} [total_fees] BrokerAccountProjection total_fees
+             * @property {Array.<string>|null} [pending_fee_fill_ids] BrokerAccountProjection pending_fee_fill_ids
+             * @property {number|Long|null} [fill_count] BrokerAccountProjection fill_count
+             * @property {Object.<string,google.protobuf.Value.$Properties>|null} [evidence_fields] BrokerAccountProjection evidence_fields
+             * @property {Array.<string>|null} [null_fields] BrokerAccountProjection null_fields
+             * @property {"status"} [_status] BrokerAccountProjection _status
+             * @property {"through_entry_id"} [_through_entry_id] BrokerAccountProjection _through_entry_id
+             * @property {"realized_pnl_before_fees"} [_realized_pnl_before_fees] BrokerAccountProjection _realized_pnl_before_fees
+             * @property {"cash"} [_cash] BrokerAccountProjection _cash
+             * @property {"total_fees"} [_total_fees] BrokerAccountProjection _total_fees
+             * @property {"fill_count"} [_fill_count] BrokerAccountProjection _fill_count
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a BrokerAccountProjection.
+             * @memberof northstar.live
+             * @interface IBrokerAccountProjection
+             * @augments northstar.live.BrokerAccountProjection.$Properties
+             * @deprecated Use northstar.live.BrokerAccountProjection.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a BrokerAccountProjection.
+             * @typedef {{
+             *   status?: string|null;
+             *   through_entry_id?: string|null;
+             *   realized_pnl_before_fees?: string|null;
+             *   cash?: string|null;
+             *   total_fees?: string|null;
+             *   pending_fee_fill_ids?: Array.<string>|null;
+             *   fill_count?: number|Long|null;
+             *   evidence_fields?: Object.<string,google.protobuf.Value.$Shape>|null;
+             *   null_fields?: Array.<string>|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _status?: undefined; status?: null }|{ _status?: "status"; status: string })
+             * ) & (
+             *   ({ _through_entry_id?: undefined; through_entry_id?: null }|{ _through_entry_id?: "through_entry_id"; through_entry_id: string })
+             * ) & (
+             *   ({ _realized_pnl_before_fees?: undefined; realized_pnl_before_fees?: null }|{ _realized_pnl_before_fees?: "realized_pnl_before_fees"; realized_pnl_before_fees: string })
+             * ) & (
+             *   ({ _cash?: undefined; cash?: null }|{ _cash?: "cash"; cash: string })
+             * ) & (
+             *   ({ _total_fees?: undefined; total_fees?: null }|{ _total_fees?: "total_fees"; total_fees: string })
+             * ) & (
+             *   ({ _fill_count?: undefined; fill_count?: null }|{ _fill_count?: "fill_count"; fill_count: number|Long })
+             * )} northstar.live.BrokerAccountProjection.$Shape
+             */
+
+            /**
+             * Constructs a new BrokerAccountProjection.
+             * @memberof northstar.live
+             * @classdesc Represents a BrokerAccountProjection.
+             * @constructor
+             * @param {northstar.live.BrokerAccountProjection.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const BrokerAccountProjection = function (properties) {
+                this.pending_fee_fill_ids = [];
+                this.evidence_fields = {};
+                this.null_fields = [];
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * BrokerAccountProjection status.
+             * @member {string|null|undefined} status
+             * @memberof northstar.live.BrokerAccountProjection
+             * @instance
+             */
+            BrokerAccountProjection.prototype.status = null;
+
+            /**
+             * BrokerAccountProjection through_entry_id.
+             * @member {string|null|undefined} through_entry_id
+             * @memberof northstar.live.BrokerAccountProjection
+             * @instance
+             */
+            BrokerAccountProjection.prototype.through_entry_id = null;
+
+            /**
+             * BrokerAccountProjection realized_pnl_before_fees.
+             * @member {string|null|undefined} realized_pnl_before_fees
+             * @memberof northstar.live.BrokerAccountProjection
+             * @instance
+             */
+            BrokerAccountProjection.prototype.realized_pnl_before_fees = null;
+
+            /**
+             * BrokerAccountProjection cash.
+             * @member {string|null|undefined} cash
+             * @memberof northstar.live.BrokerAccountProjection
+             * @instance
+             */
+            BrokerAccountProjection.prototype.cash = null;
+
+            /**
+             * BrokerAccountProjection total_fees.
+             * @member {string|null|undefined} total_fees
+             * @memberof northstar.live.BrokerAccountProjection
+             * @instance
+             */
+            BrokerAccountProjection.prototype.total_fees = null;
+
+            /**
+             * BrokerAccountProjection pending_fee_fill_ids.
+             * @member {Array.<string>} pending_fee_fill_ids
+             * @memberof northstar.live.BrokerAccountProjection
+             * @instance
+             */
+            BrokerAccountProjection.prototype.pending_fee_fill_ids = $util.emptyArray;
+
+            /**
+             * BrokerAccountProjection fill_count.
+             * @member {number|Long|null|undefined} fill_count
+             * @memberof northstar.live.BrokerAccountProjection
+             * @instance
+             */
+            BrokerAccountProjection.prototype.fill_count = null;
+
+            /**
+             * BrokerAccountProjection evidence_fields.
+             * @member {Object.<string,google.protobuf.Value.$Properties>} evidence_fields
+             * @memberof northstar.live.BrokerAccountProjection
+             * @instance
+             */
+            BrokerAccountProjection.prototype.evidence_fields = $util.emptyObject;
+
+            /**
+             * BrokerAccountProjection null_fields.
+             * @member {Array.<string>} null_fields
+             * @memberof northstar.live.BrokerAccountProjection
+             * @instance
+             */
+            BrokerAccountProjection.prototype.null_fields = $util.emptyArray;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * BrokerAccountProjection _status.
+             * @member {"status"|undefined} _status
+             * @memberof northstar.live.BrokerAccountProjection
+             * @instance
+             */
+            $Object.defineProperty(BrokerAccountProjection.prototype, "_status", {
+                get: $util.oneOfGetter($oneOfFields = ["status"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * BrokerAccountProjection _through_entry_id.
+             * @member {"through_entry_id"|undefined} _through_entry_id
+             * @memberof northstar.live.BrokerAccountProjection
+             * @instance
+             */
+            $Object.defineProperty(BrokerAccountProjection.prototype, "_through_entry_id", {
+                get: $util.oneOfGetter($oneOfFields = ["through_entry_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * BrokerAccountProjection _realized_pnl_before_fees.
+             * @member {"realized_pnl_before_fees"|undefined} _realized_pnl_before_fees
+             * @memberof northstar.live.BrokerAccountProjection
+             * @instance
+             */
+            $Object.defineProperty(BrokerAccountProjection.prototype, "_realized_pnl_before_fees", {
+                get: $util.oneOfGetter($oneOfFields = ["realized_pnl_before_fees"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * BrokerAccountProjection _cash.
+             * @member {"cash"|undefined} _cash
+             * @memberof northstar.live.BrokerAccountProjection
+             * @instance
+             */
+            $Object.defineProperty(BrokerAccountProjection.prototype, "_cash", {
+                get: $util.oneOfGetter($oneOfFields = ["cash"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * BrokerAccountProjection _total_fees.
+             * @member {"total_fees"|undefined} _total_fees
+             * @memberof northstar.live.BrokerAccountProjection
+             * @instance
+             */
+            $Object.defineProperty(BrokerAccountProjection.prototype, "_total_fees", {
+                get: $util.oneOfGetter($oneOfFields = ["total_fees"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * BrokerAccountProjection _fill_count.
+             * @member {"fill_count"|undefined} _fill_count
+             * @memberof northstar.live.BrokerAccountProjection
+             * @instance
+             */
+            $Object.defineProperty(BrokerAccountProjection.prototype, "_fill_count", {
+                get: $util.oneOfGetter($oneOfFields = ["fill_count"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new BrokerAccountProjection instance using the specified properties.
+             * @function create
+             * @memberof northstar.live.BrokerAccountProjection
+             * @static
+             * @param {northstar.live.BrokerAccountProjection.$Properties=} [properties] Properties to set
+             * @returns {northstar.live.BrokerAccountProjection} BrokerAccountProjection instance
+             * @type {{
+             *   (properties: northstar.live.BrokerAccountProjection.$Shape): northstar.live.BrokerAccountProjection & northstar.live.BrokerAccountProjection.$Shape;
+             *   (properties?: northstar.live.BrokerAccountProjection.$Properties): northstar.live.BrokerAccountProjection;
+             * }}
+             */
+            BrokerAccountProjection.create = function(properties) {
+                return new BrokerAccountProjection(properties);
+            };
+
+            /**
+             * Encodes the specified BrokerAccountProjection message. Does not implicitly {@link northstar.live.BrokerAccountProjection.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.live.BrokerAccountProjection
+             * @static
+             * @param {northstar.live.BrokerAccountProjection.$Properties} message BrokerAccountProjection message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            BrokerAccountProjection.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.status != null && $Object.hasOwnProperty.call(message, "status"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.status);
+                if (message.through_entry_id != null && $Object.hasOwnProperty.call(message, "through_entry_id"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.through_entry_id);
+                if (message.realized_pnl_before_fees != null && $Object.hasOwnProperty.call(message, "realized_pnl_before_fees"))
+                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.realized_pnl_before_fees);
+                if (message.cash != null && $Object.hasOwnProperty.call(message, "cash"))
+                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.cash);
+                if (message.total_fees != null && $Object.hasOwnProperty.call(message, "total_fees"))
+                    writer.uint32(/* id 5, wireType 2 =*/42).string(message.total_fees);
+                if (message.pending_fee_fill_ids != null && message.pending_fee_fill_ids.length)
+                    for (let i = 0; i < message.pending_fee_fill_ids.length; ++i)
+                        writer.uint32(/* id 6, wireType 2 =*/50).string(message.pending_fee_fill_ids[i]);
+                if (message.fill_count != null && $Object.hasOwnProperty.call(message, "fill_count"))
+                    writer.uint32(/* id 7, wireType 0 =*/56).int64(message.fill_count);
+                if (message.evidence_fields != null && $Object.hasOwnProperty.call(message, "evidence_fields"))
+                    for (let keys = $Object.keys(message.evidence_fields), i = 0; i < keys.length; ++i) {
+                        writer.uint32(/* id 1000, wireType 2 =*/8002).fork().uint32(/* id 1, wireType 2 =*/10).string(keys[i]);
+                        $root.google.protobuf.Value.encode(message.evidence_fields[keys[i]], writer.uint32(/* id 2, wireType 2 =*/18).fork(), _depth + 1).ldelim().ldelim();
+                    }
+                if (message.null_fields != null && message.null_fields.length)
+                    for (let i = 0; i < message.null_fields.length; ++i)
+                        writer.uint32(/* id 2046, wireType 2 =*/16370).string(message.null_fields[i]);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a BrokerAccountProjection message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.live.BrokerAccountProjection
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.live.BrokerAccountProjection & northstar.live.BrokerAccountProjection.$Shape} BrokerAccountProjection
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            BrokerAccountProjection.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message, key, value;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.live.BrokerAccountProjection();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.status = reader.stringVerify();
+                            message._status = "status";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.through_entry_id = reader.stringVerify();
+                            message._through_entry_id = "through_entry_id";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 2)
+                                break;
+                            message.realized_pnl_before_fees = reader.stringVerify();
+                            message._realized_pnl_before_fees = "realized_pnl_before_fees";
+                            continue;
+                        }
+                    case 4: {
+                            if (wireType !== 2)
+                                break;
+                            message.cash = reader.stringVerify();
+                            message._cash = "cash";
+                            continue;
+                        }
+                    case 5: {
+                            if (wireType !== 2)
+                                break;
+                            message.total_fees = reader.stringVerify();
+                            message._total_fees = "total_fees";
+                            continue;
+                        }
+                    case 6: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.pending_fee_fill_ids && message.pending_fee_fill_ids.length))
+                                message.pending_fee_fill_ids = [];
+                            message.pending_fee_fill_ids.push(reader.stringVerify());
+                            continue;
+                        }
+                    case 7: {
+                            if (wireType !== 0)
+                                break;
+                            message.fill_count = reader.int64();
+                            message._fill_count = "fill_count";
+                            continue;
+                        }
+                    case 1000: {
+                            if (wireType !== 2)
+                                break;
+                            if (message.evidence_fields === $util.emptyObject)
+                                message.evidence_fields = {};
+                            let end2 = reader.uint32() + reader.pos;
+                            if (end2 > reader.len)
+                                throw $RangeError("index out of range");
+                            reader.len = end2;
+                            key = "";
+                            value = null;
+                            while (reader.pos < end2) {
+                                let tag2 = reader.tag();
+                                wireType = tag2 & 7;
+                                switch (tag2 >>>= 3) {
+                                case 1:
+                                    if (wireType !== 2)
+                                        break;
+                                    key = reader.stringVerify();
+                                    continue;
+                                case 2:
+                                    if (wireType !== 2)
+                                        break;
+                                    value = $root.google.protobuf.Value.decode(reader, reader.uint32(), $undefined, _depth + 1, value);
+                                    continue;
+                                }
+                                reader.skipType(wireType, _depth, tag2);
+                            }
+                            if (reader.pos !== end2)
+                                throw $RangeError("index out of range");
+                            reader.len = end;
+                            if (key === "__proto__")
+                                $util.makeProp(message.evidence_fields, key);
+                            message.evidence_fields[key] = value || new $root.google.protobuf.Value();
+                            continue;
+                        }
+                    case 2046: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.null_fields && message.null_fields.length))
+                                message.null_fields = [];
+                            message.null_fields.push(reader.stringVerify());
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a BrokerAccountProjection message.
+             * @function verify
+             * @memberof northstar.live.BrokerAccountProjection
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            BrokerAccountProjection.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.status != null && $Object.hasOwnProperty.call(message, "status")) {
+                    properties._status = 1;
+                    if (!$util.isString(message.status))
+                        return "status: string expected";
+                }
+                if (message.through_entry_id != null && $Object.hasOwnProperty.call(message, "through_entry_id")) {
+                    properties._through_entry_id = 1;
+                    if (!$util.isString(message.through_entry_id))
+                        return "through_entry_id: string expected";
+                }
+                if (message.realized_pnl_before_fees != null && $Object.hasOwnProperty.call(message, "realized_pnl_before_fees")) {
+                    properties._realized_pnl_before_fees = 1;
+                    if (!$util.isString(message.realized_pnl_before_fees))
+                        return "realized_pnl_before_fees: string expected";
+                }
+                if (message.cash != null && $Object.hasOwnProperty.call(message, "cash")) {
+                    properties._cash = 1;
+                    if (!$util.isString(message.cash))
+                        return "cash: string expected";
+                }
+                if (message.total_fees != null && $Object.hasOwnProperty.call(message, "total_fees")) {
+                    properties._total_fees = 1;
+                    if (!$util.isString(message.total_fees))
+                        return "total_fees: string expected";
+                }
+                if (message.pending_fee_fill_ids != null && $Object.hasOwnProperty.call(message, "pending_fee_fill_ids")) {
+                    if (!$Array.isArray(message.pending_fee_fill_ids))
+                        return "pending_fee_fill_ids: array expected";
+                    for (let i = 0; i < message.pending_fee_fill_ids.length; ++i)
+                        if (!$util.isString(message.pending_fee_fill_ids[i]))
+                            return "pending_fee_fill_ids: string[] expected";
+                }
+                if (message.fill_count != null && $Object.hasOwnProperty.call(message, "fill_count")) {
+                    properties._fill_count = 1;
+                    if (!$util.isInteger(message.fill_count) && !(message.fill_count && $util.isInteger(message.fill_count.low) && $util.isInteger(message.fill_count.high)))
+                        return "fill_count: integer|Long expected";
+                }
+                if (message.evidence_fields != null && $Object.hasOwnProperty.call(message, "evidence_fields")) {
+                    if (!$util.isObject(message.evidence_fields))
+                        return "evidence_fields: object expected";
+                    let key = $Object.keys(message.evidence_fields);
+                    for (let i = 0; i < key.length; ++i) {
+                        let error = $root.google.protobuf.Value.verify(message.evidence_fields[key[i]], _depth + 1);
+                        if (error)
+                            return "evidence_fields." + error;
+                    }
+                }
+                if (message.null_fields != null && $Object.hasOwnProperty.call(message, "null_fields")) {
+                    if (!$Array.isArray(message.null_fields))
+                        return "null_fields: array expected";
+                    for (let i = 0; i < message.null_fields.length; ++i)
+                        if (!$util.isString(message.null_fields[i]))
+                            return "null_fields: string[] expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a BrokerAccountProjection message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.live.BrokerAccountProjection
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.live.BrokerAccountProjection} BrokerAccountProjection
+             */
+            BrokerAccountProjection.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.live.BrokerAccountProjection)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.live.BrokerAccountProjection: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.live.BrokerAccountProjection();
+                if (object.status != null)
+                    message.status = $String(object.status);
+                if (object.through_entry_id != null)
+                    message.through_entry_id = $String(object.through_entry_id);
+                if (object.realized_pnl_before_fees != null)
+                    message.realized_pnl_before_fees = $String(object.realized_pnl_before_fees);
+                if (object.cash != null)
+                    message.cash = $String(object.cash);
+                if (object.total_fees != null)
+                    message.total_fees = $String(object.total_fees);
+                if (object.pending_fee_fill_ids) {
+                    if (!$Array.isArray(object.pending_fee_fill_ids))
+                        throw $TypeError(".northstar.live.BrokerAccountProjection.pending_fee_fill_ids: array expected");
+                    message.pending_fee_fill_ids = $Array(object.pending_fee_fill_ids.length);
+                    for (let i = 0; i < object.pending_fee_fill_ids.length; ++i)
+                        message.pending_fee_fill_ids[i] = $String(object.pending_fee_fill_ids[i]);
+                }
+                if (object.fill_count != null)
+                    if ($util.Long)
+                        message.fill_count = $util.Long.fromValue(object.fill_count, false);
+                    else if (typeof object.fill_count === "string")
+                        message.fill_count = $parseInt(object.fill_count, 10);
+                    else if (typeof object.fill_count === "number")
+                        message.fill_count = object.fill_count;
+                    else if (typeof object.fill_count === "object")
+                        message.fill_count = new $util.LongBits(object.fill_count.low >>> 0, object.fill_count.high >>> 0).toNumber();
+                if (object.evidence_fields) {
+                    if (!$util.isObject(object.evidence_fields))
+                        throw $TypeError(".northstar.live.BrokerAccountProjection.evidence_fields: object expected");
+                    message.evidence_fields = {};
+                    for (let keys = $Object.keys(object.evidence_fields), i = 0; i < keys.length; ++i) {
+                        if (keys[i] === "__proto__")
+                            $util.makeProp(message.evidence_fields, keys[i]);
+                        if (!$util.isObject(object.evidence_fields[keys[i]]))
+                            throw $TypeError(".northstar.live.BrokerAccountProjection.evidence_fields: object expected");
+                        message.evidence_fields[keys[i]] = $root.google.protobuf.Value.fromObject(object.evidence_fields[keys[i]], _depth + 1);
+                    }
+                }
+                if (object.null_fields) {
+                    if (!$Array.isArray(object.null_fields))
+                        throw $TypeError(".northstar.live.BrokerAccountProjection.null_fields: array expected");
+                    message.null_fields = $Array(object.null_fields.length);
+                    for (let i = 0; i < object.null_fields.length; ++i)
+                        message.null_fields[i] = $String(object.null_fields[i]);
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a BrokerAccountProjection message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.live.BrokerAccountProjection
+             * @static
+             * @param {northstar.live.BrokerAccountProjection} message BrokerAccountProjection
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            BrokerAccountProjection.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.arrays || options.defaults) {
+                    object.pending_fee_fill_ids = [];
+                    object.null_fields = [];
+                }
+                if (options.objects || options.defaults)
+                    object.evidence_fields = {};
+                if (message.status != null && $Object.hasOwnProperty.call(message, "status")) {
+                    object.status = message.status;
+                    if (options.oneofs)
+                        object._status = "status";
+                }
+                if (message.through_entry_id != null && $Object.hasOwnProperty.call(message, "through_entry_id")) {
+                    object.through_entry_id = message.through_entry_id;
+                    if (options.oneofs)
+                        object._through_entry_id = "through_entry_id";
+                }
+                if (message.realized_pnl_before_fees != null && $Object.hasOwnProperty.call(message, "realized_pnl_before_fees")) {
+                    object.realized_pnl_before_fees = message.realized_pnl_before_fees;
+                    if (options.oneofs)
+                        object._realized_pnl_before_fees = "realized_pnl_before_fees";
+                }
+                if (message.cash != null && $Object.hasOwnProperty.call(message, "cash")) {
+                    object.cash = message.cash;
+                    if (options.oneofs)
+                        object._cash = "cash";
+                }
+                if (message.total_fees != null && $Object.hasOwnProperty.call(message, "total_fees")) {
+                    object.total_fees = message.total_fees;
+                    if (options.oneofs)
+                        object._total_fees = "total_fees";
+                }
+                if (message.pending_fee_fill_ids && message.pending_fee_fill_ids.length) {
+                    object.pending_fee_fill_ids = $Array(message.pending_fee_fill_ids.length);
+                    for (let j = 0; j < message.pending_fee_fill_ids.length; ++j)
+                        object.pending_fee_fill_ids[j] = message.pending_fee_fill_ids[j];
+                }
+                if (message.fill_count != null && $Object.hasOwnProperty.call(message, "fill_count")) {
+                    if (typeof $BigInt !== "undefined" && options.longs === $BigInt)
+                        object.fill_count = typeof message.fill_count === "number" ? $BigInt(message.fill_count) : $util.Long.fromBits(message.fill_count.low >>> 0, message.fill_count.high >>> 0, false).toBigInt();
+                    else if (typeof message.fill_count === "number")
+                        object.fill_count = options.longs === $String ? $String(message.fill_count) : message.fill_count;
+                    else
+                        object.fill_count = options.longs === $String ? $util.Long.prototype.toString.call(message.fill_count) : options.longs === $Number ? new $util.LongBits(message.fill_count.low >>> 0, message.fill_count.high >>> 0).toNumber() : message.fill_count;
+                    if (options.oneofs)
+                        object._fill_count = "fill_count";
+                }
+                let keys2;
+                if (message.evidence_fields && (keys2 = $Object.keys(message.evidence_fields)).length) {
+                    object.evidence_fields = {};
+                    for (let j = 0; j < keys2.length; ++j) {
+                        if (keys2[j] === "__proto__")
+                            $util.makeProp(object.evidence_fields, keys2[j]);
+                        object.evidence_fields[keys2[j]] = $root.google.protobuf.Value.toObject(message.evidence_fields[keys2[j]], options, _depth + 1);
+                    }
+                }
+                if (message.null_fields && message.null_fields.length) {
+                    object.null_fields = $Array(message.null_fields.length);
+                    for (let j = 0; j < message.null_fields.length; ++j)
+                        object.null_fields[j] = message.null_fields[j];
+                }
+                return object;
+            };
+
+            /**
+             * Converts this BrokerAccountProjection to JSON.
+             * @function toJSON
+             * @memberof northstar.live.BrokerAccountProjection
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            BrokerAccountProjection.prototype.toJSON = function() {
+                return BrokerAccountProjection.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for BrokerAccountProjection
+             * @function getTypeUrl
+             * @memberof northstar.live.BrokerAccountProjection
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            BrokerAccountProjection.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.live.BrokerAccountProjection";
+            };
+
+            return BrokerAccountProjection;
+        })();
+
         live.LedgerContext = (function() {
 
             /**
@@ -12587,10 +13262,12 @@ export const northstar = $root.northstar = (() => {
              * @property {string|null} [baseline_id] LedgerContext baseline_id
              * @property {Array.<northstar.live.CheckRecord.$Properties>|null} [checks] LedgerContext checks
              * @property {Array.<northstar.live.PositionEntry.$Properties>|null} [entries] LedgerContext entries
+             * @property {northstar.live.BrokerAccountProjection.$Properties|null} [accounting_projection] LedgerContext accounting_projection
              * @property {Object.<string,google.protobuf.Value.$Properties>|null} [evidence_fields] LedgerContext evidence_fields
              * @property {Array.<string>|null} [null_fields] LedgerContext null_fields
              * @property {"baseline"} [_baseline] LedgerContext _baseline
              * @property {"baseline_id"} [_baseline_id] LedgerContext _baseline_id
+             * @property {"accounting_projection"} [_accounting_projection] LedgerContext _accounting_projection
              * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
              */
 
@@ -12609,6 +13286,7 @@ export const northstar = $root.northstar = (() => {
              *   baseline_id?: string|null;
              *   checks?: Array.<northstar.live.CheckRecord.$Shape>|null;
              *   entries?: Array.<northstar.live.PositionEntry.$Shape>|null;
+             *   accounting_projection?: northstar.live.BrokerAccountProjection.$Shape|null;
              *   evidence_fields?: Object.<string,google.protobuf.Value.$Shape>|null;
              *   null_fields?: Array.<string>|null;
              *   $unknowns?: Array.<Uint8Array>;
@@ -12616,6 +13294,8 @@ export const northstar = $root.northstar = (() => {
              *   ({ _baseline?: undefined; baseline?: null }|{ _baseline?: "baseline"; baseline: northstar.live.BaselineRecord.$Shape })
              * ) & (
              *   ({ _baseline_id?: undefined; baseline_id?: null }|{ _baseline_id?: "baseline_id"; baseline_id: string })
+             * ) & (
+             *   ({ _accounting_projection?: undefined; accounting_projection?: null }|{ _accounting_projection?: "accounting_projection"; accounting_projection: northstar.live.BrokerAccountProjection.$Shape })
              * )} northstar.live.LedgerContext.$Shape
              */
 
@@ -12671,6 +13351,14 @@ export const northstar = $root.northstar = (() => {
             LedgerContext.prototype.entries = $util.emptyArray;
 
             /**
+             * LedgerContext accounting_projection.
+             * @member {northstar.live.BrokerAccountProjection.$Properties|null|undefined} accounting_projection
+             * @memberof northstar.live.LedgerContext
+             * @instance
+             */
+            LedgerContext.prototype.accounting_projection = null;
+
+            /**
              * LedgerContext evidence_fields.
              * @member {Object.<string,google.protobuf.Value.$Properties>} evidence_fields
              * @memberof northstar.live.LedgerContext
@@ -12708,6 +13396,17 @@ export const northstar = $root.northstar = (() => {
              */
             $Object.defineProperty(LedgerContext.prototype, "_baseline_id", {
                 get: $util.oneOfGetter($oneOfFields = ["baseline_id"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * LedgerContext _accounting_projection.
+             * @member {"accounting_projection"|undefined} _accounting_projection
+             * @memberof northstar.live.LedgerContext
+             * @instance
+             */
+            $Object.defineProperty(LedgerContext.prototype, "_accounting_projection", {
+                get: $util.oneOfGetter($oneOfFields = ["accounting_projection"]),
                 set: $util.oneOfSetter($oneOfFields)
             });
 
@@ -12753,6 +13452,8 @@ export const northstar = $root.northstar = (() => {
                 if (message.entries != null && message.entries.length)
                     for (let i = 0; i < message.entries.length; ++i)
                         $root.northstar.live.PositionEntry.encode(message.entries[i], writer.uint32(/* id 4, wireType 2 =*/34).fork(), _depth + 1).ldelim();
+                if (message.accounting_projection != null && $Object.hasOwnProperty.call(message, "accounting_projection"))
+                    $root.northstar.live.BrokerAccountProjection.encode(message.accounting_projection, writer.uint32(/* id 5, wireType 2 =*/42).fork(), _depth + 1).ldelim();
                 if (message.evidence_fields != null && $Object.hasOwnProperty.call(message, "evidence_fields"))
                     for (let keys = $Object.keys(message.evidence_fields), i = 0; i < keys.length; ++i) {
                         writer.uint32(/* id 1000, wireType 2 =*/8002).fork().uint32(/* id 1, wireType 2 =*/10).string(keys[i]);
@@ -12833,6 +13534,13 @@ export const northstar = $root.northstar = (() => {
                             if (!(message.entries && message.entries.length))
                                 message.entries = [];
                             message.entries.push($root.northstar.live.PositionEntry.decode(reader, reader.uint32(), $undefined, _depth + 1));
+                            continue;
+                        }
+                    case 5: {
+                            if (wireType !== 2)
+                                break;
+                            message.accounting_projection = $root.northstar.live.BrokerAccountProjection.decode(reader, reader.uint32(), $undefined, _depth + 1, message.accounting_projection);
+                            message._accounting_projection = "accounting_projection";
                             continue;
                         }
                     case 1000: {
@@ -12943,6 +13651,14 @@ export const northstar = $root.northstar = (() => {
                             return "entries." + error;
                     }
                 }
+                if (message.accounting_projection != null && $Object.hasOwnProperty.call(message, "accounting_projection")) {
+                    properties._accounting_projection = 1;
+                    {
+                        let error = $root.northstar.live.BrokerAccountProjection.verify(message.accounting_projection, _depth + 1);
+                        if (error)
+                            return "accounting_projection." + error;
+                    }
+                }
                 if (message.evidence_fields != null && $Object.hasOwnProperty.call(message, "evidence_fields")) {
                     if (!$util.isObject(message.evidence_fields))
                         return "evidence_fields: object expected";
@@ -13007,6 +13723,11 @@ export const northstar = $root.northstar = (() => {
                             throw $TypeError(".northstar.live.LedgerContext.entries: object expected");
                         message.entries[i] = $root.northstar.live.PositionEntry.fromObject(object.entries[i], _depth + 1);
                     }
+                }
+                if (object.accounting_projection != null) {
+                    if (!$util.isObject(object.accounting_projection))
+                        throw $TypeError(".northstar.live.LedgerContext.accounting_projection: object expected");
+                    message.accounting_projection = $root.northstar.live.BrokerAccountProjection.fromObject(object.accounting_projection, _depth + 1);
                 }
                 if (object.evidence_fields) {
                     if (!$util.isObject(object.evidence_fields))
@@ -13073,6 +13794,11 @@ export const northstar = $root.northstar = (() => {
                     object.entries = $Array(message.entries.length);
                     for (let j = 0; j < message.entries.length; ++j)
                         object.entries[j] = $root.northstar.live.PositionEntry.toObject(message.entries[j], options, _depth + 1);
+                }
+                if (message.accounting_projection != null && $Object.hasOwnProperty.call(message, "accounting_projection")) {
+                    object.accounting_projection = $root.northstar.live.BrokerAccountProjection.toObject(message.accounting_projection, options, _depth + 1);
+                    if (options.oneofs)
+                        object._accounting_projection = "accounting_projection";
                 }
                 let keys2;
                 if (message.evidence_fields && (keys2 = $Object.keys(message.evidence_fields)).length) {

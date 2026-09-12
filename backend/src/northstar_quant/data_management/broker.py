@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 
 from northstar_quant.data_management.catalog.models import Exchange, FuturesContract, FuturesProduct
 from northstar_quant.data_management.catalog.services import CatalogCommands
+from northstar_quant.market_data import Instrument
 
 
 @dataclass(frozen=True, slots=True)
@@ -26,6 +27,7 @@ class BrokerContract:
     contract_id: UUID
     exchange: str
     symbol: str
+    market: Instrument
 
 
 def _date_field(value: object, name: str, *, required: bool) -> date | None:
@@ -177,4 +179,17 @@ def _contract(
             and contract.listed_on != listed
         ):
             raise ValueError("broker instrument dates conflict with the registered contract")
-        return BrokerContract(contract.id, exchange.code, contract.contract_code)
+        return BrokerContract(
+            contract.id,
+            exchange.code,
+            contract.contract_code,
+            Instrument(
+                contract.id,
+                contract.contract_code,
+                exchange.timezone_name,
+                product.currency,
+                product.quantity_unit,
+                product.price_tick,
+                product.contract_multiplier,
+            ),
+        )

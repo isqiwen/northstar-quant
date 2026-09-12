@@ -33,6 +33,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 
 from northstar_quant import code_revision
 from northstar_quant.accounting.baselines import BrokerBaselines
+from northstar_quant.accounting.broker_account import project_account
 from northstar_quant.accounting.position_projection import (
     derive_position_check,
     derive_position_entry,
@@ -43,6 +44,7 @@ from northstar_quant.data_management.broker import (
     resolve_broker_contract,
     verify_broker_contract,
 )
+from northstar_quant.market_data import Instrument
 from northstar_quant.persistence.sql import UTCDateTime, write_transaction
 
 _metadata = MetaData()
@@ -662,6 +664,46 @@ class BrokerLedger:
                 )
             )
 
+    def _account_projection(
+        self,
+        baseline: dict[str, Any],
+        history: list[dict[str, Any]],
+    ) -> dict[str, Any] | None:
+        if not history:
+            return None
+        unavailable = {
+            "status": "UNAVAILABLE",
+            "reason": "ACCOUNT_FACTS_CANNOT_BE_VALUED",
+            "through_entry_id": history[-1]["entry_id"],
+            "cash": None,
+            "reconciliation": "UNRECONCILED",
+            "execution": dict(_EXECUTION),
+        }
+        if any(entry["problems"] for entry in history):
+            return unavailable
+        markets: dict[UUID, Instrument] = {}
+        for entry in history:
+            missing = {UUID(fill["contract_id"]) for fill in entry["added_fills"]} - markets.keys()
+            if not missing:
+                continue
+            source: dict[str, Any] = self._records.get(UUID(entry["source_batch_id"]))
+            prefix = self._entry_stream(entry)
+            instrument = (
+                source["completeness"]["sections"]["instrument"]["rows"][0]
+                if prefix is None
+                else prefix["binding"]["terms"]
+            )
+            for identifier in missing:
+                markets[identifier] = verify_broker_contract(
+                    self._engine, identifier, instrument
+                ).market
+        try:
+            return project_account(baseline, history, tuple(markets.values()))
+        except ValueError:
+            # Keep the accepted external fills; unsupported valuation is not a
+            # reason to discard them, replace prices or invent account cash.
+            return unavailable
+
     def context(self, query_batch_id: UUID) -> dict[str, Any]:
         baseline = self._baselines.context(query_batch_id)["baseline"]
         if baseline is None:
@@ -697,6 +739,7 @@ class BrokerLedger:
             )
         return {
             "baseline_id": baseline["baseline_id"],
+            "accounting_projection": self._account_projection(baseline, history),
             "current": current,
             "source_entry": next(
                 (

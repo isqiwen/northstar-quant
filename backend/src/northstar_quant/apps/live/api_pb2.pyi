@@ -438,8 +438,37 @@ class ImportSpecification(_message.Message):
     trading_day: str
     def __init__(self, session_kind: _Optional[str] = ..., availability_basis: _Optional[str] = ..., availability_note: _Optional[str] = ..., currency: _Optional[str] = ..., exchange: _Optional[str] = ..., multiplier: _Optional[str] = ..., price_tick: _Optional[str] = ..., product: _Optional[str] = ..., quantity_unit: _Optional[str] = ..., session_close: _Optional[str] = ..., session_open: _Optional[str] = ..., source_name: _Optional[str] = ..., source_reference: _Optional[str] = ..., symbol: _Optional[str] = ..., timezone: _Optional[str] = ..., trading_day: _Optional[str] = ...) -> None: ...
 
+class BrokerAccountProjection(_message.Message):
+    __slots__ = ("status", "through_entry_id", "realized_pnl_before_fees", "cash", "total_fees", "pending_fee_fill_ids", "fill_count", "evidence_fields", "null_fields")
+    class EvidenceFieldsEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: _struct_pb2.Value
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_struct_pb2.Value, _Mapping]] = ...) -> None: ...
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    THROUGH_ENTRY_ID_FIELD_NUMBER: _ClassVar[int]
+    REALIZED_PNL_BEFORE_FEES_FIELD_NUMBER: _ClassVar[int]
+    CASH_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_FEES_FIELD_NUMBER: _ClassVar[int]
+    PENDING_FEE_FILL_IDS_FIELD_NUMBER: _ClassVar[int]
+    FILL_COUNT_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    status: str
+    through_entry_id: str
+    realized_pnl_before_fees: str
+    cash: str
+    total_fees: str
+    pending_fee_fill_ids: _containers.RepeatedScalarFieldContainer[str]
+    fill_count: int
+    evidence_fields: _containers.MessageMap[str, _struct_pb2.Value]
+    null_fields: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, status: _Optional[str] = ..., through_entry_id: _Optional[str] = ..., realized_pnl_before_fees: _Optional[str] = ..., cash: _Optional[str] = ..., total_fees: _Optional[str] = ..., pending_fee_fill_ids: _Optional[_Iterable[str]] = ..., fill_count: _Optional[int] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+
 class LedgerContext(_message.Message):
-    __slots__ = ("baseline", "baseline_id", "checks", "entries", "evidence_fields", "null_fields")
+    __slots__ = ("baseline", "baseline_id", "checks", "entries", "accounting_projection", "evidence_fields", "null_fields")
     class EvidenceFieldsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -451,15 +480,17 @@ class LedgerContext(_message.Message):
     BASELINE_ID_FIELD_NUMBER: _ClassVar[int]
     CHECKS_FIELD_NUMBER: _ClassVar[int]
     ENTRIES_FIELD_NUMBER: _ClassVar[int]
+    ACCOUNTING_PROJECTION_FIELD_NUMBER: _ClassVar[int]
     EVIDENCE_FIELDS_FIELD_NUMBER: _ClassVar[int]
     NULL_FIELDS_FIELD_NUMBER: _ClassVar[int]
     baseline: BaselineRecord
     baseline_id: str
     checks: _containers.RepeatedCompositeFieldContainer[CheckRecord]
     entries: _containers.RepeatedCompositeFieldContainer[PositionEntry]
+    accounting_projection: BrokerAccountProjection
     evidence_fields: _containers.MessageMap[str, _struct_pb2.Value]
     null_fields: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, baseline: _Optional[_Union[BaselineRecord, _Mapping]] = ..., baseline_id: _Optional[str] = ..., checks: _Optional[_Iterable[_Union[CheckRecord, _Mapping]]] = ..., entries: _Optional[_Iterable[_Union[PositionEntry, _Mapping]]] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
+    def __init__(self, baseline: _Optional[_Union[BaselineRecord, _Mapping]] = ..., baseline_id: _Optional[str] = ..., checks: _Optional[_Iterable[_Union[CheckRecord, _Mapping]]] = ..., entries: _Optional[_Iterable[_Union[PositionEntry, _Mapping]]] = ..., accounting_projection: _Optional[_Union[BrokerAccountProjection, _Mapping]] = ..., evidence_fields: _Optional[_Mapping[str, _struct_pb2.Value]] = ..., null_fields: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class LiveConfiguration(_message.Message):
     __slots__ = ("candidate_id", "config", "configuration_id", "name", "evidence_fields")

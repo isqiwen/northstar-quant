@@ -163,11 +163,22 @@ export type ImportSpecification = {
   timezone: string;
   trading_day: string;
 };
+export type BrokerAccountProjection = {
+  status: string;
+  through_entry_id: string;
+  realized_pnl_before_fees?: string;
+  cash?: string | null;
+  total_fees?: string | null;
+  pending_fee_fill_ids?: (string)[];
+  fill_count?: number;
+  [key: string]: unknown;
+};
 export type LedgerContext = {
   baseline?: BaselineRecord | null;
   baseline_id?: string | null;
   checks?: (CheckRecord)[];
   entries?: (PositionEntry)[];
+  accounting_projection?: BrokerAccountProjection | null;
   [key: string]: unknown;
 };
 export type LiveConfiguration = {

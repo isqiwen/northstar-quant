@@ -210,12 +210,26 @@ message ImportSpecification {
   optional string trading_day = 15 [json_name = "trading_day", (northstar.web.required_field) = true];
 }
 
+message BrokerAccountProjection {
+  option (northstar.web.evidence) = true;
+  optional string status = 1 [json_name = "status", (northstar.web.required_field) = true];
+  optional string through_entry_id = 2 [json_name = "through_entry_id", (northstar.web.required_field) = true];
+  optional string realized_pnl_before_fees = 3 [json_name = "realized_pnl_before_fees"];
+  optional string cash = 4 [json_name = "cash", (northstar.web.nullable) = true];
+  optional string total_fees = 5 [json_name = "total_fees", (northstar.web.nullable) = true];
+  repeated string pending_fee_fill_ids = 6 [json_name = "pending_fee_fill_ids"];
+  optional int64 fill_count = 7 [json_name = "fill_count"];
+  map<string, google.protobuf.Value> evidence_fields = 1000;
+  repeated string null_fields = 2046;
+}
+
 message LedgerContext {
   option (northstar.web.evidence) = true;
   optional BaselineRecord baseline = 1 [json_name = "baseline", (northstar.web.nullable) = true];
   optional string baseline_id = 2 [json_name = "baseline_id", (northstar.web.nullable) = true];
   repeated CheckRecord checks = 3 [json_name = "checks"];
   repeated PositionEntry entries = 4 [json_name = "entries"];
+  optional BrokerAccountProjection accounting_projection = 5 [json_name = "accounting_projection", (northstar.web.nullable) = true];
   map<string, google.protobuf.Value> evidence_fields = 1000;
   repeated string null_fields = 2046;
 }

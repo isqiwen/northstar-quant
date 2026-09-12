@@ -18,6 +18,7 @@ from uuid import uuid4
 from playwright.sync_api import expect, sync_playwright
 from sqlalchemy import create_engine, text
 from support.authority_browser import check_authority
+from support.broker_account_browser import check_broker_account
 from support.market import seed_market
 from support.processes import InstalledApplication
 from support.studies import seed_learning
@@ -671,6 +672,7 @@ def main() -> None:
                         screenshot("local-order-pending-fees")
                         assert app.command("status")["order_sending"] is False
                         check_authority(page, url, visit, screenshot, original)
+                        check_broker_account(page, url, visit, screenshot)
                         visit(url)
                         page.get_by_role("link", name="运行诊断", exact=True).click()
                         expect(page.get_by_text("数据库盘空闲字节", exact=True)).to_be_visible()

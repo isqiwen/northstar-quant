@@ -76,4 +76,36 @@ describe("cross-language scalar map facts", () => {
       execution: { enabled: false, blocked: true },
     });
   });
+  it("keeps exact Python broker P&L separate from unknown money", async () => {
+    registerProtocol(
+      {
+        ...live,
+        methods: [
+          {
+            method: "GET",
+            path: "/test/accounting",
+            input: "northstar.web.Empty",
+            output: "northstar.live.BrokerAccountProjection",
+            runtime: false,
+          },
+        ],
+      },
+      liveCodec,
+    );
+    const value = await decodeResponse(
+      "GET",
+      "/test/accounting",
+      response(
+        "CgpJTkNPTVBMRVRFEglzeW50aGV0aWMaFjEwMC4wMTAwMDAwMDAwMDAwMDAwMDEyAWEyAWI4AvJ/BGNhc2jyfwp0b3RhbF9mZWVz",
+      ),
+    );
+    expect(value).toMatchObject({
+      status: "INCOMPLETE",
+      realized_pnl_before_fees: "100.010000000000000001",
+      cash: null,
+      total_fees: null,
+      fill_count: 2,
+      pending_fee_fill_ids: ["a", "b"],
+    });
+  });
 });
