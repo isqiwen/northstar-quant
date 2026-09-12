@@ -419,6 +419,17 @@ def test_browser_stream_start_stop_requires_csrf_and_never_reconnects_on_reads(
         "duration_seconds": 300,
         "allow_retention": True,
         "use_basis": "Synthetic engineering acceptance",
+        "schedule": {
+            "source_reference": "synthetic API session evidence",
+            "available_at": "2026-09-06T00:00:00+00:00",
+            "windows": [
+                {
+                    "trading_day": "2026-09-07",
+                    "opens_at": "2026-09-07T01:00:00+00:00",
+                    "closes_at": "2026-09-07T02:15:00+00:00",
+                }
+            ],
+        },
     }
     with TestClient(live_web_app(live_engine, library), base_url="http://127.0.0.1") as client:
         assert client.post("/api/streams", json=payload).status_code == 401
@@ -439,7 +450,9 @@ def test_browser_stream_start_stop_requires_csrf_and_never_reconnects_on_reads(
         assert client.post("/api/streams", json=payload).status_code == 201
         assert calls["ready"].wait(3)
         logins(calls["accept"])
-        assert client.get(f"/api/streams/{identifier}").status_code == 200
+        retained = client.get(f"/api/streams/{identifier}")
+        assert retained.status_code == 200
+        assert retained.json()["binding"]["request"]["schedule"] == payload["schedule"]
         assert len(client.get(f"/api/streams/{identifier}/events").json()) == 2
         stopped = client.post(
             f"/api/streams/{identifier}/control",

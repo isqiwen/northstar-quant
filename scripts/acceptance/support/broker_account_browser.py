@@ -39,7 +39,7 @@ def check_broker_account(page, base_url, visit, screenshot):
             body=pack(descriptor.output_type, values[suffix]).SerializeToString(),
         )
 
-    pattern = "**" + prefix + "*"
+    pattern = "**" + prefix + "**"
     page.route(pattern, reply)
     try:
         visit(base_url + f"/broker/{identifier}")

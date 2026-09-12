@@ -298,6 +298,16 @@ export type StreamPositionsRequest = {
   request_id: string;
   through_sequence: number;
 };
+export type SessionWindow = {
+  trading_day: string;
+  opens_at: string;
+  closes_at: string;
+};
+export type SessionSchedule = {
+  source_reference: string;
+  available_at: string;
+  windows: (SessionWindow)[];
+};
 export type StreamRequest = {
   allow_retention: boolean;
   configuration_id: string;
@@ -305,6 +315,7 @@ export type StreamRequest = {
   query_batch_id: string;
   request_id: string;
   use_basis: string;
+  schedule?: SessionSchedule | null;
 };
 export type StreamStep = {
   committed_at: string;

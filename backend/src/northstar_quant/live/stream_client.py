@@ -35,6 +35,7 @@ class StreamsClient:
         duration_seconds: int,
         allow_retention: bool,
         use_basis: str,
+        schedule: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         return self._live.mutate(
             "/streams",
@@ -44,6 +45,7 @@ class StreamsClient:
                 "duration_seconds": duration_seconds,
                 "allow_retention": allow_retention,
                 "use_basis": use_basis,
+                **({"schedule": schedule} if schedule is not None else {}),
             },
             request_id,
         )

@@ -814,21 +814,43 @@ class StreamPositionsRequest(_message.Message):
     through_sequence: int
     def __init__(self, baseline_id: _Optional[str] = ..., request_id: _Optional[str] = ..., through_sequence: _Optional[int] = ...) -> None: ...
 
+class SessionWindow(_message.Message):
+    __slots__ = ("trading_day", "opens_at", "closes_at")
+    TRADING_DAY_FIELD_NUMBER: _ClassVar[int]
+    OPENS_AT_FIELD_NUMBER: _ClassVar[int]
+    CLOSES_AT_FIELD_NUMBER: _ClassVar[int]
+    trading_day: str
+    opens_at: str
+    closes_at: str
+    def __init__(self, trading_day: _Optional[str] = ..., opens_at: _Optional[str] = ..., closes_at: _Optional[str] = ...) -> None: ...
+
+class SessionSchedule(_message.Message):
+    __slots__ = ("source_reference", "available_at", "windows")
+    SOURCE_REFERENCE_FIELD_NUMBER: _ClassVar[int]
+    AVAILABLE_AT_FIELD_NUMBER: _ClassVar[int]
+    WINDOWS_FIELD_NUMBER: _ClassVar[int]
+    source_reference: str
+    available_at: str
+    windows: _containers.RepeatedCompositeFieldContainer[SessionWindow]
+    def __init__(self, source_reference: _Optional[str] = ..., available_at: _Optional[str] = ..., windows: _Optional[_Iterable[_Union[SessionWindow, _Mapping]]] = ...) -> None: ...
+
 class StreamRequest(_message.Message):
-    __slots__ = ("allow_retention", "configuration_id", "duration_seconds", "query_batch_id", "request_id", "use_basis")
+    __slots__ = ("allow_retention", "configuration_id", "duration_seconds", "query_batch_id", "request_id", "use_basis", "schedule")
     ALLOW_RETENTION_FIELD_NUMBER: _ClassVar[int]
     CONFIGURATION_ID_FIELD_NUMBER: _ClassVar[int]
     DURATION_SECONDS_FIELD_NUMBER: _ClassVar[int]
     QUERY_BATCH_ID_FIELD_NUMBER: _ClassVar[int]
     REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
     USE_BASIS_FIELD_NUMBER: _ClassVar[int]
+    SCHEDULE_FIELD_NUMBER: _ClassVar[int]
     allow_retention: bool
     configuration_id: str
     duration_seconds: int
     query_batch_id: str
     request_id: str
     use_basis: str
-    def __init__(self, allow_retention: _Optional[bool] = ..., configuration_id: _Optional[str] = ..., duration_seconds: _Optional[int] = ..., query_batch_id: _Optional[str] = ..., request_id: _Optional[str] = ..., use_basis: _Optional[str] = ...) -> None: ...
+    schedule: SessionSchedule
+    def __init__(self, allow_retention: _Optional[bool] = ..., configuration_id: _Optional[str] = ..., duration_seconds: _Optional[int] = ..., query_batch_id: _Optional[str] = ..., request_id: _Optional[str] = ..., use_basis: _Optional[str] = ..., schedule: _Optional[_Union[SessionSchedule, _Mapping]] = ...) -> None: ...
 
 class StreamStep(_message.Message):
     __slots__ = ("committed_at", "result", "sequence")

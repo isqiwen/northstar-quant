@@ -12,6 +12,7 @@ from uuid import UUID, uuid5
 from northstar_quant.accounting.amounts import decimal_text
 from northstar_quant.broker.events import BrokerEvent
 from northstar_quant.broker.market import DAY, FRESH, SHANGHAI, decode_quote
+from northstar_quant.market_data.sessions import SessionSchedule
 
 
 def sample_market(
@@ -22,6 +23,7 @@ def sample_market(
     contract_id: UUID,
     price_tick: Decimal,
     now: datetime,
+    schedule: SessionSchedule | None = None,
 ) -> dict[str, Any]:
     """Sample one copied event without I/O, decisions or synthesizing missing minutes.
 
@@ -40,11 +42,13 @@ def sample_market(
         raise ValueError("live market requires a fixed SHFE futures contract and positive tick")
     if now.utcoffset() != timedelta(0):
         raise ValueError("live processing time must be explicit UTC")
-    binding = {
+    binding: dict[str, Any] = {
         "instrument": instrument.upper(),
         "contract_id": str(contract_id),
         "price_tick": decimal_text(price_tick),
     }
+    if schedule is not None:
+        binding["schedule"] = schedule.to_dict()
     if state and state.get("binding") != binding:
         raise ValueError("live market checkpoint cannot change its fixed binding")
     result: dict[str, Any] = (
@@ -82,7 +86,7 @@ def sample_market(
     if event.channel != "MD":
         return _halt(result, "UNEXPECTED_MARKET_CHANNEL")
     try:
-        quote = decode_quote(event, instrument, price_tick, now)
+        quote = decode_quote(event, instrument, price_tick, now, schedule)
     except ValueError as error:
         return _halt(result, str(error))
     if result["trading_day"] not in (None, quote["trading_day"]):
@@ -110,8 +114,16 @@ def sample_market(
             return _halt(result, "SOURCE_GAP")
         if quote["segment"] != previous["segment"]:
             day = date.fromisoformat(quote["trading_day"])
-            previous_end = datetime.combine(day, DAY[previous["segment"]][1], SHANGHAI)
-            next_start = datetime.combine(day, DAY[quote["segment"]][0], SHANGHAI)
+            previous_end = (
+                datetime.combine(day, DAY[previous["segment"]][1], SHANGHAI)
+                if schedule is None
+                else schedule.windows[previous["segment"]].closes_at
+            )
+            next_start = (
+                datetime.combine(day, DAY[quote["segment"]][0], SHANGHAI)
+                if schedule is None
+                else schedule.windows[quote["segment"]].opens_at
+            )
             if (
                 quote["segment"] != previous["segment"] + 1
                 or previous_end - _at(previous["event_time"]) > FRESH

@@ -387,6 +387,18 @@ message StreamPositionsRequest {
   optional int64 through_sequence = 3 [json_name = "through_sequence", (northstar.web.required_field) = true];
 }
 
+message SessionWindow {
+  optional string trading_day = 1 [(northstar.web.required_field) = true];
+  optional string opens_at = 2 [(northstar.web.required_field) = true];
+  optional string closes_at = 3 [(northstar.web.required_field) = true];
+}
+
+message SessionSchedule {
+  optional string source_reference = 1 [(northstar.web.required_field) = true];
+  optional string available_at = 2 [(northstar.web.required_field) = true];
+  repeated SessionWindow windows = 3 [(northstar.web.required_field) = true];
+}
+
 message StreamRequest {
   optional bool allow_retention = 1 [json_name = "allow_retention", (northstar.web.required_field) = true];
   optional string configuration_id = 2 [json_name = "configuration_id", (northstar.web.required_field) = true];
@@ -394,6 +406,7 @@ message StreamRequest {
   optional string query_batch_id = 4 [json_name = "query_batch_id", (northstar.web.required_field) = true];
   optional string request_id = 5 [json_name = "request_id", (northstar.web.required_field) = true];
   optional string use_basis = 6 [json_name = "use_basis", (northstar.web.required_field) = true];
+  optional SessionSchedule schedule = 7 [(northstar.web.nullable) = true];
 }
 
 message StreamStep {

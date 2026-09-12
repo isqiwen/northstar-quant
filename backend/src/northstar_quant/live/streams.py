@@ -35,6 +35,7 @@ from northstar_quant.data_management.broker import resolve_broker_contract, veri
 from northstar_quant.data_management.library import DataLibrary
 from northstar_quant.live.market import advance_market, idle_reason
 from northstar_quant.live.materials import StrategyMaterials
+from northstar_quant.market_data.sessions import SessionSchedule
 from northstar_quant.messaging import Endpoint
 from northstar_quant.persistence.locks import FileLock
 from northstar_quant.persistence.sql import UTCDateTime, write_transaction
@@ -231,6 +232,7 @@ class LiveStreams:
         duration_seconds: int,
         allow_retention: bool,
         use_basis: str,
+        schedule: dict[str, object] | None = None,
     ) -> dict[str, object]:
         if type(duration_seconds) is not int or not 60 <= duration_seconds <= 7200:
             raise ValueError("stream duration must be 60..7200 seconds")
@@ -247,6 +249,11 @@ class LiveStreams:
             "allow_retention": True,
             "use_basis": use_basis.strip(),
         }
+        if schedule is not None:
+            calendar = SessionSchedule.from_dict(schedule)
+            if calendar.available_at > datetime.now(UTC):
+                raise ValueError("session schedule is not yet available")
+            request["schedule"] = calendar.to_dict()
         with self._guard:
             self._workers = {
                 key: value for key, value in self._workers.items() if value[0].is_alive()
@@ -292,7 +299,9 @@ class LiveStreams:
                 "code_revision": code_revision(),
                 "mode": "SHADOW_ONLY",
                 "source_kind": "COPIED_CTP_CALLBACKS",
-                "scope": "SHFE_DAY_OBSERVED_MINUTES",
+                "scope": "SHFE_DECLARED_SESSIONS"
+                if schedule is not None
+                else "SHFE_DAY_OBSERVED_MINUTES",
                 "order_sending": False,
             }
             # Session locks are released explicitly before returning this pooled
@@ -549,6 +558,11 @@ class LiveStreams:
             or _hash(result["state"]) != result["state_hash"]
         ):
             raise ValueError("stream binding or checkpoint integrity failed")
+        declared = _object(_object(result["binding"])["request"]).get("schedule")
+        if declared is not None:
+            schedule = SessionSchedule.from_dict(_object(declared))
+            if schedule.available_at > result["created_at"]:
+                raise ValueError("stream schedule was not available at its fixed start")
         return result
 
     def accept(self, identifier: UUID, event: BrokerEvent) -> None:
@@ -659,6 +673,13 @@ class LiveStreams:
                             )
                         ),
                         now=datetime.now(UTC),
+                        schedule=(
+                            SessionSchedule.from_dict(
+                                _object(_object(binding["request"])["schedule"])
+                            )
+                            if "schedule" in _object(binding["request"])
+                            else None
+                        ),
                     )
                     state["market"] = market
                     result.update(bar=market.get("completed_bar"), intent=market.get("intent"))

@@ -16,7 +16,11 @@ import {
 } from "../../shared/ui";
 import { Line } from "../../shared/chart";
 import { Action } from "./runtime";
+import { SessionScheduleInput } from "./session-schedule";
+import type { SessionSchedule } from "./api/generated";
 export function Streams() {
+  const [schedule, setSchedule] = useState<SessionSchedule>();
+  const [scheduleReady, setScheduleReady] = useState(true);
   const q = useData(query("/api/streams"), 5000);
   const queries = useData(query("/api/broker/queries"));
   const configs = useData(query("/api/configurations"));
@@ -28,9 +32,17 @@ export function Streams() {
         description="使用已核验查询与固定配置，接收时长和留存用途由操作明确指定。"
       />
       <Failure error={q.error || queries.error || configs.error} />
+      <SessionScheduleInput
+        onChange={(value, ready) => {
+          setSchedule(value);
+          setScheduleReady(ready);
+        }}
+      />
       <Action
         title="启动有界持续接收"
         path="/api/streams"
+        fixed={schedule ? { schedule } : undefined}
+        disabled={!scheduleReady}
         fields={[
           {
             name: "query_batch_id",

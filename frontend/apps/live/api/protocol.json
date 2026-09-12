@@ -1809,6 +1809,61 @@
       "array": false,
       "evidence": false
     },
+    "northstar.live.SessionWindow": {
+      "fields": {
+        "trading_day": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "opens_at": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "closes_at": {
+          "id": 3,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
+    "northstar.live.SessionSchedule": {
+      "fields": {
+        "source_reference": {
+          "id": 1,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "available_at": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
+        "windows": {
+          "id": 3,
+          "presence": false,
+          "type": "northstar.live.SessionWindow",
+          "required": true,
+          "nullable": false,
+          "rule": "repeated"
+        }
+      },
+      "array": false,
+      "evidence": false
+    },
     "northstar.live.StreamRequest": {
       "fields": {
         "allow_retention": {
@@ -1852,6 +1907,13 @@
           "type": "string",
           "required": true,
           "nullable": false
+        },
+        "schedule": {
+          "id": 7,
+          "presence": true,
+          "type": "northstar.live.SessionSchedule",
+          "required": false,
+          "nullable": true
         }
       },
       "array": false,

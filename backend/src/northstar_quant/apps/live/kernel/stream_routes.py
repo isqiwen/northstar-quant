@@ -20,6 +20,7 @@ class StartStream(BaseModel):
     duration_seconds: StrictInt = Field(ge=60, le=7200)
     allow_retention: StrictBool
     use_basis: str = Field(min_length=1, max_length=500)
+    schedule: dict[str, Any] | None = None
 
 
 class ShadowControl(BaseModel):
@@ -64,6 +65,7 @@ def routes(owner: LiveOwner) -> APIRouter:
                 duration_seconds=body.duration_seconds,
                 allow_retention=body.allow_retention,
                 use_basis=body.use_basis,
+                schedule=body.schedule,
             ),
         )
 

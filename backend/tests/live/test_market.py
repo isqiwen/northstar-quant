@@ -13,6 +13,7 @@ import pytest
 from northstar_quant.broker.events import BrokerEvent
 from northstar_quant.factors.evaluation import Binding
 from northstar_quant.live.market import advance_market
+from northstar_quant.market_data.sessions import SessionSchedule, SessionWindow
 from northstar_quant.research.configuration import ResearchConfig
 from northstar_quant.strategies.configuration import StrategyConfig
 
@@ -58,6 +59,83 @@ def advance(state: dict[str, Any], event: BrokerEvent, **changes: Any) -> dict[s
     if isinstance(parameters["config"], ResearchConfig):
         parameters["config"] = parameters["config"].strategy
     return advance_market(state, event, **parameters)
+
+
+def test_explicit_friday_night_and_midnight_use_declared_monday_not_civil_arithmetic():
+    start = datetime(2026, 9, 11, 15, 58, tzinfo=UTC)
+    day = datetime(2026, 9, 14).date()
+    schedule = SessionSchedule(
+        "synthetic session evidence",
+        start - timedelta(days=1),
+        (SessionWindow(day, start, start + timedelta(hours=2)),),
+    )
+    state = {}
+    completed = []
+    for index, seconds in enumerate(range(0, 181, 5), 1):
+        event = tick(index, start + timedelta(seconds=seconds), volume=100 + index)
+        event = replace(event, data={**event.data, "TradingDay": "20260914"})
+        state = advance(state, event, schedule=schedule)
+        if state["completed_bar"]:
+            completed.append(state["completed_bar"])
+    assert state["status"] == "READY"
+    assert [bar["trading_day"] for bar in completed] == ["20260914", "20260914"]
+    assert completed[-1]["start_at"] == "2026-09-11T16:00:00Z"
+    assert SessionSchedule.from_dict(schedule.to_dict()) == schedule
+    with pytest.raises(ValueError, match="fixed binding"):
+        advance(
+            state,
+            replace(event, sequence=40),
+            schedule=replace(schedule, source_reference="changed"),
+        )
+    wrong = replace(event, sequence=40, data={**event.data, "TradingDay": "20260912"})
+    assert advance({}, wrong, schedule=schedule)["reason"] == "SOURCE_SESSION_NOT_CONFIRMED"
+    future = replace(schedule, available_at=start + timedelta(minutes=4))
+    assert advance({}, event, schedule=future)["reason"] == "SESSION_SCHEDULE_NOT_AVAILABLE"
+
+
+def test_declared_night_break_rewarms_and_missing_segment_does_not_create_bars():
+    from northstar_quant.live.market import idle_reason
+
+    start = datetime(2026, 9, 11, 13, tzinfo=UTC)
+    day = datetime(2026, 9, 14).date()
+    schedule = SessionSchedule(
+        "synthetic night/day",
+        start - timedelta(days=1),
+        (
+            SessionWindow(day, start, start + timedelta(hours=2)),
+            SessionWindow(
+                day, datetime(2026, 9, 14, 1, tzinfo=UTC), datetime(2026, 9, 14, 2, tzinfo=UTC)
+            ),
+        ),
+    )
+    first = replace(
+        tick(1, start + timedelta(hours=2, seconds=-2)),
+        data={**tick(1, start + timedelta(hours=2, seconds=-2)).data, "TradingDay": "20260914"},
+    )
+    state = advance({}, first, schedule=schedule)
+    assert idle_reason(state, now=start + timedelta(hours=2)) == "SCHEDULED_BREAK"
+    resumed = tick(2, datetime(2026, 9, 14, 1, tzinfo=UTC), volume=101)
+    state = advance(state, resumed, schedule=schedule)
+    assert state["reason"] == "SESSION_BREAK_REWARM"
+    assert state["completed_bar"] is None and state["intent"] is None
+    regressed = replace(resumed, sequence=3, data={**resumed.data, "TradingDay": "20260915"})
+    assert advance(state, regressed, schedule=schedule)["status"] == "HALTED"
+
+
+def test_overlapping_or_retrograde_calendar_does_not_admit_market_input():
+    from northstar_quant.market_data.sessions import SessionSchedule, SessionWindow
+
+    first = SessionWindow(OPEN.date(), OPEN, OPEN + timedelta(hours=1))
+    with pytest.raises(ValueError, match="overlapping"):
+        SessionSchedule("synthetic", OPEN - timedelta(days=1), (first, first))
+    later = SessionWindow(
+        OPEN.date() - timedelta(days=1), OPEN + timedelta(hours=2), OPEN + timedelta(hours=3)
+    )
+    with pytest.raises(ValueError, match="ordered"):
+        SessionSchedule("synthetic", OPEN - timedelta(days=1), (first, later))
+    schedule = SessionSchedule("synthetic", OPEN - timedelta(days=1), (first,)).to_dict()
+    with pytest.raises(ValueError, match="fields"):
+        SessionSchedule.from_dict({**schedule, "order_sending": True})
 
 
 def test_only_confirmed_observed_minutes_generate_bounded_shadow_intents() -> None:

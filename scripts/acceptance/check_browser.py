@@ -21,6 +21,7 @@ from support.authority_browser import check_authority
 from support.broker_account_browser import check_broker_account
 from support.market import seed_market
 from support.processes import InstalledApplication
+from support.session_schedule_browser import check_session_schedule
 from support.studies import seed_learning
 
 from northstar_quant.web.protobuf import decode, methods, pack
@@ -673,6 +674,7 @@ def main() -> None:
                         assert app.command("status")["order_sending"] is False
                         check_authority(page, url, visit, screenshot, original)
                         check_broker_account(page, url, visit, screenshot)
+                        check_session_schedule(page, url, visit, screenshot)
                         visit(url)
                         page.get_by_role("link", name="运行诊断", exact=True).click()
                         expect(page.get_by_text("数据库盘空闲字节", exact=True)).to_be_visible()

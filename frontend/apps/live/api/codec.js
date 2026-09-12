@@ -22706,6 +22706,723 @@ export const northstar = $root.northstar = (() => {
             return StreamPositionsRequest;
         })();
 
+        live.SessionWindow = (function() {
+
+            /**
+             * Properties of a SessionWindow.
+             * @typedef {Object} northstar.live.SessionWindow.$Properties
+             * @property {string|null} [trading_day] SessionWindow trading_day
+             * @property {string|null} [opens_at] SessionWindow opens_at
+             * @property {string|null} [closes_at] SessionWindow closes_at
+             * @property {"trading_day"} [_trading_day] SessionWindow _trading_day
+             * @property {"opens_at"} [_opens_at] SessionWindow _opens_at
+             * @property {"closes_at"} [_closes_at] SessionWindow _closes_at
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a SessionWindow.
+             * @memberof northstar.live
+             * @interface ISessionWindow
+             * @augments northstar.live.SessionWindow.$Properties
+             * @deprecated Use northstar.live.SessionWindow.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a SessionWindow.
+             * @typedef {{
+             *   trading_day?: string|null;
+             *   opens_at?: string|null;
+             *   closes_at?: string|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _trading_day?: undefined; trading_day?: null }|{ _trading_day?: "trading_day"; trading_day: string })
+             * ) & (
+             *   ({ _opens_at?: undefined; opens_at?: null }|{ _opens_at?: "opens_at"; opens_at: string })
+             * ) & (
+             *   ({ _closes_at?: undefined; closes_at?: null }|{ _closes_at?: "closes_at"; closes_at: string })
+             * )} northstar.live.SessionWindow.$Shape
+             */
+
+            /**
+             * Constructs a new SessionWindow.
+             * @memberof northstar.live
+             * @classdesc Represents a SessionWindow.
+             * @constructor
+             * @param {northstar.live.SessionWindow.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const SessionWindow = function (properties) {
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * SessionWindow trading_day.
+             * @member {string|null|undefined} trading_day
+             * @memberof northstar.live.SessionWindow
+             * @instance
+             */
+            SessionWindow.prototype.trading_day = null;
+
+            /**
+             * SessionWindow opens_at.
+             * @member {string|null|undefined} opens_at
+             * @memberof northstar.live.SessionWindow
+             * @instance
+             */
+            SessionWindow.prototype.opens_at = null;
+
+            /**
+             * SessionWindow closes_at.
+             * @member {string|null|undefined} closes_at
+             * @memberof northstar.live.SessionWindow
+             * @instance
+             */
+            SessionWindow.prototype.closes_at = null;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * SessionWindow _trading_day.
+             * @member {"trading_day"|undefined} _trading_day
+             * @memberof northstar.live.SessionWindow
+             * @instance
+             */
+            $Object.defineProperty(SessionWindow.prototype, "_trading_day", {
+                get: $util.oneOfGetter($oneOfFields = ["trading_day"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SessionWindow _opens_at.
+             * @member {"opens_at"|undefined} _opens_at
+             * @memberof northstar.live.SessionWindow
+             * @instance
+             */
+            $Object.defineProperty(SessionWindow.prototype, "_opens_at", {
+                get: $util.oneOfGetter($oneOfFields = ["opens_at"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SessionWindow _closes_at.
+             * @member {"closes_at"|undefined} _closes_at
+             * @memberof northstar.live.SessionWindow
+             * @instance
+             */
+            $Object.defineProperty(SessionWindow.prototype, "_closes_at", {
+                get: $util.oneOfGetter($oneOfFields = ["closes_at"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new SessionWindow instance using the specified properties.
+             * @function create
+             * @memberof northstar.live.SessionWindow
+             * @static
+             * @param {northstar.live.SessionWindow.$Properties=} [properties] Properties to set
+             * @returns {northstar.live.SessionWindow} SessionWindow instance
+             * @type {{
+             *   (properties: northstar.live.SessionWindow.$Shape): northstar.live.SessionWindow & northstar.live.SessionWindow.$Shape;
+             *   (properties?: northstar.live.SessionWindow.$Properties): northstar.live.SessionWindow;
+             * }}
+             */
+            SessionWindow.create = function(properties) {
+                return new SessionWindow(properties);
+            };
+
+            /**
+             * Encodes the specified SessionWindow message. Does not implicitly {@link northstar.live.SessionWindow.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.live.SessionWindow
+             * @static
+             * @param {northstar.live.SessionWindow.$Properties} message SessionWindow message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            SessionWindow.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.trading_day != null && $Object.hasOwnProperty.call(message, "trading_day"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.trading_day);
+                if (message.opens_at != null && $Object.hasOwnProperty.call(message, "opens_at"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.opens_at);
+                if (message.closes_at != null && $Object.hasOwnProperty.call(message, "closes_at"))
+                    writer.uint32(/* id 3, wireType 2 =*/26).string(message.closes_at);
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a SessionWindow message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.live.SessionWindow
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.live.SessionWindow & northstar.live.SessionWindow.$Shape} SessionWindow
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            SessionWindow.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.live.SessionWindow();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.trading_day = reader.stringVerify();
+                            message._trading_day = "trading_day";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.opens_at = reader.stringVerify();
+                            message._opens_at = "opens_at";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 2)
+                                break;
+                            message.closes_at = reader.stringVerify();
+                            message._closes_at = "closes_at";
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a SessionWindow message.
+             * @function verify
+             * @memberof northstar.live.SessionWindow
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            SessionWindow.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.trading_day != null && $Object.hasOwnProperty.call(message, "trading_day")) {
+                    properties._trading_day = 1;
+                    if (!$util.isString(message.trading_day))
+                        return "trading_day: string expected";
+                }
+                if (message.opens_at != null && $Object.hasOwnProperty.call(message, "opens_at")) {
+                    properties._opens_at = 1;
+                    if (!$util.isString(message.opens_at))
+                        return "opens_at: string expected";
+                }
+                if (message.closes_at != null && $Object.hasOwnProperty.call(message, "closes_at")) {
+                    properties._closes_at = 1;
+                    if (!$util.isString(message.closes_at))
+                        return "closes_at: string expected";
+                }
+                return null;
+            };
+
+            /**
+             * Creates a SessionWindow message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.live.SessionWindow
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.live.SessionWindow} SessionWindow
+             */
+            SessionWindow.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.live.SessionWindow)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.live.SessionWindow: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.live.SessionWindow();
+                if (object.trading_day != null)
+                    message.trading_day = $String(object.trading_day);
+                if (object.opens_at != null)
+                    message.opens_at = $String(object.opens_at);
+                if (object.closes_at != null)
+                    message.closes_at = $String(object.closes_at);
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a SessionWindow message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.live.SessionWindow
+             * @static
+             * @param {northstar.live.SessionWindow} message SessionWindow
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            SessionWindow.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (message.trading_day != null && $Object.hasOwnProperty.call(message, "trading_day")) {
+                    object.trading_day = message.trading_day;
+                    if (options.oneofs)
+                        object._trading_day = "trading_day";
+                }
+                if (message.opens_at != null && $Object.hasOwnProperty.call(message, "opens_at")) {
+                    object.opens_at = message.opens_at;
+                    if (options.oneofs)
+                        object._opens_at = "opens_at";
+                }
+                if (message.closes_at != null && $Object.hasOwnProperty.call(message, "closes_at")) {
+                    object.closes_at = message.closes_at;
+                    if (options.oneofs)
+                        object._closes_at = "closes_at";
+                }
+                return object;
+            };
+
+            /**
+             * Converts this SessionWindow to JSON.
+             * @function toJSON
+             * @memberof northstar.live.SessionWindow
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            SessionWindow.prototype.toJSON = function() {
+                return SessionWindow.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for SessionWindow
+             * @function getTypeUrl
+             * @memberof northstar.live.SessionWindow
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            SessionWindow.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.live.SessionWindow";
+            };
+
+            return SessionWindow;
+        })();
+
+        live.SessionSchedule = (function() {
+
+            /**
+             * Properties of a SessionSchedule.
+             * @typedef {Object} northstar.live.SessionSchedule.$Properties
+             * @property {string|null} [source_reference] SessionSchedule source_reference
+             * @property {string|null} [available_at] SessionSchedule available_at
+             * @property {Array.<northstar.live.SessionWindow.$Properties>|null} [windows] SessionSchedule windows
+             * @property {"source_reference"} [_source_reference] SessionSchedule _source_reference
+             * @property {"available_at"} [_available_at] SessionSchedule _available_at
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+
+            /**
+             * Properties of a SessionSchedule.
+             * @memberof northstar.live
+             * @interface ISessionSchedule
+             * @augments northstar.live.SessionSchedule.$Properties
+             * @deprecated Use northstar.live.SessionSchedule.$Properties instead.
+             */
+
+            /**
+             * Narrowed shape of a SessionSchedule.
+             * @typedef {{
+             *   source_reference?: string|null;
+             *   available_at?: string|null;
+             *   windows?: Array.<northstar.live.SessionWindow.$Shape>|null;
+             *   $unknowns?: Array.<Uint8Array>;
+             * } & (
+             *   ({ _source_reference?: undefined; source_reference?: null }|{ _source_reference?: "source_reference"; source_reference: string })
+             * ) & (
+             *   ({ _available_at?: undefined; available_at?: null }|{ _available_at?: "available_at"; available_at: string })
+             * )} northstar.live.SessionSchedule.$Shape
+             */
+
+            /**
+             * Constructs a new SessionSchedule.
+             * @memberof northstar.live
+             * @classdesc Represents a SessionSchedule.
+             * @constructor
+             * @param {northstar.live.SessionSchedule.$Properties=} [properties] Properties to set
+             * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
+             */
+            const SessionSchedule = function (properties) {
+                this.windows = [];
+                if (properties)
+                    for (let keys = $Object.keys(properties), i = 0; i < keys.length; ++i)
+                        if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                            this[keys[i]] = properties[keys[i]];
+            };
+
+            /**
+             * SessionSchedule source_reference.
+             * @member {string|null|undefined} source_reference
+             * @memberof northstar.live.SessionSchedule
+             * @instance
+             */
+            SessionSchedule.prototype.source_reference = null;
+
+            /**
+             * SessionSchedule available_at.
+             * @member {string|null|undefined} available_at
+             * @memberof northstar.live.SessionSchedule
+             * @instance
+             */
+            SessionSchedule.prototype.available_at = null;
+
+            /**
+             * SessionSchedule windows.
+             * @member {Array.<northstar.live.SessionWindow.$Properties>} windows
+             * @memberof northstar.live.SessionSchedule
+             * @instance
+             */
+            SessionSchedule.prototype.windows = $util.emptyArray;
+
+            // OneOf field names bound to virtual getters and setters
+            let $oneOfFields;
+
+            /**
+             * SessionSchedule _source_reference.
+             * @member {"source_reference"|undefined} _source_reference
+             * @memberof northstar.live.SessionSchedule
+             * @instance
+             */
+            $Object.defineProperty(SessionSchedule.prototype, "_source_reference", {
+                get: $util.oneOfGetter($oneOfFields = ["source_reference"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * SessionSchedule _available_at.
+             * @member {"available_at"|undefined} _available_at
+             * @memberof northstar.live.SessionSchedule
+             * @instance
+             */
+            $Object.defineProperty(SessionSchedule.prototype, "_available_at", {
+                get: $util.oneOfGetter($oneOfFields = ["available_at"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
+             * Creates a new SessionSchedule instance using the specified properties.
+             * @function create
+             * @memberof northstar.live.SessionSchedule
+             * @static
+             * @param {northstar.live.SessionSchedule.$Properties=} [properties] Properties to set
+             * @returns {northstar.live.SessionSchedule} SessionSchedule instance
+             * @type {{
+             *   (properties: northstar.live.SessionSchedule.$Shape): northstar.live.SessionSchedule & northstar.live.SessionSchedule.$Shape;
+             *   (properties?: northstar.live.SessionSchedule.$Properties): northstar.live.SessionSchedule;
+             * }}
+             */
+            SessionSchedule.create = function(properties) {
+                return new SessionSchedule(properties);
+            };
+
+            /**
+             * Encodes the specified SessionSchedule message. Does not implicitly {@link northstar.live.SessionSchedule.verify|verify} messages.
+             * @function encode
+             * @memberof northstar.live.SessionSchedule
+             * @static
+             * @param {northstar.live.SessionSchedule.$Properties} message SessionSchedule message or plain object to encode
+             * @param {$protobuf.Writer} [writer] Writer to encode to
+             * @returns {$protobuf.Writer} Writer
+             */
+            SessionSchedule.encode = function (message, writer, _depth) {
+                if (!writer)
+                    writer = $Writer.create();
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                if (message.source_reference != null && $Object.hasOwnProperty.call(message, "source_reference"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.source_reference);
+                if (message.available_at != null && $Object.hasOwnProperty.call(message, "available_at"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.available_at);
+                if (message.windows != null && message.windows.length)
+                    for (let i = 0; i < message.windows.length; ++i)
+                        $root.northstar.live.SessionWindow.encode(message.windows[i], writer.uint32(/* id 3, wireType 2 =*/26).fork(), _depth + 1).ldelim();
+                if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
+                    for (let i = 0; i < message.$unknowns.length; ++i)
+                        writer.raw(message.$unknowns[i]);
+                return writer;
+            };
+
+            /**
+             * Decodes a SessionSchedule message from the specified reader or buffer.
+             * @function decode
+             * @memberof northstar.live.SessionSchedule
+             * @static
+             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+             * @param {number} [length] Message length if known beforehand
+             * @returns {northstar.live.SessionSchedule & northstar.live.SessionSchedule.$Shape} SessionSchedule
+             * @throws {Error} If the payload is not a reader or valid buffer
+             * @throws {$protobuf.util.ProtocolError} If required fields are missing
+             */
+            SessionSchedule.decode = function (reader, length, _end, _depth, _target) {
+                if (!(reader instanceof $Reader))
+                    reader = $Reader.create(reader);
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $Reader.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let end, message;
+                if (length === $undefined)
+                    end = reader.len;
+                else {
+                    end = reader.pos + length;
+                    if (end > reader.len)
+                        throw $RangeError("index out of range");
+                    length = reader.len;
+                    reader.len = end;
+                }
+                message = _target || new $root.northstar.live.SessionSchedule();
+                while (reader.pos < end) {
+                    let start = reader.pos;
+                    let tag = reader.tag();
+                    if (tag === _end) {
+                        _end = $undefined;
+                        break;
+                    }
+                    let wireType = tag & 7;
+                    switch (tag >>>= 3) {
+                    case 1: {
+                            if (wireType !== 2)
+                                break;
+                            message.source_reference = reader.stringVerify();
+                            message._source_reference = "source_reference";
+                            continue;
+                        }
+                    case 2: {
+                            if (wireType !== 2)
+                                break;
+                            message.available_at = reader.stringVerify();
+                            message._available_at = "available_at";
+                            continue;
+                        }
+                    case 3: {
+                            if (wireType !== 2)
+                                break;
+                            if (!(message.windows && message.windows.length))
+                                message.windows = [];
+                            message.windows.push($root.northstar.live.SessionWindow.decode(reader, reader.uint32(), $undefined, _depth + 1));
+                            continue;
+                        }
+                    }
+                    reader.skipType(wireType, _depth, tag);
+                    if (!reader.discardUnknown) {
+                        $util.makeProp(message, "$unknowns", false);
+                        (message.$unknowns || (message.$unknowns = [])).push(reader.raw(start, reader.pos));
+                    }
+                }
+                if (length !== $undefined) {
+                    if (reader.pos !== end)
+                        throw $RangeError("index out of range");
+                    reader.len = length;
+                }
+                if (_end !== $undefined)
+                    throw $Error("missing end group");
+                return message;
+            };
+
+            /**
+             * Verifies a SessionSchedule message.
+             * @function verify
+             * @memberof northstar.live.SessionSchedule
+             * @static
+             * @param {Object.<string,*>} message Plain object to verify
+             * @returns {string|null} `null` if valid, otherwise the reason why it is not
+             */
+            SessionSchedule.verify = function (message, _depth) {
+                if (typeof message !== "object" || message === null)
+                    return "object expected";
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    return "max depth exceeded";
+                let properties = {};
+                if (message.source_reference != null && $Object.hasOwnProperty.call(message, "source_reference")) {
+                    properties._source_reference = 1;
+                    if (!$util.isString(message.source_reference))
+                        return "source_reference: string expected";
+                }
+                if (message.available_at != null && $Object.hasOwnProperty.call(message, "available_at")) {
+                    properties._available_at = 1;
+                    if (!$util.isString(message.available_at))
+                        return "available_at: string expected";
+                }
+                if (message.windows != null && $Object.hasOwnProperty.call(message, "windows")) {
+                    if (!$Array.isArray(message.windows))
+                        return "windows: array expected";
+                    for (let i = 0; i < message.windows.length; ++i) {
+                        let error = $root.northstar.live.SessionWindow.verify(message.windows[i], _depth + 1);
+                        if (error)
+                            return "windows." + error;
+                    }
+                }
+                return null;
+            };
+
+            /**
+             * Creates a SessionSchedule message from a plain object. Also converts values to their respective internal types.
+             * @function fromObject
+             * @memberof northstar.live.SessionSchedule
+             * @static
+             * @param {Object.<string,*>} object Plain object
+             * @returns {northstar.live.SessionSchedule} SessionSchedule
+             */
+            SessionSchedule.fromObject = function (object, _depth) {
+                if (object instanceof $root.northstar.live.SessionSchedule)
+                    return object;
+                if (!$util.isObject(object))
+                    throw $TypeError(".northstar.live.SessionSchedule: object expected");
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let message = new $root.northstar.live.SessionSchedule();
+                if (object.source_reference != null)
+                    message.source_reference = $String(object.source_reference);
+                if (object.available_at != null)
+                    message.available_at = $String(object.available_at);
+                if (object.windows) {
+                    if (!$Array.isArray(object.windows))
+                        throw $TypeError(".northstar.live.SessionSchedule.windows: array expected");
+                    message.windows = $Array(object.windows.length);
+                    for (let i = 0; i < object.windows.length; ++i) {
+                        if (!$util.isObject(object.windows[i]))
+                            throw $TypeError(".northstar.live.SessionSchedule.windows: object expected");
+                        message.windows[i] = $root.northstar.live.SessionWindow.fromObject(object.windows[i], _depth + 1);
+                    }
+                }
+                return message;
+            };
+
+            /**
+             * Creates a plain object from a SessionSchedule message. Also converts values to other types if specified.
+             * @function toObject
+             * @memberof northstar.live.SessionSchedule
+             * @static
+             * @param {northstar.live.SessionSchedule} message SessionSchedule
+             * @param {$protobuf.IConversionOptions} [options] Conversion options
+             * @returns {Object.<string,*>} Plain object
+             */
+            SessionSchedule.toObject = function (message, options, _depth) {
+                if (!options)
+                    options = {};
+                if (_depth === $undefined)
+                    _depth = 0;
+                if (_depth > $util.recursionLimit)
+                    throw $Error("max depth exceeded");
+                let object = {};
+                if (options.arrays || options.defaults)
+                    object.windows = [];
+                if (message.source_reference != null && $Object.hasOwnProperty.call(message, "source_reference")) {
+                    object.source_reference = message.source_reference;
+                    if (options.oneofs)
+                        object._source_reference = "source_reference";
+                }
+                if (message.available_at != null && $Object.hasOwnProperty.call(message, "available_at")) {
+                    object.available_at = message.available_at;
+                    if (options.oneofs)
+                        object._available_at = "available_at";
+                }
+                if (message.windows && message.windows.length) {
+                    object.windows = $Array(message.windows.length);
+                    for (let j = 0; j < message.windows.length; ++j)
+                        object.windows[j] = $root.northstar.live.SessionWindow.toObject(message.windows[j], options, _depth + 1);
+                }
+                return object;
+            };
+
+            /**
+             * Converts this SessionSchedule to JSON.
+             * @function toJSON
+             * @memberof northstar.live.SessionSchedule
+             * @instance
+             * @returns {Object.<string,*>} JSON object
+             */
+            SessionSchedule.prototype.toJSON = function() {
+                return SessionSchedule.toObject(this, $protobuf.util.toJSONOptions);
+            };
+
+            /**
+             * Gets the type url for SessionSchedule
+             * @function getTypeUrl
+             * @memberof northstar.live.SessionSchedule
+             * @static
+             * @param {string} [prefix] Custom type url prefix, defaults to `"type.googleapis.com"`
+             * @returns {string} The type url
+             */
+            SessionSchedule.getTypeUrl = function(prefix) {
+                if (prefix === $undefined)
+                    prefix = "type.googleapis.com";
+                return prefix + "/northstar.live.SessionSchedule";
+            };
+
+            return SessionSchedule;
+        })();
+
         live.StreamRequest = (function() {
 
             /**
@@ -22717,12 +23434,14 @@ export const northstar = $root.northstar = (() => {
              * @property {string|null} [query_batch_id] StreamRequest query_batch_id
              * @property {string|null} [request_id] StreamRequest request_id
              * @property {string|null} [use_basis] StreamRequest use_basis
+             * @property {northstar.live.SessionSchedule.$Properties|null} [schedule] StreamRequest schedule
              * @property {"allow_retention"} [_allow_retention] StreamRequest _allow_retention
              * @property {"configuration_id"} [_configuration_id] StreamRequest _configuration_id
              * @property {"duration_seconds"} [_duration_seconds] StreamRequest _duration_seconds
              * @property {"query_batch_id"} [_query_batch_id] StreamRequest _query_batch_id
              * @property {"request_id"} [_request_id] StreamRequest _request_id
              * @property {"use_basis"} [_use_basis] StreamRequest _use_basis
+             * @property {"schedule"} [_schedule] StreamRequest _schedule
              * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
              */
 
@@ -22743,6 +23462,7 @@ export const northstar = $root.northstar = (() => {
              *   query_batch_id?: string|null;
              *   request_id?: string|null;
              *   use_basis?: string|null;
+             *   schedule?: northstar.live.SessionSchedule.$Shape|null;
              *   $unknowns?: Array.<Uint8Array>;
              * } & (
              *   ({ _allow_retention?: undefined; allow_retention?: null }|{ _allow_retention?: "allow_retention"; allow_retention: boolean })
@@ -22756,6 +23476,8 @@ export const northstar = $root.northstar = (() => {
              *   ({ _request_id?: undefined; request_id?: null }|{ _request_id?: "request_id"; request_id: string })
              * ) & (
              *   ({ _use_basis?: undefined; use_basis?: null }|{ _use_basis?: "use_basis"; use_basis: string })
+             * ) & (
+             *   ({ _schedule?: undefined; schedule?: null }|{ _schedule?: "schedule"; schedule: northstar.live.SessionSchedule.$Shape })
              * )} northstar.live.StreamRequest.$Shape
              */
 
@@ -22821,6 +23543,14 @@ export const northstar = $root.northstar = (() => {
              * @instance
              */
             StreamRequest.prototype.use_basis = null;
+
+            /**
+             * StreamRequest schedule.
+             * @member {northstar.live.SessionSchedule.$Properties|null|undefined} schedule
+             * @memberof northstar.live.StreamRequest
+             * @instance
+             */
+            StreamRequest.prototype.schedule = null;
 
             // OneOf field names bound to virtual getters and setters
             let $oneOfFields;
@@ -22892,6 +23622,17 @@ export const northstar = $root.northstar = (() => {
             });
 
             /**
+             * StreamRequest _schedule.
+             * @member {"schedule"|undefined} _schedule
+             * @memberof northstar.live.StreamRequest
+             * @instance
+             */
+            $Object.defineProperty(StreamRequest.prototype, "_schedule", {
+                get: $util.oneOfGetter($oneOfFields = ["schedule"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
+
+            /**
              * Creates a new StreamRequest instance using the specified properties.
              * @function create
              * @memberof northstar.live.StreamRequest
@@ -22935,6 +23676,8 @@ export const northstar = $root.northstar = (() => {
                     writer.uint32(/* id 5, wireType 2 =*/42).string(message.request_id);
                 if (message.use_basis != null && $Object.hasOwnProperty.call(message, "use_basis"))
                     writer.uint32(/* id 6, wireType 2 =*/50).string(message.use_basis);
+                if (message.schedule != null && $Object.hasOwnProperty.call(message, "schedule"))
+                    $root.northstar.live.SessionSchedule.encode(message.schedule, writer.uint32(/* id 7, wireType 2 =*/58).fork(), _depth + 1).ldelim();
                 if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
                     for (let i = 0; i < message.$unknowns.length; ++i)
                         writer.raw(message.$unknowns[i]);
@@ -23021,6 +23764,13 @@ export const northstar = $root.northstar = (() => {
                             message._use_basis = "use_basis";
                             continue;
                         }
+                    case 7: {
+                            if (wireType !== 2)
+                                break;
+                            message.schedule = $root.northstar.live.SessionSchedule.decode(reader, reader.uint32(), $undefined, _depth + 1, message.schedule);
+                            message._schedule = "schedule";
+                            continue;
+                        }
                     }
                     reader.skipType(wireType, _depth, tag);
                     if (!reader.discardUnknown) {
@@ -23084,6 +23834,14 @@ export const northstar = $root.northstar = (() => {
                     if (!$util.isString(message.use_basis))
                         return "use_basis: string expected";
                 }
+                if (message.schedule != null && $Object.hasOwnProperty.call(message, "schedule")) {
+                    properties._schedule = 1;
+                    {
+                        let error = $root.northstar.live.SessionSchedule.verify(message.schedule, _depth + 1);
+                        if (error)
+                            return "schedule." + error;
+                    }
+                }
                 return null;
             };
 
@@ -23124,6 +23882,11 @@ export const northstar = $root.northstar = (() => {
                     message.request_id = $String(object.request_id);
                 if (object.use_basis != null)
                     message.use_basis = $String(object.use_basis);
+                if (object.schedule != null) {
+                    if (!$util.isObject(object.schedule))
+                        throw $TypeError(".northstar.live.StreamRequest.schedule: object expected");
+                    message.schedule = $root.northstar.live.SessionSchedule.fromObject(object.schedule, _depth + 1);
+                }
                 return message;
             };
 
@@ -23178,6 +23941,11 @@ export const northstar = $root.northstar = (() => {
                     object.use_basis = message.use_basis;
                     if (options.oneofs)
                         object._use_basis = "use_basis";
+                }
+                if (message.schedule != null && $Object.hasOwnProperty.call(message, "schedule")) {
+                    object.schedule = $root.northstar.live.SessionSchedule.toObject(message.schedule, options, _depth + 1);
+                    if (options.oneofs)
+                        object._schedule = "schedule";
                 }
                 return object;
             };

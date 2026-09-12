@@ -38,6 +38,7 @@ class StreamRequest(ApiModel):
     duration_seconds: int
     allow_retention: bool
     use_basis: str
+    schedule: dict[str, JsonValue] | None = None
 
 
 class ControlRequest(ApiModel):
@@ -195,6 +196,7 @@ def register(app: FastAPI, access: WorkspaceAccess, instances: Instances) -> Non
             duration_seconds=cast(int, payload["duration_seconds"]),
             allow_retention=cast(bool, payload["allow_retention"]),
             use_basis=_string_field(payload, "use_basis"),
+            schedule=payload.get("schedule"),
         )
 
     @app.get(
