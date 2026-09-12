@@ -213,3 +213,21 @@ def test_fill_fact_requires_explicit_causal_receipt_identity():
     account.apply(first)
     with pytest.raises(ValueError, match="reused"):
         account.apply(replace(first, available_at=AT + timedelta(seconds=1)))
+
+
+@pytest.mark.parametrize("opening", [Decimal("0"), Decimal("-2500.5")])
+def test_account_books_confirmed_fills_from_debt_but_simulation_rejects_that_capital(opening):
+    from northstar_quant.simulation.configuration import SimulationConfig
+
+    account = Account(opening, (A,))
+    fill = fills()[0]
+    account.apply(fill)
+    assert account.cash == opening - 2
+    assert account.position(A.contract_id).long_today == 2
+    checkpoint = account.checkpoint()
+    rebuilt = Account(opening, (A,))
+    for fact in account.applied_fills:
+        rebuilt.apply(fact.fact)
+    assert rebuilt.checkpoint() == checkpoint
+    with pytest.raises(ValueError):
+        SimulationConfig(initial_cash=opening)

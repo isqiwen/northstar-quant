@@ -44,18 +44,16 @@ class _Inventory:
 class Account:
     """One cash ledger with FIFO inventory per fixed contract.
 
+    Opening cash can be zero or negative: confirmed debt is still an account fact.
+    Simulation owns its positive starting-capital constraint; risk owns admission.
     A checkpoint is a comparison target, never an account constructor. Persistent
     callers rebuild from their verified ledger, apply the next fact and commit
     that fact and the new projection together under their account lock.
     """
 
     def __init__(self, initial_cash: Decimal, markets: tuple[Instrument, ...]) -> None:
-        if (
-            not isinstance(initial_cash, Decimal)
-            or not initial_cash.is_finite()
-            or initial_cash <= 0
-        ):
-            raise ValueError("account initial cash must be a positive exact amount")
+        if not isinstance(initial_cash, Decimal) or not initial_cash.is_finite():
+            raise ValueError("account opening cash must be an exact finite balance")
         if not markets or any(not isinstance(market, Instrument) for market in markets):
             raise ValueError("account requires fixed contract markets")
         if len({market.contract_id for market in markets}) != len(markets):
@@ -70,9 +68,14 @@ class Account:
             raise ValueError("account markets require canonical contracts and currencies")
         if len({market.currency for market in markets}) != 1:
             raise ValueError("one futures account requires one currency; FX is not inferred")
+        for market in markets:
+            if (
+                not isinstance(market.multiplier, Decimal)
+                or not market.multiplier.is_finite()
+                or market.multiplier <= 0
+            ):
+                raise ValueError("account requires positive exact multipliers")
         for value in (initial_cash, *(market.multiplier for market in markets)):
-            if not isinstance(value, Decimal) or not value.is_finite() or value <= 0:
-                raise ValueError("account requires positive exact economics")
             exponent = value.as_tuple().exponent
             if (
                 not isinstance(exponent, int)

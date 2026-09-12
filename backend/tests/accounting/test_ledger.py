@@ -21,7 +21,7 @@ from tests.accounting.test_baselines import saved_query
 from tests.broker.test_records import _capture
 
 
-def position_baseline(engine: Engine, *, day: str = "20260907") -> UUID:
+def position_baseline(engine: Engine, *, day: str = "20260907", balance: str = "100000") -> UUID:
     """Register explicitly synthetic product metadata, then fix a saved flat query."""
     with Session(engine) as session, session.begin():
         exchange = CatalogCommands.register_exchange(
@@ -37,7 +37,10 @@ def position_baseline(engine: Engine, *, day: str = "20260907") -> UUID:
             quantity_unit="TON",
         )
     identifier = uuid4()
-    BrokerBaselines(engine).establish(saved_query(engine, day=day), request_id=identifier)
+    BrokerBaselines(engine).establish(
+        saved_query(engine, day=day, money={"Balance": balance, "Available": balance}),
+        request_id=identifier,
+    )
     return identifier
 
 

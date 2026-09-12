@@ -571,8 +571,9 @@ def test_rehashed_query_projection_cannot_replace_original_callbacks(live_engine
         BrokerRecords(live_engine).get(identifier)
 
 
-def test_broker_context_uses_shared_fifo_without_inventing_fees_or_cash(live_engine):
-    baseline = position_baseline(live_engine)
+@pytest.mark.parametrize("balance", ["100000", "0", "-2500.5"])
+def test_broker_context_uses_shared_fifo_without_inventing_fees_or_cash(live_engine, balance):
+    baseline = position_baseline(live_engine, balance=balance)
     source = ledger_query(
         live_engine,
         trades=(
