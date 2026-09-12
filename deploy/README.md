@@ -140,13 +140,19 @@ Data Hub 使用同一份绑定；Research 首次部署读取市场标记，初�
 
 远程入口本机需要 Python 3.11+/Git/OpenSSH。目标 Linux amd64 主机由管理员预先准备：
 
-- SSH 和 northstar 账号，已安装调用者公钥；本机已核实并保存主机指纹。
-- northstar 可免密码 sudo（准备应用目录和挂载），可访问已启动的 Docker。
+- `ssh <host>` 可使用默认账号登录；该账号可 sudo 提权或为 root，不必手工创建 northstar。
+- 本机 SSH 配置的 IdentityFile 有对应公钥，或 ssh-agent 已加载公钥；目标具备 sudo/visudo 和 Docker 用户组。
 - Python 3.11+、Git、uv、Docker Engine、Compose、Buildx。
 - Data Hub/Research 使用共享时预装 NFS 客户端（Ubuntu/Debian 为 `nfs-common`）。
 - 镜像下载及构建所需网络；Docker 镜像源由管理员配置。
 
-部署只检查依赖，不创建账号、安装软件、修改软件源或 Docker 镜像源。
+`deploy` 先检查 northstar 是否已能密钥登录、免密码 sudo 并访问 Docker；就绪则直接复用。
+首次按本机 SSH 默认账号登录（不指定 User/Port），必要时由终端提示登录或 sudo 密码。
+脚本创建普通 northstar 账号、追加所用公钥、配置免密码 sudo，并加入 Docker 组；
+重新连接验证后才执行部署。公钥去重并保留已有密钥限制，不覆盖不同的既有 sudo 策略。
+密码不通过脚本参数或部署包传输。无人值守首次部署需要默认账号已能密钥登录及免密码 sudo。
+
+主机软件依赖仍只检查，不自动安装，不修改软件源或 Docker 镜像源。
 缺少工具或权限会报错，补齐后重新部署。应用依赖仍在镜像内安装，运行配置与目录仍由部署脚本准备。
 没有主机初始化命令。密钥通过 OpenSSH 默认身份或 agent 使用，不上传私钥。
 SSH 连接关闭或取消部署时清理本次部署子进程并释放锁，已启动容器和持久数据保留。
@@ -268,6 +274,6 @@ python3 scripts/northstarctl.py purge-host live --yes
 
 **不登录或操作 NFS 服务器，不删除 NAS `/quant` 数据。** 先卸载共享再清理本地目录；
 卸载失败、其他挂载或非项目容器仍占用目录时拒绝删除。符号链接不会被递归跟随。
-外部准备的 northstar 账号、SSH、Docker、主机依赖、公共基础镜像及无法单独归属的共享构建缓存保留；
+northstar 部署账号（保留登录与再次部署能力）、SSH、Docker、主机依赖、公共基础镜像及无法单独归属的共享构建缓存保留；
 不执行全局 Docker prune，不停止 Docker 服务。专属资源被其他容器引用时不会强删。
 命令失败会明确报告未完成，已完成步骤不回滚；修复后可重试。该命令不会遍历其他应用主机。

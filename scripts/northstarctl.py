@@ -38,28 +38,86 @@ def configuration(path: Path, app: str) -> dict:
     }
 
 
-def ssh(config: dict, program: str, argument: str) -> list[str]:
+def ssh(config: dict, program: str, argument: str, *, bootstrap: bool = False) -> list[str]:
     execute = ["python3", "-c", program, argument]
+    interactive = bootstrap and sys.stdin.isatty()
     return [
         "ssh",
-        "-T",
+        "-tt" if interactive else "-T",
         "-o",
-        "BatchMode=yes",
+        "BatchMode=no" if interactive else "BatchMode=yes",
         "-o",
         "ControlPath=none",
         "-o",
-        "StrictHostKeyChecking=yes",
+        "StrictHostKeyChecking=ask" if interactive else "StrictHostKeyChecking=yes",
         "-o",
         "ConnectTimeout=10",
         "-o",
         "ServerAliveInterval=15",
         "-o",
         "ServerAliveCountMax=3",
-        "-l",
-        "northstar",
+        *([] if bootstrap else ["-l", "northstar"]),
         config["host"],
         shlex.join(execute),
     ]
+
+
+def deployment_key(config: dict) -> str:
+    """Use identities available to the subsequent northstar SSH connection."""
+    resolved = subprocess.check_output(["ssh", "-G", "-l", "northstar", config["host"]], text=True)
+    for line in resolved.splitlines():
+        key, _, value = line.partition(" ")
+        if key != "identityfile" or value == "none":
+            continue
+        public = Path(value).expanduser()
+        if public.suffix != ".pub":
+            public = Path(str(public) + ".pub")
+        if public.is_file():
+            return public.read_text().strip()
+    agent = subprocess.run(["ssh-add", "-L"], capture_output=True, text=True, check=False)
+    if agent.returncode == 0 and agent.stdout.strip():
+        return agent.stdout.splitlines()[0].strip()
+    raise ValueError(
+        "未找到部署 SSH 公钥；请为该主机配置 IdentityFile 的 .pub 或向 ssh-agent 加载密钥"
+    )
+
+
+def prepare_account(config: dict) -> None:
+    probe = ssh(
+        config,
+        "import pwd,os,subprocess; assert pwd.getpwuid(os.getuid()).pw_name == 'northstar'; "
+        "subprocess.run(['sudo','-n','true'],check=True); "
+        "subprocess.run(['docker','info'],check=True,stdout=subprocess.DEVNULL)",
+        json.dumps({"northstar_account_check": True}),
+    )
+    if (
+        subprocess.run(
+            probe,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        ).returncode
+        == 0
+    ):
+        return
+    public_key = deployment_key(config)
+    program = (ROOT / "scripts/operations/host_account.py").read_text()
+    # Default SSH user authenticates first; sudo reads from its terminal, never a payload.
+    elevated = (
+        "import os,subprocess,sys; "
+        "command=['python3','-c'," + repr(program) + ",sys.argv[1]]; "
+        "prefix=[] if os.geteuid()==0 else ['sudo',"
+        "*([] if sys.stdin.isatty() else ['-n']),'--']; "
+        "sys.exit(subprocess.call(prefix+command))"
+    )
+    print(f"准备 northstar 账号 → {config['host']}（使用 SSH 默认登录账号，按需 sudo）", flush=True)
+    subprocess.run(
+        ssh(config, elevated, json.dumps({"public_key": public_key}), bootstrap=True),
+        stdin=None if sys.stdin.isatty() else subprocess.DEVNULL,
+        check=True,
+    )
+    subprocess.run(probe, stdin=subprocess.DEVNULL, check=True)
 
 
 def git(*args: str) -> str:
@@ -188,6 +246,7 @@ def main() -> int:
         )
         if args.action != "deploy":
             return subprocess.run(command, stdin=subprocess.DEVNULL, check=False).returncode
+        prepare_account(config)
         if nfs:
             program = (ROOT / "scripts/operations/nfs.py").read_text()
             subprocess.run(

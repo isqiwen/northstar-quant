@@ -22,7 +22,7 @@
 三个应用的前端、API、worker/内核分别运行在独立容器中。
 应用持久目录固定在 `/opt/northstar/`；本机磁盘或主机预先挂载的共享使用同一套配置。
 配置文件在 `deploy/{database,data_hub,research,live}/.env`，数据库密码默认为 `123456`，发布接口无需 token，实际凭据放私有运行副本。
-主机账号和依赖由外部准备，部署脚本检查依赖、准备应用目录和权限并挂载 NFS；外部 NFS 服务须提前导出 `/quant`，Data Hub 读写挂载、Research 只读挂载。存储 UUID 自动生成并持久保存，详见[部署说明](deploy/README.md)。
+主机依赖由外部准备，部署脚本自动准备 northstar 账号、检查依赖、准备应用目录和挂载 NFS；外部 NFS 服务须提前导出 `/quant`，Data Hub 读写挂载、Research 只读挂载。存储 UUID 自动生成并持久保存，详见[部署说明](deploy/README.md)。
 
 可使用统一远程入口（填写 `deploy/hosts.toml` 后提交代码，首次部署自动上传所属 `.env`）：
 
@@ -33,12 +33,12 @@
 ./scripts/northstarctl.py deploy live
 ```
 
-目标主机须提前准备 northstar 密钥登录、免密码 sudo、Python 3.11+、Git、uv、Docker/Compose/Buildx；使用共享的主机还需 NFS 客户端。Docker 须已启动且 northstar 可访问，镜像源由外部配置。
+目标主机须能用 `ssh <host>` 登录，默认账号可通过 sudo 提权（或为 root），并预装 Python 3.11+、sudo、Git、uv、Docker/Compose/Buildx；使用共享的主机还需 NFS 客户端。Docker 须已启动；脚本自动授予 northstar Docker 组权限，镜像源由外部配置。
 主机上的存储检查和版本读取直接使用 Python，不安装后端业务依赖；业务依赖在镜像中安装。
 中断部署或 SSH 连接关闭后，远程部署会清理本次子进程并释放锁；已启动容器保留，重试 `deploy` 继续部署。
 管理对象为 `database`、`data-hub`、`research`、`live`；数据库固定与 Data Hub 同机，仍独立部署。项目不管理 NFS 服务端。
 
-`hosts.toml` 各节只填写 host，不配置 `[database]`。部署固定使用 northstar，端口沿用本机 SSH 配置；NFS 固定挂载到 `/opt/northstar/files/market`。
+`hosts.toml` 各节只填写 host，不配置 `[database]`。首次 `deploy` 按本机 SSH 默认账号登录并按需提示 sudo 密码，准备并验证 northstar 后继续部署；后续使用 northstar，端口始终沿用本机 SSH 配置；NFS 固定挂载到 `/opt/northstar/files/market`。
 Research 部署会在主机上解析发布接口的 `.local` 地址，并为容器生成主机映射；部署主机必须能解析该地址，IP 变化后执行 `restart research` 刷新映射。
 之后部署固定使用 northstar，首次运行配置自动上传，默认保留已有配置；目标先具备 SSH、Python 3.11+。
 脚本部署当前已提交版本；可用 `deploy data-hub --env-file /本地路径/data-hub.env` 指定应用配置并更新远程运行副本。

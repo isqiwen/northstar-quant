@@ -153,6 +153,7 @@ if name == 'sudo':
     while args and args[0] in ('-n', '--'): args.pop(0)
     sys.exit(subprocess.run(args).returncode)
 if name == 'ssh':
+    if 'northstar_account_check' in sys.argv[-1]: sys.exit(0)
     if '-l' in sys.argv and sys.argv[sys.argv.index('-l') + 1] in ('root', 'bootstrap-admin'):
         sys.exit(int(os.environ.get('INIT_HOST_RESULT', '0')))
     sys.exit(subprocess.run(sys.argv[-1], shell=True).returncode)
@@ -333,7 +334,7 @@ def test_dependency_failure_prevents_source_transfer_and_application_mutation(de
     assert result.returncode != 0
     assert not (config.parent / "apps/live/current").exists()
     calls = [json.loads(line) for line in Path(env["RECORD"]).read_text().splitlines()]
-    assert len([call for call in calls if call[0] == "ssh"]) == 1
+    assert len([call for call in calls if call[0] == "ssh"]) == 2
     assert not any("up" in call or "down" in call for call in calls)
 
 
@@ -387,7 +388,8 @@ def test_interactive_elevation_keeps_password_out_of_transport_and_bundle(deploy
         ssh_calls = [
             json.loads(line) for line in calls.splitlines() if json.loads(line)[0] == "ssh"
         ]
-        assert "-tt" in ssh_calls[0] and "-T" in ssh_calls[1]
+        assert "-T" in ssh_calls[0]  # noninteractive readiness probe
+        assert "-tt" in ssh_calls[1] and "-T" in ssh_calls[2]
         assert (config.parent / "apps/research/successful-revision").is_file()
     finally:
         if status is None:
@@ -405,7 +407,7 @@ def test_unattended_deployment_without_sudo_permission_stops_before_transfer(dep
     assert not (config.parent / "apps/research/current").exists()
     assert env["ASK_SUDO"] not in result.stdout + result.stderr
     calls = [json.loads(line) for line in Path(env["RECORD"]).read_text().splitlines()]
-    assert len([call for call in calls if call[0] == "ssh"]) == 1
+    assert len([call for call in calls if call[0] == "ssh"]) == 2
     assert not any(
         call[0] == "docker" and ("up" in call or "down" in call or "build" in call)
         for call in calls
