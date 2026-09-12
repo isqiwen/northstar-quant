@@ -16,11 +16,15 @@ import tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-APPLICATIONS = ("database", "nfs", "data-hub", "research", "live")
+APPLICATIONS = ("database", "data-hub", "research", "live")
 
 
 def configuration(path: Path, app: str) -> dict:
-    item = tomllib.loads(path.read_text()).get(app.replace("-", "_"), {})
+    settings = tomllib.loads(path.read_text())
+    if "database" in settings:
+        raise ValueError("请删除 [database]；数据库固定使用 [data_hub] 主机配置")
+    owner = "data_hub" if app == "database" else app.replace("-", "_")
+    item = settings.get(owner, {})
     host = item.get("host")
     if not isinstance(host, str) or not re.fullmatch(r"[a-zA-Z0-9_][a-zA-Z0-9_.:-]*", host):
         raise ValueError(f"{app}.host 必须填写有效的 SSH 主机地址，不带协议前缀")
@@ -79,8 +83,6 @@ def initialize_hosts(args: argparse.Namespace) -> int:
         if args.app
         else [app for app in APPLICATIONS if settings.get(app.replace("-", "_"), {}).get("host")]
     )
-    if args.app in {"database", "data-hub", "research"} and settings.get("nfs"):
-        apps = [*apps, "nfs"]
     targets = {}
     for app in apps:
         config = configuration(args.config, app)
@@ -148,7 +150,7 @@ def git(*args: str) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="通过 SSH 管理 Northstar 数据库、NFS 和应用的部署、启停、状态及日志"
+        description="通过 SSH 管理 Northstar 数据库和应用的部署、启停、状态及日志"
     )
     parser.add_argument(
         "action",
@@ -177,8 +179,6 @@ def main() -> int:
         args.app != "live" or args.action not in {"start", "restart", "stop", "status", "logs"}
     ):
         parser.error("--instance 仅用于 Live 实例启停、状态和日志")
-    if args.app == "nfs" and args.env_file is not None:
-        parser.error("NFS 使用 hosts.toml，不使用 .env")
     if args.env_file is not None and args.action != "deploy":
         parser.error("--env-file 仅用于 deploy；其他命令使用已部署的运行配置")
     if args.follow and args.action != "logs":
@@ -190,45 +190,9 @@ def main() -> int:
             return initialize_hosts(args)
         config = configuration(args.config, args.app)
         settings = tomllib.loads(args.config.read_text())
-        if args.app == "nfs":
-            plan = {}
-            if args.action == "deploy":
-                plan = runpy.run_path(str(ROOT / "scripts/operations/nfs.py"))["topology"](settings)
-                assert plan is not None
-                for key in ("data-hub", "research"):
-                    configuration(args.config, key)
-            print(f"{args.action} nfs → northstar@{config['host']}:{config['port']}", flush=True)
-            if args.dry_run:
-                return 0
-            program = (ROOT / "scripts/operations/nfs.py").read_text()
-            elevated = (
-                "import subprocess,sys; sys.exit(subprocess.call(['sudo','-n','--',"
-                "'python3','-c'," + repr(program) + ",sys.argv[1]]))"
-            )
-            return subprocess.run(
-                ssh(
-                    config,
-                    elevated,
-                    json.dumps(
-                        plan
-                        | {
-                            "host": config["host"],
-                            "action": args.action,
-                            "follow": args.follow,
-                        }
-                    ),
-                ),
-                stdin=subprocess.DEVNULL,
-                check=False,
-            ).returncode
         nfs = None
-        server_config = None
         if args.app in {"database", "data-hub", "research"}:
             nfs = runpy.run_path(str(ROOT / "scripts/operations/nfs.py"))["topology"](settings)
-            if nfs:
-                for key in ("data_hub", "research", "nfs"):
-                    configuration(args.config, key.replace("_", "-"))
-                server_config = configuration(args.config, "nfs")
         revision = None
         custom_environment = None
         environment_path = args.env_file or ROOT / "deploy" / args.app.replace("-", "_") / ".env"
@@ -275,7 +239,10 @@ def main() -> int:
                 flush=True,
             )
         if args.action == "deploy" and nfs:
-            print(f"NFS：{nfs['server']} 提供行情；{nfs['writer']} 读写，{nfs['reader']} 只读消费")
+            print(
+                f"NFS：{nfs['server']}:/quant → /opt/northstar/files/market；"
+                f"{nfs['writer']} 读写，{nfs['reader']} 只读消费"
+            )
         if args.dry_run:
             return 0
         command = ssh(
@@ -284,32 +251,21 @@ def main() -> int:
         if args.action != "deploy":
             return subprocess.run(command, stdin=subprocess.DEVNULL, check=False).returncode
         if nfs:
-            assert server_config is not None
             program = (ROOT / "scripts/operations/nfs.py").read_text()
-            # Refuse hiding existing client data before changing the server at all.
             subprocess.run(
                 ssh(config, program, json.dumps(nfs | {"host": config["host"], "preflight": True})),
                 stdin=subprocess.DEVNULL,
                 check=True,
             )
-            # NFS server dependencies/permissions belong exclusively to deploy nfs.
-            for target, operation in [
-                (server_config, "check-server"),
-                *([(config, "deploy")] if config["host"] != server_config["host"] else []),
-            ]:
-                elevated = (
-                    "import subprocess,sys; subprocess.run(['sudo','-n','--',"
-                    "'python3','-c'," + repr(program) + ",sys.argv[1]],check=True)"
-                )
-                subprocess.run(
-                    ssh(
-                        target,
-                        elevated,
-                        json.dumps(nfs | {"host": target["host"], "action": operation}),
-                    ),
-                    stdin=subprocess.DEVNULL,
-                    check=True,
-                )
+            elevated = (
+                "import subprocess,sys; subprocess.run(['sudo','-n','--',"
+                "'python3','-c'," + repr(program) + ",sys.argv[1]],check=True)"
+            )
+            subprocess.run(
+                ssh(config, elevated, json.dumps(nfs | {"host": config["host"]})),
+                stdin=subprocess.DEVNULL,
+                check=True,
+            )
         bootstrap = command[:-1] + [
             shlex.join(
                 [

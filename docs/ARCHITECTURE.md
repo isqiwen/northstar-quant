@@ -29,8 +29,8 @@ Data Hub 与 Research 通过固定清单和只读文件协作，不共享可写�
 Live 运行与本地恢复不等待 core、research、NAS 或 WAN 数据库；远端断线只影响可选的材料传输或归档。
 
 目录固定在 `/opt/northstar/`：`apps`、`config`、`files/{source,market,research,backup}`、`state`、`credentials`、`logs`、`work`。
-应用只感知目录、内容/存储身份和权限；NFS 在部署层配置，默认 Research 提供市场共享，Data Hub 写、Research 容器只读。
-NFS 的准备、导出和挂载规则见 [部署说明](../deploy/README.md)，本机运行数据与 Live SQLite 不放在该共享上。
+应用只感知目录、内容/存储身份和权限；NFS 服务及 `/quant` 导出由外部准备，部署层仅在 Data Hub/Research 主机挂载到 `/opt/northstar/files/market`，分别读写/只读（同机时主机读写、Research 容器只读）。
+数据库固定使用 Data Hub 主机配置，独立容器及本机运行目录。NFS 的前置要求和客户端挂载规则见 [部署说明](../deploy/README.md)，本机运行数据与 Live SQLite 不放在该共享上。
 每个发布文件必须核对身份与哈希；目录存在不代表引用的数据存在。
 
 当前同一受管 Live 主机用共享账户进程锁保证唯一占用；身份为环境、BrokerID、账户。

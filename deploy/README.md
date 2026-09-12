@@ -2,73 +2,56 @@
 
 | 主机 | 服务 |
 |---|---|
-| `core.local` | Data Hub 前端、API、同步 worker；独立 PostgreSQL |
+| `[data_hub].host` | Data Hub 前端、API、同步 worker；独立 PostgreSQL |
 | `research.local` | Research 前端、API、worker；本机 SQLite 和 DuckDB |
 | Live 独立主机 | 自己的前端、API、内核和本地存储 |
 
 应用只读写固定的目录，不感知存储设备、服务器、协议或挂载方式。
-部署脚本按 `hosts.toml` 准备行情 NFS，其余缺失目录在本机创建。显式关闭 NFS 时可全部使用本地磁盘。
+部署脚本按 `hosts.toml` 挂载外部行情 NFS，其余缺失目录在本机创建。未配置 `[nfs]` 时使用本地磁盘。
 
 ## 行情共享
 
-默认配置：
+NFS 服务由 NAS 管理员提前准备，项目不登录 NAS、不安装服务端、不创建导出或修改 NAS 权限。
+`hosts.toml` 只记录其地址：
 
 ```toml
 [nfs]
-host = "research.local"
-user = "qiwen"
-port = 22
+host = "nas.local"
 ```
 
-| 服务端选择 | core | Research |
+固定使用 NFSv4 导出 `/quant`，挂载点为 `/opt/northstar/files/market`：
+
+| 应用主机 | 挂载源 | 权限 |
 |---|---|---|
-| `research.local`（默认） | NFS 读写挂载 | 本地提供共享，研究容器只读 |
-| `core.local` | 本地写入并提供共享 | NFS 只读挂载 |
-| 其他主机地址 | NFS 读写挂载 | NFS 只读挂载 |
+| `[data_hub].host` | `nas.local:/quant` | 读写 |
+| `[research].host` | `nas.local:/quant` | 只读 |
 
-`[nfs]` 直接填写服务端的 SSH 信息，格式与应用主机一致。与 Data Hub 或 Research 同机时使用相同的 `host`，脚本自动判断本地服务端与远程客户端；其他地址则两台应用主机都作为客户端。
-自动管理的服务端和客户端要求 Ubuntu/Debian Linux；QNAP 等设备不能直接使用 Linux SSH 安装流程。
-`init-host` 会同时准备所需 NFS 服务端账号；`deploy nfs` 安装服务端依赖、设置共享权限与导出。
-`deploy database/data-hub/research` 只检查服务端已部署并运行，再准备当前应用的客户端挂载和依赖，不修改服务端。Research 自己的 `deploy research` 同样自动安装 Docker、Compose、Buildx 和 uv。
-服务端只需 NFS，不因仅提供文件共享而安装 Docker。
+NAS 须允许应用主机通过 TCP 2049 访问，Data Hub 的实际 NFS 映射身份须能创建文件、目录和硬链接，
+Research 须能读取发布目录和文件。服务端的导出权限、UID/GID 映射及防火墙由管理员配置；
+项目不会递归修改 NAS 文件所有者。发布目录/文件使用 `755/644`，原始来源和凭据不共享。
+如果两应用同机，主机挂载为读写，Research 容器仍只读绑定该目录。
 
-NFS 与 database、data-hub、research、live 是同级管理对象，可以单独执行：
+先准备 NAS，再执行 `init-host`、`deploy database`、`deploy data-hub`、`deploy research`。
+数据库使用 Data Hub 的 SSH 主机配置，独立容器、本机 PostgreSQL 目录。数据库初始化会绑定行情存储身份，
+因此 `deploy database` 先在 Data Hub 主机准备同一个客户端挂载，避免初始化到本地空目录。
+Data Hub/Research 部署也会在各自目标主机安装缺失的 `nfs-common`、配置 systemd 持久挂载并验证读写及存储身份。
+Docker、Compose、Buildx 等应用依赖照常自动安装。没有 `deploy/start/stop nfs` 管理命令。
 
-```sh
-./scripts/northstarctl.py init-host nfs
-./scripts/northstarctl.py deploy nfs
-./scripts/northstarctl.py status nfs
-./scripts/northstarctl.py logs nfs --follow
-./scripts/northstarctl.py restart nfs
-```
-
-也支持 `start nfs`、`stop nfs`。NFS 使用 `hosts.toml`，不接受 `--env-file`，不构建 Docker 镜像；
-部署只准备服务端，应用部署仍负责各自客户端挂载。启停管理的是主机 `nfs-server.service`，
-日志来自 journalctl；停止/重启会影响该主机的 NFS 共享访问，但不会删除数据、卸载客户端或启停应用。
-首次使用先 `deploy nfs`；后续 `start/restart` 复用已部署配置并检查存储身份，不重新初始化文件。
-
-唯一共享路径为 `/opt/northstar/files/market`，NFSv4、TCP 2049。服务端按解析后的客户端 IPv4 地址
-导出：core 可写、Research 只读；启用 UFW 时自动放行对应客户端的 2049/TCP。
-其他防火墙需允许这些客户端访问该端口。主机地址应稳定，地址变化后重新部署刷新规则。
-共享账号 `northstar-market` 由脚本创建，写请求映射到这个无登录账号，独立 Research 客户端映射到匿名只读身份，不授予远程 root 身份。
-发布目录/文件使用 `755/644`，原始来源和凭据不共享；首次接管市场目录会调整其所有者和读取权限。
-
-客户端用 systemd 持久挂载，Docker 启动前要求挂载就绪，使用 `hard` 避免把网络故障当成成功写入。
-重复部署不会重复追加配置或重启 Docker。配置了 NFS 却挂载失败时停止部署，不能退回本地空目录。
-Research 的 SQLite、计算临时目录、研究产物和备份目录仍在本机；Live 不配置 NFS，也不依赖该服务端。
-默认方案下 Research 主机离线会影响 core 的行情写入，因此服务端应持续在线。
+首次空共享在 Data Hub 主机部署时生成 `.northstar-storage-id`，然后部署 Research。已有数据必须保留原身份，
+不能因文件缺失重新生成 UUID。重复部署不重复追加挂载配置或重启 Docker。
+客户端使用 NFSv4 `hard` 挂载，Docker 启动前要求挂载就绪；配置了 NFS 却挂载失败时停止部署。
+Research 的 SQLite、临时目录、研究产物和备份仍在本机；Live 不挂载此共享。
 
 **切换已有部署**：先停止 Data Hub 写入和 Research 使用，联合备份数据库与文件；把完整市场目录
-（包括 `.northstar-storage-id`）迁移到目标服务端并核对文件哈希。保留旧数据直至验证完成。
-卸载旧客户端挂载并移除对应 `opt-northstar-files-market.mount`、Docker 的
-`northstar-market.conf` 和 `state/nfs/client.json`；再修改 `[nfs].host` 并重新部署受影响应用。
-旧服务端停止使用后移除其 `/etc/exports.d/northstar.exports` 并执行 `exportfs -ra`。
-脚本拒绝覆盖非空本地目录或替换不同挂载，不自动移动、删除业务数据。
-不配置 `[nfs]` 时使用本地目录；删除该节不会自动卸载已有共享或删除其运行配置。
+（包括 `.northstar-storage-id`）迁移到 NAS 的 `/quant` 导出并核对文件哈希。
+卸载旧客户端挂载并移除旧 `opt-northstar-files-market.mount`、Docker 的
+`northstar-market.conf` 和 `state/nfs/client.json`；修改 `[nfs].host` 后重新部署两应用。
+旧服务端的停用和导出清理由管理员处理，脚本不操作旧服务器或自动移动、删除业务数据。
+脚本拒绝覆盖非空本地目录或替换不同挂载。删除 `[nfs]` 不会自动卸载已有共享。
 
 ## 主机与凭据
 
-仓库维护 `deploy/hosts.toml` 和各目录的 `.env`。`database` 默认部署到 `core.local`。
+仓库维护 `deploy/hosts.toml` 和各目录的 `.env`。不配置 `[database]`，数据库固定使用 `[data_hub]` 的 host/user/port。
 主机配置接受 `host/user/port`，不填写路径。`user` 仅用于 `init-host` 登录和提权；其他命令固定使用 northstar。
 `user = "root"` 时直接初始化；普通用户须有 sudo 权限。同一地址和端口的各应用填写相同初始化用户。
 `northstarctl deploy` 自动将本次 Git 提交中对应应用的 `.env` 上传到

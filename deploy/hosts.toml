@@ -1,16 +1,12 @@
 # user 仅用于 init-host 登录及提权；后续应用管理固定使用 northstar。
-[database]
-host = "core.local"
-user = "qiwen"
-port = 22
 
+# 外部已准备 NFSv4 /quant 导出；项目不登录或管理此服务器。
 [nfs]
-host = "research.local"
-user = "qiwen"
-port = 22
+host = "nas.local"
 
+# database 固定共用此主机，仍作为独立容器部署。
 [data_hub]
-host = "core.local"
+host = "hub.local"
 user = "qiwen"
 port = 22
 

@@ -1,5 +1,11 @@
 # 开发路线
 
+2026-09-13 部署边界调整（本地批次）：NFS 服务及 `/quant` 导出改为外部前置条件；
+`[nfs]` 仅配置 host，项目仅管理 Data Hub/Research 的固定客户端挂载。
+数据库目标固定继承 `[data_hub]`，仍独立部署；数据库初始化前在该主机准备行情挂载。
+移除 NFS 服务端安装、导出、账号、防火墙和启停管理。部署传输与挂载故障回归通过；未执行 NAS/主机现场迁移验收。
+
+
 设计与边界见 [ARCHITECTURE](ARCHITECTURE.md)，参考依据见 [REFERENCES](REFERENCES.md)。
 [Project](https://github.com/users/isqiwen/projects/1) 管理顺序/状态，[Issues](https://github.com/isqiwen/northstar-quant/issues) 保存可执行步骤、直接依赖和验收。
 **首轮：一份真实固定数据 → 单合约跨日回测 → 同一业务规则下的 SimNow 开平仓与恢复。**

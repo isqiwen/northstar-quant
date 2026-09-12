@@ -130,7 +130,7 @@ def deployment(tmp_path: Path) -> tuple[Path, Path, dict]:
     config.write_text(
         "\n".join(
             f'[{app.replace("-", "_")}]\nhost="example.invalid"\nuser="root"\n'
-            for app in ("database", "data-hub", "research", "live")
+            for app in ("data-hub", "research", "live")
         )
     )
     for share in ("source", "market", "research", "backup"):
@@ -289,7 +289,7 @@ def test_modified_remote_release_is_not_overwritten(deployment):
 def test_path_override_is_rejected_before_ssh(deployment):
     _, config, env = deployment
     config.write_text(
-        config.read_text().replace("[database]", '[database]\ndirectory="/tmp/override"')
+        config.read_text().replace("[data_hub]", '[data_hub]\ndirectory="/tmp/override"')
     )
     assert invoke(deployment, "deploy", "database").returncode != 0
     assert not Path(env["RECORD"]).exists()
@@ -438,7 +438,7 @@ def test_init_host_deduplicates_targets_and_verifies_fixed_deployment_account(
             '[research]\nhost="example.invalid"', '[research]\nhost="research.invalid"'
         )
     )
-    config.write_text(config.read_text() + f'\n[nfs]\nhost="{nfs_host}"\nuser="root"\nport=22\n')
+    config.write_text(config.read_text() + f'\n[nfs]\nhost="{nfs_host}"\n')
     config.write_text(config.read_text().replace('user="root"', f'user="{bootstrap_user}"'))
     (tmp_path / ".ssh").mkdir()
     key = tmp_path / ".ssh/id_ed25519"
@@ -454,7 +454,7 @@ def test_init_host_deduplicates_targets_and_verifies_fixed_deployment_account(
     assert result.returncode == 0, result.stderr
     calls = [json.loads(line) for line in Path(env["RECORD"]).read_text().splitlines()]
     users = [call[call.index("-l") + 1] for call in calls if call[0] == "ssh"]
-    assert users == [bootstrap_user, "northstar"] * (3 if nfs_host == "storage.invalid" else 2)
+    assert users == [bootstrap_user, "northstar"] * 2
     import shlex
 
     init_calls = [
@@ -605,48 +605,20 @@ def test_failed_same_revision_configuration_blocks_start_and_records_last_succes
     assert invoke(deployment, "start", "research").returncode == 0
 
 
-@pytest.mark.parametrize("action", ["deploy", "start", "restart", "stop", "status", "logs"])
-def test_nfs_target_uses_service_transport_without_env_bundle_or_docker(deployment, action):
-    repo, config, env = deployment
-    config.write_text(
-        config.read_text() + '\n[nfs]\nhost="storage.invalid"\nuser="root"\nport=22\n'
-    )
-    program = repo / "scripts/operations/nfs.py"
-    program.write_text(
-        "import json,sys\ndef topology(settings): return {'server': settings['nfs']['host']}\n"
-        "if __name__ == '__main__':\n"
-        " request=json.loads(sys.argv[1])\n"
-        " print('service-action=' + request['action']); sys.exit(3)\n"
-    )
-    command = [
-        sys.executable,
-        str(repo / "scripts/northstarctl.py"),
-        action,
-        "nfs",
-        "--config",
-        str(config),
-    ]
-    result = subprocess.run(command, env=env, capture_output=True, text=True)
-    assert result.returncode == 3, result.stderr
-    assert f"service-action={action}" in result.stdout
-    calls = [json.loads(line) for line in Path(env["RECORD"]).read_text().splitlines()]
-    assert not any(call[0] in {"docker", "uv", "make"} for call in calls)
-    assert len([call for call in calls if call[0] == "ssh"]) == 1
-
-
-@pytest.mark.parametrize("server_failure", [False, True])
-def test_app_deploy_checks_nfs_server_without_reprovisioning_it(deployment, server_failure):
+@pytest.mark.parametrize("app", ["database", "data-hub", "research"])
+@pytest.mark.parametrize("mount_failure", [False, True])
+def test_app_deploy_only_mounts_client_and_stops_on_mount_failure(deployment, mount_failure, app):
     import shlex
 
     repo, config, env = deployment
-    config.write_text(config.read_text() + '\n[nfs]\nhost="storage.invalid"\nuser="root"\n')
+    config.write_text(config.read_text() + '\n[nfs]\nhost="storage.invalid"\n')
     (repo / "scripts/operations/nfs.py").write_text(
         "import json,sys,os\n"
         "def topology(s): return {'server': s['nfs']['host'], "
         "'writer': s['data_hub']['host'], 'reader': s['research']['host']}\n"
         "if __name__ == '__main__':\n"
         " r=json.loads(sys.argv[1])\n"
-        " failed=r.get('action')=='check-server' and os.environ.get('NFS_SERVER_FAILURE')\n"
+        " failed=not r.get('preflight') and os.environ.get('NFS_MOUNT_FAILURE')\n"
         " sys.exit(9 if failed else 0)\n"
     )
     subprocess.run(["git", "-C", str(repo), "add", "."], check=True)
@@ -665,14 +637,14 @@ def test_app_deploy_checks_nfs_server_without_reprovisioning_it(deployment, serv
         ],
         check=True,
     )
-    if server_failure:
-        env["NFS_SERVER_FAILURE"] = "1"
+    if mount_failure:
+        env["NFS_MOUNT_FAILURE"] = "1"
     result = subprocess.run(
         [
             sys.executable,
             str(repo / "scripts/northstarctl.py"),
             "deploy",
-            "data-hub",
+            app,
             "--config",
             str(config),
         ],
@@ -680,16 +652,16 @@ def test_app_deploy_checks_nfs_server_without_reprovisioning_it(deployment, serv
         capture_output=True,
         text=True,
     )
-    assert (result.returncode != 0) == server_failure, result.stderr
+    assert (result.returncode != 0) == mount_failure, result.stderr
     calls = [json.loads(line) for line in Path(env["RECORD"]).read_text().splitlines()]
     requests = [json.loads(shlex.split(call[-1])[-1]) for call in calls if call[0] == "ssh"]
     nfs_requests = [item for item in requests if "server" in item]
     assert [(r["host"], r.get("action")) for r in nfs_requests] == [
         ("example.invalid", None),
-        ("storage.invalid", "check-server"),
-        *([] if server_failure else [("example.invalid", "deploy")]),
+        ("example.invalid", None),
     ]
-    if server_failure:
+    assert all("storage.invalid" not in call[:-1] for call in calls if call[0] == "ssh")
+    if mount_failure:
         assert not any(call[0] == "docker" for call in calls)
 
 
@@ -716,3 +688,25 @@ def test_workspace_password_bootstrap_preserves_identity_and_requires_explicit_r
     changed, disclosed = prepare("research", explicit, installed)
     assert changed == explicit and disclosed is None
     assert parse("research", changed)[key] != encoded
+
+
+def test_database_uses_data_hub_ssh_identity_and_own_configuration(deployment):
+    import runpy
+
+    repo, config, _ = deployment
+    config.write_text(
+        config.read_text().replace(
+            '[data_hub]\nhost="example.invalid"\nuser="root"',
+            '[data_hub]\nhost="hub.invalid"\nuser="operator"\nport=2222',
+        )
+    )
+    read = runpy.run_path(str(repo / "scripts/northstarctl.py"))["configuration"]
+    database = read(config, "database")
+    hub = read(config, "data-hub")
+    assert (database["host"], database["bootstrap_user"], database["port"]) == (
+        "hub.invalid",
+        "operator",
+        2222,
+    )
+    assert database["directory"] != hub["directory"]
+    assert database["env_file"] != hub["env_file"]
