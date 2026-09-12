@@ -11,6 +11,7 @@ import os
 import re
 import tempfile
 import tomllib
+from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import urlsplit
 from uuid import uuid4
@@ -710,7 +711,13 @@ def main() -> None:
 
                         def selected_status(route):
                             selected.append(route.request.headers.get("x-live-instance-id"))
-                            fulfill(route, "/api/live/status", original)
+                            # Each intercepted poll represents a fresh synthetic observation;
+                            # reusing the earlier timestamp correctly trips the UI stale gate.
+                            fulfill(
+                                route,
+                                "/api/live/status",
+                                original | {"observed_at": datetime.now(UTC).isoformat()},
+                            )
 
                         page.route("**/api/live/status", selected_status)
                         page.reload()
