@@ -31805,11 +31805,13 @@ export const northstar = $root.northstar = (() => {
                 /**
                  * Properties of a BrowserSession.
                  * @typedef {Object} northstar.web.auth.BrowserSession.$Properties
+                 * @property {boolean|null} [setup_required] BrowserSession setup_required
                  * @property {boolean|null} [authenticated] BrowserSession authenticated
                  * @property {string|null} [csrf] BrowserSession csrf
                  * @property {string|null} [operator] BrowserSession operator
                  * @property {string|null} [expires_at] BrowserSession expires_at
                  * @property {Array.<string>|null} [null_fields] BrowserSession null_fields
+                 * @property {"setup_required"} [_setup_required] BrowserSession _setup_required
                  * @property {"authenticated"} [_authenticated] BrowserSession _authenticated
                  * @property {"csrf"} [_csrf] BrowserSession _csrf
                  * @property {"operator"} [_operator] BrowserSession _operator
@@ -31828,6 +31830,7 @@ export const northstar = $root.northstar = (() => {
                 /**
                  * Narrowed shape of a BrowserSession.
                  * @typedef {{
+                 *   setup_required?: boolean|null;
                  *   authenticated?: boolean|null;
                  *   csrf?: string|null;
                  *   operator?: string|null;
@@ -31835,6 +31838,8 @@ export const northstar = $root.northstar = (() => {
                  *   null_fields?: Array.<string>|null;
                  *   $unknowns?: Array.<Uint8Array>;
                  * } & (
+                 *   ({ _setup_required?: undefined; setup_required?: null }|{ _setup_required?: "setup_required"; setup_required: boolean })
+                 * ) & (
                  *   ({ _authenticated?: undefined; authenticated?: null }|{ _authenticated?: "authenticated"; authenticated: boolean })
                  * ) & (
                  *   ({ _csrf?: undefined; csrf?: null }|{ _csrf?: "csrf"; csrf: string })
@@ -31860,6 +31865,14 @@ export const northstar = $root.northstar = (() => {
                             if (properties[keys[i]] != null && keys[i] !== "__proto__")
                                 this[keys[i]] = properties[keys[i]];
                 };
+
+                /**
+                 * BrowserSession setup_required.
+                 * @member {boolean|null|undefined} setup_required
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @instance
+                 */
+                BrowserSession.prototype.setup_required = null;
 
                 /**
                  * BrowserSession authenticated.
@@ -31903,6 +31916,17 @@ export const northstar = $root.northstar = (() => {
 
                 // OneOf field names bound to virtual getters and setters
                 let $oneOfFields;
+
+                /**
+                 * BrowserSession _setup_required.
+                 * @member {"setup_required"|undefined} _setup_required
+                 * @memberof northstar.web.auth.BrowserSession
+                 * @instance
+                 */
+                $Object.defineProperty(BrowserSession.prototype, "_setup_required", {
+                    get: $util.oneOfGetter($oneOfFields = ["setup_required"]),
+                    set: $util.oneOfSetter($oneOfFields)
+                });
 
                 /**
                  * BrowserSession _authenticated.
@@ -31988,6 +32012,8 @@ export const northstar = $root.northstar = (() => {
                         writer.uint32(/* id 3, wireType 2 =*/26).string(message.operator);
                     if (message.expires_at != null && $Object.hasOwnProperty.call(message, "expires_at"))
                         writer.uint32(/* id 4, wireType 2 =*/34).string(message.expires_at);
+                    if (message.setup_required != null && $Object.hasOwnProperty.call(message, "setup_required"))
+                        writer.uint32(/* id 5, wireType 0 =*/40).bool(message.setup_required);
                     if (message.null_fields != null && message.null_fields.length)
                         for (let i = 0; i < message.null_fields.length; ++i)
                             writer.uint32(/* id 2046, wireType 2 =*/16370).string(message.null_fields[i]);
@@ -32035,6 +32061,13 @@ export const northstar = $root.northstar = (() => {
                         }
                         let wireType = tag & 7;
                         switch (tag >>>= 3) {
+                        case 5: {
+                                if (wireType !== 0)
+                                    break;
+                                message.setup_required = reader.bool();
+                                message._setup_required = "setup_required";
+                                continue;
+                            }
                         case 1: {
                                 if (wireType !== 0)
                                     break;
@@ -32104,6 +32137,11 @@ export const northstar = $root.northstar = (() => {
                     if (_depth > $util.recursionLimit)
                         return "max depth exceeded";
                     let properties = {};
+                    if (message.setup_required != null && $Object.hasOwnProperty.call(message, "setup_required")) {
+                        properties._setup_required = 1;
+                        if (typeof message.setup_required !== "boolean")
+                            return "setup_required: boolean expected";
+                    }
                     if (message.authenticated != null && $Object.hasOwnProperty.call(message, "authenticated")) {
                         properties._authenticated = 1;
                         if (typeof message.authenticated !== "boolean")
@@ -32152,6 +32190,8 @@ export const northstar = $root.northstar = (() => {
                     if (_depth > $util.recursionLimit)
                         throw $Error("max depth exceeded");
                     let message = new $root.northstar.web.auth.BrowserSession();
+                    if (object.setup_required != null)
+                        message.setup_required = $Boolean(object.setup_required);
                     if (object.authenticated != null)
                         message.authenticated = $Boolean(object.authenticated);
                     if (object.csrf != null)
@@ -32209,6 +32249,11 @@ export const northstar = $root.northstar = (() => {
                         if (options.oneofs)
                             object._expires_at = "expires_at";
                     }
+                    if (message.setup_required != null && $Object.hasOwnProperty.call(message, "setup_required")) {
+                        object.setup_required = message.setup_required;
+                        if (options.oneofs)
+                            object._setup_required = "setup_required";
+                    }
                     if (message.null_fields && message.null_fields.length) {
                         object.null_fields = $Array(message.null_fields.length);
                         for (let j = 0; j < message.null_fields.length; ++j)
@@ -32250,7 +32295,9 @@ export const northstar = $root.northstar = (() => {
                 /**
                  * Properties of a LoginRequest.
                  * @typedef {Object} northstar.web.auth.LoginRequest.$Properties
+                 * @property {string|null} [username] LoginRequest username
                  * @property {string|null} [password] LoginRequest password
+                 * @property {"username"} [_username] LoginRequest _username
                  * @property {"password"} [_password] LoginRequest _password
                  * @property {Array.<Uint8Array>} [$unknowns] Unknown fields preserved while decoding when enabled
                  */
@@ -32266,9 +32313,12 @@ export const northstar = $root.northstar = (() => {
                 /**
                  * Narrowed shape of a LoginRequest.
                  * @typedef {{
+                 *   username?: string|null;
                  *   password?: string|null;
                  *   $unknowns?: Array.<Uint8Array>;
                  * } & (
+                 *   ({ _username?: undefined; username?: null }|{ _username?: "username"; username: string })
+                 * ) & (
                  *   ({ _password?: undefined; password?: null }|{ _password?: "password"; password: string })
                  * )} northstar.web.auth.LoginRequest.$Shape
                  */
@@ -32289,6 +32339,14 @@ export const northstar = $root.northstar = (() => {
                 };
 
                 /**
+                 * LoginRequest username.
+                 * @member {string|null|undefined} username
+                 * @memberof northstar.web.auth.LoginRequest
+                 * @instance
+                 */
+                LoginRequest.prototype.username = null;
+
+                /**
                  * LoginRequest password.
                  * @member {string|null|undefined} password
                  * @memberof northstar.web.auth.LoginRequest
@@ -32298,6 +32356,17 @@ export const northstar = $root.northstar = (() => {
 
                 // OneOf field names bound to virtual getters and setters
                 let $oneOfFields;
+
+                /**
+                 * LoginRequest _username.
+                 * @member {"username"|undefined} _username
+                 * @memberof northstar.web.auth.LoginRequest
+                 * @instance
+                 */
+                $Object.defineProperty(LoginRequest.prototype, "_username", {
+                    get: $util.oneOfGetter($oneOfFields = ["username"]),
+                    set: $util.oneOfSetter($oneOfFields)
+                });
 
                 /**
                  * LoginRequest _password.
@@ -32344,6 +32413,8 @@ export const northstar = $root.northstar = (() => {
                         throw $Error("max depth exceeded");
                     if (message.password != null && $Object.hasOwnProperty.call(message, "password"))
                         writer.uint32(/* id 1, wireType 2 =*/10).string(message.password);
+                    if (message.username != null && $Object.hasOwnProperty.call(message, "username"))
+                        writer.uint32(/* id 2, wireType 2 =*/18).string(message.username);
                     if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
                         for (let i = 0; i < message.$unknowns.length; ++i)
                             writer.raw(message.$unknowns[i]);
@@ -32388,6 +32459,13 @@ export const northstar = $root.northstar = (() => {
                         }
                         let wireType = tag & 7;
                         switch (tag >>>= 3) {
+                        case 2: {
+                                if (wireType !== 2)
+                                    break;
+                                message.username = reader.stringVerify();
+                                message._username = "username";
+                                continue;
+                            }
                         case 1: {
                                 if (wireType !== 2)
                                     break;
@@ -32428,6 +32506,11 @@ export const northstar = $root.northstar = (() => {
                     if (_depth > $util.recursionLimit)
                         return "max depth exceeded";
                     let properties = {};
+                    if (message.username != null && $Object.hasOwnProperty.call(message, "username")) {
+                        properties._username = 1;
+                        if (!$util.isString(message.username))
+                            return "username: string expected";
+                    }
                     if (message.password != null && $Object.hasOwnProperty.call(message, "password")) {
                         properties._password = 1;
                         if (!$util.isString(message.password))
@@ -32454,6 +32537,8 @@ export const northstar = $root.northstar = (() => {
                     if (_depth > $util.recursionLimit)
                         throw $Error("max depth exceeded");
                     let message = new $root.northstar.web.auth.LoginRequest();
+                    if (object.username != null)
+                        message.username = $String(object.username);
                     if (object.password != null)
                         message.password = $String(object.password);
                     return message;
@@ -32480,6 +32565,11 @@ export const northstar = $root.northstar = (() => {
                         object.password = message.password;
                         if (options.oneofs)
                             object._password = "password";
+                    }
+                    if (message.username != null && $Object.hasOwnProperty.call(message, "username")) {
+                        object.username = message.username;
+                        if (options.oneofs)
+                            object._username = "username";
                     }
                     return object;
                 };

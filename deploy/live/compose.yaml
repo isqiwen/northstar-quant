@@ -126,11 +126,16 @@ services:
     <<: *runtime
     restart: unless-stopped
     environment:
-      NORTHSTAR_WORKSPACE_PASSWORD_HASH: ${NORTHSTAR_WORKSPACE_PASSWORD_HASH:-}
+      NORTHSTAR_WORKSPACE_DIR: /var/lib/northstar/workspace
       NORTHSTAR_LOG_DIR: /var/log/northstar
       NORTHSTAR_LIVE_URL: http://live:18081
       NORTHSTAR_LIVE_AUTH: /var/lib/northstar/auth/live-web.toml
     volumes:
+      - type: bind
+        source: /opt/northstar/credentials/live/workspace
+        target: /var/lib/northstar/workspace
+        bind:
+          create_host_path: false
       - type: bind
         source: /opt/northstar/logs/live
         target: /var/log/northstar/live

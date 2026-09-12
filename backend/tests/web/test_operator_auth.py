@@ -34,7 +34,12 @@ def test_login_rotation_logout_expiry_and_cross_application_cookies():
         assert client.get("/api/browser-session").json()["authenticated"] is False
         assert not client.cookies
         assert client.get("/api/private").status_code == 401
-        assert client.post("/api/login", json={"password": "incorrect"}).status_code == 401
+        assert (
+            client.post(
+                "/api/login", json={"username": "owner", "password": "incorrect"}
+            ).status_code
+            == 401
+        )
         assert calls == []
         response = login_response(client)
         assert response.status_code == 200
@@ -79,9 +84,63 @@ def test_password_hashes_are_salted_and_bad_or_excessive_attempts_do_not_authent
     app, calls = workspace()
     with ProtocolClient(app, base_url="http://localhost") as client:
         for _ in range(5):
-            response = client.post("/api/login", json={"password": "wrong"})
+            response = client.post("/api/login", json={"username": "owner", "password": "wrong"})
             assert response.status_code == 401
             assert "wrong" not in response.text
         assert login_response(client).status_code == 429
         assert client.get("/api/private").status_code == 401
         assert calls == []
+
+
+def test_first_visit_creates_only_one_durable_account_and_restart_requires_login(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setenv("NORTHSTAR_WORKSPACE_DIR", str(tmp_path / "fresh"))
+    app, _ = workspace()
+    with ProtocolClient(app, base_url="https://localhost") as client:
+        assert client.get("/api/browser-session").json()["setup_required"]
+        assert client.get("/api/private").status_code == 401
+        credentials = {"username": "qiwen", "password": "private-test-password"}
+        assert (
+            client.post(
+                "/api/setup", json=credentials, headers={"Origin": "https://evil.invalid"}
+            ).status_code
+            == 403
+        )
+        assert client.post("/api/setup", json=credentials).status_code == 200
+        assert not client.get("/api/browser-session").json()["setup_required"]
+        cookies = dict(client.cookies)
+        assert (
+            client.post("/api/setup", json={"username": "second", "password": "other"}).status_code
+            == 409
+        )
+    restarted, _ = workspace()
+    with ProtocolClient(restarted, base_url="https://localhost") as client:
+        client.cookies.update(cookies)
+        assert client.get("/api/private").status_code == 401
+        assert not client.get("/api/browser-session").json()["setup_required"]
+        assert client.post("/api/login", json=credentials).status_code == 200
+    stored = next((tmp_path / "fresh").glob("*.json"))
+    assert "private-test-password" not in stored.read_text()
+    assert stored.stat().st_mode & 0o777 == 0o600
+
+
+def test_concurrent_setup_cannot_replace_the_first_account(tmp_path):
+    from concurrent.futures import ThreadPoolExecutor
+
+    from northstar_quant.web.account import WorkspaceAccount
+
+    account = WorkspaceAccount(tmp_path / "account.json")
+
+    def create(username):
+        try:
+            account.create(username, "synthetic-test-password")
+            return username
+        except FileExistsError:
+            return None
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(create, ("first", "second")))
+    winners = [name for name in results if name]
+    assert len(winners) == 1
+    assert account.read()["username"] == winners[0]

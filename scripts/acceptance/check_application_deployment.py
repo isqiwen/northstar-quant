@@ -25,7 +25,6 @@ import httpx2 as httpx
 from support.deployment import cleanup_files, isolated_compose
 
 from northstar_quant.data_management.storage_identity import initialize
-from northstar_quant.web.passwords import hash_password
 from northstar_quant.web.protobuf import decode, methods, pack
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -47,7 +46,6 @@ class Deployment:
             key: value for key, value in os.environ.items() if not key.startswith("NORTHSTAR_")
         }
         self.environment.update(
-            NORTHSTAR_WORKSPACE_PASSWORD_HASH=hash_password(self.password),
             NORTHSTAR_BACKEND_IMAGE=image,
             NORTHSTAR_DATA_FRONTEND_IMAGE=data_image,
             NORTHSTAR_RESEARCH_FRONTEND_IMAGE=research_image,
@@ -146,8 +144,10 @@ class Deployment:
         address = self.run(app, "port", service, "3000").strip()
         base = "http://" + address
         with httpx.Client(base_url=base, headers={"Origin": base}, timeout=30) as client:
-            assert "NORTHSTAR" in client.get("/").text
-            request(client, app, "/api/login", {"password": self.password})
+            client.get("/").raise_for_status()
+            state = request(client, app, "/api/browser-session")
+            endpoint = "/api/setup" if state["setup_required"] else "/api/login"
+            request(client, app, endpoint, {"username": "owner", "password": self.password})
             yield client
 
     def exercise(self) -> None:
@@ -438,7 +438,7 @@ def request(client: httpx.Client, app: str, path: str, payload: dict | None = No
     content = None
     if payload is not None:
         headers = {"Content-Type": "application/protobuf"}
-        if path != "/api/login":
+        if path not in {"/api/login", "/api/setup"}:
             session = request(client, app, "/api/browser-session")
             headers["X-Northstar-CSRF"] = session["csrf"]
         content = pack(binding.input_type, payload).SerializeToString()

@@ -50,7 +50,7 @@ class ProtobufRoute(APIRoute):
 
         async def checked(request: Request) -> Response:
             if request.method == "POST" and self.body_field is not None:
-                if self.path != "/api/login":
+                if self.path not in {"/api/login", "/api/setup"}:
                     request.app.state.workspace_access.protect(request)
                 from northstar_quant.web.protobuf import MEDIA_TYPE, decode
 

@@ -165,9 +165,7 @@ def execute(request: dict) -> None:
                 if request["replace_configuration"] or not env_file.exists()
                 else env_file.read_bytes()
             )
-            chosen, initial_password = config_module["prepare_workspace_password"](
-                app, chosen, env_file.read_bytes() if env_file.exists() else None
-            )
+            config_module["validate"](app, chosen)
             digest = hashlib.sha256(chosen).hexdigest()
             state = root / "deployment.json"
             image_environment(app, revision)
@@ -197,8 +195,6 @@ def execute(request: dict) -> None:
                     raise ValueError("新配置未通过 Compose 校验；运行配置和容器未修改")
             journal(state, revision, digest, "prepared", project)
             installer(env_file, chosen, replace=True)
-            if initial_password:
-                print(f"{app} 工作台初始密码（请保存）：{initial_password}", flush=True)
             # Point management commands at the attempted release, even if up partially fails.
             # Never claim an atomic rollback of databases/containers.
             link = root / ".current-next"

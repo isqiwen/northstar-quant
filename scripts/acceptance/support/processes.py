@@ -17,7 +17,6 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import HTTPCookieProcessor, ProxyHandler, Request, build_opener
 
-from northstar_quant.web.passwords import hash_password
 from northstar_quant.web.protobuf import decode, methods, pack
 from support.evidence import redact
 
@@ -32,7 +31,7 @@ class InstalledApplication:
         self.environment = dict(
             environment,
             NORTHSTAR_LOG_DIR=str(directory / "logs"),
-            NORTHSTAR_WORKSPACE_PASSWORD_HASH=hash_password(self.workspace_password),
+            NORTHSTAR_WORKSPACE_DIR=str(directory / "workspace"),
         )
         self.environment.setdefault(
             "NORTHSTAR_RESEARCH_DATABASE", str(directory / "research.sqlite3")
@@ -218,7 +217,7 @@ print(json.dumps(result))
         )
         body = None if payload is None else pack(binding.input_type, payload).SerializeToString()
         headers = {} if body is None else {"Content-Type": "application/protobuf"}
-        if body is not None and parsed.path != "/api/login":
+        if body is not None and parsed.path not in {"/api/login", "/api/setup"}:
             session = json.loads(self.request(origin + "/api/browser-session"))
             headers["X-Northstar-CSRF"] = session["csrf"]
         with self.opener.open(Request(url, data=body, headers=headers), timeout=30) as response:
@@ -361,7 +360,11 @@ run()
                     "live-api": "live",
                 }[role]
             )
-            self.request(base_url + "/api/login", {"password": self.workspace_password})
+            state = json.loads(self.request(base_url + "/api/browser-session"))
+            endpoint = "/api/setup" if state["setup_required"] else "/api/login"
+            self.request(
+                base_url + endpoint, {"username": "owner", "password": self.workspace_password}
+            )
             log_health = json.loads(self.request(base_url + "/health/logging"))
             assert log_health["status"] == "OK", log_health
             assert (

@@ -37,7 +37,7 @@ P extends `/api/broker/status` ? messages.BrokerStatus :
 P extends `/api/live/status` ? messages.RuntimeStatus :
 P extends `/api/streams` ? messages.GetApiStreamsResponse :
 P extends `/api/orders` ? messages.LocalOrderPage : never;
-export type CommandPath = `/api/streams/${string}/position-entries` | `/api/streams/${string}/account-catchup` | `/api/streams/${string}/opening-budgets` | `/api/streams/${string}/authorizations` | `/api/authorizations/${string}/revoke` | `/api/sources/${string}/reprocess` | `/api/streams/${string}/archive` | `/api/streams/${string}/control` | `/api/broker/position-entries` | `/api/broker/baseline-checks` | `/api/broker/position-checks` | `/api/broker/funds-entries` | `/api/broker/order-checks` | `/api/strategy-materials` | `/api/broker/baselines` | `/api/broker/queries` | `/api/streams` | `/api/logout` | `/api/login`;
+export type CommandPath = `/api/streams/${string}/position-entries` | `/api/streams/${string}/account-catchup` | `/api/streams/${string}/opening-budgets` | `/api/streams/${string}/authorizations` | `/api/authorizations/${string}/revoke` | `/api/sources/${string}/reprocess` | `/api/streams/${string}/archive` | `/api/streams/${string}/control` | `/api/broker/position-entries` | `/api/broker/baseline-checks` | `/api/broker/position-checks` | `/api/broker/funds-entries` | `/api/broker/order-checks` | `/api/strategy-materials` | `/api/broker/baselines` | `/api/broker/queries` | `/api/streams` | `/api/logout` | `/api/setup` | `/api/login`;
 export type CommandResponse<P> = P extends `/api/streams/${string}/position-entries` ? messages.PositionEntry :
 P extends `/api/streams/${string}/account-catchup` ? messages.AccountProgress :
 P extends `/api/streams/${string}/opening-budgets` ? messages.OpeningBudget :
@@ -56,6 +56,7 @@ P extends `/api/broker/baselines` ? messages.BaselineRecord :
 P extends `/api/broker/queries` ? messages.QueryRecord :
 P extends `/api/streams` ? messages.StreamSummary :
 P extends `/api/logout` ? messages.BrowserSession :
+P extends `/api/setup` ? messages.BrowserSession :
 P extends `/api/login` ? messages.BrowserSession : never;
 export type CommandBody<P> = P extends `/api/streams/${string}/position-entries` ? messages.StreamPositionsRequest :
 P extends `/api/streams/${string}/account-catchup` ? messages.AccountCatchupRequest :
@@ -75,6 +76,7 @@ P extends `/api/broker/baselines` ? messages.BaselineRequest :
 P extends `/api/broker/queries` ? messages.QueryRequest :
 P extends `/api/streams` ? messages.StreamRequest :
 P extends `/api/logout` ? messages.Empty :
+P extends `/api/setup` ? messages.LoginRequest :
 P extends `/api/login` ? messages.LoginRequest : never;
 export function query<P extends GetPath>(path: P | null): Query<GetResponse<P>> | null {return path === null ? null : {path};}
 export function mutate<P extends CommandPath>(path: P, body: CommandBody<NoInfer<P>>, runtime: string): Promise<CommandResponse<P>> {return send(path, body, runtime);}

@@ -3,6 +3,7 @@
 import os
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Literal
 
 from fastapi import FastAPI, Request
@@ -11,10 +12,12 @@ from pydantic import Field
 
 from northstar_quant.web import security
 from northstar_quant.web.access import WorkspaceAccess
+from northstar_quant.web.account import WorkspaceAccount
 from northstar_quant.web.requests import ApiModel, ProtobufRoute
 
 
 class BrowserSession(ApiModel):
+    setup_required: bool
     authenticated: bool
     csrf: str | None
     operator: str | None
@@ -22,6 +25,7 @@ class BrowserSession(ApiModel):
 
 
 class LoginRequest(ApiModel):
+    username: str = Field(min_length=1, max_length=64, pattern=r"^[^\s]+$")
     password: str = Field(min_length=1, max_length=1024, repr=False)
 
 
@@ -50,7 +54,10 @@ def create_host(
         cookie=title.split(" · ")[0].lower().replace(" ", "_") + "_session",
         allowed_hosts=allowed_hosts,
         allow_ip_hosts=allow_ip_hosts,
-        password_hash=os.environ.get("NORTHSTAR_WORKSPACE_PASSWORD_HASH", ""),
+        account=WorkspaceAccount(
+            Path(os.environ.get("NORTHSTAR_WORKSPACE_DIR", ".northstar/workspace"))
+            / (title.split(" · ")[0].lower().replace(" ", "_") + ".json")
+        ),
     )
 
     @asynccontextmanager
@@ -83,7 +90,14 @@ def create_host(
 
     @app.post("/api/login", response_model=BrowserSession)
     def login(body: LoginRequest, request: Request) -> JSONResponse:
-        identifier = access.login(request, body.password)
+        identifier = access.login(request, body.password, body.username)
+        response = JSONResponse(access.describe(request, identifier))
+        access.set_cookie(request, response, identifier)
+        return response
+
+    @app.post("/api/setup", response_model=BrowserSession)
+    def setup(body: LoginRequest, request: Request) -> JSONResponse:
+        identifier = access.login(request, body.password, body.username, setup=True)
         response = JSONResponse(access.describe(request, identifier))
         access.set_cookie(request, response, identifier)
         return response

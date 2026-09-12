@@ -30,7 +30,7 @@ P extends `/api/catalog` ? messages.Catalog :
 P extends `/api/tasks` ? messages.TaskList :
 P extends `/api/paper` ? messages.GetApiPaperResponse :
 P extends `/api/runs` ? messages.GetApiRunsResponse : never;
-export type CommandPath = `/api/factor-revisions/${string}/annotations` | `/api/strategy-versions/${string}/publish` | `/api/factor-runs/${string}/cancel` | `/api/paper/${string}/advance` | `/api/tasks/${string}/control` | `/api/experiments/learn` | `/api/strategy-versions` | `/api/factor-revisions` | `/api/run-comparisons` | `/api/configurations` | `/api/experiments` | `/api/factor-runs` | `/api/logout` | `/api/login` | `/api/tasks` | `/api/paper`;
+export type CommandPath = `/api/factor-revisions/${string}/annotations` | `/api/strategy-versions/${string}/publish` | `/api/factor-runs/${string}/cancel` | `/api/paper/${string}/advance` | `/api/tasks/${string}/control` | `/api/experiments/learn` | `/api/strategy-versions` | `/api/factor-revisions` | `/api/run-comparisons` | `/api/configurations` | `/api/experiments` | `/api/factor-runs` | `/api/logout` | `/api/setup` | `/api/login` | `/api/tasks` | `/api/paper`;
 export type CommandResponse<P> = P extends `/api/factor-revisions/${string}/annotations` ? messages.RevisionCreated :
 P extends `/api/strategy-versions/${string}/publish` ? messages.StrategyCandidate :
 P extends `/api/factor-runs/${string}/cancel` ? messages.FactorRun :
@@ -44,6 +44,7 @@ P extends `/api/configurations` ? messages.SavedConfiguration :
 P extends `/api/experiments` ? messages.Experiment :
 P extends `/api/factor-runs` ? messages.FactorRun :
 P extends `/api/logout` ? messages.BrowserSession :
+P extends `/api/setup` ? messages.BrowserSession :
 P extends `/api/login` ? messages.BrowserSession :
 P extends `/api/tasks` ? messages.ResearchTask :
 P extends `/api/paper` ? messages.PaperSession : never;
@@ -60,6 +61,7 @@ P extends `/api/configurations` ? messages.ConfigurationRequest :
 P extends `/api/experiments` ? messages.ExperimentRequest :
 P extends `/api/factor-runs` ? messages.FactorRunRequest :
 P extends `/api/logout` ? messages.Empty :
+P extends `/api/setup` ? messages.LoginRequest :
 P extends `/api/login` ? messages.LoginRequest :
 P extends `/api/tasks` ? messages.TaskRequest :
 P extends `/api/paper` ? messages.PaperRequest : never;

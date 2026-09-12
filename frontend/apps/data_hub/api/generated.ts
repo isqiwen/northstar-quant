@@ -252,12 +252,14 @@ export type Error = {
   rejection_id?: string;
 };
 export type BrowserSession = {
+  setup_required: boolean;
   authenticated: boolean;
   csrf: string | null;
   operator: string | null;
   expires_at: string | null;
 };
 export type LoginRequest = {
+  username: string;
   password: string;
 };
 export type ChargeRate = {

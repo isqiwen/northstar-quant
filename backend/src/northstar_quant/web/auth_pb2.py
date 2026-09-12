@@ -25,13 +25,15 @@ _sym_db = _symbol_database.Default()
 from northstar_quant.web import api_options_pb2 as api__options__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0eweb_auth.proto\x12\x12northstar.web.auth\x1a\x11\x61pi_options.proto\"\xec\x01\n\x0e\x42rowserSession\x12 \n\rauthenticated\x18\x01 \x01(\x08\x42\x04\x98\xf4\x18\x01H\x00\x88\x01\x01\x12\x1b\n\x04\x63srf\x18\x02 \x01(\tB\x08\x98\xf4\x18\x01\xa0\xf4\x18\x01H\x01\x88\x01\x01\x12\x1f\n\x08operator\x18\x03 \x01(\tB\x08\x98\xf4\x18\x01\xa0\xf4\x18\x01H\x02\x88\x01\x01\x12-\n\nexpires_at\x18\x04 \x01(\tB\x08\x98\xf4\x18\x01\xa0\xf4\x18\x01H\x03R\nexpires_at\x88\x01\x01\x12\x14\n\x0bnull_fields\x18\xfe\x0f \x03(\tB\x10\n\x0e_authenticatedB\x07\n\x05_csrfB\x0b\n\t_operatorB\r\n\x0b_expires_at\"8\n\x0cLoginRequest\x12\x1b\n\x08password\x18\x01 \x01(\tB\x04\x98\xf4\x18\x01H\x00\x88\x01\x01\x42\x0b\n\t_passwordb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0eweb_auth.proto\x12\x12northstar.web.auth\x1a\x11\x61pi_options.proto\"\xb2\x02\n\x0e\x42rowserSession\x12\x31\n\x0esetup_required\x18\x05 \x01(\x08\x42\x04\x98\xf4\x18\x01H\x00R\x0esetup_required\x88\x01\x01\x12 \n\rauthenticated\x18\x01 \x01(\x08\x42\x04\x98\xf4\x18\x01H\x01\x88\x01\x01\x12\x1b\n\x04\x63srf\x18\x02 \x01(\tB\x08\x98\xf4\x18\x01\xa0\xf4\x18\x01H\x02\x88\x01\x01\x12\x1f\n\x08operator\x18\x03 \x01(\tB\x08\x98\xf4\x18\x01\xa0\xf4\x18\x01H\x03\x88\x01\x01\x12-\n\nexpires_at\x18\x04 \x01(\tB\x08\x98\xf4\x18\x01\xa0\xf4\x18\x01H\x04R\nexpires_at\x88\x01\x01\x12\x14\n\x0bnull_fields\x18\xfe\x0f \x03(\tB\x11\n\x0f_setup_requiredB\x10\n\x0e_authenticatedB\x07\n\x05_csrfB\x0b\n\t_operatorB\r\n\x0b_expires_at\"b\n\x0cLoginRequest\x12\x1b\n\x08username\x18\x02 \x01(\tB\x04\x98\xf4\x18\x01H\x00\x88\x01\x01\x12\x1b\n\x08password\x18\x01 \x01(\tB\x04\x98\xf4\x18\x01H\x01\x88\x01\x01\x42\x0b\n\t_usernameB\x0b\n\t_passwordb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'northstar_quant.web.auth_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
   DESCRIPTOR._loaded_options = None
+  _globals['_BROWSERSESSION'].fields_by_name['setup_required']._loaded_options = None
+  _globals['_BROWSERSESSION'].fields_by_name['setup_required']._serialized_options = b'\230\364\030\001'
   _globals['_BROWSERSESSION'].fields_by_name['authenticated']._loaded_options = None
   _globals['_BROWSERSESSION'].fields_by_name['authenticated']._serialized_options = b'\230\364\030\001'
   _globals['_BROWSERSESSION'].fields_by_name['csrf']._loaded_options = None
@@ -40,10 +42,12 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_BROWSERSESSION'].fields_by_name['operator']._serialized_options = b'\230\364\030\001\240\364\030\001'
   _globals['_BROWSERSESSION'].fields_by_name['expires_at']._loaded_options = None
   _globals['_BROWSERSESSION'].fields_by_name['expires_at']._serialized_options = b'\230\364\030\001\240\364\030\001'
+  _globals['_LOGINREQUEST'].fields_by_name['username']._loaded_options = None
+  _globals['_LOGINREQUEST'].fields_by_name['username']._serialized_options = b'\230\364\030\001'
   _globals['_LOGINREQUEST'].fields_by_name['password']._loaded_options = None
   _globals['_LOGINREQUEST'].fields_by_name['password']._serialized_options = b'\230\364\030\001'
   _globals['_BROWSERSESSION']._serialized_start=58
-  _globals['_BROWSERSESSION']._serialized_end=294
-  _globals['_LOGINREQUEST']._serialized_start=296
-  _globals['_LOGINREQUEST']._serialized_end=352
+  _globals['_BROWSERSESSION']._serialized_end=364
+  _globals['_LOGINREQUEST']._serialized_start=366
+  _globals['_LOGINREQUEST']._serialized_end=464
 # @@protoc_insertion_point(module_scope)

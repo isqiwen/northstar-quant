@@ -17,7 +17,6 @@ from uuid import uuid4
 import httpx2 as httpx
 from support.deployment import cleanup_files, isolated_compose
 
-from northstar_quant.web.passwords import hash_password
 from northstar_quant.web.protobuf import decode, methods, pack
 
 lifecycle = runpy.run_path(str(Path(__file__).resolve().parents[1] / "operations/compose.py"))[
@@ -36,7 +35,6 @@ class Deployment:
             key: value for key, value in os.environ.items() if not key.startswith("NORTHSTAR_")
         }
         self.environment.update(
-            NORTHSTAR_WORKSPACE_PASSWORD_HASH=hash_password(self.password),
             NORTHSTAR_LIVE_IMAGE=image,
             NORTHSTAR_LIVE_INSTANCES="sim:simnow_dev,other:simnow_trading",
             NORTHSTAR_LIVE_FRONTEND_IMAGE=frontend_image,
@@ -111,12 +109,14 @@ class Deployment:
         )
 
     def login(self, client: httpx.Client) -> None:
-        self.wait_http(client, "/api/browser-session")
+        state = self.wait_http(client, "/api/browser-session").json()
+        endpoint = "/api/setup" if state["setup_required"] else "/api/login"
         body = pack(
-            methods("live")[("POST", "/api/login")].input_type, {"password": self.password}
+            methods("live")[("POST", endpoint)].input_type,
+            {"username": "owner", "password": self.password},
         ).SerializeToString()
         response = client.post(
-            "/api/login", content=body, headers={"Content-Type": "application/protobuf"}
+            endpoint, content=body, headers={"Content-Type": "application/protobuf"}
         )
         response.raise_for_status()
 
@@ -127,7 +127,7 @@ class Deployment:
             base_url=base, headers={"Origin": base, "X-Live-Instance-ID": "sim"}, timeout=4
         ) as client:
             page = self.wait_http(client, "/")
-            assert "NORTHSTAR" in page.text
+            page.raise_for_status()
             self.login(client)
             before = self.wait_http(client, "/api/live/status").json()
             identity = before["runtime_id"]

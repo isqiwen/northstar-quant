@@ -66,10 +66,9 @@ make up-research
 make up-live
 ```
 
-三个工作台需要分别登录。首次 `deploy` 自动生成并显示该应用的随机密码，后续部署保留密码。
-自定义或忘记密码时运行 `uv run --project backend northstar maintenance password-hash`，
-把输出的 `NORTHSTAR_WORKSPACE_PASSWORD_HASH='...'` 加入该应用私有 `.env`，再用 `deploy <应用> --env-file <文件>` 更新。
-API 重启后重新登录；登录不会连接柜台或开启交易。手动 Make/Compose 启动前也须在运行配置中填写摘要。
+三个工作台各自支持一个用户。首次访问时创建用户名和密码；没有预设密码或环境变量摘要。
+普通启动、停止和重启保留账号；每次 `deploy` 清除该应用账号，下一次访问重新创建。
+账号保存在本机私有凭据目录，密码只保存 scrypt 摘要。登录不会连接柜台或开启交易。
 
 本机 Make 命令读取 `/opt/northstar/config/<应用>.env`，不提供路径覆盖。
 正式构建要求工作区干净；未提交修改时在对应命令前加 `NORTHSTAR_DEVELOPMENT_BUILD=1`。

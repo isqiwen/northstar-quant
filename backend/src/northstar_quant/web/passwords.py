@@ -9,7 +9,7 @@ _FORMAT = re.compile(r"scrypt\$131072\$8\$1\$([0-9a-f]{32})\$([0-9a-f]{64})")
 
 def validate_password_hash(encoded: str) -> None:
     if _FORMAT.fullmatch(encoded) is None:
-        raise ValueError("NORTHSTAR_WORKSPACE_PASSWORD_HASH 不是有效的工作台密码摘要")
+        raise ValueError("工作台密码摘要无效")
 
 
 def _derive(password: str, salt: bytes) -> bytes:

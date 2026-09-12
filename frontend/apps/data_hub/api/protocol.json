@@ -1618,6 +1618,13 @@
     },
     "northstar.web.auth.BrowserSession": {
       "fields": {
+        "setup_required": {
+          "id": 5,
+          "presence": true,
+          "type": "bool",
+          "required": true,
+          "nullable": false
+        },
         "authenticated": {
           "id": 1,
           "presence": true,
@@ -1660,6 +1667,13 @@
     },
     "northstar.web.auth.LoginRequest": {
       "fields": {
+        "username": {
+          "id": 2,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
         "password": {
           "id": 1,
           "presence": true,
@@ -1899,6 +1913,13 @@
       "path": "/api/explorer/compactions/{compaction_id}/export",
       "input": "northstar.data_hub.CompactionPage",
       "output": "northstar.data_hub.ExplorerRows",
+      "runtime": false
+    },
+    {
+      "method": "POST",
+      "path": "/api/setup",
+      "input": "northstar.web.auth.LoginRequest",
+      "output": "northstar.web.auth.BrowserSession",
       "runtime": false
     },
     {

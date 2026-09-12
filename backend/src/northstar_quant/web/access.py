@@ -15,7 +15,8 @@ from starlette.requests import HTTPConnection
 from starlette.responses import JSONResponse, Response
 from starlette.types import ASGIApp, Receive, Scope, Send
 
-from northstar_quant.web.passwords import validate_password_hash, verify_password
+from northstar_quant.web.account import WorkspaceAccount
+from northstar_quant.web.passwords import verify_password
 
 _LOG = logging.getLogger(__name__)
 
@@ -33,10 +34,9 @@ class WorkspaceAccess:
         *,
         allowed_hosts: tuple[str, ...] = (),
         allow_ip_hosts: bool = False,
-        password_hash: str,
+        account: WorkspaceAccount,
     ) -> None:
-        validate_password_hash(password_hash)
-        self._password_hash = password_hash
+        self.account = account
         self._login_lock = Lock()
         self._attempts: deque[float] = deque()
         self.cookie = cookie
@@ -44,7 +44,7 @@ class WorkspaceAccess:
         self.allowed_hosts = {"127.0.0.1", "localhost", *allowed_hosts}
         self._sessions: dict[str, tuple[str, float]] = {}
 
-    def login(self, request: Request, password: str) -> str:
+    def login(self, request: Request, password: str, username: str, *, setup: bool = False) -> str:
         # One bounded KDF at a time, outside the trading kernel and asyncio loop.
         if not self._login_lock.acquire(blocking=False):
             raise HTTPException(status_code=429, detail="登录繁忙，请稍后重试。")
@@ -55,9 +55,19 @@ class WorkspaceAccess:
             if len(self._attempts) >= 5:
                 raise HTTPException(status_code=429, detail="登录尝试过多，请稍后重试。")
             self._attempts.append(now)
-            if not verify_password(password, self._password_hash):
+            if setup:
+                try:
+                    self.account.create(username, password)
+                except FileExistsError:
+                    raise HTTPException(409, "工作台账号已创建，请登录。") from None
+            account = self.account.read()
+            if (
+                account is None
+                or not verify_password(password, account["password_hash"])
+                or username != account["username"]
+            ):
                 _LOG.info("workspace_login_rejected")
-                raise HTTPException(status_code=401, detail="密码不正确。")
+                raise HTTPException(status_code=401, detail="用户名或密码不正确。")
             self._sessions = {k: v for k, v in self._sessions.items() if v[1] > now}
             self._sessions.pop(request.cookies.get(self.cookie, ""), None)
             if len(self._sessions) >= 64:
@@ -76,8 +86,15 @@ class WorkspaceAccess:
         session = self._sessions.get(identifier)
         remaining = 0.0 if session is None else session[1] - time.monotonic()
         if session is None or remaining <= 0:
-            return {"authenticated": False, "csrf": None, "operator": None, "expires_at": None}
+            return {
+                "setup_required": self.account.read() is None,
+                "authenticated": False,
+                "csrf": None,
+                "operator": None,
+                "expires_at": None,
+            }
         return {
+            "setup_required": False,
             "authenticated": True,
             "csrf": session[0],
             "operator": "owner",
@@ -173,7 +190,7 @@ class WorkspaceMiddleware:
                 publication = bool(re.fullmatch(r"/api/publications(?:/[0-9a-f-]{36})?", path))
                 if scope["type"] == "websocket" or (
                     path.startswith("/api/")
-                    and path not in {"/api/browser-session", "/api/login"}
+                    and path not in {"/api/browser-session", "/api/login", "/api/setup"}
                     and not publication
                 ):
                     self.access.session_id(scope)

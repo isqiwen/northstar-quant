@@ -1,12 +1,9 @@
 """Validate the one current deployment configuration without exposing credential values."""
 
 import re
-import runpy
-import secrets
 from pathlib import Path
 from urllib.parse import urlsplit
 
-WORKSPACE_HASH = "NORTHSTAR_WORKSPACE_PASSWORD_HASH"
 PASSWORD = "NORTHSTAR_DATA_HUB_DATABASE_PASSWORD"
 KEYS = {
     "database": {PASSWORD, "NORTHSTAR_DATABASE_ADMIN_PASSWORD"},
@@ -45,7 +42,7 @@ def validate(app: str, content: bytes) -> dict[str, str]:
         if not match:
             raise ValueError(f"配置第 {number} 行必须是单行 KEY=value")
         key, value = match.groups()
-        if key not in KEYS[app] and not (app != "database" and key == WORKSPACE_HASH):
+        if key not in KEYS[app]:
             raise ValueError(f"未知或已废弃的配置参数：{key}")
         if key in values:
             raise ValueError(f"配置参数重复：{key}")
@@ -95,37 +92,4 @@ def validate(app: str, content: bytes) -> dict[str, str]:
         if any(credentials) and not all(credentials):
             raise ValueError("SimNow 凭据必须全部填写或全部留空")
 
-    if values.get(WORKSPACE_HASH):
-        _passwords()["validate_password_hash"](values[WORKSPACE_HASH])
     return values
-
-
-def _passwords() -> dict:
-    return runpy.run_path(
-        str(Path(__file__).resolve().parents[2] / "backend/src/northstar_quant/web/passwords.py")
-    )
-
-
-def prepare_workspace_password(
-    app: str, content: bytes, existing: bytes | None
-) -> tuple[bytes, str | None]:
-    """Keep the installed identity unless a replacement hash is explicitly supplied."""
-    values = validate(app, content)
-    if app == "database" or values.get(WORKSPACE_HASH):
-        return content, None
-    lines = [
-        line
-        for line in content.decode().splitlines()
-        if not line.strip().startswith(WORKSPACE_HASH + "=")
-    ]
-    identity = [
-        line
-        for line in (existing or b"").decode().splitlines()
-        if line.strip().startswith(WORKSPACE_HASH + "=")
-    ]
-    # A valid explicit replacement may remove obsolete settings; retain only its old identity.
-    previous = validate(app, ("\n".join(lines + identity) + "\n").encode()).get(WORKSPACE_HASH)
-    password = None if previous else secrets.token_urlsafe(24)
-    encoded = previous or _passwords()["hash_password"](password)
-    lines.append(f"{WORKSPACE_HASH}='{encoded}'")
-    return ("\n".join(lines) + "\n").encode(), password

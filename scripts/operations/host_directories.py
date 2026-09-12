@@ -42,8 +42,9 @@ def prepare(request: dict) -> None:
         directories[f"state/{owner}/bindings"] = 0o700
     if app != "database":
         directories[f"logs/{app}"] = 0o750
-    if app in {"data-hub", "live"}:
+    if app != "database":
         directories[f"credentials/{app}"] = 0o700
+        directories[f"credentials/{app}/workspace"] = 0o700
     if app == "research":
         directories["work/research"] = 0o700
     if app == "database":

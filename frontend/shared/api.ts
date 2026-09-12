@@ -13,6 +13,7 @@ function instanceHeaders(value: string | undefined): Record<string, string> {
   return value ? { "X-Live-Instance-Id": value } : {};
 }
 export type BrowserSession = {
+  setup_required: boolean;
   authenticated: boolean;
   csrf: string | null;
   operator: string | null;
@@ -42,15 +43,20 @@ export async function browserSession(): Promise<BrowserSession> {
   else session = undefined;
   return value;
 }
-export async function login(password: string): Promise<BrowserSession> {
-  const response = await fetch("/api/login", {
+export async function login(
+  password: string,
+  username: string,
+  setup = false,
+): Promise<BrowserSession> {
+  const path = setup ? "/api/setup" : "/api/login";
+  const response = await fetch(path, {
     method: "POST",
     credentials: "same-origin",
     signal: AbortSignal.timeout(15_000),
     headers: { "Content-Type": "application/protobuf" },
-    body: encodeRequest("POST", "/api/login", { password }) as BodyInit,
+    body: encodeRequest("POST", path, { password, username }) as BodyInit,
   });
-  const value = await decodeResponse("POST", "/api/login", response);
+  const value = await decodeResponse("POST", path, response);
   if (!response.ok)
     throw new Error(String((value as RecordValue).detail || "登录失败"));
   return browserSession();

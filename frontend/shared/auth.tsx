@@ -71,12 +71,14 @@ export function AuthGate({
       window.removeEventListener(AUTH_REQUIRED, expired);
     };
   }, []);
-  async function enter(values: { password: string }) {
+  async function enter(values: { password: string; username: string }) {
     generation.current += 1;
     setBusy(true);
     setError("");
     try {
-      setCurrent(await login(values.password));
+      setCurrent(
+        await login(values.password, values.username, current?.setup_required),
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : "登录失败");
     } finally {
@@ -117,21 +119,56 @@ export function AuthGate({
       }}
     >
       <Card style={{ width: "100%", maxWidth: 400 }}>
-        <Typography.Title level={3}>登录 Northstar {name}</Typography.Title>
+        <Typography.Title level={3}>
+          {current?.setup_required ? "创建账号" : "登录"} Northstar {name}
+        </Typography.Title>
         <Typography.Paragraph type="secondary">
-          使用当前应用的工作台密码。
+          {current?.setup_required
+            ? "为当前应用创建唯一用户。"
+            : "使用当前应用的用户名和密码。"}
         </Typography.Paragraph>
         {error && (
           <Alert type="error" message={error} style={{ marginBottom: 20 }} />
         )}
         <Form form={form} layout="vertical" onFinish={enter}>
           <Form.Item
+            name="username"
+            label="用户名"
+            rules={[{ required: true, message: "请输入用户名" }]}
+          >
+            <Input autoComplete="username" maxLength={64} />
+          </Form.Item>
+          <Form.Item
             name="password"
             label="工作台密码"
             rules={[{ required: true, message: "请输入密码" }]}
           >
-            <Input.Password autoComplete="current-password" maxLength={1024} />
+            <Input.Password
+              autoComplete={
+                current?.setup_required ? "new-password" : "current-password"
+              }
+              maxLength={1024}
+            />
           </Form.Item>
+          {current?.setup_required && (
+            <Form.Item
+              name="confirmation"
+              label="确认密码"
+              dependencies={["password"]}
+              rules={[
+                { required: true, message: "请再次输入密码" },
+                ({ getFieldValue }) => ({
+                  validator(_, value) {
+                    return value === getFieldValue("password")
+                      ? Promise.resolve()
+                      : Promise.reject(new Error("两次密码不一致"));
+                  },
+                }),
+              ]}
+            >
+              <Input.Password autoComplete="new-password" maxLength={1024} />
+            </Form.Item>
+          )}
           <Button
             autoInsertSpace={false}
             htmlType="submit"
@@ -139,7 +176,7 @@ export function AuthGate({
             loading={busy}
             block
           >
-            登录
+            {current?.setup_required ? "创建账号" : "登录"}
           </Button>
         </Form>
       </Card>

@@ -234,11 +234,22 @@ def live_web_app(live_client: Callable[[Engine, DataLibrary], object]) -> Callab
     return compose
 
 
-@pytest.fixture(scope="session", autouse=True)
-def workspace_password() -> Generator[None, None, None]:
+@pytest.fixture(scope="session")
+def workspace_hash():
     from northstar_quant.web.passwords import hash_password
     from tests.apps.browser import WORKSPACE_PASSWORD
 
-    with pytest.MonkeyPatch.context() as patch:
-        patch.setenv("NORTHSTAR_WORKSPACE_PASSWORD_HASH", hash_password(WORKSPACE_PASSWORD))
-        yield
+    return hash_password(WORKSPACE_PASSWORD)
+
+
+@pytest.fixture(autouse=True)
+def workspace_password(tmp_path, monkeypatch, workspace_hash):
+    import json
+
+    directory = tmp_path / "workspace"
+    directory.mkdir()
+    monkeypatch.setenv("NORTHSTAR_WORKSPACE_DIR", str(directory))
+    for app in ("data_hub", "research", "live"):
+        (directory / f"northstar_{app}.json").write_text(
+            json.dumps({"username": "owner", "password_hash": workspace_hash})
+        )

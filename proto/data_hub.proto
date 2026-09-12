@@ -302,6 +302,10 @@ service BrowserApi {
   rpc ReadCompaction(CompactionPage) returns (ExplorerRows) { option (northstar.web.http_method) = "POST"; option (northstar.web.http_path) = "/api/explorer/compactions/{compaction_id}/query"; }
   rpc ExportCompaction(CompactionPage) returns (ExplorerRows) { option (northstar.web.http_method) = "POST"; option (northstar.web.http_path) = "/api/explorer/compactions/{compaction_id}/export"; }
 
+  rpc PostApiSetup(northstar.web.auth.LoginRequest) returns (northstar.web.auth.BrowserSession) {
+    option (northstar.web.http_method) = "POST";
+    option (northstar.web.http_path) = "/api/setup";
+  }
   rpc PostApiLogin (northstar.web.auth.LoginRequest) returns (northstar.web.auth.BrowserSession) {
     option (northstar.web.http_method) = "POST";
     option (northstar.web.http_path) = "/api/login";

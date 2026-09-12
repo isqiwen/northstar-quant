@@ -24,7 +24,7 @@ P extends `/api/attempts` ? messages.GetApiAttemptsResponse :
 P extends `/api/datasets` ? messages.GetApiDatasetsResponse :
 P extends `/api/sources` ? messages.GetApiSourcesResponse :
 P extends `/api/sync` ? messages.SyncStatus : never;
-export type CommandPath = `/api/explorer/compactions/${string}/export` | `/api/explorer/compactions/${string}/query` | `/api/explorer/compactions` | `/api/explorer/contracts` | `/api/explorer/versions` | `/api/explorer/coverage` | `/api/explorer/compare` | `/api/explorer/export` | `/api/explorer/query` | `/api/sync/reprocess` | `/api/sync/settings` | `/api/sync/token` | `/api/logout` | `/api/login`;
+export type CommandPath = `/api/explorer/compactions/${string}/export` | `/api/explorer/compactions/${string}/query` | `/api/explorer/compactions` | `/api/explorer/contracts` | `/api/explorer/versions` | `/api/explorer/coverage` | `/api/explorer/compare` | `/api/explorer/export` | `/api/explorer/query` | `/api/sync/reprocess` | `/api/sync/settings` | `/api/sync/token` | `/api/logout` | `/api/setup` | `/api/login`;
 export type CommandResponse<P> = P extends `/api/explorer/compactions/${string}/export` ? messages.ExplorerRows :
 P extends `/api/explorer/compactions/${string}/query` ? messages.ExplorerRows :
 P extends `/api/explorer/compactions` ? messages.Compaction :
@@ -38,6 +38,7 @@ P extends `/api/sync/reprocess` ? messages.SyncEvidence :
 P extends `/api/sync/settings` ? messages.SyncStatus :
 P extends `/api/sync/token` ? messages.SyncStatus :
 P extends `/api/logout` ? messages.BrowserSession :
+P extends `/api/setup` ? messages.BrowserSession :
 P extends `/api/login` ? messages.BrowserSession : never;
 export type CommandBody<P> = P extends `/api/explorer/compactions/${string}/export` ? messages.CompactionPage :
 P extends `/api/explorer/compactions/${string}/query` ? messages.CompactionPage :
@@ -52,6 +53,7 @@ P extends `/api/sync/reprocess` ? messages.SyncReprocessRequest :
 P extends `/api/sync/settings` ? messages.SyncSettingsRequest :
 P extends `/api/sync/token` ? messages.SyncTokenRequest :
 P extends `/api/logout` ? messages.Empty :
+P extends `/api/setup` ? messages.LoginRequest :
 P extends `/api/login` ? messages.LoginRequest : never;
 export function query<P extends GetPath>(path: P | null): Query<GetResponse<P>> | null {return path === null ? null : {path};}
 export function mutate<P extends CommandPath>(path: P, body: CommandBody<NoInfer<P>>, runtime?: string): Promise<CommandResponse<P>> {return send(path, body, runtime);}

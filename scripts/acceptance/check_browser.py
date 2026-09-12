@@ -107,6 +107,7 @@ def main() -> None:
                 )
                 password = page.get_by_label("工作台密码", exact=True)
                 if password.is_visible():
+                    page.get_by_label("用户名", exact=True).fill("owner")
                     password.fill(app.workspace_password)
                     page.get_by_role("button", name="登录", exact=True).click()
                     expect(page.locator(".workspace")).to_be_visible()

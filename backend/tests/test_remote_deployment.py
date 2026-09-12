@@ -15,13 +15,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def configuration_text(app, value):
-    identity = (
-        ""
-        if app == "database"
-        else "NORTHSTAR_WORKSPACE_PASSWORD_HASH='"
-        + os.environ["NORTHSTAR_WORKSPACE_PASSWORD_HASH"]
-        + "'\n"
-    )
+    identity = ""
     if app == "research":
         return f"NORTHSTAR_DATA_HUB_URL='http://{value}:19090'\n" + identity
     keys = {
@@ -604,31 +598,6 @@ def test_app_deploy_only_mounts_client_and_stops_on_mount_failure(deployment, mo
         assert not any(call[0] == "docker" for call in calls)
 
 
-def test_workspace_password_bootstrap_preserves_identity_and_requires_explicit_rotation():
-    import runpy
-
-    from northstar_quant.web.passwords import hash_password, verify_password
-
-    module = runpy.run_path(str(ROOT / "scripts/operations/application_configuration.py"))
-    prepare = module["prepare_workspace_password"]
-    parse = module["validate"]
-    key = "NORTHSTAR_WORKSPACE_PASSWORD_HASH"
-    original = b"NORTHSTAR_DATA_HUB_URL=http://core.local:8080\n"
-    installed, password = prepare("research", original, None)
-    assert password and password.encode() not in installed
-    encoded = parse("research", installed)[key]
-    assert verify_password(password, encoded)
-    again, next_password = prepare("research", original, installed)
-    assert again == installed and next_password is None
-    cleaned, disclosed = prepare("research", original, installed + b"OBSOLETE=removed\n")
-    assert cleaned == installed and disclosed is None
-    replacement = hash_password("new-private-password")
-    explicit = original + f"{key}='{replacement}'\n".encode()
-    changed, disclosed = prepare("research", explicit, installed)
-    assert changed == explicit and disclosed is None
-    assert parse("research", changed)[key] != encoded
-
-
 def test_database_uses_data_hub_ssh_identity_and_own_configuration(deployment):
     import runpy
 
@@ -711,3 +680,35 @@ def test_purge_refuses_configured_nfs_server_before_ssh(deployment):
     assert result.returncode != 0
     assert "NFS 服务端" in result.stderr
     assert not Path(env["RECORD"]).exists()
+
+
+def test_deploy_reset_removes_only_workspace_identity_after_api_stops(tmp_path):
+    import runpy
+
+    module = runpy.run_path(str(ROOT / "scripts/operations/compose.py"))
+    account = tmp_path / "live/workspace/northstar_live.json"
+    account.parent.mkdir(parents=True)
+    account.write_text("identity")
+    broker = tmp_path / "live/broker.toml"
+    broker.write_text("private broker config")
+    calls = []
+
+    def stop(*args):
+        assert account.exists()
+        calls.append(args)
+        return ""
+
+    module["reset_workspace"](["docker", "compose"], "live", credentials=tmp_path, runner=stop)
+    assert calls == [("docker", "compose", "stop", "live-api")]
+    assert not account.exists()
+    assert broker.read_text() == "private broker config"
+    account.write_text("identity")
+
+    def failure(*args):
+        raise RuntimeError("stop failed")
+
+    with pytest.raises(RuntimeError):
+        module["reset_workspace"]([], "live", credentials=tmp_path, runner=failure)
+    assert account.read_text() == "identity"
+    module["lifecycle"]([], "live", "restart", runner=lambda *args: "")
+    assert account.read_text() == "identity"
