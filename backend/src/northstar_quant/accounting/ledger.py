@@ -679,7 +679,7 @@ class BrokerLedger:
             "reconciliation": "UNRECONCILED",
             "execution": dict(_EXECUTION),
         }
-        if any(entry["problems"] for entry in history):
+        if any(entry["position_projection"]["status"] != "KNOWN" for entry in history):
             return unavailable
         markets: dict[UUID, Instrument] = {}
         for entry in history:

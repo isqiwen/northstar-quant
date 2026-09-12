@@ -22,7 +22,7 @@ def project_account(
     baseline: dict[str, Any], history: list[dict[str, Any]], markets: tuple[Instrument, ...]
 ) -> dict[str, Any]:
     """Return known FIFO P&L with explicit incomplete monetary coverage."""
-    if not history or any(item["problems"] for item in history):
+    if not history or any(item["position_projection"]["status"] != "KNOWN" for item in history):
         raise ValueError("broker account requires accepted position evidence")
     if baseline["currency"] != "CNY" or baseline["scope"] != "FLAT_CNY_OBSERVATION":
         raise ValueError("broker account requires an established flat CNY baseline")

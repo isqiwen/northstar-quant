@@ -394,6 +394,7 @@ def test_transfer_receipt_blocks_stale_account_and_survives_recovery(
         assert progress["status"] == "UNKNOWN" and progress["through_sequence"] == 2
         entry = ledger.get(UUID(progress["entry_id"]))
         assert entry["fill_count"] == 0
+        assert entry["position_projection"] == {"status": "KNOWN", "positions": []}
         assert any(
             item["code"] == "STREAM_CASHFLOW_RECONCILIATION_REQUIRED" for item in entry["problems"]
         )
@@ -402,6 +403,12 @@ def test_transfer_receipt_blocks_stale_account_and_survives_recovery(
         # A later confirmed execution is still retained, but does not erase the cashflow gap.
         accept(calls, 3, "OnRtnTrade", trade())
         assert ledger.stream_progress(stream_id)["status"] == "UNKNOWN"
+        current = ledger.get(UUID(ledger.stream_progress(stream_id)["entry_id"]))
+        assert current["position_projection"]["status"] == "KNOWN"
+        projection = ledger.context(source)["accounting_projection"]
+        assert projection["fill_count"] == 1 and projection["cash"] is None
+        assert projection["realized_pnl_before_fees"] == "0"
+        assert projection["execution"]["order_sending"] is False
         recovered = BrokerLedger(live_engine)
         assert recovered.verify_all()["position_entries_count"] == 2
         assert recovered.stream_progress(stream_id) == ledger.stream_progress(stream_id)

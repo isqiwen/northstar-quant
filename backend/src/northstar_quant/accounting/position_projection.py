@@ -150,7 +150,12 @@ def derive_position_entry(
         raise ValueError("position ledger exceeds its bounded daily fill limit")
     problems.extend(new_problems)
     positions: list[dict[str, Any]] = []
-    if not problems:
+    # A cash transfer does not alter contract quantities or FIFO prices. Preserve
+    # known inventory while the account as a whole remains unreconciled.
+    position_unknown = any(
+        problem["code"] != "STREAM_CASHFLOW_RECONCILIATION_REQUIRED" for problem in problems
+    )
+    if not position_unknown:
         try:
             projection = project_intraday_positions(
                 date.fromisoformat(trading_day),
@@ -191,6 +196,7 @@ def derive_position_entry(
             }
             new_problems.append(problem)
             problems.append(problem)
+            position_unknown = True
     return {
         "added_fills": added,
         "fill_count": len(known),
@@ -200,7 +206,7 @@ def derive_position_entry(
         "problems": problems,
         "status": "UNKNOWN" if problems else "READY",
         "position_projection": {
-            "status": "UNKNOWN" if problems else "KNOWN",
+            "status": "UNKNOWN" if position_unknown else "KNOWN",
             "positions": positions,
         },
     }
