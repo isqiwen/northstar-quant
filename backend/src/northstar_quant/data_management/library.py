@@ -41,6 +41,8 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.engine import RowMapping
 
 from northstar_quant import code_revision
+from northstar_quant.accounting.settlement import SettlementFact
+from northstar_quant.accounting.terms import FuturesTerms
 from northstar_quant.data_management.catalog.models import (
     DatasetSnapshotImportQualityPin,
     DatasetSnapshotManifest,
@@ -934,6 +936,18 @@ class DataLibrary:
         details = self.load_dataset(snapshot_id).details
         assert details is not None
         return details
+
+    def assemble_research(
+        self,
+        snapshot_ids: tuple[UUID, ...],
+        *,
+        settlements: tuple[SettlementFact, ...] = (),
+        terms: tuple[FuturesTerms, ...] = (),
+    ) -> ResearchDataset:
+        """Publish fixed sessions at one quality cutoff with explicit economic facts."""
+        from .research_assembly import assemble
+
+        return assemble(self, snapshot_ids, settlements=settlements, terms=terms)
 
     def list_datasets(self, *, limit: int = 50) -> tuple[DatasetSummary, ...]:
         """Offer only confirmed publications whose pinned data and archives verify."""

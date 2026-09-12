@@ -130,12 +130,8 @@ def test_night_day_and_next_day_keep_fixed_sessions_and_offline_parquet(
         kind="NIGHT",
     )
     following = _shift(library, tmp_path / "following.csv", offset=timedelta(days=1))
-    identifier = _publish(postgres_engine, [following, day, night])
-    fixed = load_dataset(postgres_engine, identifier)
-    with pytest.raises(LookupError):
-        library.load_dataset(identifier)
-    assert identifier not in {item.snapshot_id for item in library.list_datasets()}
-    library.publications.publish(fixed)
+    fixed = library.assemble_research((following.snapshot_id, day.snapshot_id, night.snapshot_id))
+    identifier = fixed.snapshot_id
     assert library.load_dataset(identifier) == fixed
     assert fixed.bars == night.bars + day.bars + following.bars
     assert fixed.market == day.market
@@ -149,6 +145,9 @@ def test_night_day_and_next_day_keep_fixed_sessions_and_offline_parquet(
     assert sum(pin.observed_count for pin in fixed.details.minute_quality) == 9
     assert identifier in {item.snapshot_id for item in library.list_datasets()}
     library.publications.publish(fixed)
+    assert library.assemble_research(
+        (night.snapshot_id, following.snapshot_id, day.snapshot_id)
+    ) == fixed
     assert PublishedDatasets(library.publications.root).load_dataset(identifier) == fixed
     with TestClient(create_app(postgres_engine, library), base_url="http://core.local") as api:
         assert login_response(api).status_code == 200
@@ -181,6 +180,64 @@ def test_night_day_and_next_day_keep_fixed_sessions_and_offline_parquet(
         assert source.source_id in {
             item.source_id for data in (night, day, following) for item in data.details.sources
         }
+
+
+def test_assembly_resumes_after_file_publication_failure(
+    postgres_engine, clean_database, tmp_path, monkeypatch
+):
+    from northstar_quant.data_management.catalog.models import DatasetSnapshotManifest
+
+    library = DataLibrary(postgres_engine, SourceFiles(tmp_path / "sources"))
+    first = _receive(library, _csv(tmp_path / "day.csv"), _spec())
+    second = _shift(library, tmp_path / "next.csv", offset=timedelta(days=1))
+    publish = PublishedDatasets.publish
+
+    def interrupted(self, dataset):
+        raise OSError("export interrupted after manifest commit")
+
+    monkeypatch.setattr(PublishedDatasets, "publish", interrupted)
+    with pytest.raises(OSError, match="export interrupted"):
+        library.assemble_research((first.snapshot_id, second.snapshot_id))
+    with Session(postgres_engine) as session:
+        manifest = session.scalar(
+            select(DatasetSnapshotManifest).where(
+                DatasetSnapshotManifest.idempotency_key.like("research-assembly-%")
+            )
+        )
+        assert manifest is not None
+        identifier = manifest.id
+    assert identifier not in {item.snapshot_id for item in library.list_datasets()}
+    monkeypatch.setattr(PublishedDatasets, "publish", publish)
+    fixed = library.assemble_research((second.snapshot_id, first.snapshot_id))
+    assert fixed.snapshot_id == identifier
+    assert fixed.bars == first.bars + second.bars
+    assert library.load_dataset(identifier) == fixed
+    assert library.load_dataset(first.snapshot_id) == first
+
+
+@pytest.mark.parametrize(
+    "offset,symbol,message",
+    [
+        (timedelta(minutes=1), "RB2605", "overlapping sessions"),
+        (timedelta(days=1), "RB2606", "contract identity"),
+    ],
+)
+def test_assembly_rejects_invalid_inputs_before_publication(
+    postgres_engine, clean_database, tmp_path, offset, symbol, message
+):
+    from northstar_quant.data_management.catalog.models import DatasetSnapshotManifest
+
+    library = DataLibrary(postgres_engine, SourceFiles(tmp_path / "sources"))
+    first = _receive(library, _csv(tmp_path / "first.csv"), _spec())
+    second = _shift(library, tmp_path / "other.csv", offset=offset, symbol=symbol)
+    with pytest.raises(ValueError, match=message):
+        library.assemble_research((first.snapshot_id, second.snapshot_id))
+    with Session(postgres_engine) as session:
+        assert session.scalar(
+            select(DatasetSnapshotManifest.id).where(
+                DatasetSnapshotManifest.idempotency_key.like("research-assembly-%")
+            )
+        ) is None
 
 
 @pytest.mark.parametrize(
@@ -281,11 +338,12 @@ def test_cross_day_settlement_is_fixed_offline_replayable_and_survives_every_res
         effective_until=following.bars[-1].available_at + timedelta(hours=1),
         open_fee=ChargeRate(Decimal(0), Decimal(3)),
     )
-    identifier = _publish(
-        postgres_engine, [first, following], settlements=(fact,), terms=(first_terms, next_terms)
+    fixed = library.assemble_research(
+        (first.snapshot_id, following.snapshot_id),
+        settlements=(fact,),
+        terms=(first_terms, next_terms),
     )
-    fixed = load_dataset(postgres_engine, identifier)
-    library.publications.publish(fixed)
+    identifier = fixed.snapshot_id
     offline = PublishedDatasets(library.publications.root)
     assert offline.load_dataset(identifier) == fixed
     assert fixed.details.settlements == (fact,)
