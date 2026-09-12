@@ -128,7 +128,7 @@ def _material(event: BrokerEvent, binding: dict[str, Any]) -> bool:
         return True
     if event.callback == "OnRspUserLogin":
         data = event.data or {}
-        return any(
+        return event.is_last is not True or any(
             data.get(field) != binding[key]
             for field, key in (
                 ("UserID", "account_id"),

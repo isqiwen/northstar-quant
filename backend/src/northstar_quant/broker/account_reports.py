@@ -167,6 +167,7 @@ def stream_trades(
         if event["channel"] == "TD" and event["callback"] == "OnRspUserLogin":
             if (
                 not event["error_id"]
+                and event["is_last"] is True
                 and row.get("UserID") == binding["account_id"]
                 and row.get("BrokerID") == binding["profile"]["broker_id"]
                 and row.get("TradingDay") == day

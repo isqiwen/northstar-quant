@@ -57,7 +57,7 @@ def project_query(binding: dict[str, object], capture: QueryCapture | None) -> d
     }
     fatal = False
     if capture is not None:
-        requests: dict[tuple[str, int], tuple[str, int]] = {}
+        requests: dict[tuple[str, int], tuple[str, str, int]] = {}
         terminated: set[tuple[str, int]] = set()
         profile = cast(dict[str, object], binding["profile"])
         account_id, instrument = binding["account_id"], binding["instrument"]
@@ -113,7 +113,7 @@ def project_query(binding: dict[str, object], capture: QueryCapture | None) -> d
                 if key in requests:
                     reasons.add("REQUEST_ID_REUSED_WITHIN_CAPTURE")
                     continue
-                requests[key] = (str(section), event.sequence)
+                requests[key] = (str(section), str(method), cast(int, data["return_code"]))
                 if data["return_code"] != 0:
                     reasons.add("SDK_REJECTED_REQUEST")
                     fatal = True
@@ -134,10 +134,14 @@ def project_query(binding: dict[str, object], capture: QueryCapture | None) -> d
             if event.callback == "OnRspUserLogin":
                 request = None if key is None else requests.get(key)
                 login_complete = (
-                    request is not None and request[0] == "login" and event.is_last is True
+                    request == ("login", "ReqUserLogin", 0)
+                    and key not in terminated
+                    and event.is_last is True
                 )
                 if not login_complete:
                     reasons.add("LOGIN_REQUEST_OR_COMPLETION_NOT_CONFIRMED")
+                if key is not None and event.is_last is True:
+                    terminated.add(key)
                 if data is not None and not event.error_id:
                     matching = (
                         data.get("BrokerID") == profile["broker_id"]
@@ -177,11 +181,22 @@ def project_query(binding: dict[str, object], capture: QueryCapture | None) -> d
                             reasons.add("BROKER_TRADING_DAY_UNKNOWN")
                 else:
                     reasons.add("LOGIN_RESPONSE_MISSING_OR_FAILED")
-            if event.callback == "OnRspAuthenticate" and data is not None:
+            if event.callback == "OnRspAuthenticate":
                 request = None if key is None else requests.get(key)
-                if request is None or request[0] != "authenticate" or event.is_last is not True:
+                if (
+                    event.channel != "TD"
+                    or request != ("authenticate", "ReqAuthenticate", 0)
+                    or key in terminated
+                    or event.is_last is not True
+                ):
                     reasons.add("AUTHENTICATION_REQUEST_OR_COMPLETION_NOT_CONFIRMED")
-                if data.get("BrokerID") != profile["broker_id"] or data.get("UserID") != account_id:
+                if key is not None and event.is_last is True:
+                    terminated.add(key)
+                if data is None or event.error_id:
+                    reasons.add("AUTHENTICATION_RESPONSE_MISSING_OR_FAILED")
+                elif (
+                    data.get("BrokerID") != profile["broker_id"] or data.get("UserID") != account_id
+                ):
                     reasons.add("AUTHENTICATION_ACCOUNT_IDENTITY_MISMATCH")
                     identity = "MISMATCH"
                     fatal = True
@@ -284,6 +299,9 @@ def project_query(binding: dict[str, object], capture: QueryCapture | None) -> d
                         "error_id": event.error_id,
                         "data": dict(data),
                     }
+        for request_key, (request_section, _, _) in requests.items():
+            if request_section in {"authenticate", "login"} and request_key not in terminated:
+                reasons.add("IDENTITY_REQUEST_NOT_COMPLETED")
         if not td_connected:
             reasons.add("TD_CONNECTION_NOT_OBSERVED")
         if not context_seen:

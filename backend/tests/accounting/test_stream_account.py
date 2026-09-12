@@ -414,3 +414,39 @@ def test_transfer_receipt_blocks_stale_account_and_survives_recovery(
         assert recovered.stream_progress(stream_id) == ledger.stream_progress(stream_id)
     finally:
         streams.close()
+
+
+@pytest.mark.parametrize("last", [False, None])
+def test_incomplete_login_cannot_establish_account_readiness_or_recover_as_known(
+    live_engine, tmp_path, monkeypatch, last
+):
+    library, source, configuration, calls = prepare(live_engine, tmp_path, monkeypatch)
+    ledger = BrokerLedger(live_engine)
+    streams, stream_id = LiveStreams(live_engine, library), uuid4()
+    try:
+        Clock.at = datetime.now(UTC)
+        start(streams, source, configuration, stream_id)
+        assert calls["ready"].wait(3)
+        calls["accept"](
+            BrokerEvent(
+                1,
+                "TD",
+                "OnRspUserLogin",
+                1,
+                last,
+                Clock.at.isoformat().replace("+00:00", "Z"),
+                0,
+                {"UserID": "123456", "BrokerID": "9999", "TradingDay": "20260907"},
+            )
+        )
+        progress = ledger.stream_progress(stream_id)
+        assert progress["status"] == "UNKNOWN"
+        entry = ledger.get(UUID(progress["entry_id"]))
+        assert entry["status"] == "UNKNOWN"
+        assert any(p["code"] == "STREAM_TD_IDENTITY_NOT_CONFIRMED" for p in entry["problems"])
+        with pytest.raises(ValueError, match="caught-up, known"):
+            streams.control(stream_id, "RESUME", request_id=uuid4())
+        assert BrokerLedger(live_engine).verify_all()["position_entries_count"] == 1
+        assert BrokerLedger(live_engine).get(UUID(progress["entry_id"])) == entry
+    finally:
+        streams.close()
