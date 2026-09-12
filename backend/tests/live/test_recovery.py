@@ -450,3 +450,75 @@ def test_joint_restore_preserves_unpriced_fills_and_confirmed_fee_coverage(
         assert [reopened.get(row.order_id) for row in (pending, resolved)] == expected
         assert reopened.get(pending.order_id)["fee_pending_lots"] == 3
         assert reopened.get(resolved.order_id)["fee_pending_lots"] == 0
+
+
+def test_rehashed_position_comparison_cannot_hide_broker_difference(live_engine):
+    import hashlib
+    import json
+
+    from northstar_quant.persistence.sql import write_transaction
+
+    baseline = position_baseline(live_engine)
+    ledger = BrokerLedger(live_engine)
+    identifier = uuid4()
+    ledger.ingest(baseline, ledger_query(live_engine, trades=(trade(),)), request_id=identifier)
+    check_id = uuid4()
+    checked = ledger.compare(
+        identifier,
+        ledger_query(live_engine, trades=(trade(),), positions=(position(quantity=3),)),
+        request_id=check_id,
+    )
+    assert checked["status"] == "DIFFERENCES"
+    assert BrokerLedger(live_engine).get_check(check_id) == checked
+    checked["status"] = "MATCHED"
+    for row in checked["positions"]:
+        row["observed_today"] = row["expected_today"]
+        row["delta_today"] = 0
+    encoded = json.dumps(
+        checked, sort_keys=True, ensure_ascii=False, allow_nan=False, separators=(",", ":")
+    )
+    with write_transaction(live_engine) as connection:
+        _disable_fact_guards(connection)
+        connection.exec_driver_sql(
+            "UPDATE broker_position_checks SET document=?, sha256=? WHERE check_id=?",
+            (encoded, hashlib.sha256(encoded.encode()).hexdigest(), check_id.hex),
+        )
+    with pytest.raises(ValueError, match="comparison differs from retained source facts"):
+        BrokerLedger(live_engine).verify_all()
+
+
+@pytest.mark.parametrize("kind", ["opening", "comparison"])
+def test_rehashed_baseline_cannot_invent_cash_or_hide_change(live_engine, kind):
+    import hashlib
+    import json
+
+    from northstar_quant.persistence.sql import write_transaction
+    from tests.accounting.test_baselines import saved_query
+
+    owner, baseline_id = BrokerBaselines(live_engine), uuid4()
+    document = owner.establish(saved_query(live_engine), request_id=baseline_id)
+    if kind == "opening":
+        table, key, identifier = "broker_account_baselines", "baseline_id", baseline_id
+        document["opening"]["funds"]["Balance"] = "200000"
+    else:
+        identifier = uuid4()
+        document = owner.compare(
+            baseline_id, saved_query(live_engine, money={"Balance": "99000"}), request_id=identifier
+        )
+        assert document["status"] == "DIFFERENCES"
+        table, key = "broker_baseline_checks", "check_id"
+        document["status"] = "MATCHED"
+        for row in document["funds"]:
+            row["observed"] = row["expected"]
+            row["delta"] = "0"
+    encoded = json.dumps(
+        document, sort_keys=True, ensure_ascii=False, allow_nan=False, separators=(",", ":")
+    )
+    with write_transaction(live_engine) as connection:
+        _disable_fact_guards(connection)
+        connection.exec_driver_sql(
+            f"UPDATE {table} SET document=?, sha256=? WHERE {key}=?",
+            (encoded, hashlib.sha256(encoded.encode()).hexdigest(), identifier.hex),
+        )
+    with pytest.raises(ValueError, match="differs from.*source"):
+        BrokerBaselines(live_engine).verify_all()

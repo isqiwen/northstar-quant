@@ -117,6 +117,83 @@ def _eligibility(batch: dict[str, Any]) -> dict[str, Any]:
     return {"allowed": not reasons, "reasons": sorted(set(reasons))}
 
 
+def _opening_values(batch: dict[str, Any]) -> dict[str, Any]:
+    eligibility = _eligibility(batch)
+    if not eligibility["allowed"]:
+        raise ValueError("cannot establish baseline: " + ", ".join(eligibility["reasons"]))
+    funds, activity, _ = account_baseline(batch)
+    return {
+        "profile": batch["profile"],
+        "account_id": batch["account_id"],
+        "currency": "CNY",
+        "trading_day": batch["completeness"]["trading_day"],
+        "opening": {"funds": funds, **activity},
+        "status": "BASELINE_RECORDED",
+        "scope": "FLAT_CNY_OBSERVATION",
+        "execution": dict(_EXECUTION),
+    }
+
+
+def _comparison_values(
+    baseline: dict[str, Any],
+    batch: dict[str, Any],
+    *,
+    at: datetime,
+) -> dict[str, Any]:
+    query_batch_id = UUID(batch["batch_id"])
+    if baseline["source_batch_id"] == str(query_batch_id):
+        raise ValueError("a baseline cannot be compared with its own source query")
+    if batch["profile"] != baseline["profile"] or batch["account_id"] != baseline["account_id"]:
+        raise ValueError("comparison must use the same broker environment and account")
+    capture = batch["capture"]
+    recorded = _time(baseline["recorded_at"])
+    if _time(batch["created_at"]) <= recorded or (
+        capture is not None and _time(capture["started_at"]) <= recorded
+    ):
+        raise ValueError("comparison requires an independent query begun after fixing the baseline")
+    if capture is None:
+        # Its result can still change from PENDING to final. Never seal a
+        # comparison to an input that is not itself immutable yet.
+        raise ValueError("wait for the later query to finish before saving a comparison")
+    if _time(capture["finished_at"]) >= at:
+        raise ValueError("comparison query must already have finished")
+    observed, activity, reasons = account_baseline(batch)
+    if batch["completeness"]["trading_day"] != baseline["trading_day"]:
+        reasons.append("DIFFERENT_TRADING_DAY_REQUIRES_SETTLEMENT_FACTS")
+    fields = []
+    differences = any(activity[name] for name in _ACTIVITY)
+    with localcontext() as context:
+        context.prec = 96
+        for field, expected in sorted(baseline["opening"]["funds"].items()):
+            actual = observed.get(field)
+            delta = None if actual is None else Decimal(actual) - Decimal(expected)
+            differences = differences or delta is not None and delta != 0
+            fields.append(
+                {
+                    "field": field,
+                    "expected": expected,
+                    "observed": actual,
+                    "delta": None if delta is None else decimal_text(delta),
+                }
+            )
+    status = "UNKNOWN" if reasons else "DIFFERENCES" if differences else "MATCHED"
+    return {
+        "status": status,
+        "scope": "BASELINE_COMPARISON_ONLY",
+        "funds": fields,
+        "activity": activity,
+        "reasons": sorted(set(reasons)),
+        "reconciliation": "UNRECONCILED",
+        "limitations": [
+            "NO_EXTERNAL_FILL_CASHFLOW_OR_SETTLEMENT_LEDGER",
+            "QUERIES_ARE_NOT_ATOMIC_ACCOUNT_SNAPSHOTS",
+            "OBSERVATIONS_DO_NOT_PROVE_CONTINUOUS_COVERAGE_OR_CURRENT_STATE",
+            "FIELD_CHANGES_ARE_NOT_ATTRIBUTED_PNL",
+        ],
+        "execution": dict(_EXECUTION),
+    }
+
+
 class BrokerBaselines:
     """Immutable observation and comparison, with no network or rebase operation."""
 
@@ -164,17 +241,25 @@ class BrokerBaselines:
 
     def get_baseline(self, baseline_id: UUID) -> dict[str, Any]:
         document = self._load(_baselines, baseline_id)
-        source = self._records.get(UUID(document["source_batch_id"]))
+        source: dict[str, Any] = self._records.get(UUID(document["source_batch_id"]))
         if _hash(source) != document["source_hash"]:
             raise ValueError("baseline source differs from its fixed evidence")
+        expected = _opening_values(source)
+        if any(document.get(key) != value for key, value in expected.items()) or _time(
+            source["capture"]["finished_at"]
+        ) >= _time(document["recorded_at"]):
+            raise ValueError("baseline projection differs from its retained source")
         return document
 
     def get_check(self, check_id: UUID) -> dict[str, Any]:
         document = self._load(_checks, check_id)
         baseline = self.get_baseline(UUID(document["baseline_id"]))
-        query = self._records.get(UUID(document["query_batch_id"]))
+        query: dict[str, Any] = self._records.get(UUID(document["query_batch_id"]))
         if _hash(baseline) != document["baseline_hash"] or _hash(query) != document["query_hash"]:
             raise ValueError("comparison inputs differ from their fixed evidence")
+        expected = _comparison_values(baseline, query, at=_time(document["created_at"]))
+        if any(document.get(key) != value for key, value in expected.items()):
+            raise ValueError("baseline comparison differs from retained source facts")
         return document
 
     def establish(self, source_batch_id: UUID, *, request_id: UUID) -> dict[str, Any]:
@@ -187,27 +272,17 @@ class BrokerBaselines:
                 raise ValueError("baseline command is already bound to another query")
             return saved
         batch: dict[str, Any] = self._records.get(source_batch_id)
-        eligibility = _eligibility(batch)
-        if not eligibility["allowed"]:
-            raise ValueError("cannot establish baseline: " + ", ".join(eligibility["reasons"]))
+        opening = _opening_values(batch)
         now = datetime.now(UTC)
         if _time(batch["capture"]["finished_at"]) >= now:
             raise ValueError("baseline requires an already finished observation")
-        funds, activity, _ = account_baseline(batch)
         document = {
             "baseline_id": str(request_id),
             "source_batch_id": str(source_batch_id),
             "recorded_at": now.isoformat().replace("+00:00", "Z"),
-            "profile": batch["profile"],
-            "account_id": batch["account_id"],
-            "currency": "CNY",
-            "trading_day": batch["completeness"]["trading_day"],
+            **opening,
             "source_hash": _hash(batch),
             "code_revision": code_revision(),
-            "opening": {"funds": funds, **activity},
-            "status": "BASELINE_RECORDED",
-            "scope": "FLAT_CNY_OBSERVATION",
-            "execution": dict(_EXECUTION),
         }
         with write_transaction(self._engine) as connection:
             connection.execute(
@@ -249,45 +324,8 @@ class BrokerBaselines:
             return saved
         baseline = self.get_baseline(baseline_id)
         batch: dict[str, Any] = self._records.get(query_batch_id)
-        if baseline["source_batch_id"] == str(query_batch_id):
-            raise ValueError("a baseline cannot be compared with its own source query")
-        if batch["profile"] != baseline["profile"] or batch["account_id"] != baseline["account_id"]:
-            raise ValueError("comparison must use the same broker environment and account")
-        capture = batch["capture"]
-        recorded = _time(baseline["recorded_at"])
-        if _time(batch["created_at"]) <= recorded or (
-            capture is not None and _time(capture["started_at"]) <= recorded
-        ):
-            raise ValueError(
-                "comparison requires an independent query begun after fixing the baseline"
-            )
-        if capture is None:
-            # Its result can still change from PENDING to final. Never seal a
-            # comparison to an input that is not itself immutable yet.
-            raise ValueError("wait for the later query to finish before saving a comparison")
-        if _time(capture["finished_at"]) >= datetime.now(UTC):
-            raise ValueError("comparison query must already have finished")
-        observed, activity, reasons = account_baseline(batch)
-        if batch["completeness"]["trading_day"] != baseline["trading_day"]:
-            reasons.append("DIFFERENT_TRADING_DAY_REQUIRES_SETTLEMENT_FACTS")
-        fields = []
-        differences = any(activity[name] for name in _ACTIVITY)
-        with localcontext() as context:
-            context.prec = 96
-            for field, expected in baseline["opening"]["funds"].items():
-                actual = observed.get(field)
-                delta = None if actual is None else Decimal(actual) - Decimal(expected)
-                differences = differences or delta is not None and delta != 0
-                fields.append(
-                    {
-                        "field": field,
-                        "expected": expected,
-                        "observed": actual,
-                        "delta": None if delta is None else decimal_text(delta),
-                    }
-                )
-        status = "UNKNOWN" if reasons else "DIFFERENCES" if differences else "MATCHED"
         now = datetime.now(UTC)
+        comparison = _comparison_values(baseline, batch, at=now)
         document = {
             "check_id": str(request_id),
             "baseline_id": str(baseline_id),
@@ -296,19 +334,7 @@ class BrokerBaselines:
             "query_hash": _hash(batch),
             "created_at": now.isoformat().replace("+00:00", "Z"),
             "code_revision": code_revision(),
-            "status": status,
-            "scope": "BASELINE_COMPARISON_ONLY",
-            "funds": fields,
-            "activity": activity,
-            "reasons": sorted(set(reasons)),
-            "reconciliation": "UNRECONCILED",
-            "limitations": [
-                "NO_EXTERNAL_FILL_CASHFLOW_OR_SETTLEMENT_LEDGER",
-                "QUERIES_ARE_NOT_ATOMIC_ACCOUNT_SNAPSHOTS",
-                "OBSERVATIONS_DO_NOT_PROVE_CONTINUOUS_COVERAGE_OR_CURRENT_STATE",
-                "FIELD_CHANGES_ARE_NOT_ATTRIBUTED_PNL",
-            ],
-            "execution": dict(_EXECUTION),
+            **comparison,
         }
         with write_transaction(self._engine) as connection:
             connection.execute(
@@ -364,7 +390,7 @@ class BrokerBaselines:
         }
 
     def verify_all(self) -> dict[str, int]:
-        """Verify immutable records and their retained inputs, without recomputing them."""
+        """Rebuild fixed observations and comparisons from their retained source queries."""
         counts = {"baselines_count": 0, "checks_count": 0}
         with self._engine.connect() as connection:
             for table, reader, name in (
