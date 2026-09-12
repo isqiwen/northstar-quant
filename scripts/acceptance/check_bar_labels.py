@@ -4,6 +4,7 @@ import argparse
 import json
 from pathlib import Path
 
+from northstar_quant import code_revision
 from northstar_quant.data_management.tushare.resolutions import compare_resolutions
 
 
@@ -27,6 +28,7 @@ def main() -> None:
         start=args.start,
         end=args.end,
     )
+    result["implementation"] = code_revision()
     print(json.dumps(result, ensure_ascii=False, indent=2))
 
 
