@@ -320,3 +320,7 @@ Live 默认不发送订单。未知结果不能盲目重发；实时执行最终
 CI 无论成功或失败均保留 `acceptance-<SHA>-<attempt>` 产物 14 天，避免临时目录清理后丢失失败诊断。
 源码 SHA、主机当前版本、镜像 ID 和验收结论应分别记录，旧部署健康不代表新提交已验收。
 三个工作台的身份认证现状见 [API 边界](docs/API.md#工作台身份边界)。
+
+
+彻底卸载使用 `python3 scripts/northstarctl.py purge-host <应用> --yes`，会删除该应用所在主机的全部 Northstar 部署和本地数据（含同机数据库）；可先用 `--dry-run` 查看目标。
+NAS 共享只卸载、不删除远端数据。详见[完全卸载](deploy/README.md#完全卸载应用主机)。

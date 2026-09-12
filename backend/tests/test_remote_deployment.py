@@ -657,3 +657,55 @@ def test_ssh_uses_local_connection_settings_with_fixed_deployment_account(deploy
     assert "-p" not in args
     assert args[args.index("-l") + 1] == "northstar"
     assert "example.invalid" in args
+
+
+def test_purge_host_requires_confirmation_and_only_contacts_selected_app_host(deployment):
+    repo, config, env = deployment
+    config.write_text(config.read_text() + '\n[nfs]\nhost="nas.invalid"\n')
+    script = repo / "scripts/operations/purge_host.py"
+    script.write_text("print('synthetic host purge')\n")
+    refused = invoke(deployment, "purge-host", "data-hub")
+    assert refused.returncode != 0
+    assert not Path(env["RECORD"]).exists()
+    command = [
+        sys.executable,
+        str(repo / "scripts/northstarctl.py"),
+        "purge-host",
+        "data-hub",
+        "--config",
+        str(config),
+    ]
+    preview = subprocess.run([*command, "--dry-run"], env=env, text=True, capture_output=True)
+    assert preview.returncode == 0
+    assert not Path(env["RECORD"]).exists()
+    confirmed = subprocess.run([*command, "--yes"], env=env, text=True, capture_output=True)
+    assert confirmed.returncode == 0, confirmed.stderr
+    assert "synthetic host purge" in confirmed.stdout
+    calls = [json.loads(line) for line in Path(env["RECORD"]).read_text().splitlines()]
+    connections = [call for call in calls if call[0] == "ssh"]
+    assert len(connections) == 1
+    assert connections[0][-2] == "example.invalid"
+    assert "-p" not in connections[0]
+    assert connections[0][connections[0].index("-l") + 1] == "northstar"
+
+
+def test_purge_refuses_configured_nfs_server_before_ssh(deployment):
+    repo, config, env = deployment
+    config.write_text(config.read_text() + '\n[nfs]\nhost="example.invalid"\n')
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(repo / "scripts/northstarctl.py"),
+            "purge-host",
+            "data-hub",
+            "--yes",
+            "--config",
+            str(config),
+        ],
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+    assert result.returncode != 0
+    assert "NFS 服务端" in result.stderr
+    assert not Path(env["RECORD"]).exists()

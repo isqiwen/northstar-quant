@@ -72,8 +72,8 @@ def main() -> int:
     )
     parser.add_argument(
         "action",
-        choices=("deploy", "start", "restart", "status", "logs", "stop"),
-        help="部署（检查已准备的主机依赖）、启动、重启、状态、日志、停止（保留数据）",
+        choices=("deploy", "start", "restart", "status", "logs", "stop", "purge-host"),
+        help="部署（检查已准备的主机依赖）、启动、重启、状态、日志、停止（保留数据）、整机卸载（删除全部本地数据）",
     )
     parser.add_argument("app", choices=APPLICATIONS, help="需要管理的应用")
     parser.add_argument(
@@ -90,7 +90,14 @@ def main() -> int:
     parser.add_argument("--dry-run", action="store_true", help="仅显示目标，不连接 SSH")
     parser.add_argument("--follow", action="store_true", help="持续查看日志（仅 logs）")
     parser.add_argument("--instance", help="仅管理指定 Live 实例的启停、状态和日志")
+    parser.add_argument(
+        "--yes", action="store_true", help="确认 purge-host 删除目标主机全部 Northstar 本地数据"
+    )
     args = parser.parse_args()
+    if args.yes and args.action != "purge-host":
+        parser.error("--yes 仅用于 purge-host")
+    if args.action == "purge-host" and not (args.yes or args.dry_run):
+        parser.error("整机卸载会停止该主机所有 Northstar 应用并删除本地数据；确认后加 --yes")
     if args.instance and (
         args.app != "live" or args.action not in {"start", "restart", "stop", "status", "logs"}
     ):
@@ -101,6 +108,25 @@ def main() -> int:
         parser.error("--follow 仅用于 logs")
     try:
         config = configuration(args.config, args.app)
+        if args.action == "purge-host":
+            settings = tomllib.loads(args.config.read_text())
+            if settings.get("nfs", {}).get("host") == config["host"]:
+                raise ValueError("目标同时被配置为 NFS 服务端，拒绝整机卸载；请检查应用主机配置")
+            print(
+                f"整机卸载 → northstar@{config['host']}："
+                "该主机全部 Northstar 容器、专属资源和 /opt/northstar 本地数据；外部共享保留",
+                flush=True,
+            )
+            if args.dry_run:
+                return 0
+            program = (ROOT / "scripts/operations/purge_host.py").read_text()
+            elevated = (
+                "import subprocess,sys; sys.exit(subprocess.call(['sudo','-n','--',"
+                "'python3','-c'," + repr(program) + "]))"
+            )
+            return subprocess.run(
+                ssh(config, elevated, ""), stdin=subprocess.DEVNULL, check=False
+            ).returncode
         settings = tomllib.loads(args.config.read_text())
         nfs = None
         if args.app in {"database", "data-hub", "research"}:

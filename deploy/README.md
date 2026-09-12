@@ -245,3 +245,29 @@ Caddy 到 FRP 的 HTTP 上游须保留 `Host: datahub.wangqiwen.me`；若配置�
 X-Forwarded-Host/For 不参与访问授权，也不传给 API；X-Forwarded-Proto=https 仅用于为浏览器 Cookie 增加 Secure。
 HTTPS 页面经内部 HTTP 转发可以建立会话并提交带 CSRF 的操作，其他来源仍拒绝。
 代理行为参考 [Caddy reverse_proxy](https://caddyserver.com/docs/caddyfile/directives/reverse_proxy)。
+
+
+## 完全卸载应用主机
+
+`stop` 保留数据；`purge-host` 删除所选应用所在主机的**全部 Northstar 部署和本地数据**。
+参数选择的是主机，不是只删除一个应用：`data-hub` 和 `database` 指向同一主机，结果相同。
+
+```sh
+# 仅显示目标，不连接 SSH
+python3 scripts/northstarctl.py purge-host data-hub --dry-run
+# 确认删除该主机全部 Northstar 部署（包括同机数据库）
+python3 scripts/northstarctl.py purge-host data-hub --yes
+# 其他应用主机分别执行
+python3 scripts/northstarctl.py purge-host research --yes
+python3 scripts/northstarctl.py purge-host live --yes
+```
+
+删除项目标签对应的容器、专属镜像/网络/卷、Web 防火墙规则和 systemd 单元、NFS 客户端配置，
+最后删除 `/opt/northstar`，包括程序版本、配置、凭据、日志、数据库、研究产物及本地行情/备份。
+执行前自行保留需要的数据，并停止其他部署/管理操作。停止 Live 容器不等于柜台委托已撤销或账户已平仓。
+
+**不登录或操作 NFS 服务器，不删除 NAS `/quant` 数据。** 先卸载共享再清理本地目录；
+卸载失败、其他挂载或非项目容器仍占用目录时拒绝删除。符号链接不会被递归跟随。
+外部准备的 northstar 账号、SSH、Docker、主机依赖、公共基础镜像及无法单独归属的共享构建缓存保留；
+不执行全局 Docker prune，不停止 Docker 服务。专属资源被其他容器引用时不会强删。
+命令失败会明确报告未完成，已完成步骤不回滚；修复后可重试。该命令不会遍历其他应用主机。
