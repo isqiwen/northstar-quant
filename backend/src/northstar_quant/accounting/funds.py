@@ -185,14 +185,23 @@ class BrokerFunds:
                 )
             ):
                 raise ValueError("account money projection differs from retained broker evidence")
-            position = entry["position_reference"]
-            if (
-                position is not None
-                and _hash(self._positions.get(UUID(position["entry_id"]))) != position["sha256"]
-            ):
-                raise ValueError("account money position reference is damaged")
+            self._verify_position(entry["position_reference"], baseline_id, row["recorded_at"])
             result.append(entry)
         return result
+
+    def _verify_position(
+        self, reference: dict[str, Any] | None, baseline_id: UUID, recorded_at: datetime
+    ) -> None:
+        if reference is None:
+            return
+        retained = self._positions.get(UUID(reference["entry_id"]))
+        if (
+            _hash(retained) != reference["sha256"]
+            or retained["baseline_id"] != str(baseline_id)
+            or retained["ordinal"] != reference["ordinal"]
+            or _time(retained["recorded_at"]) > recorded_at
+        ):
+            raise ValueError("account money position reference is damaged")
 
     def get(self, entry_id: UUID) -> dict[str, Any]:
         if not isinstance(entry_id, UUID):
@@ -286,6 +295,7 @@ class BrokerFunds:
                     "NO_SETTLEMENT_RESERVATION_OR_EXECUTION_AUTHORITY",
                 ],
             }
+            self._verify_position(document["position_reference"], baseline_id, now)
             connection.execute(
                 (sqlite_insert if connection.dialect.name == "sqlite" else pg_insert)(_entries)
                 .values(

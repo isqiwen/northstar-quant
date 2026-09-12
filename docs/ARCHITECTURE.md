@@ -243,6 +243,9 @@ Accounting 拥有费用与结算计价规则；Simulation 根据固定条款生�
 2026-09-12 核对 [Nautilus Reconciliation latest](https://nautilustrader.io/docs/latest/concepts/reconciliation/)，
 采用保留外部事实并核对重建状态的原则；不引入依赖，不以合成调整补齐资金缺口。
 累计资金观察仍不证明逐笔费用覆盖、原子账户截面或发送权限。
+资金观察引用的持仓必须属于同一账户基线、具有一致序号，并在该观察记录前已存在。
+写入事务和恢复读取使用同一关联校验；时钟倒退造成因果关系不成立时，在提交前拒绝。
+后来的持仓不能回填为过去资金观察的依据，后续入账也不改变已固定的引用。
 
 当前 #19 已接通共享数量投影：Research `Account` 与 Live `BrokerLedger` 都使用
 `accounting.positions.Position` 的多空/今昨仓规则；订单及模拟成交显式携带开平，反向开仓保留独立持仓。

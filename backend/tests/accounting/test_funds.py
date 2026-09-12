@@ -320,3 +320,82 @@ def test_recovery_recomputes_money_evidence_even_when_projection_hash_is_valid(
         with pytest.raises(ValueError, match="projection differs"):
             operation()
     assert BrokerRecords(live_engine).get(source)["capture"] is not None
+
+
+@pytest.mark.parametrize("damage", ["later", "other_account", "ordinal"])
+def test_money_cannot_borrow_a_valid_position_from_another_scope_or_the_future(
+    live_engine: Engine, tmp_path: Path, damage: str
+) -> None:
+    import hashlib
+    import json
+
+    from northstar_quant.live.recovery import verify
+
+    baseline = position_baseline(live_engine)
+    ledger, funds = BrokerLedger(live_engine), BrokerFunds(live_engine)
+    original = ledger.ingest(baseline, ledger_query(live_engine), request_id=uuid4())
+    other_baseline = uuid4()
+    BrokerBaselines(live_engine).establish(
+        money_query(live_engine, profile="simnow_trading"), request_id=other_baseline
+    )
+    other = ledger.ingest(
+        other_baseline, ledger_query(live_engine, profile="simnow_trading"), request_id=uuid4()
+    )
+    source, command = money_query(live_engine), uuid4()
+    entry = funds.observe(baseline, source, request_id=command)
+    later = ledger.ingest(baseline, ledger_query(live_engine), request_id=uuid4())
+    assert funds.get(command) == entry  # New observations do not change the original reference.
+    replacement = later if damage == "later" else other if damage == "other_account" else original
+
+    def digest(value):
+        return hashlib.sha256(
+            json.dumps(value, sort_keys=True, allow_nan=False, separators=(",", ":")).encode()
+        ).hexdigest()
+
+    entry["position_reference"] = dict(
+        entry_id=replacement["entry_id"],
+        ordinal=replacement["ordinal"] + (1 if damage == "ordinal" else 0),
+        sha256=digest(replacement),
+    )
+    # Both the referenced record and the outer hash remain intact: the relation is false.
+    with live_engine.begin() as connection:
+        connection.exec_driver_sql("DROP TRIGGER immutable_broker_funds_entries_UPDATE")
+        connection.exec_driver_sql(
+            "UPDATE broker_funds_entries SET document=?, sha256=? WHERE entry_id=?",
+            (json.dumps(entry), digest(entry), command.hex),
+        )
+    for operation in (
+        lambda: BrokerFunds(live_engine).get(command),
+        lambda: funds.observe(baseline, source, request_id=command),
+        lambda: verify(live_engine, DataLibrary(live_engine, SourceFiles(tmp_path / "files"))),
+    ):
+        with pytest.raises(ValueError, match="position reference"):
+            operation()
+    assert ledger.get(UUID(original["entry_id"])) == original
+
+
+def test_clock_regression_cannot_commit_money_before_its_observed_position(
+    live_engine: Engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    baseline = position_baseline(live_engine)
+    source = money_query(live_engine)
+    position = BrokerLedger(live_engine).ingest(
+        baseline, ledger_query(live_engine), request_id=uuid4()
+    )
+    capture = BrokerRecords(live_engine).get(source)["capture"]
+    finished = datetime.fromisoformat(capture["finished_at"])
+    recorded = datetime.fromisoformat(position["recorded_at"])
+    assert finished < recorded
+
+    class EarlierClock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return (finished + (recorded - finished) / 2).astimezone(tz)
+
+    monkeypatch.setattr("northstar_quant.accounting.funds.datetime", EarlierClock)
+    command = uuid4()
+    with pytest.raises(ValueError, match="position reference"):
+        BrokerFunds(live_engine).observe(baseline, source, request_id=command)
+    with pytest.raises(LookupError):
+        BrokerFunds(live_engine).get(command)
+    assert BrokerFunds(live_engine).verify_all() == 0
