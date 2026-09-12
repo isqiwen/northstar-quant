@@ -11,13 +11,16 @@ WORKSPACE_PASSWORD = "synthetic-workspace-test-password"
 
 
 def login_response(client: TestClient):
-    from northstar_quant.web.auth_pb2 import LoginRequest
+    from northstar_quant.web.auth_pb2 import BrowserSession, LoginRequest
+    from northstar_quant.web.protobuf import decode
 
-    endpoint = (
-        "/api/setup"
-        if client.get("/api/browser-session").json().get("setup_required")
-        else "/api/login"
+    response = client.get("/api/browser-session")
+    state = (
+        decode(BrowserSession.DESCRIPTOR, response.content)
+        if response.headers["content-type"].startswith("application/protobuf")
+        else response.json()
     )
+    endpoint = "/api/setup" if state["setup_required"] else "/api/login"
     return client.post(
         endpoint,
         content=LoginRequest(username="owner", password=WORKSPACE_PASSWORD).SerializeToString(),
