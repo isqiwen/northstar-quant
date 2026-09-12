@@ -522,3 +522,50 @@ def test_rehashed_baseline_cannot_invent_cash_or_hide_change(live_engine, kind):
         )
     with pytest.raises(ValueError, match="differs from.*source"):
         BrokerBaselines(live_engine).verify_all()
+
+
+@pytest.mark.parametrize("field", ["account", "trades", "execution"])
+def test_rehashed_query_projection_cannot_replace_original_callbacks(live_engine, field):
+    import json
+
+    from northstar_quant.broker.events import capture_hash
+    from northstar_quant.persistence.sql import write_transaction
+    from tests.accounting.test_baselines import saved_query
+
+    identifier = saved_query(live_engine)
+    with write_transaction(live_engine) as connection:
+        row = connection.exec_driver_sql(
+            "SELECT result FROM broker_query_batches WHERE batch_id=?", (identifier.hex,)
+        ).scalar_one()
+    result = json.loads(row)
+    saved = BrokerRecords(live_engine).get(identifier)
+    binding = {
+        key: saved[key]
+        for key in (
+            "batch_id",
+            "profile",
+            "account_id",
+            "instrument",
+            "query_scope",
+            "created_at",
+            "code_revision",
+        )
+    }
+    if field == "account":
+        result["completeness"]["sections"]["account"]["rows"][0]["Balance"] = "1000000"
+    elif field == "trades":
+        result["completeness"]["sections"]["trades"]["rows"] = [trade()]
+    else:
+        result["execution"]["order_sending"] = True
+    with write_transaction(live_engine) as connection:
+        _disable_fact_guards(connection)
+        connection.exec_driver_sql(
+            "UPDATE broker_query_batches SET result=?, result_hash=? WHERE batch_id=?",
+            (
+                json.dumps(result),
+                capture_hash({"binding": binding, "result": result}),
+                identifier.hex,
+            ),
+        )
+    with pytest.raises(ValueError, match="projection differs from its retained callbacks"):
+        BrokerRecords(live_engine).get(identifier)

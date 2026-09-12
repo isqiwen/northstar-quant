@@ -326,6 +326,12 @@ def _stored(row: dict[str, object]) -> dict[str, object]:
         or capture_hash({"binding": binding, "result": result}) != row["result_hash"]
     ):
         raise ValueError("saved broker query result no longer matches its evidence")
+    capture = QueryCapture.from_dict(result["capture"])
+    if (
+        parse_time(capture.started_at) < parse_time(str(binding["created_at"]))
+        or result != _result(binding, capture)
+    ):
+        raise ValueError("saved broker query projection differs from its retained callbacks")
     return {**binding, **result}
 
 
