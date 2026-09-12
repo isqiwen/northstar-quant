@@ -14,7 +14,19 @@ from decimal import Decimal, localcontext
 from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import JSON, Column, Connection, Engine, Integer, MetaData, String, Table, select
+from sqlalchemy import (
+    JSON,
+    Column,
+    Connection,
+    Engine,
+    Integer,
+    MetaData,
+    String,
+    Table,
+    case,
+    func,
+    select,
+)
 
 from northstar_quant.accounting.amounts import decimal_text
 from northstar_quant.accounting.fees import FeeFact
@@ -587,6 +599,41 @@ class OrderJournal:
                 views.append(_view(row))
             post_account(connection, fact)
             return tuple(views)
+
+    def health(self) -> dict[str, int]:
+        """Observe all retained order indices, not only the first browser page.
+
+        This is a read-only monitoring projection. Recovery verifies the journal;
+        counts alone neither establish reconciliation nor release reservations.
+        """
+        with self._engine.connect() as connection:
+            row = (
+                connection.execute(
+                    select(
+                        func.count().label("orders"),
+                        func.coalesce(
+                            func.sum(case((_orders.c.status == "UNKNOWN", 1), else_=0)), 0
+                        ).label("unknown_orders"),
+                        func.coalesce(
+                            func.sum(case((_orders.c.status.not_in(_TERMINAL), 1), else_=0)), 0
+                        ).label("working_orders"),
+                        func.coalesce(
+                            func.sum(
+                                case(
+                                    (func.json(_orders.c.pending_fees) != "{}", 1), else_=0
+                                )
+                            ),
+                            0,
+                        ).label("orders_with_pending_fees"),
+                        func.coalesce(
+                            func.sum(case((_orders.c.conflicted != 0, 1), else_=0)), 0
+                        ).label("conflicted_orders"),
+                    ).select_from(_orders)
+                )
+                .mappings()
+                .one()
+            )
+        return {key: int(value) for key, value in row.items()}
 
     def list(self, *, before: int | None = None) -> dict[str, Any]:
         if before is not None and (type(before) is not int or before <= 0):

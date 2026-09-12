@@ -356,6 +356,13 @@ def test_order_history_pages_do_not_drop_or_duplicate_facts(tmp_path):
         order = request()
         identifiers.append(order.order_id)
         journal.submit(order, uuid4(), admit=lambda c: None, dispatch=lambda o: None)
+    assert journal.health() == {
+        "orders": 102,
+        "working_orders": 102,
+        "unknown_orders": 102,
+        "orders_with_pending_fees": 0,
+        "conflicted_orders": 0,
+    }
     first = journal.list()
     assert len(first["orders"]) == 100 and first["next_before"] is not None
     second = journal.list(before=first["next_before"])
@@ -370,4 +377,26 @@ def test_order_history_pages_do_not_drop_or_duplicate_facts(tmp_path):
     assert len(following["events"]) == 3 and following["next_after"] is None
     assert len({e["event_id"] for e in events["events"] + following["events"]}) == 103
     assert journal.verify_all() == 102
+    assert journal.health()["unknown_orders"] == 101
     engine.dispose()
+
+
+def test_health_retains_terminal_unknown_fees_and_does_not_modify_order(tmp_path):
+    engine, journal = setup_journal(tmp_path)
+    try:
+        order = request()
+        journal.submit(order, uuid4(), admit=lambda c: None, dispatch=lambda o: None)
+        journal.fill(replace(fill(order, 3), fee=None), post_account=post)
+        before = journal.detail(order.order_id)
+        assert journal.health() == {
+            "orders": 1,
+            "working_orders": 0,
+            "unknown_orders": 0,
+            "orders_with_pending_fees": 1,
+            "conflicted_orders": 0,
+        }
+        assert journal.detail(order.order_id) == before
+        reopened = OrderJournal(engine, uuid4())
+        assert reopened.health() == journal.health()
+    finally:
+        engine.dispose()

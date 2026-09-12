@@ -27,10 +27,20 @@ def observe(client: LiveClient) -> dict[str, Any]:
     """Return bounded nonsecret conditions; never relay upstream exception text."""
     try:
         status = client.status()
-        diagnostics = client.diagnostics()
         if (
             client.last_observation is None
             or client.last_observation["runtime_id"] != status["runtime_id"]
+        ):
+            raise RuntimeUnavailable("runtime observation differs from status")
+        diagnostics = client.diagnostics()
+        diagnostic_runtime = (
+            None if client.last_observation is None else client.last_observation["runtime_id"]
+        )
+        orders = client.read("/execution/health")
+        if (
+            client.last_observation is None
+            or client.last_observation["runtime_id"] != status["runtime_id"]
+            or diagnostic_runtime != status["runtime_id"]
         ):
             raise RuntimeUnavailable("runtime changed during observation")
         conditions = []
@@ -44,6 +54,15 @@ def observe(client: LiveClient) -> dict[str, Any]:
             conditions.append("SOURCE_STORAGE_UNAVAILABLE")
         if diagnostics["status"] != "OK" and not conditions:
             conditions.append("DIAGNOSTICS_DEGRADED")
+        for field, condition in (
+            ("unknown_orders", "ORDER_OUTCOMES_UNKNOWN"),
+            ("orders_with_pending_fees", "EXECUTION_FEES_UNCONFIRMED"),
+            ("conflicted_orders", "ORDER_FACTS_CONFLICTED"),
+        ):
+            if type(orders[field]) is not int or orders[field] < 0:
+                raise ValueError("invalid execution health")
+            if orders[field]:
+                conditions.append(condition)
         return {
             "runtime_id": status["runtime_id"],
             "conditions": sorted(conditions),
@@ -94,7 +113,7 @@ class HealthMonitor:
                 "observed_at": datetime.now(UTC).isoformat(),
                 "kind": kind,
                 **current,
-                "scope": "KERNEL_AND_LOCAL_STORAGE_NOT_EXECUTION_READINESS",
+                "scope": "KERNEL_STORAGE_AND_ORDERS_NOT_EXECUTION_READINESS",
             }
         )
         # Failed output must not acknowledge an observation that nobody received.

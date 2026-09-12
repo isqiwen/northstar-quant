@@ -21,6 +21,33 @@ from northstar_quant.live.instances import Instance
 from northstar_quant.live.monitor import HealthMonitor
 
 
+def test_monitor_reads_actual_kernel_unknown_order_without_changing_it(live_engine, tmp_path):
+    from fastapi.testclient import TestClient
+
+    from northstar_quant.apps.live.kernel import create_app
+    from northstar_quant.data_management.files import SourceFiles
+    from northstar_quant.data_management.library import DataLibrary
+    from northstar_quant.execution.journal import OrderJournal
+    from tests.execution.test_journal import request
+
+    journal = OrderJournal(live_engine, uuid4())
+    order = request()
+    journal.submit(order, uuid4(), admit=lambda connection: None, dispatch=lambda order: None)
+    before = journal.detail(order.order_id)
+    auth = LiveAuth("r" * 48, "c" * 48)
+    library = DataLibrary(live_engine, SourceFiles(tmp_path / "sources", min_free_bytes=0))
+    app = create_app(live_engine, library, auth)
+    events = []
+    with TestClient(app) as http:
+        client = LiveClient("http://localhost", LiveAuth(auth.read_token), client=http)
+        monitor = HealthMonitor(Instance("sim", "simnow_trading"), events.append)
+        monitor.poll(client)
+        assert events[-1]["status"] == "DEGRADED"
+        assert "ORDER_OUTCOMES_UNKNOWN" in events[-1]["conditions"]
+        assert journal.detail(order.order_id) == before
+        assert client.status()["order_sending"] is False
+
+
 def test_read_only_observer_reports_failure_recovery_restart_and_output_retry(tmp_path):
     auth_paths = initialize_auth(tmp_path / "auth")
     auth = LiveAuth.from_file(Path(auth_paths["monitor_auth"]))
@@ -43,6 +70,8 @@ def test_read_only_observer_reports_failure_recovery_restart_and_output_retry(tm
         value = (
             {"runtime_id": runtime, "status": "AVAILABLE"}
             if request.url.path == "/runtime"
+            else {"unknown_orders": 0, "orders_with_pending_fees": 0, "conflicted_orders": 0}
+            if request.url.path == "/execution/health"
             else {
                 "status": "OK",
                 "database": {"status": "REACHABLE", "disk_capacity": "OBSERVED"},
@@ -67,7 +96,12 @@ def test_read_only_observer_reports_failure_recovery_restart_and_output_retry(tm
         state["wrong_runtime"] = True
         monitor.poll(client, now=65)
         assert [item["kind"] for item in events] == [
-            "INITIAL", "FAULT", "HEARTBEAT", "RECOVERED", "RUNTIME_CHANGED", "FAULT"
+            "INITIAL",
+            "FAULT",
+            "HEARTBEAT",
+            "RECOVERED",
+            "RUNTIME_CHANGED",
+            "FAULT",
         ]
         assert "private credentials" not in json.dumps(events)
         assert auth.read_token not in json.dumps(events)
@@ -108,6 +142,8 @@ def test_cli_process_observes_without_web_or_database(tmp_path):
             value = (
                 {"runtime_id": runtime, "status": "AVAILABLE"}
                 if self.path == "/runtime"
+                else {"unknown_orders": 0, "orders_with_pending_fees": 0, "conflicted_orders": 0}
+                if self.path == "/execution/health"
                 else {
                     "status": "OK",
                     "database": {"status": "REACHABLE", "disk_capacity": "OBSERVED"},
@@ -129,7 +165,10 @@ def test_cli_process_observes_without_web_or_database(tmp_path):
     }
     process = subprocess.Popen(
         [sys.executable, "-m", "northstar_quant.cli", "serve", "live-monitor"],
-        env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
     )
     selector = selectors.DefaultSelector()
     assert process.stdout is not None
@@ -145,7 +184,7 @@ def test_cli_process_observes_without_web_or_database(tmp_path):
         assert received()["kind"] == "FAULT"
         state["fault"] = False
         assert received()["kind"] == "RECOVERED"
-        assert set(paths) == {"/runtime", "/diagnostics"}
+        assert set(paths) == {"/runtime", "/diagnostics", "/execution/health"}
         assert process.poll() is None
         process.terminate()
         assert process.wait(timeout=5) == 0

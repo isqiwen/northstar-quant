@@ -131,9 +131,10 @@ core 上的数据库单独使用 `make ps-database` / `down-database`；停止�
 core PostgreSQL 仅保存 Data Hub 元数据；Research 的任务与结果保存在 research 本机 SQLite。
 Research 用 Data Hub API 获取固定清单，通过只读市场目录和本机 DuckDB 读取 Parquet。
 配置 `NORTHSTAR_DATA_HUB_URL` 即可访问只读发布接口，无需 token，也不向 Research 分发 core 数据库口令。
-Live 当前仍独立存储，不依赖其他主机的存储；最小恢复日志与异步归档是下一项改造。
+Live 使用实例本地 SQLite 与来源文件；启动和联合恢复检查已保存事实，恢复不会自动连接柜台或重新授权。
+每实例独立 `live-monitor` 输出内核、存储和订单健康 JSON 告警；外部通知与整机失联检测尚未验收。
 Research 回测由独立 `research-worker` 执行；前端和 API 重启不结束已接收的任务。
-进程隔离不代表已经完成任务检查点恢复，也不能隔离整台主机故障。
+进程隔离不能隔离整台主机故障；实际外部柜台闭环仍需单独验收。
 
 ### 后端日志
 
@@ -190,8 +191,9 @@ Data Hub 对应 `dev:data`、后端 `19082`；Live 对应 `dev:live`、后端 `1
 本机 Python 入口为 `uv run --project backend northstar serve data-api`、`uv run --project backend northstar serve research-api`、
 `uv run --project backend northstar serve live-api`（Live 管理 API）和 `uv run --project backend northstar serve live-kernel`（内核）。
 `uv run --project backend northstar serve data-worker` 启动独立数据执行器，需要与 Data API 使用相同数据库、来源目录和代码版本。
+`uv run --project backend northstar serve live-monitor` 启动独立只读健康观察，使用初始化生成的 `monitor/read.toml` 和所属实例的内核地址。
 前三个默认监听表中的 `190xx` 端口；不要与同端口容器同时启动。
-各后端需配置所属 `NORTHSTAR_DATABASE_URL`；Data Hub/Research 另需对应市场、研究目录及存储 UUID（见部署模板）。
+Data Hub 配置 `NORTHSTAR_DATABASE_URL`；Research 使用 `NORTHSTAR_RESEARCH_DATABASE` 本机 SQLite，Live 使用实例本地状态目录（见部署模板）。
 Data Hub 与当前 Live 内核使用 `NORTHSTAR_DATA_DIR`；Research 不访问来源目录。
 Live 管理 API 使用 `NORTHSTAR_LIVE_URL` 与 `NORTHSTAR_LIVE_AUTH` 访问内核。
 

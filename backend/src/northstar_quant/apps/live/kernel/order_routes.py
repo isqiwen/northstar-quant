@@ -11,6 +11,10 @@ from northstar_quant.live.owner import LiveOwner
 def routes(owner: LiveOwner) -> APIRouter:
     router = APIRouter()
 
+    @router.get("/execution/health")
+    def health() -> dict[str, Any]:
+        return owner.read(owner.execution.health())
+
     @router.get("/execution/orders")
     def orders(before: Annotated[int | None, Query(gt=0)] = None) -> dict[str, Any]:
         return owner.read(owner.execution.list(before=before))
