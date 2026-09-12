@@ -100,6 +100,28 @@ services:
       retries: 3
       start_period: 20s
 
+  live-monitor:
+    <<: *runtime
+    restart: unless-stopped
+    environment:
+      NORTHSTAR_ENVIRONMENT: SANDBOX
+      NORTHSTAR_BROKER_PROFILE: simnow_trading
+      NORTHSTAR_LIVE_INSTANCE: sim
+      NORTHSTAR_LIVE_URL: http://live:18081
+      NORTHSTAR_LIVE_AUTH: /var/lib/northstar/monitor-auth/read.toml
+    volumes:
+      - type: bind
+        source: /opt/northstar/credentials/live/monitor
+        target: /var/lib/northstar/monitor-auth
+        read_only: true
+        bind:
+          create_host_path: false
+    networks: [management]
+    depends_on:
+      initialize:
+        condition: service_completed_successfully
+    command: ["northstar", "serve", "live-monitor"]
+
   live-api:
     <<: *runtime
     restart: unless-stopped

@@ -49,6 +49,11 @@ def main(argv: Sequence[str] | None = None) -> int:
 
             run()
             return 0
+        if arguments.operation == "live-monitor":
+            from northstar_quant.live.monitor import run
+
+            run()
+            return 0
         if arguments.scope == "serve":
             from northstar_quant.apps.launch import serve
 
