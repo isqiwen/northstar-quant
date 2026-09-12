@@ -45,28 +45,9 @@ def run(*args: str) -> str:
     return subprocess.check_output(args, text=True, stderr=None).strip()
 
 
-def install(package: str) -> None:
-    result = subprocess.run(
-        ["dpkg-query", "-W", "-f=${Status}", package], capture_output=True, text=True
-    )
-    if result.returncode == 0 and result.stdout.strip() == "install ok installed":
-        return
-    if not shutil.which("apt-get"):
-        raise ValueError("自动配置 NFS 仅支持 Ubuntu/Debian Linux 客户端")
-    subprocess.run(["apt-get", "update"], check=True)
-    subprocess.run(
-        [
-            "env",
-            "DEBIAN_FRONTEND=noninteractive",
-            "apt-get",
-            "install",
-            "-y",
-            "--no-upgrade",
-            "--no-remove",
-            package,
-        ],
-        check=True,
-    )
+def require_client() -> None:
+    if not shutil.which("mount.nfs"):
+        raise ValueError("请在应用主机预先安装 NFS 客户端（Ubuntu/Debian: nfs-common）")
 
 
 def write(path: Path, content: str) -> None:
@@ -131,7 +112,7 @@ def prepare_client(request: dict) -> None:
     source = f"{request['server']}:{EXPORT}"
     mode = "rw" if request["host"] == request["writer"] else "ro"
     check_client(mounted(), source, mode)
-    install("nfs-common")
+    require_client()
     MARKET.mkdir(parents=True, exist_ok=True)
     unit = (
         "[Unit]\nDescription=Northstar market NFS\nWants=network-online.target\n"

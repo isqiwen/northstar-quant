@@ -129,7 +129,7 @@ def deployment(tmp_path: Path) -> tuple[Path, Path, dict]:
     config = tmp_path / "hosts.toml"
     config.write_text(
         "\n".join(
-            f'[{app.replace("-", "_")}]\nhost="example.invalid"\nuser="root"\n'
+            f'[{app.replace("-", "_")}]\nhost="example.invalid"\n'
             for app in ("data-hub", "research", "live")
         )
     )
@@ -406,7 +406,10 @@ def test_unattended_deployment_without_sudo_permission_stops_before_transfer(dep
     assert env["ASK_SUDO"] not in result.stdout + result.stderr
     calls = [json.loads(line) for line in Path(env["RECORD"]).read_text().splitlines()]
     assert len([call for call in calls if call[0] == "ssh"]) == 1
-    assert not any(call[0] == "docker" for call in calls)
+    assert not any(
+        call[0] == "docker" and ("up" in call or "down" in call or "build" in call)
+        for call in calls
+    )
 
 
 def test_first_deployment_uploads_private_config_and_redeploy_preserves_edits(deployment):
@@ -425,72 +428,6 @@ def test_first_deployment_uploads_private_config_and_redeploy_preserves_edits(de
     evidence += Path(env["RECORD"]).read_text()
     assert "initial-private-value" not in evidence
     assert "host-private-value" not in evidence
-
-
-@pytest.mark.parametrize("bootstrap_user", ["root", "bootstrap-admin"])
-@pytest.mark.parametrize("nfs_host", ["research.invalid", "storage.invalid"])
-def test_init_host_deduplicates_targets_and_verifies_fixed_deployment_account(
-    deployment, tmp_path, bootstrap_user, nfs_host
-):
-    repo, config, env = deployment
-    config.write_text(
-        config.read_text().replace(
-            '[research]\nhost="example.invalid"', '[research]\nhost="research.invalid"'
-        )
-    )
-    config.write_text(config.read_text() + f'\n[nfs]\nhost="{nfs_host}"\n')
-    config.write_text(config.read_text().replace('user="root"', f'user="{bootstrap_user}"'))
-    (tmp_path / ".ssh").mkdir()
-    key = tmp_path / ".ssh/id_ed25519"
-    subprocess.run(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", str(key)], check=True)
-    command = [
-        sys.executable,
-        str(repo / "scripts/northstarctl.py"),
-        "init-host",
-        "--config",
-        str(config),
-    ]
-    result = subprocess.run(command, env=env, text=True, capture_output=True)
-    assert result.returncode == 0, result.stderr
-    calls = [json.loads(line) for line in Path(env["RECORD"]).read_text().splitlines()]
-    users = [call[call.index("-l") + 1] for call in calls if call[0] == "ssh"]
-    assert users == [bootstrap_user, "northstar"] * 2
-    import shlex
-
-    init_calls = [
-        call for call in calls if call[0] == "ssh" and call[call.index("-l") + 1] == bootstrap_user
-    ]
-    expected = ["sudo", "-n", "--", "python3"] if bootstrap_user != "root" else ["python3"]
-    assert all(shlex.split(call[-1])[: len(expected)] == expected for call in init_calls)
-    assert key.read_text() not in result.stdout + result.stderr + Path(env["RECORD"]).read_text()
-    Path(env["RECORD"]).unlink()
-    env["INIT_HOST_RESULT"] = "9"
-    result = subprocess.run(command, env=env, text=True, capture_output=True)
-    assert result.returncode != 0
-    assert "host_account" not in result.stderr and "initialize(public_key" not in result.stderr
-    assert len(result.stderr) < 1000
-    calls = [json.loads(line) for line in Path(env["RECORD"]).read_text().splitlines()]
-    assert len([call for call in calls if call[0] == "ssh"]) == 1
-
-
-def test_init_host_dry_run_does_not_access_keys_or_connect(deployment):
-    repo, config, env = deployment
-    result = subprocess.run(
-        [
-            sys.executable,
-            str(repo / "scripts/northstarctl.py"),
-            "init-host",
-            "--config",
-            str(config),
-            "--dry-run",
-        ],
-        env=env,
-        text=True,
-        capture_output=True,
-    )
-    assert result.returncode == 0, result.stderr
-    assert result.stdout.count("root@example.invalid") == 1
-    assert not Path(env["RECORD"]).exists()
 
 
 @pytest.mark.parametrize("app", ["database", "data-hub", "research", "live"])
@@ -696,17 +633,17 @@ def test_database_uses_data_hub_ssh_identity_and_own_configuration(deployment):
     repo, config, _ = deployment
     config.write_text(
         config.read_text().replace(
-            '[data_hub]\nhost="example.invalid"\nuser="root"',
-            '[data_hub]\nhost="hub.invalid"\nuser="operator"\nport=2222',
+            '[data_hub]\nhost="example.invalid"',
+            '[data_hub]\nhost="hub.invalid"',
         )
     )
     read = runpy.run_path(str(repo / "scripts/northstarctl.py"))["configuration"]
     database = read(config, "database")
     hub = read(config, "data-hub")
-    assert (database["host"], database["bootstrap_user"], database["port"]) == (
+    assert (database["host"], database["user"], database["port"]) == (
         "hub.invalid",
-        "operator",
-        2222,
+        "northstar",
+        22,
     )
     assert database["directory"] != hub["directory"]
     assert database["env_file"] != hub["env_file"]

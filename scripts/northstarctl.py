@@ -28,39 +28,28 @@ def configuration(path: Path, app: str) -> dict:
     host = item.get("host")
     if not isinstance(host, str) or not re.fullmatch(r"[a-zA-Z0-9_][a-zA-Z0-9_.:-]*", host):
         raise ValueError(f"{app}.host 必须填写有效的 SSH 主机地址，不带协议前缀")
-    user = item.get("user")
-    if not isinstance(user, str) or not re.fullmatch(r"[a-zA-Z_][a-zA-Z0-9_.-]*", user):
-        raise ValueError(f"{app}.user 必须填写用于初始化登录及提权的用户名")
-    port = item.get("port", 22)
-    if type(port) is not int or not 1 <= port <= 65535:
-        raise ValueError("SSH port 必须在 1–65535 范围内")
-    if set(item) - {"host", "user", "port"}:
-        raise ValueError("主机配置只接受 host/user/port；部署账号固定为 northstar")
+    if set(item) - {"host"}:
+        raise ValueError("主机配置只接受 host；SSH 固定使用 northstar 和 22 端口")
     return {
         "host": host,
         "user": "northstar",
-        "bootstrap_user": user,
-        "port": port,
+        "port": 22,
         "directory": f"/opt/northstar/apps/{app}",
         "env_file": f"/opt/northstar/config/{app}.env",
     }
 
 
-def ssh(config: dict, program: str, argument: str, *, initialize: bool = False) -> list[str]:
-    interactive = initialize and sys.stdin.isatty()
-    login = config["bootstrap_user"] if initialize else "northstar"
+def ssh(config: dict, program: str, argument: str) -> list[str]:
     execute = ["python3", "-c", program, argument]
-    if initialize and login != "root":
-        execute = ["sudo", *([] if interactive else ["-n"]), "--", *execute]
     return [
         "ssh",
-        "-tt" if interactive else "-T",
+        "-T",
         "-o",
-        "BatchMode=no" if interactive else "BatchMode=yes",
+        "BatchMode=yes",
         "-o",
         "ControlPath=none",
         "-o",
-        "StrictHostKeyChecking=ask" if interactive else "StrictHostKeyChecking=yes",
+        "StrictHostKeyChecking=yes",
         "-o",
         "ConnectTimeout=10",
         "-o",
@@ -70,78 +59,10 @@ def ssh(config: dict, program: str, argument: str, *, initialize: bool = False) 
         "-p",
         str(config["port"]),
         "-l",
-        login,
+        "northstar",
         config["host"],
         shlex.join(execute),
     ]
-
-
-def initialize_hosts(args: argparse.Namespace) -> int:
-    settings = tomllib.loads(args.config.read_text())
-    apps = (
-        [args.app]
-        if args.app
-        else [app for app in APPLICATIONS if settings.get(app.replace("-", "_"), {}).get("host")]
-    )
-    targets = {}
-    for app in apps:
-        config = configuration(args.config, app)
-        identity = (config["host"], config["port"])
-        if identity in targets and targets[identity]["bootstrap_user"] != config["bootstrap_user"]:
-            raise ValueError("同一主机的初始化 user 必须一致")
-        targets[identity] = config
-    if not targets:
-        raise ValueError("没有已配置的目标主机")
-    if args.dry_run:
-        for (host, port), config in targets.items():
-            print(f"init-host → {config['bootstrap_user']}@{host}:{port}，准备 northstar 部署账号")
-        return 0
-    key = next(
-        (
-            p
-            for p in (Path.home() / ".ssh/id_ed25519.pub", Path.home() / ".ssh/id_rsa.pub")
-            if p.is_file()
-        ),
-        None,
-    )
-    if key is None:
-        raise ValueError("未找到 SSH 公钥，请先执行 ssh-keygen -t ed25519 创建密钥")
-    public_key = key.read_text().strip()
-    fields = public_key.split()
-    if (
-        len(public_key.splitlines()) != 1
-        or len(public_key) > 16384
-        or len(fields) < 2
-        or not fields[0].startswith(("ssh-", "ecdsa-", "sk-"))
-    ):
-        raise ValueError("请提供单行 SSH 公钥，不能提供私钥")
-    subprocess.run(["ssh-keygen", "-lf", str(key)], check=True, stdout=subprocess.DEVNULL)
-    for config in targets.values():
-        print(
-            f"init-host → {config['bootstrap_user']}@{config['host']}:{config['port']}", flush=True
-        )
-        subprocess.run(
-            ssh(
-                config,
-                (ROOT / "scripts/operations/host_account.py").read_text(),
-                json.dumps({"public_key": public_key}),
-                initialize=True,
-            ),
-            stdin=None if sys.stdin.isatty() else subprocess.DEVNULL,
-            check=True,
-        )
-        subprocess.run(
-            ssh(
-                config,
-                "import os, subprocess; assert os.geteuid() != 0; "
-                "subprocess.run(['sudo', '-n', 'true'], check=True)",
-                "",
-            ),
-            stdin=subprocess.DEVNULL,
-            check=True,
-        )
-        print(f"{config['host']}：northstar 密钥登录和 sudo 验证通过", flush=True)
-    return 0
 
 
 def git(*args: str) -> str:
@@ -154,12 +75,10 @@ def main() -> int:
     )
     parser.add_argument(
         "action",
-        choices=("init-host", "deploy", "start", "restart", "status", "logs", "stop"),
-        help="首次主机初始化、部署（自动准备主机依赖）、启动、重启、状态、日志、停止（保留数据）",
+        choices=("deploy", "start", "restart", "status", "logs", "stop"),
+        help="部署（检查已准备的主机依赖）、启动、重启、状态、日志、停止（保留数据）",
     )
-    parser.add_argument(
-        "app", nargs="?", choices=APPLICATIONS, help="init-host 省略时初始化所有已配置主机"
-    )
+    parser.add_argument("app", choices=APPLICATIONS, help="需要管理的应用")
     parser.add_argument(
         "--config",
         type=Path,
@@ -183,11 +102,7 @@ def main() -> int:
         parser.error("--env-file 仅用于 deploy；其他命令使用已部署的运行配置")
     if args.follow and args.action != "logs":
         parser.error("--follow 仅用于 logs")
-    if args.action != "init-host" and args.app is None:
-        parser.error("应用管理命令必须指定应用")
     try:
-        if args.action == "init-host":
-            return initialize_hosts(args)
         config = configuration(args.config, args.app)
         settings = tomllib.loads(args.config.read_text())
         nfs = None
@@ -278,9 +193,6 @@ def main() -> int:
                             "directory_program": (
                                 ROOT / "scripts/operations/host_directories.py"
                             ).read_text(),
-                            "docker_program": (
-                                ROOT / "scripts/operations/docker_configuration.py"
-                            ).read_text(),
                         }
                     ),
                 ]
@@ -290,7 +202,7 @@ def main() -> int:
         if interactive:
             bootstrap[1] = "-tt"
         subprocess.run(bootstrap, stdin=None if interactive else subprocess.DEVNULL, check=True)
-        # Reconnect so Docker group membership from first installation takes effect.
+        # Transfer the committed source after host prerequisites have passed.
         with tempfile.TemporaryDirectory(prefix="northstar-deploy-") as temporary:
             bundle = Path(temporary) / "source.bundle"
             subprocess.run(

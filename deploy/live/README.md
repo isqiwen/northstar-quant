@@ -7,7 +7,7 @@ Live 在自己的主机上运行，包含独立的 Next.js 前端、Python 管�
 
 在 `deploy/hosts.toml` 填写 Live 主机的 `host`、`user` 和 SSH `port`。
 `user` 仅用于首次登录和提权，初始化后由脚本创建的 `northstar` 用户管理部署。
-目标主机需具备 SSH 和 Python 3.11+；部署脚本自动安装缺失的部署依赖。
+目标主机账号、SSH 和部署依赖须由外部准备，见[部署前置要求](../README.md#部署与访问)。
 
 应用配置统一放在 [deploy/live/.env](.env)：
 
@@ -34,7 +34,6 @@ Live 在自己的主机上运行，包含独立的 Next.js 前端、Python 管�
 
 ```sh
 # 首次初始化主机
-./scripts/northstarctl.py init-host live
 
 # 部署已提交代码，首次自动上传本地 deploy/live/.env
 ./scripts/northstarctl.py deploy live

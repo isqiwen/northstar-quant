@@ -52,7 +52,7 @@ def test_nonempty_directory_rejected_before_install_or_mount(nfs, monkeypatch):
     evidence.write_bytes(b"fixed evidence")
     monkeypatch.setattr(nfs, "mounted", lambda: None)
     monkeypatch.setattr(
-        nfs, "install", lambda *a: pytest.fail("dependency mutation before preflight")
+        nfs, "require_client", lambda *a: pytest.fail("dependency mutation before preflight")
     )
     with pytest.raises(ValueError, match="非空"):
         nfs.prepare_client(
@@ -94,7 +94,7 @@ def test_client_boot_order_identity_and_idempotent_setup(nfs, monkeypatch, host,
         lambda: {"source": source, "fstype": "nfs4", "options": f"{mode},hard,vers=4"},
     )
     calls = []
-    monkeypatch.setattr(nfs, "install", lambda p: calls.append(("install", p)))
+    monkeypatch.setattr(nfs, "require_client", lambda: calls.append(("require_client",)))
     monkeypatch.setattr(nfs, "run", lambda *a: calls.append(a))
     request = {"host": host, "server": "storage.local", "writer": "core.local"}
     nfs.prepare_client(request)
@@ -158,7 +158,7 @@ def test_writer_initializes_empty_external_share_once(nfs, monkeypatch, host):
         lambda: {"source": "storage.local:/quant", "fstype": "nfs4", "options": "rw,hard,vers=4"},
     )
     packages = []
-    monkeypatch.setattr(nfs, "install", packages.append)
+    monkeypatch.setattr(nfs, "require_client", lambda: packages.append("checked"))
     monkeypatch.setattr(nfs, "run", lambda *a: None)
     monkeypatch.setattr(nfs.os, "geteuid", lambda: 0)
     request = {"host": host, "server": "storage.local", "writer": host}
@@ -166,7 +166,7 @@ def test_writer_initializes_empty_external_share_once(nfs, monkeypatch, host):
     first = nfs.identity()
     nfs.prepare(request)
     assert nfs.identity() == first
-    assert packages == ["nfs-common", "nfs-common"]
+    assert packages == ["checked", "checked"]
 
 
 def test_reader_cannot_initialize_missing_share_identity(nfs, monkeypatch):
@@ -177,10 +177,20 @@ def test_reader_cannot_initialize_missing_share_identity(nfs, monkeypatch):
         "mounted",
         lambda: {"source": "storage.local:/quant", "fstype": "nfs4", "options": "ro,hard,vers=4"},
     )
-    monkeypatch.setattr(nfs, "install", lambda p: None)
+    monkeypatch.setattr(nfs, "require_client", lambda: None)
     monkeypatch.setattr(nfs, "run", lambda *a: None)
     with pytest.raises(ValueError, match="首次请先部署"):
         nfs.prepare_client(
             {"host": "research.local", "server": "storage.local", "writer": "core.local"}
         )
     assert not list(nfs.MARKET.iterdir())
+
+
+def test_missing_client_dependency_does_not_create_mount_configuration(nfs, monkeypatch):
+    monkeypatch.setattr(nfs, "mounted", lambda: None)
+    monkeypatch.setattr(nfs.shutil, "which", lambda name: None)
+    monkeypatch.setattr(nfs, "run", lambda *args: pytest.fail("unexpected systemd change"))
+    with pytest.raises(ValueError, match="预先安装 NFS 客户端"):
+        nfs.prepare_client({"host": "core.local", "server": "nas.local", "writer": "core.local"})
+    assert not nfs.UNITS.exists()
+    assert not nfs.MARKET.exists()

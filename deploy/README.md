@@ -31,11 +31,11 @@ Research 须能读取发布目录和文件。服务端的导出权限、UID/GID 
 项目不会递归修改 NAS 文件所有者。发布目录/文件使用 `755/644`，原始来源和凭据不共享。
 如果两应用同机，主机挂载为读写，Research 容器仍只读绑定该目录。
 
-先准备 NAS，再执行 `init-host`、`deploy database`、`deploy data-hub`、`deploy research`。
+先准备 NAS，再执行 `deploy database`、`deploy data-hub`、`deploy research`。
 数据库使用 Data Hub 的 SSH 主机配置，独立容器、本机 PostgreSQL 目录。数据库初始化会绑定行情存储身份，
 因此 `deploy database` 先在 Data Hub 主机准备同一个客户端挂载，避免初始化到本地空目录。
-Data Hub/Research 部署也会在各自目标主机安装缺失的 `nfs-common`、配置 systemd 持久挂载并验证读写及存储身份。
-Docker、Compose、Buildx 等应用依赖照常自动安装。没有 `deploy/start/stop nfs` 管理命令。
+Data Hub/Research 部署也会在各自目标主机检查预装的 NFS 客户端、配置 systemd 持久挂载并验证读写及存储身份。
+Docker、Compose、Buildx 等主机依赖由外部提前安装。没有 `deploy/start/stop nfs` 管理命令。
 
 首次空共享在 Data Hub 主机部署时生成 `.northstar-storage-id`，然后部署 Research。已有数据必须保留原身份，
 不能因文件缺失重新生成 UUID。重复部署不重复追加挂载配置或重启 Docker。
@@ -51,9 +51,8 @@ Research 的 SQLite、临时目录、研究产物和备份仍在本机；Live �
 
 ## 主机与凭据
 
-仓库维护 `deploy/hosts.toml` 和各目录的 `.env`。不配置 `[database]`，数据库固定使用 `[data_hub]` 的 host/user/port。
-主机配置接受 `host/user/port`，不填写路径。`user` 仅用于 `init-host` 登录和提权；其他命令固定使用 northstar。
-`user = "root"` 时直接初始化；普通用户须有 sudo 权限。同一地址和端口的各应用填写相同初始化用户。
+仓库维护 `deploy/hosts.toml` 和各目录的 `.env`。不配置 `[database]`，数据库固定使用 `[data_hub]` 的 host。
+所有主机节只接受 `host`，不填写用户名、端口或路径。SSH 固定使用 northstar 和 22 端口。
 `northstarctl deploy` 自动将本次 Git 提交中对应应用的 `.env` 上传到
 `/opt/northstar/config/{database,data-hub,research,live}.env`，归 northstar 用户所有，权限 600。
 首次部署无需手工复制配置；未指定 `--env-file` 时已有运行配置保留原内容。
@@ -139,33 +138,20 @@ Data Hub 使用同一份绑定；Research 首次部署读取市场标记，初�
 
 ## 部署与访问
 
-远程入口本机需要 Python 3.11+/Git/OpenSSH；目标主机先具备 SSH、Python 3.11+，并允许配置的 user 登录；该用户为 root 或具有 sudo 权限。
-`deploy` 自动安装 Ubuntu/Debian amd64 上缺失的 Git、uv、Docker Engine、Compose、Buildx；主机需要软件源和镜像网络访问。
-Ubuntu 首次安装 Docker 使用已配置的系统 APT 源（需提供 universe 中的 docker.io、docker-compose-v2、docker-buildx），不另行下载 Docker 官方源公钥。
-Debian 或已有 Docker CE 使用 Docker 官方软件源；公钥下载有超时和重试。已有可用运行时不自动替换。
+远程入口本机需要 Python 3.11+/Git/OpenSSH。目标 Linux amd64 主机由管理员预先准备：
 
-在 `deploy/hosts.toml` 填好主机地址、初始化 user 和端口，然后首次初始化：
+- SSH 22 和 northstar 账号，已安装调用者公钥；本机已核实并保存主机指纹。
+- northstar 可免密码 sudo（准备应用目录和挂载），可访问已启动的 Docker。
+- Python 3.11+、Git、uv、Docker Engine、Compose、Buildx。
+- Data Hub/Research 使用共享时预装 NFS 客户端（Ubuntu/Debian 为 `nfs-common`）。
+- 镜像下载及构建所需网络；Docker 镜像源由管理员配置。
 
-```sh
-# 初始化全部已配置主机，相同地址和端口只执行一次
-python3 scripts/northstarctl.py init-host
-# 或者只初始化 core
-python3 scripts/northstarctl.py init-host database
-```
+部署只检查依赖，不创建账号、安装软件、修改软件源或 Docker 镜像源。
+缺少工具或权限会报错，补齐后重新部署。应用依赖仍在镜像内安装，运行配置与目录仍由部署脚本准备。
+没有主机初始化命令。密钥通过 OpenSSH 默认身份或 agent 使用，不上传私钥。
+SSH 连接关闭或取消部署时清理本次部署子进程并释放锁，已启动容器和持久数据保留。
 
-交互执行时由 OpenSSH 提示确认主机指纹、按需输入配置用户的 SSH 登录密码；普通用户由 sudo 提示提权密码。
-无终端时需要配置用户可用的 SSH 密钥，普通用户还需要免密码 sudo。
-脚本创建 northstar 普通用户，安装公钥并配置免密码 sudo，重复执行保留已有公钥。
-自动优先使用本机 `~/.ssh/id_ed25519.pub`，不存在时使用 `~/.ssh/id_rsa.pub`，无需公钥参数。
-
-公钥对应的私钥须可通过本机 SSH 默认身份、配置或 agent 使用；脚本不会上传私钥或保存登录及提权密码。
-没有 SSH 密钥时可先执行 `ssh-keygen -t ed25519` 创建。初始化最后验证 northstar 密钥登录和 `sudo -n`。
-northstar 获得免密码管理员权限以安装依赖和准备目录；Docker 已安装时加入现有 docker 组，否则首次安装时加入。
-已有依赖直接复用，不主动升级或重启 Docker。存储检查与版本读取直接使用 Python，不在主机安装后端业务依赖。
-SSH 连接关闭或取消部署时清理本次部署子进程并释放锁，已启动容器和持久数据保留；可重新执行 `deploy`。
-挂载存储由主机管理员管理。
-
-初始化完成并提交代码后部署（固定使用 northstar，无需手工复制 `.env`）：
+主机准备完成并提交代码后部署（无需手工复制 `.env`）：
 
 ```sh
 python3 scripts/northstarctl.py deploy database
@@ -198,7 +184,7 @@ Live 公网网页为 <https://live.wangqiwen.me>，直连使用 Live 主机 IP:1
 仅测试 Data Hub 时无需部署 Research/Live。
 前端/API 与同步 worker 独立，关闭管理界面不停止已提交任务。
 
-支持 `init-host/deploy/start/restart/stop/status/logs`、`--config`、`--dry-run`、`--help`。
+支持 `deploy/start/restart/stop/status/logs`、`--config`、`--dry-run`、`--help`。
 `deploy` 传送干净 Git HEAD；`start/restart` 使用已部署镜像；停止保留主机数据目录。
 `--dry-run` 不连接主机或安装软件。其他管理命令也不安装软件。
 Live 整套启停包含内核，但不代表撤单、平仓或完成核对，也不自动授予交易权。

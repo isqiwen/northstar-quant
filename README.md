@@ -22,26 +22,23 @@
 三个应用的前端、API、worker/内核分别运行在独立容器中。
 应用持久目录固定在 `/opt/northstar/`；本机磁盘或主机预先挂载的共享使用同一套配置。
 配置文件在 `deploy/{database,data_hub,research,live}/.env`，数据库密码默认为 `123456`，发布接口无需 token，实际凭据放私有运行副本。
-部署脚本自动准备 NFS 客户端、Docker、目录和权限；外部 NFS 服务须提前导出 `/quant`，Data Hub 读写挂载、Research 只读挂载。存储 UUID 自动生成并持久保存，详见[部署说明](deploy/README.md)。
+主机账号和依赖由外部准备，部署脚本检查依赖、准备应用目录和权限并挂载 NFS；外部 NFS 服务须提前导出 `/quant`，Data Hub 读写挂载、Research 只读挂载。存储 UUID 自动生成并持久保存，详见[部署说明](deploy/README.md)。
 
 可使用统一远程入口（填写 `deploy/hosts.toml` 后提交代码，首次部署自动上传所属 `.env`）：
 
 ```sh
-./scripts/northstarctl.py init-host
 ./scripts/northstarctl.py deploy database
 ./scripts/northstarctl.py deploy data-hub
 ./scripts/northstarctl.py deploy research
 ./scripts/northstarctl.py deploy live
 ```
 
-远程 `deploy` 自动安装目标 Ubuntu/Debian 主机缺失的 Git、uv、Docker/Compose/Buildx。
-同时将仓库 `scripts/operations/docker_configuration.py` 中的四个镜像源合并到 `/etc/docker/daemon.json`，
-保留其他 Docker 设置，校验后热加载并确认生效，不重启容器。
+目标主机须提前准备 northstar 密钥登录、SSH 22、免密码 sudo、Python 3.11+、Git、uv、Docker/Compose/Buildx；使用共享的主机还需 NFS 客户端。Docker 须已启动且 northstar 可访问，镜像源由外部配置。
 主机上的存储检查和版本读取直接使用 Python，不安装后端业务依赖；业务依赖在镜像中安装。
 中断部署或 SSH 连接关闭后，远程部署会清理本次子进程并释放锁；已启动容器保留，重试 `deploy` 继续部署。
 管理对象为 `database`、`data-hub`、`research`、`live`；数据库固定与 Data Hub 同机，仍独立部署。项目不管理 NFS 服务端。
 
-`hosts.toml` 的应用主机填写 host/user/port；`[nfs]` 只填写 host，不配置 `[database]`。NFS 固定挂载到 `/opt/northstar/files/market`；user 仅供 `init-host` 登录和提权，创建 northstar 用户、配置 SSH 公钥及免密码 sudo。
+`hosts.toml` 各节只填写 host，不配置 `[database]`。部署固定使用 northstar 和 SSH 22；NFS 固定挂载到 `/opt/northstar/files/market`。
 Research 部署会在主机上解析发布接口的 `.local` 地址，并为容器生成主机映射；部署主机必须能解析该地址，IP 变化后执行 `restart research` 刷新映射。
 之后部署固定使用 northstar，首次运行配置自动上传，默认保留已有配置；目标先具备 SSH、Python 3.11+。
 脚本部署当前已提交版本；可用 `deploy data-hub --env-file /本地路径/data-hub.env` 指定应用配置并更新远程运行副本。
@@ -56,7 +53,7 @@ Research 部署会在主机上解析发布接口的 `.local` 地址，并为容�
 清理失败单独标记 `cleanup_failed`，与应用启动失败区分。修改数据库密码配置不会自动更改已有数据库账号密码。
 
 `start`/`restart` 使用已部署版本，不重新构建。所有应用统一操作整个部署对象；`restart live` 会重启前端、API和内核；SQLite 文件保留。
-也可以在对应主机的仓库根目录执行（需要 Git、uv、Make、Docker）：
+也可以在对应主机的仓库根目录执行（需要 Git、uv、Docker）：
 
 ```sh
 # core.local：先初始化独立 PostgreSQL 和已准备的存储目录
