@@ -78,7 +78,8 @@ def expand(config: dict) -> dict:
     api = services["live-api"]
     api["environment"] = {
         **{
-            key: value for key, value in api.get("environment", {}).items()
+            key: value
+            for key, value in api.get("environment", {}).items()
             if key not in {"NORTHSTAR_LIVE_URL", "NORTHSTAR_LIVE_AUTH"}
         },
         "NORTHSTAR_LOG_DIR": "/var/log/northstar",

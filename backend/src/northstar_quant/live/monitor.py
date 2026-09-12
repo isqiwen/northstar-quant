@@ -43,6 +43,12 @@ def observe(client: LiveClient) -> dict[str, Any]:
             or diagnostic_runtime != status["runtime_id"]
         ):
             raise RuntimeUnavailable("runtime changed during observation")
+        inputs = client.read("/streams/health")
+        if (
+            client.last_observation is None
+            or client.last_observation["runtime_id"] != status["runtime_id"]
+        ):
+            raise RuntimeUnavailable("runtime changed during input observation")
         conditions = []
         if status["status"] != "AVAILABLE":
             conditions.append("KERNEL_NOT_AVAILABLE")
@@ -63,6 +69,23 @@ def observe(client: LiveClient) -> dict[str, Any]:
                 raise ValueError("invalid execution health")
             if orders[field]:
                 conditions.append(condition)
+        allowed_inputs = {
+            "MULTIPLE_INPUT_RECEIVERS",
+            "INPUT_RECEIVER_FAILED",
+            "INPUT_CONNECTION_FAILED",
+            "INPUT_REQUIRES_RECOVERY",
+            "INPUT_MARKET_STALE",
+            "INPUT_MARKET_NOT_ESTABLISHED",
+            "INPUT_PROCESSING_LAG",
+            "INPUT_ACCOUNT_FACTS_UNKNOWN",
+            "INPUT_RECEIVER_PREVIOUS_RUNTIME",
+        }
+        if not isinstance(inputs["conditions"], list) or any(
+            not isinstance(value, str) or value not in allowed_inputs
+            for value in inputs["conditions"]
+        ):
+            raise ValueError("invalid input health")
+        conditions.extend(inputs["conditions"])
         return {
             "runtime_id": status["runtime_id"],
             "conditions": sorted(conditions),
@@ -113,7 +136,7 @@ class HealthMonitor:
                 "observed_at": datetime.now(UTC).isoformat(),
                 "kind": kind,
                 **current,
-                "scope": "KERNEL_STORAGE_AND_ORDERS_NOT_EXECUTION_READINESS",
+                "scope": "KERNEL_STORAGE_ORDERS_AND_INPUTS_NOT_EXECUTION_READINESS",
             }
         )
         # Failed output must not acknowledge an observation that nobody received.

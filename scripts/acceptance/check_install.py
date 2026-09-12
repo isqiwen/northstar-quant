@@ -2,7 +2,7 @@
 
 Runs with the installed interpreter and launches the installed entrypoint from
 an empty working directory; setup imports resolve from that installed package. The study is the
-synthetic intraday example; no application database is reset or deleted.
+synthetic intraday example; only the explicitly named disposable test database is reset.
 """
 
 from __future__ import annotations
@@ -21,6 +21,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 from uuid import uuid4
 
+from sqlalchemy import create_engine, text
 from support.broker import check_broker_access
 from support.catalog import check_catalog
 from support.evidence import save as save_evidence
@@ -43,6 +44,16 @@ def main() -> None:
         or parsed.fragment
     ):
         parser.error("NORTHSTAR_TEST_DATABASE_URL must name disposable northstar_quant_test")
+
+    # Each run owns temporary files. Retaining database references from an earlier
+    # run would mix identities and point at files that its context already removed.
+    engine = create_engine(database_url)
+    try:
+        with engine.begin() as connection:
+            connection.execute(text("DROP SCHEMA public CASCADE"))
+            connection.execute(text("CREATE SCHEMA public"))
+    finally:
+        engine.dispose()
 
     environment = dict(os.environ, NORTHSTAR_DATABASE_URL=database_url)
     environment.pop("PYTHONPATH", None)

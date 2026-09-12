@@ -21,6 +21,84 @@ from northstar_quant.live.instances import Instance
 from northstar_quant.live.monitor import HealthMonitor
 
 
+def test_input_health_reads_stale_market_without_pausing_or_restarting(
+    live_engine, tmp_path, monkeypatch
+):
+    from datetime import timedelta
+
+    from fastapi.testclient import TestClient
+    from sqlalchemy import text
+
+    from northstar_quant.apps.live.kernel import create_app
+    from northstar_quant.broker.events import BrokerEvent
+    from northstar_quant.broker.stream_records import append_stream_event
+    from northstar_quant.live.streams import LiveStreams
+    from tests.live.test_market import OPEN, tick
+    from tests.live.test_streams import Clock, logins, prepare, start
+
+    library, source, config, calls = prepare(live_engine, tmp_path, monkeypatch)
+    streams = LiveStreams(live_engine, library)
+    identifier = uuid4()
+    try:
+        start(streams, source, config, identifier)
+        assert calls["ready"].wait(3)
+        logins(calls["accept"])
+        event = tick(3, OPEN + timedelta(seconds=1))
+        Clock.at = datetime.fromisoformat(event.received_at)
+        calls["accept"](event)
+    finally:
+        streams.close()
+    auth = LiveAuth("r" * 48, "c" * 48)
+    app = create_app(live_engine, library, auth)
+    with TestClient(app) as http:
+        # Simulate a receiver whose recorded progress no longer advances. No SDK runs.
+        with live_engine.begin() as connection:
+            connection.execute(
+                text(
+                    "UPDATE broker_streams SET status='RECEIVING', paused=false, reason='OBSERVING'"
+                )
+            )
+
+        def snapshot():
+            with live_engine.connect() as connection:
+                return connection.exec_driver_sql(
+                    "SELECT status, paused, reason, cursor, state, state_hash, updated_at "
+                    "FROM broker_streams"
+                ).all()
+
+        before = snapshot()
+        Clock.at = OPEN + timedelta(seconds=30)
+        events = []
+        client = LiveClient("http://localhost", LiveAuth(auth.read_token), client=http)
+        HealthMonitor(Instance("sim", "simnow_trading"), events.append).poll(client)
+        assert "INPUT_MARKET_STALE" in events[-1]["conditions"]
+        assert "INPUT_RECEIVER_PREVIOUS_RUNTIME" in events[-1]["conditions"]
+        assert snapshot() == before
+        assert calls["count"] == 1
+        at = datetime.now(UTC)
+        with live_engine.begin() as connection:
+            append_stream_event(
+                connection,
+                identifier,
+                BrokerEvent(
+                    4,
+                    "MD",
+                    "OnHeartBeatWarning",
+                    None,
+                    None,
+                    at.isoformat().replace("+00:00", "Z"),
+                    0,
+                    {"TimeLapse": 10},
+                ),
+                receiving=True,
+            )
+        before = snapshot()
+        Clock.at = at + timedelta(seconds=10)
+        HealthMonitor(Instance("sim", "simnow_trading"), events.append).poll(client)
+        assert "INPUT_PROCESSING_LAG" in events[-1]["conditions"]
+        assert snapshot() == before
+
+
 def test_monitor_reads_actual_kernel_unknown_order_without_changing_it(live_engine, tmp_path):
     from fastapi.testclient import TestClient
 
@@ -72,6 +150,8 @@ def test_read_only_observer_reports_failure_recovery_restart_and_output_retry(tm
             if request.url.path == "/runtime"
             else {"unknown_orders": 0, "orders_with_pending_fees": 0, "conflicted_orders": 0}
             if request.url.path == "/execution/health"
+            else {"conditions": []}
+            if request.url.path == "/streams/health"
             else {
                 "status": "OK",
                 "database": {"status": "REACHABLE", "disk_capacity": "OBSERVED"},
@@ -144,6 +224,8 @@ def test_cli_process_observes_without_web_or_database(tmp_path):
                 if self.path == "/runtime"
                 else {"unknown_orders": 0, "orders_with_pending_fees": 0, "conflicted_orders": 0}
                 if self.path == "/execution/health"
+                else {"conditions": []}
+                if self.path == "/streams/health"
                 else {
                     "status": "OK",
                     "database": {"status": "REACHABLE", "disk_capacity": "OBSERVED"},
@@ -184,7 +266,7 @@ def test_cli_process_observes_without_web_or_database(tmp_path):
         assert received()["kind"] == "FAULT"
         state["fault"] = False
         assert received()["kind"] == "RECOVERED"
-        assert set(paths) == {"/runtime", "/diagnostics", "/execution/health"}
+        assert set(paths) == {"/runtime", "/diagnostics", "/execution/health", "/streams/health"}
         assert process.poll() is None
         process.terminate()
         assert process.wait(timeout=5) == 0

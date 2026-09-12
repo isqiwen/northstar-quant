@@ -28,6 +28,7 @@ from northstar_quant.accounting.baselines import BrokerBaselines
 from northstar_quant.accounting.ledger import BrokerLedger
 from northstar_quant.broker import ctp
 from northstar_quant.broker.events import BrokerEvent
+from northstar_quant.broker.market import FRESH
 from northstar_quant.broker.records import BrokerRecords
 from northstar_quant.broker.settings import configured_profile, load_credentials
 from northstar_quant.broker.stream_records import append_stream_event, read_stream_archive
@@ -147,6 +148,12 @@ def initialize_streams(connection: Connection) -> None:
                     f"BEFORE {action} ON {table} "
                     "BEGIN SELECT RAISE(ABORT, 'Stream facts are immutable'); END"
                 )
+        connection.exec_driver_sql(
+            "CREATE INDEX IF NOT EXISTS broker_streams_health ON broker_streams(status, created_at)"
+        )
+        connection.exec_driver_sql(
+            "CREATE INDEX IF NOT EXISTS broker_streams_recency ON broker_streams(created_at)"
+        )
         return
     connection.exec_driver_sql("""
         CREATE TABLE IF NOT EXISTS broker_streams (
@@ -195,6 +202,12 @@ def initialize_streams(connection: Connection) -> None:
         CREATE TRIGGER immutable_binding BEFORE UPDATE ON broker_streams
             FOR EACH ROW EXECUTE FUNCTION stream_preserve_binding();
     """)
+    connection.exec_driver_sql(
+        "CREATE INDEX IF NOT EXISTS broker_streams_health ON broker_streams(status, created_at)"
+    )
+    connection.exec_driver_sql(
+        "CREATE INDEX IF NOT EXISTS broker_streams_recency ON broker_streams(created_at)"
+    )
     for table in ("broker_stream_events", "broker_stream_steps", "broker_stream_commands"):
         connection.exec_driver_sql(f"DROP TRIGGER IF EXISTS immutable ON {table}")
         connection.exec_driver_sql(
@@ -1033,6 +1046,80 @@ class LiveStreams:
                 .all()
             )
         return [self.get(identifier) for identifier in identifiers]
+
+    def health(self) -> dict[str, object]:
+        """Read bounded input health without polling, pausing or restarting a receiver."""
+        now = datetime.now(UTC)
+        conditions: set[str] = set()
+        with self._engine.connect() as connection:
+            active = connection.scalar(
+                text(
+                    "SELECT COUNT(*) FROM broker_streams "
+                    "WHERE status IN ('STARTING','RECEIVING','STOP_REQUESTED')"
+                )
+            )
+            identifiers = connection.scalars(
+                text(
+                    "SELECT stream_id FROM broker_streams "
+                    + (
+                        "WHERE status IN ('STARTING','RECEIVING','STOP_REQUESTED') "
+                        if active
+                        else ""
+                    )
+                    + "ORDER BY created_at DESC LIMIT 1"
+                )
+            ).all()
+            if not identifiers:
+                return {"active_receivers": 0, "conditions": [], "pending_events": 0}
+            identifier = identifiers[0]
+            row = self._row(connection, identifier)
+            state = _object(row["state"])
+            pending = cast(int, row["received"]) - cast(int, row["cursor"])
+            if pending < 0:
+                raise ValueError("input cursor exceeds retained events")
+            if active is not None and active > 1:
+                conditions.add("MULTIPLE_INPUT_RECEIVERS")
+            if row["status"] in {"FAILED", "INTERRUPTED"}:
+                conditions.add("INPUT_RECEIVER_FAILED")
+            if row["status"] in _ACTIVE:
+                if _object(row["binding"])["runtime_id"] != str(self.runtime_id):
+                    conditions.add("INPUT_RECEIVER_PREVIOUS_RUNTIME")
+                if state.get("connection_error"):
+                    conditions.add("INPUT_CONNECTION_FAILED")
+                if row["paused"] and row["reason"] not in {
+                    "OPERATOR_PAUSE",
+                    "OPERATOR_STOP",
+                    "DAY_SESSION_ENDED",
+                    "SESSION_SCHEDULE_ENDED",
+                }:
+                    conditions.add("INPUT_REQUIRES_RECOVERY")
+                if row["status"] == "RECEIVING" and not row["paused"]:
+                    market = _object(state.get("market", {}))
+                    if idle_reason(market, now=now) == "QUOTE_STALE":
+                        conditions.add("INPUT_MARKET_STALE")
+                    elif (
+                        not market.get("last_quote")
+                        and now - cast(datetime, row["created_at"]) > FRESH
+                    ):
+                        conditions.add("INPUT_MARKET_NOT_ESTABLISHED")
+                if pending:
+                    oldest = connection.scalar(
+                        text(
+                            "SELECT committed_at FROM broker_stream_events WHERE stream_id=:id "
+                            "AND sequence>:cursor ORDER BY sequence LIMIT 1"
+                        ),
+                        {"id": identifier, "cursor": row["cursor"]},
+                    )
+                    if oldest is None or now - oldest > FRESH:
+                        conditions.add("INPUT_PROCESSING_LAG")
+        progress = self._ledger.stream_progress(identifier)
+        if progress["status"] == "UNKNOWN":
+            conditions.add("INPUT_ACCOUNT_FACTS_UNKNOWN")
+        return {
+            "active_receivers": active,
+            "conditions": sorted(conditions),
+            "pending_events": pending,
+        }
 
     def close(self) -> None:
         """Shutdown only connections owned here; no startup recovery or external retry."""

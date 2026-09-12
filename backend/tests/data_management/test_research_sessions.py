@@ -145,9 +145,10 @@ def test_night_day_and_next_day_keep_fixed_sessions_and_offline_parquet(
     assert sum(pin.observed_count for pin in fixed.details.minute_quality) == 9
     assert identifier in {item.snapshot_id for item in library.list_datasets()}
     library.publications.publish(fixed)
-    assert library.assemble_research(
-        (night.snapshot_id, following.snapshot_id, day.snapshot_id)
-    ) == fixed
+    assert (
+        library.assemble_research((night.snapshot_id, following.snapshot_id, day.snapshot_id))
+        == fixed
+    )
     assert PublishedDatasets(library.publications.root).load_dataset(identifier) == fixed
     with TestClient(create_app(postgres_engine, library), base_url="http://core.local") as api:
         assert login_response(api).status_code == 200
@@ -233,11 +234,14 @@ def test_assembly_rejects_invalid_inputs_before_publication(
     with pytest.raises(ValueError, match=message):
         library.assemble_research((first.snapshot_id, second.snapshot_id))
     with Session(postgres_engine) as session:
-        assert session.scalar(
-            select(DatasetSnapshotManifest.id).where(
-                DatasetSnapshotManifest.idempotency_key.like("research-assembly-%")
+        assert (
+            session.scalar(
+                select(DatasetSnapshotManifest.id).where(
+                    DatasetSnapshotManifest.idempotency_key.like("research-assembly-%")
+                )
             )
-        ) is None
+            is None
+        )
 
 
 @pytest.mark.parametrize(

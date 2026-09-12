@@ -150,17 +150,21 @@ def assemble(
                 for pin in item.details.import_quality
             }
             with Session(library._engine) as session:
-                existing = DatasetSnapshotPublicationService(session).publish(
-                    PublishDatasetSnapshotCommand(
-                        available_at_cutoff=cutoff,
-                        partitions=tuple(selections),
-                        import_quality_pins=tuple(pins.values()),
-                        idempotency_key=key,
-                        correlation_id=key,
-                        settlements=settlements,
-                        terms=terms,
+                existing = (
+                    DatasetSnapshotPublicationService(session)
+                    .publish(
+                        PublishDatasetSnapshotCommand(
+                            available_at_cutoff=cutoff,
+                            partitions=tuple(selections),
+                            import_quality_pins=tuple(pins.values()),
+                            idempotency_key=key,
+                            correlation_id=key,
+                            settlements=settlements,
+                            terms=terms,
+                        )
                     )
-                ).snapshot_id
+                    .snapshot_id
+                )
         fixed = load_dataset(library._engine, existing)
         if fixed.market != first.market or fixed.bars != expected:
             raise ValueError("research assembly source selection changed at the common cutoff")

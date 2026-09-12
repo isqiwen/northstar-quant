@@ -45,6 +45,10 @@ class ArchiveStream(BaseModel):
 def routes(owner: LiveOwner) -> APIRouter:
     router = APIRouter()
 
+    @router.get("/streams/health")
+    def input_health() -> dict[str, Any]:
+        return owner.read(owner.streams.health())
+
     @router.get("/streams")
     def list_streams() -> list[dict[str, Any]]:
         return [owner.read(item) for item in owner.streams.list()]
