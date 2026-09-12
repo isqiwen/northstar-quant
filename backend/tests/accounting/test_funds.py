@@ -270,6 +270,8 @@ def test_recovery_recomputes_money_evidence_even_when_projection_hash_is_valid(
     import hashlib
     import json
 
+    from northstar_quant.apps.live.kernel import create_app
+    from northstar_quant.live.auth import LiveAuth
     from northstar_quant.live.recovery import verify
 
     files = SourceFiles(tmp_path / "recovery-files")
@@ -280,7 +282,7 @@ def test_recovery_recomputes_money_evidence_even_when_projection_hash_is_valid(
     source = money_query(live_engine, money={"Commission": "3", "Balance": "99997"})
     command = uuid4()
     entry = funds.observe(baseline, source, request_id=command)
-    verify(live_engine, files)
+    verify(live_engine, DataLibrary(live_engine, files))
     assert entry["status"] == "UNKNOWN"
     assert "CUMULATIVE_COMMISSION_ADJUSTMENT_UNRESOLVED" in entry["problems"]
     if damage == "amount":
@@ -310,7 +312,10 @@ def test_recovery_recomputes_money_evidence_even_when_projection_hash_is_valid(
         lambda: restarted.context(source),
         lambda: restarted.observe(baseline, source, request_id=command),
         restarted.verify_all,
-        lambda: verify(live_engine, files),
+        lambda: verify(live_engine, DataLibrary(live_engine, files)),
+        lambda: create_app(
+            live_engine, DataLibrary(live_engine, files), LiveAuth("r" * 48, "c" * 48)
+        ),
     ):
         with pytest.raises(ValueError, match="projection differs"):
             operation()

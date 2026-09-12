@@ -14,7 +14,7 @@ from sqlalchemy import Engine, inspect
 
 from northstar_quant import code_revision
 from northstar_quant.data_management.files import SourceFiles
-from northstar_quant.data_management.library import manifest
+from northstar_quant.data_management.library import DataLibrary, manifest
 from northstar_quant.live.recovery import verify
 from northstar_quant.live.storage import open_store, require_current
 from northstar_quant.persistence.backup_files import file_hash, read_record
@@ -53,7 +53,7 @@ def backup(engine: Engine, files: SourceFiles, destination: Path) -> dict[str, A
             files.read(str(item["content_hash"]), cast(int, item["byte_count"]))
             for item in references
         )
-        evidence = verify(frozen, archive)
+        evidence = verify(frozen, DataLibrary(frozen, archive))
     finally:
         frozen.dispose()
     document = dict(
@@ -127,7 +127,7 @@ def restore(engine: Engine, source_root: Path, directory: Path) -> dict[str, Any
             raise ValueError("Live backup source references differ from database")
         for item in references:
             original.read(str(item["content_hash"]), cast(int, item["byte_count"]))
-        evidence = verify(frozen, original)
+        evidence = verify(frozen, DataLibrary(frozen, original))
     finally:
         frozen.dispose()
     with closing(FileLock(database)):

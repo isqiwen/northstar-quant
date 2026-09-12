@@ -11,7 +11,6 @@ from northstar_quant.broker.execution_fills import verify_all as verify_ctp_fill
 from northstar_quant.broker.execution_reports import verify_all as verify_ctp_receipts
 from northstar_quant.broker.order_transport import verify_all as verify_ctp
 from northstar_quant.broker.records import BrokerRecords
-from northstar_quant.data_management.files import SourceFiles
 from northstar_quant.data_management.library import DataLibrary
 from northstar_quant.execution.journal import OrderJournal
 from northstar_quant.execution.reviews import OrderReviews
@@ -22,14 +21,13 @@ from northstar_quant.live.storage import require_current
 from northstar_quant.live.streams import LiveStreams
 
 
-def verify(engine: Engine, files: SourceFiles) -> dict[str, int]:
+def verify(engine: Engine, library: DataLibrary) -> dict[str, int]:
     require_current(engine)
     with engine.connect() as connection:
         if connection.exec_driver_sql("PRAGMA integrity_check").scalar_one() != "ok":
             raise ValueError("Live database integrity failure")
         if connection.exec_driver_sql("PRAGMA foreign_key_check").first() is not None:
             raise ValueError("Live database foreign-key evidence failure")
-    library = DataLibrary(engine, files)
     library.verify_sources()
     records = BrokerRecords(engine)
     queries = pending = 0

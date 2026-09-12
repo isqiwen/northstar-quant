@@ -89,9 +89,17 @@ class StrategyMaterials:
         }
 
     def get_configuration(
-        self, configuration_id: str, *, candidate_id: str | None = None
+        self,
+        configuration_id: str,
+        *,
+        candidate_id: str | None = None,
+        require_installed_revision: bool = True,
     ) -> dict[str, Any]:
-        """Read only a locally received artifact, with the running implementation."""
+        """Read a fixed local binding; activation must match the installed revision.
+
+        Offline evidence verification may compare retained current-format facts
+        without executing the historical implementation or granting admission.
+        """
         with self._engine.connect() as connection:
             row = (
                 connection.execute(
@@ -110,7 +118,9 @@ class StrategyMaterials:
             )
         if row is None:
             raise LookupError("Live has not received this fixed configuration")
-        verified = verify_candidate(row["document"], require_installed_revision=True)
+        verified = verify_candidate(
+            row["document"], require_installed_revision=require_installed_revision
+        )
         configuration = verified["document"]["configuration"]
         if (
             configuration["configuration_id"] != configuration_id

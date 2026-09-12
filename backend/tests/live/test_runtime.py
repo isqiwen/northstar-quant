@@ -246,3 +246,38 @@ def test_missing_runtime_keeps_last_observation_but_never_returns_it_as_live(
                 client.streams.control(uuid4(), "STOP", request_id=uuid4())
         finally:
             client.close()
+
+
+def test_startup_verifies_retained_stream_without_reactivating_previous_code(
+    live_engine: Engine, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from northstar_quant.live.materials import StrategyMaterials
+    from northstar_quant.live.streams import LiveStreams
+    from tests.live.test_streams import prepare, start
+
+    library, source, configuration, calls = prepare(live_engine, tmp_path, monkeypatch)
+    streams = LiveStreams(live_engine, library)
+    try:
+        start(streams, source, configuration, uuid4())
+        assert calls["ready"].wait(3)
+    finally:
+        streams.close()
+    before = calls["count"]
+    # A different installation may inspect fixed evidence, but cannot execute
+    # the strategy artifact produced by the prior installation.
+    monkeypatch.setattr("northstar_quant.strategies.artifacts.code_revision", lambda: "b" * 40)
+    auth = LiveAuth("r" * 48, "c" * 48)
+    app = create_app(live_engine, library, auth)
+    with TestClient(app) as http:
+        client = LiveClient("http://localhost", auth, client=http)
+        assert client.status()["order_sending"] is False
+    assert calls["count"] == before
+    with pytest.raises(ValueError, match="matching its installed Git revision"):
+        StrategyMaterials(live_engine).get_configuration(configuration)
+    another = LiveStreams(live_engine, library)
+    try:
+        with pytest.raises(ValueError, match="matching its installed Git revision"):
+            start(another, source, configuration, uuid4())
+    finally:
+        another.close()
+    assert calls["count"] == before

@@ -13,9 +13,6 @@ from northstar_quant import code_revision
 from northstar_quant.accounting.baselines import BrokerBaselines
 from northstar_quant.accounting.funds import BrokerFunds
 from northstar_quant.accounting.ledger import BrokerLedger
-from northstar_quant.broker.execution_fills import verify_all as verify_ctp_fills
-from northstar_quant.broker.execution_reports import verify_all as verify_ctp_receipts
-from northstar_quant.broker.order_transport import verify_all as verify_ctp_orders
 from northstar_quant.broker.queries import BrokerQueries
 from northstar_quant.data_management.library import DataLibrary
 from northstar_quant.execution.journal import OrderJournal
@@ -23,6 +20,7 @@ from northstar_quant.execution.reviews import OrderReviews
 from northstar_quant.live.client import PROTOCOL_VERSION
 from northstar_quant.live.execution_authority import ExecutionAuthority
 from northstar_quant.live.opening_budgets import BrokerOpeningBudgets
+from northstar_quant.live.recovery import verify
 from northstar_quant.live.streams import LiveStreams
 
 from .commands import Commands
@@ -31,22 +29,20 @@ from .instances import InstanceBinding
 
 class LiveOwner:
     def __init__(self, engine: Engine, library: DataLibrary) -> None:
+        # Startup and offline restoration share the same complete evidence checks.
+        # This runs once, before commands or reception owners can become available.
+        verify(engine, library)
         self.binding: InstanceBinding | None = None
         self.identifier = uuid4()
         self.started_at = datetime.now(UTC).isoformat()
         self.commands = Commands(engine, self.identifier)
         self.authority = ExecutionAuthority(engine, self.identifier, self.check_ownership)
-        self.authority.verify_all()
         self.broker = BrokerQueries(engine)
         self.baselines = BrokerBaselines(engine)
         self.ledger = BrokerLedger(engine)
         self.funds = BrokerFunds(engine)
         self.orders = OrderReviews(engine)
         self.execution = OrderJournal(engine, self.identifier)
-        self.execution.verify_all()
-        verify_ctp_orders(engine)
-        verify_ctp_receipts(engine)
-        verify_ctp_fills(engine)
         self.streams = LiveStreams(
             engine, library, check_ownership=self.check_ownership, runtime_id=self.identifier
         )

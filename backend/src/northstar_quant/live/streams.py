@@ -1039,6 +1039,7 @@ class LiveStreams:
                 config = self._configurations.get_configuration(
                     str(row["configuration_id"]),
                     candidate_id=str(_object(binding["configuration"])["candidate_id"]),
+                    require_installed_revision=False,
                 )
                 if config != binding["configuration"]:
                     raise ValueError("stream configuration differs from its fixed revision")
