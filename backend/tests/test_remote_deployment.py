@@ -167,7 +167,8 @@ if name == 'docker' and 'config' in sys.argv and '--format' in sys.argv:
                   'networks': {{'frontend': {{}}, 'ingress': {{}}}},
                   'services': {{name: {{'environment': {{}}, 'volumes': [],
                                        'networks': {{'management': {{}}}}}}
-                               for name in ('initialize', 'live', 'live-api', 'live-web')}}}}
+                               for name in ('initialize', 'live', 'live-monitor',
+                                            'live-api', 'live-web')}}}}
     print(json.dumps(config))
     sys.exit(0)
 if name == 'docker' and 'info' in sys.argv and '--format' in sys.argv:
