@@ -111,7 +111,13 @@ def _comparison(
 
     interval, since_baseline = compare(prior), compare(initial)
     problems = sorted(
-        set(observation["problems"] + interval["problems"] + since_baseline["problems"])
+        set(
+            initial["problems"]
+            + prior["problems"]
+            + observation["problems"]
+            + interval["problems"]
+            + since_baseline["problems"]
+        )
     )
     return {
         "observation": observation,

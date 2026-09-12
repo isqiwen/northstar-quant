@@ -399,3 +399,29 @@ def test_clock_regression_cannot_commit_money_before_its_observed_position(
     with pytest.raises(LookupError):
         BrokerFunds(live_engine).get(command)
     assert BrokerFunds(live_engine).verify_all() == 0
+
+
+def test_activity_during_query_is_retained_as_uncertainty_on_both_interval_endpoints(live_engine):
+    baseline = money_baseline(live_engine)
+    source = saved_query(live_engine, money={"BizType": "1", "SettlementID": 1}, cashflow=True)
+    funds = BrokerFunds(live_engine)
+    first = funds.observe(baseline, source, request_id=uuid4())
+    assert first["status"] == "UNKNOWN"
+    assert first["observation"]["scope_confirmed"] is True
+    assert "ACCOUNT_ACTIVITY_DURING_QUERY" in first["problems"]
+    next_source = money_query(live_engine)
+    second = funds.observe(baseline, next_source, request_id=uuid4())
+    assert second["status"] == "UNKNOWN"  # Its interval starts at the uncertain observation.
+    assert second["observation"]["problems"] == []
+    assert second["observation"]["amounts"]["Balance"] == "100000"
+    assert BrokerFunds(live_engine).get(UUID(first["entry_id"])) == first
+    assert BrokerFunds(live_engine).get(UUID(second["entry_id"])) == second
+    assert funds.verify_all() == 2
+    ledger = BrokerLedger(live_engine)
+    entry = ledger.ingest(baseline, source, request_id=uuid4())
+    assert entry["status"] == "UNKNOWN" and entry["position_projection"]["status"] == "KNOWN"
+    assert entry["fill_count"] == 0
+    assert any(
+        item["code"] == "QUERY_CASHFLOW_RECONCILIATION_REQUIRED" for item in entry["problems"]
+    )
+    assert ledger.verify_all()["position_entries_count"] == 1

@@ -308,6 +308,10 @@ def account_observation(batch: dict[str, Any]) -> dict[str, Any]:
     if len(callbacks) != 1:
         problems.append("ACCOUNT_RECEIPT_NOT_UNIQUE")
     scope_confirmed = not problems
+    if capture is not None and any(
+        event["callback"] in ACCOUNT_ACTIVITY_CALLBACKS for event in capture["events"]
+    ):
+        problems.append("ACCOUNT_ACTIVITY_DURING_QUERY")
     amounts = (
         {} if row is None else {name: row[name] for name in ACCOUNT_AMOUNT_FIELDS if name in row}
     )

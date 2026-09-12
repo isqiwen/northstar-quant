@@ -16,7 +16,7 @@ from northstar_quant.broker.account_reports import (
     query_trades,
     stream_trades,
 )
-from northstar_quant.broker.events import ACCOUNT_ACTIVITY_CALLBACKS
+from northstar_quant.broker.events import ACCOUNT_ACTIVITY_CALLBACKS, TRANSFER_CALLBACKS
 from northstar_quant.data_management.broker import BrokerContract
 
 
@@ -50,6 +50,10 @@ def _problems(batch: dict[str, Any], day: str) -> list[dict[str, Any]]:
         reasons.append("TD_ACCOUNT_IDENTITY_NOT_CONFIRMED")
     if batch["completeness"]["trading_day"] != day:
         reasons.append("SETTLEMENT_AND_NEW_TRADING_DAY_NOT_SUPPORTED")
+    if batch["capture"] is not None and any(
+        event["callback"] in TRANSFER_CALLBACKS for event in batch["capture"]["events"]
+    ):
+        reasons.append("QUERY_CASHFLOW_RECONCILIATION_REQUIRED")
     return [{"code": reason, "source_batch_id": batch["batch_id"]} for reason in reasons]
 
 
@@ -153,7 +157,9 @@ def derive_position_entry(
     # A cash transfer does not alter contract quantities or FIFO prices. Preserve
     # known inventory while the account as a whole remains unreconciled.
     position_unknown = any(
-        problem["code"] != "STREAM_CASHFLOW_RECONCILIATION_REQUIRED" for problem in problems
+        problem["code"]
+        not in {"STREAM_CASHFLOW_RECONCILIATION_REQUIRED", "QUERY_CASHFLOW_RECONCILIATION_REQUIRED"}
+        for problem in problems
     )
     if not position_unknown:
         try:
