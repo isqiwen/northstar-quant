@@ -213,10 +213,11 @@ implementation and acceptance evidence; local work alone is not remote delivery.
 Verify affected behavior and a real PostgreSQL vertical path when storage or
 integration changes.
 For agreed implementation tasks, routine edits, commits, non-forced pushes,
-CI follow-up and Issue/Project updates are authorized without repeated approval.
+CI follow-up, eligible PR merges and Issue/Project updates are authorized without
+repeated approval.
 Read-only questions authorize inspection, not implementation or publication.
-Merges, releases, broker connections and irreversible data operations require
-their own explicit task scope; routine development authority does not imply them.
+Releases, broker connections and irreversible data operations require their own
+explicit task scope; merge authority does not authorize them.
 
 ### Asynchronous CI follow-up
 
@@ -234,23 +235,43 @@ Avoid repetitive unchanged CI progress messages and tight polling; report failur
 meaningful milestones or required user input. A superseded redundant run may be
 cancelled after its replacement is confirmed, but cancellation is not a pass.
 
-### Current local refactoring batch (2026-09-11)
+### Automatic PR delivery (standing user authorization, 2026-09-13)
 
-The user requests completion of the agreed system refactoring before a combined
-GitHub push. Work locally and keep reviewable local commits; do not push this
-batch or mark remote Issues/Project items delivered until the complete agreed
-batch is ready. This overrides the routine per-slice push workflow above.
-Scope: fixed research inputs/time/effective terms, shared futures accounting,
-order lifecycle and constrained simulation, reconciled reports, and Live Sim
-authorization/execution/recovery. Portfolio/roll/ML and real-money admission are
-still later stages. Track implementation, checks and remaining external
-acceptance in docs/ROADMAP.md. Do not claim external broker or host acceptance
-from synthetic tests; missing external evidence does not block independent code.
+The agent owns implementation, local verification, commit, push, CI follow-up,
+merge and Issue/Project reconciliation. Do not hand the user a PR and ask them
+to merge it. This is standing authorization for subsequent repository work.
 
+- At task resumption, inspect open PRs and the checks for their exact current
+  head before starting another implementation slice. Resolve relevant failures
+  and merge conflicts within the authorized scope; preserve other work.
+- Keep a PR draft while its declared implementation scope is incomplete. Record
+  concrete remaining work, not a vague promise to continue. Unfinished later
+  roadmap features do not block a separately complete, accurately scoped PR.
+  Do not silently shrink an agreed PR scope just to merge it.
+- When that scope and required review/acceptance are complete, mark ready and
+  merge after all required checks pass for the latest head. No repeated user
+  approval is needed. Never bypass protection, required review or failing CI.
+- If the PR is otherwise ready and only required checks remain, use GitHub
+  auto-merge when available and verify it is actually enabled. If unavailable,
+  continue checking during the active task until merge or a concrete blocker;
+  do not end an otherwise ready delivery by assigning the merge to the user.
+- After merging, verify the merged commit on the target branch and reconcile
+  the PR, owning Issues and Project. A merge does not close an Issue whose
+  remaining external or business acceptance is incomplete.
+- Ending a turn does not create a background monitor. Distinguish verified
+  GitHub auto-merge from active-turn follow-up. Never promise future monitoring
+  without a real mechanism; record exact SHA, CI URL and blockers for resumption.
 
-### Publication update (2026-09-13)
+### Current refactoring scope (updated 2026-09-13)
 
-The user now explicitly authorizes committing and pushing the current refactoring
-batch and synchronizing all Issues/Project items before the remaining refactoring
-is complete. This supersedes the batch push hold above. Publish the current branch;
-do not imply merge, complete refactoring, passed CI or external acceptance.
+Fixed research inputs/time/effective terms, shared futures accounting, order
+lifecycle and constrained simulation, reconciled reports, and Live Sim
+authorization/execution/recovery remain the agreed batch. Portfolio/roll/ML
+and real-money admission remain later stages. Track code, checks and external
+acceptance in docs/ROADMAP.md. Synthetic tests do not establish broker or host
+acceptance; missing external evidence does not block independent code.
+
+The user has superseded the previous hold on pushing before full completion:
+publish current work and synchronize Issues/Project. Apply the automatic PR
+workflow above. Push, merge, complete refactoring and external acceptance are
+separate claims and each needs its own evidence.

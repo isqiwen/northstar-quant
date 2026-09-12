@@ -44,3 +44,16 @@ If a GitHub write times out, read back before retrying comments or creating Issu
 Keep local completion, successful push, CI and external acceptance distinct when
 network failure prevents verification. Stop retries when they no longer yield
 progress and report the precise pending operation, not assumed remote success.
+
+
+## Finish delivery without a manual user merge
+
+Apply `AGENTS.md` → "Automatic PR delivery". On resumption inspect outstanding
+PR/check state. For a complete PR, resolve failures, mark ready, merge the exact
+validated head, and verify the target branch; use verified GitHub auto-merge if
+only checks remain and the repository supports it. Do not ask the user to merge.
+Incomplete PR scope stays draft with concrete remaining work. Do not bypass
+checks, review, protection or external acceptance, and do not mark incomplete
+Issues Done merely because their partial implementation merged.
+A final reply must report merged commit, actually enabled auto-merge, or the
+specific blocker and next action; a promise alone is not delivery or monitoring.
