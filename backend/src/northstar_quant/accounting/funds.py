@@ -93,6 +93,41 @@ def _time(value: str) -> datetime:
     return result
 
 
+def _comparison(
+    initial: dict[str, Any], prior: dict[str, Any], observation: dict[str, Any]
+) -> dict[str, Any]:
+    """Rebuild derived amounts and uncertainty from retained broker observations."""
+
+    def compare(previous: dict[str, Any]) -> dict[str, object]:
+        return compare_account_amounts(
+            previous["amounts"],
+            observation["amounts"],
+            same_scope=bool(
+                previous["scope_confirmed"]
+                and observation["scope_confirmed"]
+                and previous["scope"] == observation["scope"]
+            ),
+        )
+
+    interval, since_baseline = compare(prior), compare(initial)
+    problems = sorted(
+        set(observation["problems"] + interval["problems"] + since_baseline["problems"])
+    )
+    return {
+        "observation": observation,
+        "interval_start": {
+            "source_batch_id": prior["source_batch_id"],
+            "account_receipts": prior["account_receipts"],
+        },
+        "interval": interval,
+        "since_baseline": since_baseline,
+        "status": "UNKNOWN" if problems else "OBSERVED",
+        "problems": problems,
+        "reconciliation": "UNRECONCILED",
+        "execution": {"order_sending": False, "cancel_sending": False},
+    }
+
+
 class BrokerFunds:
     """One bounded account book of cumulative observations and signed intervals."""
 
@@ -113,11 +148,12 @@ class BrokerFunds:
             )
         if len(rows) > 1000:
             raise ValueError("account money book exceeds its bounded entry limit")
+        initial = account_observation(self._records.get(UUID(baseline["source_batch_id"])))
         result: list[dict[str, Any]] = []
         for ordinal, row in enumerate(rows, 1):
             entry = row["document"]
             previous = result[-1] if result else None
-            source = self._records.get(row["source_batch_id"])
+            source: dict[str, Any] = self._records.get(row["source_batch_id"])
             if (
                 _hash(entry) != row["sha256"]
                 or entry["entry_id"] != str(row["entry_id"])
@@ -133,6 +169,22 @@ class BrokerFunds:
                 or entry["previous_hash"] != (None if previous is None else _hash(previous))
             ):
                 raise ValueError("account money evidence or fixed source chain is damaged")
+            prior = initial if previous is None else previous["observation"]
+            observation = account_observation(source)
+            capture = source["capture"]
+            if (
+                source["profile"] != baseline["profile"]
+                or source["account_id"] != baseline["account_id"]
+                or capture is None
+                or _time(capture["started_at"]) <= _time(baseline["recorded_at"])
+                or _time(capture["started_at"]) <= _time(prior["query_finished_at"])
+                or _time(capture["finished_at"]) >= row["recorded_at"]
+                or any(
+                    entry.get(key) != value
+                    for key, value in _comparison(initial, prior, observation).items()
+                )
+            ):
+                raise ValueError("account money projection differs from retained broker evidence")
             position = entry["position_reference"]
             if (
                 position is not None
@@ -203,27 +255,8 @@ class BrokerFunds:
             if _time(capture["started_at"]) <= _time(prior["query_finished_at"]):
                 raise ValueError("money observations require ordered non-overlapping queries")
             observation = account_observation(batch)
-            same_scope = (
-                prior["scope_confirmed"]
-                and observation["scope_confirmed"]
-                and prior["scope"] == observation["scope"]
-            )
-            interval = compare_account_amounts(
-                prior["amounts"], observation["amounts"], same_scope=bool(same_scope)
-            )
-            since_baseline = compare_account_amounts(
-                initial["amounts"],
-                observation["amounts"],
-                same_scope=(
-                    initial["scope_confirmed"]
-                    and observation["scope_confirmed"]
-                    and initial["scope"] == observation["scope"]
-                ),
-            )
+            comparison = _comparison(initial, prior, observation)
             current = self._positions.context(source_batch_id)["current"]
-            problems = sorted(
-                set(observation["problems"] + interval["problems"] + since_baseline["problems"])
-            )
             now = datetime.now(UTC)
             document = {
                 "entry_id": str(request_id),
@@ -236,13 +269,7 @@ class BrokerFunds:
                 "previous_hash": None if previous is None else _hash(previous),
                 "recorded_at": now.isoformat(),
                 "code_revision": code_revision(),
-                "observation": observation,
-                "interval_start": {
-                    "source_batch_id": prior["source_batch_id"],
-                    "account_receipts": prior["account_receipts"],
-                },
-                "interval": interval,
-                "since_baseline": since_baseline,
+                **comparison,
                 "position_reference": None
                 if current is None
                 else {
@@ -250,10 +277,6 @@ class BrokerFunds:
                     "ordinal": current["ordinal"],
                     "sha256": _hash(current),
                 },
-                "status": "UNKNOWN" if problems else "OBSERVED",
-                "problems": problems,
-                "reconciliation": "UNRECONCILED",
-                "execution": {"order_sending": False, "cancel_sending": False},
                 "limitations": [
                     "CUMULATIVE_ACCOUNT_AMOUNTS_NOT_INDIVIDUAL_FILL_FEES",
                     "QUERY_RECEIPT_TIME_NOT_ACCOUNT_SNAPSHOT_TIME",

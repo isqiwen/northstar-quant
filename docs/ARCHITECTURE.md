@@ -238,6 +238,12 @@ Accounting 拥有费用与结算计价规则；Simulation 根据固定条款生�
 今昨仓迁移按确认的交易日结算边界推进，不按自然日零点。
 柜台余额/持仓查询是独立核对证据，不能覆盖本地账本以制造“核对成功”。账户累计费用不能重复当作新增费用。
 
+资金观察的读取、重复命令和恢复校验从原始查询重建金额、期间变化、累计变化及未知原因；
+同时检查账户/环境和查询时间顺序。派生结果即使具有一致哈希，若与来源不符仍拒绝。
+2026-09-12 核对 [Nautilus Reconciliation latest](https://nautilustrader.io/docs/latest/concepts/reconciliation/)，
+采用保留外部事实并核对重建状态的原则；不引入依赖，不以合成调整补齐资金缺口。
+累计资金观察仍不证明逐笔费用覆盖、原子账户截面或发送权限。
+
 当前 #19 已接通共享数量投影：Research `Account` 与 Live `BrokerLedger` 都使用
 `accounting.positions.Position` 的多空/今昨仓规则；订单及模拟成交显式携带开平，反向开仓保留独立持仓。
 Research 用同方向 FIFO 成本计算明确平仓的盈亏，超量平仓不能自动变成开仓；Risk 先将反向目标降为平仓，

@@ -261,3 +261,52 @@ def test_browser_money_registration_requires_session_csrf_and_saved_inputs_only(
         assert client.post("/api/broker/funds-entries", json=payload).json() == result
         page = login_response(client)
         assert BrokerFunds(live_engine).verify_all() == 1
+
+
+@pytest.mark.parametrize("damage", ["amount", "delta", "status", "authority", "receipt"])
+def test_recovery_recomputes_money_evidence_even_when_projection_hash_is_valid(
+    live_engine: Engine, damage: str
+) -> None:
+    import hashlib
+    import json
+
+    baseline = money_baseline(live_engine)
+    funds = BrokerFunds(live_engine)
+    first = money_query(live_engine, money={"Commission": "8", "Balance": "99992"})
+    funds.observe(baseline, first, request_id=uuid4())
+    source = money_query(live_engine, money={"Commission": "3", "Balance": "99997"})
+    command = uuid4()
+    entry = funds.observe(baseline, source, request_id=command)
+    assert entry["status"] == "UNKNOWN"
+    assert "CUMULATIVE_COMMISSION_ADJUSTMENT_UNRESOLVED" in entry["problems"]
+    if damage == "amount":
+        entry["observation"]["amounts"]["Balance"] = "1000000"
+    elif damage == "delta":
+        entry["interval"]["deltas"]["Commission"] = "0"
+    elif damage == "status":
+        entry["status"], entry["problems"] = "OBSERVED", []
+    elif damage == "authority":
+        entry["reconciliation"] = "MATCHED"
+        entry["execution"]["order_sending"] = True
+    else:
+        entry["interval_start"]["account_receipts"] = []
+    content = json.dumps(entry, sort_keys=True, allow_nan=False, separators=(",", ":"))
+    digest = hashlib.sha256(content.encode()).hexdigest()
+    # Simulate a corrupt restored projection with an internally consistent checksum.
+    # The original query remains intact and must remain the reconstruction authority.
+    with live_engine.begin() as connection:
+        connection.exec_driver_sql("DROP TRIGGER immutable_broker_funds_entries_UPDATE")
+        connection.exec_driver_sql(
+            "UPDATE broker_funds_entries SET document=?, sha256=? WHERE entry_id=?",
+            (content, digest, command.hex),
+        )
+    restarted = BrokerFunds(live_engine)
+    for operation in (
+        lambda: restarted.get(command),
+        lambda: restarted.context(source),
+        lambda: restarted.observe(baseline, source, request_id=command),
+        restarted.verify_all,
+    ):
+        with pytest.raises(ValueError, match="projection differs"):
+            operation()
+    assert BrokerRecords(live_engine).get(source)["capture"] is not None
