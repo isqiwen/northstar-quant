@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from decimal import Decimal
+from decimal import Decimal, localcontext
 
 from .amounts import decimal_text
 
@@ -23,8 +23,15 @@ class FeeFact:
     charged_at: datetime
     available_at: datetime
     source_reference: str
+    supersedes_fee_id: str | None = None
 
     def __post_init__(self) -> None:
+        if self.supersedes_fee_id is not None and (
+            not isinstance(self.supersedes_fee_id, str)
+            or not 1 <= len(self.supersedes_fee_id) <= 256
+            or self.supersedes_fee_id == self.fee_id
+        ):
+            raise ValueError("fee revision requires a distinct prior charge identity")
         if any(
             not isinstance(value, str) or not 1 <= len(value) <= 256
             for value in (self.fee_id, self.source_reference)
@@ -65,6 +72,25 @@ class FeeFact:
         if not isinstance(exponent, int) or exponent < -18:
             raise ValueError("fee requires at most 18 decimal places")
 
+    def delta_from(self, previous: FeeFact | None) -> Decimal:
+        """A correction replaces an exact coverage amount; it never reallocates fills."""
+        if self.supersedes_fee_id is None:
+            if previous is not None:
+                raise ValueError("initial charge cannot replace another fee")
+            return self.amount
+        if (
+            previous is None
+            or self.supersedes_fee_id != previous.fee_id
+            or self.fill_ids != previous.fill_ids
+            or self.currency != previous.currency
+            or self.available_at < previous.available_at
+            or self.charged_at < previous.charged_at
+        ):
+            raise ValueError("fee revision differs in coverage or precedes its prior charge")
+        with localcontext() as context:
+            context.prec = 192
+            return self.amount - previous.amount
+
     def to_dict(self) -> dict[str, object]:
         return {
             "fee_id": self.fee_id,
@@ -74,6 +100,7 @@ class FeeFact:
             "charged_at": self.charged_at.isoformat(),
             "available_at": self.available_at.isoformat(),
             "source_reference": self.source_reference,
+            "supersedes_fee_id": self.supersedes_fee_id,
         }
 
     @classmethod
@@ -89,6 +116,9 @@ class FeeFact:
             )
             if any(not isinstance(value[name], str) for name in fields):
                 raise ValueError("persisted fee fields must be exact strings")
+            prior = value["supersedes_fee_id"]
+            if prior is not None and not isinstance(prior, str):
+                raise ValueError("persisted fee revision must have a string identity")
             fills = value["fill_ids"]
             if not isinstance(fills, list) or any(not isinstance(item, str) for item in fills):
                 raise ValueError("persisted fee executions must be strings")
@@ -100,6 +130,7 @@ class FeeFact:
                 datetime.fromisoformat(str(value["charged_at"])),
                 datetime.fromisoformat(str(value["available_at"])),
                 str(value["source_reference"]),
+                prior,
             )
         except (KeyError, TypeError, ArithmeticError) as error:
             raise ValueError("invalid persisted fee fact") from error

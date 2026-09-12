@@ -130,3 +130,55 @@ def test_charge_cannot_cover_known_fee_or_be_reused_for_different_amount():
         account.confirm_fee(charge("b", amount="1"))
     with pytest.raises(ValueError, match="awaiting"):
         account.confirm_fee(charge("b", identity="another-charge"))
+
+
+def test_fee_revisions_preserve_history_apply_only_delta_and_rollback():
+    account = Account(Decimal(10000), (A, B))
+    fact = replace(fills()[0], fee=None)
+    account.apply(fact)
+    original = charge("a", amount="7")
+    account.confirm_fee(original)
+    refund = replace(charge("a", identity="refund", amount="2"), supersedes_fee_id="charge")
+    before = account.checkpoint()
+    with pytest.raises(RuntimeError):
+        with account.transaction():
+            account.confirm_fee(refund)
+            assert account.cash == Decimal(9998)
+            raise RuntimeError("abort")
+    assert account.checkpoint() == before
+    account.confirm_fee(refund)
+    account.confirm_fee(refund)
+    assert account.cash == Decimal(9998) and account.total_fees == 2
+    assert account.applied_fees[0].fact == original
+    with pytest.raises(ValueError, match="fork"):
+        account.confirm_fee(replace(refund, fee_id="fork"))
+    increase = replace(refund, fee_id="increase", amount=Decimal(12), supersedes_fee_id="refund")
+    account.confirm_fee(increase)
+    rebuilt = Account(Decimal(10000), (A, B))
+    rebuilt.apply(fact)
+    for row in account.applied_fees:
+        rebuilt.confirm_fee(FeeFact.from_dict(row.to_dict()))
+    assert rebuilt.checkpoint() == account.checkpoint()
+    assert rebuilt.cash == Decimal(9988) and rebuilt.total_fees == 12
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"supersedes_fee_id": "missing"},
+        {"fill_ids": ("a", "b")},
+        {"charged_at": AT},
+        {"available_at": AT, "charged_at": AT},
+    ],
+)
+def test_fee_revision_rejects_missing_coverage_and_regressive_evidence(change):
+    account = Account(Decimal(10000), (A, B))
+    account.apply(replace(fills()[0], fee=None))
+    account.confirm_fee(charge("a"))
+    before = account.checkpoint()
+    revision = replace(
+        charge("a", identity="revision"), **{"supersedes_fee_id": "charge", **change}
+    )
+    with pytest.raises(ValueError):
+        account.confirm_fee(revision)
+    assert account.checkpoint() == before

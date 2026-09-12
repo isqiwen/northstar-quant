@@ -8,8 +8,10 @@ from uuid import uuid4
 import pytest
 
 from northstar_quant.accounting.fees import FeeFact
+from northstar_quant.accounting.fifo import Account
 from northstar_quant.execution.journal import OrderJournal
 from northstar_quant.persistence.sql import write_transaction
+from tests.accounting.test_portfolio_account import A
 from tests.execution.test_journal import fill, post, request, setup_journal
 
 
@@ -140,4 +142,59 @@ def test_known_execution_fee_beyond_limit_is_not_rejected_or_ignored(tmp_path):
     with engine.connect() as connection:
         assert connection.exec_driver_sql("SELECT fee FROM posted_fills").scalar_one() == "20"
     assert journal.verify_all() == 1
+    engine.dispose()
+
+
+def test_fee_corrections_commit_delta_replay_and_keep_risk_conflicts(tmp_path):
+    engine, journal, orders, fills = prepare(tmp_path)
+
+    def post_revision(connection, fact):
+        # Rebuild the actual shared account from retained fills and fee facts,
+        # in the same SQLite transaction as the order projections.
+        import json
+
+        account = Account(
+            Decimal(10000),
+            tuple(
+                replace(A, contract_id=order.contract_id, symbol="SYNTHETIC_" + str(index))
+                for index, order in enumerate(orders)
+            ),
+        )
+        for execution in fills:
+            account.apply(execution)
+        for document in connection.exec_driver_sql(
+            "SELECT document FROM execution_fees ORDER BY rowid"
+        ).scalars():
+            account.confirm_fee(FeeFact.from_dict(json.loads(document)))
+        connection.exec_driver_sql(
+            "INSERT INTO posted_fees VALUES (?, ?)", (fact.fee_id, str(fact.amount))
+        )
+        connection.exec_driver_sql("UPDATE cash SET amount=?", (str(account.cash),))
+
+    original = charge(fills, "9")
+    journal.confirm_fee(original, post_account=post_revision)
+    revision = replace(charge(fills, "15"), supersedes_fee_id=original.fee_id)
+
+    def fail(connection, fact):
+        post_revision(connection, fact)
+        raise RuntimeError("abort correction")
+
+    with pytest.raises(RuntimeError):
+        journal.confirm_fee(revision, post_account=fail)
+    assert journal.verify_all() == 2
+    assert all(journal.get(order.order_id)["status"] == "FILLED" for order in orders)
+    journal.confirm_fee(revision, post_account=post_revision)
+    refund = replace(charge(fills, "2"), supersedes_fee_id=revision.fee_id)
+    journal.confirm_fee(refund, post_account=post_revision)
+    journal.confirm_fee(refund, post_account=lambda *_: pytest.fail("duplicate"))
+    assert all(journal.get(order.order_id)["status"] == "UNKNOWN" for order in orders)
+    with engine.connect() as connection:
+        assert connection.exec_driver_sql("SELECT amount FROM cash").scalar_one() == "9998"
+        assert connection.exec_driver_sql("SELECT count(*) FROM posted_fees").scalar_one() == 3
+    with pytest.raises(ValueError, match="fork"):
+        journal.confirm_fee(
+            replace(charge(fills), supersedes_fee_id=original.fee_id), post_account=post_revision
+        )
+    reopened = OrderJournal(engine, uuid4())
+    assert reopened.verify_all() == 2
     engine.dispose()

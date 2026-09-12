@@ -89,6 +89,7 @@ class Account:
         self.total_fees = Decimal(0)
         self._pending_fees: set[str] = set()
         self._fees: dict[str, AppliedFee] = {}
+        self._fee_successors: dict[str, str] = {}
         self._fills: dict[str, AppliedFill] = {}
         self._settlements: dict[str, AppliedSettlement] = {}
         self._last_fact_at: datetime | None = None
@@ -329,7 +330,11 @@ class Account:
             if previous.fact != fact:
                 raise ValueError("fee identity was reused with different facts")
             return previous
-        if not set(fact.fill_ids).issubset(self._pending_fees):
+        prior = self._fees.get(fact.supersedes_fee_id or "")
+        delta = fact.delta_from(None if prior is None else prior.fact)
+        if fact.supersedes_fee_id in self._fee_successors:
+            raise ValueError("fee revision must replace the current charge, not fork history")
+        if fact.supersedes_fee_id is None and not set(fact.fill_ids).issubset(self._pending_fees):
             raise ValueError("fee must cover exclusively accepted fills awaiting confirmed fees")
         if (
             self._last_fact_at is not None
@@ -342,8 +347,8 @@ class Account:
         with localcontext() as context:
             context.prec = 192
             context.rounding = ROUND_HALF_EVEN
-            cash = self._cash - fact.amount
-            total_fees = self.total_fees + fact.amount
+            cash = self._cash - delta
+            total_fees = self.total_fees + delta
             if cash != self.initial_cash + self.realized_pnl - total_fees:
                 raise RuntimeError("fee ledger conservation failed")
             self._pending_fees.difference_update(fact.fill_ids)
@@ -351,6 +356,8 @@ class Account:
             self._cash, self.total_fees = cash, total_fees
             self._last_fact_at = fact.available_at
             self._fees[fact.fee_id] = applied
+            if fact.supersedes_fee_id is not None:
+                self._fee_successors[fact.supersedes_fee_id] = fact.fee_id
             return applied
 
     @contextmanager
@@ -389,7 +396,9 @@ class Account:
             while len(self._settlements) > settlement_count:
                 self._settlements.popitem()
             while len(self._fees) > fee_count:
-                self._fees.popitem()
+                _, fee = self._fees.popitem()
+                if fee.fact.supersedes_fee_id is not None:
+                    del self._fee_successors[fee.fact.supersedes_fee_id]
             raise
 
     def checkpoint(self) -> dict[str, object]:

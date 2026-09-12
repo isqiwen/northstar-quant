@@ -66,6 +66,7 @@ _fees = Table(
     "execution_fees",
     _metadata,
     Column("fee_id", String, primary_key=True),
+    Column("supersedes_fee_id", String, nullable=True, unique=True),
     Column("document", JSON, nullable=False),
 )
 _TERMINAL = {"FILLED", "CANCELED", "REJECTED"}
@@ -267,8 +268,10 @@ def _fee_exceeds_budget(connection: Connection, fact: FeeFact) -> bool:
         return fact.amount > budget
 
 
-def _apply_fee(row: dict[str, Any], fill_ids: tuple[str, ...], *, budget_exceeded: bool) -> None:
-    if not fill_ids or not set(fill_ids).issubset(row["pending_fees"]):
+def _apply_fee(
+    row: dict[str, Any], fill_ids: tuple[str, ...], *, budget_exceeded: bool, revision: bool = False
+) -> None:
+    if not fill_ids or (not revision and not set(fill_ids).issubset(row["pending_fees"])):
         raise ValueError("execution fee was already resolved or was never pending")
     row["pending_fees"] = {
         key: value for key, value in row["pending_fees"].items() if key not in fill_ids
@@ -574,12 +577,37 @@ class OrderJournal:
                 if previous["document"] != fact.to_dict():
                     raise ValueError("fee identity is bound to different input")
                 return tuple(_view(_get(connection, identity)) for identity in sorted(groups))
-            connection.execute(_fees.insert().values(fee_id=fact.fee_id, document=fact.to_dict()))
+            prior_document = connection.scalar(
+                select(_fees.c.document).where(_fees.c.fee_id == fact.supersedes_fee_id)
+            )
+            fact.delta_from(None if prior_document is None else FeeFact.from_dict(prior_document))
+            if (
+                fact.supersedes_fee_id is not None
+                and connection.scalar(
+                    select(_fees.c.fee_id).where(
+                        _fees.c.supersedes_fee_id == fact.supersedes_fee_id
+                    )
+                )
+                is not None
+            ):
+                raise ValueError("fee revision must replace the current charge, not fork history")
+            connection.execute(
+                _fees.insert().values(
+                    fee_id=fact.fee_id,
+                    supersedes_fee_id=fact.supersedes_fee_id,
+                    document=fact.to_dict(),
+                )
+            )
             exceeded = _fee_exceeds_budget(connection, fact)
             views = []
             for identity, fills in sorted(groups.items()):
                 row = _get(connection, identity)
-                _apply_fee(row, fills, budget_exceeded=exceeded)
+                _apply_fee(
+                    row,
+                    fills,
+                    budget_exceeded=exceeded,
+                    revision=fact.supersedes_fee_id is not None,
+                )
                 _record(
                     connection,
                     "fee:" + fact.fee_id + ":" + identity,
@@ -618,11 +646,7 @@ class OrderJournal:
                             func.sum(case((_orders.c.status.not_in(_TERMINAL), 1), else_=0)), 0
                         ).label("working_orders"),
                         func.coalesce(
-                            func.sum(
-                                case(
-                                    (func.json(_orders.c.pending_fees) != "{}", 1), else_=0
-                                )
-                            ),
+                            func.sum(case((func.json(_orders.c.pending_fees) != "{}", 1), else_=0)),
                             0,
                         ).label("orders_with_pending_fees"),
                         func.coalesce(
@@ -709,7 +733,10 @@ class OrderJournal:
                 raise ValueError("execution event has no owned order")
             for fee in connection.execute(select(_fees)).mappings().yield_per(100):
                 fee_fact = FeeFact.from_dict(fee["document"])
-                if fee["fee_id"] != fee_fact.fee_id:
+                if (
+                    fee["fee_id"] != fee_fact.fee_id
+                    or fee["supersedes_fee_id"] != fee_fact.supersedes_fee_id
+                ):
                     raise ValueError("execution fee identity is damaged")
                 for identity in _fee_orders(connection, fee_fact):
                     event = (
@@ -747,6 +774,7 @@ class OrderJournal:
                     conflicted=0,
                     status="UNKNOWN",
                 )
+                fee_heads: dict[str, FeeFact] = {}
                 started = returned = False
                 cancellations: set[str] = set()
                 cancellation_outcomes: set[str] = set()
@@ -832,10 +860,16 @@ class OrderJournal:
                             or event["event_id"] != "fee:" + fact_fee.fee_id + ":" + row["order_id"]
                         ):
                             raise ValueError("execution fee lacks its retained account charge")
+                        prior_fee = fee_heads.get(fact_fee.supersedes_fee_id or "")
+                        fact_fee.delta_from(prior_fee)
+                        if prior_fee is not None:
+                            del fee_heads[prior_fee.fee_id]
+                        fee_heads[fact_fee.fee_id] = fact_fee
                         _apply_fee(
                             row,
                             _fee_orders(connection, fact_fee).get(row["order_id"], ()),
                             budget_exceeded=_fee_exceeds_budget(connection, fact_fee),
+                            revision=fact_fee.supersedes_fee_id is not None,
                         )
                     else:
                         raise ValueError("unknown execution event")
