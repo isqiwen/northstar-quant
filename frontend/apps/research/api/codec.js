@@ -15849,6 +15849,7 @@ export const northstar = $root.northstar = (() => {
             /**
              * Properties of an ImportSpecification.
              * @typedef {Object} northstar.research.ImportSpecification.$Properties
+             * @property {string|null} [interval] ImportSpecification interval
              * @property {string|null} [session_kind] ImportSpecification session_kind
              * @property {string|null} [availability_basis] ImportSpecification availability_basis
              * @property {string|null} [availability_note] ImportSpecification availability_note
@@ -15865,6 +15866,7 @@ export const northstar = $root.northstar = (() => {
              * @property {string|null} [symbol] ImportSpecification symbol
              * @property {string|null} [timezone] ImportSpecification timezone
              * @property {string|null} [trading_day] ImportSpecification trading_day
+             * @property {"interval"} [_interval] ImportSpecification _interval
              * @property {"session_kind"} [_session_kind] ImportSpecification _session_kind
              * @property {"availability_basis"} [_availability_basis] ImportSpecification _availability_basis
              * @property {"availability_note"} [_availability_note] ImportSpecification _availability_note
@@ -15895,6 +15897,7 @@ export const northstar = $root.northstar = (() => {
             /**
              * Narrowed shape of an ImportSpecification.
              * @typedef {{
+             *   interval?: string|null;
              *   session_kind?: string|null;
              *   availability_basis?: string|null;
              *   availability_note?: string|null;
@@ -15913,6 +15916,8 @@ export const northstar = $root.northstar = (() => {
              *   trading_day?: string|null;
              *   $unknowns?: Array.<Uint8Array>;
              * } & (
+             *   ({ _interval?: undefined; interval?: null }|{ _interval?: "interval"; interval: string })
+             * ) & (
              *   ({ _session_kind?: undefined; session_kind?: null }|{ _session_kind?: "session_kind"; session_kind: string })
              * ) & (
              *   ({ _availability_basis?: undefined; availability_basis?: null }|{ _availability_basis?: "availability_basis"; availability_basis: string })
@@ -15961,6 +15966,14 @@ export const northstar = $root.northstar = (() => {
                         if (properties[keys[i]] != null && keys[i] !== "__proto__")
                             this[keys[i]] = properties[keys[i]];
             };
+
+            /**
+             * ImportSpecification interval.
+             * @member {string|null|undefined} interval
+             * @memberof northstar.research.ImportSpecification
+             * @instance
+             */
+            ImportSpecification.prototype.interval = null;
 
             /**
              * ImportSpecification session_kind.
@@ -16092,6 +16105,17 @@ export const northstar = $root.northstar = (() => {
 
             // OneOf field names bound to virtual getters and setters
             let $oneOfFields;
+
+            /**
+             * ImportSpecification _interval.
+             * @member {"interval"|undefined} _interval
+             * @memberof northstar.research.ImportSpecification
+             * @instance
+             */
+            $Object.defineProperty(ImportSpecification.prototype, "_interval", {
+                get: $util.oneOfGetter($oneOfFields = ["interval"]),
+                set: $util.oneOfSetter($oneOfFields)
+            });
 
             /**
              * ImportSpecification _session_kind.
@@ -16333,6 +16357,8 @@ export const northstar = $root.northstar = (() => {
                     writer.uint32(/* id 15, wireType 2 =*/122).string(message.trading_day);
                 if (message.session_kind != null && $Object.hasOwnProperty.call(message, "session_kind"))
                     writer.uint32(/* id 16, wireType 2 =*/130).string(message.session_kind);
+                if (message.interval != null && $Object.hasOwnProperty.call(message, "interval"))
+                    writer.uint32(/* id 17, wireType 2 =*/138).string(message.interval);
                 if (message.$unknowns != null && $Object.hasOwnProperty.call(message, "$unknowns"))
                     for (let i = 0; i < message.$unknowns.length; ++i)
                         writer.raw(message.$unknowns[i]);
@@ -16377,6 +16403,13 @@ export const northstar = $root.northstar = (() => {
                     }
                     let wireType = tag & 7;
                     switch (tag >>>= 3) {
+                    case 17: {
+                            if (wireType !== 2)
+                                break;
+                            message.interval = reader.stringVerify();
+                            message._interval = "interval";
+                            continue;
+                        }
                     case 16: {
                             if (wireType !== 2)
                                 break;
@@ -16522,6 +16555,11 @@ export const northstar = $root.northstar = (() => {
                 if (_depth > $util.recursionLimit)
                     return "max depth exceeded";
                 let properties = {};
+                if (message.interval != null && $Object.hasOwnProperty.call(message, "interval")) {
+                    properties._interval = 1;
+                    if (!$util.isString(message.interval))
+                        return "interval: string expected";
+                }
                 if (message.session_kind != null && $Object.hasOwnProperty.call(message, "session_kind")) {
                     properties._session_kind = 1;
                     if (!$util.isString(message.session_kind))
@@ -16623,6 +16661,8 @@ export const northstar = $root.northstar = (() => {
                 if (_depth > $util.recursionLimit)
                     throw $Error("max depth exceeded");
                 let message = new $root.northstar.research.ImportSpecification();
+                if (object.interval != null)
+                    message.interval = $String(object.interval);
                 if (object.session_kind != null)
                     message.session_kind = $String(object.session_kind);
                 if (object.availability_basis != null)
@@ -16754,6 +16794,11 @@ export const northstar = $root.northstar = (() => {
                     object.session_kind = message.session_kind;
                     if (options.oneofs)
                         object._session_kind = "session_kind";
+                }
+                if (message.interval != null && $Object.hasOwnProperty.call(message, "interval")) {
+                    object.interval = message.interval;
+                    if (options.oneofs)
+                        object._interval = "interval";
                 }
                 return object;
             };

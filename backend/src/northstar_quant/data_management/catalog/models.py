@@ -294,7 +294,9 @@ class DataSeries(CreatedAtMixin, Base):
             name="series_contract_calendar_kind_interval_adjustment",
         ),
         sa.CheckConstraint("kind = 'OHLCV'", name="series_kind"),
-        sa.CheckConstraint("interval IN ('1m', '1d')", name="series_interval"),
+        sa.CheckConstraint(
+            "interval IN ('1m', '5m', '15m', '30m', '60m', '1d')", name="series_interval"
+        ),
         sa.CheckConstraint("adjustment = 'RAW'", name="series_adjustment"),
         sa.CheckConstraint(
             "timestamp_convention = 'BAR_START'", name="series_timestamp_convention"
@@ -1054,7 +1056,7 @@ class DatasetSnapshotPartition(CreatedAtMixin, Base):
             name="timezone_match",
         ),
         sa.CheckConstraint("series_kind = 'OHLCV'", name="series_kind"),
-        sa.CheckConstraint("interval IN ('1m', '1d')", name="interval"),
+        sa.CheckConstraint("interval IN ('1m', '5m', '15m', '30m', '60m', '1d')", name="interval"),
         sa.CheckConstraint("adjustment = 'RAW'", name="adjustment"),
         sa.CheckConstraint("timestamp_convention = 'BAR_START'", name="timestamp_convention"),
         sa.CheckConstraint("price_scale BETWEEN 0 AND 12", name="price_scale"),

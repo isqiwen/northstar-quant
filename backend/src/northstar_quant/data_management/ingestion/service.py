@@ -380,19 +380,19 @@ class OhlcvImportService:
         sessions: Sequence[_SessionWindow],
         source_timezone: ZoneInfo,
     ) -> datetime:
-        if series.interval == "1m":
+        if series.interval in {"1m", "5m", "15m", "30m", "60m"}:
             if raw.event_time is None:
                 raise _row_error(
                     "MISSING_EVENT_TIME",
                     raw,
-                    "event_time is required for a one-minute BAR_START series",
+                    "event_time is required for a fixed-interval BAR_START series",
                 )
             _validate_source_timezone(raw.event_time, source_timezone, raw, "event_time")
             if raw.event_time.second != 0 or raw.event_time.microsecond != 0:
                 raise _row_error(
                     "MINUTE_BOUNDARY_REQUIRED",
                     raw,
-                    "one-minute event_time must fall exactly on a minute boundary",
+                    "minute event_time must fall exactly on a minute boundary",
                 )
             matching = _containing_session(raw.event_time, sessions)
             if matching is None or matching.trading_day != raw.trading_day:
@@ -401,11 +401,11 @@ class OhlcvImportService:
                     raw,
                     "event_time does not map to the declared trading_day/session",
                 )
-            if raw.event_time + timedelta(minutes=1) > matching.closes_at:
+            if raw.event_time + timedelta(minutes=int(series.interval[:-1])) > matching.closes_at:
                 raise _row_error(
                     "BAR_CROSSES_SESSION_CLOSE",
                     raw,
-                    "one-minute bar crosses the end of its materialized session",
+                    "bar crosses the end of its materialized session",
                 )
             return raw.event_time
 
@@ -1156,8 +1156,8 @@ def _validate_source_timezone(
 def _bar_completion_time(
     interval: str, event_time: datetime, day_sessions: Sequence[_SessionWindow]
 ) -> datetime:
-    if interval == "1m":
-        return event_time + timedelta(minutes=1)
+    if interval in {"1m", "5m", "15m", "30m", "60m"}:
+        return event_time + timedelta(minutes=int(interval[:-1]))
     if interval == "1d":
         return max(session.closes_at for session in day_sessions)
     raise ValueError(f"unsupported interval: {interval}")

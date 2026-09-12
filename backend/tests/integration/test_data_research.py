@@ -33,6 +33,7 @@ def test_import_research_and_reopen_preserve_complete_result(
         )
         lines.append(f"{at},{available},bar-{index},{price},{price},{price},{price},100")
     specification = {
+        "interval": "1m",
         "exchange": "SHFE",
         "symbol": "RB2605",
         "product": "RB",

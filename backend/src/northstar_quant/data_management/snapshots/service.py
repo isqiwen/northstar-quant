@@ -171,7 +171,7 @@ def _freeze_snapshot_partition_metadata(series: DataSeries) -> SnapshotPartition
         )
     if (
         series.kind != "OHLCV"
-        or series.interval not in {"1m", "1d"}
+        or series.interval not in {"1m", "5m", "15m", "30m", "60m", "1d"}
         or series.adjustment != "RAW"
         or series.timestamp_convention != "BAR_START"
     ):
@@ -402,7 +402,7 @@ class DatasetSnapshotPublicationService:
                 "SNAPSHOT_SERIES_NOT_FOUND",
                 "the requested data series does not exist",
             )
-        if series.interval not in {"1d", "1m"}:
+        if series.interval not in {"1m", "5m", "15m", "30m", "60m", "1d"}:
             raise DatasetSnapshotPublicationError(
                 "SNAPSHOT_SERIES_INTERVAL_UNSUPPORTED",
                 "the requested data series does not use a supported canonical interval",
@@ -1344,7 +1344,7 @@ def _assert_snapshot_partition_metadata(
             for value, maximum in code_values
         )
         or metadata.series_kind != "OHLCV"
-        or metadata.interval not in {"1m", "1d"}
+        or metadata.interval not in {"1m", "5m", "15m", "30m", "60m", "1d"}
         or metadata.adjustment != "RAW"
         or metadata.timestamp_convention != "BAR_START"
         or not isinstance(metadata.calendar_revision, int)

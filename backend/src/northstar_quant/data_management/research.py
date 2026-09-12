@@ -2,7 +2,7 @@
 
 Callers supply market/session facts once. This Module owns catalog identity,
 source receipts, publication and verified immutable reads; no ORM row crosses
-its Interface. The current input is one complete one-minute DAY or NIGHT session
+its Interface. The current input is one complete fixed-interval DAY or NIGHT session
 with an explicitly declared trading day; calendar holidays are not inferred.
 """
 
@@ -15,7 +15,7 @@ import json
 import re
 from collections.abc import Callable, Mapping
 from dataclasses import asdict, dataclass
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -248,7 +248,7 @@ class DatasetDetails:
                 "minutes": [item.to_dict() for item in self.minute_quality],
             },
             "semantics": {
-                "interval_seconds": 60,
+                "interval_seconds": int(spec.duration.total_seconds()),
                 "timestamp_convention": self.timestamp_convention,
                 "adjustment": self.adjustment,
                 "timezone": spec.timezone,
@@ -618,7 +618,7 @@ def _catalog(engine: Engine, spec: ImportSpec) -> UUID:
             select(DataSeries).where(
                 DataSeries.contract_id == contract.id,
                 DataSeries.calendar_id == calendar.id,
-                DataSeries.interval == "1m",
+                DataSeries.interval == spec.interval,
                 DataSeries.kind == "OHLCV",
                 DataSeries.adjustment == "RAW",
             )
@@ -629,7 +629,7 @@ def _catalog(engine: Engine, spec: ImportSpec) -> UUID:
                 session,
                 contract_id=contract.id,
                 calendar_id=calendar.id,
-                interval="1m",
+                interval=spec.interval,
                 price_scale=scale,
                 quantity_scale=0,
                 volume_unit="LOT",
@@ -707,11 +707,11 @@ class _ResearchCsv:
                 available = _utc(row["available_at"])
                 if (
                     self.spec.availability_basis == "FINAL_REVISED"
-                    and available != event + timedelta(minutes=1)
+                    and available != event + self.spec.duration
                 ):
                     raise ValueError(
                         f"CSV row {index} FINAL_REVISED available_at must equal event_time "
-                        "+ 1 minute (the simulated information-clock assumption)"
+                        "+ its interval (the simulated information-clock assumption)"
                     )
                 trading_day = resolve_trading_day(event, (self.spec.window,))
                 if trading_day is None:
@@ -727,7 +727,7 @@ class _ResearchCsv:
                     RawOhlcvRow(
                         source_row_number=index,
                         symbol=self.spec.symbol,
-                        interval="1m",
+                        interval=self.spec.interval,
                         event_time=event.astimezone(ZoneInfo(self.spec.timezone)),
                         trading_day=trading_day,
                         available_at=available.astimezone(ZoneInfo(self.spec.timezone)),
@@ -749,9 +749,9 @@ class _ResearchCsv:
             if not rows:
                 raise ValueError("CSV contains no observations")
             expected = tuple(
-                self.spec.session_open + timedelta(minutes=offset)
+                self.spec.session_open + self.spec.duration * offset
                 for offset in range(
-                    int((self.spec.session_close - self.spec.session_open).total_seconds()) // 60
+                    int((self.spec.session_close - self.spec.session_open) / self.spec.duration)
                 )
             )
             actual = sorted(row.event_time for row in rows if row.event_time is not None)
@@ -759,7 +759,7 @@ class _ResearchCsv:
                 missing = len(set(expected).difference(actual))
                 repeated = len(actual) - len(set(actual))
                 raise ValueError(
-                    "CSV must contain exactly one bar for each declared session minute; "
+                    "CSV must contain exactly one bar for each declared session interval; "
                     f"{missing} missing bars and {repeated} repeated event times"
                 )
         except (UnicodeError, ValueError, csv.Error) as error:

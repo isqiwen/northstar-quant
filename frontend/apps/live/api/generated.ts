@@ -146,6 +146,7 @@ export type HttpError = {
   url?: string | null;
 };
 export type ImportSpecification = {
+  interval: "1m" | "5m" | "15m" | "30m" | "60m";
   session_kind: "DAY" | "NIGHT";
   availability_basis: string;
   availability_note: string;

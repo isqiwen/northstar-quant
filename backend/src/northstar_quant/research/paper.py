@@ -178,7 +178,7 @@ class PaperStore:
         if dataset.details is None or not 1 <= len(dataset.bars) <= 100000:
             raise ValueError("Paper requires a verified fixed snapshot of at most 100000 bars")
         bars = _ordered_bars(dataset)
-        if dataset.interval_seconds != 60:
+        if dataset.interval_seconds not in {60, 300, 900, 1800, 3600}:
             raise ValueError("Paper requires fixed minute bars")
         implementation = code_revision()
         with write_transaction(self._engine) as connection:

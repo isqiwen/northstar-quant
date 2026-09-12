@@ -367,6 +367,13 @@
     },
     "northstar.data_hub.ImportSpecification": {
       "fields": {
+        "interval": {
+          "id": 17,
+          "presence": true,
+          "type": "string",
+          "required": true,
+          "nullable": false
+        },
         "session_kind": {
           "id": 16,
           "presence": true,

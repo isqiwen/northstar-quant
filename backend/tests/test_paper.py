@@ -5,7 +5,7 @@ from __future__ import annotations
 import tomllib
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
-from datetime import timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -22,14 +22,33 @@ from northstar_quant.research.configurations import ConfigurationStore
 from northstar_quant.research.paper import PaperStore
 
 
-def _study(engine: Engine, tmp_path: Path) -> tuple[DataLibrary, ResearchDataset, ResearchConfig]:
+def _study(
+    engine: Engine, tmp_path: Path, minutes: int = 1
+) -> tuple[DataLibrary, ResearchDataset, ResearchConfig]:
     path = Path(__file__).resolve().parent / "data/intraday.toml"
     study = tomllib.loads(path.read_text())
     source = dict(study["source"])
     csv = path.parent / source.pop("file")
+    content = csv.read_text()
+    opened = datetime.fromisoformat(source["session_open"])
+    closed = datetime.fromisoformat(source["session_close"])
+    source["interval"] = f"{minutes}m"
+    source["session_close"] = (
+        (opened + (closed - opened) * minutes).isoformat().replace("+00:00", "Z")
+    )
+    lines = content.splitlines()
+    for index in range(1, len(lines)):
+        fields = lines[index].split(",")
+        for column in (0, 1):
+            stamp = datetime.fromisoformat(fields[column])
+            fields[column] = (
+                (opened + (stamp - opened) * minutes).isoformat().replace("+00:00", "Z")
+            )
+        lines[index] = ",".join(fields)
+    content = "\n".join(lines) + "\n"
     library = DataLibrary(engine, SourceFiles(tmp_path / "sources"))
     attempt = library.receive(
-        csv.read_bytes(),
+        content.encode(),
         filename=csv.name,
         source_name=source["source_name"],
         spec=source,
@@ -44,11 +63,12 @@ def _study(engine: Engine, tmp_path: Path) -> tuple[DataLibrary, ResearchDataset
     )
 
 
+@pytest.mark.parametrize("minutes", [1, 15])
 def test_paper_restarts_with_fixed_configuration_and_matches_batch_account(
-    postgres_engine: Engine, clean_database: None, tmp_path: Path
+    postgres_engine: Engine, clean_database: None, tmp_path: Path, minutes: int
 ) -> None:
     del clean_database
-    library, dataset, config = _study(postgres_engine, tmp_path)
+    library, dataset, config = _study(postgres_engine, tmp_path, minutes)
     batch = run_research(dataset, config).to_dict()
     store = PaperStore(postgres_engine, library)
     saved = ConfigurationStore(postgres_engine).save_configuration("日盘基线", config)

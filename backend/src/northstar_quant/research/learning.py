@@ -89,8 +89,8 @@ def training_rows(
         raise ValueError(
             "training requires 10 labelled observations after warmup, at most 10000 bars"
         )
-    if dataset.interval_seconds != 60:
-        raise ValueError("current learned factors require one-minute fixed inputs")
+    if dataset.interval_seconds not in {60, 300, 900, 1800, 3600}:
+        raise ValueError("current learned factors require fixed 1/5/15/30/60-minute inputs")
     for index, bar in enumerate(dataset.bars):
         bar.validate(
             interval_seconds=dataset.interval_seconds, price_tick=dataset.market.price_tick

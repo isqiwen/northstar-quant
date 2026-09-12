@@ -262,8 +262,8 @@ class CatalogCommands:
         volume_unit: str = "LOT",
         turnover_currency: str | None = None,
     ) -> DataSeries:
-        if interval not in {"1m", "1d"}:
-            raise CatalogInvariantError("interval must be 1m or 1d")
+        if interval not in {"1m", "5m", "15m", "30m", "60m", "1d"}:
+            raise CatalogInvariantError("interval must be 1m, 5m, 15m, 30m, 60m or 1d")
         if not 0 <= price_scale <= 12 or not 0 <= quantity_scale <= 12:
             raise CatalogInvariantError("series scales must be between 0 and 12")
 

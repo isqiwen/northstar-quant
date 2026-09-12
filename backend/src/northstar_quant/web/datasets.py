@@ -12,6 +12,7 @@ from northstar_quant.web.requests import ApiModel
 
 
 class ImportSpecification(ApiModel):
+    interval: Literal["1m", "5m", "15m", "30m", "60m"]
     session_kind: Literal["DAY", "NIGHT"]
     exchange: str
     symbol: str

@@ -371,3 +371,56 @@ def test_night_publication_preserves_declared_day_across_midnight_and_weekend(
         ImportSpec.from_mapping(raw | {"session_kind": "DAY"})
     with pytest.raises(ValueError, match="NIGHT session"):
         ImportSpec.from_mapping(raw | {"trading_day": "2026-01-06"})
+
+
+@pytest.mark.parametrize("minutes", [1, 5, 15, 30, 60])
+def test_native_interval_publication_preserves_completion_and_rejects_early_availability(
+    postgres_engine: Engine,
+    clean_database: None,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    minutes: int,
+) -> None:
+    del clean_database
+    monkeypatch.setattr("northstar_quant.data_management.library.code_revision", lambda: "a" * 40)
+    monkeypatch.setattr(
+        "northstar_quant.data_management.processing.code_revision", lambda: "a" * 40
+    )
+    library = DataLibrary(postgres_engine, SourceFiles(tmp_path / "archive"))
+    spec = replace(
+        _spec(),
+        interval=f"{minutes}m",
+        session_close=_spec().session_open + timedelta(minutes=minutes * 2),
+    )
+    header = "event_time,available_at,source_record_id,open,high,low,close,volume\n"
+    rows = []
+    for index in range(2):
+        start = spec.session_open + index * spec.duration
+        event = start.isoformat().replace("+00:00", "Z")
+        available = (start + spec.duration).isoformat().replace("+00:00", "Z")
+        rows.append(f"{event},{available},r{index},100,103,99,101,10\n")
+    path = tmp_path / "native.csv"
+    path.write_text(header + "".join(rows))
+    dataset = _receive(library, path, spec)
+    from northstar_quant.data_management.publications import PublishedDatasets
+
+    library.publications.publish(dataset)
+    assert PublishedDatasets(library.publications.root).load_dataset(dataset.snapshot_id) == dataset
+    assert dataset.interval_seconds == minutes * 60
+    assert len(dataset.bars) == 2
+    assert all(bar.completed_at - bar.event_time == spec.duration for bar in dataset.bars)
+    assert library.load_dataset(dataset.snapshot_id) == dataset
+    assert dataset.details is not None
+    assert dataset.details.import_specs[0].interval == spec.interval
+    path.write_text(
+        (header + "".join(rows)).replace(
+            (spec.session_open + spec.duration).isoformat().replace("+00:00", "Z"),
+            (spec.session_open + spec.duration - timedelta(seconds=1))
+            .isoformat()
+            .replace("+00:00", "Z"),
+            1,
+        )
+    )
+    with pytest.raises(ValueError):
+        _receive(library, path, spec)
+    assert library.load_dataset(dataset.snapshot_id) == dataset

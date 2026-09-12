@@ -366,7 +366,7 @@ def test_minute_quality_rejects_wrong_series_and_reused_key_and_hard_bounds(
     catalog = seed_synthetic_catalog(db_session)
     service = MinuteQualityEvaluationService(db_session)
 
-    with pytest.raises(MinuteQualityEvaluationError, match="one-minute BAR_START"):
+    with pytest.raises(MinuteQualityEvaluationError, match="fixed-interval minute BAR_START"):
         service.evaluate(
             replace(
                 _quality_command(catalog),
