@@ -243,11 +243,10 @@ def workspace_hash():
 
 
 @pytest.fixture(autouse=True)
-def workspace_password(tmp_path, monkeypatch, workspace_hash):
+def workspace_password(tmp_path_factory, monkeypatch, workspace_hash):
     import json
 
-    directory = tmp_path / "workspace"
-    directory.mkdir()
+    directory = tmp_path_factory.mktemp("workspace-identity")
     monkeypatch.setenv("NORTHSTAR_WORKSPACE_DIR", str(directory))
     for app in ("data_hub", "research", "live"):
         (directory / f"northstar_{app}.json").write_text(
