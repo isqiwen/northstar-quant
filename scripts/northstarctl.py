@@ -29,11 +29,10 @@ def configuration(path: Path, app: str) -> dict:
     if not isinstance(host, str) or not re.fullmatch(r"[a-zA-Z0-9_][a-zA-Z0-9_.:-]*", host):
         raise ValueError(f"{app}.host 必须填写有效的 SSH 主机地址，不带协议前缀")
     if set(item) - {"host"}:
-        raise ValueError("主机配置只接受 host；SSH 固定使用 northstar 和 22 端口")
+        raise ValueError("主机配置只接受 host；SSH 账号固定为 northstar，端口使用本机 SSH 配置")
     return {
         "host": host,
         "user": "northstar",
-        "port": 22,
         "directory": f"/opt/northstar/apps/{app}",
         "env_file": f"/opt/northstar/config/{app}.env",
     }
@@ -56,8 +55,6 @@ def ssh(config: dict, program: str, argument: str) -> list[str]:
         "ServerAliveInterval=15",
         "-o",
         "ServerAliveCountMax=3",
-        "-p",
-        str(config["port"]),
         "-l",
         "northstar",
         config["host"],
@@ -134,7 +131,7 @@ def main() -> int:
             "instance": args.instance,
         }
         print(
-            f"{args.action} {args.app} → {config['user']}@{config['host']}:{config['port']} "
+            f"{args.action} {args.app} → {config['user']}@{config['host']} "
             f"{config['directory']}" + (f" @{revision}" if revision else ""),
             flush=True,
         )

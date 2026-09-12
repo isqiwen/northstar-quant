@@ -246,3 +246,11 @@ authorization/execution/recovery. Portfolio/roll/ML and real-money admission are
 still later stages. Track implementation, checks and remaining external
 acceptance in docs/ROADMAP.md. Do not claim external broker or host acceptance
 from synthetic tests; missing external evidence does not block independent code.
+
+
+### Publication update (2026-09-13)
+
+The user now explicitly authorizes committing and pushing the current refactoring
+batch and synchronizing all Issues/Project items before the remaining refactoring
+is complete. This supersedes the batch push hold above. Publish the current branch;
+do not imply merge, complete refactoring, passed CI or external acceptance.

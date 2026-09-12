@@ -1,9 +1,6 @@
-# 应用主机由外部准备；部署固定使用 northstar SSH 密钥登录和 22 端口。
-# 外部已准备 NFSv4 /quant 导出；项目不登录或管理此服务器。
 [nfs]
 host = "nas.local"
 
-# database 固定共用此主机，仍作为独立容器部署。
 [data_hub]
 host = "hub.local"
 

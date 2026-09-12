@@ -52,7 +52,7 @@ Research 的 SQLite、临时目录、研究产物和备份仍在本机；Live �
 ## 主机与凭据
 
 仓库维护 `deploy/hosts.toml` 和各目录的 `.env`。不配置 `[database]`，数据库固定使用 `[data_hub]` 的 host。
-所有主机节只接受 `host`，不填写用户名、端口或路径。SSH 固定使用 northstar 和 22 端口。
+所有主机节只接受 `host`，不填写用户名、端口或路径。SSH 固定使用 northstar，端口沿用本机 SSH 配置。
 `northstarctl deploy` 自动将本次 Git 提交中对应应用的 `.env` 上传到
 `/opt/northstar/config/{database,data-hub,research,live}.env`，归 northstar 用户所有，权限 600。
 首次部署无需手工复制配置；未指定 `--env-file` 时已有运行配置保留原内容。
@@ -140,7 +140,7 @@ Data Hub 使用同一份绑定；Research 首次部署读取市场标记，初�
 
 远程入口本机需要 Python 3.11+/Git/OpenSSH。目标 Linux amd64 主机由管理员预先准备：
 
-- SSH 22 和 northstar 账号，已安装调用者公钥；本机已核实并保存主机指纹。
+- SSH 和 northstar 账号，已安装调用者公钥；本机已核实并保存主机指纹。
 - northstar 可免密码 sudo（准备应用目录和挂载），可访问已启动的 Docker。
 - Python 3.11+、Git、uv、Docker Engine、Compose、Buildx。
 - Data Hub/Research 使用共享时预装 NFS 客户端（Ubuntu/Debian 为 `nfs-common`）。

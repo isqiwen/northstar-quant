@@ -640,10 +640,20 @@ def test_database_uses_data_hub_ssh_identity_and_own_configuration(deployment):
     read = runpy.run_path(str(repo / "scripts/northstarctl.py"))["configuration"]
     database = read(config, "database")
     hub = read(config, "data-hub")
-    assert (database["host"], database["user"], database["port"]) == (
+    assert (database["host"], database["user"]) == (
         "hub.invalid",
         "northstar",
-        22,
     )
     assert database["directory"] != hub["directory"]
     assert database["env_file"] != hub["env_file"]
+
+
+def test_ssh_uses_local_connection_settings_with_fixed_deployment_account(deployment):
+    import runpy
+
+    repo, config, _ = deployment
+    module = runpy.run_path(str(repo / "scripts/northstarctl.py"))
+    args = module["ssh"](module["configuration"](config, "data-hub"), "pass", "{}")
+    assert "-p" not in args
+    assert args[args.index("-l") + 1] == "northstar"
+    assert "example.invalid" in args
