@@ -20,7 +20,11 @@ from sqlalchemy.sql.selectable import TextualSelect
 
 from northstar_quant import code_revision
 from northstar_quant.accounting.ledger import _hash, _time
-from northstar_quant.broker.events import BrokerEvent
+from northstar_quant.broker.events import (
+    ACCOUNT_ACTIVITY_CALLBACKS,
+    TRANSFER_CALLBACKS,
+    BrokerEvent,
+)
 from northstar_quant.broker.stream_records import read_stream_source
 from northstar_quant.persistence.sql import UTCDateTime, write_transaction
 
@@ -116,7 +120,7 @@ def _initial(binding: dict[str, Any]) -> dict[str, Any]:
 
 
 def _material(event: BrokerEvent, binding: dict[str, Any]) -> bool:
-    if event.callback in {"OnRtnTrade", "OnRtnOrder"}:
+    if event.callback in ACCOUNT_ACTIVITY_CALLBACKS:
         return True
     if event.channel != "TD":
         return False
@@ -163,6 +167,8 @@ def _apply(checkpoint: dict[str, Any], binding: dict[str, Any], item: dict[str, 
         checkpoint.update(
             td_confirmed=False, status="UNKNOWN", reason="STREAM_ACCOUNT_CONNECTION_ERROR"
         )
+    if event.callback in TRANSFER_CALLBACKS:
+        checkpoint.update(status="UNKNOWN", reason="STREAM_CASHFLOW_RECONCILIATION_REQUIRED")
     if checkpoint["last_received_at"] is not None and _time(event.received_at) < _time(
         checkpoint["last_received_at"]
     ):

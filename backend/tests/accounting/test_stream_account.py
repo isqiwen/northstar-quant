@@ -356,3 +356,54 @@ def test_progress_read_during_new_receipt_and_booking_never_reports_false_damage
         assert ledger.get(UUID(current["entry_id"]))["fill_count"] == 1
     finally:
         streams.close()
+
+
+@pytest.mark.parametrize(
+    "callback", ["OnRtnFromBankToFutureByBank", "OnRtnRepealFromFutureToBankByFuture"]
+)
+def test_transfer_receipt_blocks_stale_account_and_survives_recovery(
+    live_engine: Engine,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    callback: str,
+) -> None:
+    library, source, configuration, calls = prepare(live_engine, tmp_path, monkeypatch)
+    ledger = BrokerLedger(live_engine)
+    streams, stream_id = LiveStreams(live_engine, library), uuid4()
+    try:
+        Clock.at = datetime.now(UTC)
+        start(streams, source, configuration, stream_id)
+        assert calls["ready"].wait(3)
+        login(calls)
+        accept(
+            calls,
+            2,
+            callback,
+            {
+                "BrokerID": "9999",
+                "AccountID": "123456",
+                "TradingDay": "20260907",
+                "CurrencyID": "CNY",
+                "TradeAmount": "2500.5",
+                "PlateSerial": 27,
+                "TransferStatus": "0",
+                "ErrorID": 0,
+            },
+        )
+        progress = ledger.stream_progress(stream_id)
+        assert progress["status"] == "UNKNOWN" and progress["through_sequence"] == 2
+        entry = ledger.get(UUID(progress["entry_id"]))
+        assert entry["fill_count"] == 0
+        assert any(
+            item["code"] == "STREAM_CASHFLOW_RECONCILIATION_REQUIRED" for item in entry["problems"]
+        )
+        with pytest.raises(ValueError, match="caught-up, known"):
+            streams.control(stream_id, "RESUME", request_id=uuid4())
+        # A later confirmed execution is still retained, but does not erase the cashflow gap.
+        accept(calls, 3, "OnRtnTrade", trade())
+        assert ledger.stream_progress(stream_id)["status"] == "UNKNOWN"
+        recovered = BrokerLedger(live_engine)
+        assert recovered.verify_all()["position_entries_count"] == 2
+        assert recovered.stream_progress(stream_id) == ledger.stream_progress(stream_id)
+    finally:
+        streams.close()

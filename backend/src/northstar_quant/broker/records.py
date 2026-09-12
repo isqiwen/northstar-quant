@@ -31,6 +31,8 @@ from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
 from northstar_quant import code_revision
 from northstar_quant.broker.events import (
+    ACCOUNT_ACTIVITY_CALLBACKS,
+    TRANSFER_CALLBACKS,
     QueryCapture,
     capture_hash,
     parse_time,
@@ -555,11 +557,14 @@ def _result(binding: dict[str, object], capture: QueryCapture | None) -> dict[st
                         item["status"] = "COMPLETE"
                 elif event.is_last is None:
                     reasons.add("QUERY_COMPLETION_FLAG_UNKNOWN")
-            if event.callback in {"OnRtnOrder", "OnRtnTrade"}:
+            if event.callback in ACCOUNT_ACTIVITY_CALLBACKS:
                 unknown.add("ACCOUNT_EVENTS_ARRIVED_DURING_QUERY")
                 if data is not None and (
                     data.get("BrokerID") != profile["broker_id"]
-                    or data.get("InvestorID") != account_id
+                    or data.get(
+                        "AccountID" if event.callback in TRANSFER_CALLBACKS else "InvestorID"
+                    )
+                    != account_id
                 ):
                     reasons.add("ACCOUNT_CALLBACK_IDENTITY_MISMATCH")
                     fatal = True

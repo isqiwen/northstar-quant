@@ -20,7 +20,7 @@ from datetime import UTC, datetime
 from multiprocessing.connection import Connection
 from typing import Any, cast
 
-from northstar_quant.broker.events import CALLBACK_FIELDS, BrokerEvent
+from northstar_quant.broker.events import CALLBACK_FIELDS, TRANSFER_CALLBACKS, BrokerEvent
 from northstar_quant.broker.settings import Credentials, SimnowProfile
 
 _MAX_EVENTS = 10_000
@@ -287,7 +287,7 @@ def _native_class(base: Any, receiver: _Receiver, channel: str) -> Any:
 
         for callback in ("OnErrRtnOrderInsert", "OnErrRtnOrderAction"):
             methods[callback] = reject(callback)
-        for callback in ("OnRtnOrder", "OnRtnTrade"):
+        for callback in ("OnRtnOrder", "OnRtnTrade", *sorted(TRANSFER_CALLBACKS)):
             methods[callback] = _notification(receiver, channel, callback)
     else:
         methods["OnRspSubMarketData"] = _response(receiver, channel, "OnRspSubMarketData")

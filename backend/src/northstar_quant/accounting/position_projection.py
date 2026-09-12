@@ -16,6 +16,7 @@ from northstar_quant.broker.account_reports import (
     query_trades,
     stream_trades,
 )
+from northstar_quant.broker.events import ACCOUNT_ACTIVITY_CALLBACKS
 from northstar_quant.data_management.broker import BrokerContract
 
 
@@ -231,9 +232,7 @@ def derive_position_check(
             problems.append({"code": "TRADE_IDENTITY_CONFLICT", "fill_id": fill["fill_id"]})
     if set(known) - set(observed):
         problems.append({"code": "RECORDED_TRADES_MISSING_FROM_LATER_QUERY"})
-    if any(
-        event["callback"] in {"OnRtnTrade", "OnRtnOrder"} for event in batch["capture"]["events"]
-    ):
+    if any(event["callback"] in ACCOUNT_ACTIVITY_CALLBACKS for event in batch["capture"]["events"]):
         problems.append({"code": "ACCOUNT_ACTIVITY_DURING_QUERY"})
     positions, position_problems = _compare_positions(entry, batch)
     problems.extend(position_problems)

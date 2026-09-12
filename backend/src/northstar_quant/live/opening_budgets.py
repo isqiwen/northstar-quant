@@ -33,6 +33,7 @@ from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from northstar_quant import code_revision
 from northstar_quant.accounting.amounts import decimal_text
 from northstar_quant.accounting.ledger import BrokerLedger
+from northstar_quant.broker.events import ACCOUNT_ACTIVITY_CALLBACKS
 from northstar_quant.broker.market import ctp_quote_time
 from northstar_quant.broker.records import BrokerRecords
 from northstar_quant.data_management.broker import verify_broker_contract
@@ -178,9 +179,7 @@ def _calculate(
         )
     ):
         raise ValueError("FIRST_OPENING_REQUIRES_FLAT_ACCOUNT_WITHOUT_ACTIVITY")
-    if any(
-        event["callback"] in {"OnRtnTrade", "OnRtnOrder"} for event in batch["capture"]["events"]
-    ):
+    if any(event["callback"] in ACCOUNT_ACTIVITY_CALLBACKS for event in batch["capture"]["events"]):
         raise ValueError("ACCOUNT_ACTIVITY_DURING_QUERY")
     funds = _one(batch, "account")
     if (

@@ -39,10 +39,40 @@ _ACTION_FIELDS = tuple(
     "OrderSysID ActionFlag OrderActionRef RequestID".split()
 )
 
+# Transfer callbacks carry sensitive bank/customer fields. Retain only the
+# account identity, monetary evidence and transfer/reversal linkage below.
+TRANSFER_CALLBACKS = frozenset(
+    {
+        "OnRtnFromBankToFutureByBank",
+        "OnRtnFromFutureToBankByBank",
+        "OnRtnFromBankToFutureByFuture",
+        "OnRtnFromFutureToBankByFuture",
+        "OnRtnRepealFromBankToFutureByBank",
+        "OnRtnRepealFromFutureToBankByBank",
+        "OnRtnRepealFromBankToFutureByFutureManual",
+        "OnRtnRepealFromFutureToBankByFutureManual",
+        "OnRtnRepealFromBankToFutureByFuture",
+        "OnRtnRepealFromFutureToBankByFuture",
+    }
+)
+ACCOUNT_ACTIVITY_CALLBACKS = TRANSFER_CALLBACKS | {"OnRtnOrder", "OnRtnTrade"}
+_TRANSFER_FIELDS = tuple(
+    "TradeCode BrokerID AccountID UserID TradingDay TradeDate TradeTime PlateSerial "
+    "FutureSerial SessionID CurrencyID TradeAmount CustFee BrokerFee RequestID "
+    "TransferStatus ErrorID".split()
+)
+_REPEAL_FIELDS = tuple(
+    "RepealedTimes BankRepealFlag BrokerRepealFlag PlateRepealSerial FutureRepealSerial".split()
+)
+
 # These are the exact CTP fields this read-only application retains. Native code
 # copies these named attributes immediately; pointers, credentials, unrestricted
 # error strings and machine-identification fields never cross the Interface.
 CALLBACK_FIELDS: dict[str, tuple[str, ...]] = {
+    **{
+        name: _TRANSFER_FIELDS + (_REPEAL_FIELDS if "Repeal" in name else ())
+        for name in TRANSFER_CALLBACKS
+    },
     "CaptureStarted": (
         "profile_name",
         "td_front",
