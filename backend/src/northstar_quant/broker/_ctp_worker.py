@@ -21,6 +21,7 @@ from multiprocessing.connection import Connection
 from typing import Any, cast
 
 from northstar_quant.broker.events import CALLBACK_FIELDS, TRANSFER_CALLBACKS, BrokerEvent
+from northstar_quant.broker.query_projection import QUERY_TYPES
 from northstar_quant.broker.settings import Credentials, SimnowProfile
 
 _MAX_EVENTS = 10_000
@@ -30,15 +31,6 @@ _STREAM_BYTES = 128 * 1024 * 1024
 _STREAM_QUEUE = 256
 _MAX_MESSAGE = 64 * 1024
 _QUERY_INTERVAL = 1.1
-_TD_QUERIES = (
-    ("account", "TradingAccount"),
-    ("positions", "InvestorPosition"),
-    ("orders", "Order"),
-    ("trades", "Trade"),
-    ("instrument", "Instrument"),
-    ("margin", "InstrumentMarginRate"),
-    ("commission", "InstrumentCommissionRate"),
-)
 
 
 def _copy_fields(callback: str, native: object | None) -> dict[str, object] | None:
@@ -274,7 +266,7 @@ def _native_class(base: Any, receiver: _Receiver, channel: str) -> Any:
             "Authenticate",
             "OrderInsert",
             "OrderAction",
-            *("Qry" + query for _, query in _TD_QUERIES),
+            *("Qry" + query for _, query in QUERY_TYPES),
         ):
             callback = "OnRsp" + suffix
             methods[callback] = _response(receiver, channel, callback)
@@ -340,7 +332,7 @@ def _account_queries(
     structures: Any, *, broker_id: str, investor_id: str, instrument: str
 ) -> list[tuple[str, str, Any]]:
     queries = []
-    for section, suffix in _TD_QUERIES:
+    for section, suffix in QUERY_TYPES:
         fields = (
             {} if section == "instrument" else {"BrokerID": broker_id, "InvestorID": investor_id}
         )
