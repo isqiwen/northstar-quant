@@ -339,7 +339,7 @@ run()
             yield process
 
     @contextmanager
-    def api(self, role: str = "live-api") -> Iterator[str]:
+    def api(self, role: str = "live-api", *, authenticate: bool = True) -> Iterator[str]:
         environment = dict(self.environment)
         if role == "research-api":
             environment["NORTHSTAR_DATABASE_OWNER"] = "research"
@@ -360,11 +360,12 @@ run()
                     "live-api": "live",
                 }[role]
             )
-            state = json.loads(self.request(base_url + "/api/browser-session"))
-            endpoint = "/api/setup" if state["setup_required"] else "/api/login"
-            self.request(
-                base_url + endpoint, {"username": "owner", "password": self.workspace_password}
-            )
+            if authenticate:
+                state = json.loads(self.request(base_url + "/api/browser-session"))
+                endpoint = "/api/setup" if state["setup_required"] else "/api/login"
+                self.request(
+                    base_url + endpoint, {"username": "owner", "password": self.workspace_password}
+                )
             log_health = json.loads(self.request(base_url + "/health/logging"))
             assert log_health["status"] == "OK", log_health
             assert (
@@ -374,14 +375,14 @@ run()
             yield base_url
 
     @contextmanager
-    def web(self, role: str = "live-api") -> Iterator[str]:
+    def web(self, role: str = "live-api", *, authenticate: bool = True) -> Iterator[str]:
         application = {
             "data-api": "data_hub",
             "research-api": "research",
             "live-api": "live",
         }[role]
         frontend = Path(__file__).resolve().parents[3] / "frontend"
-        with self.api(role) as backend:
+        with self.api(role, authenticate=authenticate) as backend:
             with socket.socket() as listener:
                 listener.bind(("127.0.0.1", 0))
                 port = listener.getsockname()[1]

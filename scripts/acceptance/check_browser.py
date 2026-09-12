@@ -24,6 +24,7 @@ from support.market import seed_market
 from support.processes import InstalledApplication
 from support.session_schedule_browser import check_session_schedule
 from support.studies import seed_learning
+from support.workspace_browser import check_workspace
 
 from northstar_quant.web.protobuf import decode, methods, pack
 
@@ -33,6 +34,9 @@ def main() -> None:
     parser.add_argument("--executable", type=Path, required=True)
     parser.add_argument("--study", type=Path, required=True)
     parser.add_argument("--screenshot", type=Path, required=True)
+    parser.add_argument(
+        "--workspace-only", action="store_true", help="只验收首次注册、登录和重启身份"
+    )
     args = parser.parse_args()
     parsed = urlsplit(os.environ.get("NORTHSTAR_TEST_DATABASE_URL", ""))
     if (
@@ -147,6 +151,14 @@ def main() -> None:
                 )
 
             try:
+                check_workspace(app, browser)
+                if args.workspace_only:
+                    print(
+                        "Three workspace registration/login/restart checks passed; "
+                        "broker_connected=false",
+                        flush=True,
+                    )
+                    return
                 imported = app.seed_source(
                     {
                         "content_base64": base64.b64encode(
